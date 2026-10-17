@@ -358,7 +358,7 @@ async function run(mode) {
         bat: { type: 'monster', name: 'SHADOW BAT', cost: 2, atk: 3, hp: 2, elem: 'dark', model: 'bat', speed: 13, desc: 'SHADOW BAT: a lightning-fast flyer that hits hard but is fragile.' },
         treant: { type: 'monster', name: 'VINE TREANT', cost: 3, atk: 2, hp: 7, elem: 'grass', model: 'treant', speed: 4.6, desc: 'VINE TREANT: a sturdy tree guardian with lots of HP.' },
         turtle: { type: 'monster', name: 'MAGMA TURTLE', cost: 3, atk: 3, hp: 6, elem: 'fire', model: 'turtle', speed: 4.8, desc: 'MAGMA TURTLE: a slow, armoured lava tank.' },
-        priest: { type: 'monster', name: 'MOON PRIEST', cost: 3, atk: 1, hp: 5, elem: 'light', model: 'priest', speed: 5.5, desc: 'MOON PRIEST: at the start of each round it mends your most wounded monster (+1 HP, +2 from Lv3).' },
+        priest: { type: 'monster', name: 'MOON PRIEST', cost: 3, atk: 1, hp: 5, elem: 'light', model: 'priest', speed: 5.5, ranged: true, desc: 'MOON PRIEST: fires holy bolts from afar and mends your most wounded monster each round (+1 HP, +2 from Lv3).' },
         creeper: { type: 'monster', name: 'BOMB CREEPER', cost: 2, atk: 4, hp: 2, elem: 'creep', model: 'creeper', speed: 8, desc: 'BOMB CREEPER: explodes after its strike, hurting every other enemy monster for 2.' },
         ironguard: { type: 'buff', name: 'IRON GUARD', cost: 1, target: 'ownMon', elem: 'earth', desc: 'IRON GUARD: bonus HP and a grey iron aura.' },
         swiftwind: { type: 'buff', name: 'SWIFT WIND', cost: 1, target: 'ownMon', elem: 'wind', desc: 'SWIFT WIND: bonus ATK, faster legs and a cyan wind aura.' },
@@ -412,7 +412,7 @@ async function run(mode) {
             case 'spiketrap': return `SPIKE TRAP: set face-down. ${g('n') > 1 ? 'The first ' + g('n') + ' attackers take ' : 'The first attacker takes '}${g('dmg')} damage. Tap again to set.`;
         }
         const st = monStats(c, lv);
-        return `${c.desc.replace(/^[A-Z ]+: /, '')} (${st.atk} ATK / ${st.hp} HP)` + (c.l5 ? (five ? ` LV5 ${c.l5.buff}: ${c.l5.buffDesc}. ${c.l5.skill}: ${c.l5.skillDesc}.` : ` At LV5: ${c.l5.buff} + ${c.l5.skill}.`) : '');
+        return `${c.ranged ? 'RANGED' : 'MELEE'} - ${c.desc.replace(/^[A-Z ]+: /, '')} (${st.atk} ATK / ${st.hp} HP)` + (c.l5 ? (five ? ` LV5 ${c.l5.buff}: ${c.l5.buffDesc}. ${c.l5.skill}: ${c.l5.skillDesc}.` : ` At LV5: ${c.l5.buff} + ${c.l5.skill}.`) : '');
     }
     const DECK = [
         'slime', 'slime', 'slime', 'golem', 'golem', 'wolf', 'wolf', 'wolf', 'archer', 'archer', 'drake', 'drake',
@@ -709,7 +709,9 @@ async function run(mode) {
         e: { skin: 0xd9a77c, hair: 0x15110f, shirt: 0xd8404f, pants: 0x3a1f2a, belt: 0x9a7a3a, hat: 0x2a1530 }
     };
 
-    /* ---- monster models (all face +Z) ---- */
+    /* ---- monster models (all face +Z). Each exposes pose(kind, k) for its attack animation:
+       'windup' / 'strike' (melee), 'aim' / 'fire' (ranged), 'reset'. ---- */
+    const piv = (parent, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
     const MODELS = {
         slime() {
             const g = new THREE.Group();
@@ -717,32 +719,48 @@ async function run(mode) {
             addBox(g, 1.6, 0.25, 1.6, 0, 1.78, 0, 0x8cf08f);
             addBox(g, 0.35, 0.5, 0.1, -0.5, 1.15, 1.12, 0x10131f); addBox(g, 0.35, 0.5, 0.1, 0.5, 1.15, 1.12, 0x10131f);
             addBox(g, 0.9, 0.15, 0.1, 0, 0.55, 1.12, 0x10131f);
-            return { group: g, size: { w: 2.4, h: 2, d: 2.4 }, idle: (t) => { const s = Math.sin(t * 4) * 0.5 + 0.5; g.scale.set(1 + s * 0.06, 1 - s * 0.1, 1 + s * 0.06); } };
+            return { group: g, size: { w: 2.4, h: 2, d: 2.4 }, idle: (t) => { const s = Math.sin(t * 4) * 0.5 + 0.5; g.scale.set(1 + s * 0.06, 1 - s * 0.1, 1 + s * 0.06); },
+                pose: (kind, k) => {
+                    if (kind === 'windup') g.scale.set(1 + 0.28 * k, 1 - 0.45 * k, 1 + 0.28 * k);        // squash down
+                    else if (kind === 'strike') g.scale.set(1.28 - 0.38 * k, 0.55 + 0.85 * k, 1.28 - 0.38 * k);   // spring out
+                    else g.scale.set(1, 1, 1);
+                } };
         },
         golem() {
             const g = new THREE.Group();
             addBox(g, 0.9, 1.3, 0.9, -0.7, 0.65, 0, 0x7b7f8a); addBox(g, 0.9, 1.3, 0.9, 0.7, 0.65, 0, 0x7b7f8a);
             addBox(g, 2.6, 1.9, 1.5, 0, 2.25, 0, 0x969ba8);
             addBox(g, 1.4, 0.5, 0.1, 0, 2.5, 0.78, 0x5f8f4a);
-            addBox(g, 0.9, 2.2, 0.9, -1.75, 2.1, 0, 0x858a97); addBox(g, 0.9, 2.2, 0.9, 1.75, 2.1, 0, 0x858a97);
-            addBox(g, 1.1, 0.9, 1.1, -1.75, 0.85, 0, 0x6e727d); addBox(g, 1.1, 0.9, 1.1, 1.75, 0.85, 0, 0x6e727d);
-            addBox(g, 1.2, 1.1, 1.2, 0, 3.6, 0.1, 0x9aa0ad);
-            addBox(g, 0.25, 0.18, 0.1, -0.3, 3.65, 0.72, 0xffb02e); addBox(g, 0.25, 0.18, 0.1, 0.3, 3.65, 0.72, 0xffb02e);
-            addBox(g, 1.1, 0.35, 1.1, -1.75, 3.3, 0, 0x5f8f4a); addBox(g, 1.1, 0.35, 1.1, 1.75, 3.3, 0, 0x5f8f4a);
-            return { group: g, size: { w: 3.6, h: 4.2, d: 1.9 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.6)) * 0.12; } };
+            const arms = [piv(g, -1.75, 3.2, 0), piv(g, 1.75, 3.2, 0)];
+            arms.forEach((a) => { addBox(a, 0.9, 2.2, 0.9, 0, -1.1, 0, 0x858a97); addBox(a, 1.1, 0.9, 1.1, 0, -2.35, 0, 0x6e727d); addBox(a, 1.1, 0.35, 1.1, 0, 0.1, 0, 0x5f8f4a); });
+            const head = piv(g, 0, 3.6, 0.1);
+            addBox(head, 1.2, 1.1, 1.2, 0, 0, 0, 0x9aa0ad); addBox(head, 0.25, 0.18, 0.1, -0.3, 0.05, 0.62, 0xffb02e); addBox(head, 0.25, 0.18, 0.1, 0.3, 0.05, 0.62, 0xffb02e);
+            const setArms = (x) => arms.forEach((a) => { a.rotation.x = x; });
+            return { group: g, size: { w: 3.6, h: 4.2, d: 1.9 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.6)) * 0.12; },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { setArms(-2.5 * k); g.rotation.x = -0.18 * k; head.rotation.x = -0.2 * k; }          // both fists overhead
+                    else if (kind === 'strike') { setArms(-2.5 + 2.3 * k); g.rotation.x = -0.18 + 0.4 * k; head.rotation.x = 0.15 * k; }   // slam down
+                    else { setArms(0); g.rotation.x = 0; head.rotation.x = 0; }
+                } };
         },
         wolf() {
             const g = new THREE.Group();
             addBox(g, 1.2, 1.1, 2.4, 0, 1.5, -0.2, 0xe8532a);
             addBox(g, 0.5, 0.15, 2.0, 0, 2.1, -0.2, 0xffa13a);
-            addBox(g, 1.2, 1.0, 1.1, 0, 1.9, 1.3, 0xf06a35);
-            addBox(g, 0.6, 0.45, 0.6, 0, 1.7, 2.0, 0xffd2a0); addBox(g, 0.25, 0.2, 0.1, 0, 1.85, 2.32, 0x15110f);
-            addBox(g, 0.18, 0.18, 0.1, -0.38, 2.15, 1.86, 0x15110f); addBox(g, 0.18, 0.18, 0.1, 0.38, 2.15, 1.86, 0x15110f);
-            addBox(g, 0.3, 0.45, 0.2, -0.4, 2.6, 1.1, 0xc83e1a); addBox(g, 0.3, 0.45, 0.2, 0.4, 2.6, 1.1, 0xc83e1a);
             for (const x of [-0.45, 0.45]) for (const z of [0.7, -1.1]) addBox(g, 0.4, 1.0, 0.4, x, 0.5, z, 0xc83e1a);
-            const tail = new THREE.Group(); tail.position.set(0, 1.9, -1.4); g.add(tail);
+            const hd = piv(g, 0, 1.9, 1.1);
+            addBox(hd, 1.2, 1.0, 1.1, 0, 0, 0.2, 0xf06a35);
+            addBox(hd, 0.6, 0.45, 0.6, 0, -0.2, 0.9, 0xffd2a0); addBox(hd, 0.25, 0.2, 0.1, 0, -0.05, 1.22, 0x15110f);
+            addBox(hd, 0.18, 0.18, 0.1, -0.38, 0.25, 0.76, 0x15110f); addBox(hd, 0.18, 0.18, 0.1, 0.38, 0.25, 0.76, 0x15110f);
+            addBox(hd, 0.3, 0.45, 0.2, -0.4, 0.7, 0, 0xc83e1a); addBox(hd, 0.3, 0.45, 0.2, 0.4, 0.7, 0, 0xc83e1a);
+            const tail = piv(g, 0, 1.9, -1.4);
             addBox(tail, 0.4, 0.4, 0.8, 0, 0, -0.4, 0xff8a2b); addBox(tail, 0.3, 0.3, 0.5, 0, 0.4, -0.9, 0xffd23a);
-            return { group: g, size: { w: 1.9, h: 2.8, d: 3.5 }, idle: (t) => { tail.rotation.y = Math.sin(t * 7) * 0.5; g.position.y = Math.abs(Math.sin(t * 3)) * 0.08; } };
+            return { group: g, size: { w: 1.9, h: 2.8, d: 3.5 }, idle: (t) => { tail.rotation.y = Math.sin(t * 7) * 0.5; g.position.y = Math.abs(Math.sin(t * 3)) * 0.08; },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { g.rotation.x = 0.22 * k; hd.rotation.x = 0.3 * k; tail.rotation.x = -0.4 * k; }          // crouch
+                    else if (kind === 'strike') { g.rotation.x = 0.22 - 0.62 * k; hd.rotation.x = 0.3 - 0.7 * k; tail.rotation.x = -0.4 - 0.4 * k; }   // pounce
+                    else { g.rotation.x = 0; hd.rotation.x = 0; tail.rotation.x = 0; }
+                } };
         },
         bat() {
             const g = new THREE.Group();
@@ -750,10 +768,15 @@ async function run(mode) {
             addBox(g, 0.3, 0.5, 0.2, -0.35, 2.8, 0.85, 0x2a1c45); addBox(g, 0.3, 0.5, 0.2, 0.35, 2.8, 0.85, 0x2a1c45);
             addBox(g, 0.2, 0.2, 0.1, -0.28, 2.3, 1.37, 0xff3b3b); addBox(g, 0.2, 0.2, 0.1, 0.28, 2.3, 1.37, 0xff3b3b);
             addBox(g, 0.12, 0.26, 0.1, -0.2, 1.85, 1.37, 0xffffff); addBox(g, 0.12, 0.26, 0.1, 0.2, 1.85, 1.37, 0xffffff);
-            const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(-0.6, 2.3, 0); wr.position.set(0.6, 2.3, 0); g.add(wl, wr);
+            const wl = piv(g, -0.6, 2.3, 0), wr = piv(g, 0.6, 2.3, 0);
             addBox(wl, 2.0, 0.12, 1.5, -1.0, 0, 0, 0x5a3f8a); addBox(wl, 1.2, 0.12, 1.0, -2.2, 0, 0.1, 0x4a3570);
             addBox(wr, 2.0, 0.12, 1.5, 1.0, 0, 0, 0x5a3f8a); addBox(wr, 1.2, 0.12, 1.0, 2.2, 0, 0.1, 0x4a3570);
-            return { group: g, size: { w: 3.2, h: 3.2, d: 2.4 }, idle: (t) => { const f = Math.sin(t * 13) * 0.7; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.7 + Math.sin(t * 3) * 0.2; } };
+            return { group: g, size: { w: 3.2, h: 3.2, d: 2.4 }, idle: (t) => { const f = Math.sin(t * 13) * 0.7; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.7 + Math.sin(t * 3) * 0.2; },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { wl.rotation.z = -0.9 * k + Math.sin(k * 30) * 0.2; wr.rotation.z = 0.9 * k - Math.sin(k * 30) * 0.2; g.rotation.x = -0.2 * k; g.position.y = 0.7; }   // soar up
+                    else if (kind === 'strike') { wl.rotation.z = -0.9 - 0.5 * k; wr.rotation.z = 0.9 + 0.5 * k; g.rotation.x = -0.2 + 1.1 * k; g.position.y = 0.7; }   // wings folded, dive
+                    else { wl.rotation.z = 0; wr.rotation.z = 0; g.rotation.x = 0; }
+                } };
         },
         treant() {
             const g = new THREE.Group();
@@ -762,9 +785,14 @@ async function run(mode) {
             addBox(g, 0.24, 0.24, 0.1, -0.38, 2.5, 0.72, 0xbaff6a); addBox(g, 0.24, 0.24, 0.1, 0.38, 2.5, 0.72, 0xbaff6a); addBox(g, 0.6, 0.12, 0.1, 0, 1.95, 0.72, 0x2a1a0c);
             addBox(g, 2.8, 1.4, 2.5, 0, 3.9, 0, 0x3f9a3a); addBox(g, 1.9, 1.0, 1.8, 0, 4.9, 0, 0x57c04a);
             addBox(g, 1.0, 1.0, 1.0, -1.5, 3.4, 0, 0x3f9a3a); addBox(g, 1.0, 1.0, 1.0, 1.5, 3.4, 0, 0x3f9a3a);
-            addBox(g, 0.5, 0.5, 1.4, -1.15, 2.4, 0.5, 0x6b4423); addBox(g, 0.5, 0.5, 1.4, 1.15, 2.4, 0.5, 0x6b4423);
-            addBox(g, 0.7, 0.7, 0.7, -1.15, 2.4, 1.3, 0x57c04a); addBox(g, 0.7, 0.7, 0.7, 1.15, 2.4, 1.3, 0x57c04a);
-            return { group: g, size: { w: 3.4, h: 5.4, d: 2.6 }, idle: (t) => { g.rotation.z = Math.sin(t * 1.4) * 0.04; } };
+            const aL = piv(g, -1.15, 2.4, 0.3), aR = piv(g, 1.15, 2.4, 0.3);
+            [aL, aR].forEach((a) => { addBox(a, 0.5, 0.5, 1.4, 0, 0, 0.6, 0x6b4423); addBox(a, 0.7, 0.7, 0.7, 0, 0, 1.4, 0x57c04a); });
+            return { group: g, size: { w: 3.4, h: 5.4, d: 2.6 }, idle: (t) => { g.rotation.z = Math.sin(t * 1.4) * 0.04; },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { aR.rotation.y = 1.3 * k; aR.rotation.x = -0.6 * k; aL.rotation.y = -0.5 * k; g.rotation.y = 0.2 * k; }      // branch swung wide
+                    else if (kind === 'strike') { aR.rotation.y = 1.3 - 2.3 * k; aR.rotation.x = -0.6 + 0.6 * k; g.rotation.y = 0.2 - 0.5 * k; }   // sweeping lash
+                    else { aR.rotation.set(0, 0, 0); aL.rotation.set(0, 0, 0); g.rotation.y = 0; }
+                } };
         },
         turtle() {
             const g = new THREE.Group();
@@ -772,20 +800,33 @@ async function run(mode) {
             addBox(g, 2.6, 1.2, 2.8, 0, 1.9, -0.1, 0x3a2f33);
             addBox(g, 2.0, 0.1, 0.25, 0, 2.55, 0.4, 0xff7a1a); addBox(g, 0.25, 0.1, 2.2, 0, 2.56, -0.1, 0xff9a2a); addBox(g, 1.2, 0.1, 0.25, 0.3, 2.57, -0.8, 0xff7a1a);
             for (const [x, z] of [[-0.8, -0.5], [0.8, -0.5], [0, -1.0]]) addBox(g, 0.4, 0.6, 0.4, x, 2.8, z, 0x2a2226);
-            addBox(g, 1.0, 0.9, 1.1, 0, 1.3, 1.7, 0x4a7a40); addBox(g, 0.18, 0.18, 0.1, -0.28, 1.5, 2.27, 0xffb02e); addBox(g, 0.18, 0.18, 0.1, 0.28, 1.5, 2.27, 0xffb02e);
+            const hd = piv(g, 0, 1.3, 1.5);
+            addBox(hd, 1.0, 0.9, 1.1, 0, 0, 0.2, 0x4a7a40); addBox(hd, 0.18, 0.18, 0.1, -0.28, 0.2, 0.77, 0xffb02e); addBox(hd, 0.18, 0.18, 0.1, 0.28, 0.2, 0.77, 0xffb02e);
             for (const x of [-1.0, 1.0]) for (const z of [-0.9, 0.9]) addBox(g, 0.7, 0.7, 0.7, x, 0.35, z, 0x3a5a33);
-            return { group: g, size: { w: 3.4, h: 3.3, d: 3.6 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.8)) * 0.1; } };
+            return { group: g, size: { w: 3.4, h: 3.3, d: 3.6 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.8)) * 0.1; },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { hd.position.z = 1.5 - 1.0 * k; hd.scale.setScalar(1 - 0.7 * k); }                 // head tucks into the shell
+                    else if (kind === 'strike') { g.rotation.y = k * Math.PI * 2; }                                          // shell spin ram
+                    else { hd.position.z = 1.5; hd.scale.setScalar(1); g.rotation.y = 0; }
+                } };
         },
         priest() {
             const g = new THREE.Group();
             addBox(g, 1.6, 2.2, 1.1, 0, 1.3, 0, 0xf4f1ff); addBox(g, 1.64, 0.2, 1.14, 0, 0.3, 0, 0xffd75a); addBox(g, 0.4, 2.0, 1.14, 0, 1.4, 0, 0x6a8cff);
             addBox(g, 0.95, 0.95, 0.95, 0, 3.0, 0, 0xf2cfa6); addBox(g, 1.05, 0.4, 1.05, 0, 3.55, -0.02, 0xe8e6ff);
             addBox(g, 0.16, 0.2, 0.1, -0.22, 3.05, 0.49, 0x10131f); addBox(g, 0.16, 0.2, 0.1, 0.22, 3.05, 0.49, 0x10131f);
-            addBox(g, 0.4, 1.4, 0.4, -1.0, 1.7, 0, 0xf4f1ff); addBox(g, 0.4, 1.4, 0.4, 1.0, 1.7, 0, 0xf4f1ff);
-            addBox(g, 0.15, 3.6, 0.15, 1.25, 1.9, 0.5, 0xa0693a); addBox(g, 0.5, 0.5, 0.5, 1.25, 3.9, 0.5, 0x9fd0ff);
-            const hl = new THREE.Group(); hl.position.y = 4.3; g.add(hl);
+            addBox(g, 0.4, 1.4, 0.4, -1.0, 1.7, 0, 0xf4f1ff);
+            const ar = piv(g, 1.0, 2.4, 0);
+            addBox(ar, 0.4, 1.4, 0.4, 0, -0.7, 0, 0xf4f1ff); addBox(ar, 0.15, 3.6, 0.15, 0.25, -0.5, 0.5, 0xa0693a);
+            const orb = addBox(ar, 0.5, 0.5, 0.5, 0.25, 1.5, 0.5, 0x9fd0ff);
+            const hl = piv(g, 0, 4.3, 0);
             addBox(hl, 1.4, 0.12, 0.2, 0, 0, 0.6, 0xfff2a0); addBox(hl, 1.4, 0.12, 0.2, 0, 0, -0.6, 0xfff2a0); addBox(hl, 0.2, 0.12, 1.0, 0.6, 0, 0, 0xfff2a0); addBox(hl, 0.2, 0.12, 1.0, -0.6, 0, 0, 0xfff2a0);
-            return { group: g, size: { w: 2.6, h: 4.8, d: 1.8 }, idle: (t) => { g.position.y = 0.3 + Math.sin(t * 2) * 0.25; hl.rotation.y = t * 1.5; } };
+            return { group: g, size: { w: 2.6, h: 4.8, d: 1.8 }, idle: (t) => { g.position.y = 0.3 + Math.sin(t * 2) * 0.25; hl.rotation.y = t * 1.5; },
+                pose: (kind, k) => {
+                    if (kind === 'aim') { ar.rotation.x = -1.1 * k; orb.scale.setScalar(1 + 0.9 * k); hl.rotation.y += 0.25; g.position.y = 0.3 + 0.3 * k; }   // staff raised, orb charging
+                    else if (kind === 'fire') { ar.rotation.x = -1.1 + 0.6 * k; orb.scale.setScalar(1.9 - 0.9 * k); }
+                    else { ar.rotation.x = 0; orb.scale.setScalar(1); }
+                } };
         },
         creeper() {
             const g = new THREE.Group();
@@ -794,7 +835,12 @@ async function run(mode) {
             addBox(g, 0.4, 0.4, 0.1, -0.4, 3.9, 0.82, 0x10131f); addBox(g, 0.4, 0.4, 0.1, 0.4, 3.9, 0.82, 0x10131f); addBox(g, 0.4, 0.5, 0.1, 0, 3.4, 0.82, 0x10131f);
             addBox(g, 0.2, 0.3, 0.1, -0.3, 3.1, 0.82, 0x10131f); addBox(g, 0.2, 0.3, 0.1, 0.3, 3.1, 0.82, 0x10131f);
             addBox(g, 0.12, 0.5, 0.12, 0, 4.75, 0, 0x6a4a2a); addBox(g, 0.25, 0.25, 0.25, 0, 5.1, 0, 0xffd23a);
-            return { group: g, size: { w: 2.0, h: 5.2, d: 2.0 }, idle: (t) => { const s = Math.sin(t * 9) * 0.5 + 0.5; g.scale.set(1 + s * 0.05, 1 - s * 0.03, 1 + s * 0.05); } };
+            return { group: g, size: { w: 2.0, h: 5.2, d: 2.0 }, idle: (t) => { const s = Math.sin(t * 9) * 0.5 + 0.5; g.scale.set(1 + s * 0.05, 1 - s * 0.03, 1 + s * 0.05); },
+                pose: (kind, k) => {
+                    if (kind === 'windup') g.scale.set(1 + 0.55 * k + Math.sin(k * 40) * 0.05, 1 + 0.3 * k, 1 + 0.55 * k + Math.sin(k * 40) * 0.05);    // swells up
+                    else if (kind === 'strike') g.scale.set(1.55, 1.3, 1.55);
+                    else g.scale.set(1, 1, 1);
+                } };
         },
         archer() {
             const g = new THREE.Group();
@@ -802,26 +848,43 @@ async function run(mode) {
             addBox(g, 1.3, 1.5, 0.7, 0, 2.05, 0, 0x5aa9e6); addBox(g, 1.34, 0.2, 0.74, 0, 1.45, 0, 0x2a2f45);
             addBox(g, 0.95, 0.95, 0.95, 0, 3.25, 0, 0xf2cfa6); addBox(g, 1.05, 0.5, 1.05, 0, 3.7, -0.02, 0x2f6fb5);
             addBox(g, 0.16, 0.2, 0.1, -0.22, 3.3, 0.49, 0x10131f); addBox(g, 0.16, 0.2, 0.1, 0.22, 3.3, 0.49, 0x10131f);
-            addBox(g, 0.4, 0.4, 1.3, -0.9, 2.5, 0.5, 0x5aa9e6); addBox(g, 0.4, 0.4, 0.9, 0.7, 2.5, 0.3, 0x5aa9e6);
-            addBox(g, 0.14, 1.9, 0.14, -0.9, 2.5, 1.2, 0xa0693a); addBox(g, 0.14, 0.4, 0.14, -0.9, 3.5, 1.05, 0xa0693a); addBox(g, 0.14, 0.4, 0.14, -0.9, 1.5, 1.05, 0xa0693a);
-            addBox(g, 0.04, 1.9, 0.04, -0.9, 2.5, 0.92, 0xe9f3ff);
             addBox(g, 0.5, 0.6, 0.5, -0.85, 2.95, 0, 0xbfeaff); addBox(g, 0.5, 0.6, 0.5, 0.85, 2.95, 0, 0xbfeaff);
-            return { group: g, size: { w: 2.3, h: 4.1, d: 2.2 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 2.2)) * 0.1; } };
+            const al = piv(g, -0.9, 2.5, 0.5), ar = piv(g, 0.7, 2.5, 0.3);
+            addBox(al, 0.4, 0.4, 1.3, 0, 0, 0, 0x5aa9e6);
+            addBox(al, 0.14, 1.9, 0.14, 0, 0, 0.7, 0xa0693a); addBox(al, 0.14, 0.4, 0.14, 0, 1.0, 0.55, 0xa0693a); addBox(al, 0.14, 0.4, 0.14, 0, -1.0, 0.55, 0xa0693a);
+            const str = addBox(al, 0.04, 1.9, 0.04, 0, 0, 0.42, 0xe9f3ff);
+            addBox(ar, 0.4, 0.4, 0.9, 0, 0, 0, 0x5aa9e6);
+            return { group: g, size: { w: 2.3, h: 4.1, d: 2.2 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 2.2)) * 0.1; },
+                pose: (kind, k) => {
+                    if (kind === 'aim') { g.rotation.y = -0.5 * k; ar.position.z = 0.3 - 0.5 * k; str.position.z = 0.42 - 0.55 * k; al.rotation.x = -0.12 * k; }   // side-on stance, string drawn back
+                    else if (kind === 'fire') { ar.position.z = -0.2 + 0.5 * k; str.position.z = -0.13 + 0.55 * k; g.rotation.y = -0.5 + 0.1 * k; }   // release
+                    else { g.rotation.y = 0; ar.position.z = 0.3; str.position.z = 0.42; al.rotation.x = 0; }
+                } };
         },
         drake() {
             const g = new THREE.Group();
             addBox(g, 1.5, 1.3, 2.6, 0, 2.0, 0, 0xf2c230); addBox(g, 1.0, 0.3, 2.2, 0, 1.4, 0, 0xfff0b0);
-            addBox(g, 0.8, 0.9, 0.8, 0, 2.9, 1.2, 0xf2c230);
-            addBox(g, 1.1, 0.9, 1.3, 0, 3.5, 1.6, 0xffd75a); addBox(g, 0.7, 0.5, 0.6, 0, 3.35, 2.4, 0xffe28a);
-            addBox(g, 0.18, 0.18, 0.1, -0.4, 3.7, 2.27, 0x15110f); addBox(g, 0.18, 0.18, 0.1, 0.4, 3.7, 2.27, 0x15110f);
-            addBox(g, 0.2, 0.5, 0.2, -0.35, 4.1, 1.3, 0x8a5a1a); addBox(g, 0.2, 0.5, 0.2, 0.35, 4.1, 1.3, 0x8a5a1a);
+            const hd = piv(g, 0, 2.9, 1.2);
+            addBox(hd, 0.8, 0.9, 0.8, 0, 0, 0, 0xf2c230);
+            addBox(hd, 1.1, 0.9, 1.3, 0, 0.6, 0.4, 0xffd75a); addBox(hd, 0.7, 0.5, 0.6, 0, 0.45, 1.2, 0xffe28a);
+            addBox(hd, 0.18, 0.18, 0.1, -0.4, 0.8, 1.07, 0x15110f); addBox(hd, 0.18, 0.18, 0.1, 0.4, 0.8, 1.07, 0x15110f);
+            addBox(hd, 0.2, 0.5, 0.2, -0.35, 1.2, 0.1, 0x8a5a1a); addBox(hd, 0.2, 0.5, 0.2, 0.35, 1.2, 0.1, 0x8a5a1a);
             for (const x of [-0.5, 0.5]) for (const z of [0.7, -0.8]) addBox(g, 0.5, 1.0, 0.6, x, 0.5, z, 0xc9992a);
             addBox(g, 0.8, 0.7, 1.2, 0, 1.9, -1.9, 0xf2c230); addBox(g, 0.5, 0.5, 1.0, 0, 1.8, -2.9, 0xe0ae25); addBox(g, 0.35, 0.35, 0.6, 0, 1.8, -3.6, 0x8cf0ff);
-            const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(-0.8, 2.7, 0); wr.position.set(0.8, 2.7, 0); g.add(wl, wr);
+            const wl = piv(g, -0.8, 2.7, 0), wr = piv(g, 0.8, 2.7, 0);
             addBox(wl, 2.6, 0.12, 2.0, -1.3, 0, -0.1, 0x49a8ff); addBox(wr, 2.6, 0.12, 2.0, 1.3, 0, -0.1, 0x49a8ff);
-            return { group: g, size: { w: 3.2, h: 4.4, d: 5 }, idle: (t) => { const f = Math.sin(t * 5) * 0.45; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.2 + Math.sin(t * 2.5) * 0.15; } };
+            return { group: g, size: { w: 3.2, h: 4.4, d: 5 }, idle: (t) => { const f = Math.sin(t * 5) * 0.45; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.2 + Math.sin(t * 2.5) * 0.15; },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { hd.rotation.x = -0.7 * k; wl.rotation.z = -0.8 * k; wr.rotation.z = 0.8 * k; g.rotation.x = -0.12 * k; g.position.y = 0.2; }   // rears up, wings spread
+                    else if (kind === 'strike') { hd.rotation.x = -0.7 + 1.5 * k; g.rotation.x = -0.12 + 0.3 * k; }                       // head snaps down
+                    else { hd.rotation.x = 0; g.rotation.x = 0; }
+                } };
         }
     };
+    Object.keys(MODELS).forEach((k) => {                      // every model gets a safe default pose()
+        const make = MODELS[k];
+        MODELS[k] = () => { const m = make(); if (!m.pose) m.pose = () => {}; return m; };
+    });
 
     /* ============================ TWEEN / TIME ============================ */
     const tweens = [];
@@ -1506,6 +1569,41 @@ async function run(mode) {
             return false;
         });
     }
+    /* ---- ATTACK STYLES. MELEE monsters charge in and hit with a body animation; RANGED monsters stop
+       far away, take aim (a thin aim line) and fire a projectile. Effects are kept thin and light. ---- */
+    const MELEE = {
+        default: { wind: 0.18, back: 0.6, lunge: 0.12, dist: 1.5, hop: 0.6 },
+        slime: { wind: 0.26, back: 0.1, lunge: 0.16, dist: 1.7, hop: 1.5, fx: 'splat' },
+        golem: { wind: 0.42, back: 0, lunge: 0.12, dist: 0.5, hop: 0, fx: 'slam' },
+        wolf: { wind: 0.16, back: 0.6, lunge: 0.13, dist: 2.1, hop: 1.6, fx: 'claw', trail: 0xff8a2b },
+        drake: { wind: 0.32, back: 0.5, lunge: 0.14, dist: 1.8, hop: 0.5, fx: 'bite', trail: 0xffe14d },
+        bat: { wind: 0.26, back: 0, rise: 2.6, lunge: 0.17, dist: 1.5, hop: 0, fx: 'rake', trail: 0xb07dff },
+        treant: { wind: 0.36, back: 0, lunge: 0.2, dist: 0.9, hop: 0, fx: 'sweep', trail: 0x7dff8a },
+        turtle: { wind: 0.3, back: 0.9, lunge: 0.22, dist: 2.0, hop: 0.1, fx: 'ram', trail: 0xff7a1a },
+        creeper: { wind: 0.42, back: 0, lunge: 0.12, dist: 1.2, hop: 0.2, fx: 'none' }
+    };
+    const RANGED = {
+        archer: { aim: 0.4, fly: 0.34, proj: 'arrow', color: 0x9fe4ff },
+        priest: { aim: 0.5, fly: 0.42, proj: 'orb', color: 0xfff2b0 }
+    };
+    // a thin additive streak (slash mark / spark line) that fades quickly
+    function streak(x, y, z, yaw, tilt, color, len, life) {
+        const mat = glowMat(color, 0.85), mesh = new THREE.Mesh(boxGeo(1, 0.07, 0.07), mat);
+        mesh.position.set(x, y, z); mesh.rotation.set(0, yaw, tilt); mesh.scale.x = len * 0.5; scene.add(mesh);
+        tween(life, (k) => { mat.opacity = 0.85 * (1 - k); mesh.scale.x = len * (0.5 + 0.6 * k); }, linear).then(() => { scene.remove(mesh); mat.dispose(); });
+    }
+    function meleeFx(kind, m, ax, az, dir) {
+        const yaw = Math.atan2(-dir.z, dir.x), h = 2.0, g = ELEM[m.def.elem].glow;
+        switch (kind) {
+            case 'splat': emit(ax, 0.9, az, 0x7dff8a, 6, 2.2, 3, 0.2, 0.45); break;
+            case 'slam': shockRing(ax, az, 0xd9c9a0, false); emit(ax, 0.4, az, 0xbfb49a, 8, 3, 3, 0.28, 0.55); S.shake = Math.max(S.shake, 0.4); break;
+            case 'claw': streak(ax, h, az, yaw + Math.PI / 2, 0.7, 0xff8a2b, 2.4, 0.22); streak(ax, h - 0.35, az, yaw + Math.PI / 2, 0.7, 0xffd23a, 2.0, 0.22); emit(ax, h, az, 0xff8a2b, 4, 2, 2, 0.18, 0.4); break;
+            case 'bite': streak(ax, h, az, yaw, 1.57, 0xffe14d, 1.6, 0.2); emit(ax, h, az, 0xffe14d, 5, 2.5, 2, 0.2, 0.4); break;
+            case 'rake': for (const o of [-0.5, 0, 0.5]) streak(ax + o * Math.cos(yaw), h - o, az - o * Math.sin(yaw), yaw + Math.PI / 2, -0.8, 0xb07dff, 1.8, 0.22); break;
+            case 'sweep': streak(ax, h, az, yaw + Math.PI / 2, 0, 0x7dff8a, 3.0, 0.26); emit(ax, h, az, 0x57c04a, 6, 2.5, 3, 0.2, 0.6, 4); break;
+            case 'ram': shockRing(ax, az, 0xff7a1a, false); emit(ax, 0.8, az, 0xff7a1a, 7, 3, 3, 0.22, 0.5); break;
+        }
+    }
     // level-5 skills that trigger when a melee strike lands
     async function creeperBlast(m, tgt) {
         const p = m.holder.position, splash = m.lv >= LV_MAX ? 4 : 2;
@@ -1535,13 +1633,27 @@ async function run(mode) {
         }
     }
     async function strike(m, tgt, tok) {
-        const foeSide = other(m.side), p0 = m.holder.position.clone();
-        const aim = tgt ? tgt.holder.position : S[foeSide].avatar.group.position;
-        const dir = new THREE.Vector3(aim.x - p0.x, 0, aim.z - p0.z).normalize();
-        await tween(0.18, (k) => { m.holder.position.copy(p0).addScaledVector(dir, -0.6 * k); }, easeOut);
-        const p1 = m.holder.position.clone();
-        await tween(0.12, (k) => { m.holder.position.copy(p1).addScaledVector(dir, 1.5 * k); m.holder.position.y = 0.2 + Math.sin(k * Math.PI) * 0.6; }, easeIn);
-        if (!alive(tok) || m.dead) return;
+        const foeSide = other(m.side), p0 = m.holder.position.clone(), st = MELEE[m.def.key] || MELEE.default;
+        const aimPos = tgt ? tgt.holder.position : S[foeSide].avatar.group.position;
+        const dir = new THREE.Vector3(aimPos.x - p0.x, 0, aimPos.z - p0.z).normalize();
+        m.posing = true;
+        try {
+            // 1. wind-up: each monster telegraphs its attack with its own pose
+            await tween(st.wind, (k) => {
+                m.holder.position.copy(p0).addScaledVector(dir, -st.back * k); m.holder.position.y = 0.2 + (st.rise || 0) * k;
+                m.model.pose('windup', k);
+                if (m.def.key === 'creeper' && Math.random() < 0.3) flashMon(m);
+            }, easeOut);
+            // 2. lunge / dive / pounce / slam
+            const p1 = m.holder.position.clone();
+            await tween(st.lunge, (k) => {
+                m.holder.position.copy(p1).addScaledVector(dir, st.dist * k);
+                m.holder.position.y = st.rise ? 0.2 + st.rise * (1 - k) : 0.2 + Math.sin(k * Math.PI) * st.hop;
+                m.model.pose('strike', k);
+                if (st.trail && Math.random() < 0.7) emit(m.holder.position.x, 1.2, m.holder.position.z, st.trail, 1, 0.4, 0.4, 0.18, 0.3, 0);
+            }, easeIn);
+            if (!alive(tok) || m.dead) return;
+            if (st.fx) meleeFx(st.fx, m, aimPos.x, aimPos.z, dir);
         if (tgt) {
             const counter = tgt.atk;
             damageMon(tgt, m.atk);
@@ -1556,17 +1668,38 @@ async function run(mode) {
         await wait(0.15);
         if (m.dead || !alive(tok)) return;
         const p2 = m.holder.position.clone();
-        await tween(0.2, (k) => { m.holder.position.copy(p2).addScaledVector(dir, -1.3 * k); m.holder.position.y = 0.2; }, easeOut);
+        await tween(0.22, (k) => { m.holder.position.copy(p2).addScaledVector(dir, -1.3 * k); m.holder.position.y = 0.2 + (1 - k) * (p2.y - 0.2); }, easeOut);
+        } finally { m.model.pose('reset', 0); m.posing = false; }
     }
     async function shoot(m, tgt, tok) {
         const foeSide = other(m.side);
         const aim = tgt ? tgt.holder.position : S[foeSide].avatar.group.position;
+        const R = RANGED[m.def.key] || RANGED.archer;
         const src = m.holder.position.clone().setY(2.8), dst = aim.clone().setY(tgt ? 2.4 : 3.2);
         m.holder.rotation.y = Math.atan2(dst.x - src.x, dst.z - src.z);
-        const arrow = new THREE.Mesh(boxGeo(0.25, 0.25, 1.4), new THREE.MeshBasicMaterial({ color: 0xbfeaff }));
-        scene.add(arrow); arrow.lookAt(dst); sfx('card');
-        await tween(0.35, (k) => { arrow.position.lerpVectors(src, dst, k); emit(arrow.position.x, arrow.position.y, arrow.position.z, 0x7ed8ff, 1, 0.5, 0.5, 0.25, 0.4, 0); }, linear);
-        scene.remove(arrow); arrow.material.dispose();
+        m.posing = true;
+        try {
+            // 1. take aim: side-on stance / raised staff plus a thin aim line toward the target
+            const lineMat = glowMat(R.color, 0.0), line = new THREE.Mesh(boxGeo(0.05, 0.05, 1), lineMat);
+            const len = Math.max(0.5, src.distanceTo(dst));
+            line.position.copy(src).lerp(dst, 0.5); line.scale.z = len; line.lookAt(dst); scene.add(line);
+            await tween(R.aim, (k) => { m.model.pose('aim', k); lineMat.opacity = 0.35 * Math.min(1, k * 2.5); }, easeOut);
+            scene.remove(line); lineMat.dispose();
+            if (!alive(tok) || m.dead) return;
+            // 2. release: recoil pose while the projectile flies
+            tween(0.2, (k) => { m.model.pose('fire', k); }, easeOut);
+            const proj = new THREE.Group(), pm = glowMat(R.color, 0.95), pm2 = glowMat(R.color, 0.3);
+            if (R.proj === 'arrow') proj.add(new THREE.Mesh(boxGeo(0.14, 0.14, 1.6), pm));
+            else { proj.add(new THREE.Mesh(boxGeo(0.45, 0.45, 0.45), pm)); proj.add(new THREE.Mesh(boxGeo(0.9, 0.9, 0.9), pm2)); }
+            proj.position.copy(src); scene.add(proj); proj.lookAt(dst); sfx('card');
+            await tween(R.fly, (k) => {
+                proj.position.lerpVectors(src, dst, k);
+                if (R.proj === 'orb') { proj.rotation.y += 0.4; if (Math.random() < 0.5) emit(proj.position.x, proj.position.y, proj.position.z, R.color, 1, 0.5, 0.5, 0.16, 0.35, 0); }
+                else if (Math.random() < 0.5) emit(proj.position.x, proj.position.y, proj.position.z, R.color, 1, 0.3, 0.2, 0.12, 0.3, 0);
+            }, linear);
+            scene.remove(proj); pm.dispose(); pm2.dispose();
+            if (R.proj === 'orb') { shockRing(dst.x, dst.z, R.color, false); emit(dst.x, dst.y, dst.z, R.color, 6, 2.5, 3, 0.18, 0.5, -1); }
+            else emit(dst.x, dst.y, dst.z, R.color, 4, 2, 2, 0.14, 0.35);
         if (!alive(tok)) return;
         if (tgt) {
             damageMon(tgt, m.atk);
@@ -1589,6 +1722,7 @@ async function run(mode) {
             }
         } else damageFace(foeSide, m.atk + m.burn);
         await wait(0.3);
+        } finally { m.model.pose('reset', 0); m.posing = false; }
     }
     async function runUnit(m, tok) {
         if (m.atk <= 0) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '0', 'info'); await wait(0.4); return; }
@@ -1923,7 +2057,7 @@ async function run(mode) {
             const side = S[s];
             side.mons.forEach((m) => {
                 if (m.dead) return;
-                if (m.model.idle) m.model.idle(t + m.id);
+                if (m.model.idle && !m.posing) m.model.idle(t + m.id);
                 if (m.buff) { m.buff.material.opacity = 0.22 + Math.sin(t * 4 + m.id) * 0.08; m.ember -= dt; if (m.ember <= 0) { m.ember = 0.14; emit(m.holder.position.x, 0.4, m.holder.position.z, m.auraCol || ELEM.fire.glow, 1, 1.2, 4, 0.3, 0.9, -2); } }
                 if (m.debuff) { m.debuff.material.opacity = 0.14 + Math.sin(t * 3 + m.id) * 0.06; }
                 if (m.flashT > 0) { m.flashT = Math.max(0, m.flashT - dt * 4); m.flash.material.opacity = m.flashT * 0.8; }
