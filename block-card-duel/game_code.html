@@ -552,7 +552,7 @@ async function run(mode) {
     const AV_Z = { p: 12.2, e: -12.8 };
     const AV_SCALE = 0.8;
     const TRAP_POS = { p: [[-5.2, 10.2], [5.2, 10.2]], e: [[-5.2, -10.8], [5.2, -10.8]] };
-    const MAX_MONS = 3;                 // 3 vs 3 monsters
+    const MAX_MONS = 3;                 // 3 vs 3 monsters (mini slimes from Split are the exception)
     const other = (s) => s === 'p' ? 'e' : 'p';
     const MON_SCALE = 0.95;
     const pickables = [];
@@ -838,6 +838,7 @@ async function run(mode) {
     }
     const dist2d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
     const liveMons = (side) => S[side].mons.filter((m) => !m.dead);
+    const capCount = (side) => liveMons(side).filter((m) => m.def.key !== 'mini').length;   // mini slimes never count toward the cap
     // where a monster may be summoned: inside the arena, on that side's half, not on top of a friend
     function validSpawn(side, p) {
         const sgn = side === 'p' ? 1 : -1;
@@ -909,7 +910,7 @@ async function run(mode) {
         const mons = (s) => liveMons(s).map((m) => m.target);
         const face = (s) => ({ kind: 'face', side: s, key: 'f' + s });
         switch (c.target) {
-            case 'ground': if (liveMons(side).length < MAX_MONS && autoSpot(side)) out.push({ kind: 'ground', side, key: 'g' + side }); break;
+            case 'ground': if (capCount(side) < MAX_MONS && autoSpot(side)) out.push({ kind: 'ground', side, key: 'g' + side }); break;
             case 'enemyMon': out.push(...mons(other(side))); break;
             case 'enemyAny': out.push(...mons(other(side)), face(other(side))); break;
             case 'ownMon': out.push(...mons(side)); break;
@@ -924,7 +925,7 @@ async function run(mode) {
     function canPlay(side, c) {
         if (c.cost > S[side].energy) return 'Not enough energy!';
         if (c.type === 'trap' && S[side].traps.length >= 2) return 'Both trap slots are full!';
-        if (c.type === 'monster' && liveMons(side).length >= MAX_MONS) return 'Your side is full (' + MAX_MONS + ' monsters)!';
+        if (c.type === 'monster' && capCount(side) >= MAX_MONS) return 'Your side is full (' + MAX_MONS + ' monsters)!';
         if (needsTarget(c) && validTargets(c.type === 'monster' ? { target: 'ground' } : c, side).length === 0) return c.key === 'heal' ? 'Nobody is hurt - full health cannot be healed!' : (c.type === 'monster' ? 'No room to summon!' : 'No valid target!');
         return '';
     }
@@ -1115,7 +1116,7 @@ async function run(mode) {
         emit(p.x, m.size.h * 0.5 * MON_SCALE, p.z, 0xffffff, 10, 3, 6, 0.3, 0.6);
         shockRing(p.x, p.z, 0xffffff, false);
         if (m.chain) { m.holder.remove(m.chain); m.chain = null; }
-        if (m.def.key === 'slime' && m.lv >= LV_MAX && !S.over && liveMons(m.side).length < MAX_MONS) spawnSplit(m);
+        if (m.def.key === 'slime' && m.lv >= LV_MAX && !S.over) spawnSplit(m);
         tween(0.3, (k) => { m.holder.scale.setScalar(m.scale0 * (1 - k)); m.holder.position.y = 0.2 + k * 1.2; }, easeIn).then(() => {
             scene.remove(m.holder);
             m.holder.traverse((o) => { if (o.material && !sharedMats.has(o.material)) o.material.dispose(); });
@@ -1521,7 +1522,7 @@ async function run(mode) {
                 const foeMons = liveMons('p');
                 switch (c.type) {
                     case 'monster':
-                        s = 3 + c.atk * 0.6 + c.hp * 0.4 + (foeMons.length ? 0 : 2.5) + (liveMons('e').length >= MAX_MONS - 1 ? -1 : 0);
+                        s = 3 + c.atk * 0.6 + c.hp * 0.4 + (foeMons.length ? 0 : 2.5) + (capCount('e') >= MAX_MONS - 1 ? -1 : 0);
                         break;
                     case 'skill':
                         if (c.name === 'FIREBALL') {
@@ -2076,7 +2077,7 @@ async function run(mode) {
     await loadProfile();
     refreshUI();
     showMenu();
-    window.__bcd = { S, CARDS, profile, select, playPlayerCard, startFight, showTab: (t) => showTab(t) };   // handy for debugging in the console
+    window.__bcd = { S, CARDS, profile, select, playPlayerCard, startFight, damageMon, showTab: (t) => showTab(t) };   // handy for debugging in the console
     requestAnimationFrame(loop);
 }
 </script>
