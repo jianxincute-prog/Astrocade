@@ -321,7 +321,7 @@ async function run(mode) {
 
     /* ============================ PLAYER PROFILE (saved with lib.saveUserGameState) ============================ */
     const STARTER = ['slime', 'golem', 'wolf', 'archer', 'fireball', 'heal', 'flameaura', 'chaintrap'];
-    const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250 };
+    const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250, bat: 180, treant: 200, turtle: 250, priest: 220, creeper: 160, ironguard: 120, swiftwind: 140, divineshield: 150, mirrortrap: 260, landmine: 200 };
     const LV_MAX = 5, COPIES_NEED = [2, 4, 6, 10], COIN_NEED = [50, 100, 200, 400];
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 8;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
@@ -338,7 +338,11 @@ async function run(mode) {
         earth: { color: 0x969ba8, glow: 0xd9c9a0 },
         fire: { color: 0xe8532a, glow: 0xff3b2a },
         ice: { color: 0x5aa9e6, glow: 0x4fb7ff },
-        bolt: { color: 0xf2c230, glow: 0xffe14d }
+        bolt: { color: 0xf2c230, glow: 0xffe14d },
+        dark: { color: 0x6b4bb8, glow: 0xb07dff },
+        light: { color: 0xf3e7a8, glow: 0xfff2b0 },
+        creep: { color: 0x5fbf4a, glow: 0xaaff7a },
+        wind: { color: 0x6fe3d6, glow: 0xaaf5ee }
     };
     const CARDS = {
         slime: { type: 'monster', name: 'CUBE SLIME', cost: 1, atk: 2, hp: 3, elem: 'grass', model: 'slime', speed: 6.5, desc: 'CUBE SLIME: a cheap, bouncy blocker.' },
@@ -351,6 +355,16 @@ async function run(mode) {
         storm: { type: 'skill', name: 'THUNDERSTORM', cost: 3, target: 'none', dmg: 3, elem: 'bolt', desc: 'THUNDERSTORM: 3 damage to every enemy monster. Tap the card again to cast.' },
         flameaura: { type: 'buff', name: 'FLAME AURA', cost: 1, target: 'ownMon', atkMod: 2, elem: 'fire', desc: 'FLAME AURA: +2 ATK and a faint red fire aura on your monster.' },
         frostcurse: { type: 'debuff', name: 'FROST CURSE', cost: 1, target: 'enemyMon', atkMod: -2, elem: 'ice', desc: 'FROST CURSE: -2 ATK and a cold blue curse on an enemy monster.' },
+        bat: { type: 'monster', name: 'SHADOW BAT', cost: 2, atk: 3, hp: 2, elem: 'dark', model: 'bat', speed: 13, desc: 'SHADOW BAT: a lightning-fast flyer that hits hard but is fragile.' },
+        treant: { type: 'monster', name: 'VINE TREANT', cost: 3, atk: 2, hp: 7, elem: 'grass', model: 'treant', speed: 4.6, desc: 'VINE TREANT: a sturdy tree guardian with lots of HP.' },
+        turtle: { type: 'monster', name: 'MAGMA TURTLE', cost: 3, atk: 3, hp: 6, elem: 'fire', model: 'turtle', speed: 4.8, desc: 'MAGMA TURTLE: a slow, armoured lava tank.' },
+        priest: { type: 'monster', name: 'MOON PRIEST', cost: 3, atk: 1, hp: 5, elem: 'light', model: 'priest', speed: 5.5, desc: 'MOON PRIEST: at the start of each round it mends your most wounded monster (+1 HP, +2 from Lv3).' },
+        creeper: { type: 'monster', name: 'BOMB CREEPER', cost: 2, atk: 4, hp: 2, elem: 'creep', model: 'creeper', speed: 8, desc: 'BOMB CREEPER: explodes after its strike, hurting every other enemy monster for 2.' },
+        ironguard: { type: 'buff', name: 'IRON GUARD', cost: 1, target: 'ownMon', elem: 'earth', desc: 'IRON GUARD: bonus HP and a grey iron aura.' },
+        swiftwind: { type: 'buff', name: 'SWIFT WIND', cost: 1, target: 'ownMon', elem: 'wind', desc: 'SWIFT WIND: bonus ATK, faster legs and a cyan wind aura.' },
+        divineshield: { type: 'buff', name: 'DIVINE SHIELD', cost: 1, target: 'ownMon', elem: 'light', desc: 'DIVINE SHIELD: a golden shield that absorbs damage.' },
+        mirrortrap: { type: 'trap', name: 'MIRROR TRAP', cost: 2, target: 'none', elem: 'ice', desc: 'MIRROR TRAP: reflects an attacker\'s own strength back at it.' },
+        landmine: { type: 'trap', name: 'LAND MINE', cost: 2, target: 'none', elem: 'fire', desc: 'LAND MINE: blasts every attacking monster.' },
         chaintrap: { type: 'trap', name: 'CHAIN TRAP', cost: 2, target: 'none', elem: 'ice', desc: 'CHAIN TRAP: set face-down. Chains the strongest attacker for a round. Tap again to set.' },
         spiketrap: { type: 'trap', name: 'SPIKE TRAP', cost: 2, target: 'none', elem: 'fire', dmg: 4, desc: 'SPIKE TRAP: set face-down. The first attacker takes 4 damage. Tap again to set.' }
     };
@@ -361,7 +375,14 @@ async function run(mode) {
     CARDS.wolf.l5 = { buff: 'BLAZING PELT', buffDesc: '+1 ATK and a fiery aura', skill: 'POUNCE', skillDesc: 'strikes twice per attack', atk: 1 };
     CARDS.archer.l5 = { buff: 'FROST QUIVER', buffDesc: 'arrows chill targets (-1 ATK)', skill: 'VOLLEY', skillDesc: 'also shoots a second enemy for half damage', atk: 0 };
     CARDS.drake.l5 = { buff: 'STORM CHARGE', buffDesc: '+2 ATK and a crackling aura', skill: 'CHAIN LIGHTNING', skillDesc: 'lightning arcs to another enemy for 3 damage', atk: 2 };
+    CARDS.bat.l5 = { buff: 'VAMPIRIC BITE', buffDesc: 'heals itself for the damage it deals', skill: 'SCREECH', skillDesc: 'when summoned, every enemy monster loses 1 ATK', atk: 0 };
+    CARDS.treant.l5 = { buff: 'OVERGROWTH', buffDesc: 'regrows 2 HP at the start of every round', skill: 'ENTANGLE', skillDesc: 'its strike chains the target for a round', atk: 0 };
+    CARDS.turtle.l5 = { buff: 'MOLTEN SHELL', buffDesc: 'attackers take 2 damage when they strike it', skill: 'ERUPTION', skillDesc: 'when it dies it blasts every enemy monster for 3', atk: 0 };
+    CARDS.priest.l5 = { buff: 'HOLY LIGHT', buffDesc: 'mends every wounded ally monster, not just one', skill: 'HOLY NOVA', skillDesc: 'at the start of each round, 2 damage to every enemy monster', atk: 0 };
+    CARDS.creeper.l5 = { buff: 'REINFORCED FUSE', buffDesc: 'survives its own blast', skill: 'MEGA BLAST', skillDesc: 'its blast deals 4 to every other enemy monster', atk: 0 };
     const LVV = {
+        ironguard: { hp: [3, 4, 5, 6, 7], armor: [0, 0, 1, 1, 1] }, swiftwind: { atk: [1, 1, 2, 2, 2] }, divineshield: { shield: [3, 4, 5, 6, 8] },
+        mirrortrap: { bonus: [0, 1, 2, 3, 4], n: [1, 1, 1, 1, 2] }, landmine: { dmg: [2, 3, 3, 4, 5] },
         fireball: { dmg: [4, 5, 6, 7, 8] }, heal: { heal: [4, 5, 6, 7, 8] }, storm: { dmg: [3, 4, 4, 5, 5] },
         flameaura: { atk: [2, 2, 3, 3, 4], hp: [0, 1, 1, 2, 2] }, frostcurse: { atk: [2, 2, 3, 3, 4], hp: [0, 1, 1, 2, 2] },
         chaintrap: { n: [1, 1, 2, 2, 3], dmg: [0, 1, 1, 2, 2], rounds: [1, 1, 1, 2, 2] }, spiketrap: { dmg: [4, 5, 6, 7, 8], n: [1, 1, 2, 2, 3] }
@@ -383,6 +404,11 @@ async function run(mode) {
             case 'flameaura': return `FLAME AURA: +${g('atk')} ATK${g('hp') ? ' and +' + g('hp') + ' HP' : ''} and a faint red fire aura.` + (five ? ' LV5 INFERNO TOUCH: its hits burn for +1 damage.' : '');
             case 'frostcurse': return `FROST CURSE: -${g('atk')} ATK${g('hp') ? ' and -' + g('hp') + ' HP' : ''} and a cold blue curse on an enemy monster.` + (five ? ' LV5 DEEP FREEZE: the target is frozen and skips its next attack.' : '');
             case 'chaintrap': return `CHAIN TRAP: set face-down. Chains ${g('n') > 1 ? 'the ' + g('n') + ' strongest attackers' : 'the strongest attacker'} for ${g('rounds')} round${g('rounds') > 1 ? 's' : ''}${g('dmg') ? ' and deals ' + g('dmg') + ' damage' : ''}. Tap again to set.`;
+            case 'ironguard': return `IRON GUARD: +${g('hp')} HP${g('armor') ? ' and -1 damage from every hit' : ''}, with a grey iron aura.` + (five ? ' LV5 UNBREAKABLE: immune to curses and chains.' : '');
+            case 'swiftwind': return `SWIFT WIND: +${g('atk')} ATK and +40% speed, with a cyan wind aura.` + (five ? ' LV5 TWIN GUST: its attacks strike twice.' : '');
+            case 'divineshield': return `DIVINE SHIELD: a golden shield that absorbs ${g('shield')} damage.` + (five ? ' LV5 RADIANT: the shield refills every round.' : '');
+            case 'mirrortrap': return `MIRROR TRAP: set face-down. ${g('n') > 1 ? 'The ' + g('n') + ' strongest attackers take' : 'The strongest attacker takes'} damage equal to its own ATK${g('bonus') ? ' +' + g('bonus') : ''} and skips its attack. Tap again to set.`;
+            case 'landmine': return `LAND MINE: set face-down. Blasts EVERY attacking monster for ${g('dmg')} damage.` + (five ? ' LV5 SHOCKWAVE: they also lose 1 ATK.' : '') + ' Tap again to set.';
             case 'spiketrap': return `SPIKE TRAP: set face-down. ${g('n') > 1 ? 'The first ' + g('n') + ' attackers take ' : 'The first attacker takes '}${g('dmg')} damage. Tap again to set.`;
         }
         const st = monStats(c, lv);
@@ -390,7 +416,8 @@ async function run(mode) {
     }
     const DECK = [
         'slime', 'slime', 'slime', 'golem', 'golem', 'wolf', 'wolf', 'wolf', 'archer', 'archer', 'drake', 'drake',
-        'fireball', 'fireball', 'heal', 'storm', 'flameaura', 'flameaura', 'frostcurse', 'frostcurse', 'chaintrap', 'spiketrap'
+        'fireball', 'fireball', 'heal', 'storm', 'flameaura', 'flameaura', 'frostcurse', 'frostcurse', 'chaintrap', 'spiketrap',
+        'bat', 'treant', 'turtle', 'priest', 'creeper', 'ironguard', 'swiftwind', 'divineshield', 'mirrortrap', 'landmine'
     ];
     const TYPE_LABEL = { skill: 'SKILL', buff: 'BUFF', debuff: 'DEBUFF', trap: 'TRAP' };
     const TYPE_COLOR = { skill: 0xff8a3c, buff: 0xff4a3a, debuff: 0x8d5bff, trap: 0x5b6b8c };
@@ -416,6 +443,11 @@ async function run(mode) {
             case 'FLAME AURA': return svg('<polygon points="32,4 54,30 42,30 42,60 22,60 22,30 10,30" fill="#ff5a3a" stroke="#7a1608" stroke-width="3"/><circle cx="32" cy="36" r="9" fill="#ffd23a" opacity=".8"/>');
             case 'FROST CURSE': return svg('<polygon points="32,60 54,34 42,34 42,4 22,4 22,34 10,34" fill="#5fb8ff" stroke="#143a7a" stroke-width="3"/><polygon points="32,20 38,32 32,44 26,32" fill="#e8f7ff"/>');
             case 'CHAIN TRAP': return svg('<rect x="6" y="20" width="32" height="24" rx="12" fill="none" stroke="#cfd6e6" stroke-width="7"/><rect x="26" y="20" width="32" height="24" rx="12" fill="none" stroke="#8d97b4" stroke-width="7"/>');
+            case 'IRON GUARD': return svg('<path d="M32 6L56 14V32C56 46 46 56 32 60C18 56 8 46 8 32V14Z" fill="#9aa3b5" stroke="#05070f" stroke-width="4"/><path d="M32 14L48 20V32C48 42 41 49 32 52C23 49 16 42 16 32V20Z" fill="#5f6a80"/><circle cx="32" cy="32" r="6" fill="#6ad0ff"/>');
+            case 'SWIFT WIND': return svg('<path d="M6 22H40a8 8 0 1 0-8-8" fill="none" stroke="#aaf5ee" stroke-width="6" stroke-linecap="round"/><path d="M6 34H48a8 8 0 1 1-8 8" fill="none" stroke="#6fe3d6" stroke-width="6" stroke-linecap="round"/><path d="M12 46H30" fill="none" stroke="#aaf5ee" stroke-width="6" stroke-linecap="round"/>');
+            case 'DIVINE SHIELD': return svg('<path d="M32 6L56 14V32C56 46 46 56 32 60C18 56 8 46 8 32V14Z" fill="#ffd75a" stroke="#05070f" stroke-width="4"/><path d="M32 18V46M20 30H44" stroke="#fff6c8" stroke-width="6"/>');
+            case 'MIRROR TRAP': return svg('<rect x="12" y="8" width="40" height="48" rx="6" fill="#bfeaff" stroke="#05070f" stroke-width="4"/><path d="M20 44L44 14" stroke="#fff" stroke-width="6"/><path d="M26 50L44 28" stroke="#fff" stroke-width="4"/>');
+            case 'LAND MINE': return svg('<circle cx="32" cy="36" r="18" fill="#3b3f4a" stroke="#05070f" stroke-width="4"/><rect x="26" y="10" width="12" height="10" fill="#ff5a3a" stroke="#05070f" stroke-width="3"/><circle cx="32" cy="36" r="6" fill="#ff7a2a"/>');
             case 'SPIKE TRAP': return svg('<polygon points="4,58 16,12 28,58" fill="#b9c2d6"/><polygon points="22,58 34,6 46,58" fill="#d6dcec"/><polygon points="40,58 52,14 62,58" fill="#b9c2d6"/><rect x="2" y="56" width="60" height="6" fill="#5b6b8c"/>');
         }
         return '';
@@ -707,6 +739,58 @@ async function run(mode) {
             const tail = new THREE.Group(); tail.position.set(0, 1.9, -1.4); g.add(tail);
             addBox(tail, 0.4, 0.4, 0.8, 0, 0, -0.4, 0xff8a2b); addBox(tail, 0.3, 0.3, 0.5, 0, 0.4, -0.9, 0xffd23a);
             return { group: g, size: { w: 1.9, h: 2.8, d: 3.5 }, idle: (t) => { tail.rotation.y = Math.sin(t * 7) * 0.5; g.position.y = Math.abs(Math.sin(t * 3)) * 0.08; } };
+        },
+        bat() {
+            const g = new THREE.Group();
+            addBox(g, 1.2, 1.1, 1.1, 0, 2.0, 0, 0x3a2a5a); addBox(g, 1.1, 0.9, 1.0, 0, 2.15, 0.85, 0x4a3570);
+            addBox(g, 0.3, 0.5, 0.2, -0.35, 2.8, 0.85, 0x2a1c45); addBox(g, 0.3, 0.5, 0.2, 0.35, 2.8, 0.85, 0x2a1c45);
+            addBox(g, 0.2, 0.2, 0.1, -0.28, 2.3, 1.37, 0xff3b3b); addBox(g, 0.2, 0.2, 0.1, 0.28, 2.3, 1.37, 0xff3b3b);
+            addBox(g, 0.12, 0.26, 0.1, -0.2, 1.85, 1.37, 0xffffff); addBox(g, 0.12, 0.26, 0.1, 0.2, 1.85, 1.37, 0xffffff);
+            const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(-0.6, 2.3, 0); wr.position.set(0.6, 2.3, 0); g.add(wl, wr);
+            addBox(wl, 2.0, 0.12, 1.5, -1.0, 0, 0, 0x5a3f8a); addBox(wl, 1.2, 0.12, 1.0, -2.2, 0, 0.1, 0x4a3570);
+            addBox(wr, 2.0, 0.12, 1.5, 1.0, 0, 0, 0x5a3f8a); addBox(wr, 1.2, 0.12, 1.0, 2.2, 0, 0.1, 0x4a3570);
+            return { group: g, size: { w: 3.2, h: 3.2, d: 2.4 }, idle: (t) => { const f = Math.sin(t * 13) * 0.7; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.7 + Math.sin(t * 3) * 0.2; } };
+        },
+        treant() {
+            const g = new THREE.Group();
+            addBox(g, 1.7, 2.6, 1.4, 0, 1.6, 0, 0x6b4423); addBox(g, 1.74, 0.3, 1.44, 0, 2.2, 0, 0x7d5230);
+            for (const x of [-0.6, 0.6]) addBox(g, 0.6, 0.8, 0.7, x, 0.4, 0.2, 0x573719);
+            addBox(g, 0.24, 0.24, 0.1, -0.38, 2.5, 0.72, 0xbaff6a); addBox(g, 0.24, 0.24, 0.1, 0.38, 2.5, 0.72, 0xbaff6a); addBox(g, 0.6, 0.12, 0.1, 0, 1.95, 0.72, 0x2a1a0c);
+            addBox(g, 2.8, 1.4, 2.5, 0, 3.9, 0, 0x3f9a3a); addBox(g, 1.9, 1.0, 1.8, 0, 4.9, 0, 0x57c04a);
+            addBox(g, 1.0, 1.0, 1.0, -1.5, 3.4, 0, 0x3f9a3a); addBox(g, 1.0, 1.0, 1.0, 1.5, 3.4, 0, 0x3f9a3a);
+            addBox(g, 0.5, 0.5, 1.4, -1.15, 2.4, 0.5, 0x6b4423); addBox(g, 0.5, 0.5, 1.4, 1.15, 2.4, 0.5, 0x6b4423);
+            addBox(g, 0.7, 0.7, 0.7, -1.15, 2.4, 1.3, 0x57c04a); addBox(g, 0.7, 0.7, 0.7, 1.15, 2.4, 1.3, 0x57c04a);
+            return { group: g, size: { w: 3.4, h: 5.4, d: 2.6 }, idle: (t) => { g.rotation.z = Math.sin(t * 1.4) * 0.04; } };
+        },
+        turtle() {
+            const g = new THREE.Group();
+            addBox(g, 2.2, 0.8, 2.6, 0, 0.9, 0, 0x3a5a33);
+            addBox(g, 2.6, 1.2, 2.8, 0, 1.9, -0.1, 0x3a2f33);
+            addBox(g, 2.0, 0.1, 0.25, 0, 2.55, 0.4, 0xff7a1a); addBox(g, 0.25, 0.1, 2.2, 0, 2.56, -0.1, 0xff9a2a); addBox(g, 1.2, 0.1, 0.25, 0.3, 2.57, -0.8, 0xff7a1a);
+            for (const [x, z] of [[-0.8, -0.5], [0.8, -0.5], [0, -1.0]]) addBox(g, 0.4, 0.6, 0.4, x, 2.8, z, 0x2a2226);
+            addBox(g, 1.0, 0.9, 1.1, 0, 1.3, 1.7, 0x4a7a40); addBox(g, 0.18, 0.18, 0.1, -0.28, 1.5, 2.27, 0xffb02e); addBox(g, 0.18, 0.18, 0.1, 0.28, 1.5, 2.27, 0xffb02e);
+            for (const x of [-1.0, 1.0]) for (const z of [-0.9, 0.9]) addBox(g, 0.7, 0.7, 0.7, x, 0.35, z, 0x3a5a33);
+            return { group: g, size: { w: 3.4, h: 3.3, d: 3.6 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.8)) * 0.1; } };
+        },
+        priest() {
+            const g = new THREE.Group();
+            addBox(g, 1.6, 2.2, 1.1, 0, 1.3, 0, 0xf4f1ff); addBox(g, 1.64, 0.2, 1.14, 0, 0.3, 0, 0xffd75a); addBox(g, 0.4, 2.0, 1.14, 0, 1.4, 0, 0x6a8cff);
+            addBox(g, 0.95, 0.95, 0.95, 0, 3.0, 0, 0xf2cfa6); addBox(g, 1.05, 0.4, 1.05, 0, 3.55, -0.02, 0xe8e6ff);
+            addBox(g, 0.16, 0.2, 0.1, -0.22, 3.05, 0.49, 0x10131f); addBox(g, 0.16, 0.2, 0.1, 0.22, 3.05, 0.49, 0x10131f);
+            addBox(g, 0.4, 1.4, 0.4, -1.0, 1.7, 0, 0xf4f1ff); addBox(g, 0.4, 1.4, 0.4, 1.0, 1.7, 0, 0xf4f1ff);
+            addBox(g, 0.15, 3.6, 0.15, 1.25, 1.9, 0.5, 0xa0693a); addBox(g, 0.5, 0.5, 0.5, 1.25, 3.9, 0.5, 0x9fd0ff);
+            const hl = new THREE.Group(); hl.position.y = 4.3; g.add(hl);
+            addBox(hl, 1.4, 0.12, 0.2, 0, 0, 0.6, 0xfff2a0); addBox(hl, 1.4, 0.12, 0.2, 0, 0, -0.6, 0xfff2a0); addBox(hl, 0.2, 0.12, 1.0, 0.6, 0, 0, 0xfff2a0); addBox(hl, 0.2, 0.12, 1.0, -0.6, 0, 0, 0xfff2a0);
+            return { group: g, size: { w: 2.6, h: 4.8, d: 1.8 }, idle: (t) => { g.position.y = 0.3 + Math.sin(t * 2) * 0.25; hl.rotation.y = t * 1.5; } };
+        },
+        creeper() {
+            const g = new THREE.Group();
+            for (const x of [-0.45, 0.45]) for (const z of [-0.5, 0.5]) addBox(g, 0.7, 0.9, 0.7, x, 0.45, z, 0x3f9a3a);
+            addBox(g, 1.5, 1.9, 1.0, 0, 1.85, 0, 0x5fbf4a); addBox(g, 1.6, 1.6, 1.6, 0, 3.7, 0, 0x6fd05a);
+            addBox(g, 0.4, 0.4, 0.1, -0.4, 3.9, 0.82, 0x10131f); addBox(g, 0.4, 0.4, 0.1, 0.4, 3.9, 0.82, 0x10131f); addBox(g, 0.4, 0.5, 0.1, 0, 3.4, 0.82, 0x10131f);
+            addBox(g, 0.2, 0.3, 0.1, -0.3, 3.1, 0.82, 0x10131f); addBox(g, 0.2, 0.3, 0.1, 0.3, 3.1, 0.82, 0x10131f);
+            addBox(g, 0.12, 0.5, 0.12, 0, 4.75, 0, 0x6a4a2a); addBox(g, 0.25, 0.25, 0.25, 0, 5.1, 0, 0xffd23a);
+            return { group: g, size: { w: 2.0, h: 5.2, d: 2.0 }, idle: (t) => { const s = Math.sin(t * 9) * 0.5 + 0.5; g.scale.set(1 + s * 0.05, 1 - s * 0.03, 1 + s * 0.05); } };
         },
         archer() {
             const g = new THREE.Group();
@@ -1042,6 +1126,7 @@ async function run(mode) {
             c.fillStyle = '#05070f'; c.fillRect(46, 0, 100, 30); c.fillStyle = '#e8a317'; c.fillRect(50, 4, 92, 22);
             c.fillStyle = '#fff'; c.font = '900 20px Trebuchet MS, Verdana, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(m.lv >= LV_MAX ? 'LV5 MAX' : 'LV ' + m.lv, 96, 16);
         }
+        if (m.shield > 0) { c.fillStyle = '#05070f'; c.fillRect(0, 0, 46, 30); c.fillStyle = '#3aa0ff'; c.fillRect(4, 4, 38, 22); c.fillStyle = '#fff'; c.font = '900 20px Trebuchet MS, Verdana, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('S' + m.shield, 23, 16); }
         const box = (x, color, txt) => {
             c.fillStyle = '#05070f'; c.fillRect(x, 32, 84, 64);
             c.fillStyle = color; c.fillRect(x + 5, 37, 74, 54);
@@ -1070,6 +1155,7 @@ async function run(mode) {
         hit.userData.target = m.target; m.hit = hit; pickables.push(hit);
         makeLabel(m);
         scene.add(holder);
+        m.speedMul = 1; m.shield = 0; m.shieldMax = 0; m.shieldRefill = false; m.regen = 0; m.thorns = 0; m.lifesteal = false; m.reinforced = false; m.massMend = false;
         S[side].mons.push(m);
         if (lvl >= LV_MAX && def.l5) {                     // LEVEL 5: awaken the special buff + skill
             m.auraCol = ELEM[def.elem].glow;
@@ -1078,6 +1164,11 @@ async function run(mode) {
             if (def.key === 'golem') m.immune = true;
             if (def.key === 'wolf') m.pounce = true;
             if (def.key === 'archer') { m.chill = true; m.volley = true; }
+            if (def.key === 'bat') m.lifesteal = true;
+            if (def.key === 'treant') m.regen = 2;
+            if (def.key === 'turtle') m.thorns = 2;
+            if (def.key === 'priest') m.massMend = true;
+            if (def.key === 'creeper') m.reinforced = true;
         }
         return m;
     }
@@ -1117,11 +1208,18 @@ async function run(mode) {
         shockRing(p.x, p.z, 0xffffff, false);
         if (m.chain) { m.holder.remove(m.chain); m.chain = null; }
         if (m.def.key === 'slime' && m.lv >= LV_MAX && !S.over) spawnSplit(m);
+        if (m.def.key === 'turtle' && m.lv >= LV_MAX && !S.over) eruption(m);
         tween(0.3, (k) => { m.holder.scale.setScalar(m.scale0 * (1 - k)); m.holder.position.y = 0.2 + k * 1.2; }, easeIn).then(() => {
             scene.remove(m.holder);
             m.holder.traverse((o) => { if (o.material && !sharedMats.has(o.material)) o.material.dispose(); });
             if (m.label) m.label.tex.dispose();
         });
+    }
+    function eruption(m) {
+        const p = m.holder.position;
+        fxNum(p.clone().setY(m.size.h * MON_SCALE + 3), 'ERUPTION!', 'info'); S.shake = 0.9; sfx('fire');
+        emit(p.x, 1.5, p.z, 0xff7a1a, 40, 6, 9, 0.5, 1); shockRing(p.x, p.z, 0xff7a1a, true);
+        liveMons(other(m.side)).forEach((o) => damageMon(o, 3));
     }
     const MINI_SLIME = { key: 'mini', type: 'monster', name: 'MINI SLIME', atk: 1, hp: 2, elem: 'grass', model: 'slime', speed: 7, scale: 0.6 };
     function spawnSplit(m) {
@@ -1133,6 +1231,11 @@ async function run(mode) {
     }
     function damageMon(m, amt) {
         if (m.dead || amt <= 0) return;
+        if (m.shield > 0) {                                           // DIVINE SHIELD absorbs first
+            const ab = Math.min(m.shield, amt); m.shield -= ab; amt -= ab;
+            fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), 'BLOCK ' + ab, 'info'); updateLabel(m);
+            if (amt <= 0) { flashMon(m); return; }
+        }
         if (m.armor) amt = Math.max(1, amt - m.armor);
         m.hp -= amt; flashMon(m); S.shake = Math.max(S.shake, 0.35); sfx('hit');
         fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '-' + amt, 'dmg');
@@ -1188,7 +1291,7 @@ async function run(mode) {
     function placeTrap(side, kind, lv) {
         const slot = S[side].traps.length, [x, z] = TRAP_POS[side][slot];
         const g = new THREE.Group();
-        const col = side === 'p' ? (kind === 'chaintrap' ? 0x6f8fd6 : 0xe0803a) : 0x7b4bd6;
+        const col = side === 'p' ? ({ chaintrap: 0x6f8fd6, spiketrap: 0xe0803a, mirrortrap: 0xc0f0ff, landmine: 0xff5a3a }[kind] || 0xe0803a) : 0x7b4bd6;
         const cube = new THREE.Mesh(boxGeo(1.5, 1.5, 1.5), new THREE.MeshBasicMaterial({ color: col }));
         const rim = new THREE.Mesh(boxGeo(1.8, 1.8, 1.8), glowMat(col, 0.35));
         cube.position.y = rim.position.y = 1.1; g.add(cube, rim);
@@ -1207,7 +1310,7 @@ async function run(mode) {
     }
     async function triggerTrap(side, trap, tok) {
         const g = trap.mesh;
-        fxNum(g.position.clone().setY(3), (trap.kind === 'chaintrap' ? 'CHAIN TRAP' : 'SPIKE TRAP') + (trap.level > 1 ? ' Lv' + trap.level : '') + '!', 'info');
+        fxNum(g.position.clone().setY(3), ({ chaintrap: 'CHAIN TRAP', spiketrap: 'SPIKE TRAP', mirrortrap: 'MIRROR TRAP', landmine: 'LAND MINE' }[trap.kind]) + (trap.level > 1 ? ' Lv' + trap.level : '') + '!', 'info');
         emit(g.position.x, 1.2, g.position.z, 0xffffff, 16, 3, 6, 0.3, 0.6);
         await tween(0.4, (k) => { g.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.6); g.rotation.y = k * Math.PI * 2; }, linear);
         removeTrap(side, trap);
@@ -1239,6 +1342,7 @@ async function run(mode) {
             await monsterIn(m);
             m.ready = true;
             if (lv >= LV_MAX && c.l5) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), c.l5.skill + '!', 'info'); shockRing(m.holder.position.x, m.holder.position.z, ELEM[c.elem].glow, true); }
+            if (lv >= LV_MAX && c.key === 'bat') liveMons(foeSide).forEach((o) => { if (o.immune) return; o.atk = Math.max(0, o.atk - 1); if (!o.debuff) o.debuff = auraMesh(o, ELEM.dark.glow, 1.3, 0.16); updateLabel(o); fxNum(o.holder.position.clone().setY(o.size.h * MON_SCALE + 2.2), '-1 ATK', 'cold'); });
             return;
         }
         if (c.type === 'skill') {
@@ -1286,13 +1390,28 @@ async function run(mode) {
             const cm = await flyCard(c, from, to, 0.45);
             disposeCard(cm);
             if (!alive(tok) || m.dead) return;
-            const col = ELEM[c.elem].glow, ea = lvVal(c, lv, 'atk'), eh = lvVal(c, lv, 'hp');
+            const col = ELEM[c.elem].glow, lvs = LVV[c.key], ea = lvs.atk ? lvVal(c, lv, 'atk') : 0, eh = lvs.hp ? lvVal(c, lv, 'hp') : 0;
             if (c.type === 'buff') {
                 m.atk += ea; if (eh) { m.maxHp += eh; m.hp += eh; }
                 m.auraCol = col; sfx('aura');
                 if (!m.buff) m.buff = auraMesh(m, col, 1.18, 0.3);
-                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), '+' + ea + ' ATK' + (eh ? ' +' + eh + ' HP' : ''), 'dmg');
-                if (lv >= LV_MAX) { m.burn += 1; fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'INFERNO TOUCH!', 'info'); }
+                const top = m.size.h * MON_SCALE + 2.2, parts = [];
+                if (ea) parts.push('+' + ea + ' ATK');
+                if (eh) parts.push('+' + eh + ' HP');
+                if (c.key === 'flameaura' && lv >= LV_MAX) { m.burn += 1; fxNum(m.holder.position.clone().setY(top + 1.2), 'INFERNO TOUCH!', 'info'); }
+                if (c.key === 'ironguard') {
+                    if (lvVal(c, lv, 'armor')) { m.armor = Math.max(m.armor, 1); parts.push('ARMOR'); }
+                    if (lv >= LV_MAX) { m.immune = true; fxNum(m.holder.position.clone().setY(top + 1.2), 'UNBREAKABLE!', 'info'); }
+                }
+                if (c.key === 'swiftwind') {
+                    m.speedMul = Math.max(m.speedMul, 1.4); parts.push('FAST');
+                    if (lv >= LV_MAX) { m.pounce = true; fxNum(m.holder.position.clone().setY(top + 1.2), 'TWIN GUST!', 'info'); }
+                }
+                if (c.key === 'divineshield') {
+                    const sh = lvVal(c, lv, 'shield'); m.shield += sh; m.shieldMax = Math.max(m.shieldMax, sh); parts.push('SHIELD ' + sh);
+                    if (lv >= LV_MAX) { m.shieldRefill = true; fxNum(m.holder.position.clone().setY(top + 1.2), 'RADIANT!', 'info'); }
+                }
+                fxNum(m.holder.position.clone().setY(top), parts.join(' '), 'dmg');
                 emit(m.holder.position.x, 0.5, m.holder.position.z, col, 26, 2, 8, 0.3, 1.1, -3);
             } else if (m.immune) {
                 fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'IMMUNE!', 'info'); sfx('no');
@@ -1314,7 +1433,7 @@ async function run(mode) {
             const to = new THREE.Vector3(x, 1.4, z);
             const cm = await flyCard(c, from, to, 0.5);
             disposeCard(cm);
-            await placeTrap(side, c === CARDS.chaintrap ? 'chaintrap' : 'spiketrap', lv);
+            await placeTrap(side, c.key, lv);
             await wait(0.2);
         }
     }
@@ -1385,7 +1504,16 @@ async function run(mode) {
         });
     }
     // level-5 skills that trigger when a melee strike lands
+    async function creeperBlast(m, tgt) {
+        const p = m.holder.position, splash = m.lv >= LV_MAX ? 4 : 2;
+        fxNum(p.clone().setY(m.size.h * MON_SCALE + 3), m.lv >= LV_MAX ? 'MEGA BLAST!' : 'BOOM!', 'info'); S.shake = 0.9; sfx('fire');
+        emit(p.x, 2, p.z, 0xaaff7a, 36, 6, 8, 0.5, 0.9); emit(p.x, 2, p.z, 0xffd23a, 20, 5, 7, 0.4, 0.7); shockRing(p.x, p.z, 0xaaff7a, true);
+        liveMons(other(m.side)).filter((o) => o !== tgt).forEach((o) => damageMon(o, splash));
+        if (!m.reinforced) { m.hp = 0; updateLabel(m); killMon(m); }
+        await wait(0.2);
+    }
     async function onHitSkill(m, tgt) {
+        if (m.lv >= LV_MAX && !m.dead && m.def.key === 'treant' && !tgt.dead) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'ENTANGLE!', 'info'); await chainMon(tgt, 1, 'ENTANGLED!'); return; }
         if (m.lv < LV_MAX || m.dead) return;
         const foeSide = other(m.side);
         if (m.def.key === 'golem') {                                  // QUAKE
@@ -1415,9 +1543,12 @@ async function run(mode) {
             const counter = tgt.atk;
             damageMon(tgt, m.atk);
             if (m.burn && !tgt.dead) damageMon(tgt, m.burn);
+            if (m.lifesteal) healMon(m, m.atk);
             damageMon(m, counter);
+            if (tgt.thorns) damageMon(m, tgt.thorns);
             await onHitSkill(m, tgt);
-        } else damageFace(foeSide, m.atk + m.burn);
+        } else { damageFace(foeSide, m.atk + m.burn); if (m.lifesteal) healMon(m, m.atk); }
+        if (m.def.key === 'creeper' && !m.dead) await creeperBlast(m, tgt);
         if (m.buff) emit(m.holder.position.x, 1.5, m.holder.position.z, m.auraCol || ELEM[m.def.elem].glow, 14, 4, 5, 0.3, 0.6);
         await wait(0.15);
         if (m.dead || !alive(tok)) return;
@@ -1459,14 +1590,14 @@ async function run(mode) {
     async function runUnit(m, tok) {
         if (m.atk <= 0) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '0', 'info'); await wait(0.4); return; }
         for (let tries = 0; tries < 3 && alive(tok) && !m.dead; tries++) {
-            const r = await approach(m, m.def.speed, 7);
+            const r = await approach(m, m.def.speed * m.speedMul, 7);
             if (!alive(tok) || m.dead) break;
             if (r.tgt && r.tgt.dead) continue;          // target fell on the way: pick a new one
             if (r.inReach) {
-                if (m.ranged) await shoot(m, r.tgt, tok);
+                if (m.ranged) { await shoot(m, r.tgt, tok); if (m.pounce && !m.dead && alive(tok) && (!r.tgt || !r.tgt.dead)) await shoot(m, r.tgt, tok); }
                 else {
                     await strike(m, r.tgt, tok);
-                    if (m.pounce && !m.dead && alive(tok) && (!r.tgt || !r.tgt.dead)) {      // POUNCE: second strike
+                    if (m.pounce && !m.dead && alive(tok) && (!r.tgt || !r.tgt.dead) && m.def.key !== 'creeper') {      // POUNCE: second strike
                         fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'POUNCE!', 'info');
                         await strike(m, r.tgt, tok);
                     }
@@ -1474,7 +1605,7 @@ async function run(mode) {
             }
             break;
         }
-        if (!m.dead && alive(tok)) await walkHome(m, m.def.speed * 0.9);
+        if (!m.dead && alive(tok)) await walkHome(m, m.def.speed * m.speedMul * 0.9);
     }
     async function attackPhase(side, tok) {
         const me = S[side], foeSide = other(side), foe = S[foeSide];
@@ -1489,6 +1620,27 @@ async function run(mode) {
                 await triggerTrap(foeSide, trap, tok);
                 for (const t of targets) { await chainMon(t, rounds); if (dmg) damageMon(t, dmg); }
                 await wait(0.4);
+            } else if (trap.kind === 'mirrortrap') {
+                const n = lvVal(CARDS.mirrortrap, trap.level, 'n'), bonus = lvVal(CARDS.mirrortrap, trap.level, 'bonus');
+                const targets = cand.filter((m) => !m.chained).sort((a, b) => b.atk - a.atk).slice(0, n);
+                if (!targets.length) continue;
+                await triggerTrap(foeSide, trap, tok);
+                for (const t of targets) {
+                    emit(t.holder.position.x, 2, t.holder.position.z, 0xc0f0ff, 20, 4, 6, 0.35, 0.7); shockRing(t.holder.position.x, t.holder.position.z, 0xc0f0ff, false);
+                    damageMon(t, t.atk + bonus);
+                    if (!t.dead) await chainMon(t, 1, 'REFLECTED!');
+                }
+                await wait(0.4);
+            } else if (trap.kind === 'landmine') {
+                const dmg = lvVal(CARDS.landmine, trap.level, 'dmg');
+                await triggerTrap(foeSide, trap, tok);
+                S.shake = 0.8; sfx('fire');
+                for (const t of cand.slice()) {
+                    emit(t.holder.position.x, 1.5, t.holder.position.z, 0xff7a2a, 26, 5, 7, 0.45, 0.8); shockRing(t.holder.position.x, t.holder.position.z, 0xff7a2a, true);
+                    damageMon(t, dmg);
+                    if (trap.level >= LV_MAX && !t.dead && !t.immune) { t.atk = Math.max(0, t.atk - 1); if (!t.debuff) t.debuff = auraMesh(t, ELEM.fire.glow, 1.3, 0.16); updateLabel(t); }
+                }
+                await wait(0.5);
             } else {
                 const n = lvVal(CARDS.spiketrap, trap.level, 'n'), dmg = lvVal(CARDS.spiketrap, trap.level, 'dmg');
                 const targets = cand.slice(0, n);
@@ -1592,6 +1744,24 @@ async function run(mode) {
         setMusic('music_battle');
         await startRound(tok, true);
     }
+    // start-of-round abilities: regrowth, shields, the Moon Priest's mending and Holy Nova
+    async function roundStartEffects(tok) {
+        let acted = false;
+        for (const side of ['p', 'e']) {
+            for (const m of liveMons(side)) {
+                if (m.regen && m.hp < m.maxHp) { healMon(m, m.regen); acted = true; }
+                if (m.shieldRefill && m.shield < m.shieldMax) { m.shield = m.shieldMax; updateLabel(m); fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'SHIELD UP', 'info'); acted = true; }
+            }
+            for (const m of liveMons(side).filter((o) => o.def.key === 'priest')) {
+                const mend = m.lv >= 3 ? 2 : 1;
+                const hurt = liveMons(side).filter((o) => o.hp < o.maxHp).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
+                (m.massMend ? hurt : hurt.slice(0, 1)).forEach((o) => { healMon(o, mend); acted = true; });
+                if (m.massMend && S[side].hp < rule('duelistHealth')) { healFace(side, 1); acted = true; }
+                if (m.massMend) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'HOLY NOVA!', 'info'); liveMons(other(side)).forEach((o) => damageMon(o, 2)); acted = true; }
+            }
+        }
+        if (acted) await wait(0.6);
+    }
     async function startRound(tok, first) {
         const maxE = Math.min(rule('maxEnergy'), rule('startEnergy') + S.round - 1);
         S.p.energy = S.e.energy = maxE;
@@ -1600,6 +1770,7 @@ async function run(mode) {
         banner('ROUND ' + S.round);
         await wait(1.0);
         if (!alive(tok)) return;
+        if (!first) { await roundStartEffects(tok); if (!alive(tok)) return; }
         S.phase = 'player';
         banner('YOUR TURN');
         setHint('Tap a card to see what it does.');
@@ -2070,14 +2241,14 @@ async function run(mode) {
     $('againBtn').addEventListener('click', () => { unlockAudio(); newMatch(); });
 
     /* ============================ START ============================ */
-    ['slime', 'golem', 'wolf', 'archer', 'drake', 'fireball', 'heal', 'storm', 'flameaura', 'frostcurse', 'chaintrap', 'spiketrap'].forEach((k) => {
+    Object.keys(CARDS).forEach((k) => {
         const a = lib.getAsset('art_' + k);
         if (a && a.url) { const im = new Image(); im.src = a.url; }
     });
     await loadProfile();
     refreshUI();
     showMenu();
-    window.__bcd = { S, CARDS, profile, select, playPlayerCard, startFight, damageMon, showTab: (t) => showTab(t) };   // handy for debugging in the console
+    window.__bcd = { S, CARDS, profile, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
     requestAnimationFrame(loop);
 }
 </script>

@@ -294,5 +294,165 @@
     "subtype": "object",
     "type": "image",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZNKR9ZWPFVFPEFBCYNYR6_b2c24574-3f7e-4b0f-ac5a-7b1390d74259_ca2a5fe3-b4c8-4004-85eb-b6d3ca42f12f.webp"
+  },
+  "art_bat": {
+    "animation": null,
+    "aspect_ratio": [
+      991,
+      757
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel shadow bat with purple-black body, big spread wings, glowing red eyes and tiny fangs, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel shadow bat with purple-black body, big spread wings, glowing red eyes and tiny fangs, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E1WS1V6GVDP5596SZYAW_b2afb8ef-91f1-4b52-a46d-90e7f6f46d37_dad1eaeb-3a2e-4d01-86a5-7469d58236ff.webp"
+  },
+  "art_treant": {
+    "animation": null,
+    "aspect_ratio": [
+      888,
+      1140
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel vine treant tree monster with a brown trunk body, leafy cube canopy head, branch arms and a gentle glowing green face, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel vine treant tree monster with a brown trunk body, leafy cube canopy head, branch arms and a gentle glowing green face, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E2SH69G2KQERK3W3N721_8a0b8da6-7111-47c1-8d81-9f08ed82975b_4a519802-0a71-4cfd-8602-4207397657f8.webp"
+  },
+  "art_turtle": {
+    "animation": null,
+    "aspect_ratio": [
+      1001,
+      886
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel magma turtle with a dark rock shell full of glowing orange lava cracks and spikes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel magma turtle with a dark rock shell full of glowing orange lava cracks and spikes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E3JSD3858276T7YXNJBJ_7dfbca9f-fae5-4bcb-bdde-de9c2f12cfa2_aa88b36a-f608-4e35-bc68-3a27841b7761.webp"
+  },
+  "art_priest": {
+    "animation": null,
+    "aspect_ratio": [
+      786,
+      1153
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel moon priest in white and gold robes with a glowing halo and a crescent staff, calm blue glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel moon priest in white and gold robes with a glowing halo and a crescent staff, calm blue glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E4JP3GV2QHJ2QEAKV05W_c01b0247-3c4b-4caa-b643-9f2bde4cadf3_1149fba2-cfcf-4634-8fb9-d0d6360c505a.webp"
+  },
+  "art_creeper": {
+    "animation": null,
+    "aspect_ratio": [
+      722,
+      889
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel bomb creeper, a green cube creature with a dark pixel frown face and a lit fuse about to explode, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel bomb creeper, a green cube creature with a dark pixel frown face and a lit fuse about to explode, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E5HZZ1NDQHYDZP9J3FBR_11453cdb-59dd-41fd-b860-5ed6db4ffc77_42b8cbff-f169-4881-bd97-e943255f68e4.webp"
+  },
+  "art_ironguard": {
+    "animation": null,
+    "aspect_ratio": [
+      833,
+      1259
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel iron guard: a heavy grey steel shield with rivets and a glowing blue core protecting a small cube figure, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel iron guard: a heavy grey steel shield with rivets and a glowing blue core protecting a small cube figure, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E6HSWA53FH079148GCNJ_5cc6c4c8-c92a-42e9-b907-b7a313676012_5fb43799-5018-46bb-89aa-81e7c679a4ff.webp"
+  },
+  "art_swiftwind": {
+    "animation": null,
+    "aspect_ratio": [
+      984,
+      1063
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel swift wind: cyan wind swirls and speed streaks wrapping around winged boots made of cubes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel swift wind: cyan wind swirls and speed streaks wrapping around winged boots made of cubes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E7H4BVRFDBBWV7FG2X26_a1da8ac6-049a-4372-8a7d-c1919c67ed24_08187877-1cc5-410d-8e28-382f8be3f084.webp"
+  },
+  "art_divineshield": {
+    "animation": null,
+    "aspect_ratio": [
+      903,
+      814
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel divine shield made of golden glowing cubes with white wings and a radiant halo, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel divine shield made of golden glowing cubes with white wings and a radiant halo, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562E87P4AD64R9TC7KWBCP1_90e069fb-c345-4eec-9675-b8a997da6797_e41af872-3cd0-4bd7-9303-f1e1dbc385f8.webp"
+  },
+  "art_mirrortrap": {
+    "animation": null,
+    "aspect_ratio": [
+      938,
+      974
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel mirror trap: a shiny cyan-white crystal mirror lying on the floor reflecting a glowing sword beam, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel mirror trap: a shiny cyan-white crystal mirror lying on the floor reflecting a glowing sword beam, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562JBTEMY80VNM88PY015MY_474b8e81-0fcf-41ee-9c84-1a4f3c94f013_f8163e4c-0c0f-4ca6-a556-6b72e8868d60.webp"
+  },
+  "art_landmine": {
+    "animation": null,
+    "aspect_ratio": [
+      981,
+      906
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel land mine: a round dark metal pressure mine half buried in stone floor with a blinking red light and orange sparks, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel land mine: a round dark metal pressure mine half buried in stone floor with a blinking red light and orange sparks, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562JCJTVEA1SBH4YW8QE4KQ_b6747874-b512-4639-a9bd-63b51462da1c_05739663-95b4-4ca2-8edd-60b26d70520d.webp"
   }
 }
