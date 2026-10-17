@@ -59,6 +59,7 @@
     }
     .card .art { position: relative; margin-top: 36px; height: 84px; }
     .card .art svg { width: 82px; height: 82px; filter: drop-shadow(0 4px 0 rgba(0,0,0,.45)); }
+    .card .art img { width: 108px; height: 92px; margin-top: -4px; object-fit: contain; filter: drop-shadow(0 4px 0 rgba(0,0,0,.45)); pointer-events: none; }
     .card .nm { position: relative; font-size: 15px; line-height: 17px; padding: 0 4px; text-shadow: 0 2px 0 #000; }
     .card .st { position: relative; display: flex; justify-content: center; gap: 10px; margin-top: 7px; }
     .card .st span, .lbl span { display: inline-block; min-width: 42px; height: 32px; line-height: 32px; font-size: 22px; border: 3px solid #05070f; text-shadow: 0 2px 0 #000; }
@@ -219,6 +220,7 @@ async function run(mode) {
         chaintrap: { type: 'trap', name: 'CHAIN TRAP', cost: 2, target: 'none', elem: 'ice', desc: 'CHAIN TRAP: set face-down. Chains the strongest attacker for a round. Tap again to set.' },
         spiketrap: { type: 'trap', name: 'SPIKE TRAP', cost: 2, target: 'none', elem: 'fire', dmg: 4, desc: 'SPIKE TRAP: set face-down. The first attacker takes 4 damage. Tap again to set.' }
     };
+    Object.keys(CARDS).forEach((k) => { CARDS[k].key = k; });
     const DECK = [
         'slime', 'slime', 'slime', 'golem', 'golem', 'wolf', 'wolf', 'wolf', 'archer', 'archer', 'drake', 'drake',
         'fireball', 'fireball', 'heal', 'storm', 'flameaura', 'flameaura', 'frostcurse', 'frostcurse', 'chaintrap', 'spiketrap'
@@ -231,6 +233,8 @@ async function run(mode) {
     const svg = (inner) => `<svg viewBox="0 0 64 64">${inner}</svg>`;
     const cubeSVG = (h, extra) => svg(`${extra || ''}<polygon points="32,8 57,22 32,36 7,22" fill="${shade(h, 1.3)}"/><polygon points="7,22 32,36 32,60 7,46" fill="${shade(h, 1)}"/><polygon points="57,22 32,36 32,60 57,46" fill="${shade(h, .65)}"/><rect x="12" y="35" width="6" height="9" fill="#10131f"/><rect x="22" y="40" width="6" height="9" fill="#10131f"/>`);
     function iconSVG(c) {
+        const art = lib.getAsset('art_' + c.key);
+        if (art && art.url) return `<img src="${art.url}" alt="" draggable="false">`;
         if (c.type === 'monster') {
             const col = ELEM[c.elem].color;
             const extra = { wolf: '<polygon points="12,22 16,6 24,18" fill="#c83e1a"/><polygon points="52,22 48,6 40,18" fill="#c83e1a"/>',
@@ -258,8 +262,46 @@ async function run(mode) {
 
     /* ============================ SOUND (synthesised) ============================ */
     let actx = null;
+    const abuf = {};
+    let wantMusic = null, musicSrc = null, musicId = null;
+    async function loadAudio(id) {
+        if (abuf[id] !== undefined) return abuf[id];
+        abuf[id] = null;
+        try {
+            const a = lib.getAsset(id);
+            if (!a || !actx) { delete abuf[id]; return null; }
+            const r = await fetch(a.url);
+            abuf[id] = await actx.decodeAudioData(await r.arrayBuffer());
+        } catch (e) { lib.log('Audio load failed: ' + id); }
+        return abuf[id];
+    }
+    function playBuf(id, vol, loop) {
+        const b = abuf[id];
+        if (!actx || !b) return null;
+        try {
+            const src = actx.createBufferSource(), g = actx.createGain();
+            src.buffer = b; src.loop = !!loop; g.gain.value = vol;
+            src.connect(g); g.connect(actx.destination); src.start();
+            return src;
+        } catch (e) { return null; }
+    }
+    function updateMusic() {
+        if (musicId === wantMusic) return;
+        if (musicSrc) { try { musicSrc.stop(); } catch (e) { /* already stopped */ } musicSrc = null; musicId = null; }
+        if (wantMusic && abuf[wantMusic]) { musicSrc = playBuf(wantMusic, 0.32, true); musicId = musicSrc ? wantMusic : null; }
+    }
+    function setMusic(id) {
+        wantMusic = id; updateMusic();
+        if (id && actx && abuf[id] === undefined) loadAudio(id).then(updateMusic);
+    }
+    const SFX_ASSET = { summon: ['sfx_summon', 0.8], hit: ['sfx_hit', 0.8], fire: ['sfx_fireball', 0.8], bolt: ['sfx_thunder', 0.8], win: ['jingle_victory', 0.8], lose: ['jingle_defeat', 0.8] };
     function unlockAudio() {
-        try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) { actx = null; }
+        try {
+            const first = !actx;
+            actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+            actx.resume();
+            if (first) { Object.keys(SFX_ASSET).forEach((k) => loadAudio(SFX_ASSET[k][0])); setMusic(wantMusic || 'music_menu'); }
+        } catch (e) { actx = null; }
     }
     window.addEventListener('pointerdown', unlockAudio);
     function tone(freq, dur, type, vol, slideTo, delay) {
@@ -274,6 +316,8 @@ async function run(mode) {
         } catch (e) { /* audio is optional */ }
     }
     function sfx(name) {
+        const sa = SFX_ASSET[name];
+        if (sa && playBuf(sa[0], sa[1])) return;
         switch (name) {
             case 'card': tone(520, 0.08, 'square', 0.06, 780); break;
             case 'summon': [330, 440, 560, 740].forEach((f, i) => tone(f, 0.14, 'square', 0.07, f * 1.2, i * 0.07)); break;
@@ -337,7 +381,7 @@ async function run(mode) {
     const TRAP_POS = { p: [[-5.2, 10.2], [5.2, 10.2]], e: [[-5.2, -10.8], [5.2, -10.8]] };
     const MAX_MONS = 4;
     const other = (s) => s === 'p' ? 'e' : 'p';
-    const MON_SCALE = 1.35;
+    const MON_SCALE = 0.95;
     const pickables = [];
     let spawnZone;                      // glowing half-disc shown while you choose where to summon
 
@@ -591,7 +635,7 @@ async function run(mode) {
     function validSpawn(side, p) {
         const sgn = side === 'p' ? 1 : -1;
         if (Math.hypot(p.x, p.z) > ARENA_R - 1.4 || p.z * sgn < 1.8) return false;
-        return !liveMons(side).some((m) => dist2d(m.holder.position, p) < 2.3);
+        return !liveMons(side).some((m) => dist2d(m.holder.position, p) < 1.9);
     }
     function autoSpot(side) {
         const sgn = side === 'p' ? 1 : -1;
@@ -774,9 +818,9 @@ async function run(mode) {
         const cv = document.createElement('canvas'); cv.width = 192; cv.height = 80;
         const tex = new THREE.CanvasTexture(cv);
         const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-        spr.scale.set(2.5, 1.05, 1); spr.renderOrder = 20;
+        spr.scale.set(3.1 / MON_SCALE, 1.3 / MON_SCALE, 1); spr.renderOrder = 20;
         m.label = { cv, tex, spr };
-        spr.position.y = m.size.h + 1.1;
+        spr.position.y = m.size.h + 0.9;
         m.holder.add(spr);
         updateLabel(m);
     }
@@ -1059,7 +1103,7 @@ async function run(mode) {
             if (m.dead) return true;
             const tgt = nearestFoe(m);
             const pos = tgt ? tgt.holder.position : S[other(m.side)].avatar.group.position;
-            const reach = m.ranged ? 8.5 : (tgt ? 2.8 : 3.6);
+            const reach = m.ranged ? 8.5 : (tgt ? 2.3 : 3.2);
             const dx = pos.x - m.holder.position.x, dz = pos.z - m.holder.position.z, d = Math.hypot(dx, dz);
             res.tgt = tgt; res.inReach = d <= reach + 0.05;
             t += dt;
@@ -1089,9 +1133,9 @@ async function run(mode) {
         const foeSide = other(m.side), p0 = m.holder.position.clone();
         const aim = tgt ? tgt.holder.position : S[foeSide].avatar.group.position;
         const dir = new THREE.Vector3(aim.x - p0.x, 0, aim.z - p0.z).normalize();
-        await tween(0.18, (k) => { m.holder.position.copy(p0).addScaledVector(dir, -0.7 * k); }, easeOut);
+        await tween(0.18, (k) => { m.holder.position.copy(p0).addScaledVector(dir, -0.6 * k); }, easeOut);
         const p1 = m.holder.position.clone();
-        await tween(0.12, (k) => { m.holder.position.copy(p1).addScaledVector(dir, 1.9 * k); m.holder.position.y = 0.2 + Math.sin(k * Math.PI) * 0.6; }, easeIn);
+        await tween(0.12, (k) => { m.holder.position.copy(p1).addScaledVector(dir, 1.5 * k); m.holder.position.y = 0.2 + Math.sin(k * Math.PI) * 0.6; }, easeIn);
         if (!alive(tok) || m.dead) return;
         if (tgt) {
             const counter = tgt.atk;
@@ -1102,7 +1146,7 @@ async function run(mode) {
         await wait(0.15);
         if (m.dead || !alive(tok)) return;
         const p2 = m.holder.position.clone();
-        await tween(0.2, (k) => { m.holder.position.copy(p2).addScaledVector(dir, -1.6 * k); m.holder.position.y = 0.2; }, easeOut);
+        await tween(0.2, (k) => { m.holder.position.copy(p2).addScaledVector(dir, -1.3 * k); m.holder.position.y = 0.2; }, easeOut);
     }
     async function shoot(m, tgt, tok) {
         const foeSide = other(m.side);
@@ -1236,6 +1280,7 @@ async function run(mode) {
         for (const s of ['p', 'e']) if (!S[s].hand.some((c) => c.type === 'monster' && c.cost <= rule('startEnergy'))) S[s].hand[0] = CARDS.slime;
         $('ename').textContent = NAMES[Math.floor(Math.random() * NAMES.length)];
         $('menu').classList.add('hidden'); $('endscreen').classList.add('hidden');
+        setMusic('music_battle');
         await startRound(tok, true);
     }
     async function startRound(tok, first) {
@@ -1269,8 +1314,8 @@ async function run(mode) {
         if (S.over) return;
         if (S.p.hp > 0 && S.e.hp > 0) return;
         S.over = true; S.phase = 'over';
-        const won = S.e.hp <= 0 && S.p.hp > 0, loser = won ? 'e' : 'p';
-        sfx(won ? 'win' : 'lose');
+        const won = S.e.hp <= 0 && S.p.hp > 0, loser = won ? 'e' : 'p', tok0 = S.token;
+        setMusic(null); sfx(won ? 'win' : 'lose'); setTimeout(() => { if (tok0 === S.token) setMusic('music_menu'); }, 4200);
         const av = S[loser].avatar, tok = S.token;
         tween(0.8, (k) => { av.group.rotation.x = -Math.PI / 2 * k; av.group.position.y = 1.2 * k; }, easeIn);
         emit(av.group.position.x, 3, av.group.position.z, won ? 0xffcf3a : 0xff5a4a, 40, 6, 9, 0.5, 1.2);
@@ -1304,7 +1349,7 @@ async function run(mode) {
         // gentle separation so free-roaming monsters never stack on top of each other
         for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
             const a = all[i].holder.position, b = all[j].holder.position;
-            const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = 1.9;
+            const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = 1.5;
             if (d < min && d > 0.001) {
                 const push = (min - d) * 0.5 * Math.min(1, dt * 8), nx = dx / d, nz = dz / d;
                 a.x -= nx * push; a.z -= nz * push; b.x += nx * push; b.z += nz * push;
@@ -1375,6 +1420,10 @@ async function run(mode) {
     /* ============================ START ============================ */
     $('startBtn').addEventListener('click', () => { unlockAudio(); newMatch(); });
     $('againBtn').addEventListener('click', () => { unlockAudio(); newMatch(); });
+    ['slime', 'golem', 'wolf', 'archer', 'drake', 'fireball', 'heal', 'storm', 'flameaura', 'frostcurse', 'chaintrap', 'spiketrap'].forEach((k) => {
+        const a = lib.getAsset('art_' + k);
+        if (a && a.url) { const im = new Image(); im.src = a.url; }
+    });
     await loadStats();
     menuStats();
     refreshUI();

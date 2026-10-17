@@ -1,1 +1,298 @@
-{}
+{
+  "music_battle": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Energetic fantasy card-duel battle theme, driving chiptune-meets-orchestral, bouncy bass, bright synth arpeggios, playful but intense, 130 BPM, seamless loop",
+    "duration_secs": 30,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK4HG2E00EYGKSXC65JZX_9bda2308-d65c-4698-9f61-bc60020d38be_fd622910-bf3d-43e7-8457-5c8cd895a3d6.ogg",
+    "prompt": "Energetic fantasy card-duel battle theme, driving chiptune-meets-orchestral, bouncy bass, bright synth arpeggios, playful but intense, 130 BPM, seamless loop",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK4HG2E00EYGKSXC65JZX_9bda2308-d65c-4698-9f61-bc60020d38be_fd622910-bf3d-43e7-8457-5c8cd895a3d6.mp3"
+  },
+  "music_menu": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Mysterious yet welcoming fantasy menu music for a blocky card game, soft marimba and plucks, light pads, slow gentle groove, seamless loop",
+    "duration_secs": 30,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK5GRPDK93NXN0J34JCJ8_85b7cbf1-fe3e-4d31-be6e-e073c387d05f_392e7a7a-2e7c-472d-9228-e58b0c02539c.ogg",
+    "prompt": "Mysterious yet welcoming fantasy menu music for a blocky card game, soft marimba and plucks, light pads, slow gentle groove, seamless loop",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK5GRPDK93NXN0J34JCJ8_85b7cbf1-fe3e-4d31-be6e-e073c387d05f_392e7a7a-2e7c-472d-9228-e58b0c02539c.mp3"
+  },
+  "jingle_victory": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Short triumphant victory fanfare, bright brass and chiptune bells, rising and celebratory",
+    "duration_secs": 4,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK67Z6WRGPKW16MTHDDE3_ba1c51cb-2b15-4bbf-b639-76745db89f5d_adc59212-713b-4532-82ed-a09bf3cb1ebc.ogg",
+    "prompt": "Short triumphant victory fanfare, bright brass and chiptune bells, rising and celebratory",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK67Z6WRGPKW16MTHDDE3_ba1c51cb-2b15-4bbf-b639-76745db89f5d_adc59212-713b-4532-82ed-a09bf3cb1ebc.mp3"
+  },
+  "jingle_defeat": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Short sad defeat sting, descending minor notes on soft strings and chiptune, gentle not harsh",
+    "duration_secs": 4,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK741EYFR89624HW82643_cbed9bf0-640a-41d8-9677-ba00605379bc_d70d6488-cef1-4d88-a2f0-f465387e49af.ogg",
+    "prompt": "Short sad defeat sting, descending minor notes on soft strings and chiptune, gentle not harsh",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M55ZK741EYFR89624HW82643_cbed9bf0-640a-41d8-9677-ba00605379bc_d70d6488-cef1-4d88-a2f0-f465387e49af.mp3"
+  },
+  "sfx_summon": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Magical monster summon: a card shattering into blocks with a rising shimmer and a punchy pop, arcade fantasy",
+    "duration_secs": 1.71,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZK84RMBXJBXASARVFRNEJ_2e8d68a6-017a-400a-8b37-24699b3040c4_2ca03a4d-b028-4d3d-9441-d7e9c5e84a30.ogg",
+    "prompt": "Magical monster summon: a card shattering into blocks with a rising shimmer and a punchy pop, arcade fantasy",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZK84RMBXJBXASARVFRNEJ_2e8d68a6-017a-400a-8b37-24699b3040c4_2ca03a4d-b028-4d3d-9441-d7e9c5e84a30.mp3"
+  },
+  "sfx_hit": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Blocky creature melee impact, chunky thud with a short crunchy snap, arcade, non-gory",
+    "duration_secs": 1.7,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZK8TXC2SZB438QH3G592D_a1961d5e-52b8-4930-88c2-9652ee52a42b_4d219ecb-ff1d-4050-b646-5ee61e694412.ogg",
+    "prompt": "Blocky creature melee impact, chunky thud with a short crunchy snap, arcade, non-gory",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZK8TXC2SZB438QH3G592D_a1961d5e-52b8-4930-88c2-9652ee52a42b_4d219ecb-ff1d-4050-b646-5ee61e694412.mp3"
+  },
+  "sfx_fireball": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Fireball cast and explosion: rising fiery whoosh then a soft boom, arcade fantasy",
+    "duration_secs": 1.57,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZK9J018098HZC20P8WEJ7_fa6a8dd2-983b-47f4-b06a-107e80dabff5_b6d97b66-8636-4e4e-988c-d51b422509be.ogg",
+    "prompt": "Fireball cast and explosion: rising fiery whoosh then a soft boom, arcade fantasy",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZK9J018098HZC20P8WEJ7_fa6a8dd2-983b-47f4-b06a-107e80dabff5_b6d97b66-8636-4e4e-988c-d51b422509be.mp3"
+  },
+  "sfx_thunder": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Lightning strike: sharp electric crackle and a deep thunder crack, short arcade style",
+    "duration_secs": 2,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZKA8PV9W43JY8N1MB42K7_ac1287e2-dcad-4be8-be25-ef4fea5263da_225c6b59-ffe5-4b67-82b1-75ddd5deea88.ogg",
+    "prompt": "Lightning strike: sharp electric crackle and a deep thunder crack, short arcade style",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M55ZKA8PV9W43JY8N1MB42K7_ac1287e2-dcad-4be8-be25-ef4fea5263da_225c6b59-ffe5-4b67-82b1-75ddd5deea88.mp3"
+  },
+  "art_slime": {
+    "animation": null,
+    "aspect_ratio": [
+      845,
+      799
+    ],
+    "compression_suggestion": "original",
+    "description": "Cute blocky voxel green slime cube monster with two black eyes, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Cute blocky voxel green slime cube monster with two black eyes, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKCWX18HJ7VHGTS048MJE_d1a63493-5f88-4913-b506-fe4a176207f2_b8fb7846-0a94-449e-a4cb-2357da01f58e.webp"
+  },
+  "art_golem": {
+    "animation": null,
+    "aspect_ratio": [
+      919,
+      1131
+    ],
+    "compression_suggestion": "original",
+    "description": "Huge blocky voxel stone golem with mossy shoulders and glowing orange eyes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Huge blocky voxel stone golem with mossy shoulders and glowing orange eyes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKDQSM4Y7Q6XWVBZWZ6M9_681bcd3d-0e68-4ff4-8eff-ab4aafe23894_055e1b62-51b3-4dd2-ac65-4f7e7eaef275.webp"
+  },
+  "art_wolf": {
+    "animation": null,
+    "aspect_ratio": [
+      868,
+      940
+    ],
+    "compression_suggestion": "original",
+    "description": "Fierce blocky voxel flame wolf with orange-red fur and a fiery tail, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Fierce blocky voxel flame wolf with orange-red fur and a fiery tail, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKEH0FPQNT0D7AYW576FC_4beade9c-881f-4b87-b456-bbb2d3448bb0_ac03e1b6-c847-48f1-b768-5c61c0670545.webp"
+  },
+  "art_archer": {
+    "animation": null,
+    "aspect_ratio": [
+      844,
+      961
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel frost archer in a blue hood with an icy bow and ice crystal shoulders, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel frost archer in a blue hood with an icy bow and ice crystal shoulders, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKFE5SHDD9GP9F9BHXZ80_92c39858-1578-4828-af97-f482fe7e0936_219b4270-cd89-4629-bc53-23841d0b118f.webp"
+  },
+  "art_fireball": {
+    "animation": null,
+    "aspect_ratio": [
+      809,
+      820
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel fireball made of glowing orange and yellow cubes streaking forward, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel fireball made of glowing orange and yellow cubes streaking forward, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKHJ9VZ7Y5XPKCBD4QYP6_d6caec2b-606a-4064-8d6c-408696c131c4_fa485413-2274-40c9-8842-2c85bbaa8dd3.webp"
+  },
+  "art_heal": {
+    "animation": null,
+    "aspect_ratio": [
+      677,
+      677
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel green healing cross with floating sparkle cubes and a soft glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel green healing cross with floating sparkle cubes and a soft glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKJ89TTH0PTHCV4DVEVYB_6324facc-d359-4d2b-b733-8028d7ccd690_1686347c-bced-41d5-8fae-bdf660b4637d.webp"
+  },
+  "art_storm": {
+    "animation": null,
+    "aspect_ratio": [
+      858,
+      1091
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel storm cloud made of grey cubes with yellow lightning bolts striking down, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel storm cloud made of grey cubes with yellow lightning bolts striking down, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKK00QF8RHTMB1R7MQECC_96c194c5-32d3-4f61-a51d-73e2126aa646_0aebd2a3-c813-4875-85f7-ece7807e615a.webp"
+  },
+  "art_drake": {
+    "animation": null,
+    "aspect_ratio": [
+      967,
+      1058
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel thunder drake dragon with golden body, blue wings and crackling lightning, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel thunder drake dragon with golden body, blue wings and crackling lightning, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZKGAE220NQ648BD305VN8_0a99bc33-3a2e-4df3-be80-f7f8041f5643_c89fcc60-2218-4b2b-bf5d-b67a8a87714b.webp"
+  },
+  "art_flameaura": {
+    "animation": null,
+    "aspect_ratio": [
+      834,
+      1138
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel warrior silhouette wrapped in a faint red flame aura with rising ember cubes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel warrior silhouette wrapped in a faint red flame aura with rising ember cubes, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZNGVF9G3E7FKA9QZ41GHB_68f46653-b3a0-41df-ad90-abf418ff3edb_88242075-e8a1-4226-ba4b-0260884bd437.webp"
+  },
+  "art_frostcurse": {
+    "animation": null,
+    "aspect_ratio": [
+      905,
+      1188
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel monster frozen under a cold blue curse aura with icy cube shards and a dark rune, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel monster frozen under a cold blue curse aura with icy cube shards and a dark rune, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "effect",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZNHQ12RW4GMG6MFCHM1S6_5ebf9cc0-b3ac-41f4-b232-9e79d3c89401_b78f1778-ee1f-453c-8a63-72565f45b2ce.webp"
+  },
+  "art_chaintrap": {
+    "animation": null,
+    "aspect_ratio": [
+      863,
+      851
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel iron chains wrapping around a glowing trap rune on the ground, steel and blue glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel iron chains wrapping around a glowing trap rune on the ground, steel and blue glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZNK21EDQMC3H8NBYWPP5H_4d0aba92-ba6e-4db9-921d-2ed3b90769ea_34cd3645-c597-43c8-aef1-f16585b36e67.webp"
+  },
+  "art_spiketrap": {
+    "animation": null,
+    "aspect_ratio": [
+      944,
+      954
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel metal spikes bursting from a stone floor trap with orange warning glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel metal spikes bursting from a stone floor trap with orange warning glow, Minecraft-style, bold dark outline, vibrant, centered game card illustration, no text",
+    "subtype": "object",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M55ZNKR9ZWPFVFPEFBCYNYR6_b2c24574-3f7e-4b0f-ac5a-7b1390d74259_ca2a5fe3-b4c8-4004-85eb-b6d3ca42f12f.webp"
+  }
+}
