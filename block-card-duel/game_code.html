@@ -378,7 +378,7 @@ async function run(mode) {
         const g = (k) => lvVal(c, lv, k), five = lv >= LV_MAX;
         switch (c.key) {
             case 'fireball': return `FIREBALL: ${g('dmg')} damage to any enemy monster or the rival.` + (five ? ' LV5 INFERNO BURST: 2 splash damage to every other enemy monster.' : '');
-            case 'heal': return `HEAL PULSE: restore ${g('heal')} HP to one of your monsters or yourself.` + (five ? ' LV5 MASS PULSE: all your other monsters heal 3.' : '');
+            case 'heal': return `HEAL PULSE: restore ${g('heal')} HP to one wounded monster or yourself. Full-health targets cannot be healed.` + (five ? ' LV5 MASS PULSE: all your other wounded monsters heal 3.' : '');
             case 'storm': return `THUNDERSTORM: ${g('dmg')} damage to every enemy monster. Tap the card again to cast.` + (five ? ' LV5 STATIC SHOCK: hit monsters lose 1 ATK.' : '');
             case 'flameaura': return `FLAME AURA: +${g('atk')} ATK${g('hp') ? ' and +' + g('hp') + ' HP' : ''} and a faint red fire aura.` + (five ? ' LV5 INFERNO TOUCH: its hits burn for +1 damage.' : '');
             case 'frostcurse': return `FROST CURSE: -${g('atk')} ATK${g('hp') ? ' and -' + g('hp') + ' HP' : ''} and a cold blue curse on an enemy monster.` + (five ? ' LV5 DEEP FREEZE: the target is frozen and skips its next attack.' : '');
@@ -552,7 +552,7 @@ async function run(mode) {
     const AV_Z = { p: 12.2, e: -12.8 };
     const AV_SCALE = 0.8;
     const TRAP_POS = { p: [[-5.2, 10.2], [5.2, 10.2]], e: [[-5.2, -10.8], [5.2, -10.8]] };
-    const MAX_MONS = 4;
+    const MAX_MONS = 3;                 // 3 vs 3 monsters
     const other = (s) => s === 'p' ? 'e' : 'p';
     const MON_SCALE = 0.95;
     const pickables = [];
@@ -913,7 +913,10 @@ async function run(mode) {
             case 'enemyMon': out.push(...mons(other(side))); break;
             case 'enemyAny': out.push(...mons(other(side)), face(other(side))); break;
             case 'ownMon': out.push(...mons(side)); break;
-            case 'ownAny': out.push(...mons(side), face(side)); break;
+            case 'ownAny':                                           // Heal Pulse: full-health targets cannot be healed
+                out.push(...liveMons(side).filter((m) => m.hp < m.maxHp).map((m) => m.target));
+                if (S[side].hp < rule('duelistHealth')) out.push(face(side));
+                break;
         }
         return out;
     }
@@ -922,7 +925,7 @@ async function run(mode) {
         if (c.cost > S[side].energy) return 'Not enough energy!';
         if (c.type === 'trap' && S[side].traps.length >= 2) return 'Both trap slots are full!';
         if (c.type === 'monster' && liveMons(side).length >= MAX_MONS) return 'Your side is full (' + MAX_MONS + ' monsters)!';
-        if (needsTarget(c) && validTargets(c.type === 'monster' ? { target: 'ground' } : c, side).length === 0) return 'No valid target!';
+        if (needsTarget(c) && validTargets(c.type === 'monster' ? { target: 'ground' } : c, side).length === 0) return c.key === 'heal' ? 'Nobody is hurt - full health cannot be healed!' : (c.type === 'monster' ? 'No room to summon!' : 'No valid target!');
         return '';
     }
     function select(idx) {
@@ -1138,6 +1141,7 @@ async function run(mode) {
     }
     function healMon(m, amt) {
         const n = Math.min(amt, m.maxHp - m.hp);
+        if (n <= 0) return;
         m.hp += n; updateLabel(m);
         fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '+' + n, 'heal');
         const p = m.holder.position; emit(p.x, 0.5, p.z, 0x6dff8a, 20, 2.5, 6, 0.3, 1, -2);
@@ -1151,6 +1155,7 @@ async function run(mode) {
     }
     function healFace(side, amt) {
         const n = Math.min(amt, rule('duelistHealth') - S[side].hp);
+        if (n <= 0) return;
         S[side].hp += n; refreshUI();
         fxNum(S[side].avatar.group.position.clone().setY(5), '+' + n, 'heal');
         const p = S[side].avatar.group.position; emit(p.x, 0.5, p.z, 0x6dff8a, 24, 2.5, 7, 0.3, 1.1, -2);
@@ -1516,7 +1521,7 @@ async function run(mode) {
                 const foeMons = liveMons('p');
                 switch (c.type) {
                     case 'monster':
-                        s = 3 + c.atk * 0.6 + c.hp * 0.4 + (foeMons.length ? 0 : 2.5) + (liveMons('e').length >= 3 ? -1 : 0);
+                        s = 3 + c.atk * 0.6 + c.hp * 0.4 + (foeMons.length ? 0 : 2.5) + (liveMons('e').length >= MAX_MONS - 1 ? -1 : 0);
                         break;
                     case 'skill':
                         if (c.name === 'FIREBALL') {
