@@ -65,6 +65,8 @@
     .card .st span, .lbl span { display: inline-block; min-width: 42px; height: 32px; line-height: 32px; font-size: 22px; border: 3px solid #05070f; text-shadow: 0 2px 0 #000; }
     .a { background: #ff9b2e; } .h { background: #e8454e; }
     .card .tp { position: relative; font-size: 14px; letter-spacing: 1px; margin-top: 10px; color: var(--c); text-shadow: 0 2px 0 #000; }
+    .card .lvb { position: absolute; right: -10px; top: -10px; min-width: 46px; height: 30px; padding: 0 6px; box-sizing: border-box; z-index: 2; background: linear-gradient(#ffd75a, #e8a317); color: #3a2300; border: 4px solid #05070f; border-radius: 8px; font-size: 18px; line-height: 22px; text-shadow: none; }
+    .card.maxlv { border-color: #ffcf3a; box-shadow: 0 0 14px rgba(255,207,58,.7), 0 6px 0 #05070f; }
     .card.sel { transform: translateY(-34px) scale(1.08); box-shadow: 0 0 0 4px #fff, 0 6px 0 4px #05070f; z-index: 5; }
     .card.off { filter: grayscale(.75) brightness(.6); }
     #banner {
@@ -137,8 +139,8 @@
     #toast { position: absolute; left: 50%; bottom: 176px; transform: translateX(-50%); max-width: 600px; padding: 12px 22px; background: rgba(5,7,15,.94); border: 4px solid #ffcf3a; border-radius: 12px; font-size: 24px; text-align: center; z-index: 40; opacity: 0; pointer-events: none; transition: opacity .2s; }
     #toast.show { opacity: 1; }
     /* battle tab */
-    .arenaPlate { margin: 6px auto 0; width: 460px; text-align: center; padding: 10px 14px; }
-    .arenaPlate b { font-size: 36px; text-shadow: 0 4px 0 #000; } .arenaPlate div { font-size: 22px; color: #9fd0ff; }
+    .arenaPlate { cursor: pointer; margin: 6px auto 0; width: 500px; text-align: center; padding: 10px 14px; }
+    .arenaPlate b { font-size: 30px; text-shadow: 0 4px 0 #000; } .arenaPlate div { font-size: 22px; color: #9fd0ff; }
     #pg-battle.on { display: flex; flex-direction: column; justify-content: space-between; }
     .deckRow { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
     .deckRow .mi { width: 76px; height: 86px; background: rgba(10,14,40,.82); border: 4px solid #05070f; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
@@ -154,6 +156,14 @@
     .slot .tag { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 18px; color: #ffe08a; text-shadow: 0 2px 0 #000; }
     .slot .lk { position: absolute; top: 44px; left: 0; right: 0; text-align: center; font-size: 48px; text-shadow: 0 3px 0 #000; }
     #deckInfo { min-height: 78px; font-size: 22px; line-height: 28px; color: #ffe9a8; }
+    .cbar { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 22px; background: #05070f; border: 3px solid #05070f; border-radius: 6px; overflow: hidden; }
+    .cbar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#5ee07a, #1fa04a); }
+    .cbar b { position: absolute; left: 0; right: 0; font-size: 15px; line-height: 16px; text-align: center; text-shadow: 0 2px 0 #000; }
+    .cbar.ready i, .cbar.full i { background: linear-gradient(#ffd75a, #e8a317); }
+    .cbar.big { position: relative; left: auto; right: auto; bottom: auto; flex: 1; height: 38px; } .cbar.big b { font-size: 20px; line-height: 32px; }
+    .slot.indeck .card { box-shadow: 0 0 0 4px #5ee07a, 0 6px 0 4px #05070f; }
+    .upgrow { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
+    .nextlv { margin-top: 8px; color: #9fd0ff; font-size: 20px; line-height: 25px; } .lvtxt { color: #ffcf3a; } .hintline { margin-top: 8px; font-size: 20px; color: #cdd6ff; }
     /* shop */
     .shopitem { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
     .shopitem .pic { width: 110px; height: 110px; flex: none; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.35); border-radius: 10px; }
@@ -205,7 +215,7 @@
             </div>
             <div id="pages">
                 <section class="page on" id="pg-battle">
-                    <div class="panel arenaPlate"><b>BLOCK ARENA</b><div id="arenaSub">Win duels to climb the trophy road</div></div>
+                    <div class="panel arenaPlate" id="arenaPlate"><b id="arenaName">BLOCK PLAINS</b><div id="arenaSub"></div><div class="cbar big" id="arenaBar" style="margin-top:6px"><i></i><b></b></div></div>
                     <div>
                         <div class="deckRow" id="deckRow"></div>
                         <button class="btn" id="findBtn">FIND OPPONENT</button>
@@ -311,11 +321,12 @@ async function run(mode) {
 
     /* ============================ PLAYER PROFILE (saved with lib.saveUserGameState) ============================ */
     const STARTER = ['slime', 'golem', 'wolf', 'archer', 'fireball', 'heal', 'flameaura', 'chaintrap'];
-    const PRICE = { drake: 400, storm: 300, frostcurse: 200, spiketrap: 250 };
+    const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250 };
+    const LV_MAX = 5, COPIES_NEED = [2, 4, 6, 10], COIN_NEED = [50, 100, 200, 400];
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 8;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
-        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0,
+        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] },
         owned: STARTER.slice(), deck: STARTER.slice(),
         settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal' }
     };
@@ -344,6 +355,39 @@ async function run(mode) {
         spiketrap: { type: 'trap', name: 'SPIKE TRAP', cost: 2, target: 'none', elem: 'fire', dmg: 4, desc: 'SPIKE TRAP: set face-down. The first attacker takes 4 damage. Tap again to set.' }
     };
     Object.keys(CARDS).forEach((k) => { CARDS[k].key = k; });
+    /* ---- card levels (1-5): monsters grow +20% ATK/HP per level and awaken a buff + skill at level 5 ---- */
+    CARDS.slime.l5 = { buff: 'GEL COAT', buffDesc: 'takes 1 less damage from every hit', skill: 'SPLIT', skillDesc: 'splits into a mini slime when it dies', atk: 0 };
+    CARDS.golem.l5 = { buff: 'STONE SKIN', buffDesc: 'immune to curses and chains', skill: 'QUAKE', skillDesc: 'its strike shakes the arena: 2 damage to every other enemy monster', atk: 0 };
+    CARDS.wolf.l5 = { buff: 'BLAZING PELT', buffDesc: '+1 ATK and a fiery aura', skill: 'POUNCE', skillDesc: 'strikes twice per attack', atk: 1 };
+    CARDS.archer.l5 = { buff: 'FROST QUIVER', buffDesc: 'arrows chill targets (-1 ATK)', skill: 'VOLLEY', skillDesc: 'also shoots a second enemy for half damage', atk: 0 };
+    CARDS.drake.l5 = { buff: 'STORM CHARGE', buffDesc: '+2 ATK and a crackling aura', skill: 'CHAIN LIGHTNING', skillDesc: 'lightning arcs to another enemy for 3 damage', atk: 2 };
+    const LVV = {
+        fireball: { dmg: [4, 5, 6, 7, 8] }, heal: { heal: [4, 5, 6, 7, 8] }, storm: { dmg: [3, 4, 4, 5, 5] },
+        flameaura: { atk: [2, 2, 3, 3, 4], hp: [0, 1, 1, 2, 2] }, frostcurse: { atk: [2, 2, 3, 3, 4], hp: [0, 1, 1, 2, 2] },
+        chaintrap: { n: [1, 1, 2, 2, 3], dmg: [0, 1, 1, 2, 2], rounds: [1, 1, 1, 2, 2] }, spiketrap: { dmg: [4, 5, 6, 7, 8], n: [1, 1, 2, 2, 3] }
+    };
+    const clampLv = (lv) => Math.min(LV_MAX, Math.max(1, lv || 1));
+    const lvVal = (c, lv, k) => LVV[c.key][k][clampLv(lv) - 1];
+    const levelOf = (side, key) => (side === 'p' ? clampLv(profile.lv[key]) : clampLv(S.rivalLv));
+    function monStats(c, lv) {
+        const mul = 1 + 0.2 * (clampLv(lv) - 1);
+        return { atk: Math.round(c.atk * mul) + (clampLv(lv) >= LV_MAX && c.l5 ? c.l5.atk : 0), hp: Math.round(c.hp * mul) };
+    }
+    function descAt(c, lv) {
+        lv = clampLv(lv);
+        const g = (k) => lvVal(c, lv, k), five = lv >= LV_MAX;
+        switch (c.key) {
+            case 'fireball': return `FIREBALL: ${g('dmg')} damage to any enemy monster or the rival.` + (five ? ' LV5 INFERNO BURST: 2 splash damage to every other enemy monster.' : '');
+            case 'heal': return `HEAL PULSE: restore ${g('heal')} HP to one of your monsters or yourself.` + (five ? ' LV5 MASS PULSE: all your other monsters heal 3.' : '');
+            case 'storm': return `THUNDERSTORM: ${g('dmg')} damage to every enemy monster. Tap the card again to cast.` + (five ? ' LV5 STATIC SHOCK: hit monsters lose 1 ATK.' : '');
+            case 'flameaura': return `FLAME AURA: +${g('atk')} ATK${g('hp') ? ' and +' + g('hp') + ' HP' : ''} and a faint red fire aura.` + (five ? ' LV5 INFERNO TOUCH: its hits burn for +1 damage.' : '');
+            case 'frostcurse': return `FROST CURSE: -${g('atk')} ATK${g('hp') ? ' and -' + g('hp') + ' HP' : ''} and a cold blue curse on an enemy monster.` + (five ? ' LV5 DEEP FREEZE: the target is frozen and skips its next attack.' : '');
+            case 'chaintrap': return `CHAIN TRAP: set face-down. Chains ${g('n') > 1 ? 'the ' + g('n') + ' strongest attackers' : 'the strongest attacker'} for ${g('rounds')} round${g('rounds') > 1 ? 's' : ''}${g('dmg') ? ' and deals ' + g('dmg') + ' damage' : ''}. Tap again to set.`;
+            case 'spiketrap': return `SPIKE TRAP: set face-down. ${g('n') > 1 ? 'The first ' + g('n') + ' attackers take ' : 'The first attacker takes '}${g('dmg')} damage. Tap again to set.`;
+        }
+        const st = monStats(c, lv);
+        return `${c.desc.replace(/^[A-Z ]+: /, '')} (${st.atk} ATK / ${st.hp} HP)` + (c.l5 ? (five ? ` LV5 ${c.l5.buff}: ${c.l5.buffDesc}. ${c.l5.skill}: ${c.l5.skillDesc}.` : ` At LV5: ${c.l5.buff} + ${c.l5.skill}.`) : '');
+    }
     const DECK = [
         'slime', 'slime', 'slime', 'golem', 'golem', 'wolf', 'wolf', 'wolf', 'archer', 'archer', 'drake', 'drake',
         'fireball', 'fireball', 'heal', 'storm', 'flameaura', 'flameaura', 'frostcurse', 'frostcurse', 'chaintrap', 'spiketrap'
@@ -376,11 +420,14 @@ async function run(mode) {
         }
         return '';
     }
-    function cardHTML(c, extraClass, idx) {
-        const stats = c.type === 'monster'
-            ? `<div class="st"><span class="a">${c.atk}</span><span class="h">${c.hp}</span></div>`
+    function cardHTML(c, extraClass, idx, lv) {
+        lv = clampLv(lv);
+        const ms = c.type === 'monster' ? monStats(c, lv) : null;
+        const stats = ms
+            ? `<div class="st"><span class="a">${ms.atk}</span><span class="h">${ms.hp}</span></div>`
             : `<div class="tp">${TYPE_LABEL[c.type]}</div>`;
-        return `<div class="card ${extraClass || ''}" ${idx === undefined ? '' : `data-i="${idx}"`} style="--c:${hexCss(cardColor(c))}"><div class="cost">${c.cost}</div><div class="art">${iconSVG(c)}</div><div class="nm">${c.name}</div>${stats}</div>`;
+        const badge = lv > 1 ? `<div class="lvb">${lv >= LV_MAX ? 'MAX' : 'Lv' + lv}</div>` : '';
+        return `<div class="card ${extraClass || ''}${lv >= LV_MAX ? ' maxlv' : ''}" ${idx === undefined ? '' : `data-i="${idx}"`} style="--c:${hexCss(cardColor(c))}"><div class="cost">${c.cost}</div>${badge}<div class="art">${iconSVG(c)}</div><div class="nm">${c.name}</div>${stats}</div>`;
     }
 
     /* ============================ SOUND (synthesised) ============================ */
@@ -511,10 +558,21 @@ async function run(mode) {
     const pickables = [];
     let spawnZone;                      // glowing half-disc shown while you choose where to summon
 
+    /* ---- ARENA TIERS: the arena you fight in depends on your trophies ---- */
+    const ARENAS = [
+        { name: 'BLOCK PLAINS', min: 0, bg: 0x2a4a3a, floor: ['#2d4a2a', '#264022'], rim: [0x6b8f4a, 0x557a3a], pillar: [0x3a5c2e, 0x44703a, 0x335226], body: 0x3d5a2e, ring: 'rgba(255,255,255,0.22)', line: 'rgba(255,207,58,0.7)' },
+        { name: 'STONE QUARRY', min: 100, bg: 0x2a2f3a, floor: ['#3a3f48', '#31353d'], rim: [0x8a8f9a, 0x6f747f], pillar: [0x4a505c, 0x575e6c, 0x3d424d], body: 0x4b5160, ring: 'rgba(255,255,255,0.25)', line: 'rgba(255,207,58,0.7)' },
+        { name: 'FROST PEAK', min: 250, bg: 0x2a4a6a, floor: ['#8fb4d0', '#7aa0bd'], rim: [0xcfeaff, 0xa8cde8], pillar: [0xa9d6ee, 0xc4e6f7, 0x8fbfd8], body: 0x6f9ab8, ring: 'rgba(220,245,255,0.45)', line: 'rgba(255,255,255,0.8)' },
+        { name: 'EMBER FOUNDRY', min: 450, bg: 0x3a1a14, floor: ['#4a2a1e', '#3b2118'], rim: [0xff7a2a, 0xc8541a], pillar: [0x5a2a1c, 0x6e3320, 0x4a2216], body: 0x5a2c20, ring: 'rgba(255,170,80,0.35)', line: 'rgba(255,140,40,0.85)' },
+        { name: 'STORM CITADEL', min: 700, bg: 0x1f1a3a, floor: ['#3a3466', '#2e2a55'], rim: [0xffe14d, 0xc9a82a], pillar: [0x433b7a, 0x504690, 0x362f66], body: 0x3a3366, ring: 'rgba(255,240,140,0.3)', line: 'rgba(255,225,77,0.85)' },
+        { name: 'CROWN SUMMIT', min: 1000, bg: 0x3a2f12, floor: ['#6a5a2a', '#574a22'], rim: [0xffd45a, 0xd4a017], pillar: [0x8a742e, 0xa08838, 0x76622a], body: 0x7a642a, ring: 'rgba(255,230,140,0.45)', line: 'rgba(255,255,255,0.85)' }
+    ];
+    const arenaIndex = (tro) => { let i = 0; ARENAS.forEach((a, k) => { if (tro >= a.min) i = k; }); return i; };
+    let paintArena = () => {};
+
     (function buildArena() {
         const cv0 = document.createElement('canvas'); cv0.width = cv0.height = 128;
         const c0 = cv0.getContext('2d');
-        for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c0.fillStyle = (x + y) % 2 ? '#1d2550' : '#161d42'; c0.fillRect(x * 32, y * 32, 32, 32); }
         const ftex = new THREE.CanvasTexture(cv0);
         ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(10, 11);
         ftex.magFilter = THREE.NearestFilter; ftex.colorSpace = THREE.SRGBColorSpace;
@@ -522,43 +580,56 @@ async function run(mode) {
         floor.rotation.x = -Math.PI / 2; floor.position.y = -0.75;
         scene.add(floor);
         // stone body of the round arena
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R + 0.3, ARENA_R + 0.7, 1.4, 48), lam(0x2a3158));
+        const bodyMat = new THREE.MeshLambertMaterial({ color: 0x2a3158 });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R + 0.3, ARENA_R + 0.7, 1.4, 48), bodyMat);
         body.position.y = -0.7; scene.add(body);
-        // painted top: red far half, blue near half, gold centre line, rings
+        // painted top: red far half, blue near half, centre line, rings
         const N = 512, cv = document.createElement('canvas'); cv.width = cv.height = N;
         const cx = cv.getContext('2d'), R = N / 2;
-        cx.save(); cx.beginPath(); cx.arc(R, R, R, 0, Math.PI * 2); cx.clip();
-        for (let gy = 0; gy < 16; gy++) for (let gx = 0; gx < 16; gx++) {
-            const top = gy < 8, alt = (gx + gy) % 2;
-            cx.fillStyle = top ? (alt ? '#58283a' : '#4a2030') : (alt ? '#27478a' : '#203c78');
-            cx.fillRect(gx * 32, gy * 32, 32, 32);
-        }
-        cx.strokeStyle = 'rgba(255,255,255,0.22)'; cx.lineWidth = 6;
-        for (const f of [0.34, 0.68, 0.97]) { cx.beginPath(); cx.arc(R, R, R * f, 0, Math.PI * 2); cx.stroke(); }
-        cx.strokeStyle = 'rgba(255,207,58,0.7)'; cx.lineWidth = 10;
-        cx.beginPath(); cx.moveTo(0, R); cx.lineTo(N, R); cx.stroke();
-        cx.beginPath(); cx.arc(R, R, 46, 0, Math.PI * 2); cx.stroke();
-        cx.fillStyle = 'rgba(255,207,58,0.35)'; cx.beginPath(); cx.arc(R, R, 30, 0, Math.PI * 2); cx.fill();
-        cx.restore();
         const ttex = new THREE.CanvasTexture(cv); ttex.colorSpace = THREE.SRGBColorSpace;
         const top = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R, 64), new THREE.MeshLambertMaterial({ map: ttex }));
         top.rotation.x = -Math.PI / 2; top.position.y = 0.02; scene.add(top);
-        // blocky rim
+        // blocky rim + distant pillars (materials are repainted per arena)
+        const rimMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()];
         for (let i = 0; i < 40; i++) {
             const a = i / 40 * Math.PI * 2;
-            const blk = addBox(scene, 1.4, 0.9, 0.95, Math.cos(a) * (ARENA_R + 0.5), 0.3, Math.sin(a) * (ARENA_R + 0.5), i % 2 ? 0x4a5a9a : 0x394880);
-            blk.rotation.y = -a - Math.PI / 2;
+            const blk = addBox(scene, 1.4, 0.9, 0.95, Math.cos(a) * (ARENA_R + 0.5), 0.3, Math.sin(a) * (ARENA_R + 0.5), 0xffffff);
+            blk.material = rimMats[i % 2]; blk.rotation.y = -a - Math.PI / 2;
+        }
+        const pillarMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()];
+        for (let i = 0; i < 16; i++) {
+            const side = i < 8 ? -1 : 1, k = i % 8;
+            const h = 2 + ((k * 37) % 5) * 1.4;
+            addBox(scene, 2.4, h, 2.4, side * (13 + (k % 2) * 2.4), h / 2 - 0.75, -18 + k * 5, 0xffffff).material = pillarMats[k % 3];
         }
         // duelist daises
         addBox(scene, 6, 0.5, 4.4, 0, -0.25, AV_Z.p, 0x24437f);
         addBox(scene, 6, 0.5, 4.4, 0, -0.25, AV_Z.e, 0x7f2437);
-        // distant voxel pillars for depth
-        const cols = [0x2b3566, 0x333f78, 0x3a4688];
-        for (let i = 0; i < 16; i++) {
-            const side = i < 8 ? -1 : 1, k = i % 8;
-            const h = 2 + ((k * 37) % 5) * 1.4;
-            addBox(scene, 2.4, h, 2.4, side * (13 + (k % 2) * 2.4), h / 2 - 0.75, -18 + k * 5, cols[k % 3]);
-        }
+        paintArena = (idx) => {
+            const th = ARENAS[Math.min(ARENAS.length - 1, Math.max(0, idx))];
+            for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c0.fillStyle = th.floor[(x + y) % 2]; c0.fillRect(x * 32, y * 32, 32, 32); }
+            ftex.needsUpdate = true;
+            bodyMat.color.setHex(th.body);
+            rimMats[0].color.setHex(th.rim[0]); rimMats[1].color.setHex(th.rim[1]);
+            pillarMats.forEach((m, i) => m.color.setHex(th.pillar[i]));
+            scene.background.setHex(th.bg);
+            cx.clearRect(0, 0, N, N);
+            cx.save(); cx.beginPath(); cx.arc(R, R, R, 0, Math.PI * 2); cx.clip();
+            for (let gy = 0; gy < 16; gy++) for (let gx = 0; gx < 16; gx++) {
+                const alt = (gx + gy) % 2;
+                cx.fillStyle = gy < 8 ? (alt ? '#58283a' : '#4a2030') : (alt ? '#27478a' : '#203c78');
+                cx.fillRect(gx * 32, gy * 32, 32, 32);
+            }
+            cx.strokeStyle = th.ring; cx.lineWidth = 6;
+            for (const f of [0.34, 0.68, 0.97]) { cx.beginPath(); cx.arc(R, R, R * f, 0, Math.PI * 2); cx.stroke(); }
+            cx.strokeStyle = th.line; cx.lineWidth = 10;
+            cx.beginPath(); cx.moveTo(0, R); cx.lineTo(N, R); cx.stroke();
+            cx.beginPath(); cx.arc(R, R, 46, 0, Math.PI * 2); cx.stroke();
+            cx.fillStyle = th.line.replace(/[\d.]+\)$/, '0.35)'); cx.beginPath(); cx.arc(R, R, 30, 0, Math.PI * 2); cx.fill();
+            cx.restore();
+            ttex.needsUpdate = true;
+        };
+        paintArena(0);
         // glowing summon zone (your half)
         spawnZone = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R - 0.9, 40, Math.PI, Math.PI), glowMat(0x8fd0ff, 0.3));
         spawnZone.rotation.x = -Math.PI / 2; spawnZone.position.y = 0.09; spawnZone.visible = false; scene.add(spawnZone);
@@ -739,7 +810,7 @@ async function run(mode) {
     /* ============================ GAME STATE ============================ */
     const NAMES = ['RIVAL REX', 'CAPTAIN CUBE', 'DUELIST ZERO', 'BARON BLOCK', 'LADY LAVA'];
     const S = {
-        round: 1, phase: 'menu', over: true, token: 0, sel: null, valid: [], shake: 0, t: 0,
+        rivalLv: 1, round: 1, phase: 'menu', over: true, token: 0, sel: null, valid: [], shake: 0, t: 0,
         p: { hp: 20, energy: 0, hand: [], mons: [], traps: [], avatar: null },
         e: { hp: 20, energy: 0, hand: [], mons: [], traps: [], avatar: null }
     };
@@ -809,7 +880,7 @@ async function run(mode) {
         $('rd').textContent = 'ROUND ' + S.round;
         $('ehand').innerHTML = S.e.hand.map(() => '<span></span>').join('');
         fightBtn.classList.toggle('off', S.phase !== 'player');
-        handEl.innerHTML = S.p.hand.map((c, i) => cardHTML(c, (c.cost > S.p.energy || S.phase !== 'player' ? 'off ' : '') + (S.sel === i ? 'sel' : ''), i)).join('');
+        handEl.innerHTML = S.p.hand.map((c, i) => cardHTML(c, (c.cost > S.p.energy || S.phase !== 'player' ? 'off ' : '') + (S.sel === i ? 'sel' : ''), i, levelOf('p', c.key))).join('');
     }
     function setHint(text) { hintEl.textContent = text || ''; }
     function banner(text) {
@@ -822,12 +893,12 @@ async function run(mode) {
         const el = document.createElement('div');
         el.className = 'fxnum ' + (cls || 'dmg');
         el.textContent = text;
-        el.style.left = ((v.x * 0.5 + 0.5) * w) + 'px'; el.style.top = ((-v.y * 0.5 + 0.5) * h) + 'px';
+        el.style.left = Math.min(w - 110, Math.max(110, (v.x * 0.5 + 0.5) * w)) + 'px'; el.style.top = ((-v.y * 0.5 + 0.5) * h) + 'px';
         fxlayer.appendChild(el);
         setTimeout(() => el.remove(), 1050);
     }
     function showReveal(c) {
-        revealEl.innerHTML = cardHTML(c, '');
+        revealEl.innerHTML = cardHTML(c, '', undefined, levelOf('e', c.key));
         revealEl.classList.add('show');
         return wait(0.85).then(() => revealEl.classList.remove('show'));
     }
@@ -867,7 +938,7 @@ async function run(mode) {
             m.scale.setScalar(t.kind === 'face' ? 0.75 : 0.65);
             m.material.color.setHex(harm ? 0xff6a4a : 0x9dff6a); m.visible = true;
         });
-        setHint(c.desc + (needsTarget(c) ? (c.type === 'monster' ? ' Tap anywhere on YOUR blue half to summon, or tap the card again.' : ' Tap a glowing target.') : ''));
+        setHint(descAt(c, levelOf('p', c.key)) + (needsTarget(c) ? (c.type === 'monster' ? ' Tap anywhere on YOUR blue half to summon, or tap the card again.' : ' Tap a glowing target.') : ''));
         refreshUI();
     }
     function deselect() { S.sel = null; S.valid = []; clearMarkers(); setHint(S.phase === 'player' ? 'Tap a card to see what it does.' : ''); refreshUI(); }
@@ -951,37 +1022,42 @@ async function run(mode) {
 
     /* ============================ MONSTERS ============================ */
     function makeLabel(m) {
-        const cv = document.createElement('canvas'); cv.width = 192; cv.height = 80;
+        const cv = document.createElement('canvas'); cv.width = 192; cv.height = 104;
         const tex = new THREE.CanvasTexture(cv);
         const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-        spr.scale.set(3.1 / MON_SCALE, 1.3 / MON_SCALE, 1); spr.renderOrder = 20;
+        spr.scale.set(3.1 / MON_SCALE, 1.3 * 104 / 80 / MON_SCALE, 1); spr.renderOrder = 20;
         m.label = { cv, tex, spr };
-        spr.position.y = m.size.h + 0.9;
+        spr.position.y = m.size.h + 1.1;
         m.holder.add(spr);
         updateLabel(m);
     }
     function updateLabel(m) {
         const { cv, tex } = m.label, c = cv.getContext('2d');
-        c.clearRect(0, 0, 192, 80);
+        c.clearRect(0, 0, 192, 104);
+        if (m.lv > 1) {
+            c.fillStyle = '#05070f'; c.fillRect(46, 0, 100, 30); c.fillStyle = '#e8a317'; c.fillRect(50, 4, 92, 22);
+            c.fillStyle = '#fff'; c.font = '900 20px Trebuchet MS, Verdana, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(m.lv >= LV_MAX ? 'LV5 MAX' : 'LV ' + m.lv, 96, 16);
+        }
         const box = (x, color, txt) => {
-            c.fillStyle = '#05070f'; c.fillRect(x, 8, 84, 64);
-            c.fillStyle = color; c.fillRect(x + 5, 13, 74, 54);
+            c.fillStyle = '#05070f'; c.fillRect(x, 32, 84, 64);
+            c.fillStyle = color; c.fillRect(x + 5, 37, 74, 54);
             c.fillStyle = '#fff'; c.font = '900 44px Trebuchet MS, Verdana, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-            c.lineWidth = 6; c.strokeStyle = '#000'; c.strokeText(String(txt), x + 42, 42); c.fillText(String(txt), x + 42, 42);
+            c.lineWidth = 6; c.strokeStyle = '#000'; c.strokeText(String(txt), x + 42, 66); c.fillText(String(txt), x + 42, 66);
         };
-        box(6, m.atk > m.def.atk ? '#ff6a1f' : (m.atk < m.def.atk ? '#7a5ad0' : '#ff9b2e'), m.atk);
+        box(6, m.atk > m.base.atk ? '#ff6a1f' : (m.atk < m.base.atk ? '#7a5ad0' : '#ff9b2e'), m.atk);
         box(102, m.hp < m.maxHp ? '#c8303a' : '#e8454e', m.hp);
         tex.needsUpdate = true;
     }
-    function spawnMonster(side, pos, def) {
+    function spawnMonster(side, pos, def, lv) {
         const model = MODELS[def.model]();
         const holder = new THREE.Group();
         holder.add(model.group);
         holder.position.set(pos.x, 0.2, pos.z);
         holder.rotation.y = side === 'p' ? Math.PI : 0;
-        holder.scale.setScalar(MON_SCALE);
+        const lvl = clampLv(lv), ms = monStats(def, lvl), sc0 = MON_SCALE * (def.scale || 1);
+        holder.scale.setScalar(sc0);
         const m = {
-            id: ++uid, side, def, atk: def.atk, hp: def.hp, maxHp: def.hp, ranged: !!def.ranged, chained: false, dead: false,
+            id: ++uid, side, def, lv: lvl, base: ms, scale0: sc0, atk: ms.atk, hp: ms.hp, maxHp: ms.hp, ranged: !!def.ranged, chained: 0, dead: false, armor: 0, immune: false, burn: 0, pounce: false, volley: false, chill: false, auraCol: 0,
             holder, model, size: model.size, buff: null, debuff: null, flash: null, chain: null, ember: 0, home: holder.position.clone(), ready: false, state: 'idle', wt: 1 + Math.random() * 2, wto: null
         };
         const hit = new THREE.Mesh(boxGeo(model.size.w, model.size.h, Math.max(model.size.d, 2.4)), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
@@ -991,6 +1067,14 @@ async function run(mode) {
         makeLabel(m);
         scene.add(holder);
         S[side].mons.push(m);
+        if (lvl >= LV_MAX && def.l5) {                     // LEVEL 5: awaken the special buff + skill
+            m.auraCol = ELEM[def.elem].glow;
+            m.buff = auraMesh(m, m.auraCol, 1.18, 0.3);
+            if (def.key === 'slime') m.armor = 1;
+            if (def.key === 'golem') m.immune = true;
+            if (def.key === 'wolf') m.pounce = true;
+            if (def.key === 'archer') { m.chill = true; m.volley = true; }
+        }
         return m;
     }
     function auraMesh(m, color, grow, op) {
@@ -1028,14 +1112,24 @@ async function run(mode) {
         emit(p.x, m.size.h * 0.5 * MON_SCALE, p.z, 0xffffff, 10, 3, 6, 0.3, 0.6);
         shockRing(p.x, p.z, 0xffffff, false);
         if (m.chain) { m.holder.remove(m.chain); m.chain = null; }
-        tween(0.3, (k) => { m.holder.scale.setScalar(MON_SCALE * (1 - k)); m.holder.position.y = 0.2 + k * 1.2; }, easeIn).then(() => {
+        if (m.def.key === 'slime' && m.lv >= LV_MAX && !S.over && liveMons(m.side).length < MAX_MONS) spawnSplit(m);
+        tween(0.3, (k) => { m.holder.scale.setScalar(m.scale0 * (1 - k)); m.holder.position.y = 0.2 + k * 1.2; }, easeIn).then(() => {
             scene.remove(m.holder);
             m.holder.traverse((o) => { if (o.material && !sharedMats.has(o.material)) o.material.dispose(); });
             if (m.label) m.label.tex.dispose();
         });
     }
+    const MINI_SLIME = { key: 'mini', type: 'monster', name: 'MINI SLIME', atk: 1, hp: 2, elem: 'grass', model: 'slime', speed: 7, scale: 0.6 };
+    function spawnSplit(m) {
+        const a = Math.random() * Math.PI * 2, p = m.holder.position, pos = new THREE.Vector3(p.x + Math.cos(a) * 1.8, 0.2, p.z + Math.sin(a) * 1.8), r = Math.hypot(pos.x, pos.z);
+        if (r > ARENA_R - 1.2) { pos.x *= (ARENA_R - 1.2) / r; pos.z *= (ARENA_R - 1.2) / r; }
+        const nm = spawnMonster(m.side, pos, MINI_SLIME, 1);
+        fxNum(p.clone().setY(m.size.h * MON_SCALE + 3), 'SPLIT!', 'info');
+        monsterIn(nm).then(() => { nm.ready = true; });
+    }
     function damageMon(m, amt) {
         if (m.dead || amt <= 0) return;
+        if (m.armor) amt = Math.max(1, amt - m.armor);
         m.hp -= amt; flashMon(m); S.shake = Math.max(S.shake, 0.35); sfx('hit');
         fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '-' + amt, 'dmg');
         const p = m.holder.position; emit(p.x, m.size.h * 0.5 * MON_SCALE, p.z, 0xffffff, 8, 3, 5, 0.25, 0.5);
@@ -1061,25 +1155,31 @@ async function run(mode) {
         fxNum(S[side].avatar.group.position.clone().setY(5), '+' + n, 'heal');
         const p = S[side].avatar.group.position; emit(p.x, 0.5, p.z, 0x6dff8a, 24, 2.5, 7, 0.3, 1.1, -2);
     }
-    function chainMon(m) {
-        const g = new THREE.Group(), { w, h, d } = m.size, r = Math.max(w, d) * 0.62; // local to the (scaled) holder
-        for (const y of [0.5, h * 0.55]) for (let i = 0; i < 12; i++) {
-            const a = i / 12 * Math.PI * 2;
-            const l = new THREE.Mesh(boxGeo(0.7, 0.22, 0.22), lam(i % 2 ? 0xd6dcec : 0x8d97b4));
-            l.position.set(Math.cos(a) * r, y, Math.sin(a) * r); l.rotation.y = -a + Math.PI / 2; g.add(l);
+    function chainMon(m, rounds, label, frozen) {
+        if (m.immune) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'IMMUNE!', 'info'); return wait(0.3); }
+        const g0 = m.chain;
+        if (!g0) {
+            const g = new THREE.Group(), { w, h, d } = m.size, r = Math.max(w, d) * 0.62; // local to the (scaled) holder
+            for (const y of [0.5, h * 0.55]) for (let i = 0; i < 12; i++) {
+                const a = i / 12 * Math.PI * 2;
+                const l = new THREE.Mesh(boxGeo(0.7, 0.22, 0.22), lam(frozen ? (i % 2 ? 0xe4f6ff : 0x7ed8ff) : (i % 2 ? 0xd6dcec : 0x8d97b4)));
+                l.position.set(Math.cos(a) * r, y, Math.sin(a) * r); l.rotation.y = -a + Math.PI / 2; g.add(l);
+            }
+            g.scale.setScalar(2); m.holder.add(g); m.chain = g;
         }
-        g.scale.setScalar(2); m.holder.add(g); m.chain = g; m.chained = true;
-        sfx('chain'); fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'CHAINED!', 'cold');
-        emit(m.holder.position.x, 1, m.holder.position.z, 0xcfd6e6, 14, 3, 4, 0.25, 0.6);
+        m.chained = Math.max(m.chained || 0, rounds || 1);
+        sfx('chain'); fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), label || 'CHAINED!', 'cold');
+        emit(m.holder.position.x, 1, m.holder.position.z, frozen ? 0x7ed8ff : 0xcfd6e6, 14, 3, 4, 0.25, 0.6);
+        const g = m.chain;
         return tween(0.3, (k) => { g.scale.setScalar(2 - k); }, easeOut);
     }
     function unchain(m) {
         if (m.chain) { emit(m.holder.position.x, 1.5, m.holder.position.z, 0xcfd6e6, 14, 4, 6, 0.3, 0.7); m.holder.remove(m.chain); m.chain = null; }
-        m.chained = false;
+        m.chained = 0;
     }
 
     /* ============================ TRAPS ============================ */
-    function placeTrap(side, kind, from) {
+    function placeTrap(side, kind, lv) {
         const slot = S[side].traps.length, [x, z] = TRAP_POS[side][slot];
         const g = new THREE.Group();
         const col = side === 'p' ? (kind === 'chaintrap' ? 0x6f8fd6 : 0xe0803a) : 0x7b4bd6;
@@ -1087,7 +1187,7 @@ async function run(mode) {
         const rim = new THREE.Mesh(boxGeo(1.8, 1.8, 1.8), glowMat(col, 0.35));
         cube.position.y = rim.position.y = 1.1; g.add(cube, rim);
         g.position.set(x, 0, z); g.scale.setScalar(0.01); scene.add(g);
-        const trap = { kind, mesh: g, slot };
+        const trap = { kind, mesh: g, slot, level: clampLv(lv) };
         S[side].traps.push(trap);
         shockRing(x, z, col, false); sfx('aura');
         return tween(0.4, (k) => { g.scale.setScalar(Math.max(0.01, k)); }, easeBack).then(() => trap);
@@ -1101,7 +1201,7 @@ async function run(mode) {
     }
     async function triggerTrap(side, trap, tok) {
         const g = trap.mesh;
-        fxNum(g.position.clone().setY(3), trap.kind === 'chaintrap' ? 'CHAIN TRAP!' : 'SPIKE TRAP!', 'info');
+        fxNum(g.position.clone().setY(3), (trap.kind === 'chaintrap' ? 'CHAIN TRAP' : 'SPIKE TRAP') + (trap.level > 1 ? ' Lv' + trap.level : '') + '!', 'info');
         emit(g.position.x, 1.2, g.position.z, 0xffffff, 16, 3, 6, 0.3, 0.6);
         await tween(0.4, (k) => { g.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.6); g.rotation.y = k * Math.PI * 2; }, linear);
         removeTrap(side, trap);
@@ -1123,14 +1223,16 @@ async function run(mode) {
         const from = av.group.position.clone().setY(4.5);
         await throwAnim(side);
         if (!alive(tok)) return;
+        const lv = levelOf(side, c.key);
         if (c.type === 'monster') {
             const to = target.pos.clone().setY(2.4);
             const cm = await flyCard(c, from, to, 0.5);
-            const m = spawnMonster(side, target.pos, c);
+            const m = spawnMonster(side, target.pos, c, lv);
             emit(to.x, 2.4, to.z, cardColor(c), 14, 3, 5, 0.3, 0.5, 6);
             disposeCard(cm);
             await monsterIn(m);
             m.ready = true;
+            if (lv >= LV_MAX && c.l5) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), c.l5.skill + '!', 'info'); shockRing(m.holder.position.x, m.holder.position.z, ELEM[c.elem].glow, true); }
             return;
         }
         if (c.type === 'skill') {
@@ -1144,12 +1246,16 @@ async function run(mode) {
                 emit(dest.x, dest.y, dest.z, 0xff5a2a, 34, 6, 8, 0.5, 0.8); emit(dest.x, dest.y, dest.z, 0xffd23a, 16, 4, 6, 0.35, 0.6);
                 shockRing(dest.x, dest.z, 0xff7a2a, false);
                 if (!alive(tok)) return;
-                if (target.kind === 'face') damageFace(target.side, c.dmg); else damageMon(target.mon, c.dmg);
+                if (target.kind === 'face') damageFace(target.side, lvVal(c, lv, 'dmg')); else damageMon(target.mon, lvVal(c, lv, 'dmg'));
+                if (lv >= LV_MAX) {                                  // INFERNO BURST
+                    liveMons(foeSide).filter((o) => !(target.kind === 'mon' && o === target.mon)).forEach((o) => { emit(o.holder.position.x, 1.5, o.holder.position.z, 0xff7a2a, 14, 4, 6, 0.4, 0.7); damageMon(o, 2); });
+                }
                 await wait(0.35);
             } else if (c.name === 'HEAL PULSE') {
                 sfx('heal');
                 await wait(0.15);
-                if (target.kind === 'face') healFace(target.side, c.heal); else healMon(target.mon, c.heal);
+                if (target.kind === 'face') healFace(target.side, lvVal(c, lv, 'heal')); else healMon(target.mon, lvVal(c, lv, 'heal'));
+                if (lv >= LV_MAX) liveMons(side).filter((o) => !(target.kind === 'mon' && o === target.mon)).forEach((o) => healMon(o, 3));   // MASS PULSE
                 await wait(0.5);
             } else if (c.name === 'THUNDERSTORM') {
                 sfx('bolt');
@@ -1161,7 +1267,8 @@ async function run(mode) {
                     emit(p.x, 2, p.z, 0xffe14d, 22, 5, 7, 0.4, 0.7);
                     tween(0.35, (k) => { bolt.material.opacity = 1 - k; bolt.scale.x = bolt.scale.z = 1 + k * 2; }, linear).then(() => { scene.remove(bolt); bolt.material.dispose(); });
                     S.shake = 0.6;
-                    damageMon(m, c.dmg);
+                    damageMon(m, lvVal(c, lv, 'dmg'));
+                    if (lv >= LV_MAX && !m.dead) { m.atk = Math.max(0, m.atk - 1); if (!m.debuff) m.debuff = auraMesh(m, ELEM.bolt.glow, 1.3, 0.16); updateLabel(m); }   // STATIC SHOCK
                     await wait(0.18);
                 }
                 await wait(0.4);
@@ -1173,17 +1280,23 @@ async function run(mode) {
             const cm = await flyCard(c, from, to, 0.45);
             disposeCard(cm);
             if (!alive(tok) || m.dead) return;
-            const col = ELEM[c.elem].glow;
+            const col = ELEM[c.elem].glow, ea = lvVal(c, lv, 'atk'), eh = lvVal(c, lv, 'hp');
             if (c.type === 'buff') {
-                m.atk += c.atkMod; sfx('aura');
+                m.atk += ea; if (eh) { m.maxHp += eh; m.hp += eh; }
+                m.auraCol = col; sfx('aura');
                 if (!m.buff) m.buff = auraMesh(m, col, 1.18, 0.3);
-                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), '+' + c.atkMod + ' ATK', 'dmg');
+                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), '+' + ea + ' ATK' + (eh ? ' +' + eh + ' HP' : ''), 'dmg');
+                if (lv >= LV_MAX) { m.burn += 1; fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'INFERNO TOUCH!', 'info'); }
                 emit(m.holder.position.x, 0.5, m.holder.position.z, col, 26, 2, 8, 0.3, 1.1, -3);
+            } else if (m.immune) {
+                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'IMMUNE!', 'info'); sfx('no');
             } else {
-                m.atk = Math.max(0, m.atk + c.atkMod); sfx('curse');
+                m.atk = Math.max(0, m.atk - ea); if (eh) { m.maxHp = Math.max(1, m.maxHp - eh); m.hp = Math.min(m.hp, m.maxHp); }
+                sfx('curse');
                 if (!m.debuff) m.debuff = auraMesh(m, col, 1.3, 0.16);
-                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), c.atkMod + ' ATK', 'cold');
+                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), '-' + ea + ' ATK' + (eh ? ' -' + eh + ' HP' : ''), 'cold');
                 emit(m.holder.position.x, m.size.h * MON_SCALE, m.holder.position.z, col, 26, 2, -2, 0.3, 1.1, 5);
+                if (lv >= LV_MAX) await chainMon(m, 1, 'FROZEN!', true);          // DEEP FREEZE
             }
             shockRing(m.holder.position.x, m.holder.position.z, col, false);
             updateLabel(m);
@@ -1195,7 +1308,7 @@ async function run(mode) {
             const to = new THREE.Vector3(x, 1.4, z);
             const cm = await flyCard(c, from, to, 0.5);
             disposeCard(cm);
-            await placeTrap(side, c === CARDS.chaintrap ? 'chaintrap' : 'spiketrap');
+            await placeTrap(side, c === CARDS.chaintrap ? 'chaintrap' : 'spiketrap', lv);
             await wait(0.2);
         }
     }
@@ -1265,6 +1378,25 @@ async function run(mode) {
             return false;
         });
     }
+    // level-5 skills that trigger when a melee strike lands
+    async function onHitSkill(m, tgt) {
+        if (m.lv < LV_MAX || m.dead) return;
+        const foeSide = other(m.side);
+        if (m.def.key === 'golem') {                                  // QUAKE
+            const others = liveMons(foeSide).filter((o) => o !== tgt);
+            if (others.length) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'QUAKE!', 'info'); S.shake = 0.8; shockRing(m.holder.position.x, m.holder.position.z, 0xd9c9a0, true); others.forEach((o) => damageMon(o, 2)); }
+        } else if (m.def.key === 'drake') {                           // CHAIN LIGHTNING
+            const pool = liveMons(foeSide).filter((o) => o !== tgt).sort((a, b) => dist2d(a.holder.position, tgt.holder.position) - dist2d(b.holder.position, tgt.holder.position));
+            const o = pool[0];
+            if (o) {
+                const a = tgt.holder.position, b = o.holder.position, bolt = new THREE.Mesh(boxGeo(0.35, 0.35, 1), glowMat(0xfff27a, 1));
+                bolt.position.set((a.x + b.x) / 2, 2.6, (a.z + b.z) / 2); bolt.scale.z = Math.max(0.5, dist2d(a, b)); bolt.lookAt(b.x, 2.6, b.z); scene.add(bolt); sfx('bolt');
+                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'CHAIN LIGHTNING!', 'info');
+                tween(0.3, (k) => { bolt.material.opacity = 1 - k; }, linear).then(() => { scene.remove(bolt); bolt.material.dispose(); });
+                damageMon(o, 3);
+            }
+        }
+    }
     async function strike(m, tgt, tok) {
         const foeSide = other(m.side), p0 = m.holder.position.clone();
         const aim = tgt ? tgt.holder.position : S[foeSide].avatar.group.position;
@@ -1276,9 +1408,11 @@ async function run(mode) {
         if (tgt) {
             const counter = tgt.atk;
             damageMon(tgt, m.atk);
+            if (m.burn && !tgt.dead) damageMon(tgt, m.burn);
             damageMon(m, counter);
-        } else damageFace(foeSide, m.atk);
-        if (m.buff) emit(m.holder.position.x, 1.5, m.holder.position.z, ELEM[m.def.elem].glow, 14, 4, 5, 0.3, 0.6);
+            await onHitSkill(m, tgt);
+        } else damageFace(foeSide, m.atk + m.burn);
+        if (m.buff) emit(m.holder.position.x, 1.5, m.holder.position.z, m.auraCol || ELEM[m.def.elem].glow, 14, 4, 5, 0.3, 0.6);
         await wait(0.15);
         if (m.dead || !alive(tok)) return;
         const p2 = m.holder.position.clone();
@@ -1294,7 +1428,26 @@ async function run(mode) {
         await tween(0.35, (k) => { arrow.position.lerpVectors(src, dst, k); emit(arrow.position.x, arrow.position.y, arrow.position.z, 0x7ed8ff, 1, 0.5, 0.5, 0.25, 0.4, 0); }, linear);
         scene.remove(arrow); arrow.material.dispose();
         if (!alive(tok)) return;
-        if (tgt) damageMon(tgt, m.atk); else damageFace(foeSide, m.atk);
+        if (tgt) {
+            damageMon(tgt, m.atk);
+            if (m.burn && !tgt.dead) damageMon(tgt, m.burn);
+            if (m.chill && !tgt.dead && !tgt.immune) {                  // FROST QUIVER
+                tgt.atk = Math.max(0, tgt.atk - 1); if (!tgt.debuff) tgt.debuff = auraMesh(tgt, ELEM.ice.glow, 1.3, 0.16);
+                updateLabel(tgt); fxNum(tgt.holder.position.clone().setY(tgt.size.h * MON_SCALE + 3), '-1 ATK', 'cold');
+            }
+            if (m.volley) {                                              // VOLLEY: a second arrow for half damage
+                const t2 = liveMons(foeSide).filter((o) => o !== tgt).sort((a, b) => dist2d(a.holder.position, tgt.holder.position) - dist2d(b.holder.position, tgt.holder.position))[0];
+                if (t2) {
+                    const s2 = m.holder.position.clone().setY(2.8), d2 = t2.holder.position.clone().setY(2.4);
+                    const ar2 = new THREE.Mesh(boxGeo(0.25, 0.25, 1.4), new THREE.MeshBasicMaterial({ color: 0xbfeaff }));
+                    scene.add(ar2); ar2.lookAt(d2); fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'VOLLEY!', 'info');
+                    await tween(0.3, (k) => { ar2.position.lerpVectors(s2, d2, k); }, linear);
+                    scene.remove(ar2); ar2.material.dispose();
+                    if (!alive(tok)) return;
+                    damageMon(t2, Math.ceil(m.atk / 2));
+                }
+            }
+        } else damageFace(foeSide, m.atk + m.burn);
         await wait(0.3);
     }
     async function runUnit(m, tok) {
@@ -1303,7 +1456,16 @@ async function run(mode) {
             const r = await approach(m, m.def.speed, 7);
             if (!alive(tok) || m.dead) break;
             if (r.tgt && r.tgt.dead) continue;          // target fell on the way: pick a new one
-            if (r.inReach) { if (m.ranged) await shoot(m, r.tgt, tok); else await strike(m, r.tgt, tok); }
+            if (r.inReach) {
+                if (m.ranged) await shoot(m, r.tgt, tok);
+                else {
+                    await strike(m, r.tgt, tok);
+                    if (m.pounce && !m.dead && alive(tok) && (!r.tgt || !r.tgt.dead)) {      // POUNCE: second strike
+                        fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'POUNCE!', 'info');
+                        await strike(m, r.tgt, tok);
+                    }
+                }
+            }
             break;
         }
         if (!m.dead && alive(tok)) await walkHome(m, m.def.speed * 0.9);
@@ -1315,22 +1477,25 @@ async function run(mode) {
             const cand = liveMons(side);
             if (!cand.length) break;
             if (trap.kind === 'chaintrap') {
-                const tgt = cand.filter((m) => !m.chained).sort((a, b) => b.atk - a.atk)[0];
-                if (!tgt) continue;
+                const n = lvVal(CARDS.chaintrap, trap.level, 'n'), dmg = lvVal(CARDS.chaintrap, trap.level, 'dmg'), rounds = lvVal(CARDS.chaintrap, trap.level, 'rounds');
+                const targets = cand.filter((m) => !m.chained).sort((a, b) => b.atk - a.atk).slice(0, n);
+                if (!targets.length) continue;
                 await triggerTrap(foeSide, trap, tok);
-                await chainMon(tgt); await wait(0.4);
+                for (const t of targets) { await chainMon(t, rounds); if (dmg) damageMon(t, dmg); }
+                await wait(0.4);
             } else {
-                const tgt = cand[0];
+                const n = lvVal(CARDS.spiketrap, trap.level, 'n'), dmg = lvVal(CARDS.spiketrap, trap.level, 'dmg');
+                const targets = cand.slice(0, n);
                 await triggerTrap(foeSide, trap, tok);
-                await spikesAt(tgt);
-                damageMon(tgt, 4); await wait(0.4);
+                for (const t of targets) { await spikesAt(t); damageMon(t, dmg); }
+                await wait(0.4);
             }
             if (!alive(tok)) return;
         }
         const runs = liveMons(side).map((m, i) => (async () => {
             await wait(i * 0.4);
             if (!alive(tok) || m.dead) return;
-            if (m.chained) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'BOUND!', 'cold'); await wait(0.55); unchain(m); return; }
+            if (m.chained) { m.chained--; fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'BOUND!', 'cold'); await wait(0.55); if (m.chained <= 0) unchain(m); return; }
             m.state = 'act';
             try { await runUnit(m, tok); } finally { m.state = 'idle'; }
         })());
@@ -1355,8 +1520,8 @@ async function run(mode) {
                         break;
                     case 'skill':
                         if (c.name === 'FIREBALL') {
-                            if (t.kind === 'face') s = foe.hp <= c.dmg ? 99 : 1.5;
-                            else s = t.mon.hp <= c.dmg ? 4 + t.mon.atk : 1 + t.mon.atk * 0.3;
+                            if (t.kind === 'face') s = foe.hp <= lvVal(c, S.rivalLv, 'dmg') ? 99 : 1.5;
+                            else s = t.mon.hp <= lvVal(c, S.rivalLv, 'dmg') ? 4 + t.mon.atk : 1 + t.mon.atk * 0.3;
                         } else if (c.name === 'HEAL PULSE') {
                             if (t.kind === 'face') s = me.hp <= 10 ? 4 : 0.3;
                             else s = t.mon.maxHp - t.mon.hp >= 3 ? 3.5 : 0.3;
@@ -1408,6 +1573,8 @@ async function run(mode) {
     async function newMatch(rivalName) {
         S.token++; const tok = S.token;
         clearBoard();
+        const ai = arenaIndex(profile.trophies);
+        paintArena(ai); S.rivalLv = Math.min(LV_MAX, 1 + ai);
         S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
         S.p.hp = S.e.hp = rule('duelistHealth');
         S.p.hand = []; S.e.hand = [];
@@ -1460,7 +1627,7 @@ async function run(mode) {
             if (tok !== S.token) return;
             $('endTitle').textContent = won ? 'VICTORY!' : 'DEFEAT';
             $('endLine').textContent = won ? 'Win streak: ' + profile.streak + '  |  Best: ' + profile.best : 'Streak reset. Wins: ' + profile.wins + '  |  Losses: ' + profile.losses;
-            $('endReward').textContent = '+' + reward.coins + ' coins   ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies';
+            $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.spoils ? '<br>Card copies: ' + esc(reward.spoils) : '');
             $('endscreen').classList.remove('hidden');
         }, 1500);
         setHint(''); refreshUI();
@@ -1475,7 +1642,14 @@ async function run(mode) {
         while (deck.length < DECK_SIZE && fill.length) deck.push(fill.shift());
         profile.deck = deck.slice(0, DECK_SIZE);
         if (profile.deck.filter((k) => CARDS[k].type === 'monster').length < 2) profile.deck = STARTER.slice();
-        ['coins', 'trophies', 'wins', 'losses', 'streak', 'best', 'lastGift'].forEach((k) => { profile[k] = Number(profile[k]) || 0; });
+        ['coins', 'trophies', 'wins', 'losses', 'streak', 'best', 'lastGift', 'arenaBest'].forEach((k) => { profile[k] = Number(profile[k]) || 0; });
+        if (!profile.lv || typeof profile.lv !== 'object') profile.lv = {};
+        if (!profile.copies || typeof profile.copies !== 'object') profile.copies = {};
+        Object.keys(CARDS).forEach((k) => {
+            profile.lv[k] = profile.owned.includes(k) ? clampLv(profile.lv[k]) : 1;
+            profile.copies[k] = Math.max(0, Math.floor(Number(profile.copies[k]) || 0));
+        });
+        if (!profile.offers || typeof profile.offers !== 'object' || !Array.isArray(profile.offers.bought)) profile.offers = { day: 0, bought: [] };
         profile.coins = Math.max(0, profile.coins); profile.trophies = Math.max(0, profile.trophies);
     }
     async function loadProfile() {
@@ -1502,8 +1676,19 @@ async function run(mode) {
         if (mode !== 'play') return;
         try { Promise.resolve(lib.addPlayerScoreToLeaderboard(profile.trophies)).catch(() => lib.log('Leaderboard submit failed')); } catch (e) { lib.log('Leaderboard submit failed'); }
     }
+    function addCopies(key, n) {                       // the first copy unlocks the card, later ones level it up
+        const fresh = !profile.owned.includes(key);
+        if (fresh) { profile.owned.push(key); profile.lv[key] = 1; n -= 1; }
+        profile.copies[key] = (profile.copies[key] || 0) + Math.max(0, n);
+        return fresh;
+    }
+    const upgradable = () => profile.owned.filter((k) => (profile.lv[k] || 1) < LV_MAX);
     function applyResult(won) {
-        const reward = won ? { coins: WIN_COINS, trophies: WIN_TROPHIES } : { coins: LOSS_COINS, trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
+        const mul = 1 + 0.15 * arenaIndex(profile.trophies);
+        const reward = won ? { coins: Math.round(WIN_COINS * mul), trophies: WIN_TROPHIES } : { coins: Math.round(LOSS_COINS * mul), trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
+        const pool = profile.deck.filter((k) => (profile.lv[k] || 1) < LV_MAX), got = {};
+        for (let i = 0; i < (won ? 3 : 1) && pool.length; i++) { const k = pool[Math.floor(Math.random() * pool.length)]; got[k] = (got[k] || 0) + 1; addCopies(k, 1); }
+        reward.spoils = Object.keys(got).map((k) => CARDS[k].name + ' +' + got[k]).join(', ');
         if (won) { profile.wins++; profile.streak++; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; }
         profile.coins += reward.coins; profile.trophies = Math.max(0, profile.trophies + reward.trophies);
         saveProfile(); submitScore();
@@ -1560,7 +1745,7 @@ async function run(mode) {
             side.mons.forEach((m) => {
                 if (m.dead) return;
                 if (m.model.idle) m.model.idle(t + m.id);
-                if (m.buff) { m.buff.material.opacity = 0.22 + Math.sin(t * 4 + m.id) * 0.08; m.ember -= dt; if (m.ember <= 0) { m.ember = 0.14; emit(m.holder.position.x, 0.4, m.holder.position.z, ELEM.fire.glow, 1, 1.2, 4, 0.3, 0.9, -2); } }
+                if (m.buff) { m.buff.material.opacity = 0.22 + Math.sin(t * 4 + m.id) * 0.08; m.ember -= dt; if (m.ember <= 0) { m.ember = 0.14; emit(m.holder.position.x, 0.4, m.holder.position.z, m.auraCol || ELEM.fire.glow, 1, 1.2, 4, 0.3, 0.9, -2); } }
                 if (m.debuff) { m.debuff.material.opacity = 0.14 + Math.sin(t * 3 + m.id) * 0.06; }
                 if (m.flashT > 0) { m.flashT = Math.max(0, m.flashT - dt * 4); m.flash.material.opacity = m.flashT * 0.8; }
                 if (m.chain) m.chain.rotation.y += dt * 0.6;
@@ -1580,8 +1765,8 @@ async function run(mode) {
         S.shake = Math.max(0, S.shake - dt * 2.2);
         if (S.phase === 'menu') {                       // slow fly-around behind the menu
             const ang = t * 0.16;
-            camera.position.set(Math.sin(ang) * 30, 21, Math.cos(ang) * 30 + 4);
-            camera.lookAt(0, 1.5, 7.5);
+            camera.position.set(Math.sin(ang) * 40, 26, Math.cos(ang) * 40);
+            camera.lookAt(0, 0, 2);
         } else {
             camera.position.set(CAM_POS.x + (Math.random() - 0.5) * S.shake, CAM_POS.y + (Math.random() - 0.5) * S.shake, CAM_POS.z);
             camera.lookAt(CAM_LOOK);
@@ -1622,16 +1807,20 @@ async function run(mode) {
     }
     const giftLeft = () => Math.max(0, profile.lastGift + GIFT_HOURS * 3600000 - Date.now());
     function fmtLeft(ms) { const m = Math.ceil(ms / 60000); return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; }
-    function showPopup(title, key, text) {
+    function showPopup(title, key, text, lv) {
         const ov = $('popOv');
-        ov.innerHTML = `<h1 style="font-size:64px">${title}</h1>${key ? `<div class="popcard">${cardHTML(CARDS[key], '')}</div>` : '<div style="height:60px"></div>'}<p>${text || ''}</p><button class="btn" id="popOk">OK</button>`;
+        ov.innerHTML = `<h1 style="font-size:64px">${title}</h1>${key ? `<div class="popcard">${cardHTML(CARDS[key], '', undefined, lv || profile.lv[key] || 1)}</div>` : '<div style="height:60px"></div>'}<p>${text || ''}</p><button class="btn" id="popOk">OK</button>`;
         ov.classList.remove('hidden');
         $('popOk').onclick = () => ov.classList.add('hidden');
     }
 
     /* ---- BATTLE tab (opponent search) ---- */
     function renderBattle() {
-        $('arenaSub').textContent = profile.trophies + ' trophies';
+        const ai = arenaIndex(profile.trophies), cur = ARENAS[ai], nxt = ARENAS[ai + 1];
+        $('arenaName').textContent = 'ARENA ' + (ai + 1) + ': ' + cur.name;
+        $('arenaSub').textContent = nxt ? profile.trophies + ' / ' + nxt.min + ' trophies to ' + nxt.name : profile.trophies + ' trophies - top arena!';
+        const bar = $('arenaBar'); bar.firstChild.style.width = (nxt ? Math.min(100, (profile.trophies - cur.min) / (nxt.min - cur.min) * 100) : 100) + '%'; bar.lastChild.textContent = 'Rival cards: Lv ' + Math.min(LV_MAX, 1 + ai);
+        paintArena(ai);
         $('deckRow').innerHTML = profile.deck.map((k) => `<div class="mi">${iconSVG(CARDS[k])}</div>`).join('');
         $('rec').textContent = 'Wins ' + profile.wins + '   Losses ' + profile.losses + '   Best streak ' + profile.best;
     }
@@ -1654,29 +1843,57 @@ async function run(mode) {
         newMatch(name);
     }
     $('findBtn').addEventListener('click', findOpponent);
+    $('arenaPlate').addEventListener('click', () => {
+        const ai = arenaIndex(profile.trophies);
+        const rows = ARENAS.map((a, i) => `<div class="panel rk ${i === ai ? 'me' : ''}" style="${i > ai ? 'opacity:.55' : ''}"><span class="n">${i + 1}</span><span class="u">${a.name}</span><span class="sc">${a.min}+</span></div>`).join('');
+        const ov = $('popOv');
+        ov.innerHTML = `<h1 style="font-size:56px">ARENAS</h1><div style="width:640px">${rows}</div><p>Higher arenas pay more coins, but the rival's cards get stronger (Lv ${Math.min(LV_MAX, 1 + ai)} now, up to Lv 5).</p><button class="btn" id="popOk">OK</button>`;
+        ov.classList.remove('hidden'); $('popOk').onclick = () => ov.classList.add('hidden');
+    });
 
     /* ---- CARDS tab: battle deck + collection ---- */
     const LOCK = '<svg viewBox="0 0 64 64" width="52" height="52"><rect x="14" y="28" width="36" height="28" rx="4" fill="#cfd6e6" stroke="#05070f" stroke-width="4"/><path d="M22 28v-8a10 10 0 0 1 20 0v8" fill="none" stroke="#cfd6e6" stroke-width="6"/></svg>';
-    function deckInfoText() {
+    function deckInfoHTML() {
         if (dsel.key) {
-            const c = CARDS[dsel.key];
-            return c.desc + (profile.owned.includes(dsel.key) ? ' Now tap a deck slot to put it in your deck.' : ' LOCKED: buy it in the SHOP for ' + PRICE[dsel.key] + ' coins.');
+            const k = dsel.key, c = CARDS[k], lv = profile.lv[k] || 1;
+            if (!profile.owned.includes(k)) return `<b>${c.name}</b> is LOCKED. Buy it in the SHOP for ${coinI}${PRICE[k]}.<br>${esc(descAt(c, 1))}`;
+            let h = `<b>${c.name}</b> <span class="lvtxt">LEVEL ${lv}${lv >= LV_MAX ? ' (MAX)' : ''}</span><br>${esc(descAt(c, lv))}`;
+            if (lv < LV_MAX) {
+                const have = profile.copies[k] || 0, need = COPIES_NEED[lv - 1], cost = COIN_NEED[lv - 1], ok = have >= need && profile.coins >= cost;
+                h += `<div class="nextlv">NEXT LEVEL: ${esc(descAt(c, lv + 1))}</div><div class="upgrow"><div class="cbar big ${have >= need ? 'ready' : ''}"><i style="width:${Math.min(100, have / need * 100)}%"></i><b>${have}/${need} copies</b></div><button class="btn ${ok ? 'green' : 'grey off'}" data-up="${k}">UPGRADE ${coinI}${cost}</button></div>`;
+            }
+            return h + '<div class="hintline">Tap a deck slot to put it in your deck.</div>';
         }
-        if (dsel.slot !== null) return CARDS[profile.deck[dsel.slot]].desc + ' Tap a collection card to swap it in.';
-        return 'Tap a card in your deck, then a card in the collection to swap them. Keep at least 2 monsters.';
+        if (dsel.slot !== null) { const k = profile.deck[dsel.slot]; return `<b>${CARDS[k].name}</b> <span class="lvtxt">LEVEL ${profile.lv[k] || 1}</span><br>${esc(descAt(CARDS[k], profile.lv[k] || 1))}<div class="hintline">Tap a collection card to swap it in.</div>`; }
+        return 'Tap a card in your deck, then a card in the collection to swap them. Tap a collection card to see its level and upgrade it with duplicate copies. Keep at least 2 monsters.';
     }
     function renderDeck() {
         const all = Object.keys(CARDS), deck = profile.deck;
         const ordered = all.filter((k) => profile.owned.includes(k)).concat(all.filter((k) => !profile.owned.includes(k)));
         const avg = (deck.reduce((a, k) => a + CARDS[k].cost, 0) / deck.length).toFixed(1);
+        const keep = $('pg-deck').scrollTop;
         $('pg-deck').innerHTML = `<div class="sect">BATTLE DECK <small>avg cost ${avg}</small></div>
-            <div class="grid4">${deck.map((k, i) => `<div class="slot ${dsel.slot === i ? 'pick' : ''}" data-slot="${i}">${cardHTML(CARDS[k], '')}</div>`).join('')}</div>
-            <div class="panel" id="deckInfo" style="margin-top:12px">${deckInfoText()}</div>
+            <div class="grid4">${deck.map((k, i) => `<div class="slot ${dsel.slot === i ? 'pick' : ''}" data-slot="${i}">${cardHTML(CARDS[k], '', undefined, profile.lv[k])}</div>`).join('')}</div>
+            <div class="panel" id="deckInfo" style="margin-top:12px">${deckInfoHTML()}</div>
             <div class="sect">COLLECTION <small>${profile.owned.length}/${all.length} cards</small></div>
             <div class="grid4">${ordered.map((k) => {
-                const o = profile.owned.includes(k);
-                return `<div class="slot ${o ? '' : 'locked'} ${dsel.key === k ? 'pick' : ''}" data-k="${k}">${cardHTML(CARDS[k], '')}${o ? '' : `<div class="lk">${LOCK}</div>`}<div class="tag">${o ? (deck.includes(k) ? 'IN DECK' : '') : PRICE[k] + ' coins'}</div></div>`;
+                const o = profile.owned.includes(k), lv = profile.lv[k] || 1, have = profile.copies[k] || 0;
+                const bar = !o ? `<div class="tag">${PRICE[k]} coins</div>` : (lv >= LV_MAX ? '<div class="cbar full"><i style="width:100%"></i><b>MAX</b></div>' : `<div class="cbar ${have >= COPIES_NEED[lv - 1] ? 'ready' : ''}"><i style="width:${Math.min(100, have / COPIES_NEED[lv - 1] * 100)}%"></i><b>${have}/${COPIES_NEED[lv - 1]}</b></div>`);
+                return `<div class="slot ${o ? '' : 'locked'} ${deck.includes(k) ? 'indeck' : ''} ${dsel.key === k ? 'pick' : ''}" data-k="${k}">${cardHTML(CARDS[k], '', undefined, lv)}${o ? '' : `<div class="lk">${LOCK}</div>`}${bar}</div>`;
             }).join('')}</div>`;
+        $('pg-deck').scrollTop = keep;
+    }
+    function upgradeCard(k) {
+        const lv = profile.lv[k] || 1;
+        if (lv >= LV_MAX) { toast('Already at max level!'); return; }
+        const have = profile.copies[k] || 0, need = COPIES_NEED[lv - 1], cost = COIN_NEED[lv - 1];
+        if (have < need) { toast('You need ' + (need - have) + ' more copies. Win duels or open chests!'); sfx('no'); return; }
+        if (profile.coins < cost) { toast('Not enough coins (' + cost + ' needed).'); sfx('no'); return; }
+        profile.copies[k] = have - need; profile.coins -= cost; profile.lv[k] = lv + 1;
+        saveProfile(); sfx('win'); renderTop();
+        const c = CARDS[k], nl = lv + 1;
+        showPopup(nl >= LV_MAX ? 'MAX LEVEL!' : 'LEVEL UP!', k, nl >= LV_MAX && c.l5 ? esc(c.name) + ' awakened: ' + esc(c.l5.buff) + ' + ' + esc(c.l5.skill) + '!' : esc(c.name) + ' is now level ' + nl + '.', nl);
+        renderDeck();
     }
     function placeCard(slot, key) {
         if (!profile.owned.includes(key)) { toast(CARDS[key].name + ' is locked - buy it in the SHOP.'); sfx('no'); return; }
@@ -1689,6 +1906,8 @@ async function run(mode) {
         saveProfile(); sfx('card'); renderDeck();
     }
     $('pg-deck').addEventListener('click', (e) => {
+        const up = e.target.closest('[data-up]');
+        if (up) { upgradeCard(up.dataset.up); return; }
         const sl = e.target.closest('[data-slot]'), co = e.target.closest('[data-k]');
         if (sl) {
             const i = Number(sl.dataset.slot);
@@ -1704,35 +1923,60 @@ async function run(mode) {
 
     /* ---- SHOP tab ---- */
     const CHEST_SVG = '<svg viewBox="0 0 64 64"><rect x="8" y="24" width="48" height="30" rx="4" fill="#a8641e" stroke="#05070f" stroke-width="4"/><path d="M8 28a4 4 0 0 1 4-4h40a4 4 0 0 1 4 4v6H8z" fill="#c9822e" stroke="#05070f" stroke-width="4"/><rect x="28" y="30" width="8" height="12" fill="#ffcf3a" stroke="#05070f" stroke-width="3"/></svg>';
+    const dayKey = () => Math.floor(Date.now() / 86400000);
+    function dailyOffers() {
+        let seed = dayKey() * 9301 + 49297;
+        const arr = upgradable().sort();
+        for (let i = arr.length - 1; i > 0; i--) { seed = (seed * 9301 + 49297) % 233280; const j = Math.floor(seed / 233280 * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+        return arr.slice(0, 3);
+    }
+    const offerPrice = (k) => Math.round(PRICE[k] * 0.4);
     function renderShop() {
         const left = giftLeft(), locked = Object.keys(CARDS).filter((k) => !profile.owned.includes(k));
+        if (profile.offers.day !== dayKey()) profile.offers = { day: dayKey(), bought: [] };
         const afford = (n) => (profile.coins >= n ? '' : 'off');
+        const offers = dailyOffers();
         $('pg-shop').innerHTML = `<div class="sect">DAILY GIFT</div>
             <div class="panel shopitem"><div class="pic">${CHEST_SVG}</div><div class="info"><b>FREE GIFT</b><br>${GIFT_COINS} coins every ${GIFT_HOURS} hours</div>${left ? `<button class="btn grey off">${fmtLeft(left)}</button>` : '<button class="btn green" data-gift>CLAIM</button>'}</div>
             <div class="sect">CARD CHEST</div>
-            <div class="panel shopitem"><div class="pic">${CHEST_SVG}</div><div class="info"><b>WOODEN CHEST</b><br>Unlocks a random new card</div><button class="btn ${locked.length ? afford(CHEST_COST) : 'off'}" data-chest>${coinI}${CHEST_COST}</button></div>
-            <div class="sect">CARDS FOR SALE</div>` + (locked.length ? locked.map((k) => {
+            <div class="panel shopitem"><div class="pic">${CHEST_SVG}</div><div class="info"><b>WOODEN CHEST</b><br>5 random card copies - unlock new cards or level up old ones</div><button class="btn ${afford(CHEST_COST)}" data-chest>${coinI}${CHEST_COST}</button></div>
+            <div class="sect">DAILY OFFERS <small>3 copies each</small></div>` + (offers.length ? offers.map((k) => {
+                const c = CARDS[k], got = profile.offers.bought.includes(k);
+                return `<div class="panel shopitem"><div class="pic">${iconSVG(c)}</div><div class="info"><b>${c.name} x3</b><br>Level ${profile.lv[k] || 1} card copies</div><button class="btn ${got ? 'grey off' : afford(offerPrice(k))}" data-offer="${k}">${got ? 'SOLD' : coinI + offerPrice(k)}</button></div>`;
+            }).join('') : '<div class="panel">Everything is maxed out!</div>') + `<div class="sect">CARDS FOR SALE</div>` + (locked.length ? locked.map((k) => {
                 const c = CARDS[k];
                 return `<div class="panel shopitem"><div class="pic">${iconSVG(c)}</div><div class="info"><b>${c.name}</b><br>${c.type === 'monster' ? 'ATK ' + c.atk + ' / HP ' + c.hp + ' | ' : ''}Energy ${c.cost}</div><button class="btn ${afford(PRICE[k])}" data-buy="${k}">${coinI}${PRICE[k]}</button></div>`;
             }).join('') : '<div class="panel">You own every card!</div>');
         renderTop();
     }
     $('pg-shop').addEventListener('click', (e) => {
-        const g = e.target.closest('[data-gift]'), ch = e.target.closest('[data-chest]'), by = e.target.closest('[data-buy]');
+        const g = e.target.closest('[data-gift]'), ch = e.target.closest('[data-chest]'), by = e.target.closest('[data-buy]'), of = e.target.closest('[data-offer]');
         if (g && giftLeft() === 0) {
             profile.coins += GIFT_COINS; profile.lastGift = Date.now(); saveProfile(); sfx('heal');
             showPopup('GIFT!', null, '+' + GIFT_COINS + ' coins'); renderShop();
         } else if (ch) {
-            const locked = Object.keys(CARDS).filter((k) => !profile.owned.includes(k));
-            if (!locked.length) { toast('You already own every card!'); return; }
             if (profile.coins < CHEST_COST) { toast('Not enough coins - win duels to earn more!'); sfx('no'); return; }
-            const k = locked[Math.floor(Math.random() * locked.length)];
-            profile.coins -= CHEST_COST; profile.owned.push(k); saveProfile(); sfx('summon');
-            showPopup('NEW CARD!', k, CARDS[k].name); renderShop();
+            const pool = Object.keys(CARDS).filter((k) => !profile.owned.includes(k) || (profile.lv[k] || 1) < LV_MAX);
+            if (!pool.length) { toast('Every card is maxed out!'); return; }
+            profile.coins -= CHEST_COST;
+            const got = {}, fresh = [];
+            for (let i = 0; i < 5; i++) got[pool[Math.floor(Math.random() * pool.length)]] = 0;
+            for (let i = 0; i < 5; i++) { const ks = Object.keys(got); got[ks[Math.floor(Math.random() * ks.length)]]++; }
+            Object.keys(got).forEach((k) => { if (!got[k]) got[k] = 1; });
+            Object.keys(got).forEach((k) => { if (addCopies(k, got[k])) fresh.push(k); });
+            saveProfile(); sfx('summon');
+            const show = fresh[0] || Object.keys(got)[0];
+            showPopup('CHEST OPENED!', show, Object.keys(got).map((k) => esc(CARDS[k].name) + ' x' + got[k] + (fresh.includes(k) ? ' (NEW!)' : '')).join('<br>')); renderShop();
+        } else if (of) {
+            const k = of.dataset.offer;
+            if (profile.offers.bought.includes(k)) return;
+            if (profile.coins < offerPrice(k)) { toast('Not enough coins - win duels to earn more!'); sfx('no'); return; }
+            profile.coins -= offerPrice(k); profile.offers.bought.push(k); addCopies(k, 3); saveProfile(); sfx('summon');
+            showPopup('COPIES!', k, esc(CARDS[k].name) + ' +3 copies'); renderShop();
         } else if (by) {
             const k = by.dataset.buy;
             if (profile.coins < PRICE[k]) { toast('Not enough coins - win duels to earn more!'); sfx('no'); return; }
-            profile.coins -= PRICE[k]; profile.owned.push(k); saveProfile(); sfx('summon');
+            profile.coins -= PRICE[k]; addCopies(k, 1); saveProfile(); sfx('summon');
             showPopup('CARD UNLOCKED!', k, 'Add it to your deck in the CARDS tab.'); renderShop();
         }
     });
@@ -1769,7 +2013,7 @@ async function run(mode) {
         else if (r) {
             if (!resetArmed) { resetArmed = true; renderSettings(); setTimeout(() => { resetArmed = false; if (curTab === 'set') renderSettings(); }, 3000); return; }
             resetArmed = false;
-            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, owned: STARTER.slice(), deck: STARTER.slice() });
+            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
             saveProfile(); renderTop(); renderSettings(); toast('Progress reset.');
         }
     });
@@ -1801,6 +2045,11 @@ async function run(mode) {
         menuRoot.classList.remove('hidden');
         setMusic('music_menu');
         showTab(curTab || 'battle');
+        const ai = arenaIndex(profile.trophies);
+        if (ai > (profile.arenaBest || 0)) {
+            profile.arenaBest = ai; saveProfile(); sfx('win');
+            showPopup('NEW ARENA!', null, 'Welcome to <b>' + ARENAS[ai].name + '</b>!<br>Coin rewards +' + ai * 15 + '%. The rival\'s cards are now Lv ' + Math.min(LV_MAX, 1 + ai) + '.');
+        }
     }
     $('exitBtn').addEventListener('click', () => { if (!S.over) $('exitOv').classList.remove('hidden'); });
     $('stayBtn').addEventListener('click', () => $('exitOv').classList.add('hidden'));
