@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Block Card Duel</title>
+<style>
+    html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+        background: #141a3a; touch-action: none; user-select: none; -webkit-user-select: none;
+        font-family: 'Trebuchet MS', Verdana, Arial, sans-serif; font-weight: 900; color: #fff;
+    }
+    #game-world { position: relative; width: 100%; height: 100%; overflow: hidden; }
+    canvas#game-canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+    #ui { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+    #ui button, #hand, .overlay { pointer-events: auto; }
+    .plate {
+        position: absolute; background: rgba(10, 14, 32, .86); border: 4px solid #05070f;
+        box-shadow: 0 5px 0 #05070f; border-radius: 10px; padding: 8px 12px; box-sizing: border-box;
+    }
+    .plate .nm { font-size: 22px; letter-spacing: 1px; }
+    .bar { position: relative; height: 30px; margin-top: 4px; background: #05070f; border: 3px solid #05070f; border-radius: 6px; overflow: hidden; }
+    .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transition: width .35s; }
+    .bar b { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: 20px; line-height: 30px; text-shadow: 0 2px 0 #000; }
+    #eplate { left: 16px; top: 14px; width: 330px; }
+    #eplate i { background: linear-gradient(#ff6b6b, #c0303f); }
+    #pplate { left: 16px; top: 906px; width: 330px; }
+    #pplate i { background: linear-gradient(#5cd6ff, #2d7fff); }
+    #roundTag { position: absolute; right: 16px; top: 14px; width: 320px; height: 100px; box-sizing: border-box; text-align: right; }
+    #roundTag .rd { font-size: 30px; text-shadow: 0 3px 0 #000; }
+    .pips { display: flex; gap: 5px; justify-content: flex-end; margin-top: 6px; }
+    .pips span { width: 22px; height: 26px; background: #1b2140; border: 3px solid #05070f; border-radius: 4px; }
+    .pips span.on { background: linear-gradient(#ffe36b, #ffa21f); }
+    #ehand { display: flex; gap: 4px; justify-content: flex-end; margin-top: 6px; }
+    #ehand span { width: 22px; height: 30px; background: linear-gradient(#7b4bd6, #4a2a99); border: 3px solid #05070f; border-radius: 4px; }
+    #pe { position: absolute; right: 16px; top: 916px; width: 340px; }
+    #fightBtn {
+        position: absolute; right: 16px; top: 808px; width: 220px; height: 92px;
+        font: inherit; font-size: 36px; letter-spacing: 2px; color: #fff; cursor: pointer;
+        background: linear-gradient(#ff7a3c, #d8341c); border: 5px solid #05070f; border-radius: 14px; box-shadow: 0 7px 0 #05070f;
+        text-shadow: 0 3px 0 #000;
+    }
+    #fightBtn:active { transform: translateY(4px); box-shadow: 0 3px 0 #05070f; }
+    #fightBtn.off { filter: grayscale(1) brightness(.55); }
+    #hint {
+        position: absolute; left: 16px; right: 16px; top: 984px; height: 54px; box-sizing: border-box; text-align: center;
+        font-size: 21px; line-height: 27px; color: #ffe9a8; text-shadow: 0 2px 0 #000;
+    }
+    #hand { position: absolute; left: 0; right: 0; bottom: 14px; padding-top: 44px; display: flex; justify-content: center; gap: 8px; }
+    .card {
+        position: relative; flex: none; width: 128px; height: 196px; box-sizing: border-box; text-align: center;
+        border: 4px solid #05070f; border-radius: 12px; background: linear-gradient(#262e57, #151a36);
+        box-shadow: 0 6px 0 #05070f; transition: transform .12s; cursor: pointer;
+    }
+    .card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 34px; background: var(--c); border-radius: 7px 7px 0 0; opacity: .95; }
+    .card .cost {
+        position: absolute; left: -12px; top: -12px; width: 46px; height: 46px; box-sizing: border-box; z-index: 2;
+        background: linear-gradient(#4f8cff, #2250d8); border: 4px solid #05070f; border-radius: 9px; font-size: 27px; line-height: 38px; text-shadow: 0 2px 0 #000;
+    }
+    .card .art { position: relative; margin-top: 36px; height: 84px; }
+    .card .art svg { width: 82px; height: 82px; filter: drop-shadow(0 4px 0 rgba(0,0,0,.45)); }
+    .card .nm { position: relative; font-size: 15px; line-height: 17px; padding: 0 4px; text-shadow: 0 2px 0 #000; }
+    .card .st { position: relative; display: flex; justify-content: center; gap: 10px; margin-top: 7px; }
+    .card .st span, .lbl span { display: inline-block; min-width: 42px; height: 32px; line-height: 32px; font-size: 22px; border: 3px solid #05070f; text-shadow: 0 2px 0 #000; }
+    .a { background: #ff9b2e; } .h { background: #e8454e; }
+    .card .tp { position: relative; font-size: 14px; letter-spacing: 1px; margin-top: 10px; color: var(--c); text-shadow: 0 2px 0 #000; }
+    .card.sel { transform: translateY(-34px) scale(1.08); box-shadow: 0 0 0 4px #fff, 0 6px 0 4px #05070f; z-index: 5; }
+    .card.off { filter: grayscale(.75) brightness(.6); }
+    #banner {
+        position: absolute; left: 0; right: 0; top: 400px; text-align: center; font-size: 76px; letter-spacing: 3px;
+        text-shadow: 0 6px 0 #000, 0 0 24px rgba(255, 200, 80, .8); opacity: 0;
+    }
+    #banner.show { animation: banner 1.1s ease-out; }
+    @keyframes banner { 0% { opacity: 0; transform: scale(.4); } 18% { opacity: 1; transform: scale(1.1); } 30% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(1.05); } }
+    #fxlayer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; }
+    .fxnum { position: absolute; transform: translate(-50%, -50%); font-size: 46px; text-shadow: 0 4px 0 #000; animation: fxup 1s ease-out forwards; white-space: nowrap; }
+    .fxnum.dmg { color: #ff5a4a; } .fxnum.heal { color: #6dff8a; } .fxnum.info { color: #ffe36b; font-size: 38px; } .fxnum.cold { color: #7ed8ff; }
+    @keyframes fxup { 0% { opacity: 0; margin-top: 10px; } 15% { opacity: 1; } 100% { opacity: 0; margin-top: -90px; } }
+    #reveal { position: absolute; left: 50%; top: 360px; transform: translate(-50%, 0) scale(1.5); opacity: 0; transition: opacity .25s; }
+    #reveal.show { opacity: 1; }
+    #reveal .card { cursor: default; }
+    .overlay {
+        position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: rgba(8, 10, 24, .82); text-align: center; z-index: 20;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h1 { font-size: 84px; line-height: 88px; margin: 0 0 14px; text-shadow: 0 8px 0 #000, 0 0 30px rgba(120, 170, 255, .8); }
+    .overlay h1 em { color: #ffcf3a; font-style: normal; }
+    .overlay p { font-size: 26px; line-height: 34px; margin: 6px 40px; color: #cdd6ff; text-shadow: 0 2px 0 #000; }
+    .bigbtn {
+        margin-top: 34px; font: inherit; font-size: 52px; letter-spacing: 3px; color: #fff; cursor: pointer; padding: 18px 70px;
+        background: linear-gradient(#ffcf3a, #f08a12); border: 6px solid #05070f; border-radius: 18px; box-shadow: 0 9px 0 #05070f; text-shadow: 0 4px 0 #6a3a00;
+    }
+    .bigbtn:active { transform: translateY(5px); box-shadow: 0 4px 0 #05070f; }
+    .stats { margin-top: 24px; font-size: 26px; color: #ffe9a8; }
+</style>
+</head>
+<body>
+<div id="game-world">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui">
+        <div id="eplate" class="plate"><div class="nm" id="ename">RIVAL REX</div><div class="bar"><i id="ebar"></i><b id="etxt">20</b></div></div>
+        <div id="roundTag"><div class="rd" id="rd">ROUND 1</div><div class="pips" id="epips"></div><div id="ehand"></div></div>
+        <div id="fxlayer"></div>
+        <div id="banner"></div>
+        <div id="reveal"></div>
+        <button id="fightBtn" class="off">FIGHT!</button>
+        <div id="pplate" class="plate"><div class="nm">YOU</div><div class="bar"><i id="pbar"></i><b id="ptxt">20</b></div></div>
+        <div id="pe"><div class="pips" id="ppips"></div></div>
+        <div id="hint"></div>
+        <div id="hand"></div>
+        <div id="menu" class="overlay">
+            <h1>BLOCK<br><em>CARD DUEL</em></h1>
+            <p>Play a card and its blocky monster bursts out of it into the arena.</p>
+            <p>Tap a card, then tap a glowing target. Hit FIGHT! to attack.</p>
+            <button class="bigbtn" id="startBtn">DUEL!</button>
+            <div class="stats" id="menuStats"></div>
+        </div>
+        <div id="endscreen" class="overlay hidden">
+            <h1 id="endTitle">VICTORY!</h1>
+            <p id="endLine"></p>
+            <button class="bigbtn" id="againBtn">REMATCH</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ---- THREE.JS LOADER ----------------------------------------------------------
+ * three.js ships ES modules only, so a tiny generated module script imports it and
+ * publishes it on window.THREE. The game awaits this promise before touching THREE.
+ * The version is pinned so a CDN update can never change how the game behaves. */
+window.__threeReady = new Promise((resolve, reject) => {
+    const SOURCES = [
+        'https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.min.js',
+        'https://unpkg.com/three@0.185.0/build/three.module.min.js'
+    ];
+    let i = 0;
+    const tryNext = () => {
+        if (window.THREE) { resolve(window.THREE); return; }
+        if (i >= SOURCES.length) { reject(new Error('three.js could not be loaded')); return; }
+        const url = SOURCES[i++];
+        const tag = document.createElement('script');
+        tag.type = 'module';
+        tag.textContent = 'import * as T from "' + url + '";\nwindow.THREE = T;\nwindow.dispatchEvent(new Event("three-loaded"));';
+        tag.onerror = tryNext;
+        document.head.appendChild(tag);
+        setTimeout(() => { if (!window.THREE) tryNext(); }, 5000);
+    };
+    window.addEventListener('three-loaded', () => resolve(window.THREE));
+    tryNext();
+});
+</script>
+
+<script>
+/*
+ * BLOCK CARD DUEL
+ * A turn-based card duel. You are a blocky duelist; play a card and what is inside it
+ * appears in a wide 3-lane arena:
+ *   MONSTER  - bursts out of the card as a blocky creature and fights in its lane
+ *   SKILL    - fireball / heal / thunderstorm played straight onto the board
+ *   BUFF     - wraps a monster in a coloured aura (Flame Aura = faint red glow, +ATK)
+ *   DEBUFF   - curses an enemy monster (Frost Curse = cold blue glow, -ATK)
+ *   TRAP     - set face-down; Chain Trap binds a monster for a round, Spike Trap hurts it
+ * Round: play cards with energy -> FIGHT! (your monsters attack) -> rival plays cards ->
+ * rival monsters attack. Monsters hit the monster in their lane, or the duelist if the
+ * lane is empty. Reduce the rival's HP to zero to win.
+ *
+ * Performance: every model is built from a few shared box geometries/materials, one
+ * directional light, no shadows, particles are one InstancedMesh.
+ */
+async function run(mode) {
+    try { await window.__threeReady; } catch (e) { lib.log('Three.js failed to load'); return; }
+    const THREE = window.THREE;
+
+    /* ============================ CONFIG ============================ */
+    const DEFAULTS = { duelistHealth: 20, startEnergy: 2, maxEnergy: 8, handSize: 5, enemyThinkTime: 0.7, enemySmarts: 0.8 };
+    window.gameConfig = window.gameConfig || {};
+    const rule = (k) => {
+        const r = window.gameConfig.rules;
+        return (r && r[k] !== undefined && r[k] !== null) ? Number(r[k]) : DEFAULTS[k];
+    };
+    lib.showGameParameters({
+        name: 'Block Card Duel',
+        params: {
+            'Duelist Health': { key: 'rules.duelistHealth', type: 'slider', min: 8, max: 40, step: 1 },
+            'Start Energy': { key: 'rules.startEnergy', type: 'slider', min: 1, max: 5, step: 1 },
+            'Max Energy': { key: 'rules.maxEnergy', type: 'slider', min: 4, max: 10, step: 1 },
+            'Hand Size': { key: 'rules.handSize', type: 'slider', min: 3, max: 6, step: 1 },
+            'Rival Think Time': { key: 'rules.enemyThinkTime', type: 'slider', min: 0.2, max: 1.5, step: 0.1 },
+            'Rival Smarts': { key: 'rules.enemySmarts', type: 'slider', min: 0, max: 1, step: 0.1 }
+        }
+    });
+
+    /* ============================ DOM ============================ */
+    const $ = (id) => document.getElementById(id);
+    const gameWorld = $('game-world'), canvas = $('game-canvas'), fxlayer = $('fxlayer');
+    const handEl = $('hand'), hintEl = $('hint'), bannerEl = $('banner'), fightBtn = $('fightBtn'), revealEl = $('reveal');
+    const touch = ('ontouchstart' in window) || (lib.shouldUseTouchControls && lib.shouldUseTouchControls());
+
+    /* ============================ CARD DATA ============================ */
+    const ELEM = {
+        grass: { color: 0x62d36a, glow: 0x7dff8a },
+        earth: { color: 0x969ba8, glow: 0xd9c9a0 },
+        fire: { color: 0xe8532a, glow: 0xff3b2a },
+        ice: { color: 0x5aa9e6, glow: 0x4fb7ff },
+        bolt: { color: 0xf2c230, glow: 0xffe14d }
+    };
+    const CARDS = {
+        slime: { type: 'monster', name: 'CUBE SLIME', cost: 1, atk: 2, hp: 3, elem: 'grass', model: 'slime', desc: 'CUBE SLIME: a cheap, bouncy blocker.' },
+        golem: { type: 'monster', name: 'STONE GOLEM', cost: 3, atk: 3, hp: 8, elem: 'earth', model: 'golem', desc: 'STONE GOLEM: a slow wall of rock with huge HP.' },
+        wolf: { type: 'monster', name: 'FLAME WOLF', cost: 2, atk: 4, hp: 3, elem: 'fire', model: 'wolf', desc: 'FLAME WOLF: fast and fierce, but fragile.' },
+        archer: { type: 'monster', name: 'FROST ARCHER', cost: 2, atk: 3, hp: 3, elem: 'ice', model: 'archer', ranged: true, desc: 'FROST ARCHER: shoots from range, takes no counter damage.' },
+        drake: { type: 'monster', name: 'THUNDER DRAKE', cost: 4, atk: 6, hp: 5, elem: 'bolt', model: 'drake', desc: 'THUNDER DRAKE: heavy hitter that rules the lane.' },
+        fireball: { type: 'skill', name: 'FIREBALL', cost: 2, target: 'enemyAny', dmg: 4, elem: 'fire', desc: 'FIREBALL: 4 damage to any enemy monster or the rival.' },
+        heal: { type: 'skill', name: 'HEAL PULSE', cost: 1, target: 'ownAny', heal: 4, elem: 'grass', desc: 'HEAL PULSE: restore 4 HP to one of your monsters or yourself.' },
+        storm: { type: 'skill', name: 'THUNDERSTORM', cost: 3, target: 'none', dmg: 3, elem: 'bolt', desc: 'THUNDERSTORM: 3 damage to every enemy monster. Tap the card again to cast.' },
+        flameaura: { type: 'buff', name: 'FLAME AURA', cost: 1, target: 'ownMon', atkMod: 2, elem: 'fire', desc: 'FLAME AURA: +2 ATK and a faint red fire aura on your monster.' },
+        frostcurse: { type: 'debuff', name: 'FROST CURSE', cost: 1, target: 'enemyMon', atkMod: -2, elem: 'ice', desc: 'FROST CURSE: -2 ATK and a cold blue curse on an enemy monster.' },
+        chaintrap: { type: 'trap', name: 'CHAIN TRAP', cost: 2, target: 'none', elem: 'ice', desc: 'CHAIN TRAP: set face-down. Chains the strongest attacker for a round. Tap again to set.' },
+        spiketrap: { type: 'trap', name: 'SPIKE TRAP', cost: 2, target: 'none', elem: 'fire', dmg: 4, desc: 'SPIKE TRAP: set face-down. The first attacker takes 4 damage. Tap again to set.' }
+    };
+    const DECK = [
+        'slime', 'slime', 'slime', 'golem', 'golem', 'wolf', 'wolf', 'wolf', 'archer', 'archer', 'drake', 'drake',
+        'fireball', 'fireball', 'heal', 'storm', 'flameaura', 'flameaura', 'frostcurse', 'frostcurse', 'chaintrap', 'spiketrap'
+    ];
+    const TYPE_LABEL = { skill: 'SKILL', buff: 'BUFF', debuff: 'DEBUFF', trap: 'TRAP' };
+    const TYPE_COLOR = { skill: 0xff8a3c, buff: 0xff4a3a, debuff: 0x8d5bff, trap: 0x5b6b8c };
+    const cardColor = (c) => c.type === 'monster' ? ELEM[c.elem].color : TYPE_COLOR[c.type];
+    const hexCss = (h) => '#' + h.toString(16).padStart(6, '0');
+    const shade = (h, f) => `rgb(${Math.min(255, ((h >> 16) & 255) * f | 0)},${Math.min(255, ((h >> 8) & 255) * f | 0)},${Math.min(255, (h & 255) * f | 0)})`;
+    const svg = (inner) => `<svg viewBox="0 0 64 64">${inner}</svg>`;
+    const cubeSVG = (h, extra) => svg(`${extra || ''}<polygon points="32,8 57,22 32,36 7,22" fill="${shade(h, 1.3)}"/><polygon points="7,22 32,36 32,60 7,46" fill="${shade(h, 1)}"/><polygon points="57,22 32,36 32,60 57,46" fill="${shade(h, .65)}"/><rect x="12" y="35" width="6" height="9" fill="#10131f"/><rect x="22" y="40" width="6" height="9" fill="#10131f"/>`);
+    function iconSVG(c) {
+        if (c.type === 'monster') {
+            const col = ELEM[c.elem].color;
+            const extra = { wolf: '<polygon points="12,22 16,6 24,18" fill="#c83e1a"/><polygon points="52,22 48,6 40,18" fill="#c83e1a"/>',
+                drake: '<polygon points="7,22 -2,6 18,16" fill="#49a8ff"/><polygon points="57,22 66,6 46,16" fill="#49a8ff"/>',
+                archer: '<rect x="50" y="6" width="5" height="40" fill="#a0693a"/>', golem: '<rect x="20" y="4" width="24" height="8" fill="#5f8f4a"/>', slime: '' }[c.model] || '';
+            return cubeSVG(col, extra);
+        }
+        switch (c.name) {
+            case 'FIREBALL': return svg('<path d="M32 4C40 18 54 24 52 42C50 55 42 60 32 60C22 60 12 55 12 42C12 32 20 28 22 18C27 24 29 26 32 4Z" fill="#ff5a2a"/><path d="M32 26C37 34 42 38 41 46C40 52 36 54 32 54C28 54 23 52 23 46C23 40 29 38 32 26Z" fill="#ffd23a"/>');
+            case 'HEAL PULSE': return svg('<rect x="22" y="6" width="20" height="52" fill="#4be37a" stroke="#0b5a26" stroke-width="3"/><rect x="6" y="22" width="52" height="20" fill="#4be37a" stroke="#0b5a26" stroke-width="3"/><rect x="24" y="24" width="16" height="16" fill="#b8ffcb"/>');
+            case 'THUNDERSTORM': return svg('<ellipse cx="32" cy="20" rx="26" ry="14" fill="#5b6280"/><ellipse cx="22" cy="24" rx="14" ry="10" fill="#6f779a"/><polygon points="36,26 20,46 31,46 26,62 46,38 35,38 40,26" fill="#ffe14d" stroke="#8a6a00" stroke-width="2"/>');
+            case 'FLAME AURA': return svg('<polygon points="32,4 54,30 42,30 42,60 22,60 22,30 10,30" fill="#ff5a3a" stroke="#7a1608" stroke-width="3"/><circle cx="32" cy="36" r="9" fill="#ffd23a" opacity=".8"/>');
+            case 'FROST CURSE': return svg('<polygon points="32,60 54,34 42,34 42,4 22,4 22,34 10,34" fill="#5fb8ff" stroke="#143a7a" stroke-width="3"/><polygon points="32,20 38,32 32,44 26,32" fill="#e8f7ff"/>');
+            case 'CHAIN TRAP': return svg('<rect x="6" y="20" width="32" height="24" rx="12" fill="none" stroke="#cfd6e6" stroke-width="7"/><rect x="26" y="20" width="32" height="24" rx="12" fill="none" stroke="#8d97b4" stroke-width="7"/>');
+            case 'SPIKE TRAP': return svg('<polygon points="4,58 16,12 28,58" fill="#b9c2d6"/><polygon points="22,58 34,6 46,58" fill="#d6dcec"/><polygon points="40,58 52,14 62,58" fill="#b9c2d6"/><rect x="2" y="56" width="60" height="6" fill="#5b6b8c"/>');
+        }
+        return '';
+    }
+    function cardHTML(c, extraClass, idx) {
+        const stats = c.type === 'monster'
+            ? `<div class="st"><span class="a">${c.atk}</span><span class="h">${c.hp}</span></div>`
+            : `<div class="tp">${TYPE_LABEL[c.type]}</div>`;
+        return `<div class="card ${extraClass || ''}" ${idx === undefined ? '' : `data-i="${idx}"`} style="--c:${hexCss(cardColor(c))}"><div class="cost">${c.cost}</div><div class="art">${iconSVG(c)}</div><div class="nm">${c.name}</div>${stats}</div>`;
+    }
+
+    /* ============================ SOUND (synthesised) ============================ */
+    let actx = null;
+    function unlockAudio() {
+        try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) { actx = null; }
+    }
+    window.addEventListener('pointerdown', unlockAudio);
+    function tone(freq, dur, type, vol, slideTo, delay) {
+        if (!actx) return;
+        try {
+            const t0 = actx.currentTime + (delay || 0);
+            const o = actx.createOscillator(), g = actx.createGain();
+            o.type = type || 'square'; o.frequency.setValueAtTime(freq, t0);
+            if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+            g.gain.setValueAtTime(vol || 0.08, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+            o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+        } catch (e) { /* audio is optional */ }
+    }
+    function sfx(name) {
+        switch (name) {
+            case 'card': tone(520, 0.08, 'square', 0.06, 780); break;
+            case 'summon': [330, 440, 560, 740].forEach((f, i) => tone(f, 0.14, 'square', 0.07, f * 1.2, i * 0.07)); break;
+            case 'hit': tone(160, 0.16, 'sawtooth', 0.12, 60); break;
+            case 'fire': tone(200, 0.4, 'sawtooth', 0.09, 900); tone(500, 0.3, 'square', 0.05, 120, 0.3); break;
+            case 'heal': [520, 660, 880].forEach((f, i) => tone(f, 0.18, 'sine', 0.08, f, i * 0.09)); break;
+            case 'bolt': tone(900, 0.3, 'sawtooth', 0.1, 70); break;
+            case 'chain': tone(1200, 0.05, 'square', 0.07); tone(900, 0.05, 'square', 0.07, 900, 0.07); tone(1200, 0.05, 'square', 0.07, 1200, 0.14); break;
+            case 'aura': tone(300, 0.5, 'sine', 0.08, 700); break;
+            case 'curse': tone(600, 0.5, 'sine', 0.08, 220); break;
+            case 'win': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'square', 0.08, f, i * 0.14)); break;
+            case 'lose': [392, 330, 262, 196].forEach((f, i) => tone(f, 0.3, 'triangle', 0.1, f, i * 0.18)); break;
+            case 'no': tone(140, 0.15, 'square', 0.07); break;
+        }
+    }
+
+    /* ============================ THREE.JS SETUP ============================ */
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: !touch, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x141a3a);
+    const camera = new THREE.PerspectiveCamera(48, 720 / 1280, 0.5, 200);
+    const CAM_POS = new THREE.Vector3(0, 30, 36);
+    const CAM_LOOK = new THREE.Vector3(0, 0, 3.4);
+    function resize() {
+        const w = gameWorld.clientWidth || 720, h = gameWorld.clientHeight || 1280;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    scene.add(new THREE.AmbientLight(0xb4bdff, 1.25));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.1);
+    sun.position.set(10, 22, 14);
+    scene.add(sun);
+
+    const geoCache = new Map(), matCache = new Map(), sharedMats = new Set();
+    function boxGeo(w, h, d) {
+        const k = w + '_' + h + '_' + d;
+        let g = geoCache.get(k);
+        if (!g) { g = new THREE.BoxGeometry(w, h, d); geoCache.set(k, g); }
+        return g;
+    }
+    function lam(color) {
+        let m = matCache.get(color);
+        if (!m) { m = new THREE.MeshLambertMaterial({ color }); matCache.set(color, m); sharedMats.add(m); }
+        return m;
+    }
+    function addBox(parent, w, h, d, x, y, z, color) {
+        const m = new THREE.Mesh(boxGeo(w, h, d), lam(color));
+        m.position.set(x, y, z);
+        parent.add(m);
+        return m;
+    }
+
+    /* ---- arena layout ---- */
+    const LANE_X = [-4.6, 0, 4.6];
+    const ROW_Z = { p: 3.6, e: -3.6 };
+    const AV_Z = { p: 11.8, e: -12.8 };
+    const AV_SCALE = 0.8;
+    const TRAP_POS = { p: [[-5.4, 8.2], [5.4, 8.2]], e: [[-5.4, -9], [5.4, -9]] };
+    const other = (s) => s === 'p' ? 'e' : 'p';
+    const MON_SCALE = 1.35;
+
+    (function buildArena() {
+        const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+        const cx = cv.getContext('2d');
+        for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { cx.fillStyle = (x + y) % 2 ? '#232c58' : '#1b2348'; cx.fillRect(x * 32, y * 32, 32, 32); }
+        const tex = new THREE.CanvasTexture(cv);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(9, 10);
+        tex.magFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(36, 40), new THREE.MeshLambertMaterial({ map: tex }));
+        floor.rotation.x = -Math.PI / 2; floor.position.y = -0.2;
+        scene.add(floor);
+        // team platforms
+        const pp = addBox(scene, 15.6, 0.3, 6, 0, -0.05, ROW_Z.p, 0x24437f);
+        const ep = addBox(scene, 15.6, 0.3, 6, 0, -0.05, ROW_Z.e, 0x7f2437);
+        pp.position.y = ep.position.y = -0.05;
+        // far side voxel pillars for depth
+        const cols = [0x2b3566, 0x333f78, 0x3a4688];
+        for (let i = 0; i < 16; i++) {
+            const side = i < 8 ? -1 : 1, k = i % 8;
+            const h = 2 + ((k * 37) % 5) * 1.4;
+            addBox(scene, 2.4, h, 2.4, side * (11.5 + (k % 2) * 2.4), h / 2 - 0.2, -17 + k * 4.6, cols[k % 3]);
+        }
+    })();
+
+    const pickables = [];
+    const tiles = { p: [], e: [] };
+    for (const s of ['p', 'e']) {
+        for (let i = 0; i < 3; i++) {
+            const m = new THREE.Mesh(boxGeo(3.9, 0.2, 3.9), lam(s === 'p' ? 0x3d6fc4 : 0xc4455d));
+            m.position.set(LANE_X[i], 0.12, ROW_Z[s]);
+            m.userData.target = { kind: 'lane', side: s, lane: i, key: 'l' + s + i };
+            scene.add(m); pickables.push(m); tiles[s].push(m);
+        }
+    }
+
+    /* ---- blocky duelists ---- */
+    function buildAvatar(cfg, faceDir) {
+        const g = new THREE.Group();
+        const mats = [];
+        const mk = (color) => { const m = new THREE.MeshLambertMaterial({ color }); mats.push(m); return m; };
+        const part = (w, h, d, x, y, z, color, parent) => {
+            const m = new THREE.Mesh(boxGeo(w, h, d), mk(color)); m.position.set(x, y, z); (parent || g).add(m); return m;
+        };
+        part(0.75, 1.6, 0.8, -0.42, 0.8, 0, cfg.pants); part(0.75, 1.6, 0.8, 0.42, 0.8, 0, cfg.pants);
+        part(1.7, 1.9, 0.95, 0, 2.55, 0, cfg.shirt);
+        part(1.74, 0.3, 0.99, 0, 1.85, 0, cfg.belt);
+        part(1.3, 1.3, 1.3, 0, 4.15, 0, cfg.skin);
+        part(1.36, 0.5, 1.36, 0, 4.7, -0.02, cfg.hair);
+        part(0.2, 0.26, 0.1, -0.3, 4.2, 0.66, 0x10131f); part(0.2, 0.26, 0.1, 0.3, 4.2, 0.66, 0x10131f);
+        part(0.5, 0.1, 0.1, 0, 3.8, 0.66, 0x7a3a2a);
+        if (cfg.hat) part(1.7, 0.2, 1.7, 0, 4.98, 0, cfg.hat);
+        const armL = new THREE.Group(), armR = new THREE.Group();
+        armL.position.set(-1.2, 3.3, 0); armR.position.set(1.2, 3.3, 0);
+        part(0.6, 1.7, 0.6, 0, -0.8, 0, cfg.shirt, armL); part(0.6, 0.5, 0.6, 0, -1.7, 0, cfg.skin, armL);
+        part(0.6, 1.7, 0.6, 0, -0.8, 0, cfg.shirt, armR); part(0.6, 0.5, 0.6, 0, -1.7, 0, cfg.skin, armR);
+        g.add(armL, armR);
+        g.rotation.y = faceDir;
+        g.scale.setScalar(AV_SCALE);
+        const hit = new THREE.Mesh(boxGeo(3.4, 5.6, 2.6), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        hit.position.y = 2.8;
+        g.add(hit);
+        return { group: g, armL, armR, mats, hit, flash: 0, down: 0, base: g.position.clone() };
+    }
+    const AV_CFG = {
+        p: { skin: 0xf0c39a, hair: 0x3a2314, shirt: 0x2f8cff, pants: 0x243a7a, belt: 0xffcf3a, hat: 0 },
+        e: { skin: 0xd9a77c, hair: 0x15110f, shirt: 0xd8404f, pants: 0x3a1f2a, belt: 0x9a7a3a, hat: 0x2a1530 }
+    };
+
+    /* ---- monster models (all face +Z) ---- */
+    const MODELS = {
+        slime() {
+            const g = new THREE.Group();
+            addBox(g, 2.2, 1.7, 2.2, 0, 0.85, 0, 0x62d36a);
+            addBox(g, 1.6, 0.25, 1.6, 0, 1.78, 0, 0x8cf08f);
+            addBox(g, 0.35, 0.5, 0.1, -0.5, 1.15, 1.12, 0x10131f); addBox(g, 0.35, 0.5, 0.1, 0.5, 1.15, 1.12, 0x10131f);
+            addBox(g, 0.9, 0.15, 0.1, 0, 0.55, 1.12, 0x10131f);
+            return { group: g, size: { w: 2.4, h: 2, d: 2.4 }, idle: (t) => { const s = Math.sin(t * 4) * 0.5 + 0.5; g.scale.set(1 + s * 0.06, 1 - s * 0.1, 1 + s * 0.06); } };
+        },
+        golem() {
+            const g = new THREE.Group();
+            addBox(g, 0.9, 1.3, 0.9, -0.7, 0.65, 0, 0x7b7f8a); addBox(g, 0.9, 1.3, 0.9, 0.7, 0.65, 0, 0x7b7f8a);
+            addBox(g, 2.6, 1.9, 1.5, 0, 2.25, 0, 0x969ba8);
+            addBox(g, 1.4, 0.5, 0.1, 0, 2.5, 0.78, 0x5f8f4a);
+            addBox(g, 0.9, 2.2, 0.9, -1.75, 2.1, 0, 0x858a97); addBox(g, 0.9, 2.2, 0.9, 1.75, 2.1, 0, 0x858a97);
+            addBox(g, 1.1, 0.9, 1.1, -1.75, 0.85, 0, 0x6e727d); addBox(g, 1.1, 0.9, 1.1, 1.75, 0.85, 0, 0x6e727d);
+            addBox(g, 1.2, 1.1, 1.2, 0, 3.6, 0.1, 0x9aa0ad);
+            addBox(g, 0.25, 0.18, 0.1, -0.3, 3.65, 0.72, 0xffb02e); addBox(g, 0.25, 0.18, 0.1, 0.3, 3.65, 0.72, 0xffb02e);
+            addBox(g, 1.1, 0.35, 1.1, -1.75, 3.3, 0, 0x5f8f4a); addBox(g, 1.1, 0.35, 1.1, 1.75, 3.3, 0, 0x5f8f4a);
+            return { group: g, size: { w: 3.6, h: 4.2, d: 1.9 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.6)) * 0.12; } };
+        },
+        wolf() {
+            const g = new THREE.Group();
+            addBox(g, 1.2, 1.1, 2.4, 0, 1.5, -0.2, 0xe8532a);
+            addBox(g, 0.5, 0.15, 2.0, 0, 2.1, -0.2, 0xffa13a);
+            addBox(g, 1.2, 1.0, 1.1, 0, 1.9, 1.3, 0xf06a35);
+            addBox(g, 0.6, 0.45, 0.6, 0, 1.7, 2.0, 0xffd2a0); addBox(g, 0.25, 0.2, 0.1, 0, 1.85, 2.32, 0x15110f);
+            addBox(g, 0.18, 0.18, 0.1, -0.38, 2.15, 1.86, 0x15110f); addBox(g, 0.18, 0.18, 0.1, 0.38, 2.15, 1.86, 0x15110f);
+            addBox(g, 0.3, 0.45, 0.2, -0.4, 2.6, 1.1, 0xc83e1a); addBox(g, 0.3, 0.45, 0.2, 0.4, 2.6, 1.1, 0xc83e1a);
+            for (const x of [-0.45, 0.45]) for (const z of [0.7, -1.1]) addBox(g, 0.4, 1.0, 0.4, x, 0.5, z, 0xc83e1a);
+            const tail = new THREE.Group(); tail.position.set(0, 1.9, -1.4); g.add(tail);
+            addBox(tail, 0.4, 0.4, 0.8, 0, 0, -0.4, 0xff8a2b); addBox(tail, 0.3, 0.3, 0.5, 0, 0.4, -0.9, 0xffd23a);
+            return { group: g, size: { w: 1.9, h: 2.8, d: 3.5 }, idle: (t) => { tail.rotation.y = Math.sin(t * 7) * 0.5; g.position.y = Math.abs(Math.sin(t * 3)) * 0.08; } };
+        },
+        archer() {
+            const g = new THREE.Group();
+            addBox(g, 0.5, 1.3, 0.5, -0.3, 0.65, 0, 0x2b3f6b); addBox(g, 0.5, 1.3, 0.5, 0.3, 0.65, 0, 0x2b3f6b);
+            addBox(g, 1.3, 1.5, 0.7, 0, 2.05, 0, 0x5aa9e6); addBox(g, 1.34, 0.2, 0.74, 0, 1.45, 0, 0x2a2f45);
+            addBox(g, 0.95, 0.95, 0.95, 0, 3.25, 0, 0xf2cfa6); addBox(g, 1.05, 0.5, 1.05, 0, 3.7, -0.02, 0x2f6fb5);
+            addBox(g, 0.16, 0.2, 0.1, -0.22, 3.3, 0.49, 0x10131f); addBox(g, 0.16, 0.2, 0.1, 0.22, 3.3, 0.49, 0x10131f);
+            addBox(g, 0.4, 0.4, 1.3, -0.9, 2.5, 0.5, 0x5aa9e6); addBox(g, 0.4, 0.4, 0.9, 0.7, 2.5, 0.3, 0x5aa9e6);
+            addBox(g, 0.14, 1.9, 0.14, -0.9, 2.5, 1.2, 0xa0693a); addBox(g, 0.14, 0.4, 0.14, -0.9, 3.5, 1.05, 0xa0693a); addBox(g, 0.14, 0.4, 0.14, -0.9, 1.5, 1.05, 0xa0693a);
+            addBox(g, 0.04, 1.9, 0.04, -0.9, 2.5, 0.92, 0xe9f3ff);
+            addBox(g, 0.5, 0.6, 0.5, -0.85, 2.95, 0, 0xbfeaff); addBox(g, 0.5, 0.6, 0.5, 0.85, 2.95, 0, 0xbfeaff);
+            return { group: g, size: { w: 2.3, h: 4.1, d: 2.2 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 2.2)) * 0.1; } };
+        },
+        drake() {
+            const g = new THREE.Group();
+            addBox(g, 1.5, 1.3, 2.6, 0, 2.0, 0, 0xf2c230); addBox(g, 1.0, 0.3, 2.2, 0, 1.4, 0, 0xfff0b0);
+            addBox(g, 0.8, 0.9, 0.8, 0, 2.9, 1.2, 0xf2c230);
+            addBox(g, 1.1, 0.9, 1.3, 0, 3.5, 1.6, 0xffd75a); addBox(g, 0.7, 0.5, 0.6, 0, 3.35, 2.4, 0xffe28a);
+            addBox(g, 0.18, 0.18, 0.1, -0.4, 3.7, 2.27, 0x15110f); addBox(g, 0.18, 0.18, 0.1, 0.4, 3.7, 2.27, 0x15110f);
+            addBox(g, 0.2, 0.5, 0.2, -0.35, 4.1, 1.3, 0x8a5a1a); addBox(g, 0.2, 0.5, 0.2, 0.35, 4.1, 1.3, 0x8a5a1a);
+            for (const x of [-0.5, 0.5]) for (const z of [0.7, -0.8]) addBox(g, 0.5, 1.0, 0.6, x, 0.5, z, 0xc9992a);
+            addBox(g, 0.8, 0.7, 1.2, 0, 1.9, -1.9, 0xf2c230); addBox(g, 0.5, 0.5, 1.0, 0, 1.8, -2.9, 0xe0ae25); addBox(g, 0.35, 0.35, 0.6, 0, 1.8, -3.6, 0x8cf0ff);
+            const wl = new THREE.Group(), wr = new THREE.Group(); wl.position.set(-0.8, 2.7, 0); wr.position.set(0.8, 2.7, 0); g.add(wl, wr);
+            addBox(wl, 2.6, 0.12, 2.0, -1.3, 0, -0.1, 0x49a8ff); addBox(wr, 2.6, 0.12, 2.0, 1.3, 0, -0.1, 0x49a8ff);
+            return { group: g, size: { w: 3.2, h: 4.4, d: 5 }, idle: (t) => { const f = Math.sin(t * 5) * 0.45; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.2 + Math.sin(t * 2.5) * 0.15; } };
+        }
+    };
+
+    /* ============================ TWEEN / TIME ============================ */
+    const tweens = [];
+    const linear = (k) => k, easeOut = (k) => 1 - (1 - k) * (1 - k), easeIn = (k) => k * k;
+    const easeBack = (k) => { const c = 2.2; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+    function tween(dur, fn, ease) {
+        return new Promise((res) => tweens.push({ t: 0, dur: Math.max(0.0001, dur), fn, ease: ease || easeOut, res }));
+    }
+    const wait = (s) => tween(s, () => {}, linear);
+    function updateTweens(dt) {
+        for (let i = tweens.length - 1; i >= 0; i--) {
+            const tw = tweens[i];
+            tw.t += dt;
+            const k = Math.min(1, tw.t / tw.dur);
+            tw.fn(tw.ease(k), k);
+            if (k >= 1) { tweens.splice(i, 1); tw.res(); }
+        }
+    }
+
+    /* ============================ PARTICLES (one InstancedMesh) ============================ */
+    const MAXP = 200;
+    const pMesh = new THREE.InstancedMesh(boxGeo(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), MAXP);
+    pMesh.frustumCulled = false;
+    scene.add(pMesh);
+    const PS = Array.from({ length: MAXP }, () => ({ life: 0, max: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, s: 0.3, g: 14, dead: true }));
+    const dummy = new THREE.Object3D(), pcol = new THREE.Color();
+    let pIdx = 0;
+    for (let i = 0; i < MAXP; i++) { dummy.scale.setScalar(0); dummy.updateMatrix(); pMesh.setMatrixAt(i, dummy.matrix); pMesh.setColorAt(i, pcol.setHex(0xffffff)); }
+    function emit(x, y, z, color, n, spread, up, size, life, grav) {
+        for (let k = 0; k < n; k++) {
+            const i = pIdx; pIdx = (pIdx + 1) % MAXP;
+            const p = PS[i];
+            p.x = x + (Math.random() - 0.5) * 0.6; p.y = y; p.z = z + (Math.random() - 0.5) * 0.6;
+            p.vx = (Math.random() - 0.5) * spread * 2; p.vz = (Math.random() - 0.5) * spread * 2; p.vy = up * (0.4 + Math.random() * 0.9);
+            p.s = size * (0.6 + Math.random() * 0.8); p.max = p.life = life * (0.6 + Math.random() * 0.7); p.g = grav === undefined ? 14 : grav; p.dead = false;
+            pMesh.setColorAt(i, pcol.setHex(color));
+        }
+        pMesh.instanceColor.needsUpdate = true;
+    }
+    function updateParticles(dt) {
+        let dirty = false;
+        for (let i = 0; i < MAXP; i++) {
+            const p = PS[i];
+            if (p.dead) continue;
+            dirty = true;
+            p.life -= dt;
+            if (p.life <= 0) { p.dead = true; dummy.scale.setScalar(0); dummy.position.set(0, -50, 0); dummy.updateMatrix(); pMesh.setMatrixAt(i, dummy.matrix); continue; }
+            p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+            if (p.y < 0.1 && p.g > 0) { p.y = 0.1; p.vy *= -0.3; p.vx *= 0.6; p.vz *= 0.6; }
+            dummy.position.set(p.x, p.y, p.z); dummy.scale.setScalar(p.s * Math.min(1, p.life / p.max * 2)); dummy.rotation.set(p.life * 4, p.life * 3, 0);
+            dummy.updateMatrix(); pMesh.setMatrixAt(i, dummy.matrix);
+        }
+        if (dirty) pMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    /* ============================ HIGHLIGHT MARKERS ============================ */
+    const markers = [];
+    for (let i = 0; i < 8; i++) {
+        const ringGeo = new THREE.RingGeometry(2.2, 2.7, 4, 1); ringGeo.rotateX(-Math.PI / 2); ringGeo.rotateY(Math.PI / 4);
+        const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x9dff6a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        m.visible = false; scene.add(m); markers.push(m);
+    }
+    function clearMarkers() { markers.forEach((m) => { m.visible = false; }); }
+
+    /* ============================ GAME STATE ============================ */
+    const NAMES = ['RIVAL REX', 'CAPTAIN CUBE', 'DUELIST ZERO', 'BARON BLOCK', 'LADY LAVA'];
+    const S = {
+        round: 1, phase: 'menu', over: true, token: 0, sel: null, valid: [], shake: 0, t: 0,
+        p: { hp: 20, energy: 0, hand: [], lanes: [null, null, null], traps: [], avatar: null },
+        e: { hp: 20, energy: 0, hand: [], lanes: [null, null, null], traps: [], avatar: null }
+    };
+    let uid = 0;
+    const stats = { wins: 0, losses: 0, streak: 0, best: 0 };
+    S.p.avatar = buildAvatar(AV_CFG.p, Math.PI); S.p.avatar.group.position.set(0, 0, AV_Z.p); scene.add(S.p.avatar.group);
+    S.e.avatar = buildAvatar(AV_CFG.e, 0); S.e.avatar.group.position.set(0, 0, AV_Z.e); scene.add(S.e.avatar.group);
+    S.p.avatar.hit.userData.target = { kind: 'face', side: 'p', key: 'fp' }; pickables.push(S.p.avatar.hit);
+    S.e.avatar.hit.userData.target = { kind: 'face', side: 'e', key: 'fe' }; pickables.push(S.e.avatar.hit);
+
+    const drawCard = () => CARDS[DECK[Math.floor(Math.random() * DECK.length)]];
+    function fillHand(side) {
+        const hand = S[side].hand, size = rule('handSize');
+        while (hand.length < size) hand.push(drawCard());
+    }
+    const tilePos = (side, lane, y) => new THREE.Vector3(LANE_X[lane], y === undefined ? 0.2 : y, ROW_Z[side]);
+    function targetPos(t) {
+        if (t.kind === 'lane') return tilePos(t.side, t.lane);
+        if (t.kind === 'mon') return t.mon.holder.position.clone();
+        return S[t.side].avatar.group.position.clone();
+    }
+    const alive = (tok) => tok === S.token && !S.over;
+
+    /* ============================ UI ============================ */
+    function renderPips(el, n, max) {
+        let h = '';
+        for (let i = 0; i < max; i++) h += `<span class="${i < n ? 'on' : ''}"></span>`;
+        el.innerHTML = h;
+    }
+    function refreshUI() {
+        const maxHp = rule('duelistHealth');
+        $('pbar').style.width = Math.max(0, S.p.hp / maxHp * 100) + '%'; $('ptxt').textContent = Math.max(0, S.p.hp) + ' / ' + maxHp;
+        $('ebar').style.width = Math.max(0, S.e.hp / maxHp * 100) + '%'; $('etxt').textContent = Math.max(0, S.e.hp) + ' / ' + maxHp;
+        const maxE = Math.min(rule('maxEnergy'), rule('startEnergy') + S.round - 1);
+        renderPips($('ppips'), S.p.energy, maxE); renderPips($('epips'), S.e.energy, maxE);
+        $('rd').textContent = 'ROUND ' + S.round;
+        $('ehand').innerHTML = S.e.hand.map(() => '<span></span>').join('');
+        fightBtn.classList.toggle('off', S.phase !== 'player');
+        handEl.innerHTML = S.p.hand.map((c, i) => cardHTML(c, (c.cost > S.p.energy || S.phase !== 'player' ? 'off ' : '') + (S.sel === i ? 'sel' : ''), i)).join('');
+    }
+    function setHint(text) { hintEl.textContent = text || ''; }
+    function banner(text) {
+        bannerEl.textContent = text;
+        bannerEl.classList.remove('show'); void bannerEl.offsetWidth; bannerEl.classList.add('show');
+    }
+    function fxNum(pos, text, cls) {
+        const v = pos.clone().project(camera);
+        const w = fxlayer.clientWidth || 720, h = fxlayer.clientHeight || 1280;
+        const el = document.createElement('div');
+        el.className = 'fxnum ' + (cls || 'dmg');
+        el.textContent = text;
+        el.style.left = ((v.x * 0.5 + 0.5) * w) + 'px'; el.style.top = ((-v.y * 0.5 + 0.5) * h) + 'px';
+        fxlayer.appendChild(el);
+        setTimeout(() => el.remove(), 1050);
+    }
+    function showReveal(c) {
+        revealEl.innerHTML = cardHTML(c, '');
+        revealEl.classList.add('show');
+        return wait(0.85).then(() => revealEl.classList.remove('show'));
+    }
+
+    /* ---- selection / targeting ---- */
+    function validTargets(c, side) {
+        const me = S[side], foe = S[other(side)], out = [];
+        const mons = (s) => S[s].lanes.filter((m) => m && !m.dead).map((m) => m.target);
+        const face = (s) => ({ kind: 'face', side: s, key: 'f' + s });
+        switch (c.target) {
+            case 'lane': for (let i = 0; i < 3; i++) if (!me.lanes[i]) out.push({ kind: 'lane', side, lane: i, key: 'l' + side + i }); break;
+            case 'enemyMon': out.push(...mons(other(side))); break;
+            case 'enemyAny': out.push(...mons(other(side)), face(other(side))); break;
+            case 'ownMon': out.push(...mons(side)); break;
+            case 'ownAny': out.push(...mons(side), face(side)); break;
+        }
+        return out;
+    }
+    const needsTarget = (c) => c.type === 'monster' || (c.target && c.target !== 'none');
+    function canPlay(side, c) {
+        if (c.cost > S[side].energy) return 'Not enough energy!';
+        if (c.type === 'trap' && S[side].traps.length >= 2) return 'Both trap slots are full!';
+        if (needsTarget(c) && validTargets(c.type === 'monster' ? { target: 'lane' } : c, side).length === 0) return 'No valid target!';
+        return '';
+    }
+    function select(idx) {
+        S.sel = idx;
+        const c = S.p.hand[idx];
+        S.valid = validTargets(c.type === 'monster' ? { target: 'lane' } : c, 'p');
+        clearMarkers();
+        const harm = c.type === 'debuff' || c.target === 'enemyAny' || c.target === 'enemyMon';
+        S.valid.forEach((t, i) => {
+            const m = markers[i]; if (!m) return;
+            const pos = targetPos(t); m.position.set(pos.x, 0.35, pos.z);
+            m.scale.setScalar(t.kind === 'lane' ? 1 : (t.kind === 'face' ? 0.75 : 0.65));
+            m.material.color.setHex(harm ? 0xff6a4a : 0x9dff6a); m.visible = true;
+        });
+        setHint(c.desc + (needsTarget(c) ? (c.type === 'monster' ? ' Tap a glowing lane, or tap the card again.' : ' Tap a glowing target.') : ''));
+        refreshUI();
+    }
+    function deselect() { S.sel = null; S.valid = []; clearMarkers(); setHint(S.phase === 'player' ? 'Tap a card to see what it does.' : ''); refreshUI(); }
+
+    handEl.addEventListener('click', (e) => {
+        const el = e.target.closest('.card');
+        if (!el || S.phase !== 'player') return;
+        const idx = Number(el.dataset.i), c = S.p.hand[idx];
+        if (!c) return;
+        if (S.sel === idx) {                       // second tap: play (or cancel if it needs a target)
+            const err = canPlay('p', c);
+            if (err) { setHint(err); sfx('no'); return; }
+            if (c.type === 'monster') { playPlayerCard(idx, S.valid[0]); }
+            else if (!needsTarget(c)) { playPlayerCard(idx, null); }
+            else deselect();
+            return;
+        }
+        const err = canPlay('p', c);
+        if (err) { setHint(err); sfx('no'); return; }
+        sfx('card'); select(idx);
+    });
+
+    const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+    canvas.addEventListener('pointerdown', (e) => {
+        if (S.phase !== 'player' || S.sel === null) return;
+        const r = canvas.getBoundingClientRect();
+        ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        raycaster.setFromCamera(ndc, camera);
+        const hits = raycaster.intersectObjects(pickables, false);
+        for (const h of hits) {
+            const t = h.object.userData.target;
+            if (t && S.valid.some((v) => v.key === t.key)) { playPlayerCard(S.sel, S.valid.find((v) => v.key === t.key)); return; }
+        }
+        deselect();
+    });
+    fightBtn.addEventListener('click', () => { if (S.phase === 'player') startFight(); });
+
+    /* ============================ ANIMATION HELPERS ============================ */
+    function throwAnim(side) {
+        const av = S[side].avatar;
+        av.throwing = true;
+        return tween(0.3, (k) => { av.armR.rotation.x = -Math.PI * 0.9 * Math.sin(k * Math.PI); }, linear).then(() => { av.throwing = false; });
+    }
+    function avatarHit(side) {
+        const av = S[side].avatar; av.flash = 1; S.shake = Math.max(S.shake, 0.5); sfx('hit');
+    }
+    function flyCard(c, from, to, dur) {
+        const g = new THREE.Group();
+        const col = cardColor(c);
+        const back = new THREE.Mesh(boxGeo(1.9, 2.6, 0.08), new THREE.MeshBasicMaterial({ color: 0x0b0e1e }));
+        const face = new THREE.Mesh(boxGeo(1.6, 2.3, 0.1), new THREE.MeshBasicMaterial({ color: col }));
+        const gem = new THREE.Mesh(boxGeo(0.8, 0.8, 0.12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        gem.position.y = 0.1;
+        g.add(back, face, gem); g.position.copy(from); g.rotation.x = -0.5;
+        scene.add(g);
+        return tween(dur || 0.5, (k) => {
+            g.position.lerpVectors(from, to, k); g.position.y += Math.sin(k * Math.PI) * 4.5;
+            g.rotation.y = k * Math.PI * 4; g.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.4);
+        }, easeOut).then(() => g);
+    }
+    function disposeCard(g) {
+        scene.remove(g);
+        g.children.forEach((m) => m.material.dispose());
+    }
+    function shockRing(x, z, color, big) {
+        const geo = new THREE.RingGeometry(0.8, 1.2, 24); geo.rotateX(-Math.PI / 2);
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        m.position.set(x, 0.3, z); scene.add(m);
+        tween(0.55, (k) => { m.scale.setScalar(1 + k * (big ? 3.4 : 2.4)); m.material.opacity = 0.9 * (1 - k); }, easeOut).then(() => { scene.remove(m); geo.dispose(); m.material.dispose(); });
+    }
+    function glowMat(color, op) {
+        return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
+    }
+
+    /* ============================ MONSTERS ============================ */
+    function makeLabel(m) {
+        const cv = document.createElement('canvas'); cv.width = 192; cv.height = 80;
+        const tex = new THREE.CanvasTexture(cv);
+        const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+        spr.scale.set(2.5, 1.05, 1); spr.renderOrder = 20;
+        m.label = { cv, tex, spr };
+        spr.position.y = m.size.h + 1.1;
+        m.holder.add(spr);
+        updateLabel(m);
+    }
+    function updateLabel(m) {
+        const { cv, tex } = m.label, c = cv.getContext('2d');
+        c.clearRect(0, 0, 192, 80);
+        const box = (x, color, txt) => {
+            c.fillStyle = '#05070f'; c.fillRect(x, 8, 84, 64);
+            c.fillStyle = color; c.fillRect(x + 5, 13, 74, 54);
+            c.fillStyle = '#fff'; c.font = '900 44px Trebuchet MS, Verdana, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+            c.lineWidth = 6; c.strokeStyle = '#000'; c.strokeText(String(txt), x + 42, 42); c.fillText(String(txt), x + 42, 42);
+        };
+        box(6, m.atk > m.def.atk ? '#ff6a1f' : (m.atk < m.def.atk ? '#7a5ad0' : '#ff9b2e'), m.atk);
+        box(102, m.hp < m.maxHp ? '#c8303a' : '#e8454e', m.hp);
+        tex.needsUpdate = true;
+    }
+    function spawnMonster(side, lane, def) {
+        const model = MODELS[def.model]();
+        const holder = new THREE.Group();
+        holder.add(model.group);
+        holder.position.copy(tilePos(side, lane, 0.2));
+        holder.rotation.y = side === 'p' ? Math.PI : 0;
+        holder.scale.setScalar(MON_SCALE);
+        const m = {
+            id: ++uid, side, lane, def, atk: def.atk, hp: def.hp, maxHp: def.hp, ranged: !!def.ranged, chained: false, dead: false,
+            holder, model, size: model.size, buff: null, debuff: null, flash: null, chain: null, ember: 0, home: holder.position.clone()
+        };
+        const hit = new THREE.Mesh(boxGeo(model.size.w, model.size.h, Math.max(model.size.d, 2.4)), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        hit.position.y = model.size.h / 2; holder.add(hit);
+        m.target = { kind: 'mon', mon: m, key: 'm' + m.id };
+        hit.userData.target = m.target; m.hit = hit; pickables.push(hit);
+        makeLabel(m);
+        scene.add(holder);
+        S[side].lanes[lane] = m;
+        return m;
+    }
+    function auraMesh(m, color, grow, op) {
+        const a = new THREE.Mesh(boxGeo(m.size.w * grow, m.size.h * grow, Math.max(m.size.d, 2.2) * grow), glowMat(color, op));
+        a.position.y = m.size.h / 2; a.userData.op = op; a.renderOrder = 5; m.holder.add(a); return a;
+    }
+    function flashMon(m) {
+        if (!m.flash) { m.flash = auraMesh(m, 0xffffff, 1.08, 0); m.flash.userData.op = 0; }
+        m.flashT = 1;
+    }
+    function monsterIn(m) {                      // assemble from scattered cubes
+        const kids = m.model.group.children.slice();
+        const base = kids.map((c) => ({ p: c.position.clone(), s: c.scale.clone() }));
+        kids.forEach((c, i) => { c.position.add(new THREE.Vector3((Math.random() - 0.5) * 7, 2 + Math.random() * 5, (Math.random() - 0.5) * 7)); c.scale.setScalar(0.001); });
+        const ring = m.def.elem ? ELEM[m.def.elem].glow : 0xffffff;
+        shockRing(m.holder.position.x, m.holder.position.z, ring, true);
+        emit(m.holder.position.x, 1.5, m.holder.position.z, ring, 26, 4.5, 8, 0.35, 0.8);
+        sfx('summon');
+        return tween(0.7, (k) => {
+            kids.forEach((c, i) => {
+                const kk = Math.min(1, Math.max(0, (k * 1.4) - (i / kids.length) * 0.4));
+                const e = easeBack(kk);
+                c.position.lerpVectors(base[i].p.clone().add(new THREE.Vector3(0, 5, 0)), base[i].p, e);
+                c.scale.copy(base[i].s).multiplyScalar(Math.max(0.001, easeOut(kk)));
+            });
+        }, linear);
+    }
+    function killMon(m) {
+        if (m.dead) return;
+        m.dead = true;
+        S[m.side].lanes[m.lane] = null;
+        const i = pickables.indexOf(m.hit); if (i >= 0) pickables.splice(i, 1);
+        const p = m.holder.position;
+        emit(p.x, m.size.h * 0.5 * MON_SCALE, p.z, ELEM[m.def.elem].color, 30, 5, 7, 0.45, 0.9);
+        emit(p.x, m.size.h * 0.5 * MON_SCALE, p.z, 0xffffff, 10, 3, 6, 0.3, 0.6);
+        shockRing(p.x, p.z, 0xffffff, false);
+        if (m.chain) { m.holder.remove(m.chain); m.chain = null; }
+        tween(0.3, (k) => { m.holder.scale.setScalar(MON_SCALE * (1 - k)); m.holder.position.y = 0.2 + k * 1.2; }, easeIn).then(() => {
+            scene.remove(m.holder);
+            m.holder.traverse((o) => { if (o.material && !sharedMats.has(o.material)) o.material.dispose(); });
+            if (m.label) m.label.tex.dispose();
+        });
+    }
+    function damageMon(m, amt) {
+        if (m.dead || amt <= 0) return;
+        m.hp -= amt; flashMon(m); S.shake = Math.max(S.shake, 0.35); sfx('hit');
+        fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '-' + amt, 'dmg');
+        const p = m.holder.position; emit(p.x, m.size.h * 0.5 * MON_SCALE, p.z, 0xffffff, 8, 3, 5, 0.25, 0.5);
+        updateLabel(m);
+        if (m.hp <= 0) killMon(m);
+    }
+    function healMon(m, amt) {
+        const n = Math.min(amt, m.maxHp - m.hp);
+        m.hp += n; updateLabel(m);
+        fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '+' + n, 'heal');
+        const p = m.holder.position; emit(p.x, 0.5, p.z, 0x6dff8a, 20, 2.5, 6, 0.3, 1, -2);
+    }
+    function damageFace(side, amt) {
+        if (amt <= 0) return;
+        S[side].hp -= amt; avatarHit(side);
+        fxNum(S[side].avatar.group.position.clone().setY(5), '-' + amt, 'dmg');
+        const p = S[side].avatar.group.position; emit(p.x, 3, p.z, 0xffffff, 10, 3, 5, 0.3, 0.5);
+        refreshUI(); checkEnd();
+    }
+    function healFace(side, amt) {
+        const n = Math.min(amt, rule('duelistHealth') - S[side].hp);
+        S[side].hp += n; refreshUI();
+        fxNum(S[side].avatar.group.position.clone().setY(5), '+' + n, 'heal');
+        const p = S[side].avatar.group.position; emit(p.x, 0.5, p.z, 0x6dff8a, 24, 2.5, 7, 0.3, 1.1, -2);
+    }
+    function chainMon(m) {
+        const g = new THREE.Group(), { w, h, d } = m.size, r = Math.max(w, d) * 0.62; // local to the (scaled) holder
+        for (const y of [0.5, h * 0.55]) for (let i = 0; i < 12; i++) {
+            const a = i / 12 * Math.PI * 2;
+            const l = new THREE.Mesh(boxGeo(0.7, 0.22, 0.22), lam(i % 2 ? 0xd6dcec : 0x8d97b4));
+            l.position.set(Math.cos(a) * r, y, Math.sin(a) * r); l.rotation.y = -a + Math.PI / 2; g.add(l);
+        }
+        g.scale.setScalar(2); m.holder.add(g); m.chain = g; m.chained = true;
+        sfx('chain'); fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'CHAINED!', 'cold');
+        emit(m.holder.position.x, 1, m.holder.position.z, 0xcfd6e6, 14, 3, 4, 0.25, 0.6);
+        return tween(0.3, (k) => { g.scale.setScalar(2 - k); }, easeOut);
+    }
+    function unchain(m) {
+        if (m.chain) { emit(m.holder.position.x, 1.5, m.holder.position.z, 0xcfd6e6, 14, 4, 6, 0.3, 0.7); m.holder.remove(m.chain); m.chain = null; }
+        m.chained = false;
+    }
+
+    /* ============================ TRAPS ============================ */
+    function placeTrap(side, kind, from) {
+        const slot = S[side].traps.length, [x, z] = TRAP_POS[side][slot];
+        const g = new THREE.Group();
+        const col = side === 'p' ? (kind === 'chaintrap' ? 0x6f8fd6 : 0xe0803a) : 0x7b4bd6;
+        const cube = new THREE.Mesh(boxGeo(1.5, 1.5, 1.5), new THREE.MeshBasicMaterial({ color: col }));
+        const rim = new THREE.Mesh(boxGeo(1.8, 1.8, 1.8), glowMat(col, 0.35));
+        cube.position.y = rim.position.y = 1.1; g.add(cube, rim);
+        g.position.set(x, 0, z); g.scale.setScalar(0.01); scene.add(g);
+        const trap = { kind, mesh: g, slot };
+        S[side].traps.push(trap);
+        shockRing(x, z, col, false); sfx('aura');
+        return tween(0.4, (k) => { g.scale.setScalar(Math.max(0.01, k)); }, easeBack).then(() => trap);
+    }
+    function removeTrap(side, trap) {
+        const i = S[side].traps.indexOf(trap); if (i >= 0) S[side].traps.splice(i, 1);
+        const g = trap.mesh;
+        tween(0.3, (k) => { g.scale.setScalar(1 - k); }, easeIn).then(() => { scene.remove(g); g.children.forEach((c) => c.material.dispose()); });
+        // keep remaining traps tidy in their slots
+        S[side].traps.forEach((t, n) => { t.mesh.position.set(TRAP_POS[side][n][0], 0, TRAP_POS[side][n][1]); });
+    }
+    async function triggerTrap(side, trap, tok) {
+        const g = trap.mesh;
+        fxNum(g.position.clone().setY(3), trap.kind === 'chaintrap' ? 'CHAIN TRAP!' : 'SPIKE TRAP!', 'info');
+        emit(g.position.x, 1.2, g.position.z, 0xffffff, 16, 3, 6, 0.3, 0.6);
+        await tween(0.4, (k) => { g.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.6); g.rotation.y = k * Math.PI * 2; }, linear);
+        removeTrap(side, trap);
+    }
+    function spikesAt(m) {
+        const g = new THREE.Group();
+        for (let i = 0; i < 7; i++) {
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.8, 4), lam(i % 2 ? 0xb9c2d6 : 0xe0803a));
+            cone.position.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3); g.add(cone);
+        }
+        g.position.set(m.holder.position.x, 0, m.holder.position.z); scene.add(g); sfx('hit');
+        return tween(0.5, (k) => { g.children.forEach((c) => { c.position.y = Math.sin(Math.min(1, k * 1.6) * Math.PI * 0.5) * 0.9 - 0.2; }); }, linear)
+            .then(() => { scene.remove(g); g.children.forEach((c) => c.geometry.dispose()); });
+    }
+
+    /* ============================ CARD RESOLUTION ============================ */
+    async function resolveCard(side, c, target, tok) {
+        const me = S[side], foeSide = other(side), av = me.avatar;
+        const from = av.group.position.clone().setY(4.5);
+        await throwAnim(side);
+        if (!alive(tok)) return;
+        if (c.type === 'monster') {
+            const to = tilePos(target.side, target.lane, 2.4);
+            const cm = await flyCard(c, from, to, 0.5);
+            const m = spawnMonster(side, target.lane, c);
+            emit(to.x, 2.4, to.z, cardColor(c), 14, 3, 5, 0.3, 0.5, 6);
+            disposeCard(cm);
+            await monsterIn(m);
+            return;
+        }
+        if (c.type === 'skill') {
+            if (c.name === 'FIREBALL') {
+                const dest = targetPos(target).setY(target.kind === 'face' ? 3 : 2.2);
+                const ball = new THREE.Group();
+                ball.add(new THREE.Mesh(boxGeo(0.9, 0.9, 0.9), new THREE.MeshBasicMaterial({ color: 0xffd23a })), new THREE.Mesh(boxGeo(1.5, 1.5, 1.5), glowMat(0xff4a1a, 0.55)));
+                ball.position.copy(from); scene.add(ball); sfx('fire');
+                await tween(0.55, (k) => { ball.position.lerpVectors(from, dest, k); ball.rotation.set(k * 9, k * 7, 0); emit(ball.position.x, ball.position.y, ball.position.z, 0xff7a2a, 1, 0.8, 0.5, 0.35, 0.4, 2); }, easeIn);
+                scene.remove(ball); ball.children.forEach((o) => o.material.dispose());
+                emit(dest.x, dest.y, dest.z, 0xff5a2a, 34, 6, 8, 0.5, 0.8); emit(dest.x, dest.y, dest.z, 0xffd23a, 16, 4, 6, 0.35, 0.6);
+                shockRing(dest.x, dest.z, 0xff7a2a, false);
+                if (!alive(tok)) return;
+                if (target.kind === 'face') damageFace(target.side, c.dmg); else damageMon(target.mon, c.dmg);
+                await wait(0.35);
+            } else if (c.name === 'HEAL PULSE') {
+                sfx('heal');
+                await wait(0.15);
+                if (target.kind === 'face') healFace(target.side, c.heal); else healMon(target.mon, c.heal);
+                await wait(0.5);
+            } else if (c.name === 'THUNDERSTORM') {
+                sfx('bolt');
+                const victims = S[foeSide].lanes.filter((m) => m && !m.dead);
+                emit(0, 12, 0, 0xffe14d, 1, 0, 0, 0.1, 0.1, 0);
+                for (const m of victims) {
+                    const p = m.holder.position, bolt = new THREE.Mesh(boxGeo(0.45, 14, 0.45), glowMat(0xfff27a, 1));
+                    bolt.position.set(p.x, 7, p.z); scene.add(bolt);
+                    emit(p.x, 2, p.z, 0xffe14d, 22, 5, 7, 0.4, 0.7);
+                    tween(0.35, (k) => { bolt.material.opacity = 1 - k; bolt.scale.x = bolt.scale.z = 1 + k * 2; }, linear).then(() => { scene.remove(bolt); bolt.material.dispose(); });
+                    S.shake = 0.6;
+                    damageMon(m, c.dmg);
+                    await wait(0.18);
+                }
+                await wait(0.4);
+            }
+            return;
+        }
+        if (c.type === 'buff' || c.type === 'debuff') {
+            const m = target.mon, to = m.holder.position.clone().setY(m.size.h * MON_SCALE + 1.5);
+            const cm = await flyCard(c, from, to, 0.45);
+            disposeCard(cm);
+            if (!alive(tok) || m.dead) return;
+            const col = ELEM[c.elem].glow;
+            if (c.type === 'buff') {
+                m.atk += c.atkMod; sfx('aura');
+                if (!m.buff) m.buff = auraMesh(m, col, 1.18, 0.3);
+                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), '+' + c.atkMod + ' ATK', 'dmg');
+                emit(m.holder.position.x, 0.5, m.holder.position.z, col, 26, 2, 8, 0.3, 1.1, -3);
+            } else {
+                m.atk = Math.max(0, m.atk + c.atkMod); sfx('curse');
+                if (!m.debuff) m.debuff = auraMesh(m, col, 1.3, 0.16);
+                fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), c.atkMod + ' ATK', 'cold');
+                emit(m.holder.position.x, m.size.h * MON_SCALE, m.holder.position.z, col, 26, 2, -2, 0.3, 1.1, 5);
+            }
+            shockRing(m.holder.position.x, m.holder.position.z, col, false);
+            updateLabel(m);
+            await wait(0.5);
+            return;
+        }
+        if (c.type === 'trap') {
+            const slot = me.traps.length, [x, z] = TRAP_POS[side][slot];
+            const to = new THREE.Vector3(x, 1.4, z);
+            const cm = await flyCard(c, from, to, 0.5);
+            disposeCard(cm);
+            await placeTrap(side, c === CARDS.chaintrap ? 'chaintrap' : 'spiketrap');
+            await wait(0.2);
+        }
+    }
+    async function playCard(side, idx, target, tok) {
+        const me = S[side], c = me.hand[idx];
+        me.hand.splice(idx, 1); me.energy -= c.cost;
+        refreshUI(); sfx('card');
+        if (side === 'e') await showReveal(c);
+        await resolveCard(side, c, target, tok);
+        refreshUI();
+    }
+    async function playPlayerCard(idx, target) {
+        const tok = S.token;
+        S.phase = 'busy'; S.sel = null; S.valid = []; clearMarkers(); setHint('');
+        try { await playCard('p', idx, target, tok); } catch (e) { lib.log('Card failed: ' + e.message); }
+        if (!alive(tok)) return;
+        S.phase = 'player';
+        setHint('Tap a card, or press FIGHT! to attack.');
+        refreshUI();
+    }
+
+    /* ============================ BATTLE ============================ */
+    async function monsterAttack(m, tok) {
+        const foeSide = other(m.side), foe = S[foeSide];
+        const tgtMon = foe.lanes[m.lane];
+        const from = m.holder.position.clone();
+        const dest = tgtMon ? tgtMon.holder.position.clone() : foe.avatar.group.position.clone();
+        if (m.atk <= 0) { fxNum(from.clone().setY(m.size.h * MON_SCALE + 2), '0', 'info'); await wait(0.4); return; }
+        if (m.ranged) {
+            const src = from.clone().setY(2.6), dst = dest.clone().setY(tgtMon ? 2.2 : 3);
+            const arrow = new THREE.Mesh(boxGeo(0.25, 0.25, 1.4), new THREE.MeshBasicMaterial({ color: 0xbfeaff }));
+            scene.add(arrow); arrow.lookAt(dst); sfx('card');
+            await tween(0.35, (k) => { arrow.position.lerpVectors(src, dst, k); emit(arrow.position.x, arrow.position.y, arrow.position.z, 0x7ed8ff, 1, 0.5, 0.5, 0.25, 0.4, 0); }, linear);
+            scene.remove(arrow); arrow.material.dispose();
+            if (!alive(tok)) return;
+            if (tgtMon) damageMon(tgtMon, m.atk); else damageFace(foeSide, m.atk);
+            await wait(0.4);
+            return;
+        }
+        const dir = dest.clone().sub(from); dir.y = 0;
+        const len = dir.length(); dir.normalize();
+        const lunge = from.clone().addScaledVector(dir, Math.max(0, len - (tgtMon ? 2.6 : 3.2)));
+        await tween(0.22, (k) => { m.holder.position.lerpVectors(from, lunge, k); m.holder.position.y = 0.2 + Math.sin(k * Math.PI) * 0.8; }, easeIn);
+        if (!alive(tok)) return;
+        if (tgtMon) {
+            const counter = tgtMon.atk;
+            damageMon(tgtMon, m.atk);
+            damageMon(m, counter);
+        } else damageFace(foeSide, m.atk);
+        if (m.buff) emit(lunge.x, 1.5, lunge.z, ELEM[m.def.elem].glow, 14, 4, 5, 0.3, 0.6);
+        await wait(0.18);
+        if (!m.dead) await tween(0.25, (k) => { m.holder.position.lerpVectors(lunge, m.home, k); m.holder.position.y = 0.2; }, easeOut);
+        await wait(0.1);
+    }
+    async function attackPhase(side, tok) {
+        const me = S[side], foeSide = other(side), foe = S[foeSide];
+        if (!me.lanes.some((m) => m && !m.dead)) return;
+        for (const trap of foe.traps.slice()) {
+            const cand = me.lanes.filter((m) => m && !m.dead);
+            if (!cand.length) break;
+            if (trap.kind === 'chaintrap') {
+                const tgt = cand.filter((m) => !m.chained).sort((a, b) => b.atk - a.atk)[0];
+                if (!tgt) continue;
+                await triggerTrap(foeSide, trap, tok);
+                await chainMon(tgt); await wait(0.4);
+            } else {
+                const tgt = cand[0];
+                await triggerTrap(foeSide, trap, tok);
+                await spikesAt(tgt);
+                damageMon(tgt, 4); await wait(0.4);
+            }
+            if (!alive(tok)) return;
+        }
+        for (let lane = 0; lane < 3; lane++) {
+            const m = me.lanes[lane];
+            if (!m || m.dead) continue;
+            if (m.chained) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'BOUND!', 'cold'); await wait(0.55); unchain(m); continue; }
+            await monsterAttack(m, tok);
+            if (!alive(tok)) return;
+        }
+    }
+
+    /* ============================ RIVAL AI ============================ */
+    function aiPick() {
+        const me = S.e, foe = S.p, smarts = rule('enemySmarts');
+        let best = null;
+        me.hand.forEach((c, idx) => {
+            if (canPlay('e', c)) return;
+            const targets = validTargets(c.type === 'monster' ? { target: 'lane' } : c, 'e');
+            const options = needsTarget(c) ? targets : [null];
+            options.forEach((t) => {
+                let s = 0;
+                const foeMons = foe.lanes.filter((m) => m && !m.dead);
+                switch (c.type) {
+                    case 'monster': {
+                        const opp = foe.lanes[t.lane];
+                        s = 3 + c.atk * 0.6 + c.hp * 0.4 + (opp ? 0 : 2.5) + (opp && opp.atk >= c.hp ? -2 : 0);
+                        break;
+                    }
+                    case 'skill':
+                        if (c.name === 'FIREBALL') {
+                            if (t.kind === 'face') s = foe.hp <= c.dmg ? 99 : 1.5;
+                            else s = t.mon.hp <= c.dmg ? 4 + t.mon.atk : 1 + t.mon.atk * 0.3;
+                        } else if (c.name === 'HEAL PULSE') {
+                            if (t.kind === 'face') s = me.hp <= 10 ? 4 : 0.3;
+                            else s = t.mon.maxHp - t.mon.hp >= 3 ? 3.5 : 0.3;
+                        } else s = foeMons.length >= 2 ? 3 + foeMons.length * 1.5 : (foeMons.length ? 1.8 : 0);
+                        break;
+                    case 'buff': s = 3 + t.mon.hp * 0.3 + t.mon.atk * 0.3; break;
+                    case 'debuff': s = 2.5 + t.mon.atk * 0.8; break;
+                    case 'trap': s = foeMons.length || me.lanes.some(Boolean) ? 3.2 : 2; break;
+                }
+                s += (1 - smarts) * Math.random() * 5 + Math.random() * 0.3;
+                if (s > 1 && (!best || s > best.s)) best = { idx, target: t, s };
+            });
+        });
+        return best;
+    }
+    async function enemyTurn(tok) {
+        banner('RIVAL TURN');
+        await wait(1.0);
+        for (let guard = 0; guard < 8 && alive(tok); guard++) {
+            const pick = aiPick();
+            if (!pick) break;
+            await wait(rule('enemyThinkTime'));
+            if (!alive(tok)) return;
+            await playCard('e', pick.idx, pick.target, tok);
+            await wait(0.3);
+        }
+    }
+
+    /* ============================ MATCH FLOW ============================ */
+    function clearBoard() {
+        for (const s of ['p', 'e']) {
+            S[s].lanes.forEach((m) => {
+                if (!m) return;
+                scene.remove(m.holder);
+                const i = pickables.indexOf(m.hit); if (i >= 0) pickables.splice(i, 1);
+            });
+            S[s].lanes = [null, null, null];
+            S[s].traps.forEach((t) => scene.remove(t.mesh));
+            S[s].traps = [];
+            S[s].avatar.down = 0; S[s].avatar.group.rotation.x = 0; S[s].avatar.group.position.y = 0;
+        }
+        tweens.length = 0;
+        fxlayer.innerHTML = '';
+    }
+    async function newMatch() {
+        S.token++; const tok = S.token;
+        clearBoard();
+        S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
+        S.p.hp = S.e.hp = rule('duelistHealth');
+        S.p.hand = []; S.e.hand = [];
+        fillHand('p'); fillHand('e');
+        // guarantee a playable opening hand
+        for (const s of ['p', 'e']) if (!S[s].hand.some((c) => c.type === 'monster' && c.cost <= rule('startEnergy'))) S[s].hand[0] = CARDS.slime;
+        $('ename').textContent = NAMES[Math.floor(Math.random() * NAMES.length)];
+        $('menu').classList.add('hidden'); $('endscreen').classList.add('hidden');
+        await startRound(tok, true);
+    }
+    async function startRound(tok, first) {
+        const maxE = Math.min(rule('maxEnergy'), rule('startEnergy') + S.round - 1);
+        S.p.energy = S.e.energy = maxE;
+        if (!first) { fillHand('p'); fillHand('e'); }
+        S.phase = 'busy'; refreshUI();
+        banner('ROUND ' + S.round);
+        await wait(1.0);
+        if (!alive(tok)) return;
+        S.phase = 'player';
+        banner('YOUR TURN');
+        setHint('Tap a card to see what it does.');
+        refreshUI();
+    }
+    async function startFight() {
+        const tok = S.token;
+        deselect();
+        S.phase = 'busy'; setHint(''); refreshUI();
+        banner('FIGHT!');
+        await wait(0.8);
+        await attackPhase('p', tok); if (!alive(tok)) return;
+        await wait(0.3);
+        await enemyTurn(tok); if (!alive(tok)) return;
+        banner('RIVAL FIGHT!'); await wait(0.8);
+        await attackPhase('e', tok); if (!alive(tok)) return;
+        S.round++;
+        await startRound(tok, false);
+    }
+    function checkEnd() {
+        if (S.over) return;
+        if (S.p.hp > 0 && S.e.hp > 0) return;
+        S.over = true; S.phase = 'over';
+        const won = S.e.hp <= 0 && S.p.hp > 0, loser = won ? 'e' : 'p';
+        sfx(won ? 'win' : 'lose');
+        const av = S[loser].avatar, tok = S.token;
+        tween(0.8, (k) => { av.group.rotation.x = -Math.PI / 2 * k; av.group.position.y = 1.2 * k; }, easeIn);
+        emit(av.group.position.x, 3, av.group.position.z, won ? 0xffcf3a : 0xff5a4a, 40, 6, 9, 0.5, 1.2);
+        if (won) { stats.wins++; stats.streak++; stats.best = Math.max(stats.best, stats.streak); } else { stats.losses++; stats.streak = 0; }
+        saveStats();
+        setTimeout(() => {
+            if (tok !== S.token) return;
+            $('endTitle').textContent = won ? 'VICTORY!' : 'DEFEAT';
+            $('endLine').textContent = won ? 'Win streak: ' + stats.streak + '  |  Best: ' + stats.best : 'Streak reset. Wins: ' + stats.wins + '  |  Losses: ' + stats.losses;
+            $('endscreen').classList.remove('hidden');
+        }, 1500);
+        setHint(''); refreshUI();
+    }
+
+    /* ============================ SAVE / LOAD ============================ */
+    async function loadStats() {
+        try {
+            const r = await lib.getUserGameState();
+            if (r && r.state) Object.assign(stats, r.state);
+        } catch (e) { lib.log('Load failed'); }
+    }
+    function saveStats() {
+        if (mode !== 'play') return;
+        try { lib.saveUserGameState({ wins: stats.wins, losses: stats.losses, streak: stats.streak, best: stats.best }); } catch (e) { lib.log('Save failed'); }
+    }
+    function menuStats() { $('menuStats').textContent = stats.wins + stats.losses > 0 ? 'Wins ' + stats.wins + '  |  Losses ' + stats.losses + '  |  Best streak ' + stats.best : ''; }
+
+    /* ============================ MAIN LOOP ============================ */
+    let last = performance.now();
+    function loop(ts) {
+        const dt = Math.min(((ts || performance.now()) - last) / 1000, 0.11);
+        last = ts || performance.now(); S.t += dt;
+        const t = S.t;
+        updateTweens(dt);
+        updateParticles(dt);
+        // idle animation + auras
+        for (const s of ['p', 'e']) {
+            const side = S[s];
+            side.lanes.forEach((m) => {
+                if (!m || m.dead) return;
+                if (m.model.idle) m.model.idle(t + m.id);
+                if (m.buff) { m.buff.material.opacity = 0.22 + Math.sin(t * 4 + m.id) * 0.08; m.ember -= dt; if (m.ember <= 0) { m.ember = 0.14; emit(m.holder.position.x, 0.4, m.holder.position.z, ELEM.fire.glow, 1, 1.2, 4, 0.3, 0.9, -2); } }
+                if (m.debuff) { m.debuff.material.opacity = 0.14 + Math.sin(t * 3 + m.id) * 0.06; }
+                if (m.flashT > 0) { m.flashT = Math.max(0, m.flashT - dt * 4); m.flash.material.opacity = m.flashT * 0.8; }
+                if (m.chain) m.chain.rotation.y += dt * 0.6;
+            });
+            side.traps.forEach((tr, n) => { tr.mesh.position.y = Math.sin(t * 2 + n) * 0.2; tr.mesh.rotation.y += dt; });
+            const av = side.avatar;
+            if (!S.over) {
+                av.armL.rotation.x = Math.sin(t * 1.8 + (s === 'p' ? 0 : 2)) * 0.12;
+                if (!av.throwing) av.armR.rotation.x = -Math.sin(t * 1.8 + (s === 'p' ? 0 : 2)) * 0.12;
+                av.group.position.y = Math.abs(Math.sin(t * 2 + (s === 'p' ? 0 : 1))) * 0.1;
+            }
+            if (av.flash > 0) { av.flash = Math.max(0, av.flash - dt * 3); av.mats.forEach((m) => m.emissive.setRGB(av.flash, av.flash * 0.15, av.flash * 0.15)); }
+        }
+        markers.forEach((m, i) => { if (m.visible) { m.material.opacity = 0.55 + Math.sin(t * 7 + i) * 0.35; } });
+        // camera (with hit shake)
+        S.shake = Math.max(0, S.shake - dt * 2.2);
+        camera.position.set(CAM_POS.x + (Math.random() - 0.5) * S.shake, CAM_POS.y + (Math.random() - 0.5) * S.shake, CAM_POS.z);
+        camera.lookAt(CAM_LOOK);
+        renderer.render(scene, camera);
+        requestAnimationFrame(loop);
+    }
+
+    /* ============================ START ============================ */
+    $('startBtn').addEventListener('click', () => { unlockAudio(); newMatch(); });
+    $('againBtn').addEventListener('click', () => { unlockAudio(); newMatch(); });
+    await loadStats();
+    menuStats();
+    refreshUI();
+    window.__bcd = { S, CARDS, select, playPlayerCard, startFight };   // handy for debugging in the console
+    requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
