@@ -111,8 +111,8 @@
         <div id="hand"></div>
         <div id="menu" class="overlay">
             <h1>BLOCK<br><em>CARD DUEL</em></h1>
-            <p>Play a card and its blocky monster bursts out of it into the arena.</p>
-            <p>Tap a card, then tap a glowing target. Hit FIGHT! to attack.</p>
+            <p>Play a card and its blocky monster bursts out of it into the round arena.</p>
+            <p>Tap a card, then tap where to summon or aim it. Hit FIGHT! to attack.</p>
             <button class="bigbtn" id="startBtn">DUEL!</button>
             <div class="stats" id="menuStats"></div>
         </div>
@@ -155,15 +155,15 @@ window.__threeReady = new Promise((resolve, reject) => {
 /*
  * BLOCK CARD DUEL
  * A turn-based card duel. You are a blocky duelist; play a card and what is inside it
- * appears in a wide 3-lane arena:
- *   MONSTER  - bursts out of the card as a blocky creature and fights in its lane
+ * appears in a wide ROUND arena (you hold the near half, the rival the far half):
+ *   MONSTER  - bursts out of the card wherever you tap and roams the arena freely
  *   SKILL    - fireball / heal / thunderstorm played straight onto the board
  *   BUFF     - wraps a monster in a coloured aura (Flame Aura = faint red glow, +ATK)
  *   DEBUFF   - curses an enemy monster (Frost Curse = cold blue glow, -ATK)
  *   TRAP     - set face-down; Chain Trap binds a monster for a round, Spike Trap hurts it
  * Round: play cards with energy -> FIGHT! (your monsters attack) -> rival plays cards ->
- * rival monsters attack. Monsters hit the monster in their lane, or the duelist if the
- * lane is empty. Reduce the rival's HP to zero to win.
+ * rival monsters attack. Attacking monsters run across the arena to the nearest enemy
+ * monster (or the duelist when none is left) and return home. Reduce HP to zero to win.
  *
  * Performance: every model is built from a few shared box geometries/materials, one
  * directional light, no shadows, particles are one InstancedMesh.
@@ -206,11 +206,11 @@ async function run(mode) {
         bolt: { color: 0xf2c230, glow: 0xffe14d }
     };
     const CARDS = {
-        slime: { type: 'monster', name: 'CUBE SLIME', cost: 1, atk: 2, hp: 3, elem: 'grass', model: 'slime', desc: 'CUBE SLIME: a cheap, bouncy blocker.' },
-        golem: { type: 'monster', name: 'STONE GOLEM', cost: 3, atk: 3, hp: 8, elem: 'earth', model: 'golem', desc: 'STONE GOLEM: a slow wall of rock with huge HP.' },
-        wolf: { type: 'monster', name: 'FLAME WOLF', cost: 2, atk: 4, hp: 3, elem: 'fire', model: 'wolf', desc: 'FLAME WOLF: fast and fierce, but fragile.' },
-        archer: { type: 'monster', name: 'FROST ARCHER', cost: 2, atk: 3, hp: 3, elem: 'ice', model: 'archer', ranged: true, desc: 'FROST ARCHER: shoots from range, takes no counter damage.' },
-        drake: { type: 'monster', name: 'THUNDER DRAKE', cost: 4, atk: 6, hp: 5, elem: 'bolt', model: 'drake', desc: 'THUNDER DRAKE: heavy hitter that rules the lane.' },
+        slime: { type: 'monster', name: 'CUBE SLIME', cost: 1, atk: 2, hp: 3, elem: 'grass', model: 'slime', speed: 6.5, desc: 'CUBE SLIME: a cheap, bouncy blocker.' },
+        golem: { type: 'monster', name: 'STONE GOLEM', cost: 3, atk: 3, hp: 8, elem: 'earth', model: 'golem', speed: 4.4, desc: 'STONE GOLEM: a slow wall of rock with huge HP.' },
+        wolf: { type: 'monster', name: 'FLAME WOLF', cost: 2, atk: 4, hp: 3, elem: 'fire', model: 'wolf', speed: 11.5, desc: 'FLAME WOLF: fast and fierce, but fragile.' },
+        archer: { type: 'monster', name: 'FROST ARCHER', cost: 2, atk: 3, hp: 3, elem: 'ice', model: 'archer', speed: 7.5, ranged: true, desc: 'FROST ARCHER: shoots from range, takes no counter damage.' },
+        drake: { type: 'monster', name: 'THUNDER DRAKE', cost: 4, atk: 6, hp: 5, elem: 'bolt', model: 'drake', speed: 9, desc: 'THUNDER DRAKE: heavy hitter that rules the arena.' },
         fireball: { type: 'skill', name: 'FIREBALL', cost: 2, target: 'enemyAny', dmg: 4, elem: 'fire', desc: 'FIREBALL: 4 damage to any enemy monster or the rival.' },
         heal: { type: 'skill', name: 'HEAL PULSE', cost: 1, target: 'ownAny', heal: 4, elem: 'grass', desc: 'HEAL PULSE: restore 4 HP to one of your monsters or yourself.' },
         storm: { type: 'skill', name: 'THUNDERSTORM', cost: 3, target: 'none', dmg: 3, elem: 'bolt', desc: 'THUNDERSTORM: 3 damage to every enemy monster. Tap the card again to cast.' },
@@ -330,48 +330,74 @@ async function run(mode) {
         return m;
     }
 
-    /* ---- arena layout ---- */
-    const LANE_X = [-4.6, 0, 4.6];
-    const ROW_Z = { p: 3.6, e: -3.6 };
-    const AV_Z = { p: 11.8, e: -12.8 };
+    /* ---- arena layout: ONE ROUND ARENA. You hold the near (blue) half, the rival the far (red) half ---- */
+    const ARENA_R = 8.4;
+    const AV_Z = { p: 12.2, e: -12.8 };
     const AV_SCALE = 0.8;
-    const TRAP_POS = { p: [[-5.4, 8.2], [5.4, 8.2]], e: [[-5.4, -9], [5.4, -9]] };
+    const TRAP_POS = { p: [[-5.2, 10.2], [5.2, 10.2]], e: [[-5.2, -10.8], [5.2, -10.8]] };
+    const MAX_MONS = 4;
     const other = (s) => s === 'p' ? 'e' : 'p';
     const MON_SCALE = 1.35;
+    const pickables = [];
+    let spawnZone;                      // glowing half-disc shown while you choose where to summon
 
     (function buildArena() {
-        const cv = document.createElement('canvas'); cv.width = cv.height = 128;
-        const cx = cv.getContext('2d');
-        for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { cx.fillStyle = (x + y) % 2 ? '#232c58' : '#1b2348'; cx.fillRect(x * 32, y * 32, 32, 32); }
-        const tex = new THREE.CanvasTexture(cv);
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(9, 10);
-        tex.magFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(36, 40), new THREE.MeshLambertMaterial({ map: tex }));
-        floor.rotation.x = -Math.PI / 2; floor.position.y = -0.2;
+        const cv0 = document.createElement('canvas'); cv0.width = cv0.height = 128;
+        const c0 = cv0.getContext('2d');
+        for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c0.fillStyle = (x + y) % 2 ? '#1d2550' : '#161d42'; c0.fillRect(x * 32, y * 32, 32, 32); }
+        const ftex = new THREE.CanvasTexture(cv0);
+        ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(10, 11);
+        ftex.magFilter = THREE.NearestFilter; ftex.colorSpace = THREE.SRGBColorSpace;
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 44), new THREE.MeshLambertMaterial({ map: ftex }));
+        floor.rotation.x = -Math.PI / 2; floor.position.y = -0.75;
         scene.add(floor);
-        // team platforms
-        const pp = addBox(scene, 15.6, 0.3, 6, 0, -0.05, ROW_Z.p, 0x24437f);
-        const ep = addBox(scene, 15.6, 0.3, 6, 0, -0.05, ROW_Z.e, 0x7f2437);
-        pp.position.y = ep.position.y = -0.05;
-        // far side voxel pillars for depth
+        // stone body of the round arena
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R + 0.3, ARENA_R + 0.7, 1.4, 48), lam(0x2a3158));
+        body.position.y = -0.7; scene.add(body);
+        // painted top: red far half, blue near half, gold centre line, rings
+        const N = 512, cv = document.createElement('canvas'); cv.width = cv.height = N;
+        const cx = cv.getContext('2d'), R = N / 2;
+        cx.save(); cx.beginPath(); cx.arc(R, R, R, 0, Math.PI * 2); cx.clip();
+        for (let gy = 0; gy < 16; gy++) for (let gx = 0; gx < 16; gx++) {
+            const top = gy < 8, alt = (gx + gy) % 2;
+            cx.fillStyle = top ? (alt ? '#58283a' : '#4a2030') : (alt ? '#27478a' : '#203c78');
+            cx.fillRect(gx * 32, gy * 32, 32, 32);
+        }
+        cx.strokeStyle = 'rgba(255,255,255,0.22)'; cx.lineWidth = 6;
+        for (const f of [0.34, 0.68, 0.97]) { cx.beginPath(); cx.arc(R, R, R * f, 0, Math.PI * 2); cx.stroke(); }
+        cx.strokeStyle = 'rgba(255,207,58,0.7)'; cx.lineWidth = 10;
+        cx.beginPath(); cx.moveTo(0, R); cx.lineTo(N, R); cx.stroke();
+        cx.beginPath(); cx.arc(R, R, 46, 0, Math.PI * 2); cx.stroke();
+        cx.fillStyle = 'rgba(255,207,58,0.35)'; cx.beginPath(); cx.arc(R, R, 30, 0, Math.PI * 2); cx.fill();
+        cx.restore();
+        const ttex = new THREE.CanvasTexture(cv); ttex.colorSpace = THREE.SRGBColorSpace;
+        const top = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R, 64), new THREE.MeshLambertMaterial({ map: ttex }));
+        top.rotation.x = -Math.PI / 2; top.position.y = 0.02; scene.add(top);
+        // blocky rim
+        for (let i = 0; i < 40; i++) {
+            const a = i / 40 * Math.PI * 2;
+            const blk = addBox(scene, 1.4, 0.9, 0.95, Math.cos(a) * (ARENA_R + 0.5), 0.3, Math.sin(a) * (ARENA_R + 0.5), i % 2 ? 0x4a5a9a : 0x394880);
+            blk.rotation.y = -a - Math.PI / 2;
+        }
+        // duelist daises
+        addBox(scene, 6, 0.5, 4.4, 0, -0.25, AV_Z.p, 0x24437f);
+        addBox(scene, 6, 0.5, 4.4, 0, -0.25, AV_Z.e, 0x7f2437);
+        // distant voxel pillars for depth
         const cols = [0x2b3566, 0x333f78, 0x3a4688];
         for (let i = 0; i < 16; i++) {
             const side = i < 8 ? -1 : 1, k = i % 8;
             const h = 2 + ((k * 37) % 5) * 1.4;
-            addBox(scene, 2.4, h, 2.4, side * (11.5 + (k % 2) * 2.4), h / 2 - 0.2, -17 + k * 4.6, cols[k % 3]);
+            addBox(scene, 2.4, h, 2.4, side * (13 + (k % 2) * 2.4), h / 2 - 0.75, -18 + k * 5, cols[k % 3]);
         }
+        // glowing summon zone (your half)
+        spawnZone = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R - 0.9, 40, Math.PI, Math.PI), glowMat(0x8fd0ff, 0.3));
+        spawnZone.rotation.x = -Math.PI / 2; spawnZone.position.y = 0.09; spawnZone.visible = false; scene.add(spawnZone);
+        // invisible pick surface covering the whole arena
+        const ground = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R, 40), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        ground.rotation.x = -Math.PI / 2; ground.position.y = 0.1;
+        ground.userData.target = { kind: 'ground', side: 'p', key: 'gp' };
+        scene.add(ground); pickables.push(ground);
     })();
-
-    const pickables = [];
-    const tiles = { p: [], e: [] };
-    for (const s of ['p', 'e']) {
-        for (let i = 0; i < 3; i++) {
-            const m = new THREE.Mesh(boxGeo(3.9, 0.2, 3.9), lam(s === 'p' ? 0x3d6fc4 : 0xc4455d));
-            m.position.set(LANE_X[i], 0.12, ROW_Z[s]);
-            m.userData.target = { kind: 'lane', side: s, lane: i, key: 'l' + s + i };
-            scene.add(m); pickables.push(m); tiles[s].push(m);
-        }
-    }
 
     /* ---- blocky duelists ---- */
     function buildAvatar(cfg, faceDir) {
@@ -486,6 +512,15 @@ async function run(mode) {
         }
     }
 
+    // per-frame tasks (used for monster movement): fn(dt) returns true once finished
+    const tasks = [];
+    function task(fn) { return new Promise((res) => tasks.push({ fn, res })); }
+    function updateTasks(dt) {
+        for (let i = tasks.length - 1; i >= 0; i--) {
+            if (tasks[i].fn(dt)) { const tk = tasks[i]; tasks.splice(i, 1); tk.res(); }
+        }
+    }
+
     /* ============================ PARTICLES (one InstancedMesh) ============================ */
     const MAXP = 200;
     const pMesh = new THREE.InstancedMesh(boxGeo(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), MAXP);
@@ -529,14 +564,14 @@ async function run(mode) {
         const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x9dff6a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
         m.visible = false; scene.add(m); markers.push(m);
     }
-    function clearMarkers() { markers.forEach((m) => { m.visible = false; }); }
+    function clearMarkers() { markers.forEach((m) => { m.visible = false; }); if (spawnZone) spawnZone.visible = false; }
 
     /* ============================ GAME STATE ============================ */
     const NAMES = ['RIVAL REX', 'CAPTAIN CUBE', 'DUELIST ZERO', 'BARON BLOCK', 'LADY LAVA'];
     const S = {
         round: 1, phase: 'menu', over: true, token: 0, sel: null, valid: [], shake: 0, t: 0,
-        p: { hp: 20, energy: 0, hand: [], lanes: [null, null, null], traps: [], avatar: null },
-        e: { hp: 20, energy: 0, hand: [], lanes: [null, null, null], traps: [], avatar: null }
+        p: { hp: 20, energy: 0, hand: [], mons: [], traps: [], avatar: null },
+        e: { hp: 20, energy: 0, hand: [], mons: [], traps: [], avatar: null }
     };
     let uid = 0;
     const stats = { wins: 0, losses: 0, streak: 0, best: 0 };
@@ -550,9 +585,30 @@ async function run(mode) {
         const hand = S[side].hand, size = rule('handSize');
         while (hand.length < size) hand.push(drawCard());
     }
-    const tilePos = (side, lane, y) => new THREE.Vector3(LANE_X[lane], y === undefined ? 0.2 : y, ROW_Z[side]);
+    const dist2d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+    const liveMons = (side) => S[side].mons.filter((m) => !m.dead);
+    // where a monster may be summoned: inside the arena, on that side's half, not on top of a friend
+    function validSpawn(side, p) {
+        const sgn = side === 'p' ? 1 : -1;
+        if (Math.hypot(p.x, p.z) > ARENA_R - 1.4 || p.z * sgn < 1.8) return false;
+        return !liveMons(side).some((m) => dist2d(m.holder.position, p) < 2.3);
+    }
+    function autoSpot(side) {
+        const sgn = side === 'p' ? 1 : -1;
+        let best = null, bs = -1;
+        for (let i = 0; i < 40; i++) {
+            const a = Math.random() * Math.PI, r = 2 + Math.random() * (ARENA_R - 3.8);
+            const p = new THREE.Vector3(Math.cos(a) * r, 0.2, Math.sin(a) * r * sgn);
+            if (!validSpawn(side, p)) continue;
+            let md = 9;
+            liveMons(side).forEach((m) => { md = Math.min(md, dist2d(m.holder.position, p)); });
+            const sc = md + Math.random() * 1.5;
+            if (sc > bs) { bs = sc; best = p; }
+        }
+        return best;
+    }
     function targetPos(t) {
-        if (t.kind === 'lane') return tilePos(t.side, t.lane);
+        if (t.kind === 'ground') return t.pos ? t.pos.clone() : new THREE.Vector3(0, 0.2, 0);
         if (t.kind === 'mon') return t.mon.holder.position.clone();
         return S[t.side].avatar.group.position.clone();
     }
@@ -599,10 +655,10 @@ async function run(mode) {
     /* ---- selection / targeting ---- */
     function validTargets(c, side) {
         const me = S[side], foe = S[other(side)], out = [];
-        const mons = (s) => S[s].lanes.filter((m) => m && !m.dead).map((m) => m.target);
+        const mons = (s) => liveMons(s).map((m) => m.target);
         const face = (s) => ({ kind: 'face', side: s, key: 'f' + s });
         switch (c.target) {
-            case 'lane': for (let i = 0; i < 3; i++) if (!me.lanes[i]) out.push({ kind: 'lane', side, lane: i, key: 'l' + side + i }); break;
+            case 'ground': if (liveMons(side).length < MAX_MONS && autoSpot(side)) out.push({ kind: 'ground', side, key: 'g' + side }); break;
             case 'enemyMon': out.push(...mons(other(side))); break;
             case 'enemyAny': out.push(...mons(other(side)), face(other(side))); break;
             case 'ownMon': out.push(...mons(side)); break;
@@ -614,22 +670,24 @@ async function run(mode) {
     function canPlay(side, c) {
         if (c.cost > S[side].energy) return 'Not enough energy!';
         if (c.type === 'trap' && S[side].traps.length >= 2) return 'Both trap slots are full!';
-        if (needsTarget(c) && validTargets(c.type === 'monster' ? { target: 'lane' } : c, side).length === 0) return 'No valid target!';
+        if (c.type === 'monster' && liveMons(side).length >= MAX_MONS) return 'Your side is full (' + MAX_MONS + ' monsters)!';
+        if (needsTarget(c) && validTargets(c.type === 'monster' ? { target: 'ground' } : c, side).length === 0) return 'No valid target!';
         return '';
     }
     function select(idx) {
         S.sel = idx;
         const c = S.p.hand[idx];
-        S.valid = validTargets(c.type === 'monster' ? { target: 'lane' } : c, 'p');
+        S.valid = validTargets(c.type === 'monster' ? { target: 'ground' } : c, 'p');
         clearMarkers();
         const harm = c.type === 'debuff' || c.target === 'enemyAny' || c.target === 'enemyMon';
         S.valid.forEach((t, i) => {
+            if (t.kind === 'ground') { spawnZone.visible = true; return; }
             const m = markers[i]; if (!m) return;
             const pos = targetPos(t); m.position.set(pos.x, 0.35, pos.z);
-            m.scale.setScalar(t.kind === 'lane' ? 1 : (t.kind === 'face' ? 0.75 : 0.65));
+            m.scale.setScalar(t.kind === 'face' ? 0.75 : 0.65);
             m.material.color.setHex(harm ? 0xff6a4a : 0x9dff6a); m.visible = true;
         });
-        setHint(c.desc + (needsTarget(c) ? (c.type === 'monster' ? ' Tap a glowing lane, or tap the card again.' : ' Tap a glowing target.') : ''));
+        setHint(c.desc + (needsTarget(c) ? (c.type === 'monster' ? ' Tap anywhere on YOUR blue half to summon, or tap the card again.' : ' Tap a glowing target.') : ''));
         refreshUI();
     }
     function deselect() { S.sel = null; S.valid = []; clearMarkers(); setHint(S.phase === 'player' ? 'Tap a card to see what it does.' : ''); refreshUI(); }
@@ -642,7 +700,7 @@ async function run(mode) {
         if (S.sel === idx) {                       // second tap: play (or cancel if it needs a target)
             const err = canPlay('p', c);
             if (err) { setHint(err); sfx('no'); return; }
-            if (c.type === 'monster') { playPlayerCard(idx, S.valid[0]); }
+            if (c.type === 'monster') { playPlayerCard(idx, { kind: 'ground', side: 'p', pos: autoSpot('p') }); }
             else if (!needsTarget(c)) { playPlayerCard(idx, null); }
             else deselect();
             return;
@@ -661,7 +719,14 @@ async function run(mode) {
         const hits = raycaster.intersectObjects(pickables, false);
         for (const h of hits) {
             const t = h.object.userData.target;
-            if (t && S.valid.some((v) => v.key === t.key)) { playPlayerCard(S.sel, S.valid.find((v) => v.key === t.key)); return; }
+            const v = t && S.valid.find((q) => q.key === t.key);
+            if (!v) continue;
+            if (v.kind === 'ground') {
+                const pt = h.point.clone(); pt.y = 0.2;
+                if (!validSpawn('p', pt)) { setHint('Summon on YOUR blue half, away from your other monsters.'); sfx('no'); return; }
+                playPlayerCard(S.sel, { kind: 'ground', side: 'p', pos: pt }); return;
+            }
+            playPlayerCard(S.sel, v); return;
         }
         deselect();
     });
@@ -728,16 +793,16 @@ async function run(mode) {
         box(102, m.hp < m.maxHp ? '#c8303a' : '#e8454e', m.hp);
         tex.needsUpdate = true;
     }
-    function spawnMonster(side, lane, def) {
+    function spawnMonster(side, pos, def) {
         const model = MODELS[def.model]();
         const holder = new THREE.Group();
         holder.add(model.group);
-        holder.position.copy(tilePos(side, lane, 0.2));
+        holder.position.set(pos.x, 0.2, pos.z);
         holder.rotation.y = side === 'p' ? Math.PI : 0;
         holder.scale.setScalar(MON_SCALE);
         const m = {
-            id: ++uid, side, lane, def, atk: def.atk, hp: def.hp, maxHp: def.hp, ranged: !!def.ranged, chained: false, dead: false,
-            holder, model, size: model.size, buff: null, debuff: null, flash: null, chain: null, ember: 0, home: holder.position.clone()
+            id: ++uid, side, def, atk: def.atk, hp: def.hp, maxHp: def.hp, ranged: !!def.ranged, chained: false, dead: false,
+            holder, model, size: model.size, buff: null, debuff: null, flash: null, chain: null, ember: 0, home: holder.position.clone(), ready: false, state: 'idle', wt: 1 + Math.random() * 2, wto: null
         };
         const hit = new THREE.Mesh(boxGeo(model.size.w, model.size.h, Math.max(model.size.d, 2.4)), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
         hit.position.y = model.size.h / 2; holder.add(hit);
@@ -745,7 +810,7 @@ async function run(mode) {
         hit.userData.target = m.target; m.hit = hit; pickables.push(hit);
         makeLabel(m);
         scene.add(holder);
-        S[side].lanes[lane] = m;
+        S[side].mons.push(m);
         return m;
     }
     function auraMesh(m, color, grow, op) {
@@ -776,7 +841,7 @@ async function run(mode) {
     function killMon(m) {
         if (m.dead) return;
         m.dead = true;
-        S[m.side].lanes[m.lane] = null;
+        { const arr = S[m.side].mons, k = arr.indexOf(m); if (k >= 0) arr.splice(k, 1); }
         const i = pickables.indexOf(m.hit); if (i >= 0) pickables.splice(i, 1);
         const p = m.holder.position;
         emit(p.x, m.size.h * 0.5 * MON_SCALE, p.z, ELEM[m.def.elem].color, 30, 5, 7, 0.45, 0.9);
@@ -879,12 +944,13 @@ async function run(mode) {
         await throwAnim(side);
         if (!alive(tok)) return;
         if (c.type === 'monster') {
-            const to = tilePos(target.side, target.lane, 2.4);
+            const to = target.pos.clone().setY(2.4);
             const cm = await flyCard(c, from, to, 0.5);
-            const m = spawnMonster(side, target.lane, c);
+            const m = spawnMonster(side, target.pos, c);
             emit(to.x, 2.4, to.z, cardColor(c), 14, 3, 5, 0.3, 0.5, 6);
             disposeCard(cm);
             await monsterIn(m);
+            m.ready = true;
             return;
         }
         if (c.type === 'skill') {
@@ -907,7 +973,7 @@ async function run(mode) {
                 await wait(0.5);
             } else if (c.name === 'THUNDERSTORM') {
                 sfx('bolt');
-                const victims = S[foeSide].lanes.filter((m) => m && !m.dead);
+                const victims = liveMons(foeSide);
                 emit(0, 12, 0, 0xffe14d, 1, 0, 0, 0.1, 0.1, 0);
                 for (const m of victims) {
                     const p = m.holder.position, bolt = new THREE.Mesh(boxGeo(0.45, 14, 0.45), glowMat(0xfff27a, 1));
@@ -972,43 +1038,101 @@ async function run(mode) {
     }
 
     /* ============================ BATTLE ============================ */
-    async function monsterAttack(m, tok) {
-        const foeSide = other(m.side), foe = S[foeSide];
-        const tgtMon = foe.lanes[m.lane];
-        const from = m.holder.position.clone();
-        const dest = tgtMon ? tgtMon.holder.position.clone() : foe.avatar.group.position.clone();
-        if (m.atk <= 0) { fxNum(from.clone().setY(m.size.h * MON_SCALE + 2), '0', 'info'); await wait(0.4); return; }
-        if (m.ranged) {
-            const src = from.clone().setY(2.6), dst = dest.clone().setY(tgtMon ? 2.2 : 3);
-            const arrow = new THREE.Mesh(boxGeo(0.25, 0.25, 1.4), new THREE.MeshBasicMaterial({ color: 0xbfeaff }));
-            scene.add(arrow); arrow.lookAt(dst); sfx('card');
-            await tween(0.35, (k) => { arrow.position.lerpVectors(src, dst, k); emit(arrow.position.x, arrow.position.y, arrow.position.z, 0x7ed8ff, 1, 0.5, 0.5, 0.25, 0.4, 0); }, linear);
-            scene.remove(arrow); arrow.material.dispose();
-            if (!alive(tok)) return;
-            if (tgtMon) damageMon(tgtMon, m.atk); else damageFace(foeSide, m.atk);
-            await wait(0.4);
-            return;
-        }
-        const dir = dest.clone().sub(from); dir.y = 0;
-        const len = dir.length(); dir.normalize();
-        const lunge = from.clone().addScaledVector(dir, Math.max(0, len - (tgtMon ? 2.6 : 3.2)));
-        await tween(0.22, (k) => { m.holder.position.lerpVectors(from, lunge, k); m.holder.position.y = 0.2 + Math.sin(k * Math.PI) * 0.8; }, easeIn);
-        if (!alive(tok)) return;
-        if (tgtMon) {
-            const counter = tgtMon.atk;
-            damageMon(tgtMon, m.atk);
+    /* Free-roaming melee: an attacking monster runs to the nearest enemy monster (or the
+       duelist when none is left), strikes once, then walks back home. All attackers move at
+       the same time, each starting a beat after the previous one. */
+    function nearestFoe(m) {
+        let best = null, bd = 1e9;
+        liveMons(other(m.side)).forEach((f) => { const d = dist2d(m.holder.position, f.holder.position); if (d < bd) { bd = d; best = f; } });
+        return best;
+    }
+    function faceDir(holder, dx, dz, dt, rate) {
+        let d = Math.atan2(dx, dz) - holder.rotation.y;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        holder.rotation.y += d * Math.min(1, dt * rate);
+    }
+    function approach(m, speed, maxT) {
+        const res = { tgt: null, inReach: false };
+        let t = 0;
+        return task((dt) => {
+            if (m.dead) return true;
+            const tgt = nearestFoe(m);
+            const pos = tgt ? tgt.holder.position : S[other(m.side)].avatar.group.position;
+            const reach = m.ranged ? 8.5 : (tgt ? 2.8 : 3.6);
+            const dx = pos.x - m.holder.position.x, dz = pos.z - m.holder.position.z, d = Math.hypot(dx, dz);
+            res.tgt = tgt; res.inReach = d <= reach + 0.05;
+            t += dt;
+            if (res.inReach || t > maxT) return true;
+            const step = Math.min(speed * dt, d - reach);
+            m.holder.position.x += dx / d * step; m.holder.position.z += dz / d * step;
+            m.holder.position.y = 0.2 + Math.abs(Math.sin(S.t * 14)) * 0.3;
+            faceDir(m.holder, dx, dz, dt, 14);
+            return false;
+        }).then(() => res);
+    }
+    function walkHome(m, speed) {
+        let t = 0;
+        return task((dt) => {
+            if (m.dead) return true;
+            const dx = m.home.x - m.holder.position.x, dz = m.home.z - m.holder.position.z, d = Math.hypot(dx, dz);
+            t += dt;
+            if (d < 0.15 || t > 5) { m.holder.position.y = 0.2; return true; }
+            const step = Math.min(speed * dt, d);
+            m.holder.position.x += dx / d * step; m.holder.position.z += dz / d * step;
+            m.holder.position.y = 0.2 + Math.abs(Math.sin(S.t * 14)) * 0.25;
+            faceDir(m.holder, dx, dz, dt, 12);
+            return false;
+        });
+    }
+    async function strike(m, tgt, tok) {
+        const foeSide = other(m.side), p0 = m.holder.position.clone();
+        const aim = tgt ? tgt.holder.position : S[foeSide].avatar.group.position;
+        const dir = new THREE.Vector3(aim.x - p0.x, 0, aim.z - p0.z).normalize();
+        await tween(0.18, (k) => { m.holder.position.copy(p0).addScaledVector(dir, -0.7 * k); }, easeOut);
+        const p1 = m.holder.position.clone();
+        await tween(0.12, (k) => { m.holder.position.copy(p1).addScaledVector(dir, 1.9 * k); m.holder.position.y = 0.2 + Math.sin(k * Math.PI) * 0.6; }, easeIn);
+        if (!alive(tok) || m.dead) return;
+        if (tgt) {
+            const counter = tgt.atk;
+            damageMon(tgt, m.atk);
             damageMon(m, counter);
         } else damageFace(foeSide, m.atk);
-        if (m.buff) emit(lunge.x, 1.5, lunge.z, ELEM[m.def.elem].glow, 14, 4, 5, 0.3, 0.6);
-        await wait(0.18);
-        if (!m.dead) await tween(0.25, (k) => { m.holder.position.lerpVectors(lunge, m.home, k); m.holder.position.y = 0.2; }, easeOut);
-        await wait(0.1);
+        if (m.buff) emit(m.holder.position.x, 1.5, m.holder.position.z, ELEM[m.def.elem].glow, 14, 4, 5, 0.3, 0.6);
+        await wait(0.15);
+        if (m.dead || !alive(tok)) return;
+        const p2 = m.holder.position.clone();
+        await tween(0.2, (k) => { m.holder.position.copy(p2).addScaledVector(dir, -1.6 * k); m.holder.position.y = 0.2; }, easeOut);
+    }
+    async function shoot(m, tgt, tok) {
+        const foeSide = other(m.side);
+        const aim = tgt ? tgt.holder.position : S[foeSide].avatar.group.position;
+        const src = m.holder.position.clone().setY(2.8), dst = aim.clone().setY(tgt ? 2.4 : 3.2);
+        m.holder.rotation.y = Math.atan2(dst.x - src.x, dst.z - src.z);
+        const arrow = new THREE.Mesh(boxGeo(0.25, 0.25, 1.4), new THREE.MeshBasicMaterial({ color: 0xbfeaff }));
+        scene.add(arrow); arrow.lookAt(dst); sfx('card');
+        await tween(0.35, (k) => { arrow.position.lerpVectors(src, dst, k); emit(arrow.position.x, arrow.position.y, arrow.position.z, 0x7ed8ff, 1, 0.5, 0.5, 0.25, 0.4, 0); }, linear);
+        scene.remove(arrow); arrow.material.dispose();
+        if (!alive(tok)) return;
+        if (tgt) damageMon(tgt, m.atk); else damageFace(foeSide, m.atk);
+        await wait(0.3);
+    }
+    async function runUnit(m, tok) {
+        if (m.atk <= 0) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2), '0', 'info'); await wait(0.4); return; }
+        for (let tries = 0; tries < 3 && alive(tok) && !m.dead; tries++) {
+            const r = await approach(m, m.def.speed, 7);
+            if (!alive(tok) || m.dead) break;
+            if (r.tgt && r.tgt.dead) continue;          // target fell on the way: pick a new one
+            if (r.inReach) { if (m.ranged) await shoot(m, r.tgt, tok); else await strike(m, r.tgt, tok); }
+            break;
+        }
+        if (!m.dead && alive(tok)) await walkHome(m, m.def.speed * 0.9);
     }
     async function attackPhase(side, tok) {
         const me = S[side], foeSide = other(side), foe = S[foeSide];
-        if (!me.lanes.some((m) => m && !m.dead)) return;
+        if (!liveMons(side).length) return;
         for (const trap of foe.traps.slice()) {
-            const cand = me.lanes.filter((m) => m && !m.dead);
+            const cand = liveMons(side);
             if (!cand.length) break;
             if (trap.kind === 'chaintrap') {
                 const tgt = cand.filter((m) => !m.chained).sort((a, b) => b.atk - a.atk)[0];
@@ -1023,13 +1147,15 @@ async function run(mode) {
             }
             if (!alive(tok)) return;
         }
-        for (let lane = 0; lane < 3; lane++) {
-            const m = me.lanes[lane];
-            if (!m || m.dead) continue;
-            if (m.chained) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'BOUND!', 'cold'); await wait(0.55); unchain(m); continue; }
-            await monsterAttack(m, tok);
-            if (!alive(tok)) return;
-        }
+        const runs = liveMons(side).map((m, i) => (async () => {
+            await wait(i * 0.4);
+            if (!alive(tok) || m.dead) return;
+            if (m.chained) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 2.2), 'BOUND!', 'cold'); await wait(0.55); unchain(m); return; }
+            m.state = 'act';
+            try { await runUnit(m, tok); } finally { m.state = 'idle'; }
+        })());
+        await Promise.all(runs);
+        await wait(0.3);
     }
 
     /* ============================ RIVAL AI ============================ */
@@ -1038,17 +1164,15 @@ async function run(mode) {
         let best = null;
         me.hand.forEach((c, idx) => {
             if (canPlay('e', c)) return;
-            const targets = validTargets(c.type === 'monster' ? { target: 'lane' } : c, 'e');
+            const targets = validTargets(c.type === 'monster' ? { target: 'ground' } : c, 'e');
             const options = needsTarget(c) ? targets : [null];
             options.forEach((t) => {
                 let s = 0;
-                const foeMons = foe.lanes.filter((m) => m && !m.dead);
+                const foeMons = liveMons('p');
                 switch (c.type) {
-                    case 'monster': {
-                        const opp = foe.lanes[t.lane];
-                        s = 3 + c.atk * 0.6 + c.hp * 0.4 + (opp ? 0 : 2.5) + (opp && opp.atk >= c.hp ? -2 : 0);
+                    case 'monster':
+                        s = 3 + c.atk * 0.6 + c.hp * 0.4 + (foeMons.length ? 0 : 2.5) + (liveMons('e').length >= 3 ? -1 : 0);
                         break;
-                    }
                     case 'skill':
                         if (c.name === 'FIREBALL') {
                             if (t.kind === 'face') s = foe.hp <= c.dmg ? 99 : 1.5;
@@ -1060,7 +1184,7 @@ async function run(mode) {
                         break;
                     case 'buff': s = 3 + t.mon.hp * 0.3 + t.mon.atk * 0.3; break;
                     case 'debuff': s = 2.5 + t.mon.atk * 0.8; break;
-                    case 'trap': s = foeMons.length || me.lanes.some(Boolean) ? 3.2 : 2; break;
+                    case 'trap': s = foeMons.length || liveMons('e').length ? 3.2 : 2; break;
                 }
                 s += (1 - smarts) * Math.random() * 5 + Math.random() * 0.3;
                 if (s > 1 && (!best || s > best.s)) best = { idx, target: t, s };
@@ -1076,6 +1200,11 @@ async function run(mode) {
             if (!pick) break;
             await wait(rule('enemyThinkTime'));
             if (!alive(tok)) return;
+            if (pick.target && pick.target.kind === 'ground') {
+                const pos = autoSpot('e');
+                if (!pos) break;
+                pick.target = { kind: 'ground', side: 'e', pos };
+            }
             await playCard('e', pick.idx, pick.target, tok);
             await wait(0.3);
         }
@@ -1084,17 +1213,16 @@ async function run(mode) {
     /* ============================ MATCH FLOW ============================ */
     function clearBoard() {
         for (const s of ['p', 'e']) {
-            S[s].lanes.forEach((m) => {
-                if (!m) return;
+            S[s].mons.forEach((m) => {
                 scene.remove(m.holder);
                 const i = pickables.indexOf(m.hit); if (i >= 0) pickables.splice(i, 1);
             });
-            S[s].lanes = [null, null, null];
+            S[s].mons = [];
             S[s].traps.forEach((t) => scene.remove(t.mesh));
             S[s].traps = [];
             S[s].avatar.down = 0; S[s].avatar.group.rotation.x = 0; S[s].avatar.group.position.y = 0;
         }
-        tweens.length = 0;
+        tweens.length = 0; tasks.length = 0;
         fxlayer.innerHTML = '';
     }
     async function newMatch() {
@@ -1170,6 +1298,40 @@ async function run(mode) {
     }
     function menuStats() { $('menuStats').textContent = stats.wins + stats.losses > 0 ? 'Wins ' + stats.wins + '  |  Losses ' + stats.losses + '  |  Best streak ' + stats.best : ''; }
 
+    /* ============================ MONSTER IDLE LIFE ============================ */
+    function updateMonsters(dt) {
+        const all = S.p.mons.concat(S.e.mons).filter((m) => !m.dead);
+        // gentle separation so free-roaming monsters never stack on top of each other
+        for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+            const a = all[i].holder.position, b = all[j].holder.position;
+            const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = 1.9;
+            if (d < min && d > 0.001) {
+                const push = (min - d) * 0.5 * Math.min(1, dt * 8), nx = dx / d, nz = dz / d;
+                a.x -= nx * push; a.z -= nz * push; b.x += nx * push; b.z += nz * push;
+            }
+        }
+        for (const m of all) {
+            if (!m.ready || m.state !== 'idle') continue;
+            const pos = m.holder.position;
+            m.wt -= dt;
+            if (m.wt <= 0) {
+                m.wt = 1.5 + Math.random() * 2.5;
+                const a = Math.random() * Math.PI * 2, r = Math.random() * 1.5;
+                m.wto = new THREE.Vector3(m.home.x + Math.cos(a) * r, 0.2, m.home.z + Math.sin(a) * r);
+            }
+            let moving = false;
+            if (m.wto) {
+                const dx = m.wto.x - pos.x, dz = m.wto.z - pos.z, d = Math.hypot(dx, dz);
+                if (d > 0.1) { const st = Math.min(d, 1.8 * dt); pos.x += dx / d * st; pos.z += dz / d * st; moving = true; }
+            }
+            const r2 = Math.hypot(pos.x, pos.z);
+            if (r2 > ARENA_R - 1) { pos.x *= (ARENA_R - 1) / r2; pos.z *= (ARENA_R - 1) / r2; }
+            const foe = nearestFoe(m), fp = foe ? foe.holder.position : S[other(m.side)].avatar.group.position;
+            faceDir(m.holder, fp.x - pos.x, fp.z - pos.z, dt, 5);
+            pos.y = 0.2 + (moving ? Math.abs(Math.sin(S.t * 10)) * 0.12 : 0);
+        }
+    }
+
     /* ============================ MAIN LOOP ============================ */
     let last = performance.now();
     function loop(ts) {
@@ -1177,12 +1339,14 @@ async function run(mode) {
         last = ts || performance.now(); S.t += dt;
         const t = S.t;
         updateTweens(dt);
+        updateTasks(dt);
+        updateMonsters(dt);
         updateParticles(dt);
         // idle animation + auras
         for (const s of ['p', 'e']) {
             const side = S[s];
-            side.lanes.forEach((m) => {
-                if (!m || m.dead) return;
+            side.mons.forEach((m) => {
+                if (m.dead) return;
                 if (m.model.idle) m.model.idle(t + m.id);
                 if (m.buff) { m.buff.material.opacity = 0.22 + Math.sin(t * 4 + m.id) * 0.08; m.ember -= dt; if (m.ember <= 0) { m.ember = 0.14; emit(m.holder.position.x, 0.4, m.holder.position.z, ELEM.fire.glow, 1, 1.2, 4, 0.3, 0.9, -2); } }
                 if (m.debuff) { m.debuff.material.opacity = 0.14 + Math.sin(t * 3 + m.id) * 0.06; }
@@ -1198,6 +1362,7 @@ async function run(mode) {
             }
             if (av.flash > 0) { av.flash = Math.max(0, av.flash - dt * 3); av.mats.forEach((m) => m.emissive.setRGB(av.flash, av.flash * 0.15, av.flash * 0.15)); }
         }
+        if (spawnZone.visible) spawnZone.material.opacity = 0.26 + Math.sin(t * 5) * 0.12;
         markers.forEach((m, i) => { if (m.visible) { m.material.opacity = 0.55 + Math.sin(t * 7 + i) * 0.35; } });
         // camera (with hit shake)
         S.shake = Math.max(0, S.shake - dt * 2.2);
