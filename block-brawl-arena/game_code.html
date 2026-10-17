@@ -2714,9 +2714,8 @@
      * Mirrors are tried in turn, so a single CDN hiccup cannot break the game. */
     window.__threeReady = new Promise((resolve, reject) => {
         const SOURCES = [
-            'https://cdn.jsdelivr.net/npm/three@0.185/build/three.module.min.js',
-            'https://unpkg.com/three@0.185.0/build/three.module.min.js',
-            'https://cdn.jsdelivr.net/npm/three@latest/build/three.module.min.js'
+            'https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.min.js',
+            'https://unpkg.com/three@0.185.0/build/three.module.min.js'
         ];
         let i = 0;
         const tryNext = () => {
