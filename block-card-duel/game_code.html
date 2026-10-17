@@ -277,7 +277,7 @@ window.__threeReady = new Promise((resolve, reject) => {
 /*
  * BLOCK CARD DUEL
  * A turn-based card duel. You are a blocky duelist; play a card and what is inside it
- * appears in a wide ROUND arena (you hold the near half, the rival the far half):
+ * appears in a wide SQUARE arena (you hold the near half, the rival the far half):
  *   MONSTER  - bursts out of the card wherever you tap and roams the arena freely
  *   SKILL    - fireball / heal / thunderstorm played straight onto the board
  *   BUFF     - wraps a monster in a coloured aura (Flame Aura = faint red glow, +ATK)
@@ -545,7 +545,7 @@ async function run(mode) {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x141a3a);
     const camera = new THREE.PerspectiveCamera(48, 720 / 1280, 0.5, 200);
-    const CAM_POS = new THREE.Vector3(0, 30, 36);
+    const CAM_POS = new THREE.Vector3(0, 40, 47);
     const CAM_LOOK = new THREE.Vector3(0, 0, 3.4);
     function resize() {
         const w = gameWorld.clientWidth || 720, h = gameWorld.clientHeight || 1280;
@@ -579,11 +579,11 @@ async function run(mode) {
         return m;
     }
 
-    /* ---- arena layout: ONE ROUND ARENA. You hold the near (blue) half, the rival the far (red) half ---- */
-    const ARENA_R = 8.4;
-    const AV_Z = { p: 12.2, e: -12.8 };
+    /* ---- arena layout: ONE SQUARE ARENA. You hold the near (blue) half, the rival the far (red) half ---- */
+    const ARENA_H = 10.5;               // half-size of the SQUARE arena (21 x 21)
+    const AV_Z = { p: 14.8, e: -15.6 };
     const AV_SCALE = 0.8;
-    const TRAP_POS = { p: [[-5.2, 10.2], [5.2, 10.2]], e: [[-5.2, -10.8], [5.2, -10.8]] };
+    const TRAP_POS = { p: [[-6.2, 12.8], [6.2, 12.8]], e: [[-6.2, -13.4], [6.2, -13.4]] };
     const MAX_MONS = 3;                 // 3 vs 3 monsters (mini slimes from Split are the exception)
     const other = (s) => s === 'p' ? 'e' : 'p';
     const MON_SCALE = 0.95;
@@ -606,37 +606,41 @@ async function run(mode) {
         const cv0 = document.createElement('canvas'); cv0.width = cv0.height = 128;
         const c0 = cv0.getContext('2d');
         const ftex = new THREE.CanvasTexture(cv0);
-        ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(10, 11);
+        ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(16, 17.5);
         ftex.magFilter = THREE.NearestFilter; ftex.colorSpace = THREE.SRGBColorSpace;
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 44), new THREE.MeshLambertMaterial({ map: ftex }));
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(64, 70), new THREE.MeshLambertMaterial({ map: ftex }));
         floor.rotation.x = -Math.PI / 2; floor.position.y = -0.75;
         scene.add(floor);
         // stone body of the round arena
         const bodyMat = new THREE.MeshLambertMaterial({ color: 0x2a3158 });
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R + 0.3, ARENA_R + 0.7, 1.4, 48), bodyMat);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(ARENA_H * 2 + 1.2, 1.4, ARENA_H * 2 + 1.2), bodyMat);
         body.position.y = -0.7; scene.add(body);
         // painted top: red far half, blue near half, centre line, rings
         const N = 512, cv = document.createElement('canvas'); cv.width = cv.height = N;
         const cx = cv.getContext('2d'), R = N / 2;
         const ttex = new THREE.CanvasTexture(cv); ttex.colorSpace = THREE.SRGBColorSpace;
-        const top = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R, 64), new THREE.MeshLambertMaterial({ map: ttex }));
+        const top = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_H * 2, ARENA_H * 2), new THREE.MeshLambertMaterial({ map: ttex }));
         top.rotation.x = -Math.PI / 2; top.position.y = 0.02; scene.add(top);
         // blocky rim + distant pillars (materials are repainted per arena)
         const rimMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()];
-        for (let i = 0; i < 40; i++) {
-            const a = i / 40 * Math.PI * 2;
-            const blk = addBox(scene, 1.4, 0.9, 0.95, Math.cos(a) * (ARENA_R + 0.5), 0.3, Math.sin(a) * (ARENA_R + 0.5), 0xffffff);
-            blk.material = rimMats[i % 2]; blk.rotation.y = -a - Math.PI / 2;
+        const RIMN = 15, RIMS = (ARENA_H * 2 + 1.0) / RIMN;
+        for (let side = 0; side < 4; side++) {
+            for (let i = 0; i < RIMN; i++) {
+                const t = -ARENA_H - 0.5 + (i + 0.5) * RIMS, off = ARENA_H + 0.5;
+                const px = side < 2 ? t : (side === 2 ? -off : off), pz = side < 2 ? (side === 0 ? -off : off) : t;
+                const blk = addBox(scene, side < 2 ? RIMS * 0.96 : 0.95, 0.9, side < 2 ? 0.95 : RIMS * 0.96, px, 0.3, pz, 0xffffff);
+                blk.material = rimMats[(i + side) % 2];
+            }
         }
         const pillarMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()];
         for (let i = 0; i < 16; i++) {
             const side = i < 8 ? -1 : 1, k = i % 8;
             const h = 2 + ((k * 37) % 5) * 1.4;
-            addBox(scene, 2.4, h, 2.4, side * (13 + (k % 2) * 2.4), h / 2 - 0.75, -18 + k * 5, 0xffffff).material = pillarMats[k % 3];
+            addBox(scene, 2.4, h, 2.4, side * (15.5 + (k % 2) * 2.4), h / 2 - 0.75, -22 + k * 6, 0xffffff).material = pillarMats[k % 3];
         }
         // duelist daises
-        addBox(scene, 6, 0.5, 4.4, 0, -0.25, AV_Z.p, 0x24437f);
-        addBox(scene, 6, 0.5, 4.4, 0, -0.25, AV_Z.e, 0x7f2437);
+        addBox(scene, 7, 0.5, 4.8, 0, -0.25, AV_Z.p, 0x24437f);
+        addBox(scene, 7, 0.5, 4.8, 0, -0.25, AV_Z.e, 0x7f2437);
         paintArena = (idx) => {
             const th = ARENAS[Math.min(ARENAS.length - 1, Math.max(0, idx))];
             for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c0.fillStyle = th.floor[(x + y) % 2]; c0.fillRect(x * 32, y * 32, 32, 32); }
@@ -646,14 +650,14 @@ async function run(mode) {
             pillarMats.forEach((m, i) => m.color.setHex(th.pillar[i]));
             scene.background.setHex(th.bg);
             cx.clearRect(0, 0, N, N);
-            cx.save(); cx.beginPath(); cx.arc(R, R, R, 0, Math.PI * 2); cx.clip();
+            cx.save();
             for (let gy = 0; gy < 16; gy++) for (let gx = 0; gx < 16; gx++) {
                 const alt = (gx + gy) % 2;
                 cx.fillStyle = gy < 8 ? (alt ? '#58283a' : '#4a2030') : (alt ? '#27478a' : '#203c78');
                 cx.fillRect(gx * 32, gy * 32, 32, 32);
             }
             cx.strokeStyle = th.ring; cx.lineWidth = 6;
-            for (const f of [0.34, 0.68, 0.97]) { cx.beginPath(); cx.arc(R, R, R * f, 0, Math.PI * 2); cx.stroke(); }
+            for (const f of [0.34, 0.68, 0.96]) { cx.strokeRect(R - R * f, R - R * f, 2 * R * f, 2 * R * f); }
             cx.strokeStyle = th.line; cx.lineWidth = 10;
             cx.beginPath(); cx.moveTo(0, R); cx.lineTo(N, R); cx.stroke();
             cx.beginPath(); cx.arc(R, R, 46, 0, Math.PI * 2); cx.stroke();
@@ -663,10 +667,10 @@ async function run(mode) {
         };
         paintArena(0);
         // glowing summon zone (your half)
-        spawnZone = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R - 0.9, 40, Math.PI, Math.PI), glowMat(0x8fd0ff, 0.3));
-        spawnZone.rotation.x = -Math.PI / 2; spawnZone.position.y = 0.09; spawnZone.visible = false; scene.add(spawnZone);
+        spawnZone = new THREE.Mesh(new THREE.PlaneGeometry((ARENA_H - 0.9) * 2, ARENA_H - 0.9), glowMat(0x8fd0ff, 0.3));
+        spawnZone.rotation.x = -Math.PI / 2; spawnZone.position.set(0, 0.09, (ARENA_H - 0.9) / 2); spawnZone.visible = false; scene.add(spawnZone);
         // invisible pick surface covering the whole arena
-        const ground = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R, 40), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_H * 2, ARENA_H * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
         ground.rotation.x = -Math.PI / 2; ground.position.y = 0.1;
         ground.userData.target = { kind: 'ground', side: 'p', key: 'gp' };
         scene.add(ground); pickables.push(ground);
@@ -926,15 +930,14 @@ async function run(mode) {
     // where a monster may be summoned: inside the arena, on that side's half, not on top of a friend
     function validSpawn(side, p) {
         const sgn = side === 'p' ? 1 : -1;
-        if (Math.hypot(p.x, p.z) > ARENA_R - 1.4 || p.z * sgn < 1.8) return false;
+        if (Math.abs(p.x) > ARENA_H - 1.4 || Math.abs(p.z) > ARENA_H - 1.4 || p.z * sgn < 1.8) return false;
         return !liveMons(side).some((m) => dist2d(m.holder.position, p) < 1.9);
     }
     function autoSpot(side) {
         const sgn = side === 'p' ? 1 : -1;
         let best = null, bs = -1;
         for (let i = 0; i < 40; i++) {
-            const a = Math.random() * Math.PI, r = 2 + Math.random() * (ARENA_R - 3.8);
-            const p = new THREE.Vector3(Math.cos(a) * r, 0.2, Math.sin(a) * r * sgn);
+            const p = new THREE.Vector3((Math.random() * 2 - 1) * (ARENA_H - 2), 0.2, sgn * (2.2 + Math.random() * (ARENA_H - 4.4)));
             if (!validSpawn(side, p)) continue;
             let md = 9;
             liveMons(side).forEach((m) => { md = Math.min(md, dist2d(m.holder.position, p)); });
@@ -1223,8 +1226,8 @@ async function run(mode) {
     }
     const MINI_SLIME = { key: 'mini', type: 'monster', name: 'MINI SLIME', atk: 1, hp: 2, elem: 'grass', model: 'slime', speed: 7, scale: 0.6 };
     function spawnSplit(m) {
-        const a = Math.random() * Math.PI * 2, p = m.holder.position, pos = new THREE.Vector3(p.x + Math.cos(a) * 1.8, 0.2, p.z + Math.sin(a) * 1.8), r = Math.hypot(pos.x, pos.z);
-        if (r > ARENA_R - 1.2) { pos.x *= (ARENA_R - 1.2) / r; pos.z *= (ARENA_R - 1.2) / r; }
+        const a = Math.random() * Math.PI * 2, p = m.holder.position, pos = new THREE.Vector3(p.x + Math.cos(a) * 1.8, 0.2, p.z + Math.sin(a) * 1.8);
+        pos.x = Math.max(-ARENA_H + 1.2, Math.min(ARENA_H - 1.2, pos.x)); pos.z = Math.max(-ARENA_H + 1.2, Math.min(ARENA_H - 1.2, pos.z));
         const nm = spawnMonster(m.side, pos, MINI_SLIME, 1);
         fxNum(p.clone().setY(m.size.h * MON_SCALE + 3), 'SPLIT!', 'info');
         monsterIn(nm).then(() => { nm.ready = true; });
@@ -1477,7 +1480,7 @@ async function run(mode) {
             if (m.dead) return true;
             const tgt = nearestFoe(m);
             const pos = tgt ? tgt.holder.position : S[other(m.side)].avatar.group.position;
-            const reach = m.ranged ? 8.5 : (tgt ? 2.3 : 3.2);
+            const reach = m.ranged ? 8.5 : (tgt ? 2.3 : 4.2);
             const dx = pos.x - m.holder.position.x, dz = pos.z - m.holder.position.z, d = Math.hypot(dx, dz);
             res.tgt = tgt; res.inReach = d <= reach + 0.05;
             t += dt;
@@ -1898,8 +1901,7 @@ async function run(mode) {
                 const dx = m.wto.x - pos.x, dz = m.wto.z - pos.z, d = Math.hypot(dx, dz);
                 if (d > 0.1) { const st = Math.min(d, 1.8 * dt); pos.x += dx / d * st; pos.z += dz / d * st; moving = true; }
             }
-            const r2 = Math.hypot(pos.x, pos.z);
-            if (r2 > ARENA_R - 1) { pos.x *= (ARENA_R - 1) / r2; pos.z *= (ARENA_R - 1) / r2; }
+            pos.x = Math.max(-ARENA_H + 1, Math.min(ARENA_H - 1, pos.x)); pos.z = Math.max(-ARENA_H + 1, Math.min(ARENA_H - 1, pos.z));
             const foe = nearestFoe(m), fp = foe ? foe.holder.position : S[other(m.side)].avatar.group.position;
             faceDir(m.holder, fp.x - pos.x, fp.z - pos.z, dt, 5);
             pos.y = 0.2 + (moving ? Math.abs(Math.sin(S.t * 10)) * 0.12 : 0);
@@ -1942,7 +1944,7 @@ async function run(mode) {
         S.shake = Math.max(0, S.shake - dt * 2.2);
         if (S.phase === 'menu') {                       // slow fly-around behind the menu
             const ang = t * 0.16;
-            camera.position.set(Math.sin(ang) * 40, 26, Math.cos(ang) * 40);
+            camera.position.set(Math.sin(ang) * 50, 34, Math.cos(ang) * 50);
             camera.lookAt(0, 0, 2);
         } else {
             camera.position.set(CAM_POS.x + (Math.random() - 0.5) * S.shake, CAM_POS.y + (Math.random() - 0.5) * S.shake, CAM_POS.z);
@@ -2180,7 +2182,7 @@ async function run(mode) {
         const vol = (k) => `<div class="setrow"><span>Volume</span><input type="range" min="0" max="100" value="${Math.round(st[k] * 100)}" data-vol="${k}"></div>`;
         $('pg-set').innerHTML = `<div class="sect">AUDIO</div><div class="panel">${tg('music', 'Music')}${vol('musicVol')}${tg('sfx', 'Sound FX')}${vol('sfxVol')}</div>
             <div class="sect">RIVAL DIFFICULTY</div><div class="panel"><div class="seg">${['easy', 'normal', 'hard'].map((d) => `<button class="btn ${st.difficulty === d ? '' : 'grey'}" data-diff="${d}">${d.toUpperCase()}</button>`).join('')}</div></div>
-            <div class="sect">HOW TO PLAY</div><div class="panel how"><b>1.</b> Tap a card, then tap where to summon it or aim it.<br><b>2.</b> Monsters roam the round arena. Buffs, curses and traps change how they look and fight.<br><b>3.</b> Press <b>FIGHT!</b> and your monsters rush the nearest enemy, or the rival duelist.<br><b>4.</b> Win duels for coins and trophies, then unlock new cards in the shop.</div>
+            <div class="sect">HOW TO PLAY</div><div class="panel how"><b>1.</b> Tap a card, then tap where to summon it or aim it.<br><b>2.</b> Monsters roam the square arena. Buffs, curses and traps change how they look and fight.<br><b>3.</b> Press <b>FIGHT!</b> and your monsters rush the nearest enemy, or the rival duelist.<br><b>4.</b> Win duels for coins and trophies, then unlock new cards in the shop.</div>
             <div class="sect">DATA</div><div class="panel"><button class="btn red" id="resetBtn">${resetArmed ? 'TAP AGAIN TO CONFIRM' : 'RESET PROGRESS'}</button></div>`;
     }
     $('pg-set').addEventListener('click', (e) => {
