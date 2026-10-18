@@ -9,7 +9,9 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0614; font-family: 'Trebuchet MS', Arial, sans-serif; touch-action: manipulation; }
 #wrap { position: relative; width: 100%; height: 100%; }
-canvas { display: block; }
+canvas { display: block; touch-action: none; }
+#joy, #knob, #bAtk, #bDodge, #bUlt, #bS1, #bS2 { touch-action: none; }
+html, body { overscroll-behavior: none; }
 #hud { position: absolute; inset: 0; pointer-events: none; }
 .bar-wrap { position: absolute; left: 24px; right: 24px; }
 .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
