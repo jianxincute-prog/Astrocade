@@ -605,15 +605,25 @@ async function run(mode) {
     ];
     const arenaIndex = (tro) => { let i = 0; ARENAS.forEach((a, k) => { if (tro >= a.min) i = k; }); return i; };
     let paintArena = () => {};
+    let updateScenery = () => {};
+    /* per-arena scenery palette: outer wall, trim, tribune steps, seat colours, banners */
+    const SCEN = [
+        { wall: 0x56734a, trim: 0x34502e, stand: [0x7a6648, 0x66553c], seat: [0xe8c34a, 0x4aa86a], banner: [0xd04040, 0xf0e2a0] },
+        { wall: 0x6f7581, trim: 0x434955, stand: [0x8a8f9a, 0x737883], seat: [0x4a7fd0, 0xd8dce4], banner: [0x3a6fd8, 0xdcdcdc] },
+        { wall: 0x9cc4e0, trim: 0x6b97b8, stand: [0xdaf0fb, 0xb6d8ee], seat: [0x4aa0ff, 0xffffff], banner: [0x3a8fe8, 0xffffff] },
+        { wall: 0x5e3326, trim: 0x2e1912, stand: [0x7e4633, 0x693a2c], seat: [0xff7a2a, 0xffcf3a], banner: [0xd8341c, 0xffa21f] },
+        { wall: 0x493f84, trim: 0x2a2450, stand: [0x5d529e, 0x4c4488], seat: [0xffe14d, 0x8f6bff], banner: [0xffe14d, 0x7a5cff] },
+        { wall: 0x8e7830, trim: 0x5e4c1c, stand: [0xbc9e46, 0x9f8438], seat: [0xc83a3a, 0xffd45a], banner: [0xc83a3a, 0xffe9a0] }
+    ];
 
     (function buildArena() {
         const cv0 = document.createElement('canvas'); cv0.width = cv0.height = 128;
         const c0 = cv0.getContext('2d');
         const ftex = new THREE.CanvasTexture(cv0);
-        ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(16, 17.5);
+        ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(17.5, 20);
         ftex.magFilter = THREE.NearestFilter; ftex.colorSpace = THREE.SRGBColorSpace;
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(64, 70), new THREE.MeshLambertMaterial({ map: ftex }));
-        floor.rotation.x = -Math.PI / 2; floor.position.y = -0.75;
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(70, 80), new THREE.MeshLambertMaterial({ map: ftex }));
+        floor.rotation.x = -Math.PI / 2; floor.position.set(0, -0.75, -3);
         scene.add(floor);
         // stone body of the round arena
         const bodyMat = new THREE.MeshLambertMaterial({ color: 0x2a3158 });
@@ -637,24 +647,121 @@ async function run(mode) {
                 blk.material = rimMats[(i + side) % 2];
             }
         }
-        const pillarMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()], pillarGroup = new THREE.Group();
-        scene.add(pillarGroup);
-        for (let i = 0; i < 16; i++) {
-            const side = i < 8 ? -1 : 1, k = i % 8;
-            const h = 2 + ((k * 37) % 5) * 1.4;
-            addBox(pillarGroup, 2.4, h, 2.4, side * (15.5 + (k % 2) * 2.4), h / 2 - 0.75, -22 + k * 6, 0xffffff).material = pillarMats[k % 3];
+        /* ---- COLOSSEUM: tribunes with a crowd on three sides, a parapet, braziers and a tall outer wall that closes the map ---- */
+        const LM = (c) => new THREE.MeshLambertMaterial({ color: c });
+        const wallMat = LM(0x888888), trimMat = LM(0x666666), standMats = [LM(0x777777), LM(0x666666)], seatMats = [LM(0xffffff), LM(0xaaaaaa)], bannerMats = [LM(0xcc3333), LM(0xeeeeee)];
+        const goldMat = new THREE.MeshLambertMaterial({ color: 0xd4a82a, emissive: 0x2a1c00 }), darkMat = LM(0x10131f);
+        const sbox = (grp, mat, w, h, d, x, y, z) => { const m = new THREE.Mesh(boxGeo(w, h, d), mat); m.position.set(x, y, z); grp.add(m); return m; };
+        const FY = -0.75, WH = 18, standG = new THREE.Group(), wallG = new THREE.Group(), flameG = new THREE.Group();
+        scene.add(standG, wallG, flameG);
+        const seats = [];
+        for (let j = 0; j < 4; j++) {
+            const H = 1.3 * (j + 1), top = FY + H;
+            for (const sd of [-1, 1]) {                                   // left / right tribunes
+                const cx = sd * (16.4 + j * 3.6);
+                sbox(standG, standMats[j % 2], 3.6, H, 47.5, cx, FY + H / 2, 2.25);
+                for (let z = -20.5, k = 0; z < 26; z += 2, k++) sbox(standG, seatMats[k % 2], 3.0, 0.16, 1.9, cx, top + 0.08, z);
+                for (let z = -20.5; z < 25.5; z += 1.6) if (Math.random() < 0.82) seats.push([cx + (Math.random() - 0.5) * 0.9, top + 0.16, z + (Math.random() - 0.5) * 0.3]);
+            }
+            const cz = -(23.3 + j * 3.6);                                   // far tribune
+            sbox(standG, standMats[j % 2], 58, H, 3.6, 0, FY + H / 2, cz);
+            for (let x = -27.5, k = 0; x < 28; x += 2, k++) sbox(standG, seatMats[k % 2], 1.9, 0.16, 3.0, x, top + 0.08, cz);
+            for (let x = -27.5; x < 27.8; x += 1.6) if (Math.random() < 0.82) seats.push([x + (Math.random() - 0.5) * 0.3, top + 0.16, cz + (Math.random() - 0.5) * 0.9]);
         }
-        bakeStatic(rimGroup); bakeStatic(pillarGroup);
+        // outer walls
+        sbox(wallG, wallMat, 64, WH, 2, 0, FY + WH / 2, -37);
+        for (const sd of [-1, 1]) sbox(wallG, wallMat, 2, WH, 78, sd * 30, FY + WH / 2, 2);
+        sbox(wallG, trimMat, 64.8, 0.7, 2.7, 0, FY + 7.2, -36.8);            // mid band
+        sbox(wallG, trimMat, 64.8, 1.3, 2.9, 0, FY + WH - 0.65, -36.9);      // cornice
+        for (let x = -31; x <= 31; x += 3) sbox(wallG, trimMat, 1.6, 1.8, 2.2, x, FY + WH + 0.9, -37);
+        for (const sd of [-1, 1]) {
+            sbox(wallG, trimMat, 2.7, 0.7, 78.8, sd * 29.9, FY + 7.2, 2);
+            sbox(wallG, trimMat, 2.9, 1.3, 78.8, sd * 29.9, FY + WH - 0.65, 2);
+            for (let z = -35; z <= 40; z += 3) sbox(wallG, trimMat, 2.2, 1.8, 1.6, sd * 30, FY + WH + 0.9, z);
+        }
+        for (let k = 0; k < 7; k++) {                                         // pilasters + torches + banners on the far wall
+            const x = -24 + k * 8;
+            sbox(wallG, trimMat, 1.8, WH, 0.8, x, FY + WH / 2, -35.6);
+            sbox(wallG, darkMat, 0.5, 0.5, 0.5, x, FY + 8.0, -35.0);
+            const fl = new THREE.Mesh(boxGeo(0.5, 0.8, 0.5), glowMatSolid(0xff9a2a)); fl.position.set(x, FY + 8.65, -35.0); fl.userData.flame = k; flameG.add(fl);
+            const fl2 = new THREE.Mesh(boxGeo(0.28, 0.5, 0.28), glowMatSolid(0xffe27a)); fl2.position.set(x, FY + 8.8, -35.0); fl2.userData.flame = k + 3; flameG.add(fl2);
+        }
+        for (let k = 0; k < 6; k++) {
+            const x = -20 + k * 8;
+            sbox(wallG, bannerMats[k % 2], 2.8, 7, 0.25, x, FY + 11, -35.75);
+            sbox(wallG, goldMat, 3.0, 0.4, 0.3, x, FY + 7.4, -35.7);
+            sbox(wallG, goldMat, 1.1, 1.1, 0.12, x, FY + 12.2, -35.58);
+            sbox(wallG, darkMat, 0.5, 0.5, 0.14, x, FY + 12.2, -35.5);
+        }
+        for (const sd of [-1, 1]) for (const z of [-26, -10, 6, 22]) {
+            sbox(wallG, trimMat, 0.8, WH, 1.8, sd * 28.6, FY + WH / 2, z + 4);
+            sbox(wallG, bannerMats[((z + 26) / 16 | 0) % 2], 0.25, 7, 2.8, sd * 28.8, FY + 11, z);
+            sbox(wallG, goldMat, 0.3, 0.4, 3.0, sd * 28.75, FY + 7.4, z);
+        }
+        // parapet in front of the tribunes
+        for (const sd of [-1, 1]) {
+            sbox(wallG, wallMat, 0.5, 1.3, 46, sd * 12.3, FY + 0.65, 1.5);
+            sbox(wallG, goldMat, 0.8, 0.14, 46, sd * 12.3, FY + 1.37, 1.5);
+        }
+        sbox(wallG, wallMat, 25.1, 1.3, 0.5, 0, FY + 0.65, -20.3);
+        sbox(wallG, goldMat, 25.1, 0.14, 0.8, 0, FY + 1.37, -20.3);
+        // braziers
+        for (const bx of [-13.6, 13.6]) for (const bz of [-19, -6, 8]) {
+            sbox(wallG, trimMat, 1.0, 1.3, 1.0, bx, FY + 0.65, bz);
+            sbox(wallG, darkMat, 1.4, 0.3, 1.4, bx, FY + 1.45, bz);
+            const f1 = new THREE.Mesh(boxGeo(0.7, 0.9, 0.7), glowMatSolid(0xff8a1f)); f1.position.set(bx, FY + 2.1, bz); f1.userData.flame = bz + bx; flameG.add(f1);
+            const f2 = new THREE.Mesh(boxGeo(0.38, 0.6, 0.38), glowMatSolid(0xffe27a)); f2.position.set(bx, FY + 2.2, bz); f2.userData.flame = bz + bx + 2; flameG.add(f2);
+        }
+        bakeStatic(rimGroup); bakeStatic(standG); bakeStatic(wallG);
+        // the crowd: three instanced meshes (bodies, heads, hair) with a lazy bounce
+        const CROWD = seats.length, dummy = new THREE.Object3D();
+        const iBody = new THREE.InstancedMesh(boxGeo(0.8, 1.0, 0.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), CROWD);
+        const iHead = new THREE.InstancedMesh(boxGeo(0.6, 0.6, 0.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), CROWD);
+        const iHair = new THREE.InstancedMesh(boxGeo(0.64, 0.22, 0.64), new THREE.MeshLambertMaterial({ color: 0xffffff }), CROWD);
+        const SHIRT = [0xe8454e, 0x4f8cff, 0xffd24a, 0x5ee07a, 0xb06bff, 0xff9b2e, 0xf2f2f2, 0x35d0c8], SKIN = [0xf0c39a, 0xd9a066, 0x8d5a3a, 0xffdbb4], HAIR = [0x3a2314, 0x151515, 0xd8b03a, 0x7a4a2a, 0xaaaaaa], col = new THREE.Color();
+        const phase = new Float32Array(CROWD), freq = new Float32Array(CROWD);
+        seats.forEach((st, i) => {
+            iBody.setColorAt(i, col.setHex(SHIRT[(Math.random() * SHIRT.length) | 0]));
+            iHead.setColorAt(i, col.setHex(SKIN[(Math.random() * SKIN.length) | 0]));
+            iHair.setColorAt(i, col.setHex(HAIR[(Math.random() * HAIR.length) | 0]));
+            phase[i] = Math.random() * 6.28; freq[i] = 1.6 + Math.random() * 2.2;
+        });
+        [iBody, iHead, iHair].forEach((m) => { m.frustumCulled = false; scene.add(m); });
+        let crowdAcc = 0;
+        const crowdUpdate = (t) => {
+            for (let i = 0; i < CROWD; i++) {
+                const st = seats[i], b = Math.max(0, Math.sin(t * freq[i] + phase[i])), j = b * b * b * 0.3;
+                dummy.position.set(st[0], st[1] + 0.5 + j, st[2]); dummy.updateMatrix(); iBody.setMatrixAt(i, dummy.matrix);
+                dummy.position.y = st[1] + 1.3 + j; dummy.updateMatrix(); iHead.setMatrixAt(i, dummy.matrix);
+                dummy.position.y = st[1] + 1.72 + j; dummy.updateMatrix(); iHair.setMatrixAt(i, dummy.matrix);
+            }
+            iBody.instanceMatrix.needsUpdate = iHead.instanceMatrix.needsUpdate = iHair.instanceMatrix.needsUpdate = true;
+        };
+        crowdUpdate(0);
+        updateScenery = (t, dt) => {
+            crowdAcc += dt;
+            if (crowdAcc > 0.07) { crowdAcc = 0; crowdUpdate(t); }
+            flameG.children.forEach((f) => { const k = f.userData.flame; f.scale.y = 0.85 + 0.3 * Math.sin(t * 9 + k * 1.7) * Math.sin(t * 5.3 + k); f.scale.x = f.scale.z = 0.9 + 0.12 * Math.sin(t * 7 + k * 2.3); });
+        };
         // duelist daises
         addBox(scene, 7, 0.5, 4.8, 0, -0.25, AV_Z.p, 0x24437f);
         addBox(scene, 7, 0.5, 4.8, 0, -0.25, AV_Z.e, 0x7f2437);
         paintArena = (idx) => {
             const th = ARENAS[Math.min(ARENAS.length - 1, Math.max(0, idx))];
-            for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c0.fillStyle = th.floor[(x + y) % 2]; c0.fillRect(x * 32, y * 32, 32, 32); }
+            for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+                c0.fillStyle = th.floor[(x + y) % 2]; c0.fillRect(x * 32, y * 32, 32, 32);
+                c0.fillStyle = 'rgba(255,255,255,0.08)'; c0.fillRect(x * 32, y * 32, 32, 3); c0.fillRect(x * 32, y * 32, 3, 32);
+                c0.fillStyle = 'rgba(0,0,0,0.24)'; c0.fillRect(x * 32 + 29, y * 32, 3, 32); c0.fillRect(x * 32, y * 32 + 29, 32, 3);
+            }
+            for (let i = 0; i < 46; i++) { c0.fillStyle = i % 2 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.09)'; c0.fillRect((Math.random() * 126) | 0, (Math.random() * 126) | 0, 2, 2); }
             ftex.needsUpdate = true;
             bodyMat.color.setHex(th.body);
             rimMats[0].color.setHex(th.rim[0]); rimMats[1].color.setHex(th.rim[1]);
-            pillarMats.forEach((m, i) => m.color.setHex(th.pillar[i]));
+            const sc = SCEN[Math.min(SCEN.length - 1, Math.max(0, idx))];
+            wallMat.color.setHex(sc.wall); trimMat.color.setHex(sc.trim);
+            standMats[0].color.setHex(sc.stand[0]); standMats[1].color.setHex(sc.stand[1]);
+            seatMats[0].color.setHex(sc.seat[0]).multiplyScalar(0.72); seatMats[1].color.setHex(sc.seat[1]).multiplyScalar(0.72);
+            bannerMats[0].color.setHex(sc.banner[0]); bannerMats[1].color.setHex(sc.banner[1]);
             scene.background.setHex(th.bg);
             cx.clearRect(0, 0, N, N);
             cx.save();
@@ -1488,6 +1595,7 @@ async function run(mode) {
         m.position.set(x, 0.3, z); scene.add(m);
         tween(0.55, (k) => { m.scale.setScalar(1 + k * (big ? 3.4 : 2.4)); m.material.opacity = 0.9 * (1 - k); }, easeOut).then(() => { scene.remove(m); geo.dispose(); m.material.dispose(); });
     }
+    function glowMatSolid(color) { return new THREE.MeshBasicMaterial({ color }); }
     function glowMat(color, op) {
         return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
     }
@@ -2380,6 +2488,7 @@ async function run(mode) {
         updateTasks(dt);
         updateMonsters(dt);
         updateParticles(dt);
+        updateScenery(t, dt);
         // idle animation + auras
         for (const s of ['p', 'e']) {
             const side = S[s];
