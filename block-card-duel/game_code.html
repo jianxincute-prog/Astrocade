@@ -2862,6 +2862,9 @@ async function run(mode) {
     }
     const handCard = (idx) => () => handEl.querySelector('.card[data-i="' + idx + '"]');
     function endTutorial() {
+        if (S.tutorial && !S.over && S.phase !== 'menu') {          // the real clocks start when the tutorial hands over
+            S.matchT = rule('matchTime'); S.turnT = rule('turnTime'); S.afk = 0; S.touched = true; S.lastTick = 0; S.timeUp = false; S.dblShown = false;
+        }
         S.tutorial = false; setCoach(null);
         if (!profile.tutorialDone) { profile.tutorialDone = true; saveProfile(); }
     }
