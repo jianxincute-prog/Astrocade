@@ -627,21 +627,24 @@ async function run(mode) {
         top.rotation.x = -Math.PI / 2; top.position.y = 0.02; scene.add(top);
         // blocky rim + distant pillars (materials are repainted per arena)
         const rimMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()];
-        const RIMN = 15, RIMS = (ARENA_H * 2 + 1.0) / RIMN;
+        const RIMN = 15, RIMS = (ARENA_H * 2 + 1.0) / RIMN, rimGroup = new THREE.Group();
+        scene.add(rimGroup);
         for (let side = 0; side < 4; side++) {
             for (let i = 0; i < RIMN; i++) {
                 const t = -ARENA_H - 0.5 + (i + 0.5) * RIMS, off = ARENA_H + 0.5;
                 const px = side < 2 ? t : (side === 2 ? -off : off), pz = side < 2 ? (side === 0 ? -off : off) : t;
-                const blk = addBox(scene, side < 2 ? RIMS * 0.96 : 0.95, 0.9, side < 2 ? 0.95 : RIMS * 0.96, px, 0.3, pz, 0xffffff);
+                const blk = addBox(rimGroup, side < 2 ? RIMS * 0.96 : 0.95, 0.9, side < 2 ? 0.95 : RIMS * 0.96, px, 0.3, pz, 0xffffff);
                 blk.material = rimMats[(i + side) % 2];
             }
         }
-        const pillarMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()];
+        const pillarMats = [new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial(), new THREE.MeshLambertMaterial()], pillarGroup = new THREE.Group();
+        scene.add(pillarGroup);
         for (let i = 0; i < 16; i++) {
             const side = i < 8 ? -1 : 1, k = i % 8;
             const h = 2 + ((k * 37) % 5) * 1.4;
-            addBox(scene, 2.4, h, 2.4, side * (15.5 + (k % 2) * 2.4), h / 2 - 0.75, -22 + k * 6, 0xffffff).material = pillarMats[k % 3];
+            addBox(pillarGroup, 2.4, h, 2.4, side * (15.5 + (k % 2) * 2.4), h / 2 - 0.75, -22 + k * 6, 0xffffff).material = pillarMats[k % 3];
         }
+        bakeStatic(rimGroup); bakeStatic(pillarGroup);
         // duelist daises
         addBox(scene, 7, 0.5, 4.8, 0, -0.25, AV_Z.p, 0x24437f);
         addBox(scene, 7, 0.5, 4.8, 0, -0.25, AV_Z.e, 0x7f2437);
@@ -698,9 +701,11 @@ async function run(mode) {
             return m;
         };
         const P = (w, h, d, x, y, z, color, parent, metal) => { const m = new THREE.Mesh(boxGeo(w, h, d), matFor(color, metal)); m.position.set(x, y, z); (parent || rig).add(m); return m; };
+        const glowCache = new Map();
         const G = (w, h, d, x, y, z, color, parent, op) => {          // self-lit glow piece (neon, gems, eyes, flames)
-            const mat = new THREE.MeshBasicMaterial({ color, transparent: op !== undefined, opacity: op === undefined ? 1 : op });
-            glowMats.push(mat);
+            const key = color + '_' + op;
+            let mat = glowCache.get(key);
+            if (!mat) { mat = new THREE.MeshBasicMaterial({ color, transparent: op !== undefined, opacity: op === undefined ? 1 : op }); glowCache.set(key, mat); glowMats.push(mat); }
             const m = new THREE.Mesh(boxGeo(w, h, d), mat); m.position.set(x, y, z); (parent || rig).add(m); return m;
         };
         const head = piv(rig, 0, 4.15, 0);
@@ -785,7 +790,7 @@ async function run(mode) {
             for (const sx of [-1, 1]) { P(0.9, 0.3, 0.9, sx * 1.25, 3.58, 0, 0x2a1a1a, rig, true); P(0.26, 0.7, 0.26, sx * 1.4, 4.0, 0, 0x2a1a1a, rig, true); G(0.16, 0.24, 0.16, sx * 1.4, 4.45, 0, orange); G(0.7, 0.26, 0.7, 0, -1.55, 0, orange, sx < 0 ? armL : armR, 0.9); }
             // flame hair (tiers flicker in update)
             const tiers = [[1.38, 0.45, 1.38, 0, 0.66, 0, 0xff5a1a], [1.0, 0.65, 1.0, 0, 1.12, 0, 0xff8a2b], [0.62, 0.75, 0.62, 0, 1.72, 0, 0xffd23a], [0.3, 0.6, 0.3, 0, 2.3, 0, 0xfff0a0]];
-            tiers.forEach((t, i) => { const f = P(t[0], t[1], t[2], t[3], t[4], t[5], t[6], head); f.userData.baseY = t[4]; f.userData.i = i; ext.flames.push(f); });
+            tiers.forEach((t, i) => { const f = P(t[0], t[1], t[2], t[3], t[4], t[5], t[6], head); f.userData.baseY = t[4]; f.userData.i = i; f.userData.keep = true; ext.flames.push(f); });
             P(0.42, 1.5, 0.42, -0.8, -0.3, 0.1, 0xff5a1a, head); P(0.42, 1.5, 0.42, 0.8, -0.3, 0.1, 0xff5a1a, head); P(1.5, 2.0, 0.34, 0, -0.35, -0.66, 0xff5a1a, head); P(0.9, 1.4, 0.3, 0, -0.9, -0.7, 0xff8a2b, head);
             const fl = piv(rig, 0, 3.3, -0.6); ext.scarf = fl; G(1.1, 2.6, 0.2, 0, -1.3, 0, 0xff5a1a, fl, 0.55); G(0.7, 2.0, 0.22, 0, -1.2, 0.02, 0xffd23a, fl, 0.6);
             ext.sparkCol = 0xff8a2b; ext.sparkRate = 0.18; ext.sparkAt = [0, 5.2, 0];
@@ -835,6 +840,7 @@ async function run(mode) {
             P(0.18, 2.9, 0.18, 0.1, -0.7, 0.6, 0x6b4a2b, armR); P(0.22, 1.0, 0.95, 0.12, 0.85, 0.6, iron, armR, true); G(0.06, 1.0, 1.0, 0.24, 0.85, 0.6, 0xdfe8ff, armR); P(0.2, 0.5, 0.5, 0.12, 0.2, 0.92, iron, armR, true);
             ext.sparkCol = 0xffffff; ext.sparkRate = 0.0; ext.sparkAt = null;
         }
+        bakeStatic(g);
         g.rotation.y = faceDir;
         g.scale.setScalar(AV_SCALE);
         const hit = new THREE.Mesh(boxGeo(3.4, 5.6, 2.6), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
@@ -860,178 +866,320 @@ async function run(mode) {
         'BARON BLOCK': 'baron', 'LADY LAVA': 'lava', 'CAPTAIN CUBE': 'pirate', 'DUELIST ZERO': 'ninja', 'RIVAL REX': 'barb'
     };
     function disposeAvatar(av) {
+        av.group.traverse((o) => { if (o.geometry && o.geometry.userData.merged) o.geometry.dispose(); });
         av.mats.forEach((m) => m.dispose()); av.glowMats.forEach((m) => m.dispose());
         av.hit.material.dispose();
     }
 
     /* ---- monster models (all face +Z). Each exposes pose(kind, k) for its attack animation:
-       'windup' / 'strike' (melee), 'aim' / 'fire' (ranged), 'reset'. ---- */
+       'windup' / 'strike' (melee), 'aim' / 'fire' (ranged), 'reset'. Premium pass: layered armour/fur/scales,
+       self-lit gems and runes, translucent membranes, metal fittings and a few ambient animations. ---- */
     const piv = (parent, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
+    const metalCache = new Map();
+    function metalMat(color) {
+        let m = metalCache.get(color);
+        if (!m) { m = new THREE.MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.4 }); m.emissive.setHex(color).multiplyScalar(0.3); metalCache.set(color, m); sharedMats.add(m); }
+        return m;
+    }
+    const metalB = (parent, w, h, d, x, y, z, color) => { const m = new THREE.Mesh(boxGeo(w, h, d), metalMat(color)); m.position.set(x, y, z); parent.add(m); return m; };
+    const fxMatCache = new Map();
+    function fxMat(kind, color, op, dyn) {                         // static pieces share one material (so they can be merged); animated ones get their own
+        const make = () => (kind === 'glow' ? new THREE.MeshBasicMaterial({ color, transparent: op !== undefined, opacity: op === undefined ? 1 : op }) : new THREE.MeshLambertMaterial({ color, transparent: true, opacity: op }));
+        if (dyn) return make();
+        const key = kind + color + '_' + op;
+        let m = fxMatCache.get(key);
+        if (!m) { m = make(); fxMatCache.set(key, m); sharedMats.add(m); }
+        return m;
+    }
+    const glowB = (parent, w, h, d, x, y, z, color, op, dyn) => {   // self-lit (runes, eyes, gems, flames); dyn = animated, kept separate
+        const m = new THREE.Mesh(boxGeo(w, h, d), fxMat('glow', color, op, dyn));
+        m.position.set(x, y, z); m.userData.keep = !!dyn; parent.add(m); return m;
+    };
+    const alphaB = (parent, w, h, d, x, y, z, color, op, dyn) => {  // translucent solid (jelly, wing membranes, crystals)
+        const m = new THREE.Mesh(boxGeo(w, h, d), fxMat('alpha', color, op, dyn));
+        m.position.set(x, y, z); m.userData.keep = !!dyn; parent.add(m); return m;
+    };
+    // Merge every group's static boxes into one mesh per material (far fewer draw calls on phones).
+    function bakeStatic(root) {
+        const groups = [];
+        root.traverse((o) => { if (o === root || o.isGroup) groups.push(o); });
+        groups.forEach((grp) => {
+            const byMat = new Map();
+            grp.children.slice().forEach((ch) => {
+                if (!ch.isMesh || ch.userData.keep || !ch.geometry.index) return;
+                let list = byMat.get(ch.material); if (!list) byMat.set(ch.material, list = []);
+                list.push(ch);
+            });
+            byMat.forEach((list, mat) => {
+                if (list.length < 2) return;
+                let nv = 0, ni = 0;
+                list.forEach((m) => { nv += m.geometry.attributes.position.count; ni += m.geometry.index.count; });
+                const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), idx = new Uint16Array(ni), v = new THREE.Vector3();
+                let vo = 0, io = 0;
+                list.forEach((m) => {
+                    m.updateMatrix();
+                    const nm = new THREE.Matrix3().getNormalMatrix(m.matrix), gp = m.geometry.attributes.position, gn = m.geometry.attributes.normal, gi = m.geometry.index;
+                    for (let i = 0; i < gp.count; i++) {
+                        v.fromBufferAttribute(gp, i).applyMatrix4(m.matrix); pos[(vo + i) * 3] = v.x; pos[(vo + i) * 3 + 1] = v.y; pos[(vo + i) * 3 + 2] = v.z;
+                        v.fromBufferAttribute(gn, i).applyMatrix3(nm).normalize(); nor[(vo + i) * 3] = v.x; nor[(vo + i) * 3 + 1] = v.y; nor[(vo + i) * 3 + 2] = v.z;
+                    }
+                    for (let i = 0; i < gi.count; i++) idx[io + i] = gi.getX(i) + vo;
+                    vo += gp.count; io += gi.count;
+                });
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+                geo.userData.merged = true;
+                const merged = new THREE.Mesh(geo, mat);
+                grp.add(merged); list.forEach((m) => grp.remove(m));
+            });
+        });
+    }
     const MODELS = {
         slime() {
             const g = new THREE.Group();
-            addBox(g, 2.2, 1.7, 2.2, 0, 0.85, 0, 0x62d36a);
-            addBox(g, 1.6, 0.25, 1.6, 0, 1.78, 0, 0x8cf08f);
-            addBox(g, 0.35, 0.5, 0.1, -0.5, 1.15, 1.12, 0x10131f); addBox(g, 0.35, 0.5, 0.1, 0.5, 1.15, 1.12, 0x10131f);
-            addBox(g, 0.9, 0.15, 0.1, 0, 0.55, 1.12, 0x10131f);
-            return { group: g, size: { w: 2.4, h: 2, d: 2.4 }, idle: (t) => { const s = Math.sin(t * 4) * 0.5 + 0.5; g.scale.set(1 + s * 0.06, 1 - s * 0.1, 1 + s * 0.06); },
+            addBox(g, 2.5, 0.3, 2.5, 0, 0.15, 0, 0x4fbf63);
+            for (const [x, z] of [[1.35, 0.7], [-1.3, -0.5], [0.4, 1.35], [-0.6, -1.35]]) addBox(g, 0.5, 0.14, 0.5, x, 0.07, z, 0x4fbf63);
+            addBox(g, 1.5, 1.2, 1.5, 0, 0.85, 0, 0x2f9a45);
+            alphaB(g, 2.3, 1.8, 2.3, 0, 0.95, 0, 0x7dff9a, 0.62); alphaB(g, 1.7, 0.3, 1.7, 0, 1.9, 0, 0xb9ffc8, 0.72);
+            const bubbles = [[-0.5, 1.1, 0.3, 0.32], [0.55, 0.8, -0.2, 0.26], [0.1, 1.45, 0.45, 0.22]].map(([x, y, z, s]) => alphaB(g, s, s, s, x, y, z, 0xffffff, 0.85, true));
+            addBox(g, 0.55, 0.62, 0.1, -0.5, 1.2, 1.17, 0xffffff); addBox(g, 0.55, 0.62, 0.1, 0.5, 1.2, 1.17, 0xffffff);
+            addBox(g, 0.3, 0.4, 0.12, -0.5, 1.18, 1.2, 0x10131f); addBox(g, 0.3, 0.4, 0.12, 0.5, 1.18, 1.2, 0x10131f);
+            addBox(g, 0.12, 0.12, 0.14, -0.42, 1.34, 1.22, 0xffffff); addBox(g, 0.12, 0.12, 0.14, 0.58, 1.34, 1.22, 0xffffff);
+            addBox(g, 0.3, 0.18, 0.08, -0.95, 0.85, 1.17, 0xff9aa8); addBox(g, 0.3, 0.18, 0.08, 0.95, 0.85, 1.17, 0xff9aa8);
+            addBox(g, 0.5, 0.1, 0.1, 0, 0.62, 1.17, 0x10131f); addBox(g, 0.1, 0.12, 0.1, -0.3, 0.68, 1.17, 0x10131f); addBox(g, 0.1, 0.12, 0.1, 0.3, 0.68, 1.17, 0x10131f);
+            addBox(g, 0.12, 0.5, 0.12, 0, 2.2, 0, 0x2f9a45); addBox(g, 0.55, 0.12, 0.32, 0.3, 2.5, 0, 0x57d06a); addBox(g, 0.55, 0.12, 0.32, -0.3, 2.62, 0, 0x7be07a);
+            addBox(g, 0.3, 0.1, 0.3, -0.55, 2.03, 0.3, 0xffffff);
+            return { group: g, size: { w: 2.4, h: 2, d: 2.4 }, idle: (t) => { const s = Math.sin(t * 4) * 0.5 + 0.5; g.scale.set(1 + s * 0.06, 1 - s * 0.1, 1 + s * 0.06); bubbles.forEach((b, i) => { b.position.y += Math.sin(t * 2 + i * 2) * 0.004; }); },
                 pose: (kind, k) => {
-                    if (kind === 'windup') g.scale.set(1 + 0.28 * k, 1 - 0.45 * k, 1 + 0.28 * k);        // squash down
-                    else if (kind === 'strike') g.scale.set(1.28 - 0.38 * k, 0.55 + 0.85 * k, 1.28 - 0.38 * k);   // spring out
+                    if (kind === 'windup') g.scale.set(1 + 0.28 * k, 1 - 0.45 * k, 1 + 0.28 * k);
+                    else if (kind === 'strike') g.scale.set(1.28 - 0.38 * k, 0.55 + 0.85 * k, 1.28 - 0.38 * k);
                     else g.scale.set(1, 1, 1);
                 } };
         },
         golem() {
             const g = new THREE.Group();
-            addBox(g, 0.9, 1.3, 0.9, -0.7, 0.65, 0, 0x7b7f8a); addBox(g, 0.9, 1.3, 0.9, 0.7, 0.65, 0, 0x7b7f8a);
+            for (const x of [-0.7, 0.7]) { addBox(g, 1.0, 1.3, 1.0, x, 0.65, 0, 0x7b7f8a); addBox(g, 0.8, 0.4, 0.2, x, 0.95, 0.52, 0x666b78); addBox(g, 1.1, 0.3, 1.2, x, 0.15, 0.1, 0x5a5f6b); addBox(g, 0.5, 0.18, 0.4, x, 1.3, -0.5, 0x8a8f9a); }
             addBox(g, 2.6, 1.9, 1.5, 0, 2.25, 0, 0x969ba8);
-            addBox(g, 1.4, 0.5, 0.1, 0, 2.5, 0.78, 0x5f8f4a);
+            addBox(g, 2.2, 0.35, 0.2, 0, 1.55, 0.78, 0x7b7f8a); addBox(g, 1.8, 1.2, 0.2, 0, 2.5, 0.78, 0x858a97); addBox(g, 2.4, 0.3, 0.3, 0, 3.15, 0.5, 0x7b7f8a);
+            for (const [x, y, h] of [[-0.55, 2.4, 0.9], [0.7, 2.0, 0.7], [-0.2, 1.8, 0.5]]) addBox(g, 0.08, h, 0.05, x, y, 0.9, 0x4a4e58);
+            const runes = [glowB(g, 0.12, 0.85, 0.06, 0, 2.55, 0.9, 0xffa02e, 0.95, true), glowB(g, 0.65, 0.12, 0.06, 0, 2.7, 0.9, 0xffa02e, 0.95, true), glowB(g, 0.4, 0.4, 0.1, 0, 2.1, 0.88, 0xff7a1a, 0.95, true)];
+            addBox(g, 1.5, 0.3, 0.1, 0.1, 3.0, 0.8, 0x5f8f4a); addBox(g, 0.7, 0.3, 0.1, -0.8, 1.5, 0.8, 0x5f8f4a);
             const arms = [piv(g, -1.75, 3.2, 0), piv(g, 1.75, 3.2, 0)];
-            arms.forEach((a) => { addBox(a, 0.9, 2.2, 0.9, 0, -1.1, 0, 0x858a97); addBox(a, 1.1, 0.9, 1.1, 0, -2.35, 0, 0x6e727d); addBox(a, 1.1, 0.35, 1.1, 0, 0.1, 0, 0x5f8f4a); });
+            arms.forEach((a, i) => {
+                addBox(a, 1.0, 1.5, 1.0, 0, -0.75, 0, 0x858a97); addBox(a, 0.9, 1.3, 0.9, 0, -1.9, 0, 0x777c89);
+                addBox(a, 1.2, 0.9, 1.2, 0, -2.75, 0, 0x6e727d); for (const x of [-0.35, 0, 0.35]) addBox(a, 0.28, 0.3, 0.3, x, -3.3, 0.42, 0x5a5f6b);
+                addBox(a, 1.1, 0.35, 1.1, 0, 0.1, 0, 0x5f8f4a); glowB(a, 0.35, 0.65, 0.35, 0, 0.55, 0, 0x7ee8ff, 0.9);
+                runes.push(glowB(a, 0.06, 0.7, 0.06, i ? 0.52 : -0.52, -1.2, 0.1, 0xffa02e, 0.9, true));
+            });
             const head = piv(g, 0, 3.6, 0.1);
-            addBox(head, 1.2, 1.1, 1.2, 0, 0, 0, 0x9aa0ad); addBox(head, 0.25, 0.18, 0.1, -0.3, 0.05, 0.62, 0xffb02e); addBox(head, 0.25, 0.18, 0.1, 0.3, 0.05, 0.62, 0xffb02e);
+            addBox(head, 1.2, 1.1, 1.2, 0, 0, 0, 0x9aa0ad); addBox(head, 1.3, 0.25, 0.3, 0, 0.32, 0.56, 0x7b7f8a); addBox(head, 0.8, 0.3, 0.4, 0, -0.45, 0.45, 0x7b7f8a);
+            glowB(head, 0.28, 0.2, 0.1, -0.3, 0.05, 0.62, 0xffb02e); glowB(head, 0.28, 0.2, 0.1, 0.3, 0.05, 0.62, 0xffb02e); glowB(head, 0.25, 0.5, 0.25, 0.3, 0.75, 0, 0x7ee8ff, 0.9);
             const setArms = (x) => arms.forEach((a) => { a.rotation.x = x; });
-            return { group: g, size: { w: 3.6, h: 4.2, d: 1.9 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.6)) * 0.12; },
+            return { group: g, size: { w: 3.6, h: 4.2, d: 1.9 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.6)) * 0.12; runes.forEach((r, i) => { r.material.opacity = 0.65 + Math.sin(t * 2.2 + i) * 0.3; }); },
                 pose: (kind, k) => {
-                    if (kind === 'windup') { setArms(-2.5 * k); g.rotation.x = -0.18 * k; head.rotation.x = -0.2 * k; }          // both fists overhead
-                    else if (kind === 'strike') { setArms(-2.5 + 2.3 * k); g.rotation.x = -0.18 + 0.4 * k; head.rotation.x = 0.15 * k; }   // slam down
+                    if (kind === 'windup') { setArms(-2.5 * k); g.rotation.x = -0.18 * k; head.rotation.x = -0.2 * k; }
+                    else if (kind === 'strike') { setArms(-2.5 + 2.3 * k); g.rotation.x = -0.18 + 0.4 * k; head.rotation.x = 0.15 * k; }
                     else { setArms(0); g.rotation.x = 0; head.rotation.x = 0; }
                 } };
         },
         wolf() {
             const g = new THREE.Group();
-            addBox(g, 1.2, 1.1, 2.4, 0, 1.5, -0.2, 0xe8532a);
-            addBox(g, 0.5, 0.15, 2.0, 0, 2.1, -0.2, 0xffa13a);
-            for (const x of [-0.45, 0.45]) for (const z of [0.7, -1.1]) addBox(g, 0.4, 1.0, 0.4, x, 0.5, z, 0xc83e1a);
+            addBox(g, 1.2, 1.1, 2.4, 0, 1.5, -0.2, 0xe8532a); addBox(g, 1.0, 0.4, 2.2, 0, 1.05, -0.2, 0xffd2a0);
+            addBox(g, 1.4, 1.1, 0.6, 0, 1.95, 0.75, 0xc83e1a); addBox(g, 0.9, 0.7, 0.5, 0, 1.4, 0.95, 0xffd2a0);
+            const flames = [];
+            [[0.9, 0.3], [0.45, 0.45], [-0.1, 0.3], [-0.65, 0.4], [-1.2, 0.28]].forEach(([z, h]) => flames.push(glowB(g, 0.42, h, 0.4, 0, 2.15 + h / 2, z, 0xffa13a, 0.9, true)));
+            for (const x of [-0.4, 0.4]) addBox(g, 0.32, 0.5, 0.32, x, 2.6, 0.7, 0xffa13a);
+            for (const x of [-0.45, 0.45]) for (const z of [0.7, -1.1]) {
+                addBox(g, 0.4, 1.0, 0.4, x, 0.55, z, 0xc83e1a); addBox(g, 0.5, 0.2, 0.6, x, 0.12, z + 0.1, 0xa8321a);
+                for (const dx of [-0.14, 0, 0.14]) addBox(g, 0.08, 0.08, 0.16, x + dx, 0.1, z + 0.46, 0xffffff);
+            }
             const hd = piv(g, 0, 1.9, 1.1);
-            addBox(hd, 1.2, 1.0, 1.1, 0, 0, 0.2, 0xf06a35);
-            addBox(hd, 0.6, 0.45, 0.6, 0, -0.2, 0.9, 0xffd2a0); addBox(hd, 0.25, 0.2, 0.1, 0, -0.05, 1.22, 0x15110f);
-            addBox(hd, 0.18, 0.18, 0.1, -0.38, 0.25, 0.76, 0x15110f); addBox(hd, 0.18, 0.18, 0.1, 0.38, 0.25, 0.76, 0x15110f);
-            addBox(hd, 0.3, 0.45, 0.2, -0.4, 0.7, 0, 0xc83e1a); addBox(hd, 0.3, 0.45, 0.2, 0.4, 0.7, 0, 0xc83e1a);
+            addBox(hd, 1.2, 1.0, 1.1, 0, 0, 0.2, 0xf06a35); addBox(hd, 0.7, 0.5, 0.7, 0, -0.1, 0.95, 0xffd2a0); addBox(hd, 0.25, 0.2, 0.1, 0, 0.1, 1.32, 0x15110f);
+            for (const x of [-0.22, 0.22]) addBox(hd, 0.1, 0.18, 0.1, x, -0.3, 1.25, 0xffffff);
+            const jw = piv(hd, 0, -0.38, 0.6); addBox(jw, 0.6, 0.2, 0.8, 0, 0, 0.4, 0xffd2a0); for (const x of [-0.2, 0.2]) addBox(jw, 0.1, 0.16, 0.1, x, 0.14, 0.72, 0xffffff);
+            for (const x of [-0.38, 0.38]) { glowB(hd, 0.22, 0.16, 0.1, x, 0.25, 0.76, 0xffc23a); addBox(hd, 0.36, 0.08, 0.1, x, 0.42, 0.78, 0x7a2a10); }
+            for (const x of [-0.4, 0.4]) { addBox(hd, 0.3, 0.55, 0.2, x, 0.72, 0, 0xc83e1a); addBox(hd, 0.14, 0.34, 0.06, x, 0.7, 0.1, 0xff9ab0); addBox(hd, 0.2, 0.14, 0.2, x, 1.05, 0, 0x2a1a14); }
+            metalB(hd, 1.3, 0.22, 0.7, 0, -0.5, 0.15, 0xcfd6e6); for (const x of [-0.5, -0.17, 0.17, 0.5]) metalB(hd, 0.14, 0.24, 0.14, x, -0.5, 0.52, 0xffffff);
             const tail = piv(g, 0, 1.9, -1.4);
-            addBox(tail, 0.4, 0.4, 0.8, 0, 0, -0.4, 0xff8a2b); addBox(tail, 0.3, 0.3, 0.5, 0, 0.4, -0.9, 0xffd23a);
-            return { group: g, size: { w: 1.9, h: 2.8, d: 3.5 }, idle: (t) => { tail.rotation.y = Math.sin(t * 7) * 0.5; g.position.y = Math.abs(Math.sin(t * 3)) * 0.08; },
+            addBox(tail, 0.4, 0.4, 0.8, 0, 0, -0.4, 0xff8a2b); addBox(tail, 0.3, 0.3, 0.5, 0, 0.4, -0.9, 0xffa13a);
+            const tf = [glowB(tail, 0.4, 0.55, 0.4, 0, 0.8, -1.0, 0xffd23a, 0.9, true), glowB(tail, 0.25, 0.5, 0.25, 0, 1.2, -1.05, 0xfff0a0, 0.9, true)];
+            return { group: g, size: { w: 1.9, h: 2.8, d: 3.5 }, idle: (t) => { tail.rotation.y = Math.sin(t * 7) * 0.5; g.position.y = Math.abs(Math.sin(t * 3)) * 0.08; flames.forEach((f, i) => { f.scale.y = 1 + Math.sin(t * 9 + i * 1.7) * 0.25; }); tf.forEach((f, i) => { f.scale.y = 1 + Math.sin(t * 11 + i) * 0.3; }); jw.rotation.x = 0.05 + Math.sin(t * 2) * 0.04; },
                 pose: (kind, k) => {
-                    if (kind === 'windup') { g.rotation.x = 0.22 * k; hd.rotation.x = 0.3 * k; tail.rotation.x = -0.4 * k; }          // crouch
-                    else if (kind === 'strike') { g.rotation.x = 0.22 - 0.62 * k; hd.rotation.x = 0.3 - 0.7 * k; tail.rotation.x = -0.4 - 0.4 * k; }   // pounce
-                    else { g.rotation.x = 0; hd.rotation.x = 0; tail.rotation.x = 0; }
+                    if (kind === 'windup') { g.rotation.x = 0.22 * k; hd.rotation.x = 0.3 * k; tail.rotation.x = -0.4 * k; jw.rotation.x = 0.6 * k; }
+                    else if (kind === 'strike') { g.rotation.x = 0.22 - 0.62 * k; hd.rotation.x = 0.3 - 0.7 * k; tail.rotation.x = -0.4 - 0.4 * k; jw.rotation.x = 0.6 - 0.1 * k; }
+                    else { g.rotation.x = 0; hd.rotation.x = 0; tail.rotation.x = 0; jw.rotation.x = 0; }
                 } };
         },
         bat() {
             const g = new THREE.Group();
-            addBox(g, 1.2, 1.1, 1.1, 0, 2.0, 0, 0x3a2a5a); addBox(g, 1.1, 0.9, 1.0, 0, 2.15, 0.85, 0x4a3570);
-            addBox(g, 0.3, 0.5, 0.2, -0.35, 2.8, 0.85, 0x2a1c45); addBox(g, 0.3, 0.5, 0.2, 0.35, 2.8, 0.85, 0x2a1c45);
-            addBox(g, 0.2, 0.2, 0.1, -0.28, 2.3, 1.37, 0xff3b3b); addBox(g, 0.2, 0.2, 0.1, 0.28, 2.3, 1.37, 0xff3b3b);
-            addBox(g, 0.12, 0.26, 0.1, -0.2, 1.85, 1.37, 0xffffff); addBox(g, 0.12, 0.26, 0.1, 0.2, 1.85, 1.37, 0xffffff);
+            addBox(g, 1.2, 1.1, 1.1, 0, 2.0, 0, 0x3a2a5a); addBox(g, 0.9, 0.6, 0.2, 0, 1.95, 0.55, 0x6a4f9a); addBox(g, 1.4, 0.35, 1.3, 0, 2.5, 0.45, 0x6a4f9a);
+            for (const x of [-0.5, -0.17, 0.17, 0.5]) addBox(g, 0.28, 0.3, 0.3, x, 2.35, 0.9, 0x7a5fb0);
+            addBox(g, 1.1, 0.9, 1.0, 0, 2.15, 0.85, 0x4a3570); addBox(g, 0.5, 0.35, 0.3, 0, 1.95, 1.4, 0x6a4f9a); glowB(g, 0.18, 0.12, 0.08, 0, 2.05, 1.56, 0xff7aa8);
+            for (const x of [-0.28, 0.28]) { glowB(g, 0.26, 0.24, 0.1, x, 2.3, 1.37, 0xff3b3b); addBox(g, 0.1, 0.14, 0.12, x, 2.3, 1.4, 0x10131f); }
+            for (const x of [-0.4, 0.4]) { addBox(g, 0.35, 0.8, 0.15, x, 3.0, 0.85, 0x2a1c45); addBox(g, 0.2, 0.55, 0.05, x, 2.95, 0.95, 0xff7aa8); addBox(g, 0.18, 0.25, 0.15, x, 3.5, 0.85, 0x1a1030); }
+            for (const x of [-0.18, 0.18]) addBox(g, 0.1, 0.3, 0.1, x, 1.7, 1.4, 0xffffff);
+            for (const x of [-0.3, 0.3]) { addBox(g, 0.15, 0.4, 0.15, x, 1.3, 0.1, 0x2a1c45); for (const dx of [-0.08, 0.08]) addBox(g, 0.06, 0.2, 0.06, x + dx, 1.0, 0.12, 0xe8e0ff); }
             const wl = piv(g, -0.6, 2.3, 0), wr = piv(g, 0.6, 2.3, 0);
-            addBox(wl, 2.0, 0.12, 1.5, -1.0, 0, 0, 0x5a3f8a); addBox(wl, 1.2, 0.12, 1.0, -2.2, 0, 0.1, 0x4a3570);
-            addBox(wr, 2.0, 0.12, 1.5, 1.0, 0, 0, 0x5a3f8a); addBox(wr, 1.2, 0.12, 1.0, 2.2, 0, 0.1, 0x4a3570);
+            for (const [w, sx] of [[wl, -1], [wr, 1]]) {
+                addBox(w, 2.2, 0.16, 0.16, sx * 1.1, 0, -0.35, 0x2a1c45); addBox(w, 1.4, 0.14, 0.14, sx * 2.5, 0, -0.3, 0x2a1c45);
+                for (const [x, len] of [[0.9, 1.4], [1.7, 1.8], [2.5, 1.6]]) addBox(w, 0.1, 0.1, len, sx * x, 0, 0.2 + len / 2 - 0.2, 0x2a1c45);
+                alphaB(w, 2.0, 0.05, 1.5, sx * 1.1, -0.02, 0.15, 0x7a4fc0, 0.78); alphaB(w, 1.3, 0.05, 1.3, sx * 2.5, -0.02, 0.2, 0x6a3fb0, 0.78);
+                for (const x of [0.8, 1.5, 2.2, 2.9]) addBox(w, 0.5, 0.05, 0.3, sx * x, -0.02, 1.0, 0x7a4fc0);
+            }
             return { group: g, size: { w: 3.2, h: 3.2, d: 2.4 }, idle: (t) => { const f = Math.sin(t * 13) * 0.7; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.7 + Math.sin(t * 3) * 0.2; },
                 pose: (kind, k) => {
-                    if (kind === 'windup') { wl.rotation.z = -0.9 * k + Math.sin(k * 30) * 0.2; wr.rotation.z = 0.9 * k - Math.sin(k * 30) * 0.2; g.rotation.x = -0.2 * k; g.position.y = 0.7; }   // soar up
-                    else if (kind === 'strike') { wl.rotation.z = -0.9 - 0.5 * k; wr.rotation.z = 0.9 + 0.5 * k; g.rotation.x = -0.2 + 1.1 * k; g.position.y = 0.7; }   // wings folded, dive
+                    if (kind === 'windup') { wl.rotation.z = -0.9 * k + Math.sin(k * 30) * 0.2; wr.rotation.z = 0.9 * k - Math.sin(k * 30) * 0.2; g.rotation.x = -0.2 * k; g.position.y = 0.7; }
+                    else if (kind === 'strike') { wl.rotation.z = -0.9 - 0.5 * k; wr.rotation.z = 0.9 + 0.5 * k; g.rotation.x = -0.2 + 1.1 * k; g.position.y = 0.7; }
                     else { wl.rotation.z = 0; wr.rotation.z = 0; g.rotation.x = 0; }
                 } };
         },
         treant() {
             const g = new THREE.Group();
-            addBox(g, 1.7, 2.6, 1.4, 0, 1.6, 0, 0x6b4423); addBox(g, 1.74, 0.3, 1.44, 0, 2.2, 0, 0x7d5230);
-            for (const x of [-0.6, 0.6]) addBox(g, 0.6, 0.8, 0.7, x, 0.4, 0.2, 0x573719);
-            addBox(g, 0.24, 0.24, 0.1, -0.38, 2.5, 0.72, 0xbaff6a); addBox(g, 0.24, 0.24, 0.1, 0.38, 2.5, 0.72, 0xbaff6a); addBox(g, 0.6, 0.12, 0.1, 0, 1.95, 0.72, 0x2a1a0c);
-            addBox(g, 2.8, 1.4, 2.5, 0, 3.9, 0, 0x3f9a3a); addBox(g, 1.9, 1.0, 1.8, 0, 4.9, 0, 0x57c04a);
-            addBox(g, 1.0, 1.0, 1.0, -1.5, 3.4, 0, 0x3f9a3a); addBox(g, 1.0, 1.0, 1.0, 1.5, 3.4, 0, 0x3f9a3a);
+            addBox(g, 1.7, 2.6, 1.4, 0, 1.6, 0, 0x6b4423);
+            for (const y of [0.9, 1.5, 2.1, 2.7]) addBox(g, 1.74, 0.14, 1.44, 0, y, 0, 0x573719);
+            for (const x of [-0.55, 0, 0.55]) addBox(g, 0.08, 2.3, 0.05, x, 1.6, 0.72, 0x4a2f18);
+            addBox(g, 0.8, 0.3, 0.1, -0.4, 2.9, 0.72, 0x57c04a); addBox(g, 0.5, 0.3, 0.1, 0.5, 0.9, 0.72, 0x57c04a);
+            for (const x of [-0.38, 0.38]) { glowB(g, 0.26, 0.26, 0.1, x, 2.5, 0.73, 0xbaff6a); addBox(g, 0.5, 0.1, 0.1, x, 2.75, 0.74, 0x4a2f18); }
+            addBox(g, 0.2, 0.3, 0.15, 0, 2.2, 0.78, 0x573719); addBox(g, 0.6, 0.12, 0.1, 0, 1.95, 0.73, 0x2a1a0c);
+            const heart = glowB(g, 0.3, 0.3, 0.06, 0, 1.3, 0.74, 0xbaff6a, 0.6, true);
+            for (const x of [-0.6, 0.6]) addBox(g, 0.7, 0.8, 0.8, x, 0.4, 0.2, 0x573719);
+            for (const [x, z, a] of [[-1.1, 0.5, 1], [1.1, 0.5, 1], [-0.9, -0.5, 1], [0.9, -0.5, 1]]) addBox(g, 0.5, 0.3, 1.0, x, 0.15, z, 0x4a2f18);
+            addBox(g, 2.8, 1.4, 2.5, 0, 3.9, 0, 0x3f9a3a); addBox(g, 1.9, 1.0, 1.8, 0, 4.9, 0, 0x57c04a); addBox(g, 1.2, 0.5, 1.2, 0, 5.5, 0, 0x7be07a);
+            for (const x of [-1.5, 1.5]) { addBox(g, 1.0, 1.0, 1.0, x, 3.4, 0, 0x3f9a3a); addBox(g, 0.8, 0.8, 0.8, x * 0.8, 3.0, 0.7, 0x2f7a2c); }
+            for (const [x, y, z] of [[-1.0, 4.65, 1.28], [0.9, 3.6, 1.28], [0.3, 5.2, 0.9], [-1.4, 3.9, 0.8]]) addBox(g, 0.28, 0.28, 0.28, x, y, z, 0xff9ac8);
+            for (const [x, y, z] of [[1.1, 4.4, 1.3], [-0.5, 3.3, 1.3]]) addBox(g, 0.3, 0.3, 0.3, x, y, z, 0xe8322a);
+            for (const [x, z] of [[-1.2, 0.9], [1.0, 1.0], [0.2, 1.25], [-0.7, -1.1]]) addBox(g, 0.1, 1.2, 0.1, x, 2.9, z, 0x2f7a2c);
+            for (const [x, z] of [[-0.9, 0.9], [1.3, 0.2]]) { addBox(g, 0.15, 0.25, 0.15, x, 0.12, z, 0xf0e6c8); addBox(g, 0.42, 0.15, 0.42, x, 0.3, z, 0xff5a4a); }
             const aL = piv(g, -1.15, 2.4, 0.3), aR = piv(g, 1.15, 2.4, 0.3);
-            [aL, aR].forEach((a) => { addBox(a, 0.5, 0.5, 1.4, 0, 0, 0.6, 0x6b4423); addBox(a, 0.7, 0.7, 0.7, 0, 0, 1.4, 0x57c04a); });
-            return { group: g, size: { w: 3.4, h: 5.4, d: 2.6 }, idle: (t) => { g.rotation.z = Math.sin(t * 1.4) * 0.04; },
+            [aL, aR].forEach((a) => { addBox(a, 0.5, 0.5, 1.4, 0, 0, 0.6, 0x6b4423); addBox(a, 0.3, 0.3, 0.7, 0.3, 0.2, 1.1, 0x573719); addBox(a, 0.7, 0.7, 0.7, 0, 0, 1.4, 0x57c04a); addBox(a, 0.45, 0.45, 0.45, 0.3, 0.4, 1.6, 0x7be07a); glowB(a, 0.16, 0.16, 0.16, -0.25, 0.4, 1.7, 0xbaff6a, 0.9); });
+            return { group: g, size: { w: 3.4, h: 5.4, d: 2.6 }, idle: (t) => { g.rotation.z = Math.sin(t * 1.4) * 0.04; heart.material.opacity = 0.5 + Math.sin(t * 2.5) * 0.3; },
                 pose: (kind, k) => {
-                    if (kind === 'windup') { aR.rotation.y = 1.3 * k; aR.rotation.x = -0.6 * k; aL.rotation.y = -0.5 * k; g.rotation.y = 0.2 * k; }      // branch swung wide
-                    else if (kind === 'strike') { aR.rotation.y = 1.3 - 2.3 * k; aR.rotation.x = -0.6 + 0.6 * k; g.rotation.y = 0.2 - 0.5 * k; }   // sweeping lash
+                    if (kind === 'windup') { aR.rotation.y = 1.3 * k; aR.rotation.x = -0.6 * k; aL.rotation.y = -0.5 * k; g.rotation.y = 0.2 * k; }
+                    else if (kind === 'strike') { aR.rotation.y = 1.3 - 2.3 * k; aR.rotation.x = -0.6 + 0.6 * k; g.rotation.y = 0.2 - 0.5 * k; }
                     else { aR.rotation.set(0, 0, 0); aL.rotation.set(0, 0, 0); g.rotation.y = 0; }
                 } };
         },
         turtle() {
             const g = new THREE.Group();
-            addBox(g, 2.2, 0.8, 2.6, 0, 0.9, 0, 0x3a5a33);
-            addBox(g, 2.6, 1.2, 2.8, 0, 1.9, -0.1, 0x3a2f33);
-            addBox(g, 2.0, 0.1, 0.25, 0, 2.55, 0.4, 0xff7a1a); addBox(g, 0.25, 0.1, 2.2, 0, 2.56, -0.1, 0xff9a2a); addBox(g, 1.2, 0.1, 0.25, 0.3, 2.57, -0.8, 0xff7a1a);
-            for (const [x, z] of [[-0.8, -0.5], [0.8, -0.5], [0, -1.0]]) addBox(g, 0.4, 0.6, 0.4, x, 2.8, z, 0x2a2226);
+            addBox(g, 2.2, 0.8, 2.6, 0, 0.9, 0, 0x3a5a33); addBox(g, 1.8, 0.1, 2.2, 0, 0.5, 0, 0xcfc29a);
+            addBox(g, 2.6, 1.2, 2.8, 0, 1.9, -0.1, 0x3a2f33); addBox(g, 2.9, 0.22, 3.1, 0, 1.35, -0.1, 0x2a2226);
+            for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) addBox(g, 0.78, 0.2, 0.82, ix * 0.86, 2.55, iz * 0.9 - 0.1, (ix + iz) % 2 ? 0x4a3d42 : 0x3a2f33);
+            const lava = [];
+            for (const z of [-0.55, 0.35]) lava.push(glowB(g, 2.6, 0.06, 0.1, 0, 2.67, z - 0.1, 0xff7a1a, 0.95, true));
+            for (const x of [-0.43, 0.43]) lava.push(glowB(g, 0.1, 0.06, 2.6, x, 2.67, -0.1, 0xff7a1a, 0.95, true));
+            lava.push(glowB(g, 0.9, 0.1, 0.9, 0, 2.72, -0.1, 0xffa02e, 0.95, true));
+            for (const [x, z] of [[-0.85, -0.85], [0.85, -0.85], [0, -1.2], [0.85, 0.6], [-0.85, 0.6]]) { addBox(g, 0.4, 0.6, 0.4, x, 2.95, z, 0x2a2226); glowB(g, 0.18, 0.2, 0.18, x, 3.3, z, 0xffb02e, 0.95); }
+            for (const [x, z] of [[-0.55, -0.1], [0.55, -0.1], [0, 0.4], [0, -0.6]]) addBox(g, 0.25, 0.2, 0.25, x, 2.85, z, 0x2a2226);
             const hd = piv(g, 0, 1.3, 1.5);
-            addBox(hd, 1.0, 0.9, 1.1, 0, 0, 0.2, 0x4a7a40); addBox(hd, 0.18, 0.18, 0.1, -0.28, 0.2, 0.77, 0xffb02e); addBox(hd, 0.18, 0.18, 0.1, 0.28, 0.2, 0.77, 0xffb02e);
-            for (const x of [-1.0, 1.0]) for (const z of [-0.9, 0.9]) addBox(g, 0.7, 0.7, 0.7, x, 0.35, z, 0x3a5a33);
-            return { group: g, size: { w: 3.4, h: 3.3, d: 3.6 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.8)) * 0.1; },
+            addBox(hd, 1.0, 0.9, 1.1, 0, 0, 0.2, 0x4a7a40); addBox(hd, 1.0, 0.2, 0.3, 0, 0.35, 0.6, 0x3a5a33); addBox(hd, 0.7, 0.18, 0.3, 0, -0.3, 0.7, 0x5a8a50);
+            for (const x of [-0.28, 0.28]) { glowB(hd, 0.2, 0.18, 0.1, x, 0.18, 0.77, 0xffb02e); addBox(hd, 0.15, 0.3, 0.15, x * 1.1, 0.6, 0.2, 0xf0e6c8); }
+            for (const x of [-1.0, 1.0]) for (const z of [-0.9, 0.9]) { addBox(g, 0.7, 0.7, 0.7, x, 0.35, z, 0x3a5a33); for (const dx of [-0.18, 0, 0.18]) addBox(g, 0.1, 0.1, 0.2, x + dx, 0.08, z + 0.42, 0xf0e6c8); }
+            addBox(g, 0.35, 0.3, 0.6, 0, 0.9, -1.6, 0x3a5a33);
+            return { group: g, size: { w: 3.4, h: 3.3, d: 3.6 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.8)) * 0.1; lava.forEach((l, i) => { l.material.opacity = 0.7 + Math.sin(t * 3 + i) * 0.25; }); },
                 pose: (kind, k) => {
-                    if (kind === 'windup') { hd.position.z = 1.5 - 1.0 * k; hd.scale.setScalar(1 - 0.7 * k); }                 // head tucks into the shell
-                    else if (kind === 'strike') { g.rotation.y = k * Math.PI * 2; }                                          // shell spin ram
+                    if (kind === 'windup') { hd.position.z = 1.5 - 1.0 * k; hd.scale.setScalar(1 - 0.7 * k); }
+                    else if (kind === 'strike') { g.rotation.y = k * Math.PI * 2; }
                     else { hd.position.z = 1.5; hd.scale.setScalar(1); g.rotation.y = 0; }
                 } };
         },
         priest() {
-            const g = new THREE.Group();
-            addBox(g, 1.6, 2.2, 1.1, 0, 1.3, 0, 0xf4f1ff); addBox(g, 1.64, 0.2, 1.14, 0, 0.3, 0, 0xffd75a); addBox(g, 0.4, 2.0, 1.14, 0, 1.4, 0, 0x6a8cff);
-            addBox(g, 0.95, 0.95, 0.95, 0, 3.0, 0, 0xf2cfa6); addBox(g, 1.05, 0.4, 1.05, 0, 3.55, -0.02, 0xe8e6ff);
-            addBox(g, 0.16, 0.2, 0.1, -0.22, 3.05, 0.49, 0x10131f); addBox(g, 0.16, 0.2, 0.1, 0.22, 3.05, 0.49, 0x10131f);
-            addBox(g, 0.4, 1.4, 0.4, -1.0, 1.7, 0, 0xf4f1ff);
+            const g = new THREE.Group(), gold = 0xe8b73a;
+            addBox(g, 2.0, 0.8, 1.4, 0, 0.5, 0, 0xe8e6ff); metalB(g, 2.04, 0.12, 1.44, 0, 0.12, 0, gold);
+            addBox(g, 1.6, 1.6, 1.1, 0, 1.7, 0, 0xf4f1ff); addBox(g, 0.4, 2.0, 1.14, 0, 1.4, 0, 0x6a8cff);
+            for (const x of [-0.25, 0.25]) metalB(g, 0.06, 2.0, 1.16, x, 1.4, 0, gold);
+            for (const [x, y] of [[-0.6, 1.2], [0.6, 0.8], [-0.7, 0.5], [0.65, 1.8], [-0.55, 2.0]]) glowB(g, 0.12, 0.12, 0.06, x, y, 0.58, 0xffd75a);
+            metalB(g, 1.9, 0.3, 1.2, 0, 2.55, 0, gold); addBox(g, 2.1, 0.5, 1.3, 0, 2.8, 0, 0x6a8cff); metalB(g, 2.14, 0.08, 1.34, 0, 3.05, 0, gold);
+            addBox(g, 0.95, 0.95, 0.95, 0, 3.0, 0, 0xf2cfa6); addBox(g, 1.1, 0.45, 1.1, 0, 3.55, -0.02, 0xe8e6ff); addBox(g, 1.0, 1.3, 0.3, 0, 3.0, -0.6, 0xe8e6ff);
+            addBox(g, 0.3, 0.9, 0.3, -0.55, 3.2, 0.3, 0xe8e6ff); addBox(g, 0.3, 0.9, 0.3, 0.55, 3.2, 0.3, 0xe8e6ff);
+            for (const x of [-0.22, 0.22]) { addBox(g, 0.2, 0.06, 0.1, x, 3.05, 0.49, 0x10131f); addBox(g, 0.2, 0.06, 0.08, x, 3.15, 0.49, 0xb8b4d6); }
+            glowB(g, 0.16, 0.16, 0.08, 0, 3.4, 0.5, gold); addBox(g, 0.3, 0.06, 0.08, 0, 2.82, 0.49, 0xc0705a);
+            addBox(g, 0.5, 1.2, 0.5, -1.05, 1.9, 0, 0xf4f1ff); addBox(g, 0.4, 0.5, 0.4, -1.05, 1.1, 0.05, 0xf2cfa6); metalB(g, 0.54, 0.12, 0.54, -1.05, 1.4, 0, gold);
             const ar = piv(g, 1.0, 2.4, 0);
-            addBox(ar, 0.4, 1.4, 0.4, 0, -0.7, 0, 0xf4f1ff); addBox(ar, 0.15, 3.6, 0.15, 0.25, -0.5, 0.5, 0xa0693a);
-            const orb = addBox(ar, 0.5, 0.5, 0.5, 0.25, 1.5, 0.5, 0x9fd0ff);
-            const hl = piv(g, 0, 4.3, 0);
-            addBox(hl, 1.4, 0.12, 0.2, 0, 0, 0.6, 0xfff2a0); addBox(hl, 1.4, 0.12, 0.2, 0, 0, -0.6, 0xfff2a0); addBox(hl, 0.2, 0.12, 1.0, 0.6, 0, 0, 0xfff2a0); addBox(hl, 0.2, 0.12, 1.0, -0.6, 0, 0, 0xfff2a0);
-            return { group: g, size: { w: 2.6, h: 4.8, d: 1.8 }, idle: (t) => { g.position.y = 0.3 + Math.sin(t * 2) * 0.25; hl.rotation.y = t * 1.5; },
+            addBox(ar, 0.5, 1.2, 0.5, 0, -0.6, 0, 0xf4f1ff); metalB(ar, 0.54, 0.12, 0.54, 0, -1.15, 0, gold); addBox(ar, 0.4, 0.45, 0.4, 0, -1.4, 0, 0xf2cfa6);
+            addBox(ar, 0.15, 3.6, 0.15, 0.25, -0.5, 0.5, 0xa0693a);
+            metalB(ar, 0.6, 0.14, 0.18, 0.25, 1.35, 0.5, gold); metalB(ar, 0.14, 0.6, 0.18, -0.02, 1.62, 0.5, gold); metalB(ar, 0.14, 0.6, 0.18, 0.52, 1.62, 0.5, gold); metalB(ar, 0.4, 0.14, 0.18, 0.25, 1.95, 0.5, gold);
+            const orb = glowB(ar, 0.42, 0.42, 0.42, 0.25, 1.62, 0.5, 0x9fd0ff, 0.95, true);
+            const hl = piv(g, 0, 4.3, 0), stars = piv(g, 0, 2.6, 0);
+            for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const b = glowB(hl, 0.42, 0.12, 0.16, Math.cos(a) * 0.78, 0, Math.sin(a) * 0.78, 0xfff2a0, 0.95); b.rotation.y = -a + Math.PI / 2; }
+            [0, 1, 2].forEach((i) => glowB(stars, 0.18, 0.18, 0.18, 1.55, i * 0.9 - 0.2, 0, i % 2 ? 0xfff2a0 : 0x9fd0ff, 0.95).rotation.set(i, i, 0));
+            return { group: g, size: { w: 2.6, h: 4.8, d: 1.8 }, idle: (t) => { g.position.y = 0.3 + Math.sin(t * 2) * 0.25; hl.rotation.y = t * 1.5; stars.rotation.y = t * 1.2; orb.scale.setScalar(1 + Math.sin(t * 3) * 0.12); },
                 pose: (kind, k) => {
-                    if (kind === 'aim') { ar.rotation.x = -1.1 * k; orb.scale.setScalar(1 + 0.9 * k); hl.rotation.y += 0.25; g.position.y = 0.3 + 0.3 * k; }   // staff raised, orb charging
+                    if (kind === 'aim') { ar.rotation.x = -1.1 * k; orb.scale.setScalar(1 + 0.9 * k); hl.rotation.y += 0.25; g.position.y = 0.3 + 0.3 * k; }
                     else if (kind === 'fire') { ar.rotation.x = -1.1 + 0.6 * k; orb.scale.setScalar(1.9 - 0.9 * k); }
                     else { ar.rotation.x = 0; orb.scale.setScalar(1); }
                 } };
         },
         creeper() {
             const g = new THREE.Group();
-            for (const x of [-0.45, 0.45]) for (const z of [-0.5, 0.5]) addBox(g, 0.7, 0.9, 0.7, x, 0.45, z, 0x3f9a3a);
+            for (const x of [-0.45, 0.45]) for (const z of [-0.5, 0.5]) { addBox(g, 0.7, 0.9, 0.7, x, 0.45, z, 0x3f9a3a); addBox(g, 0.5, 0.18, 0.5, x, 0.09, z, 0x2f7a2c); }
             addBox(g, 1.5, 1.9, 1.0, 0, 1.85, 0, 0x5fbf4a); addBox(g, 1.6, 1.6, 1.6, 0, 3.7, 0, 0x6fd05a);
+            for (const [x, y, s] of [[-0.45, 2.2, 0.5], [0.4, 1.6, 0.42], [0.1, 2.6, 0.36], [-0.5, 1.4, 0.3]]) { addBox(g, s, s, 0.06, x, y, 0.52, 0x3f9a3a); addBox(g, s, s, 0.06, -x, y + 0.1, -0.52, 0x3f9a3a); }
+            for (const [x, y, s] of [[-0.6, 4.2, 0.42], [0.5, 3.0, 0.4], [-0.2, 3.1, 0.3], [0.55, 4.3, 0.3]]) addBox(g, s, s, 0.06, x, y, 0.82, 0x4fb040);
+            for (const [x, y, s] of [[-0.5, 4.1, 0.4], [0.4, 3.2, 0.4]]) addBox(g, 0.06, s, s, 0.82, y, x, 0x4fb040);
             addBox(g, 0.4, 0.4, 0.1, -0.4, 3.9, 0.82, 0x10131f); addBox(g, 0.4, 0.4, 0.1, 0.4, 3.9, 0.82, 0x10131f); addBox(g, 0.4, 0.5, 0.1, 0, 3.4, 0.82, 0x10131f);
             addBox(g, 0.2, 0.3, 0.1, -0.3, 3.1, 0.82, 0x10131f); addBox(g, 0.2, 0.3, 0.1, 0.3, 3.1, 0.82, 0x10131f);
-            addBox(g, 0.12, 0.5, 0.12, 0, 4.75, 0, 0x6a4a2a); addBox(g, 0.25, 0.25, 0.25, 0, 5.1, 0, 0xffd23a);
-            return { group: g, size: { w: 2.0, h: 5.2, d: 2.0 }, idle: (t) => { const s = Math.sin(t * 9) * 0.5 + 0.5; g.scale.set(1 + s * 0.05, 1 - s * 0.03, 1 + s * 0.05); },
+            const crack = [glowB(g, 0.06, 0.7, 0.05, 0.55, 2.2, 0.52, 0xaaff7a, 0.7, true), glowB(g, 0.5, 0.06, 0.05, 0.3, 2.5, 0.52, 0xaaff7a, 0.7, true), glowB(g, 0.06, 0.5, 0.05, -0.5, 1.5, 0.52, 0xaaff7a, 0.7, true)];
+            metalB(g, 1.6, 0.2, 1.1, 0, 1.2, 0, 0xcfa23a);
+            for (const x of [-0.5, 0, 0.5]) { addBox(g, 0.26, 0.6, 0.26, x, 1.25, 0.62, 0xd83a2a); addBox(g, 0.28, 0.1, 0.28, x, 1.45, 0.62, 0xf6e6c8); addBox(g, 0.08, 0.3, 0.08, x, 1.75, 0.62, 0x2a1a10); }
+            addBox(g, 0.12, 0.5, 0.12, 0, 4.75, 0, 0x6a4a2a);
+            const spark = glowB(g, 0.3, 0.3, 0.3, 0, 5.1, 0, 0xffd23a, 0.95, true), halo = glowB(g, 0.55, 0.55, 0.55, 0, 5.1, 0, 0xff7a1a, 0.35, true);
+            return { group: g, size: { w: 2.0, h: 5.2, d: 2.0 }, idle: (t) => { const s = Math.sin(t * 9) * 0.5 + 0.5; g.scale.set(1 + s * 0.05, 1 - s * 0.03, 1 + s * 0.05); spark.scale.setScalar(0.8 + Math.sin(t * 25) * 0.3); halo.scale.setScalar(0.9 + Math.sin(t * 19) * 0.3); crack.forEach((c, i) => { c.material.opacity = 0.5 + Math.sin(t * 4 + i) * 0.3; }); },
                 pose: (kind, k) => {
-                    if (kind === 'windup') g.scale.set(1 + 0.55 * k + Math.sin(k * 40) * 0.05, 1 + 0.3 * k, 1 + 0.55 * k + Math.sin(k * 40) * 0.05);    // swells up
+                    if (kind === 'windup') g.scale.set(1 + 0.55 * k + Math.sin(k * 40) * 0.05, 1 + 0.3 * k, 1 + 0.55 * k + Math.sin(k * 40) * 0.05);
                     else if (kind === 'strike') g.scale.set(1.55, 1.3, 1.55);
                     else g.scale.set(1, 1, 1);
                 } };
         },
         archer() {
             const g = new THREE.Group();
-            addBox(g, 0.5, 1.3, 0.5, -0.3, 0.65, 0, 0x2b3f6b); addBox(g, 0.5, 1.3, 0.5, 0.3, 0.65, 0, 0x2b3f6b);
-            addBox(g, 1.3, 1.5, 0.7, 0, 2.05, 0, 0x5aa9e6); addBox(g, 1.34, 0.2, 0.74, 0, 1.45, 0, 0x2a2f45);
-            addBox(g, 0.95, 0.95, 0.95, 0, 3.25, 0, 0xf2cfa6); addBox(g, 1.05, 0.5, 1.05, 0, 3.7, -0.02, 0x2f6fb5);
-            addBox(g, 0.16, 0.2, 0.1, -0.22, 3.3, 0.49, 0x10131f); addBox(g, 0.16, 0.2, 0.1, 0.22, 3.3, 0.49, 0x10131f);
-            addBox(g, 0.5, 0.6, 0.5, -0.85, 2.95, 0, 0xbfeaff); addBox(g, 0.5, 0.6, 0.5, 0.85, 2.95, 0, 0xbfeaff);
+            for (const x of [-0.3, 0.3]) { addBox(g, 0.5, 1.3, 0.5, x, 0.65, 0, 0x2b3f6b); addBox(g, 0.6, 0.45, 0.8, x, 0.22, 0.1, 0x3a2412); addBox(g, 0.62, 0.12, 0.62, x, 0.5, 0.05, 0xd9e6ff); }
+            addBox(g, 1.3, 1.5, 0.7, 0, 2.05, 0, 0x5aa9e6); addBox(g, 1.34, 0.2, 0.74, 0, 1.45, 0, 0x2a2f45); metalB(g, 0.3, 0.24, 0.1, 0, 1.45, 0.4, 0xcfd6e6);
+            addBox(g, 0.4, 0.45, 0.3, -0.62, 1.4, 0.35, 0x5a3a1a); addBox(g, 0.18, 1.7, 0.06, 0.2, 2.05, 0.37, 0x5a3a1a).rotation.z = -0.5;
+            addBox(g, 1.5, 1.7, 0.1, 0, 1.9, -0.42, 0x2f6fb5); addBox(g, 1.5, 0.12, 0.12, 0, 1.08, -0.42, 0xd9e6ff);
+            addBox(g, 0.4, 1.3, 0.36, 0.35, 2.4, -0.62, 0x5a3a1a); for (const [x, c] of [[0.26, 0xffffff], [0.36, 0x7ed8ff], [0.46, 0xffffff]]) { addBox(g, 0.06, 0.5, 0.06, x, 3.2, -0.62, 0xe9f3ff); addBox(g, 0.1, 0.18, 0.1, x, 3.5, -0.62, c); }
+            addBox(g, 1.15, 0.32, 0.95, 0, 2.85, 0, 0xe9f3ff);
+            addBox(g, 0.95, 0.95, 0.95, 0, 3.25, 0, 0xf2cfa6); addBox(g, 1.15, 0.72, 1.15, 0, 3.7, -0.03, 0x2f6fb5); addBox(g, 0.95, 1.1, 0.3, 0, 3.2, -0.62, 0x2f6fb5); addBox(g, 1.0, 0.18, 0.25, 0, 3.52, 0.55, 0x23508a);
+            for (const x of [-0.22, 0.22]) glowB(g, 0.18, 0.16, 0.1, x, 3.3, 0.5, 0x7ed8ff);
+            for (const sx of [-1, 1]) { alphaB(g, 0.55, 0.7, 0.55, sx * 0.85, 2.98, 0, 0xbfeaff, 0.85); glowB(g, 0.2, 0.3, 0.2, sx * 0.85, 3.45, 0, 0x7ed8ff, 0.9); }
             const al = piv(g, -0.9, 2.5, 0.5), ar = piv(g, 0.7, 2.5, 0.3);
-            addBox(al, 0.4, 0.4, 1.3, 0, 0, 0, 0x5aa9e6);
-            addBox(al, 0.14, 1.9, 0.14, 0, 0, 0.7, 0xa0693a); addBox(al, 0.14, 0.4, 0.14, 0, 1.0, 0.55, 0xa0693a); addBox(al, 0.14, 0.4, 0.14, 0, -1.0, 0.55, 0xa0693a);
-            const str = addBox(al, 0.04, 1.9, 0.04, 0, 0, 0.42, 0xe9f3ff);
-            addBox(ar, 0.4, 0.4, 0.9, 0, 0, 0, 0x5aa9e6);
+            addBox(al, 0.4, 0.4, 1.3, 0, 0, 0, 0x5aa9e6); metalB(al, 0.46, 0.44, 0.4, 0, 0, 0.2, 0x8a6a3a);
+            addBox(al, 0.14, 1.9, 0.14, 0, 0, 0.7, 0xbfeaff); addBox(al, 0.14, 0.45, 0.14, 0, 1.05, 0.55, 0xbfeaff); addBox(al, 0.14, 0.45, 0.14, 0, -1.05, 0.55, 0xbfeaff);
+            glowB(al, 0.18, 0.2, 0.18, 0, 1.3, 0.5, 0x7ed8ff); glowB(al, 0.18, 0.2, 0.18, 0, -1.3, 0.5, 0x7ed8ff);
+            const str = glowB(al, 0.04, 1.9, 0.04, 0, 0, 0.42, 0xe9f3ff, 0.9, true);
+            addBox(ar, 0.4, 0.4, 0.9, 0, 0, 0, 0x5aa9e6); metalB(ar, 0.46, 0.44, 0.3, 0, 0, 0.1, 0x8a6a3a);
             return { group: g, size: { w: 2.3, h: 4.1, d: 2.2 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 2.2)) * 0.1; },
                 pose: (kind, k) => {
-                    if (kind === 'aim') { g.rotation.y = -0.5 * k; ar.position.z = 0.3 - 0.5 * k; str.position.z = 0.42 - 0.55 * k; al.rotation.x = -0.12 * k; }   // side-on stance, string drawn back
-                    else if (kind === 'fire') { ar.position.z = -0.2 + 0.5 * k; str.position.z = -0.13 + 0.55 * k; g.rotation.y = -0.5 + 0.1 * k; }   // release
+                    if (kind === 'aim') { g.rotation.y = -0.5 * k; ar.position.z = 0.3 - 0.5 * k; str.position.z = 0.42 - 0.55 * k; al.rotation.x = -0.12 * k; }
+                    else if (kind === 'fire') { ar.position.z = -0.2 + 0.5 * k; str.position.z = -0.13 + 0.55 * k; g.rotation.y = -0.5 + 0.1 * k; }
                     else { g.rotation.y = 0; ar.position.z = 0.3; str.position.z = 0.42; al.rotation.x = 0; }
                 } };
         },
         drake() {
             const g = new THREE.Group();
             addBox(g, 1.5, 1.3, 2.6, 0, 2.0, 0, 0xf2c230); addBox(g, 1.0, 0.3, 2.2, 0, 1.4, 0, 0xfff0b0);
+            for (const z of [-0.9, -0.3, 0.3, 0.9]) addBox(g, 1.05, 0.1, 0.35, 0, 1.34, z, 0xffe8a0);
+            for (const [z, h] of [[-1.0, 0.45], [-0.45, 0.6], [0.1, 0.7], [0.65, 0.6], [1.1, 0.45]]) { addBox(g, 0.3, h, 0.3, 0, 2.65 + h / 2, z, 0xc9992a); glowB(g, 0.12, 0.2, 0.12, 0, 2.65 + h + 0.1, z, 0x8cf0ff, 0.95); }
+            const veins = [glowB(g, 0.05, 0.05, 1.8, 0.77, 2.2, 0, 0x8cf0ff, 0.7, true), glowB(g, 0.05, 0.05, 1.8, -0.77, 2.2, 0, 0x8cf0ff, 0.7, true), glowB(g, 0.05, 0.05, 1.4, 0.77, 1.8, -0.2, 0x8cf0ff, 0.6, true), glowB(g, 0.05, 0.05, 1.4, -0.77, 1.8, -0.2, 0x8cf0ff, 0.6, true)];
             const hd = piv(g, 0, 2.9, 1.2);
-            addBox(hd, 0.8, 0.9, 0.8, 0, 0, 0, 0xf2c230);
+            addBox(hd, 0.8, 0.9, 0.8, 0, 0, 0, 0xf2c230); addBox(hd, 0.9, 0.12, 0.5, 0, 0.1, 0.3, 0xffe8a0);
             addBox(hd, 1.1, 0.9, 1.3, 0, 0.6, 0.4, 0xffd75a); addBox(hd, 0.7, 0.5, 0.6, 0, 0.45, 1.2, 0xffe28a);
-            addBox(hd, 0.18, 0.18, 0.1, -0.4, 0.8, 1.07, 0x15110f); addBox(hd, 0.18, 0.18, 0.1, 0.4, 0.8, 1.07, 0x15110f);
-            addBox(hd, 0.2, 0.5, 0.2, -0.35, 1.2, 0.1, 0x8a5a1a); addBox(hd, 0.2, 0.5, 0.2, 0.35, 1.2, 0.1, 0x8a5a1a);
-            for (const x of [-0.5, 0.5]) for (const z of [0.7, -0.8]) addBox(g, 0.5, 1.0, 0.6, x, 0.5, z, 0xc9992a);
-            addBox(g, 0.8, 0.7, 1.2, 0, 1.9, -1.9, 0xf2c230); addBox(g, 0.5, 0.5, 1.0, 0, 1.8, -2.9, 0xe0ae25); addBox(g, 0.35, 0.35, 0.6, 0, 1.8, -3.6, 0x8cf0ff);
+            for (const x of [-0.18, 0.18]) addBox(hd, 0.12, 0.1, 0.1, x, 0.6, 1.52, 0x5a3a10);
+            for (const x of [-0.28, -0.09, 0.09, 0.28]) addBox(hd, 0.08, 0.16, 0.08, x, 0.15, 1.35, 0xffffff);
+            for (const x of [-0.4, 0.4]) { glowB(hd, 0.2, 0.18, 0.1, x, 0.8, 1.07, 0xffb02e); addBox(hd, 0.3, 0.08, 0.1, x, 0.98, 1.08, 0x8a5a1a); }
+            for (const x of [-0.35, 0.35]) { addBox(hd, 0.25, 0.4, 0.25, x, 1.15, 0.1, 0x8a5a1a); addBox(hd, 0.2, 0.4, 0.2, x * 1.1, 1.5, -0.15, 0x9a6a2a); addBox(hd, 0.14, 0.3, 0.14, x * 1.15, 1.8, -0.3, 0xffd75a); alphaB(hd, 0.1, 0.5, 0.45, x * 1.7, 0.6, 0.15, 0x49a8ff, 0.8); }
+            for (const x of [-0.5, 0.5]) for (const z of [0.7, -0.8]) { addBox(g, 0.5, 1.0, 0.6, x, 0.5, z, 0xc9992a); addBox(g, 0.6, 0.18, 0.7, x, 0.1, z + 0.1, 0xa87a1a); for (const dx of [-0.16, 0, 0.16]) addBox(g, 0.07, 0.07, 0.18, x + dx, 0.08, z + 0.5, 0xfff0d0); }
+            addBox(g, 0.8, 0.7, 1.2, 0, 1.9, -1.9, 0xf2c230); addBox(g, 0.6, 0.55, 1.0, 0, 1.8, -2.8, 0xe0ae25); addBox(g, 0.45, 0.4, 0.9, 0, 1.75, -3.6, 0xc99a20);
+            const tipG = [glowB(g, 0.8, 0.12, 0.55, 0, 1.75, -4.25, 0x8cf0ff, 0.95, true), glowB(g, 0.12, 0.8, 0.55, 0, 1.75, -4.25, 0x8cf0ff, 0.95, true)];
             const wl = piv(g, -0.8, 2.7, 0), wr = piv(g, 0.8, 2.7, 0);
-            addBox(wl, 2.6, 0.12, 2.0, -1.3, 0, -0.1, 0x49a8ff); addBox(wr, 2.6, 0.12, 2.0, 1.3, 0, -0.1, 0x49a8ff);
-            return { group: g, size: { w: 3.2, h: 4.4, d: 5 }, idle: (t) => { const f = Math.sin(t * 5) * 0.45; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.2 + Math.sin(t * 2.5) * 0.15; },
+            for (const [w, sx] of [[wl, -1], [wr, 1]]) {
+                addBox(w, 2.7, 0.14, 0.14, sx * 1.35, 0.04, -0.95, 0xc9992a); addBox(w, 0.14, 0.14, 2.0, sx * 2.65, 0.04, 0, 0xc9992a); addBox(w, 0.14, 0.14, 1.9, sx * 0.1, 0.04, -0.05, 0xc9992a);
+                for (const [x, len] of [[0.9, 1.6], [1.7, 1.9], [2.4, 1.6]]) addBox(w, 0.1, 0.1, len, sx * x, 0.04, 0.0 + len / 2 - 0.9, 0xc9992a);
+                alphaB(w, 2.5, 0.06, 1.8, sx * 1.35, 0, -0.1, 0x49a8ff, 0.78); addBox(w, 0.22, 0.22, 0.4, sx * 2.65, 0.04, 1.1, 0xfff0d0);
+            }
+            return { group: g, size: { w: 3.2, h: 4.4, d: 5 }, idle: (t) => { const f = Math.sin(t * 5) * 0.45; wl.rotation.z = f; wr.rotation.z = -f; g.position.y = 0.2 + Math.sin(t * 2.5) * 0.15; veins.forEach((v, i) => { v.material.opacity = 0.45 + Math.sin(t * 6 + i * 1.5) * 0.35; }); tipG.forEach((s) => { s.material.opacity = 0.6 + Math.sin(t * 10) * 0.35; }); },
                 pose: (kind, k) => {
-                    if (kind === 'windup') { hd.rotation.x = -0.7 * k; wl.rotation.z = -0.8 * k; wr.rotation.z = 0.8 * k; g.rotation.x = -0.12 * k; g.position.y = 0.2; }   // rears up, wings spread
-                    else if (kind === 'strike') { hd.rotation.x = -0.7 + 1.5 * k; g.rotation.x = -0.12 + 0.3 * k; }                       // head snaps down
+                    if (kind === 'windup') { hd.rotation.x = -0.7 * k; wl.rotation.z = -0.8 * k; wr.rotation.z = 0.8 * k; g.rotation.x = -0.12 * k; g.position.y = 0.2; }
+                    else if (kind === 'strike') { hd.rotation.x = -0.7 + 1.5 * k; g.rotation.x = -0.12 + 0.3 * k; }
                     else { hd.rotation.x = 0; g.rotation.x = 0; }
                 } };
         }
@@ -1373,6 +1521,11 @@ async function run(mode) {
         box(102, m.hp < m.maxHp ? '#c8303a' : '#e8454e', m.hp);
         tex.needsUpdate = true;
     }
+    const shadowGeo = new THREE.CircleGeometry(1, 20), shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false });
+    const teamRingGeo = new THREE.RingGeometry(0.92, 1.0, 28);
+    const teamRingP = new THREE.MeshBasicMaterial({ color: 0x5aa9ff, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
+    const teamRingE = new THREE.MeshBasicMaterial({ color: 0xff5a6a, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
+    [shadowMat, teamRingP, teamRingE].forEach((m) => sharedMats.add(m));
     function spawnMonster(side, pos, def, lv) {
         const model = MODELS[def.model]();
         const holder = new THREE.Group();
@@ -1392,6 +1545,9 @@ async function run(mode) {
         makeLabel(m);
         scene.add(holder);
         m.speedMul = 1; m.shield = 0; m.shieldMax = 0; m.shieldRefill = false; m.regen = 0; m.thorns = 0; m.lifesteal = false; m.reinforced = false; m.massMend = false;
+        const rad = Math.max(model.size.w, model.size.d) * 0.55 + 0.2;
+        const shadow = new THREE.Mesh(shadowGeo, shadowMat); shadow.rotation.x = -Math.PI / 2; shadow.position.y = -0.17; shadow.scale.set(rad, rad, 1); holder.add(shadow);
+        const ring = new THREE.Mesh(teamRingGeo, side === 'p' ? teamRingP : teamRingE); ring.rotation.x = -Math.PI / 2; ring.position.y = -0.15; ring.scale.set(rad * 1.05, rad * 1.05, 1); holder.add(ring);
         S[side].mons.push(m);
         if (lvl >= LV_MAX && def.l5) {                     // LEVEL 5: awaken the special buff + skill
             m.auraCol = ELEM[def.elem].glow;
@@ -1431,7 +1587,7 @@ async function run(mode) {
                 c.position.lerpVectors(base[i].p.clone().add(new THREE.Vector3(0, 5, 0)), base[i].p, e);
                 c.scale.copy(base[i].s).multiplyScalar(Math.max(0.001, easeOut(kk)));
             });
-        }, linear);
+        }, linear).then(() => { if (!m.dead) bakeStatic(m.model.group); });
     }
     function killMon(m) {
         if (m.dead) return;
@@ -1447,7 +1603,7 @@ async function run(mode) {
         if (m.def.key === 'turtle' && m.lv >= LV_MAX && !S.over) eruption(m);
         tween(0.3, (k) => { m.holder.scale.setScalar(m.scale0 * (1 - k)); m.holder.position.y = 0.2 + k * 1.2; }, easeIn).then(() => {
             scene.remove(m.holder);
-            m.holder.traverse((o) => { if (o.material && !sharedMats.has(o.material)) o.material.dispose(); });
+            m.holder.traverse((o) => { if (o.material && !sharedMats.has(o.material)) o.material.dispose(); if (o.geometry && o.geometry.userData.merged) o.geometry.dispose(); });
             if (m.label) m.label.tex.dispose();
         });
     }
@@ -2181,6 +2337,7 @@ async function run(mode) {
     }
 
     /* ============================ MONSTER IDLE LIFE ============================ */
+    const AMBIENT = { fire: [0xff8a2b, 1.6, -1], bolt: [0xffe14d, 0.6, 0], ice: [0xbfeaff, -0.2, 0.5], grass: [0x7dff8a, 0.8, -0.5], dark: [0xb07dff, 1.2, -1], light: [0xfff2b0, 1.0, -1], creep: [0xaaff7a, 1.2, -0.6], earth: [0xd9c9a0, 0.5, 1.5] };
     function updateMonsters(dt) {
         const all = S.p.mons.concat(S.e.mons).filter((m) => !m.dead);
         // gentle separation so free-roaming monsters never stack on top of each other
@@ -2229,6 +2386,10 @@ async function run(mode) {
             side.mons.forEach((m) => {
                 if (m.dead) return;
                 if (m.model.idle && !m.posing) m.model.idle(t + m.id);
+                if (m.ready && Math.random() < dt * 1.3) {              // subtle elemental ambience
+                    const a = AMBIENT[m.def.elem], p = m.holder.position;
+                    if (a) emit(p.x + (Math.random() - 0.5) * m.size.w * 0.6, 0.6 + Math.random() * m.size.h * 0.6, p.z + (Math.random() - 0.5) * m.size.d * 0.5, a[0], 1, 0.4, a[1], 0.13, 1.0, a[2]);
+                }
                 if (m.buff) { m.buff.material.opacity = 0.22 + Math.sin(t * 4 + m.id) * 0.08; m.ember -= dt; if (m.ember <= 0) { m.ember = 0.14; emit(m.holder.position.x, 0.4, m.holder.position.z, m.auraCol || ELEM.fire.glow, 1, 1.2, 4, 0.3, 0.9, -2); } }
                 if (m.debuff) { m.debuff.material.opacity = 0.14 + Math.sin(t * 3 + m.id) * 0.06; }
                 if (m.flashT > 0) { m.flashT = Math.max(0, m.flashT - dt * 4); m.flash.material.opacity = m.flashT * 0.8; }
