@@ -178,12 +178,15 @@
     .mrow .mi2 { flex: 1; font-size: 22px; line-height: 26px; } .mrow .mi2 .cbar { position: relative; left: 0; right: 0; bottom: 0; margin-top: 6px; }
     .mrow .btn { min-width: 118px; font-size: 24px; padding: 8px 12px; min-height: 56px; }
     .tab.center .dot { top: -36px; right: calc(50% - 82px); z-index: 2; }
-    .deckRow { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
-    .deckRow .mi { width: 76px; height: 86px; background: rgba(10,14,40,.82); border: 4px solid #05070f; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-    .deckRow .mi svg, .deckRow .mi img { width: 66px; height: 66px; object-fit: contain; }
+    .deckRow { display: flex; gap: 5px; justify-content: center; margin: 10px 0; }
+    .deckRow .mi { width: 62px; height: 72px; background: rgba(10,14,40,.82); border: 4px solid #05070f; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .deckRow .mi svg, .deckRow .mi img { width: 54px; height: 54px; object-fit: contain; }
     #findBtn { display: block; width: 100%; height: 118px; font-size: 52px; letter-spacing: 3px; }
     .rec { text-align: center; font-size: 22px; color: #cdd6ff; margin-top: 12px; margin-bottom: 48px; text-shadow: 0 2px 0 #000; }
     /* deck tab */
+    .grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px 4px; justify-items: center; }
+    .grid5 .slot { width: 128px; height: 158px; } .grid5 .slot .card { zoom: .66; margin-top: 6px; }
+    .slot.empty { border: 3px dashed #3a4580; border-radius: 10px; align-items: center; text-align: center; font-size: 16px; color: #8fa0d8; cursor: default; box-sizing: border-box; padding: 6px; opacity: .8; }
     .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; justify-items: center; }
     .slot { position: relative; width: 150px; height: 188px; display: flex; justify-content: center; align-items: flex-start; cursor: pointer; }
     .slot .card { zoom: .78; transform-origin: top center; cursor: pointer; margin-top: 10px; }
@@ -446,7 +449,7 @@ async function run(mode) {
     const STARTER = ['slime', 'golem', 'wolf', 'archer', 'fireball', 'heal', 'flameaura', 'chaintrap'];
     const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250, bat: 180, treant: 200, turtle: 250, priest: 220, creeper: 160, ironguard: 120, swiftwind: 140, divineshield: 150, mirrortrap: 260, landmine: 200 };
     const LV_MAX = 5, COPIES_NEED = [2, 4, 6, 10], COIN_NEED = [50, 100, 200, 400];
-    const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 8;
+    const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 10;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
         wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null,
@@ -2602,22 +2605,26 @@ async function run(mode) {
     /* The leaderboard is the only data shared between players, so each score carries the trophies AND the deck:
        score = (trophies + 1) * 2^19 + deckCode (the deck as a combination index of 8 out of all cards). Other players
        meet that deck as a GHOST rival. Scores below 2^19 are old plain-trophy scores. Kept under 2^31 for safety. */
-    const SCORE_MUL = 524288, TRO_CAP = 4094, CARD_KEYS = Object.keys(CARDS);
+    const SCORE_MUL = 524288, TRO_CAP = 4094, GHOST_SIZE = 8, CARD_KEYS = Object.keys(CARDS);   // a ghost plays 8 cards of the deck (fits the score)
     function binom(n, k) { if (k < 0 || k > n) return 0; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
     function encodeDeck(deck) {
         const idx = deck.map((k) => CARD_KEYS.indexOf(k)).sort((a, b) => a - b);
-        if (idx.length !== DECK_SIZE || idx.some((v, i) => v < 0 || (i && v === idx[i - 1]))) return -1;
+        if (idx.length !== GHOST_SIZE || idx.some((v, i) => v < 0 || (i && v === idx[i - 1]))) return -1;
         return idx.reduce((c, v, i) => c + binom(v, i + 1), 0);
     }
     function decodeDeck(code) {
         let n = CARD_KEYS.length; const out = [];
-        for (let i = DECK_SIZE; i >= 1; i--) { let v = n - 1; while (v > 0 && binom(v, i) > code) v--; out.push(v); code -= binom(v, i); n = v; }
+        for (let i = GHOST_SIZE; i >= 1; i--) { let v = n - 1; while (v > 0 && binom(v, i) > code) v--; out.push(v); code -= binom(v, i); n = v; }
         const keys = out.reverse().map((i) => CARD_KEYS[i]);
-        return keys.every((k) => k) && new Set(keys).size === DECK_SIZE ? keys : null;
+        return keys.every((k) => k) && new Set(keys).size === GHOST_SIZE ? keys : null;
+    }
+    function ghostCards(deck) {                    // the 8 cards a ghost brings: monsters first, then the priciest
+        if (deck.length <= GHOST_SIZE) return deck;
+        return deck.slice().sort((a, b) => (CARDS[b].type === 'monster') - (CARDS[a].type === 'monster') || CARDS[b].cost - CARDS[a].cost).slice(0, GHOST_SIZE);
     }
     function encodeScore() {
-        if (binom(CARD_KEYS.length, DECK_SIZE) >= SCORE_MUL) return profile.trophies;
-        const c = encodeDeck(profile.deck);
+        if (binom(CARD_KEYS.length, GHOST_SIZE) >= SCORE_MUL) return profile.trophies;
+        const c = encodeDeck(ghostCards(profile.deck));
         return c < 0 ? profile.trophies : (Math.min(profile.trophies, TRO_CAP) + 1) * SCORE_MUL + c;
     }
     function decodeScore(score) {
@@ -2643,7 +2650,7 @@ async function run(mode) {
     }
     function addCopies(key, n) {                       // the first copy unlocks the card, later ones level it up
         const fresh = !profile.owned.includes(key);
-        if (fresh) { profile.owned.push(key); profile.lv[key] = 1; n -= 1; }
+        if (fresh) { profile.owned.push(key); profile.lv[key] = 1; n -= 1; if (profile.deck.length < DECK_SIZE) profile.deck.push(key); }
         profile.copies[key] = (profile.copies[key] || 0) + Math.max(0, n);
         return fresh;
     }
@@ -3037,8 +3044,8 @@ async function run(mode) {
         const ordered = all.filter((k) => profile.owned.includes(k)).concat(all.filter((k) => !profile.owned.includes(k)));
         const avg = (deck.reduce((a, k) => a + CARDS[k].cost, 0) / deck.length).toFixed(1);
         const keep = $('pg-deck').scrollTop;
-        $('pg-deck').innerHTML = `<div class="sect">BATTLE DECK <small>avg cost ${avg}</small></div>
-            <div class="grid4">${deck.map((k, i) => `<div class="slot ${dsel.slot === i ? 'pick' : ''}" data-slot="${i}">${cardHTML(CARDS[k], '', undefined, profile.lv[k])}</div>`).join('')}</div>
+        $('pg-deck').innerHTML = `<div class="sect">BATTLE DECK <small>${deck.length}/${DECK_SIZE} cards - avg cost ${avg}</small></div>
+            <div class="grid5">${deck.map((k, i) => `<div class="slot ${dsel.slot === i ? 'pick' : ''}" data-slot="${i}">${cardHTML(CARDS[k], '', undefined, profile.lv[k])}</div>`).join('')}${Array.from({ length: Math.max(0, DECK_SIZE - deck.length) }, () => '<div class="slot empty">Empty slot<br>Find more cards in chests</div>').join('')}</div>
             <div class="panel" id="deckInfo" style="margin-top:12px">${deckInfoHTML()}</div>
             <div class="sect">COLLECTION <small>${profile.owned.length}/${all.length} cards</small></div>
             <div class="grid4">${ordered.map((k) => {
@@ -3258,7 +3265,7 @@ async function run(mode) {
     refreshUI();
     updateSpeedBtn();
     showMenu();
-    window.__bcd = { encodeScore, decodeScore, encodeDeck, decodeDeck, findGhost, trackMission, S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
+    window.__bcd = { ghostCards, encodeScore, decodeScore, encodeDeck, decodeDeck, findGhost, trackMission, S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
     requestAnimationFrame(loop);
     LD.finish();
 }
