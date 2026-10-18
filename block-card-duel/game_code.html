@@ -174,6 +174,9 @@
     .cslot.ready { border-color: #ffcf3a; background: linear-gradient(rgba(70,50,10,.9), rgba(10,14,40,.85)); animation: cready .8s infinite alternate; }
     .cslot.ready .csub { color: #ffcf3a; font-size: 24px; }
     @keyframes cready { to { transform: translateY(-6px); box-shadow: 0 5px 0 #05070f, 0 0 22px rgba(255,207,58,.7); } }
+    .mrow { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 8px 12px; }
+    .mrow .mi2 { flex: 1; font-size: 22px; line-height: 26px; } .mrow .mi2 .cbar { position: relative; left: 0; right: 0; bottom: 0; margin-top: 6px; }
+    .mrow .btn { min-width: 118px; font-size: 24px; padding: 8px 12px; min-height: 56px; }
     .tab.center .dot { top: -36px; right: calc(50% - 82px); z-index: 2; }
     .deckRow { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
     .deckRow .mi { width: 76px; height: 86px; background: rgba(10,14,40,.82); border: 4px solid #05070f; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
@@ -446,7 +449,7 @@ async function run(mode) {
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 8;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
-        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false,
+        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null,
         owned: STARTER.slice(), deck: STARTER.slice(),
         settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal', lowQ: false, speed: 1, perfAsked: false }
     };
@@ -1519,11 +1522,11 @@ async function run(mode) {
     setRival(NAMES[Math.floor(Math.random() * NAMES.length)]);
 
     const drawCard = (side) => {
-        const pool = side === 'p' && profile.deck.length ? profile.deck : DECK;
+        const pool = side === 'p' ? (profile.deck.length ? profile.deck : DECK) : (S.ghostDeck || DECK);
         return CARDS[pool[Math.floor(Math.random() * pool.length)]];
     };
     function starterCard(side) {
-        const pool = side === 'p' ? profile.deck : DECK;
+        const pool = side === 'p' ? profile.deck : (S.ghostDeck || DECK);
         return pool.map((k) => CARDS[k]).filter((c) => c.type === 'monster').sort((a, b) => a.cost - b.cost)[0] || CARDS.slime;
     }
     function aiSmarts() {
@@ -2080,6 +2083,7 @@ async function run(mode) {
     }
     async function playPlayerCard(idx, target) {
         const tok = S.token; S.cardsPlayed = (S.cardsPlayed || 0) + 1;
+        const pc = S.p.hand[idx]; if (pc) trackMission(pc.type === 'monster' ? 'summon' : 'cast');
         S.phase = 'busy'; S.sel = null; S.valid = []; clearMarkers(); setHint('');
         try { await playCard('p', idx, target, tok); } catch (e) { lib.log('Card failed: ' + e.message); }
         if (!alive(tok)) return;
@@ -2432,12 +2436,14 @@ async function run(mode) {
         tweens.length = 0; tasks.length = 0;
         fxlayer.innerHTML = '';
     }
-    async function newMatch(rivalName) {
+    const lookFor = (name) => NAMES[[...String(name)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % NAMES.length];
+    async function newMatch(rivalName, ghost) {
         S.token++; const tok = S.token;
         clearBoard();
         const ai = arenaIndex(profile.trophies);
         paintArena(ai); S.rivalLv = Math.min(LV_MAX, 1 + ai);
         S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
+        S.ghostDeck = !profile.tutorialDone ? null : (ghost && ghost.deck) || null;
         S.tutorial = !profile.tutorialDone; S.tut = { step: 0, t: 0 }; S.cardsPlayed = 0; S.fights = 0; setCoach(null);
         S.matchT = S.tutorial ? 99999 : rule('matchTime'); S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
         S.p.hp = S.e.hp = rule('duelistHealth');
@@ -2448,7 +2454,7 @@ async function run(mode) {
         // guarantee a playable opening hand
         for (const s of ['p', 'e']) if (!S[s].hand.some((c) => c.type === 'monster' && c.cost <= rule('startEnergy'))) S[s].hand[0] = starterCard(s);
         const rn = S.tutorial ? 'RIVAL REX' : rivalName || NAMES[Math.floor(Math.random() * NAMES.length)];
-        setRival(rn); $('ename').textContent = rn;
+        setRival(S.ghostDeck ? lookFor(rn) : rn); $('ename').textContent = (S.ghostDeck ? rn.toUpperCase() : rn);
         menuRoot.classList.add('hidden'); battleHud.classList.remove('hidden'); $('endscreen').classList.add('hidden');
         setMusic('music_battle');
         await startRound(tok, true);
@@ -2544,7 +2550,7 @@ async function run(mode) {
             if (tok !== S.token) return;
             $('endTitle').textContent = draw ? 'DRAW' : (won ? 'VICTORY!' : 'DEFEAT');
             $('endLine').textContent = (note ? note + '  |  ' : '') + (draw ? 'Streak kept. Wins: ' + profile.wins : (won ? 'Win streak: ' + profile.streak + '  |  Best: ' + profile.best : 'Streak reset. Wins: ' + profile.wins + '  |  Losses: ' + profile.losses));
-            $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.chest === undefined ? '' : (reward.chest >= 0 ? '<br>FREE CHEST added to slot ' + (reward.chest + 1) + '!' : '<br>Chest slots are full - open one to get more!'));
+            $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.streakCoins ? '<br>WIN STREAK x' + reward.streak + ': +' + reward.streakCoins + ' bonus coins' : '') + (reward.streakChest === undefined ? '' : (reward.streakChest >= 0 ? '<br>STREAK x' + reward.streak + ' BONUS: extra FREE CHEST!' : '<br>Streak bonus chest lost - slots full!')) + (reward.chest === undefined ? '' : (reward.chest >= 0 ? '<br>FREE CHEST added to slot ' + (reward.chest + 1) + '!' : '<br>Chest slots are full - open one to get more!'));
             $('endscreen').classList.remove('hidden');
         }, 1500);
         setHint(''); refreshUI();
@@ -2568,6 +2574,7 @@ async function run(mode) {
         });
         if (profile.tutorialDone === undefined) profile.tutorialDone = (profile.wins + profile.losses) > 0;
         profile.tutorialDone = !!profile.tutorialDone;
+        if (profile.missions && (typeof profile.missions !== 'object' || !Array.isArray(profile.missions.list))) profile.missions = null;
         const rawCh = Array.isArray(profile.chests) ? profile.chests : [];
         profile.chests = [0, 1, 2].map((i) => { const c = rawCh[i]; return c && typeof c === 'object' ? { readyAt: c.readyAt ? Number(c.readyAt) || 0 : 0 } : null; });
         if (!profile.offers || typeof profile.offers !== 'object' || !Array.isArray(profile.offers.bought)) profile.offers = { day: 0, bought: [] };
@@ -2593,9 +2600,47 @@ async function run(mode) {
             try { lib.saveUserGameState(JSON.parse(JSON.stringify(profile))); } catch (e) { lib.log('Save failed'); }
         }, 300);
     }
+    /* The leaderboard is the only data shared between players, so each score carries the trophies AND the deck:
+       score = (trophies + 1) * 2^19 + deckCode (the deck as a combination index of 8 out of all cards). Other players
+       meet that deck as a GHOST rival. Scores below 2^19 are old plain-trophy scores. Kept under 2^31 for safety. */
+    const SCORE_MUL = 524288, TRO_CAP = 4094, CARD_KEYS = Object.keys(CARDS);
+    function binom(n, k) { if (k < 0 || k > n) return 0; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
+    function encodeDeck(deck) {
+        const idx = deck.map((k) => CARD_KEYS.indexOf(k)).sort((a, b) => a - b);
+        if (idx.length !== DECK_SIZE || idx.some((v, i) => v < 0 || (i && v === idx[i - 1]))) return -1;
+        return idx.reduce((c, v, i) => c + binom(v, i + 1), 0);
+    }
+    function decodeDeck(code) {
+        let n = CARD_KEYS.length; const out = [];
+        for (let i = DECK_SIZE; i >= 1; i--) { let v = n - 1; while (v > 0 && binom(v, i) > code) v--; out.push(v); code -= binom(v, i); n = v; }
+        const keys = out.reverse().map((i) => CARD_KEYS[i]);
+        return keys.every((k) => k) && new Set(keys).size === DECK_SIZE ? keys : null;
+    }
+    function encodeScore() {
+        if (binom(CARD_KEYS.length, DECK_SIZE) >= SCORE_MUL) return profile.trophies;
+        const c = encodeDeck(profile.deck);
+        return c < 0 ? profile.trophies : (Math.min(profile.trophies, TRO_CAP) + 1) * SCORE_MUL + c;
+    }
+    function decodeScore(score) {
+        score = Number(score) || 0;
+        if (score < SCORE_MUL) return { trophies: score, deck: null };
+        const deck = decodeDeck(score % SCORE_MUL);
+        return { trophies: Math.floor(score / SCORE_MUL) - 1, deck: deck && encodeDeck(deck) === score % SCORE_MUL ? deck : null };
+    }
+    async function findGhost() {                  // a real player's deck from the leaderboard, played by the AI
+        try {
+            const res = await Promise.race([lib.getTopNEntriesFromLeaderboard(30), new Promise((_, rej) => setTimeout(rej, 3500))]);
+            const mine = encodeScore();
+            const list = ((res && res.entries) || []).map((en) => ({ name: String(en.username || '').slice(0, 16), raw: Number(en.score), ...decodeScore(en.score) }))
+                .filter((g) => g.name && g.deck && g.raw !== mine && g.deck.filter((k) => CARDS[k].type === 'monster').length >= 2);
+            if (!list.length) return null;
+            list.sort((a, b) => Math.abs(a.trophies - profile.trophies) - Math.abs(b.trophies - profile.trophies));
+            return list[Math.floor(Math.random() * Math.min(5, list.length))];
+        } catch (e) { return null; }
+    }
     function submitScore() {
         if (mode !== 'play') return;
-        try { Promise.resolve(lib.addPlayerScoreToLeaderboard(profile.trophies)).catch(() => lib.log('Leaderboard submit failed')); } catch (e) { lib.log('Leaderboard submit failed'); }
+        try { Promise.resolve(lib.addPlayerScoreToLeaderboard(encodeScore())).catch(() => lib.log('Leaderboard submit failed')); } catch (e) { lib.log('Leaderboard submit failed'); }
     }
     function addCopies(key, n) {                       // the first copy unlocks the card, later ones level it up
         const fresh = !profile.owned.includes(key);
@@ -2608,7 +2653,13 @@ async function run(mode) {
         const mul = 1 + 0.15 * arenaIndex(profile.trophies);
         const reward = draw ? { coins: Math.round(LOSS_COINS * mul * 2), trophies: 0 } : won ? { coins: Math.round(WIN_COINS * mul), trophies: WIN_TROPHIES } : { coins: Math.round(LOSS_COINS * mul), trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
         if (draw) { /* a draw changes neither the streak nor the record */ } else if (won) { profile.wins++; profile.streak++; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; }
-        if (won && !draw) reward.chest = giveChest();
+        trackMission('play'); if (won && !draw) trackMission('win');
+        if (won && !draw) {
+            reward.chest = giveChest();
+            const n = profile.streak; reward.streak = n;
+            if (n >= 2) { reward.streakCoins = Math.min(50, (n - 1) * 10); reward.coins += reward.streakCoins; }
+            if (n % 5 === 0) reward.streakChest = giveChest();
+        }
         profile.coins += reward.coins; profile.trophies = Math.max(0, profile.trophies + reward.trophies);
         saveProfile(); submitScore();
         return reward;
@@ -2781,7 +2832,7 @@ async function run(mode) {
 
     function renderTop() {
         $('mTro').textContent = profile.trophies; $('mCoin').textContent = profile.coins; $('mLv').textContent = 'Lv ' + level();
-        $('shopDot').classList.toggle('hidden', giftLeft() > 0);
+        $('shopDot').classList.toggle('hidden', giftLeft() > 0 && !missionsClaimable());
         $('chestDot').classList.toggle('hidden', !profile.chests.some((c) => c && chestState(c) === 'ready'));
     }
     const giftLeft = () => Math.max(0, profile.lastGift + GIFT_HOURS * 3600000 - Date.now());
@@ -2839,6 +2890,42 @@ async function run(mode) {
     }
     $('coachSkip').addEventListener('click', endTutorial);
 
+    /* ---- DAILY MISSIONS (3 per day) + win-streak bonus ---- */
+    const MISSION_POOL = [
+        { id: 'win', text: 'Win 2 duels', goal: 2, coins: 60 }, { id: 'play', text: 'Play 3 duels', goal: 3, coins: 40 },
+        { id: 'summon', text: 'Summon 8 monsters', goal: 8, coins: 40 }, { id: 'cast', text: 'Play 5 spell, buff or trap cards', goal: 5, coins: 40 },
+        { id: 'chest', text: 'Open 1 free chest', goal: 1, coins: 50 }
+    ];
+    const MISSION_BONUS_COINS = 60;
+    const missionDef = (id) => MISSION_POOL.find((m) => m.id === id);
+    function ensureMissions() {
+        if (profile.missions && profile.missions.day === dayKey()) return;
+        let seed = dayKey() * 7919 + 104729;
+        const arr = MISSION_POOL.map((m) => m.id);
+        for (let i = arr.length - 1; i > 0; i--) { seed = (seed * 9301 + 49297) % 233280; const j = Math.floor(seed / 233280 * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+        profile.missions = { day: dayKey(), list: arr.slice(0, 3).map((id) => ({ id, p: 0, claimed: false })), bonus: false };
+        saveProfile();
+    }
+    function trackMission(id, n) {
+        ensureMissions();
+        const m = profile.missions.list.find((x) => x.id === id), d = missionDef(id);
+        if (!m || !d || m.p >= d.goal) return;
+        m.p = Math.min(d.goal, m.p + (n || 1)); saveProfile();
+    }
+    function missionsClaimable() {
+        ensureMissions();
+        const ms = profile.missions;
+        return ms.list.some((m) => !m.claimed && m.p >= missionDef(m.id).goal) || (!ms.bonus && ms.list.every((m) => m.claimed));
+    }
+    function missionsHTML() {
+        ensureMissions();
+        const ms = profile.missions, allDone = ms.list.every((m) => m.claimed);
+        return `<div class="sect">DAILY MISSIONS <small>reset every day</small></div>` + ms.list.map((m) => {
+            const d = missionDef(m.id), done = m.p >= d.goal;
+            return `<div class="panel mrow"><div class="mi2"><b>${d.text}</b><div class="cbar"><i style="width:${m.p / d.goal * 100}%"></i><b>${m.p}/${d.goal}</b></div></div>${m.claimed ? '<button class="btn grey off">DONE</button>' : `<button class="btn ${done ? 'green' : 'grey off'}" ${done ? `data-mclaim="${m.id}"` : ''}>${coinI}${d.coins}</button>`}</div>`;
+        }).join('') + `<div class="panel mrow"><div class="mi2"><b>All 3 done: FREE CHEST + ${MISSION_BONUS_COINS} coins</b></div>${ms.bonus ? '<button class="btn grey off">DONE</button>' : `<button class="btn ${allDone ? 'green' : 'grey off'}" ${allDone ? 'data-mbonus="1"' : ''}>CLAIM</button>`}</div>`;
+    }
+
     /* ---- FREE CHESTS: a win drops one into a free slot (3 slots); each takes 2 minutes to open, one at a time ---- */
     const CHEST_MS = 120000, CHEST_GOLD = [20, 150], CHEST_CARDS = 3;
     const chestState = (c) => !c.readyAt ? 'idle' : (Date.now() >= c.readyAt ? 'ready' : 'opening');
@@ -2866,7 +2953,7 @@ async function run(mode) {
         if (!pool.length) pool = Object.keys(CARDS);
         const got = {}, fresh = [];
         for (let n = 0; n < CHEST_CARDS; n++) { const k = pool[Math.floor(Math.random() * pool.length)]; got[k] = (got[k] || 0) + 1; }
-        profile.chests[i] = null; profile.coins += gold;
+        profile.chests[i] = null; profile.coins += gold; trackMission('chest');
         Object.keys(got).forEach((k) => { if (addCopies(k, got[k])) fresh.push(k); });
         saveProfile(); sfx('summon');
         showPopup('FREE CHEST!', fresh[0] || Object.keys(got)[0], '+' + gold + ' coins<br>' + Object.keys(got).map((k) => esc(CARDS[k].name) + ' x' + got[k] + (fresh.includes(k) ? ' (NEW!)' : '')).join('<br>'));
@@ -2895,7 +2982,7 @@ async function run(mode) {
         $('deckRow').innerHTML = profile.deck.map((k) => `<div class="mi">${iconSVG(CARDS[k])}</div>`).join('');
         renderChests();
         $('findBtn').textContent = profile.tutorialDone ? 'FIND OPPONENT' : 'START TRAINING';
-        $('rec').textContent = 'Wins ' + profile.wins + '   Losses ' + profile.losses + '   Best streak ' + profile.best;
+        $('rec').textContent = 'Wins ' + profile.wins + '   Losses ' + profile.losses + '   Streak ' + profile.streak + ' (best ' + profile.best + ')';
     }
     async function findOpponent() {
         if (searchTok) return;
@@ -2905,15 +2992,18 @@ async function run(mode) {
         ov.classList.remove('hidden');
         ov.innerHTML = `<h1 style="font-size:54px">FINDING A RIVAL...</h1><div class="spin"></div><p>Calling a rival duelist for ${ARENAS[arenaIndex(profile.trophies)].name}</p><button class="btn red" id="cancelSearch">CANCEL</button>`;
         $('cancelSearch').onclick = () => { tok.cancel = true; searchTok = null; ov.classList.add('hidden'); };
+        const ghostP = profile.tutorialDone ? findGhost() : Promise.resolve(null);
         await wait(1.6 + Math.random() * 1.6);
         if (tok.cancel) return;
-        const name = NAMES[Math.floor(Math.random() * NAMES.length)], tro = Math.max(0, profile.trophies + Math.round((Math.random() - 0.4) * 80));
-        ov.innerHTML = `<h1 style="font-size:54px">RIVAL READY!</h1><div class="vs"><div class="panel side"><b>YOU</b><div>${profile.trophies} trophies</div></div><div class="x">VS</div><div class="panel side"><b>${profile.tutorialDone ? name : 'RIVAL REX'}</b><div>Rival duelist (AI) - Lv ${Math.min(LV_MAX, 1 + arenaIndex(profile.trophies))} cards</div></div></div><p>Get ready!</p>`;
+        const ghost = await ghostP;
+        if (tok.cancel) return;
+        const name = ghost ? ghost.name : NAMES[Math.floor(Math.random() * NAMES.length)];
+        ov.innerHTML = `<h1 style="font-size:54px">RIVAL READY!</h1><div class="vs"><div class="panel side"><b>YOU</b><div>${profile.trophies} trophies</div></div><div class="x">VS</div><div class="panel side"><b>${esc((profile.tutorialDone ? name : 'RIVAL REX').toUpperCase())}</b><div>${ghost ? 'Ghost of a real player - plays their deck (AI)' : 'Rival duelist (AI)'} - Lv ${Math.min(LV_MAX, 1 + arenaIndex(profile.trophies))} cards</div></div></div><p>Get ready!</p>`;
         sfx('summon');
         await wait(1.7);
         if (tok.cancel) return;
         searchTok = null; ov.classList.add('hidden');
-        newMatch(name);
+        newMatch(name, ghost);
     }
     $('findBtn').addEventListener('click', findOpponent);
     $('arenaPlate').addEventListener('click', () => {
@@ -3008,10 +3098,11 @@ async function run(mode) {
     const offerPrice = (k) => Math.round(PRICE[k] * 0.4);
     function renderShop() {
         const left = giftLeft();
+        ensureMissions();
         if (profile.offers.day !== dayKey()) profile.offers = { day: dayKey(), bought: [], list: null };
         const afford = (n) => (profile.coins >= n ? '' : 'off');
         const offers = dailyOffers();
-        $('pg-shop').innerHTML = `<div class="sect">DAILY GIFT</div>
+        $('pg-shop').innerHTML = missionsHTML() + `<div class="sect">DAILY GIFT</div>
             <div class="panel shopitem"><div class="pic">${CHEST_SVG}</div><div class="info"><b>FREE GIFT</b><br>${GIFT_COINS} coins every ${GIFT_HOURS} hours</div>${left ? `<button class="btn grey off">${fmtLeft(left)}</button>` : '<button class="btn green" data-gift>CLAIM</button>'}</div>
             <div class="sect">CARD CHEST</div>
             <div class="panel shopitem"><div class="pic">${CHEST_SVG}</div><div class="info"><b>WOODEN CHEST</b><br>5 random card copies - unlock new cards or level up old ones</div><button class="btn ${afford(CHEST_COST)}" data-chest>${coinI}${CHEST_COST}</button></div>
@@ -3022,7 +3113,18 @@ async function run(mode) {
         renderTop();
     }
     $('pg-shop').addEventListener('click', (e) => {
-        const g = e.target.closest('[data-gift]'), ch = e.target.closest('[data-chest]'), of = e.target.closest('[data-offer]');
+        const g = e.target.closest('[data-gift]'), ch = e.target.closest('[data-chest]'), of = e.target.closest('[data-offer]'), mc = e.target.closest('[data-mclaim]'), mb = e.target.closest('[data-mbonus]');
+        if (mc) {
+            const m = profile.missions.list.find((x) => x.id === mc.dataset.mclaim), d = m && missionDef(m.id);
+            if (!m || m.claimed || m.p < d.goal) return;
+            m.claimed = true; profile.coins += d.coins; saveProfile(); sfx('heal'); toast('+' + d.coins + ' coins!'); renderShop(); return;
+        }
+        if (mb) {
+            const ms = profile.missions;
+            if (ms.bonus || !ms.list.every((x) => x.claimed)) return;
+            ms.bonus = true; profile.coins += MISSION_BONUS_COINS; const slot = giveChest(); saveProfile(); sfx('summon');
+            showPopup('MISSIONS DONE!', null, '+' + MISSION_BONUS_COINS + ' coins<br>' + (slot >= 0 ? 'FREE CHEST added to your slots!' : 'Chest slots are full - no chest this time.')); renderShop(); return;
+        }
         if (g && giftLeft() === 0) {
             profile.coins += GIFT_COINS; profile.lastGift = Date.now(); saveProfile(); sfx('heal');
             showPopup('GIFT!', null, '+' + GIFT_COINS + ' coins'); renderShop();
@@ -3059,7 +3161,7 @@ async function run(mode) {
         const me = `<div class="panel rk me"><span class="n">${res && res.userRank ? '#' + res.userRank : '-'}</span><span class="u">YOU${res && res.userRank ? '' : ' (win a duel to get ranked)'}</span><span class="sc">${profile.trophies}</span></div>`;
         if (!res || !res.entries) { pg.innerHTML = '<div class="sect">TOP DUELISTS</div>' + me + '<div class="panel">The leaderboard is unavailable right now. Try again later.</div>'; return; }
         pg.innerHTML = '<div class="sect">TOP DUELISTS <small>trophies</small></div>' + me +
-            (res.entries.length ? res.entries.map((en, i) => `<div class="panel rk"><span class="n">${i + 1}</span><span class="u">${esc(en.username || 'Player')}</span><span class="sc">${esc(en.score)}</span></div>`).join('') : '<div class="panel">No scores yet - be the first!</div>');
+            (res.entries.length ? res.entries.map((en, i) => `<div class="panel rk"><span class="n">${i + 1}</span><span class="u">${esc(en.username || 'Player')}</span><span class="sc">${decodeScore(en.score).trophies}</span></div>`).join('') : '<div class="panel">No scores yet - be the first!</div>');
     }
 
     /* ---- SETTINGS tab ---- */
@@ -3071,7 +3173,7 @@ async function run(mode) {
         $('pg-set').innerHTML = `<div class="sect">AUDIO</div><div class="panel">${tg('music', 'Music')}${vol('musicVol')}${tg('sfx', 'Sound FX')}${vol('sfxVol')}</div>
             <div class="sect">PERFORMANCE</div><div class="panel">${tg('lowQ', 'Low Quality (smoother on old phones)')}</div>
             <div class="sect">RIVAL DIFFICULTY</div><div class="panel"><div class="seg">${['easy', 'normal', 'hard'].map((d) => `<button class="btn ${st.difficulty === d ? '' : 'grey'}" data-diff="${d}">${d.toUpperCase()}</button>`).join('')}</div></div>
-            <div class="sect">HOW TO PLAY</div><div class="panel how"><b>1.</b> Tap a card, then tap where to summon it or aim it.<br><b>2.</b> Monsters roam the square arena. Buffs, curses and traps change how they look and fight.<br><b>3.</b> Press <b>FIGHT!</b> and your monsters rush the nearest enemy, or the rival duelist.<br><b>4.</b> Each turn lasts 30 seconds and a duel 3 minutes (double energy in the last minute). If time runs out, more HP wins - a tie goes to sudden-death overtime.<br><b>5.</b> Every win drops a FREE CHEST (3 slots, 2 minutes to open). Cards only come from chests and Daily Offers - duplicates level them up!</div>
+            <div class="sect">HOW TO PLAY</div><div class="panel how"><b>1.</b> Tap a card, then tap where to summon it or aim it.<br><b>2.</b> Monsters roam the square arena. Buffs, curses and traps change how they look and fight.<br><b>3.</b> Press <b>FIGHT!</b> and your monsters rush the nearest enemy, or the rival duelist.<br><b>4.</b> Each turn lasts 30 seconds and a duel 3 minutes (double energy in the last minute). If time runs out, more HP wins - a tie goes to sudden-death overtime.<br><b>5.</b> Win streaks pay bonus coins (and an extra chest every 5 wins). Daily missions give coins and a bonus chest.<br><b>6.</b> Every win drops a FREE CHEST (3 slots, 2 minutes to open). Cards only come from chests and Daily Offers - duplicates level them up!</div>
             <div class="sect">DATA</div><div class="panel"><button class="btn red" id="resetBtn">${resetArmed ? 'TAP AGAIN TO CONFIRM' : 'RESET PROGRESS'}</button></div>`;
     }
     $('pg-set').addEventListener('click', (e) => {
@@ -3081,7 +3183,7 @@ async function run(mode) {
         else if (r) {
             if (!resetArmed) { resetArmed = true; renderSettings(); setTimeout(() => { resetArmed = false; if (curTab === 'set') renderSettings(); }, 3000); return; }
             resetArmed = false;
-            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
+            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
             saveProfile(); renderTop(); renderSettings(); toast('Progress reset.');
         }
     });
@@ -3154,7 +3256,7 @@ async function run(mode) {
     refreshUI();
     updateSpeedBtn();
     showMenu();
-    window.__bcd = { S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
+    window.__bcd = { encodeScore, decodeScore, encodeDeck, decodeDeck, findGhost, trackMission, S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
     requestAnimationFrame(loop);
     LD.finish();
 }
