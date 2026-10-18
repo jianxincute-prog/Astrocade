@@ -72,6 +72,13 @@
     @keyframes blink { 50% { opacity: .25; } }
     #flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 20;
         background: radial-gradient(circle at 50% 50%, rgba(255, 30, 30, 0) 35%, rgba(200, 10, 10, .75) 100%); }
+    #cine { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 19; transition: opacity .35s;
+        background: radial-gradient(ellipse at 50% 46%, rgba(0, 0, 8, 0) 32%, rgba(0, 0, 10, .72) 100%); }
+    #cine i { position: absolute; left: 0; right: 0; height: 9%; background: #000; transition: transform .45s ease-out; }
+    #cine i:first-child { top: 0; transform: translateY(-100%); } #cine i:last-child { bottom: 0; transform: translateY(100%); }
+    #cine.on { opacity: 1; } #cine.on i { transform: none; }
+    #ui .panel, #bars, #controls, #warn { transition: opacity .3s; }
+    body.cine #ui .panel, body.cine #bars, body.cine #controls, body.cine #warn { opacity: 0; }
     .overlay { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 18px; padding: 28px; text-align: center; color: #e6fbff;
         background: radial-gradient(circle at 50% 30%, rgba(20, 40, 60, .55), rgba(5, 8, 16, .9)); }
@@ -144,6 +151,7 @@
 </div>
 
 <div id="flash"></div>
+<div id="cine"><i></i><i></i></div>
 <button id="btn-mute" aria-label="Suara">♪</button>
 
 <div id="title" class="overlay">
@@ -2292,7 +2300,7 @@ async function run(mode) {
 
     function ease(t) { return t * t * (3 - 2 * t); }
     function resetGhost() {
-        ghostState.mode = 'waiting'; ghostState.t = 0;
+        ghostState.mode = 'waiting'; ghostState.t = 0; boardSpot.visible = false; setCine(false);
         Object.keys(ghosts).forEach((k) => { ghosts[k].root.visible = ghosts[k] === cur; });
         cur.reset();
         cur.root.scale.setScalar(1);
@@ -2319,16 +2327,23 @@ async function run(mode) {
             c.yawRel = Math.atan2(Math.sin(yaw), Math.cos(yaw));
             cur.wait(c);
         } else if (st.mode === 'boarding') {
-            st.t += dt / 1.1;
-            const u = ease(Math.min(st.t, 1));
+            st.t += dt / BOARD_TIME;
+            const u = ease(clamp((st.t - 0.42) / 0.5, 0, 1));              // first it stares into the lens, then drifts into the door
+            const cx = camera.position.x - root.position.x, cz = camera.position.z - root.position.z;
+            if (u === 0) {
+                ghostCtx.dt = dt; ghostCtx.near = 1; ghostCtx.yawRel = 0; cur.wait(ghostCtx);
+                root.rotation.y = lerpAngle(root.rotation.y, Math.atan2(cx, cz), 0.12);
+                root.position.y = 0.12 + Math.sin(st.t * 9) * 0.05;
+            } else root.rotation.y += dt * 4 * u;
             st.to.set(bus.position.x + 1.9, 1.5, bus.position.z - 1);
             root.position.lerpVectors(st.from, st.to, u);
-            root.position.y += Math.sin(u * Math.PI) * 1.2;
+            if (u > 0) root.position.y += Math.sin(u * Math.PI) * 1.2;
             root.scale.setScalar(lerp(1, 0.3, u));
-            root.rotation.y += dt * 4 * u;
             cur.setOpacity(clamp(1.6 - u * 1.6, 0, 1));
+            updateCine();
             if (st.t >= 1) {
                 st.mode = 'hidden'; root.visible = false;
+                boardSpot.visible = false; setCine(false);
                 setPassenger(route.type);
                 busFlicker = 1.4;
             }
@@ -2349,6 +2364,27 @@ async function run(mode) {
     // ROUTES
     // ------------------------------------------------------------------
     const DEPART_TIME = 3.6;
+    // Boarding cinematic: the camera pushes in on the waiting ghost, a pale spotlight picks it out, then follows it into the bus.
+    const BOARD_TIME = 2.6;
+    const CINE = { kuntilanak: [3.7, 5.2], pocong: [3.5, 5.2], tuyul: [1.9, 3.8], genderuwo: [5.0, 8.4], anak: [2.5, 4.4], wewe: [3.5, 5.2] };   // [face height, closest camera distance]
+    const boardSpot = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: cfg.visual.ghostAuraColor, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    boardSpot.visible = false; scene.add(boardSpot);
+    const cineCam = { pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: 56 }, cineF = new THREE.Vector3();
+    function setCine(on) { $('cine').classList.toggle('on', on); document.body.classList.toggle('cine', on); }
+    function updateCine() {                                 // fills cineCam for the current boarding moment; also drives the spotlight
+        const st = ghostState, root = cur.root, c = CINE[route.type] || CINE.kuntilanak;
+        const t = st.t, push = ease(clamp(t / 0.62, 0, 1)), door = ease(clamp((t - 0.55) / 0.4, 0, 1));
+        cineF.set(root.position.x, root.position.y + c[0] * root.scale.y, root.position.z);
+        const dist = lerp(c[1] * 2.3, c[1], push) * lerp(1, 0.8, door);
+        cineCam.pos.set(cineF.x + dist * 0.3, cineF.y + c[0] * 0.12 + dist * 0.06, cineF.z + dist);
+        cineCam.look.copy(cineF); cineCam.look.x -= door * 1.4; cineCam.look.y -= door * c[0] * 0.15;
+        cineCam.fov = lerp(58, 34, push) + door * 4;
+        const k = Math.min(1, t / 0.15) * (1 - ease(clamp((t - 0.88) / 0.12, 0, 1)));
+        boardSpot.visible = k > 0.01;
+        boardSpot.position.set(cineF.x, cineF.y - c[0] * 0.1, cineF.z - 0.9);
+        boardSpot.scale.setScalar(c[0] * (3.4 + push * 1.2));
+        boardSpot.material.opacity = k * (0.55 + Math.sin(time * 9) * 0.08);
+    }
     let busFlicker = 0, houseGlow = 0, camFocus = 0;
 
     function pickRoute() {
@@ -3102,7 +3138,7 @@ async function run(mode) {
         prevSpeed = speed;
         invuln = Math.max(0, invuln - dt);
 
-        if (delivering) {
+        if (delivering || ghostState.mode === 'boarding') {
             speed = 0; bus.userData.steer = 0;
             bus.rotation.z = lerp(bus.rotation.z, 0, 0.2); bus.rotation.y = lerp(bus.rotation.y, 0, 0.2);
             return;
@@ -3139,6 +3175,8 @@ async function run(mode) {
             if (speed < g.requiredStopSpeed) {
                 pickupDone = true; onboard = true; theftTimer = 6;
                 ghostState.mode = 'boarding'; ghostState.t = 0; ghostState.from.copy(cur.root.position);
+                invuln = Math.max(invuln, BOARD_TIME + 0.6); setCine(true);
+                camLook.set(bus.position.x + (bus.userData.steer || 0) * 3, bus.position.y + 0.9, bus.position.z - 25);
                 pickup.visible = false;
                 audio.sfx('sfx_board', 1);
                 const m2 = GHOST_TYPES[route.type];
@@ -3224,6 +3262,7 @@ async function run(mode) {
         scene.fog.far = lerp(scene.fog.far, cfg.environment.fogDensity * 1.9 * eff.fog * (1 - Math.min(0.3, deliveries * 0.03)) * (1 - thick), 0.03);
     }
 
+    const camLook = new THREE.Vector3(0, 1, -25);
     function updateCamera(dt) {
         const blend = 1 - Math.exp(-5.5 * dt);
         const sp = cfg.gameplay.maxSpeed ? speed / cfg.gameplay.maxSpeed : 0;
@@ -3233,6 +3272,16 @@ async function run(mode) {
             camera.position.y = lerp(camera.position.y, 3.4 + Math.sin(time * 0.37) * 0.7, 0.04);
             camera.position.z = lerp(camera.position.z, bus.position.z + 12 + Math.cos(a) * 3, 0.04);
             camera.lookAt(bus.position.x, 2.2, bus.position.z - 4);
+            stars.position.copy(camera.position); sky.position.copy(camera.position);
+            moonGlow.position.set(camera.position.x - 90, camera.position.y + 110, camera.position.z - 330);
+            moonDisc.position.copy(moonGlow.position);
+            return;
+        }
+        if (ghostState.mode === 'boarding') {
+            const b = 1 - Math.exp(-7 * dt);
+            camera.position.lerp(cineCam.pos, b);
+            camLook.lerp(cineCam.look, b); camera.lookAt(camLook);
+            camera.fov = lerp(camera.fov, cineCam.fov, b); camera.updateProjectionMatrix();
             stars.position.copy(camera.position); sky.position.copy(camera.position);
             moonGlow.position.set(camera.position.x - 90, camera.position.y + 110, camera.position.z - 330);
             moonDisc.position.copy(moonGlow.position);
