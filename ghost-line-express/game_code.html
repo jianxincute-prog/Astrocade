@@ -988,12 +988,12 @@ async function run(mode) {
 
     // Headlights: spot lights + faded volumetric cones
     const spots = [];
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(8, 30).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ map: glowTex, color: cfg.visual.headlightColor, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
-    pool.position.set(0, 0.07, -19); bus.add(pool);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(11, 46).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ map: glowTex, color: cfg.visual.headlightColor, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    pool.position.set(0, 0.07, -26); bus.add(pool);
     [-1.1, 1.1].forEach((x) => {
-        const s = new THREE.SpotLight(cfg.visual.headlightColor, 160, 90, 0.5, 0.65, 1.2);
-        s.position.set(x, 1.4, -4.4); s.target.position.set(x * 1.4, 0, -34);
+        const s = new THREE.SpotLight(cfg.visual.headlightColor, 520, 150, 0.62, 0.6, 1.0);
+        s.position.set(x, 1.4, -4.4); s.target.position.set(x * 1.4, 0, -46);
         bus.add(s, s.target); spots.push(s);
     });
 
@@ -1793,11 +1793,13 @@ async function run(mode) {
     }
     function buildPothole() {
         const g = new THREE.Group();
-        const m = new THREE.Mesh(new THREE.CircleGeometry(1.4, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x050507, polygonOffset: true, polygonOffsetFactor: -3 }));
-        m.position.y = 0.05; m.scale.set(1, 1, 1.2); g.add(m);
-        const rim = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.75, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a1a1e, polygonOffset: true, polygonOffsetFactor: -2 }));
-        rim.position.y = 0.045; rim.scale.set(1, 1, 1.2); g.add(rim);
-        return mkObs(g, 1.4, 1.5, 6, 0.7, 'Lubang jalan!', 150, { vol: 0.35, init(z) { g.position.set(rand(-5.5, 5.5), 0, z); } });
+        const m = new THREE.Mesh(new THREE.CircleGeometry(1.4, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x020203, polygonOffset: true, polygonOffsetFactor: -3 }));
+        m.position.y = 0.06; m.scale.set(1, 1, 1.2); g.add(m);
+        const rim = new THREE.Mesh(new THREE.RingGeometry(1.4, 2.0, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7c828c, polygonOffset: true, polygonOffsetFactor: -2 }));
+        rim.position.y = 0.05; rim.scale.set(1, 1, 1.2); g.add(rim);              // broken-asphalt edge, bright enough to read in fog
+        const sheen = new THREE.Mesh(new THREE.RingGeometry(2.0, 2.5, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a4048, transparent: true, opacity: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }));
+        sheen.position.y = 0.045; sheen.scale.set(1, 1, 1.2); g.add(sheen);
+        return mkObs(g, 1.6, 1.7, 6, 0.7, 'Lubang jalan!', 150, { vol: 0.35, init(z) { g.position.set(rand(-5.5, 5.5), 0, z); } });
     }
     function buildLog() {
         const g = new THREE.Group();
@@ -2483,7 +2485,7 @@ async function run(mode) {
         windowMat.color.setScalar(flick); rearMat.color.setScalar(flick);
 
         // Headlight scale breathes with speed for a bit of life
-        spots.forEach((s) => { s.intensity = 160 * (0.95 + Math.sin(time * 30) * 0.02); });
+        spots.forEach((s) => { s.intensity = 520 * (0.97 + Math.sin(time * 30) * 0.015); });
     }
 
     function updateWorld(dt) {
@@ -2532,9 +2534,9 @@ async function run(mode) {
         // During the delivery ceremony the camera drifts toward the house so the exit is in frame
         camFocus = lerp(camFocus, delivering ? -3 : 0, 1 - Math.exp(-2.5 * dt));
         camera.position.x = lerp(camera.position.x, bus.position.x * 0.92 + camFocus * 0.6, blend);
-        camera.position.y = lerp(camera.position.y, bus.position.y + 6.7 + Math.sin(time * 31) * 0.012 * sp, blend);
-        camera.position.z = lerp(camera.position.z, bus.position.z + 20.5 + sp * 1.2, blend);
-        camera.lookAt(bus.position.x + (bus.userData.steer || 0) * 3 + camFocus, bus.position.y - 0.15, bus.position.z - 13);
+        camera.position.y = lerp(camera.position.y, bus.position.y + 6.3 + Math.sin(time * 31) * 0.012 * sp, blend);
+        camera.position.z = lerp(camera.position.z, bus.position.z + 18 + sp * 1.0, blend);
+        camera.lookAt(bus.position.x + (bus.userData.steer || 0) * 3 + camFocus, bus.position.y + 0.9, bus.position.z - 32);
         const fov = 56 + sp * 6;
         if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = lerp(camera.fov, fov, 0.1); camera.updateProjectionMatrix(); }
         if (shake > 0) {
