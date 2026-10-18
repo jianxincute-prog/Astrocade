@@ -1728,7 +1728,7 @@ async function run(mode) {
                 uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uRim: { value: new THREE.Color(rim) },
                 uOpacity: { value: 1 }, uAmp: { value: amp }, uH: { value: h }, uFlip: { value: flip ? 1 : 0 }, uFade: { value: fade ? 1 : 0 },
                 uMode: { value: opts.mode || 0 }, uGrime: { value: new THREE.Color(opts.grime === undefined ? 0x2a241c : opts.grime) },
-                uStain: { value: new THREE.Color(opts.stain === undefined ? 0x5a0c10 : opts.stain) }, uStainAmt: { value: opts.stainAmt || 0 },
+                uStain: { value: new THREE.Color(opts.stain === undefined ? 0x5a0c10 : opts.stain) }, uStainAmt: { value: opts.stainAmt || 0 }, uDens: { value: opts.dens || 200 },
                 uSeed: { value: Math.random() * 20 }
             }]),
             transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
@@ -1753,7 +1753,7 @@ async function run(mode) {
                     #include <fog_vertex>
                 }`,
             fragmentShader: `
-                uniform vec3 uColor, uRim, uGrime, uStain; uniform float uOpacity, uFade, uMode, uStainAmt, uSeed;
+                uniform vec3 uColor, uRim, uGrime, uStain; uniform float uOpacity, uFade, uMode, uStainAmt, uSeed, uDens;
                 varying vec3 vN; varying vec3 vV; varying float vT; varying vec3 vP; varying vec2 vUv;
                 #include <fog_pars_fragment>
                 float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -1768,10 +1768,10 @@ async function run(mode) {
                     vec3 base; float hairA = 1.0;
                     float low = 1.0 - vT;
                     if (uMode > 0.5) {                                   // hair: many fine strands plus a soft sheen
-                        float st = vn(vec2(ang * 46.0 + uSeed, vP.y * 1.1)) * 0.7 + vn(vec2(ang * 120.0, vP.y * 3.0)) * 0.3;
+                        float st = vn(vec2(vUv.x * uDens + uSeed, vP.y * 1.1)) * 0.7 + vn(vec2(vUv.x * uDens * 2.6, vP.y * 3.0)) * 0.3;
                         base = uColor * (0.35 + st * 1.3);
                         base += vec3(0.05, 0.05, 0.06) * pow(st, 4.0);
-                        float sl = vn(vec2(vUv.x * 70.0 + uSeed, 1.0)), sw = vn(vec2(vUv.x * 23.0, 5.0 + uSeed));
+                        float sl = vn(vec2(vUv.x * uDens * 0.35 + uSeed, 1.0)), sw = vn(vec2(vUv.x * uDens * 0.12, 5.0 + uSeed));
                         float tp = 1.0 - vUv.y, ed = min(vUv.x, 1.0 - vUv.x);
                         float len = 0.62 + sl * 0.38;
                         if (tp > len || ed < (0.012 + tp * 0.2 * sw) * (0.5 + sl)) discard;    // ragged tips, strand-thin sides
@@ -1876,6 +1876,7 @@ async function run(mode) {
         const sleeveMat = shader(0xe4eae8, 0.12, 1.5, true, true, undefined, { grime: 0x3a3226, stain: 0x6a0e12, stainAmt: 0.5 });
         const hairMat = shader(0x0a0b10, 0.2, 3.4, true, false, undefined, { mode: 1 });
         hairMat.uniforms.uRim.value.multiplyScalar(0.3);
+        const lockMat = shader(0x0a0b10, 0.2, 3.4, true, false, undefined, { mode: 1, dens: 24 }), wispMat = shader(0x0a0b10, 0.2, 3.4, true, false, undefined, { mode: 1, dens: 5 });
         const skinMat = std({ color: 0xffffff, map: skinTexture('#bcc6c3', 'rgba(70,95,140,.5)'), emissive: 0x24313a, roughness: 0.75 });
         const f = getFace('kuntilanak');
         const faceMat = std({ map: f.map, bumpMap: f.bump, bumpScale: 3, emissiveMap: f.map, emissive: 0x8899aa, emissiveIntensity: 0.12, roughness: 0.65 });
@@ -1895,10 +1896,10 @@ async function run(mode) {
         const cap = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 12, 0, Math.PI * 2, 0, 1.12).scale(1, 1.14, 1), hairMat);
         cap.renderOrder = 2; head.add(cap);
         [-1, 1].forEach((s) => {
-            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 2.2, 3, 10).translate(0, -1.1, 0), hairMat);
+            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 2.2, 3, 10).translate(0, -1.1, 0), lockMat);
             lock.position.set(s * 0.43, 0.3, 0.2); lock.rotation.set(0, s * -0.55, s * 0.06); lock.renderOrder = 3; head.add(lock);
             [0.14, 0.26].forEach((dx, k) => {                                                       // thin wisps crossing the cheeks
-                const w = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.95 + k * 0.3, 1, 6).translate(0, -0.47, 0), hairMat);
+                const w = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.95 + k * 0.3, 1, 6).translate(0, -0.47, 0), wispMat);
                 w.position.set(s * (0.3 + dx * 0.4), 0.18 - k * 0.05, 0.36); w.rotation.set(0.1, s * -0.25, s * (0.08 + k * 0.05)); w.renderOrder = 3; head.add(w);
             });
         });
@@ -2114,8 +2115,8 @@ async function run(mode) {
         [-1, 1].forEach((s) => {
             const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.45, 8).translate(0, 0.22, 0), claw);
             tusk.position.set(s * 0.34, -0.42, 0.68); tusk.rotation.set(-0.15, 0, s * -0.18); head.add(tusk);
-            const eye = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3020, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-            eye.scale.setScalar(1.1); eye.position.set(s * 0.27, 0.07, 0.78); head.add(eye); o.sprites.push({ s: eye, base: 0.9 });
+            const eye = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3020, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+            eye.renderOrder = 5; eye.scale.setScalar(1.1); eye.position.set(s * 0.27, 0.07, 0.8); head.add(eye); o.sprites.push({ s: eye, base: 0.9 });
         });
 
         let thump = 0, thumpTimer = rand(3, 6);
@@ -2207,6 +2208,7 @@ async function run(mode) {
         const dressMat = shader(0x4a3a30, 0.25, 3.0, false, true, 0xb070ff, { grime: 0x14100c, stain: 0x3a0c10, stainAmt: 0.7 });
         const sleeveMat = shader(0x4a3a30, 0.14, 1.3, true, true, 0xb070ff, { grime: 0x14100c, stain: 0x3a0c10, stainAmt: 0.4 });
         const hairMat = shader(0x6a6a74, 0.3, 3.8, true, false, 0xb070ff, { mode: 1 });
+        const lockMat = shader(0x6a6a74, 0.3, 3.8, true, false, 0xb070ff, { mode: 1, dens: 28 }), wispMat = shader(0x6a6a74, 0.3, 3.8, true, false, 0xb070ff, { mode: 1, dens: 5 });
         const skin = std({ color: 0xffffff, map: skinTexture('#a99d88', 'rgba(80,70,110,.5)'), emissive: 0x201c14, roughness: 0.8 });
         const f = getFace('wewe');
         const pts = [];
@@ -2220,9 +2222,9 @@ async function run(mode) {
         curtain.position.y = 0.42; curtain.renderOrder = 2; head.add(curtain);
         const cap = new THREE.Mesh(new THREE.SphereGeometry(0.48, 24, 12, 0, Math.PI * 2, 0, 1.15).scale(0.92, 1.2, 0.97), hairMat); cap.renderOrder = 2; head.add(cap);
         [-1, 1].forEach((s) => {
-            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 2.4, 3, 10).translate(0, -1.2, 0), hairMat);
-            lock.position.set(s * 0.42, 0.4, 0.15); lock.rotation.set(0, s * -0.5, s * 0.08); lock.renderOrder = 3; head.add(lock);
-            const wisp = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 1.2, 1, 6).translate(0, -0.6, 0), hairMat);
+            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 2.4, 3, 10).translate(0, -1.2, 0), lockMat);
+            lock.position.set(s * 0.5, 0.4, 0.02); lock.rotation.set(0, s * -0.25, s * 0.06); lock.renderOrder = 3; head.add(lock);
+            const wisp = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 1.2, 1, 6).translate(0, -0.6, 0), wispMat);
             wisp.position.set(s * 0.26, 0.2, 0.38); wisp.rotation.set(0.1, s * -0.2, s * 0.1); wisp.renderOrder = 3; head.add(wisp);
         });
         const hand = handGeo(1.9, true);
