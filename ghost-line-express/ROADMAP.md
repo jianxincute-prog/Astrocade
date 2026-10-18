@@ -21,6 +21,10 @@ waktu + PERFECT stop, kabut yang menebal per level, leaderboard, save/load (reko
 bengkel dengan 5 upgrade, layar judul/game over, dan hint tutorial sekali-tampil. Belum: upgrade kosmetik bus, tombol
 kontrol tilt, SFX/musik (Fase 5).
 
+Fase 5 dikerjakan (kecuali thumbnail dan publish, sengaja ditunda atas permintaan): 2 musik dan 6 SFX hasil generate AI Astrocade
+(`asset_map.json`), mesin/angin/decit rem/detak jantung/bunyi UI sintetis lewat WebAudio, tombol mute tersimpan, dan layar judul
+sinematik (kamera berputar pelan, judul berkedip, tagline, ringkasan kontrol, koleksi hantu). Tersisa: thumbnail dan publish.
+
 ## Kondisi awal (hasil baca kode, sebelum rewrite)
 - Loop inti: gas/rem/steer -> berhenti di bay hijau dekat kuburan -> kuntilanak naik -> berhenti di "Abandoned House" (~500 unit) -> +100 poin -> ulang.
 - Tidak ada fail state, rintangan, lalu lintas, suara, atau progres kesulitan. Hanya 1 jenis hantu, 1 tujuan.
@@ -79,10 +83,10 @@ Tujuan bervariasi: Abandoned House, Sekolah Tua, Rumah Sakit, Pasar Malam, Jemba
 - [x] Tutorial (hint sekali-tampil) pada rute pertama
 
 ## Fase 5 — Audio, UI, rilis
-- [ ] Musik ambient horor (generate_music) + SFX mesin, rem, tawa, pintu bus, hujan (generate_sound_effect)
-- [ ] HUD: speedometer, indikator jarak ke tujuan (panah di tepi layar), meter ketakutan
-- [ ] Layar judul + game over + jump-scare cut-in
-- [ ] Thumbnail baru (generate_thumbnail / set_thumbnail), deskripsi, publish ke review
+- [x] Musik ambient horor (generate_music) + SFX mesin, rem, tawa, pintu bus, hujan (generate_sound_effect)
+- [~] HUD: bar HP/kesabaran/combo sudah ada; speedometer dan panah arah belum, indikator jarak ke tujuan (panah di tepi layar), meter ketakutan
+- [x] Layar judul + game over + jump-scare cut-in
+- [ ] Thumbnail baru (ditunda) (generate_thumbnail / set_thumbnail), deskripsi, publish ke review
 
 ## Urutan kerja yang disarankan
 1. Refactor kecil: ekstrak `createBus`, `createGhost`, `createRoadSegment`; tambah `GHOST_TYPES`

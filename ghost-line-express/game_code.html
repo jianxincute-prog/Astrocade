@@ -87,7 +87,20 @@
     .shop-row small { display: block; font-size: 15px; font-weight: 400; color: #8fb4c4; letter-spacing: 0; }
     .shop-row.off { opacity: .45; }
     .pips { letter-spacing: 3px; color: #ffb05d; }
-    @media (prefers-reduced-motion: reduce) { #message, #loading-screen { transition: none; } .track.warn i { animation: none; } }
+    #btn-mute { position: absolute; z-index: 60; top: 152px; right: 20px; width: 96px; height: 96px; border-radius: 48px; padding: 0; font-size: 44px; line-height: 90px; }
+    #btn-mute.muted { color: #6d8794; }
+    #btn-mute.muted::after { content: ''; position: absolute; left: 20px; top: 46px; width: 56px; height: 5px; border-radius: 3px; background: #ff8a6a; transform: rotate(-45deg); }
+    #title { overflow: hidden; }
+    .in-title #ui { visibility: hidden; }
+    #title::before { content: ''; position: absolute; inset: -20%; pointer-events: none; z-index: -1;
+        background: radial-gradient(ellipse at 30% 70%, rgba(111, 216, 200, .16), transparent 55%), radial-gradient(ellipse at 75% 40%, rgba(143, 184, 216, .14), transparent 50%);
+        animation: drift 16s ease-in-out infinite alternate; }
+    @keyframes drift { from { transform: translate3d(-4%, 0, 0) scale(1); } to { transform: translate3d(5%, -3%, 0) scale(1.12); } }
+    #title .ov-title { animation: flick 7s infinite; }
+    @keyframes flick { 0%, 17%, 22%, 61%, 66%, 100% { opacity: 1; } 19% { opacity: .35; } 20% { opacity: .9; } 63% { opacity: .55; } }
+    .ov-tag { font-size: 21px; letter-spacing: 2px; color: #8fb4c4; font-style: italic; }
+    .ov-controls { font-size: 15px; letter-spacing: 2px; color: #5d7f8c; max-width: 600px; line-height: 1.6; }
+    @media (prefers-reduced-motion: reduce) { #message, #loading-screen { transition: none; } .track.warn i { animation: none; } #title::before, #title .ov-title { animation: none; } }
 </style>
 </head>
 <body>
@@ -119,12 +132,15 @@
 </div>
 
 <div id="flash"></div>
+<button id="btn-mute" aria-label="Suara">♪</button>
 
 <div id="title" class="overlay">
     <div class="ov-kicker">NIGHT ROUTE 13</div>
     <div class="ov-title">GHOST LINE<br>EXPRESS</div>
+    <div class="ov-tag">Antar penumpang dari alam lain sebelum fajar</div>
     <div class="ov-stat" id="title-stats"></div>
     <div class="chips" id="title-dex"></div>
+    <div class="ov-controls">◀ ▶ KEMUDI &nbsp;•&nbsp; GAS &nbsp;•&nbsp; BRAKE &nbsp;•&nbsp; BERHENTI TEPAT DI BAY</div>
     <button class="bigbtn" id="btn-play">MAIN</button>
     <button class="midbtn" id="btn-shop">BENGKEL</button>
 </div>
@@ -1623,7 +1639,7 @@ async function run(mode) {
         const site = GHOST_TYPES[route.type].site;
         Object.keys(sites).forEach((k) => { sites[k].visible = k === site; });
         pickup.visible = true;
-        pickupDone = false; destDone = false;
+        pickupDone = false; destDone = false; heardCue = false;
         resetGhost();
         segments.forEach(applyClearance);
     }
@@ -1664,7 +1680,7 @@ async function run(mode) {
     // ------------------------------------------------------------------
     // SAVE DATA + UPGRADES (persisted through lib.saveUserGameState)
     // ------------------------------------------------------------------
-    const save = { best: 0, coins: 0, runs: 0, up: { engine: 0, brake: 0, body: 0, light: 0, incense: 0 }, seen: {}, hints: {} };
+    const save = { mute: false, best: 0, coins: 0, runs: 0, up: { engine: 0, brake: 0, body: 0, light: 0, incense: 0 }, seen: {}, hints: {} };
     let saveTimer = null;
     async function loadSave() {
         if (mode !== 'play') return;
@@ -1672,7 +1688,7 @@ async function run(mode) {
             const r = await lib.getUserGameState();
             const s = r && r.state;
             if (s) {
-                save.best = +s.best || 0; save.coins = +s.coins || 0; save.runs = +s.runs || 0;
+                save.mute = !!s.mute; save.best = +s.best || 0; save.coins = +s.coins || 0; save.runs = +s.runs || 0;
                 Object.assign(save.up, s.up || {}); Object.assign(save.seen, s.seen || {}); Object.assign(save.hints, s.hints || {});
             }
         } catch (e) { lib.log('load failed: ' + e); }
@@ -1703,7 +1719,7 @@ async function run(mode) {
     // ------------------------------------------------------------------
     let phase = mode === 'play' ? 'title' : 'edit';       // title | playing | over | edit
     let health = 100, maxHealth = 100, patience = 1, patienceMax = 1, combo = 0, deliveries = 0, runCoins = 0;
-    let invuln = 0, shake = 0, flash = 0, lowPatienceWarned = false;
+    let invuln = 0, shake = 0, flash = 0, lowPatienceWarned = false, heardCue = false, heartT = 0, alarmT = 0;
 
     const HINTS = {
         drive: 'Tahan GAS untuk melaju. Kemudi dengan ◀ ▶',
@@ -1717,12 +1733,14 @@ async function run(mode) {
         save.hints[key] = 1; showMessage(HINTS[key]); saveSoon();
     }
 
-    function damage(amount, label, scare) {
+    function damage(amount, label, scare, snd, vol) {
         if (invuln > 0 || phase !== 'playing') return false;
         health = Math.max(0, health - amount);
         invuln = 1.2; shake = scare ? 1.6 : 1; flash = scare ? 1 : 0.8; busFlicker = 0.5;
         if (amount >= 10) combo = 0;
         showMessage(label + ' -' + amount);
+        audio.sfx('sfx_crash', vol === undefined ? 1 : vol);
+        if (snd) audio.sfx(snd, 0.9);
         if (health <= 0) endRun('bus');
         return true;
     }
@@ -1754,7 +1772,7 @@ async function run(mode) {
         m.position.y = 0.05; m.scale.set(1, 1, 1.2); g.add(m);
         const rim = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.75, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a1a1e, polygonOffset: true, polygonOffsetFactor: -2 }));
         rim.position.y = 0.045; rim.scale.set(1, 1, 1.2); g.add(rim);
-        return mkObs(g, 1.4, 1.5, 6, 0.7, 'Lubang jalan!', 150, { init(z) { g.position.set(rand(-5.5, 5.5), 0, z); } });
+        return mkObs(g, 1.4, 1.5, 6, 0.7, 'Lubang jalan!', 150, { vol: 0.35, init(z) { g.position.set(rand(-5.5, 5.5), 0, z); } });
     }
     function buildLog() {
         const g = new THREE.Group();
@@ -1822,7 +1840,7 @@ async function run(mode) {
         aura.scale.set(7, 3, 1); aura.position.set(0.5, 0.5, 0); body.add(aura);
         let dir = 1;
         return mkObs(g, 3.2, 0.9, 10, 0.5, 'Ditabrak suster ngesot!', 140, {
-            scare: true,
+            scare: true, snd: 'sfx_laugh',
             init(z) { g.position.set(-7, 0, z); dir = 1; g.rotation.y = 0; },
             update(dt) {
                 if (Math.abs(g.position.z - bus.position.z) < 130) g.position.x += dir * 2.6 * dt;
@@ -1837,6 +1855,7 @@ async function run(mode) {
         const o = createGenderuwo();
         o.root.scale.setScalar(0.95);
         return mkObs(o.root, 2.4, 1.6, 30, 0.2, 'Dihadang genderuwo!', 160, {
+            snd: 'sfx_growl',
             init(z) { o.root.position.set(rand(-3, 3), 0.1, z); o.root.rotation.set(0, 0, 0); o.root.visible = true; },
             update(dt) { ghostCtx.dt = dt; ghostCtx.near = 0; ghostCtx.yawRel = 0; o.wait(ghostCtx); }
         });
@@ -1883,7 +1902,7 @@ async function run(mode) {
             o.update(dt);
             const p = o.root.position;
             if (!o.hit && Math.abs(bus.position.x - p.x) < o.hw + 1.6 && Math.abs(bus.position.z - p.z) < o.hl + 4.3 && invuln <= 0) {
-                if (damage(o.dmg, o.label, o.scare)) {
+                if (damage(o.dmg, o.label, o.scare, o.snd, o.vol)) {
                     o.hit = true; speed *= o.slow;
                     bus.position.x = clamp(bus.position.x + Math.sign(bus.position.x - p.x || 1) * 0.9, -6.2, 6.2);
                 }
@@ -1896,7 +1915,10 @@ async function run(mode) {
     // ------------------------------------------------------------------
     // RUN FLOW + OVERLAYS
     // ------------------------------------------------------------------
-    function showOverlay(id) { ['title', 'over', 'shop'].forEach((k) => $(k).classList.toggle('hidden', k !== id)); }
+    function showOverlay(id) {
+        ['title', 'over', 'shop'].forEach((k) => $(k).classList.toggle('hidden', k !== id));
+        document.body.classList.toggle('in-title', id === 'title');
+    }
     function resetRun() {
         refreshEff();
         score = 0; health = maxHealth = eff.maxHealth; combo = 0; deliveries = 0; runCoins = 0; invuln = 0; shake = 0; flash = 0;
@@ -1914,6 +1936,7 @@ async function run(mode) {
     function startRun() {
         resetRun();
         phase = 'playing'; showOverlay(null);
+        audio.duck(1); audio.playMusic('music_drive'); audio.blip(660, 0.12, 'triangle', 0.2, 1.5);
         save.runs++; saveSoon();
         showMessage(GHOST_TYPES[route.type].intro);
         setTimeout(() => hint('drive'), 2600);
@@ -1947,6 +1970,7 @@ async function run(mode) {
             b.addEventListener('click', () => {
                 if (!can) return;
                 save.coins -= cost; save.up[u.key]++; saveSoon(); renderShop();
+                audio.blip(660, 0.09, 'triangle', 0.2); setTimeout(() => audio.blip(990, 0.16, 'triangle', 0.2), 90);
             });
             box.appendChild(b); box.appendChild(document.createElement('div')).style.height = '10px';
         });
@@ -1956,6 +1980,8 @@ async function run(mode) {
     async function endRun(reason) {
         if (phase !== 'playing') return;
         phase = 'over';
+        audio.sfx('sfx_over', 1); audio.duck(0.25);
+        setTimeout(() => { if (phase === 'over') { audio.duck(1); audio.playMusic('music_menu'); } }, 3600);
         const isBest = score > save.best;
         if (isBest) save.best = score;
         saveSoon();
@@ -1989,7 +2015,120 @@ async function run(mode) {
             if (patience <= 0) endRun('patience');
         }
         if (!pickupDone && Math.abs(bus.position.z - pickup.position.z) < 70) hint('near');
+        if (!pickupDone && !heardCue && Math.abs(bus.position.z - pickup.position.z) < 48) {
+            heardCue = true;
+            const cue = { kuntilanak: 'sfx_laugh', wewe: 'sfx_laugh', genderuwo: 'sfx_growl' }[route.type];
+            if (cue) audio.sfx(cue, 0.8, route.type === 'wewe' ? 0.85 : 1);
+        }
+        if (onboard && !delivering && patience / patienceMax < 0.3) {          // heartbeat when the passenger is close to snapping
+            heartT -= dt; if (heartT <= 0) { heartT = 0.45 + 1.4 * Math.max(0, patience / patienceMax); thump(); }
+        }
+        if (health / maxHealth < 0.35) {                                       // damaged-bus alarm
+            alarmT -= dt; if (alarmT <= 0) { alarmT = 1.6; audio.blip(880, 0.1, 'square', 0.05); setTimeout(() => audio.blip(880, 0.1, 'square', 0.05), 180); }
+        }
     }
+
+    // ------------------------------------------------------------------
+    // AUDIO: AI-generated music + SFX (asset_map) with a procedural engine, road noise, brake squeal,
+    // heartbeat and UI blips. The AudioContext is created on the first touch/key press (browser rule).
+    // ------------------------------------------------------------------
+    const audio = (() => {
+        let ctx = null, master, musicBus, sfxBus, eng = null, music = null, wantMusic = null, driveT = 0;
+        const buffers = {};
+        const IDS = ['music_menu', 'music_drive', 'sfx_board', 'sfx_deliver', 'sfx_crash', 'sfx_laugh', 'sfx_over', 'sfx_growl'];
+        function noise(sec) {
+            const b = ctx.createBuffer(1, ctx.sampleRate * sec, ctx.sampleRate), d = b.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            return b;
+        }
+        function filt(type, f, q) { const n = ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; }
+        function gain(v, to) { const g = ctx.createGain(); g.gain.value = v; if (to) g.connect(to); return g; }
+        async function load(id) {
+            try {
+                const a = lib.getAsset(id);
+                if (!a || !a.url) return;
+                const r = await fetch(a.url);
+                buffers[id] = await ctx.decodeAudioData(await r.arrayBuffer());
+                if (wantMusic === id) playMusic(id);
+            } catch (e) { lib.log('audio ' + id + ' failed: ' + e); }
+        }
+        function build() {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            ctx = new AC();
+            master = gain(save.mute ? 0 : 1, ctx.destination);
+            musicBus = gain(0.55, master); sfxBus = gain(0.9, master);
+            const o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+            o1.type = 'sawtooth'; o2.type = 'square';
+            const lp = filt('lowpass', 300), eg = gain(0, master);
+            o1.connect(lp); o2.connect(lp); lp.connect(eg); o1.start(); o2.start();
+            const nb = noise(2);
+            const ns = ctx.createBufferSource(); ns.buffer = nb; ns.loop = true;
+            const bp = filt('bandpass', 500, 0.6), wg = gain(0, master);
+            ns.connect(bp); bp.connect(wg); ns.start();
+            const ss = ctx.createBufferSource(); ss.buffer = nb; ss.loop = true;
+            const sbp = filt('bandpass', 2600, 12), sg = gain(0, master);
+            ss.connect(sbp); sbp.connect(sg); ss.start();
+            eng = { o1, o2, lp, eg, bp, wg, sg };
+            IDS.forEach(load);
+        }
+        function unlock() {
+            try {
+                if (!ctx) build();
+                if (ctx && ctx.state === 'suspended') ctx.resume();
+            } catch (e) { lib.log('audio unlock failed: ' + e); }
+        }
+        function playMusic(id) {
+            wantMusic = id;
+            if (!ctx || (music && music.id === id) || !buffers[id]) return;
+            const t = ctx.currentTime;
+            if (music) {
+                const old = music;
+                old.g.gain.cancelScheduledValues(t); old.g.gain.setValueAtTime(old.g.gain.value, t); old.g.gain.linearRampToValueAtTime(0, t + 1.4);
+                old.src.stop(t + 1.5);
+            }
+            const src = ctx.createBufferSource(); src.buffer = buffers[id]; src.loop = true;
+            const g = gain(0); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 1.6);
+            src.connect(g); g.connect(musicBus); src.start();
+            music = { id, src, g };
+        }
+        function duck(v) {
+            if (!ctx) return;
+            const t = ctx.currentTime;
+            musicBus.gain.cancelScheduledValues(t); musicBus.gain.setValueAtTime(musicBus.gain.value, t); musicBus.gain.linearRampToValueAtTime(0.55 * v, t + 0.5);
+        }
+        function sfx(id, vol, rate) {
+            if (!ctx || !buffers[id]) return;
+            const src = ctx.createBufferSource(); src.buffer = buffers[id]; src.playbackRate.value = rate || 1;
+            src.connect(gain(vol === undefined ? 1 : vol, sfxBus)); src.start();
+        }
+        function blip(freq, dur, type, vol, slide) {
+            if (!ctx) return;
+            const t = ctx.currentTime, o = ctx.createOscillator(), g = gain(0, sfxBus);
+            o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+            if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
+            g.gain.setValueAtTime(vol || 0.15, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            o.connect(g); o.start(t); o.stop(t + dur + 0.02);
+        }
+        function drive(dt, ratio, braking, active) {
+            if (!eng) return;
+            driveT -= dt;
+            if (driveT > 0) return;
+            driveT = 0.05;
+            const t = ctx.currentTime, f = 34 + ratio * 80;
+            eng.o1.frequency.setTargetAtTime(f, t, 0.08); eng.o2.frequency.setTargetAtTime(f * 1.505, t, 0.08);
+            eng.lp.frequency.setTargetAtTime(260 + ratio * 900, t, 0.1);
+            eng.eg.gain.setTargetAtTime(active ? 0.045 + ratio * 0.05 : 0, t, 0.15);
+            eng.bp.frequency.setTargetAtTime(350 + ratio * 1200, t, 0.2); eng.wg.gain.setTargetAtTime(active ? ratio * 0.09 : 0, t, 0.2);
+            eng.sg.gain.setTargetAtTime(braking && ratio > 0.3 ? 0.035 * ratio : 0, t, 0.05);
+        }
+        function setMute(m) {
+            save.mute = m; saveSoon();
+            if (ctx) master.gain.setTargetAtTime(m ? 0 : 1, ctx.currentTime, 0.05);
+        }
+        return { unlock, playMusic, duck, sfx, blip, drive, setMute, get ready() { return !!ctx; } };
+    })();
+    function thump() { audio.blip(58, 0.16, 'sine', 0.35, 0.5); setTimeout(() => audio.blip(52, 0.2, 'sine', 0.28, 0.5), 150); }
 
     // ------------------------------------------------------------------
     // INPUT + HUD
@@ -2113,6 +2252,7 @@ async function run(mode) {
                 pickupDone = true; onboard = true; theftTimer = 6;
                 ghostState.mode = 'boarding'; ghostState.t = 0; ghostState.from.copy(cur.root.position);
                 pickup.visible = false;
+                audio.sfx('sfx_board', 1);
                 const m2 = GHOST_TYPES[route.type];
                 const dist = Math.abs(bus.position.z - destination.position.z);
                 patienceMax = patience = (8 + dist / (eff.maxSpeed * m2.speedMult * 60 * 0.6)) * eff.patience * Math.max(0.6, 1 - deliveries * 0.04);
@@ -2135,6 +2275,7 @@ async function run(mode) {
                 const pts = Math.round(base * (1 + Math.min(combo, 4) * 0.25)) + timeBonus + (perfect ? 50 : 0);
                 score += pts; runCoins += pts; save.coins += pts;
                 combo++; deliveries++;
+                audio.sfx('sfx_deliver', 1);
                 health = Math.min(maxHealth, health + 15);
                 showMessage('Penumpang tiba! +' + pts + (perfect ? '  PERFECT!' : ''));
                 saveSoon();
@@ -2196,6 +2337,17 @@ async function run(mode) {
     function updateCamera(dt) {
         const blend = 1 - Math.exp(-5.5 * dt);
         const sp = cfg.gameplay.maxSpeed ? speed / cfg.gameplay.maxSpeed : 0;
+        if (phase === 'title') {                         // slow cinematic sweep around the idling bus
+            const a = time * 0.22;
+            camera.position.x = lerp(camera.position.x, bus.position.x + Math.sin(a) * 8, 0.04);
+            camera.position.y = lerp(camera.position.y, 3.4 + Math.sin(time * 0.37) * 0.7, 0.04);
+            camera.position.z = lerp(camera.position.z, bus.position.z + 12 + Math.cos(a) * 3, 0.04);
+            camera.lookAt(bus.position.x, 2.2, bus.position.z - 4);
+            stars.position.copy(camera.position); sky.position.copy(camera.position);
+            moonGlow.position.set(camera.position.x - 90, camera.position.y + 110, camera.position.z - 330);
+            moonDisc.position.copy(moonGlow.position);
+            return;
+        }
         // During the delivery ceremony the camera drifts toward the house so the exit is in frame
         camFocus = lerp(camFocus, delivering ? -3 : 0, 1 - Math.exp(-2.5 * dt));
         camera.position.x = lerp(camera.position.x, bus.position.x * 0.92 + camFocus * 0.6, blend);
@@ -2224,6 +2376,13 @@ async function run(mode) {
     camera.position.set(0, 10, 18);
     camera.lookAt(0, 0, -12);
 
+    const onGesture = () => { audio.unlock(); audio.playMusic(phase === 'playing' ? 'music_drive' : 'music_menu'); };
+    window.addEventListener('pointerdown', onGesture, true);
+    window.addEventListener('keydown', onGesture, true);
+    const paintMute = () => $('btn-mute').classList.toggle('muted', !!save.mute);
+    paintMute();
+    $('btn-mute').addEventListener('click', () => { audio.unlock(); audio.setMute(!save.mute); paintMute(); });
+    document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.bigbtn, .midbtn, .shop-row')) audio.blip(520, 0.07, 'triangle', 0.14, 1.4); });
     $('btn-play').addEventListener('click', startRun);
     $('btn-again').addEventListener('click', startRun);
     $('btn-shop').addEventListener('click', () => openShop('title'));
@@ -2252,6 +2411,7 @@ async function run(mode) {
                 wheels.forEach((w) => { w.rotation.x -= speed * dt * 60 * 0.72; });
             }
             recycle(dt);
+            audio.drive(dt, clamp(speed / eff.maxSpeed, 0, 1.2), !!(keys[' '] || keys['s'] || keys['arrowdown']) && phase === 'playing', phase === 'playing' || speed > 0.02);
         }
         updateBusVisuals(dt);
         updateGhost(dt);
