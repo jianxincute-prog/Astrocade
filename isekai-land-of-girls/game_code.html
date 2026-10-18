@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Isekai: Land of Girls</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+html,body{margin:0;height:100%;background:#0d0d14;overflow:hidden;touch-action:none}
+canvas{display:block;width:100%;height:100%;touch-action:none;image-rendering:pixelated;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+</style>
+</head>
+<body>
+<canvas id="c" width="720" height="1280"></canvas>
+<script>
+/*
+ Isekai: Land of Girls (v6)
+ A guy is thrown into a fantasy world where every human and monster is female.
+ Overworld: oblique (Tibia-style) camera, flat square tiles, upright characters, y-sorted.
+ Touching a monster girl (or hitting her with the sword = first strike) starts a Final Fantasy style
+ ATB battle: Attack / Skill / Befriend / Item / Flee. Weaken her, then Befriend to recruit her.
+ Maps: Village -> Slime Meadow -> Harpy Cliffs -> Lamia Cave (boss: Queen Lamia).
+ Journal (book icon / J): Profile, Equipment, Party, Items, Quests, Bestiary, System (save / reset).
+ Sprite sheets are 3 frames x 1 row.
+*/
+function run(mode) {
+  const TILE = 64, VIEW_W = 720, VIEW_H = 960;
+  const ATK_T = 0.36, MAX_PARTY = 3;
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  // ---- Sprite tuning: crop insets (fraction of whole sheet); 'H' = on-screen character height in px ----
+  const SHEET = {
+    player_walk_down:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 104 },
+    player_walk_up:     { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 104 },
+    player_walk_side:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 104 },
+    player_attack_down: { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 104 },
+    player_attack_up:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 104 },
+    player_attack_side: { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 104 },
+    slime_girl_walk:    { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 92 },
+    harpy_girl_walk:    { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 100 },
+    lamia_girl_walk:    { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 96 },
+    queen_lamia_walk:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 132 },
+    undead_girl_walk:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 98 },
+    wraith_queen_walk:  { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 136 },
+    alraune_girl_walk:  { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 100 },
+    dryad_girl_walk:    { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 104 },
+    yuki_girl_walk:     { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 102 },
+    ice_harpy_walk:     { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 100 },
+    salamander_girl_walk:{ frames: 3, l: 0, r: 0, t: 0, b: 0, H: 102 },
+    ember_sprite_walk:  { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 92 },
+    royal_guard_walk:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 108 },
+    dryad_queen_walk:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 140 },
+    snow_queen_walk:    { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 140 },
+    flame_queen_walk:   { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 140 },
+    overqueen_walk:     { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 156 },
+    npc_mira_idle:      { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 100 },
+    npc_bruna_idle:     { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 100 },
+    npc_lyra_idle:      { frames: 3, l: 0, r: 0, t: 0, b: 0, H: 100 },
+    tile_water:         { frames: 3, l: 0, r: 0, t: 0, b: 0 },
+    tree_01:            { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    boulder_01:         { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    stalagmite_01:      { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_grass:         { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_path:          { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_rock:          { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_cave:          { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_crypt:         { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    gravestone_01:      { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_moss:          { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_snow:          { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_lava:          { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    tile_marble:        { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    darktree_01:        { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    icepine_01:         { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    obsidian_01:        { frames: 1, l: 0, r: 0, t: 0, b: 0 },
+    pillar_01:          { frames: 1, l: 0, r: 0, t: 0, b: 0 }
+  };
+  // images load lazily (44 sheets would be heavy on phones): on first use, and ahead of time for the current map + its neighbours
+  const imgs = {};
+  function loadImg(id) {
+    if (!(id in imgs)) {
+      const a = (typeof lib !== 'undefined' && lib.getAsset) ? lib.getAsset(id) : null;
+      if (a && a.url) { const im = new Image(); im.src = a.url; imgs[id] = im; } else imgs[id] = null;
+    }
+    return imgs[id];
+  }
+  const ready = id => { const im = loadImg(id); return !!(im && im.complete && im.naturalWidth > 0); };
+  function srcRect(id, f) {
+    const im = imgs[id], s = SHEET[id];
+    const x0 = im.naturalWidth * s.l, x1 = im.naturalWidth * (1 - s.r);
+    const y0 = im.naturalHeight * s.t, y1 = im.naturalHeight * (1 - s.b);
+    const fw = (x1 - x0) / s.frames;
+    return [x0 + fw * f, y0, fw, y1 - y0];
+  }
+  function drawTileS(id, f, x, y, s) {
+    if (!ready(id)) return false;
+    const r = srcRect(id, f);
+    ctx.drawImage(imgs[id], r[0], r[1], r[2], r[3], x, y, s, s);
+    return true;
+  }
+  function drawTile(id, f, x, y) { return drawTileS(id, f, x, y, TILE); }
+  function drawFit(id, f, cx, by, bw, bh, flip) {
+    if (!ready(id)) return false;
+    const r = srcRect(id, f), k = Math.min(bw / r[2], bh / r[3]);
+    const w = r[2] * k, h = r[3] * k;
+    ctx.save(); ctx.translate(cx, by); if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(imgs[id], r[0], r[1], r[2], r[3], -w / 2, -h, w, h);
+    ctx.restore(); return true;
+  }
+  // fixed-height (characters); sc = extra scale
+  function drawChar(id, f, cx, by, flip, alpha, sc) {
+    if (!ready(id)) return false;
+    const r = srcRect(id, f), k = SHEET[id].H / r[3] * (sc || 1);
+    const w = r[2] * k, h = r[3] * k;
+    ctx.save(); ctx.translate(cx, by); if (flip) ctx.scale(-1, 1);
+    if (alpha !== undefined) ctx.globalAlpha = alpha;
+    ctx.drawImage(imgs[id], r[0], r[1], r[2], r[3], -w / 2, -h, w, h);
+    ctx.restore(); return true;
+  }
+
+  // ---- Persistent state (declared early: maps use flags) ----
+  const flags = {
+    met: {}, boss: {}, endingShown: false,   // boss: per-boss state { done, at (time defeated), friend }
+    get bossDone() { return bs('queen').done; }, set bossDone(v) { bs('queen').done = v; },
+    get bossAt() { return bs('queen').at; }, set bossAt(v) { bs('queen').at = v; },
+    get bossFriend() { return bs('queen').friend; }, set bossFriend(v) { bs('queen').friend = v; }
+  };
+  function bs(type) { return flags.boss[type] || (flags.boss[type] = { done: false, at: 0, friend: false }); }
+  const stats = { slime: 0, harpy: 0, lamia: 0, queen: 0, undead: 0, wraith: 0 };   // monsters befriended
+  const inv = { potion: 3, ether: 1, jelly: 0, feather: 0, scale: 0, queenscale: 0, spirit: 0, veil: 0, sap: 0, frost: 0, ember: 0, crest: 0, crown: 0, sigilg: 0, sigilf: 0, sigile: 0 };
+  const seen = {};
+  const cleared = {};   // mapId -> spawn indices of monsters you befriended (they never respawn)
+  const bonded = {};    // mapId -> spawn indices you ever befriended: the recruit bonus (EXP, gold, loot) is paid only once per girl
+
+  // ---- Items / monster types ----
+  const LOOT = {
+    potion:     { name: 'Potion', color: '#e05a8a', desc: 'Restores 20 HP. Use it from the Item command in battle.' },
+    ether:      { name: 'Ether', color: '#4fa0ff', desc: 'Restores 8 MP. Use it from the Item command in battle.' },
+    jelly:      { name: 'Slime Jelly', color: '#4fd0b8', desc: 'Wobbly and cool to the touch. Smith Bruna wants some.' },
+    feather:    { name: 'Harpy Feather', color: '#d9a35a', desc: 'Light and strong. Perfect for crafting.' },
+    scale:      { name: 'Lamia Scale', color: '#3fae5a', desc: 'Shimmering green scale. Tough as armor plating.' },
+    queenscale: { name: 'Queen Scale', color: '#9a5ad9', desc: 'A royal purple scale with a golden edge. Extremely rare.' },
+    spirit:     { name: 'Spirit Dust', color: '#8fd8ff', desc: 'Glittering dust left behind by restless spirits.' },
+    veil:       { name: 'Wraith Veil', color: '#b07aff', desc: 'A shimmering veil torn from the Wraith Queen. Extremely rare.' },
+    sap:        { name: 'Dryad Sap', color: '#7fd16a', desc: 'Sweet, glowing sap from the Whispering Grove.' },
+    frost:      { name: 'Frost Shard', color: '#9fd8ff', desc: 'A shard of everlasting ice from Frostveil Peaks.' },
+    ember:      { name: 'Ember Core', color: '#ff8a3a', desc: 'A warm core of living fire from Ember Caldera.' },
+    crest:      { name: 'Royal Crest', color: '#e8c95a', desc: 'The crest of a Court guard. Polished gold and silver.' },
+    crown:      { name: 'Overqueen Crown Gem', color: '#ffe27a', desc: 'A radiant gem from the Overqueen crown. Unique.' },
+    sigilg:     { name: 'Verdant Sigil', color: '#4fd06a', desc: 'Key item. Proof you faced the Dryad Queen.' },
+    sigilf:     { name: 'Frost Sigil', color: '#5ab8ff', desc: 'Key item. Proof you faced the Snow Queen.' },
+    sigile:     { name: 'Ember Sigil', color: '#ff6a3a', desc: 'Key item. Proof you faced the Flame Queen.' }
+  };
+  // overworld: speed/chase/dash/boss. battle: bhp/batk/bdef/bspd (enemy), ally {hp,atk,def,spd,skill}; rewards: bxp/bgold (defeat), xp/gold (befriend)
+  const MON = {
+    slime: { sheet: 'slime_girl_walk', name: 'Slime Girl', speed: 75, chase: 240, dash: false, color: '#4fd0b8', loot: 'jelly',
+             bhp: 14, batk: 4, bdef: 0, bspd: 14, bxp: 8, bgold: 3, xp: 12, gold: 5,
+             ally: { hp: 18, atk: 4, def: 1, spd: 16, skill: 'Heal Goo' },
+             role: 'Heals wounded friends with Heal Goo. Soft but stubborn.',
+             lore: 'Gentle meadow dwellers. They only fight when startled.',
+             join: ['...You are not like the other humans. You did not try to hurt me for fun.', 'Okay! I will come with you. Do not make it weird! (joined the party)'] },
+    harpy: { sheet: 'harpy_girl_walk', name: 'Harpy Girl', speed: 95, chase: 300, dash: true, color: '#b9803f', loot: 'feather',
+             bhp: 18, batk: 6, bdef: 0, bspd: 22, bxp: 14, bgold: 5, xp: 20, gold: 8,
+             ally: { hp: 15, atk: 6, def: 0, spd: 24, skill: 'Dive' },
+             role: 'Fast striker. Uses Dive for heavy damage.',
+             lore: 'Cliff hunters. A red ! means she is about to dive.',
+             join: ['Hmph! You are the first one who did not run when I dived!', 'Fine, I will fly with you. But I pick the snacks! (joined the party)'] },
+    lamia: { sheet: 'lamia_girl_walk', name: 'Lamia Girl', speed: 82, chase: 260, dash: false, color: '#3fae5a', loot: 'scale',
+             bhp: 24, batk: 7, bdef: 1, bspd: 18, bxp: 16, bgold: 8, xp: 28, gold: 12,
+             ally: { hp: 22, atk: 7, def: 1, spd: 18, skill: 'Tail Whip' },
+             role: 'Tail Whip hits every enemy at once.',
+             lore: 'Cave dwellers loyal to their Queen. Their coils hit harder than they look.',
+             join: ['Hssss... You are brave. Or very silly. I like it.', 'My tail is yours to command. Try to keep up! (joined the party)'] },
+    queen: { sheet: 'queen_lamia_walk', name: 'Queen Lamia', boss: true, speed: 0, chase: 0, dash: false, color: '#9a5ad9', loot: 'queenscale',
+             bhp: 90, batk: 9, bdef: 2, bspd: 17, bxp: 70, bgold: 60, xp: 90, gold: 80, befThr: 0.25, befChance: 0.55,
+             moves: [{ p: 0.3, kind: 'aoe', name: 'Tail Sweep', mult: 0.8 }, { p: 0.2, kind: 'skill', name: 'Venom Fang', mult: 1.8 }],
+             ally: { hp: 36, atk: 9, def: 2, spd: 20, skill: 'Royal Coil' },
+             role: 'Royal Coil crushes all enemies. A queen among allies.',
+             lore: 'Ruler of Lamia Cave and first of the Monster Queens. Listens only at 25% HP.',
+             join: ['...You fought me, and still you offered your hand. No one has done that in a hundred years.', 'Very well, stranger. The Queen of the Lamias shall follow you. Do try to be worthy of it. (joined the party)'],
+             defeat: ['...Enough. You have beaten me, stranger.', 'Take my scale and go. The deeper caves hold older things than I. (Queen Lamia retreats)'] },
+    undead: { sheet: 'undead_girl_walk', name: 'Undead Girl', speed: 70, chase: 250, dash: false, color: '#8fd8ff', loot: 'spirit',
+              bhp: 34, batk: 9, bdef: 2, bspd: 19, bxp: 24, bgold: 14, xp: 40, gold: 20,
+              ally: { hp: 26, atk: 8, def: 2, spd: 19, skill: 'Soul Drain' },
+              role: 'Soul Drain hurts a foe and heals her with the stolen life.',
+              lore: 'Shy spirits of the crypt. They drain life, but only because they are lonely.',
+              join: ['...You are not afraid of me? Nobody ever stays this close.', 'Can I... come with you? I promise I will only haunt the enemies. (joined the party)'] },
+    wraith: { sheet: 'wraith_queen_walk', name: 'Wraith Queen', boss: true, speed: 0, chase: 0, dash: false, color: '#b07aff', loot: 'veil',
+              bhp: 140, batk: 12, bdef: 3, bspd: 18, bxp: 120, bgold: 120, xp: 150, gold: 150, befThr: 0.25, befChance: 0.5,
+              moves: [{ p: 0.3, kind: 'aoe', name: 'Death Wail', mult: 0.8 }, { p: 0.25, kind: 'skill', name: 'Soul Drain', mult: 1.5, drain: true }],
+              ally: { hp: 40, atk: 11, def: 3, spd: 21, skill: 'Soul Storm' },
+              role: 'Soul Storm batters every enemy at once. A queen of the dead.',
+              lore: 'Ruler of the Haunted Crypt. She holds the seal on the eastern gate. Listens only at 25% HP.',
+              join: ['...You are not afraid of the dark? Of me?', 'Foolish and brave. I shall walk beside you, little traveler. (joined the party)'],
+              defeat: ['...The seal on the gate breaks with me.', 'Go, traveler. What lies beyond is not for the weak. (The Wraith Queen fades away)'] },
+
+    // ---- Realms beyond the crypt ----
+    alraune: { sheet: 'alraune_girl_walk', name: 'Alraune Girl', speed: 62, chase: 230, dash: false, color: '#7fd16a', loot: 'sap',
+               bhp: 38, batk: 9, bdef: 1, bspd: 15, bxp: 26, bgold: 15, xp: 44, gold: 22,
+               moves: [{ p: 0.3, kind: 'skill', name: 'Vine Whip', mult: 1.5 }],
+               ally: { hp: 28, atk: 8, def: 1, spd: 16, skill: 'Bloom Heal', heal: 16 },
+               role: 'Bloom Heal mends one wounded friend. A gentle healer.',
+               lore: 'Plant girls who guard the grove. They love the sun and hate axes.',
+               join: ['Oh! You are... warm. Like sunshine. Can I stay close?', 'I will heal everyone! Just water me sometimes. (joined the party)'] },
+    dryad: { sheet: 'dryad_girl_walk', name: 'Dryad Girl', speed: 74, chase: 250, dash: false, color: '#5aa86a', loot: 'sap',
+             bhp: 42, batk: 10, bdef: 2, bspd: 17, bxp: 30, bgold: 17, xp: 50, gold: 25,
+             moves: [{ p: 0.35, kind: 'aoe', name: 'Thorn Storm', mult: 0.7 }],
+             ally: { hp: 30, atk: 10, def: 2, spd: 18, skill: 'Thorn Storm', mv: { p: 0.4, kind: 'aoe', name: 'Thorn Storm', mult: 0.8 } },
+             role: 'Thorn Storm lashes every enemy at once.',
+             lore: 'Spirits of the old trees. They guard the grove, they do not hate it.',
+             join: ['The trees say you are kind. I will trust the trees.', 'Let us walk together, traveler. (joined the party)'] },
+    yuki: { sheet: 'yuki_girl_walk', name: 'Snow Girl', speed: 70, chase: 240, dash: false, color: '#9fd8ff', loot: 'frost',
+            bhp: 46, batk: 11, bdef: 2, bspd: 17, bxp: 34, bgold: 20, xp: 56, gold: 28,
+            moves: [{ p: 0.35, kind: 'aoe', name: 'Frost Breath', mult: 0.7 }],
+            ally: { hp: 32, atk: 10, def: 2, spd: 18, skill: 'Frost Breath', mv: { p: 0.4, kind: 'aoe', name: 'Frost Breath', mult: 0.8 } },
+            role: 'Frost Breath chills every enemy at once.',
+            lore: 'Quiet spirits of the snow. They only strike when approached too fast.',
+            join: ['...You did not run from the cold. Nobody stays.', 'I... I would like to come with you. If that is all right. (joined the party)'] },
+    iceharpy: { sheet: 'ice_harpy_walk', name: 'Ice Harpy', speed: 100, chase: 300, dash: true, color: '#7fc8ff', loot: 'frost',
+                bhp: 44, batk: 12, bdef: 1, bspd: 24, bxp: 36, bgold: 22, xp: 60, gold: 30,
+                moves: [{ p: 0.35, kind: 'skill', name: 'Ice Dive', mult: 1.7 }],
+                ally: { hp: 28, atk: 11, def: 1, spd: 25, skill: 'Ice Dive', mv: { p: 0.4, kind: 'skill', name: 'Ice Dive', mult: 1.7 } },
+                role: 'A very fast diver. Ice Dive hits hard.',
+                lore: 'Cold-wing hunters of the peaks. Faster than their cousins on the cliffs.',
+                join: ['Ha! You kept up with me? Fine, I will fly with you!', 'Do not slow me down, traveler. (joined the party)'] },
+    salamander: { sheet: 'salamander_girl_walk', name: 'Salamander Girl', speed: 80, chase: 260, dash: false, color: '#e8603a', loot: 'ember',
+                  bhp: 52, batk: 12, bdef: 2, bspd: 17, bxp: 40, bgold: 24, xp: 66, gold: 34,
+                  moves: [{ p: 0.35, kind: 'aoe', name: 'Flame Burst', mult: 0.7 }],
+                  ally: { hp: 36, atk: 11, def: 2, spd: 18, skill: 'Flame Burst', mv: { p: 0.4, kind: 'aoe', name: 'Flame Burst', mult: 0.8 } },
+                  role: 'Flame Burst scorches every enemy at once.',
+                  lore: 'Hot-headed fire lizards. Loud, proud and fiercely loyal once befriended.',
+                  join: ['You are tougher than you look! I like that!', 'I will burn anyone who messes with you. Deal? (joined the party)'] },
+    sprite: { sheet: 'ember_sprite_walk', name: 'Ember Sprite', speed: 85, chase: 280, dash: false, color: '#ffb03a', loot: 'ember',
+              bhp: 44, batk: 13, bdef: 1, bspd: 22, bxp: 40, bgold: 24, xp: 66, gold: 34,
+              moves: [{ p: 0.35, kind: 'skill', name: 'Cinder Touch', mult: 1.6, drain: true }],
+              ally: { hp: 28, atk: 12, def: 1, spd: 22, skill: 'Cinder Touch', mv: { p: 0.4, kind: 'skill', name: 'Cinder Touch', mult: 1.5, drain: true } },
+              role: 'Cinder Touch burns a foe and warms her up.',
+              lore: 'Playful fire spirits. They flicker when they are happy.',
+              join: ['Hehe! You are not scared of my sparks? Fun!', 'Take me with you! I promise not to burn your socks. Much. (joined the party)'] },
+    guard: { sheet: 'royal_guard_walk', name: 'Royal Guard', speed: 78, chase: 260, dash: false, color: '#d8d8e8', loot: 'crest',
+             bhp: 70, batk: 14, bdef: 4, bspd: 17, bxp: 50, bgold: 35, xp: 80, gold: 45,
+             moves: [{ p: 0.35, kind: 'skill', name: 'Shield Bash', mult: 1.6 }],
+             ally: { hp: 44, atk: 13, def: 4, spd: 17, skill: 'Shield Bash', mv: { p: 0.4, kind: 'skill', name: 'Shield Bash', mult: 1.6 } },
+             role: 'Shield Bash hits hard. A reliable front liner.',
+             lore: 'Elite guards of the Court. Stern, but secretly very kind.',
+             join: ['I was ordered to stop you. ...But you fought honorably.', 'Request denied: I cannot resist this one. I will follow you. (joined the party)'] },
+
+    dryadq: { sheet: 'dryad_queen_walk', name: 'Dryad Queen', boss: true, sigil: 'sigilg', speed: 0, chase: 0, dash: false, color: '#4fd06a', loot: 'sap',
+              bhp: 180, batk: 13, bdef: 3, bspd: 17, bxp: 150, bgold: 150, xp: 190, gold: 180, befThr: 0.25, befChance: 0.5,
+              moves: [{ p: 0.25, kind: 'aoe', name: 'Thorn Storm', mult: 0.8 }, { p: 0.25, kind: 'skill', name: 'Life Drain', mult: 1.5, drain: true }],
+              ally: { hp: 46, atk: 12, def: 3, spd: 20, skill: 'Verdant Wrath', mv: { p: 0.4, kind: 'aoe', name: 'Verdant Wrath', mult: 0.9 } },
+              role: 'Verdant Wrath lashes every enemy. Queen of the grove.',
+              lore: 'Ruler of the Whispering Grove. She keeps the Verdant Sigil. Listens only at 25% HP.',
+              join: ['...The forest hums when you are near. It has chosen.', 'I am Verdana. I will lend you the strength of the grove. (joined the party)'],
+              defeat: ['...The roots go quiet. You are stronger than the grove.', 'Take the Verdant Sigil, traveler. The forest will remember you. (The Dryad Queen fades into the leaves)'] },
+    snowq: { sheet: 'snow_queen_walk', name: 'Snow Queen', boss: true, sigil: 'sigilf', speed: 0, chase: 0, dash: false, color: '#9fd8ff', loot: 'frost',
+             bhp: 200, batk: 14, bdef: 3, bspd: 17, bxp: 170, bgold: 170, xp: 210, gold: 200, befThr: 0.25, befChance: 0.5,
+             moves: [{ p: 0.3, kind: 'aoe', name: 'Blizzard', mult: 0.8 }, { p: 0.2, kind: 'skill', name: 'Ice Lance', mult: 1.9 }],
+             ally: { hp: 48, atk: 13, def: 3, spd: 20, skill: 'Blizzard', mv: { p: 0.4, kind: 'aoe', name: 'Blizzard', mult: 0.9 } },
+             role: 'Blizzard buries every enemy in snow. Queen of the peaks.',
+             lore: 'Ruler of Frostveil Peaks. She keeps the Frost Sigil. Listens only at 25% HP.',
+             join: ['...Your hand is warm. I had forgotten what warm felt like.', 'I am Glacia. Let my winter walk with you. (joined the party)'],
+             defeat: ['...The snow falls still. You have won, traveler.', 'Take the Frost Sigil. May the cold never reach you. (The Snow Queen melts into mist)'] },
+    flameq: { sheet: 'flame_queen_walk', name: 'Flame Queen', boss: true, sigil: 'sigile', speed: 0, chase: 0, dash: false, color: '#ff6a3a', loot: 'ember',
+              bhp: 220, batk: 15, bdef: 3, bspd: 17, bxp: 190, bgold: 190, xp: 230, gold: 220, befThr: 0.25, befChance: 0.5,
+              moves: [{ p: 0.3, kind: 'aoe', name: 'Inferno', mult: 0.85 }, { p: 0.2, kind: 'skill', name: 'Flare Strike', mult: 2.0 }],
+              ally: { hp: 50, atk: 14, def: 3, spd: 20, skill: 'Inferno', mv: { p: 0.4, kind: 'aoe', name: 'Inferno', mult: 0.9 } },
+              role: 'Inferno engulfs every enemy. Queen of the flames.',
+              lore: 'Ruler of Ember Caldera. She keeps the Ember Sigil. Listens only at 25% HP.',
+              join: ['Ha! A mortal who touches my flame and does not burn?', 'I am Ignia. Burn bright beside me! (joined the party)'],
+              defeat: ['...The fire dims. You have earned this, traveler.', 'Take the Ember Sigil. Wear it with pride. (The Flame Queen dissolves into sparks)'] },
+    overq: { sheet: 'overqueen_walk', name: 'Overqueen', boss: true, final: true, speed: 0, chase: 0, dash: false, color: '#ffe27a', loot: 'crown',
+             bhp: 340, batk: 18, bdef: 5, bspd: 19, bxp: 400, bgold: 500, xp: 500, gold: 600, befThr: 0.25, befChance: 0.45,
+             moves: [{ p: 0.25, kind: 'aoe', name: 'Royal Decree', mult: 0.9 }, { p: 0.2, kind: 'skill', name: 'Judgement', mult: 2.0 }, { p: 0.15, kind: 'skill', name: 'Life Drain', mult: 1.5, drain: true }],
+             ally: { hp: 60, atk: 16, def: 5, spd: 22, skill: 'Royal Decree', mv: { p: 0.4, kind: 'aoe', name: 'Royal Decree', mult: 1.0 } },
+             role: 'Royal Decree strikes every enemy. Empress of all monsters.',
+             lore: 'Empress of all monsters. Keeper of the Court. Listens only at 25% HP.',
+             join: ['...You fought through five Queens, and now you ask me to walk beside you?', 'I am Aurelia, Overqueen of all monsters. It would be my honor. (joined the party)'],
+             defeat: ['...Magnificent. You have bested the Overqueen.', 'Rise, traveler. Rest. The fight is over. (The Overqueen kneels and smiles)'],
+             epilogue: ['Long ago, humans and monsters lived as one. Then a curse split us. The monsters grew wild, and the women grew afraid.',
+                        'Five Queens held five seals to keep the curse from spreading. But a seal needs a bond, and the people of this world could no longer make one.',
+                        'Only someone from outside this world could reach out a hand without fear. Elder Mira tried a ritual to call a hero.',
+                        'It called you. A man, in a world of women. She still cannot believe it worked.',
+                        'You tamed my Queens, broke the seals and reached my throne. Look around. Even the wild ones are smiling now.',
+                        'The road home is open, if you want it. But the girls would miss you terribly.',
+                        'Thank you for playing! The Queens return to their thrones every 12 hours, so come back any time.'] }
+  };
+  const befThr = T => T.befThr || 0.4;
+  const befChance = T => T.befChance || 0.8;
+
+  // ---- Maps ----
+  const key = (x, y) => x + ',' + y;
+  function newMap(id, name, W, H, ground, obs) {
+    return { id, name, W, H, ground, obs, dark: false, tint: null, start: { x: 1.6, y: 9.5 }, solid: new Set(), water: new Set(), pathT: new Set(), trees: [], houses: [], torches: [], signs: [], npcs: [], spawns: [], monsters: [], exits: [] };
+  }
+  // g = { w: [rows], e: [rows], n: [cols], s: [cols] } gaps in the border (a legacy array means west + east rows)
+  function borderTrees(m, g, gt, gb) {
+    if (Array.isArray(g)) g = { w: g, e: g, n: gt || [], s: gb || [] };
+    const gap = (arr, v) => (arr || []).some(c => Math.abs(v - c) <= 1);
+    for (let x = 0; x < m.W; x++) {
+      if (!gap(g.n, x)) m.trees.push([x, 0]);
+      if (!gap(g.s, x)) m.trees.push([x, m.H - 1]);
+    }
+    for (let y = 1; y < m.H - 1; y++) {
+      if ((g.w || []).indexOf(y) < 0) m.trees.push([0, y]);
+      if ((g.e || []).indexOf(y) < 0) m.trees.push([m.W - 1, y]);
+    }
+  }
+  function makeMon(type, tx, ty) {
+    return { type, x: (tx + 0.5) * TILE, y: (ty + 0.9) * TILE, dir: 'down',
+             vx: 0, vy: 0, wanderT: Math.random() * 2, hitCd: 0, ph: Math.random() * 6,
+             st: 'idle', stT: 0, dx: 0, dy: 0, dashCd: 0 };
+  }
+  const BOSS_RESPAWN_MS = 12 * 60 * 60 * 1000;   // a defeated boss returns after 12 real-time hours
+  function bossAvailable(type) { const b = bs(type || 'queen'); if (b.friend) return false; return !b.at || Date.now() - b.at >= BOSS_RESPAWN_MS; }
+  function bossRemaining(type) { return Math.max(0, bs(type || 'queen').at + BOSS_RESPAWN_MS - Date.now()); }
+  function fmtRemain(ms) { const mm = Math.ceil(ms / 60000); return Math.floor(mm / 60) + 'h ' + (mm % 60) + 'm'; }
+  function respawn(m) {
+    const gone = cleared[m.id] || [];
+    m.monsters = [];
+    m.spawns.forEach((sp, i) => {
+      if (MON[sp[0]].boss ? !bossAvailable(sp[0]) : gone.indexOf(i) >= 0) return;
+      const mo = makeMon(sp[0], sp[1], sp[2]); mo.si = i; m.monsters.push(mo);
+    });
+  }
+  function finalize(m) {
+    m.trees.forEach(t => m.solid.add(key(t[0], t[1])));
+    m.houses.forEach(h => { for (let i = 0; i < h.w; i++) for (let j = 0; j < 2; j++) m.solid.add(key(h.x + i, h.y + j)); });
+    m.torches.forEach(t => m.solid.add(key(t[0], t[1])));
+    m.signs.forEach(sg => m.solid.add(key(sg.x, sg.y)));
+    m.water.forEach(k => m.solid.add(k));
+    respawn(m);
+    return m;
+  }
+  // scatter obstacles deterministically, leaving exit lanes, spawns, signs and torches free
+  function scatter(m, n, seed, keep) {
+    let r = seed;
+    const rnd = () => (r = (r * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const free = (x, y) => !keep.some(k => Math.abs(k[0] - x) <= 1 && Math.abs(k[1] - y) <= 1);
+    let tries = 0;
+    while (n > 0 && tries++ < 800) {
+      const x = 2 + Math.floor(rnd() * (m.W - 4)), y = 2 + Math.floor(rnd() * (m.H - 4));
+      if (free(x, y) && !m.trees.some(t => t[0] === x && t[1] === y)) { m.trees.push([x, y]); n--; }
+    }
+  }
+  function makeArea(o) {
+    const m = newMap(o.id, o.name, o.W, o.H, o.ground, o.obs);
+    m.dark = !!o.dark; m.tint = o.tint || null; m.start = o.start;
+    borderTrees(m, o.gaps || {});
+    m.torches = o.torches || []; m.signs = o.signs || []; m.exits = o.exits; m.spawns = o.spawns || [];
+    const keep = [].concat(m.torches, m.signs.map(sg => [sg.x, sg.y]), m.spawns.map(sp => [sp[1], sp[2]]));
+    m.exits.forEach(e => {
+      const horiz = e.side === 'e' || e.side === 'w';
+      for (let i = 0; i < (horiz ? m.W : m.H); i++) {
+        const t = horiz ? [i, e.row] : [e.col, i];
+        keep.push(t);
+        if (o.path) m.pathT.add(key(t[0], t[1]));
+      }
+    });
+    scatter(m, o.count || 0, o.seed || 1, keep);
+    return finalize(m);
+  }
+  const MAPS = {};
+
+  (function () {
+    const m = newMap('village', 'Village', 20, 18, 'grass', 'tree_01');
+    for (let x = 0; x < m.W; x++) m.pathT.add(key(x, 9));
+    for (let y = 3; y < m.H - 1; y++) m.pathT.add(key(9, y));
+    for (let x = 2; x <= 4; x++) for (let y = 2; y <= 4; y++) m.water.add(key(x, y));
+    borderTrees(m, [8, 9, 10]);
+    [[6,3],[15,2],[16,7],[2,8],[6,14],[11,15],[17,13],[5,7],[13,8]].forEach(t => m.trees.push(t));
+    m.houses = [
+      { x: 12, y: 4, w: 3, name: 'Elder Hall', roof: '#8a3b2f' },
+      { x: 3, y: 12, w: 3, name: 'Forge', roof: '#4b5d7a' },
+      { x: 13, y: 12, w: 3, name: 'Market', roof: '#6b8a2f' }
+    ];
+    m.torches = [[18, 8], [18, 10], [8, 10]];
+    m.npcs = [
+      { name: 'Elder Mira', sheet: 'npc_mira_idle', x: 13.5, y: 6.9, hair: '#d9d9e8', dress: '#5a3d8a',
+        lines: ['Oh my... a MAN? Stay calm, everyone, it is not a monster!',
+                'Our world has only women. Humans and monsters alike. You are... very rare.',
+                'Legend says a stranger from another world will tame the Monster Queens.',
+                'East lies Slime Meadow, then the Harpy Cliffs, and past them Lamia Cave, where Queen Lamia rules.',
+                'Touch a monster girl, or strike first with your sword, to start a battle. Wear her down, then choose Befriend. A tired girl shows a heart above her head.',
+                'Harpies are fast. A red ! above one means she is about to dive. Befriended girls fight at your side. Up to three! You can release a friend from the Party tab of your Journal.',
+                'They say a haunted crypt lies beyond Lamia Cave, ruled by a Wraith Queen who guards a sealed gate. Only the brave go there.',
+                'Past the crypt is a crossroads with three realms: forest, snow and fire. Each is ruled by a Queen who keeps a Sigil.',
+                'Collect all three Sigils and the gate to the Court of Queens will open.',
+                'Rest in the village to recover HP and MP. Check your Journal (book icon) any time.'] },
+      { name: 'Smith Bruna', sheet: 'npc_bruna_idle', x: 4.5, y: 14.9, hair: '#7a3b1f', dress: '#444a55', shop: 'forge',
+        lines: ['Hmph. Skinny. That sword on your belt is a toothpick.',
+                'Bring me jelly, feathers and scales from the girls out there, plus a little coin, and I will forge you real gear.',
+                'Come on. Let me show you what I can make.'],
+        again: ['Back again? Show me what you brought.'] },
+      { name: 'Merchant Lyra', sheet: 'npc_lyra_idle', x: 14.5, y: 14.9, hair: '#e0a030', dress: '#2f8a6b',
+        shop: 'market',
+        lines: ['Welcome, welcome! Potions, bread, friendship bracelets!',
+                'Well, mostly potions. Healing in a bottle, made fresh from slime jelly!',
+                'I also buy spare materials, if you have more than you can carry. Take a look!'],
+        again: ['Welcome back! Browse as long as you like.'] }
+    ];
+    m.exits = [{ side: 'e', row: 9, to: 'meadow', sx: 1.6, sy: 9.5 }];
+    MAPS.village = finalize(m);
+  })();
+
+  (function () {
+    const m = newMap('meadow', 'Slime Meadow', 18, 18, 'grass', 'tree_01');
+    for (let x = 0; x < m.W; x++) m.pathT.add(key(x, 9));
+    for (let x = 10; x <= 12; x++) for (let y = 3; y <= 5; y++) m.water.add(key(x, y));
+    borderTrees(m, [8, 9, 10]);
+    [[3,3],[5,6],[14,7],[3,13],[8,15],[15,14],[7,11],[15,3],[2,6]].forEach(t => m.trees.push(t));
+    m.exits = [{ side: 'w', row: 9, to: 'village', sx: 18.4, sy: 9.5 },
+               { side: 'e', row: 9, to: 'cliffs', sx: 1.6, sy: 9.5 }];
+    m.spawns = [['slime', 5, 4], ['slime', 6, 5], ['slime', 12, 7], ['slime', 6, 13], ['slime', 13, 13], ['slime', 14, 12]];
+    MAPS.meadow = finalize(m);
+  })();
+
+  (function () {
+    const m = newMap('cliffs', 'Harpy Cliffs', 20, 18, 'rock', 'boulder_01');
+    for (let x = 0; x < m.W; x++) m.pathT.add(key(x, 9));
+    borderTrees(m, [8, 9, 10]);
+    [[4,4],[7,6],[11,3],[15,5],[16,12],[12,14],[5,13],[9,11],[3,8],[14,8],[8,15],[17,15]].forEach(t => m.trees.push(t));
+    m.exits = [{ side: 'w', row: 9, to: 'meadow', sx: 16.4, sy: 9.5 },
+               { side: 'e', row: 9, to: 'cave', sx: 1.6, sy: 9.5 }];
+    m.spawns = [['harpy', 6, 4], ['harpy', 13, 6], ['harpy', 5, 14], ['harpy', 14, 13]];
+    MAPS.cliffs = finalize(m);
+  })();
+
+  (function () {
+    const m = newMap('cave', 'Lamia Cave', 22, 18, 'cave', 'stalagmite_01');
+    m.dark = true;
+    borderTrees(m, [8, 9, 10]);
+    [[4,3],[6,6],[10,4],[12,8],[16,3],[7,11],[11,13],[15,14],[3,14],[17,6],[19,12],[9,15],[14,10]].forEach(t => m.trees.push(t));
+    m.torches = [[3, 8], [3, 10], [19, 8], [19, 10], [16, 2], [20, 2]];
+    m.signs = [{ x: 4, y: 8, kind: 'boss' }, { x: 17, y: 8, kind: 'boss' }];
+    m.exits = [{ side: 'w', row: 9, to: 'cliffs', sx: 18.4, sy: 9.5 },
+               { side: 'e', row: 9, to: 'crypt', sx: 1.6, sy: 9.5 }];
+    m.spawns = [['lamia', 8, 5], ['lamia', 9, 13], ['lamia', 13, 5], ['lamia', 12, 12], ['lamia', 13, 13], ['queen', 18, 3]];   // the Queen's throne is in the north-east corner, off the main path
+    MAPS.cave = finalize(m);
+  })();
+
+  (function () {
+    const m = newMap('crypt', 'Haunted Crypt', 22, 18, 'crypt', 'gravestone_01');
+    m.dark = true;
+    borderTrees(m, [8, 9, 10]);
+    [[4,4],[6,7],[9,3],[11,6],[15,4],[18,6],[5,13],[8,15],[12,12],[16,13],[19,12],[14,15],[10,10]].forEach(t => m.trees.push(t));
+    m.torches = [[3, 10], [19, 8], [19, 10], [16, 2], [20, 2]];
+    m.signs = [{ x: 4, y: 8, kind: 'crypt' }, { x: 17, y: 8, kind: 'crypt' }];
+    m.exits = [{ side: 'w', row: 9, to: 'cave', sx: 20.4, sy: 9.5 },
+               { side: 'e', row: 9, to: 'hub', sx: 1.6, sy: 9.5, need: () => bs('wraith').done, msg: 'A sealed gate. The Wraith Queen holds the seal.' }];
+    m.spawns = [['undead', 7, 5], ['undead', 8, 6], ['undead', 12, 13], ['undead', 13, 13], ['undead', 17, 12], ['undead', 14, 4], ['wraith', 19, 3]];   // her chamber is the north-east corner, off the main path
+    MAPS.crypt = finalize(m);
+  })();
+
+  // ---- Crossroads hub + the realms beyond the crypt ----
+  const SIGIL_NEED = 3;
+  function sigilCount() { return (inv.sigilg > 0 ? 1 : 0) + (inv.sigilf > 0 ? 1 : 0) + (inv.sigile > 0 ? 1 : 0); }
+  MAPS.hub = makeArea({ id: 'hub', name: 'Crossroads', W: 22, H: 18, ground: 'rock', obs: 'boulder_01', seed: 7, count: 18, path: true,
+    gaps: { w: [8, 9, 10], e: [8, 9, 10], n: [4, 17], s: [11] }, start: { x: 1.6, y: 9.5 },
+    signs: [{ x: 6, y: 2, kind: 'hub_grove' }, { x: 15, y: 2, kind: 'hub_court' }, { x: 19, y: 8, kind: 'hub_peaks' }, { x: 13, y: 15, kind: 'hub_caldera' }],
+    exits: [{ side: 'w', row: 9, to: 'crypt', sx: 20.4, sy: 9.5 },
+            { side: 'e', row: 9, to: 'peaks', sx: 1.6, sy: 9.5 },
+            { side: 'n', col: 4, to: 'grove', sx: 10.5, sy: 18.2 },
+            { side: 'n', col: 17, to: 'court', sx: 10.5, sy: 16.2, need: () => sigilCount() >= SIGIL_NEED, msg: 'The gate is sealed. It needs the Verdant, Frost and Ember Sigils.' },
+            { side: 's', col: 11, to: 'caldera', sx: 11.5, sy: 1.6 }] });
+  MAPS.grove = makeArea({ id: 'grove', name: 'Whispering Grove', W: 20, H: 20, ground: 'moss', obs: 'darktree_01', tint: 'rgba(10,50,20,0.20)', seed: 11, count: 26,
+    gaps: { s: [10] }, start: { x: 10.5, y: 18.2 }, signs: [{ x: 8, y: 17, kind: 'grove' }],
+    exits: [{ side: 's', col: 10, to: 'hub', sx: 4.5, sy: 1.6 }],
+    spawns: [['alraune', 6, 14], ['alraune', 14, 13], ['alraune', 8, 8], ['dryad', 5, 5], ['dryad', 12, 10], ['dryad', 15, 7], ['dryadq', 16, 3]] });
+  MAPS.peaks = makeArea({ id: 'peaks', name: 'Frostveil Peaks', W: 22, H: 18, ground: 'snow', obs: 'icepine_01', tint: 'rgba(170,210,255,0.14)', seed: 23, count: 26,
+    gaps: { w: [8, 9, 10] }, start: { x: 1.6, y: 9.5 }, signs: [{ x: 4, y: 8, kind: 'peaks' }],
+    exits: [{ side: 'w', row: 9, to: 'hub', sx: 20.4, sy: 9.5 }],
+    spawns: [['yuki', 6, 5], ['yuki', 8, 13], ['yuki', 14, 12], ['iceharpy', 11, 4], ['iceharpy', 15, 8], ['iceharpy', 12, 14], ['snowq', 19, 3]] });
+  MAPS.caldera = makeArea({ id: 'caldera', name: 'Ember Caldera', W: 22, H: 18, ground: 'lava', obs: 'obsidian_01', tint: 'rgba(255,80,20,0.16)', seed: 37, count: 24,
+    gaps: { n: [11] }, start: { x: 11.5, y: 1.6 }, signs: [{ x: 13, y: 2, kind: 'caldera' }],
+    exits: [{ side: 'n', col: 11, to: 'hub', sx: 11.5, sy: 16.4 }],
+    spawns: [['salamander', 5, 6], ['salamander', 16, 6], ['salamander', 8, 12], ['sprite', 13, 11], ['sprite', 4, 13], ['sprite', 17, 12], ['flameq', 18, 15]] });
+  MAPS.court = makeArea({ id: 'court', name: 'Court of Queens', W: 20, H: 18, ground: 'marble', obs: 'pillar_01', seed: 5, count: 8,
+    gaps: { s: [10] }, start: { x: 10.5, y: 16.2 }, signs: [{ x: 8, y: 15, kind: 'court' }], torches: [[7, 2], [13, 2], [4, 5], [16, 5]],
+    exits: [{ side: 's', col: 10, to: 'hub', sx: 17.5, sy: 1.6 }],
+    spawns: [['guard', 5, 10], ['guard', 15, 10], ['guard', 7, 6], ['guard', 13, 6], ['guard', 10, 12], ['overq', 10, 3]] });
+  let M = MAPS.village;
+  function preloadMap(m, deep) {
+    loadImg(({ rock: 'tile_rock', cave: 'tile_cave', crypt: 'tile_crypt', moss: 'tile_moss', snow: 'tile_snow', lava: 'tile_lava', marble: 'tile_marble' })[m.ground] || 'tile_grass');
+    loadImg(m.obs);
+    m.spawns.forEach(sp => loadImg(MON[sp[0]].sheet));
+    if (deep) m.exits.forEach(e => { if (e.to && MAPS[e.to]) preloadMap(MAPS[e.to], false); });
+  }
+  ['player_walk_down', 'player_walk_up', 'player_walk_side', 'player_attack_down', 'player_attack_up', 'player_attack_side', 'npc_mira_idle', 'npc_bruna_idle', 'npc_lyra_idle',
+   'tile_path', 'tile_water', 'tree_01', 'slime_girl_walk'].forEach(loadImg);
+  preloadMap(M, true);
+
+  // ---- State ----
+  const player = { x: 9.5 * TILE, y: 9.5 * TILE, dir: 'down', moving: false, atk: 0, atkHit: true, inv: 0,
+                   hp: 24, maxHp: 24, mp: 8, maxMp: 8, gold: 0, lvl: 1, xp: 0 };
+  const party = [];            // allies {type,hp,maxHp,atk,def,spd,name,x,y,dir,ph}
+  const hist = [];             // player trail
+  const cam = { x: 0, y: 0 };
+  // ---- Gear + crafting data (Smith Bruna forges gear from monster materials) ----
+  const GEAR = {
+    rusty:      { slot: 'weapon', name: 'Rusty Sword', atk: 1, desc: 'A dull blade. Better than nothing.' },
+    jellysword: { slot: 'weapon', name: 'Jelly Sword', atk: 3, desc: 'Springy and surprisingly sharp.' },
+    talon:      { slot: 'weapon', name: 'Talon Rapier', atk: 5, desc: 'Light as a feather, bites like a harpy.' },
+    fang:       { slot: 'weapon', name: 'Lamia Fang Saber', atk: 7, desc: 'Curved like a fang. Cuts through scales.' },
+    royal:      { slot: 'weapon', name: 'Royal Fang Blade', atk: 10, desc: 'Forged from a Queen Scale. A royal edge.' },
+    tunic:      { slot: 'armor', name: 'Green Tunic', def: 0, desc: 'The outfit you arrived in.' },
+    jellyvest:  { slot: 'armor', name: 'Jelly Vest', def: 1, desc: 'Cool and bouncy. Absorbs a little damage.' },
+    cloak:      { slot: 'armor', name: 'Feather Cloak', def: 2, desc: 'Warm, light, and surprisingly sturdy.' },
+    scalemail:  { slot: 'armor', name: 'Scale Mail', def: 4, desc: 'Overlapping lamia scales. Heavy but strong.' },
+    regalia:    { slot: 'armor', name: 'Queen Regalia', def: 6, desc: 'Armor fit for a queen. Purple and gold.' },
+    jellycharm: { slot: 'accessory', name: 'Jelly Charm', def: 1, hp: 6, desc: 'A lucky charm. Boosts max HP.' },
+    fangpend:   { slot: 'accessory', name: 'Fang Pendant', atk: 2, hp: 3, desc: 'A lamia fang on a cord. Sharpens your strikes.' },
+    spiritedge: { slot: 'weapon', name: 'Spirit Edge', atk: 13, desc: 'A blade that cuts through armor and ghosts alike.' },
+    mantle:     { slot: 'armor', name: 'Wraith Mantle', def: 8, desc: 'Woven from spirit dust. Light as mist.' },
+    spiritcharm:{ slot: 'accessory', name: 'Spirit Charm', atk: 3, def: 2, hp: 10, desc: 'Whispers courage into your ear.' },
+    veilblade:  { slot: 'weapon', name: 'Veil Blade', atk: 17, desc: 'Cuts the air and the dark in one stroke.' },
+    veilgown:   { slot: 'armor', name: 'Veil Gown', def: 11, desc: 'Woven from a queen veil. Light and tough.' },
+    thornblade: { slot: 'weapon', name: 'Thornblade', atk: 19, desc: 'A living blade grown from grove wood.' },
+    barkguard:  { slot: 'armor', name: 'Barkguard', def: 12, desc: 'Armor of hardened bark. Warm and sturdy.' },
+    frostbrand: { slot: 'weapon', name: 'Frostbrand', atk: 22, desc: 'A blade of ice that never melts.' },
+    glacierplate:{ slot: 'armor', name: 'Glacier Plate', def: 14, desc: 'Plate armor of frozen glacier ice.' },
+    emberfang:  { slot: 'weapon', name: 'Emberfang', atk: 25, desc: 'A blade with a heart of living fire.' },
+    magmamail:  { slot: 'armor', name: 'Magma Mail', def: 16, desc: 'Cooled lava plates that still glow.' },
+    aureliablade:{ slot: 'weapon', name: 'Aurelia Blade', atk: 32, desc: 'Forged from the Overqueen crown gem. The finest blade.' },
+    aureliaregalia:{ slot: 'armor', name: 'Aurelia Regalia', def: 22, desc: 'Royal regalia that shines like a sunrise.' }
+  };
+  const RECIPES = [
+    { id: 'jellysword', cat: 0, gear: true, cost: { jelly: 3 }, gold: 20 },
+    { id: 'talon',      cat: 0, gear: true, cost: { feather: 4 }, gold: 50 },
+    { id: 'fang',       cat: 0, gear: true, cost: { scale: 5 }, gold: 90 },
+    { id: 'royal',      cat: 0, gear: true, cost: { queenscale: 1, scale: 3 }, gold: 150 },
+    { id: 'jellyvest',  cat: 1, gear: true, cost: { jelly: 4 }, gold: 15 },
+    { id: 'cloak',      cat: 1, gear: true, cost: { feather: 5 }, gold: 40 },
+    { id: 'scalemail',  cat: 1, gear: true, cost: { scale: 6 }, gold: 90 },
+    { id: 'regalia',    cat: 1, gear: true, cost: { queenscale: 1, scale: 4 }, gold: 150 },
+    { id: 'jellycharm', cat: 2, gear: true, cost: { jelly: 2, feather: 2 }, gold: 30 },
+    { id: 'fangpend',   cat: 2, gear: true, cost: { scale: 3 }, gold: 60 },
+    { id: 'potion1',    cat: 3, gear: false, name: 'Potion', qty: 1, desc: 'Restores 20 HP in battle.', cost: { jelly: 1 }, gold: 5 },
+    { id: 'potion3',    cat: 3, gear: false, name: 'Potion x3', qty: 3, desc: 'A discount bundle of three Potions.', cost: { jelly: 2 }, gold: 12 },
+    { id: 'ether1', cat: 3, gear: false, item: 'ether', name: 'Ether', qty: 1, desc: 'Restores 8 MP in battle.', cost: { spirit: 1 }, gold: 10 },
+    { id: 'ether3', cat: 3, gear: false, item: 'ether', name: 'Ether x3', qty: 3, desc: 'A bundle of three Ethers.', cost: { spirit: 2 }, gold: 18 },
+    { id: 'spiritedge', cat: 4, gear: true, cost: { spirit: 5, scale: 2 }, gold: 200 },
+    { id: 'mantle',     cat: 4, gear: true, cost: { spirit: 6, scale: 3 }, gold: 200 },
+    { id: 'spiritcharm',cat: 4, gear: true, cost: { spirit: 4, queenscale: 1 }, gold: 150 },
+    { id: 'veilblade',  cat: 5, gear: true, cost: { veil: 1, spirit: 6 }, gold: 300 },
+    { id: 'veilgown',   cat: 5, gear: true, cost: { veil: 1, spirit: 6, scale: 3 }, gold: 300 },
+    { id: 'thornblade', cat: 6, gear: true, cost: { sap: 6 }, gold: 300 },
+    { id: 'barkguard',  cat: 6, gear: true, cost: { sap: 8 }, gold: 300 },
+    { id: 'frostbrand', cat: 6, gear: true, cost: { frost: 6 }, gold: 450 },
+    { id: 'glacierplate', cat: 6, gear: true, cost: { frost: 8 }, gold: 450 },
+    { id: 'emberfang',  cat: 6, gear: true, cost: { ember: 6 }, gold: 650 },
+    { id: 'magmamail',  cat: 6, gear: true, cost: { ember: 8 }, gold: 650 },
+    { id: 'aureliablade', cat: 6, gear: true, cost: { crown: 1, crest: 8 }, gold: 1000 },
+    { id: 'aureliaregalia', cat: 6, gear: true, cost: { crown: 1, crest: 8 }, gold: 1000 }
+  ];
+  const EQUIP = { weapon: 'rusty', armor: 'tunic', accessory: null };   // equipped gear ids
+  const owned = { rusty: true, tunic: true };                           // gear ids you own
+  const journal = { open: false, tab: 0, msgUntil: 0, resetUntil: 0, releaseSlot: -1, releaseUntil: 0, relMsg: '', relMsgUntil: 0, scroll: 0, max: 0, lastTab: -1 };
+  const forge = { open: false, cat: 0, msg: '', msgUntil: 0, ui: [], scroll: 0, max: 0, lastCat: -1 };
+  const shop = { open: false, tab: 0, msg: '', msgUntil: 0, ui: [], scroll: 0, max: 0, lastTab: -1 };
+  const TABS = ['Profile', 'Equipment', 'Party', 'Items', 'Quests', 'Bestiary', 'System'];
+  let dlg = null, toast = null, exitCool = 0, t = 0, last = 0, playSec = 0;
+  let B = null;                // current battle
+  const keys = {};
+  const JOY_HOME = { x: 140, y: 1120 };
+  const joy = { id: null, ox: JOY_HOME.x, oy: JOY_HOME.y, dx: 0, dy: 0 };
+  const BTN = { x: 580, y: 1110, r: 78 };
+
+  function gear(id) { return id ? GEAR[id] : null; }
+  function gearBonus(k) { return ['weapon', 'armor', 'accessory'].reduce((n, sl) => n + ((gear(EQUIP[sl]) || {})[k] || 0), 0); }
+  function recomputeMax() {
+    player.maxHp = 24 + 4 * (player.lvl - 1) + gearBonus('hp'); player.maxMp = 8 + 2 * (player.lvl - 1);
+    player.hp = Math.min(player.hp, player.maxHp); player.mp = Math.min(player.mp, player.maxMp);
+  }
+  function pAtk() { return 4 + player.lvl + gearBonus('atk'); }
+  function pDef() { return Math.floor(player.lvl / 2) + gearBonus('def'); }
+  function newAlly(type) {
+    const A = MON[type].ally;
+    return { type, name: MON[type].name, side: 'a', hp: A.hp, maxHp: A.hp, atk: A.atk, def: A.def, spd: A.spd, x: player.x, y: player.y, dir: 'down', ph: Math.random() * 6 };
+  }
+  function say(name, lines) { dlg = { name, lines, i: 0 }; }
+  function showToast(s) { toast = { s, t: 2.6 }; }
+  function addXp(n) {
+    player.xp += n;
+    let up = false;
+    while (player.xp >= player.lvl * 20) { player.xp -= player.lvl * 20; player.lvl++; up = true; }
+    recomputeMax();
+    if (up) { player.hp = player.maxHp; player.mp = player.maxMp; }
+    return up;
+  }
+  function markSeen() { M.monsters.forEach(m => { seen[m.type] = true; }); }
+  function restAll() { player.hp = player.maxHp; player.mp = player.maxMp; party.forEach(p => { p.hp = p.maxHp; }); }
+  function loadMap(id, sx, sy) {
+    M = MAPS[id]; preloadMap(M, true); player.x = sx * TILE; player.y = sy * TILE; hist.length = 0;
+    party.forEach((p, i) => { p.x = player.x - 30 * (i + 1); p.y = player.y; });
+    respawn(M);
+    exitCool = 1.2; showToast(M.name); markSeen(); seen['map_' + id] = true;
+    if (id === 'village') { restAll(); showToast('Village - rested and fully healed'); }
+  }
+
+  // ---- Save / load / reset ----
+  function save() {
+    try {
+      if (typeof lib !== 'undefined' && lib.saveUserGameState) lib.saveUserGameState({
+        gold: player.gold, hp: player.hp, mp: player.mp, lvl: player.lvl, xp: player.xp, met: flags.met, boss: flags.bossDone, bat: flags.bossAt, bf: flags.bossFriend, bosses: flags.boss, bnd: bonded, es: flags.endingShown, party: party.map(p => p.type), pfrom: party.map(p => p.from || null),
+        map: M.id, stats: stats, inv: inv, seen: seen, play: Math.floor(playSec), eq: EQUIP, own: owned, clr: cleared });
+    } catch (e) {}
+  }
+  function setKeys(o, vals) { Object.keys(o).forEach(k => { delete o[k]; }); Object.assign(o, vals); }
+  let saveLoaded = false;   // true once a saved game was found (then the story intro is skipped)
+  function showIntro() { if (!saveLoaded && !dlg) say('You', INTRO); }
+  const INTRO = ['...Where am I? This is NOT my bedroom.',
+                 'Wait. Every single person here is a woman?!',
+                 'Okay. Deep breath. Maybe talk to someone. (Walk close to a person and press A)'];
+  function resetProgress() {
+    try { if (typeof lib !== 'undefined' && lib.deleteUserGameState) { const r = lib.deleteUserGameState(); if (r && r.catch) r.catch(() => {}); } } catch (e) {}
+    Object.assign(player, { dir: 'down', moving: false, atk: 0, atkHit: true, inv: 0, hp: 24, maxHp: 24, mp: 8, maxMp: 8, gold: 0, lvl: 1, xp: 0 });
+    party.length = 0; hist.length = 0;
+    flags.met = {}; flags.boss = {}; flags.endingShown = false; setKeys(cleared, {}); setKeys(bonded, {});
+    setKeys(owned, { rusty: true, tunic: true }); Object.assign(EQUIP, { weapon: 'rusty', armor: 'tunic', accessory: null });
+    setKeys(stats, { slime: 0, harpy: 0, lamia: 0, queen: 0, undead: 0, wraith: 0 });
+    setKeys(inv, { potion: 3, ether: 1, jelly: 0, feather: 0, scale: 0, queenscale: 0, spirit: 0, veil: 0, sap: 0, frost: 0, ember: 0, crest: 0, crown: 0, sigilg: 0, sigilf: 0, sigile: 0 });
+    setKeys(seen, {});
+    playSec = 0;
+    Object.keys(MAPS).forEach(id => respawn(MAPS[id]));
+    journal.open = false; journal.resetUntil = 0; B = null; dlg = null; toast = null;
+    joy.id = null; joy.dx = joy.dy = 0;
+    loadMap('village', 9.5, 9.5);
+    showToast('Progress reset');
+    say('You', INTRO);
+  }
+  try {
+    if (typeof lib !== 'undefined' && lib.getUserGameState) lib.getUserGameState().then(r => {
+      const s = r && r.state; if (!s) { showIntro(); return; }
+      saveLoaded = true;
+      if (s.own) setKeys(owned, s.own);
+      if (s.clr) setKeys(cleared, s.clr);
+      if (s.bnd) setKeys(bonded, s.bnd);
+      if (s.eq) Object.assign(EQUIP, s.eq);
+      player.gold = s.gold || 0; player.lvl = s.lvl || 1; player.xp = s.xp || 0;
+      recomputeMax();
+      player.hp = Math.max(1, Math.min(player.maxHp, s.hp || player.maxHp)); player.mp = Math.max(0, Math.min(player.maxMp, s.mp === undefined ? player.maxMp : s.mp));
+      flags.met = s.met || {}; flags.bossDone = !!s.boss;
+      flags.bossFriend = !!s.bf || !!(s.stats && s.stats.queen > 0);
+      flags.bossAt = s.bat || ((flags.bossDone && !flags.bossFriend) ? Date.now() : 0);   // old save: the 12h timer starts now
+      if (s.bosses) Object.keys(s.bosses).forEach(k => { flags.boss[k] = s.bosses[k]; });
+      flags.endingShown = !!s.es;
+      Object.assign(stats, s.stats || {}); Object.assign(inv, s.inv || {}); Object.assign(seen, s.seen || {}); playSec = s.play || 0;
+      const types = Array.isArray(s.party) ? s.party : new Array(s.party || 0).fill('slime');
+      types.slice(0, MAX_PARTY).forEach((ty, i) => { const a = newAlly(MON[ty] ? ty : 'slime'); if (s.pfrom && s.pfrom[i]) a.from = s.pfrom[i]; party.push(a); });
+      if (!s.clr) {   // old save: hide as many monsters of each species as you had befriended
+        const need = {}; Object.keys(stats).forEach(k => { need[k] = stats[k] || 0; });
+        Object.keys(MAPS).forEach(id => MAPS[id].spawns.forEach((sp, i) => {
+          if (!MON[sp[0]].boss && need[sp[0]] > 0) { (cleared[id] = cleared[id] || []).push(i); need[sp[0]]--; }
+        }));
+      }
+      if (!s.bnd) Object.keys(cleared).forEach(k => { bonded[k] = (cleared[k] || []).slice(); });   // old save: everyone recruited so far counts as bonded
+      Object.keys(MAPS).forEach(id => respawn(MAPS[id]));
+      if (MAPS[s.map] && s.map !== 'village') loadMap(s.map, MAPS[s.map].start.x, MAPS[s.map].start.y);
+    }).catch(() => { showIntro(); });
+    else showIntro();
+  } catch (e) { showIntro(); }
+
+  // ============================================================
+  // BATTLE (Final Fantasy style ATB, wait mode)
+  // ============================================================
+  const pc = {
+    isPlayer: true, side: 'a', name: 'Traveler', spd: 20,
+    get hp() { return player.hp; }, set hp(v) { player.hp = v; },
+    get maxHp() { return player.maxHp; },
+    get atk() { return pAtk(); }, get def() { return pDef(); }
+  };
+  function alive(c) { return !c.ko && !c.gone; }
+  function mkEnemy(m) {
+    const T = MON[m.type];
+    return { side: 'e', type: m.type, src: m, name: T.name, boss: !!T.boss, hp: T.bhp, maxHp: T.bhp, atk: T.batk, def: T.bdef, spd: T.bspd,
+             gauge: 0, ko: false, gone: false, flash: 0, shake: 0, off: 0, fade: 0, x: 0, y: 0, enraged: false };
+  }
+  function startBattle(m, preempt) {
+    const isBoss = !!MON[m.type].boss;
+    const group = [m];
+    if (!isBoss) M.monsters.forEach(o => { if (o !== m && !MON[o.type].boss && group.length < 3 && Math.hypot(o.x - m.x, o.y - m.y) < 320) group.push(o); });
+    const enemies = group.map(mkEnemy);
+    const allies = [pc].concat(party);
+    allies.forEach(a => { a.gauge = 20 + Math.random() * 20; a.ko = false; a.flash = 0; a.shake = 0; a.off = 0; a.fade = 0; if (a !== pc) a.hp = Math.max(1, a.hp); });
+    pc.gauge = preempt ? 100 : 20;
+    enemies.forEach(e => { e.gauge = preempt ? 0 : 40 + Math.random() * 40; });
+    B = { enemies, allies, state: 'intro', t: 0, menu: 'cmd', pend: null, anim: null,
+          msg: isBoss ? MON[m.type].name + ' blocks your path!' : (preempt ? 'First strike!' : 'Ambush!'), msgT: 1.4,
+          floats: [], ui: [], rewards: null, joined: [], endT: 0, fled: false };
+    joy.id = null; joy.dx = joy.dy = 0; player.atk = 0;
+    enemies.forEach(e => { seen[e.type] = true; });
+    enemies.forEach((e, i) => { e.x = ({ 1: [360], 2: [230, 490], 3: [140, 360, 580] })[enemies.length][i]; e.y = 380 + (i % 2 ? 40 : 0); });
+    allies.forEach((a, i) => { a.x = 720 / (allies.length + 1) * (i + 1); a.y = 780 + (i % 2 ? 36 : 0); });
+  }
+  function fl(c, text, col) { B.floats.push({ x: c.x, y: c.y - (c.side === 'e' ? 150 : 130), text, col, t: 0 }); }
+  function calcDmg(a, d, mult) {
+    let v = a.atk * (mult || 1) * (0.85 + Math.random() * 0.3) - d.def * 0.5;
+    let crit = Math.random() < 0.1; if (crit) v *= 1.5;
+    return { v: Math.max(1, Math.round(v)), crit };
+  }
+  function targetsOf(c) { return c.side === 'e' ? B.allies.filter(alive) : B.enemies.filter(alive); }
+  function startAction(a) {
+    a.actor.gauge = 0;
+    B.anim = { a, t: 0, dur: (a.kind === 'attack' || a.kind === 'skill' || a.kind === 'aoe') ? 0.8 : 0.7, applied: false };
+    B.state = 'anim';
+    const who = a.actor.name;
+    B.msg = a.kind === 'attack' ? who + ' attacks!' : a.kind === 'flee' ? who + ' tries to flee...' :
+            a.kind === 'befriend' ? who + ' reaches out a hand...' : a.kind === 'item' ? who + ' uses Potion' : a.kind === 'ether' ? who + ' uses Ether' : who + ' uses ' + a.name + '!';
+    B.msgT = 1.3;
+  }
+  function aiAct(c) {
+    if (c.side === 'e') {
+      const foes = B.allies.filter(alive); if (!foes.length) return;
+      let tgt = foes[Math.floor(Math.random() * foes.length)];
+      if (Math.random() < 0.4 && foes.indexOf(pc) >= 0) tgt = pc;
+      if (c.boss) {
+        if (!c.enraged && c.hp < c.maxHp * 0.5) { c.enraged = true; c.spd *= 1.3; B.msg = c.name + ' is enraged!'; B.msgT = 1.6; fl(c, 'ENRAGED!', '#ff5a5a'); }
+        let r = Math.random(); const mv = (MON[c.type].moves || []).find(m => (r -= m.p) < 0);
+        if (mv) startAction(Object.assign({ actor: c, target: tgt }, mv)); else startAction({ actor: c, kind: 'attack', mult: 1.2, target: tgt });
+        return;
+      }
+      const T0 = MON[c.type];
+      if (T0.moves) { let r0 = Math.random(); const mv0 = T0.moves.find(mm => (r0 -= mm.p) < 0); if (mv0) { startAction(Object.assign({ actor: c, target: tgt }, mv0)); return; } }
+      if (c.type === 'undead' && Math.random() < 0.4) { startAction({ actor: c, kind: 'skill', name: 'Soul Drain', mult: 1.2, drain: true, target: tgt }); return; }
+      if (c.type === 'lamia' && foes.length >= 2 && Math.random() < 0.35) { startAction({ actor: c, kind: 'aoe', name: 'Coil Crush', mult: 0.7 }); return; }
+      if (MON[c.type].dash && Math.random() < 0.35) startAction({ actor: c, kind: 'skill', name: 'Dive', mult: 1.6, target: tgt });
+      else startAction({ actor: c, kind: 'attack', target: tgt });
+    } else {
+      const foes = B.enemies.filter(alive); if (!foes.length) return;
+      if (c.type === 'slime') {
+        const hurt = B.allies.filter(a => alive(a) && a.hp / a.maxHp < 0.6).sort((x, y) => x.hp / x.maxHp - y.hp / y.maxHp)[0];
+        if (hurt && Math.random() < 0.8) { startAction({ actor: c, kind: 'heal', name: 'Heal Goo', amount: 12, target: hurt }); return; }
+      }
+      if (c.type === 'undead' && Math.random() < 0.45) { startAction({ actor: c, kind: 'skill', name: 'Soul Drain', mult: 1.2, drain: true, target: foes[Math.floor(Math.random() * foes.length)] }); return; }
+      if (c.type === 'lamia' && foes.length >= 2 && Math.random() < 0.4) { startAction({ actor: c, kind: 'aoe', name: 'Tail Whip', mult: 0.7 }); return; }
+      const A0 = MON[c.type].ally;
+      if (A0.heal) {
+        const hurt0 = B.allies.filter(a => alive(a) && a.hp / a.maxHp < 0.6).sort((u, v) => u.hp / u.maxHp - v.hp / v.maxHp)[0];
+        if (hurt0 && Math.random() < 0.8) { startAction({ actor: c, kind: 'heal', name: A0.skill, amount: A0.heal, target: hurt0 }); return; }
+      }
+      if (A0.mv && Math.random() < A0.mv.p) { startAction(Object.assign({ actor: c, target: foes[Math.floor(Math.random() * foes.length)] }, A0.mv)); return; }
+      if (c.type === 'wraith' && Math.random() < 0.4) { startAction({ actor: c, kind: 'aoe', name: 'Soul Storm', mult: 0.9 }); return; }
+      if (c.type === 'queen' && Math.random() < 0.4) { startAction({ actor: c, kind: 'aoe', name: 'Royal Coil', mult: 0.9 }); return; }
+      const tgt = foes[Math.floor(Math.random() * foes.length)];
+      if (c.type === 'harpy' && Math.random() < 0.4) startAction({ actor: c, kind: 'skill', name: 'Dive', mult: 1.7, target: tgt });
+      else startAction({ actor: c, kind: 'attack', target: tgt });
+    }
+  }
+  function hitTarget(ac, tg, mult) {
+    const r = calcDmg(ac, tg, mult || 1);
+    tg.hp -= r.v; tg.flash = 0.3; tg.shake = 0.3;
+    fl(tg, (r.crit ? 'CRIT ' : '') + r.v, r.crit ? '#ffe27a' : '#ffffff');
+    if (tg.hp <= 0) { tg.hp = 0; tg.ko = true; }
+    return r.v;
+  }
+  function applyAction(a) {
+    const tg = a.target, ac = a.actor;
+    if (a.kind === 'attack' || a.kind === 'skill') {
+      if (!alive(tg)) return;
+      const dealt = hitTarget(ac, tg, a.mult);
+      if (a.drain && dealt && !ac.ko) { const hh = Math.min(Math.ceil(dealt / 2), ac.maxHp - ac.hp); if (hh > 0) { ac.hp += hh; fl(ac, '+' + hh, '#6fe08a'); } }
+    } else if (a.kind === 'aoe') {
+      targetsOf(ac).forEach(x => hitTarget(ac, x, a.mult));
+    } else if (a.kind === 'heal') {
+      if (!alive(tg)) return;
+      const h = Math.min(a.amount, tg.maxHp - tg.hp); tg.hp += h; fl(tg, '+' + h, '#6fe08a');
+    } else if (a.kind === 'item') {
+      inv.potion = Math.max(0, (inv.potion || 0) - 1);
+      const h = Math.min(a.amount, tg.maxHp - tg.hp); tg.hp += h; fl(tg, '+' + h, '#6fe08a');
+    } else if (a.kind === 'ether') {
+      inv.ether = Math.max(0, (inv.ether || 0) - 1);
+      const mm = Math.min(a.amount, player.maxMp - player.mp); player.mp += mm; fl(pc, '+' + mm + ' MP', '#6fa8ff');
+    } else if (a.kind === 'befriend') {
+      if (!alive(tg)) return;
+      if (Math.random() < befChance(MON[tg.type])) { tg.gone = true; B.joined.push(tg); fl(tg, 'Friend!', '#ff7aa8'); B.msg = tg.name + ' trusts you!'; B.msgT = 1.4; }
+      else { fl(tg, 'Refused...', '#b8c0ff'); B.msg = 'She is not convinced yet...'; B.msgT = 1.4; }
+    } else if (a.kind === 'flee') {
+      if (B.enemies.some(e => e.boss && alive(e))) { B.msg = 'There is no escape from the Queen!'; B.msgT = 1.4; }
+      else if (Math.random() < 0.7) B.fled = true;
+      else { B.msg = 'Could not escape!'; B.msgT = 1.2; }
+    }
+  }
+  function finishAction() {
+    if (B.anim) B.anim.a.actor.off = 0;
+    B.anim = null;
+    if (player.hp <= 0) { player.hp = 0; B.state = 'defeat'; B.endT = B.t; B.msg = 'Traveler is down...'; B.msgT = 99; return; }
+    if (B.fled) { B.state = 'fled'; B.endT = B.t; B.msg = 'Got away safely!'; B.msgT = 99; return; }
+    if (!B.enemies.some(alive)) { winBattle(); return; }
+    B.state = 'run';
+  }
+  function winBattle() {
+    let xp = 0, gold = 0; const loot = [];
+    B.enemies.forEach(e => {
+      const T = MON[e.type];
+      if (e.gone) {
+        const bl = (bonded[M.id] = bonded[M.id] || []);
+        const first = e.src.si === undefined || bl.indexOf(e.src.si) < 0;
+        if (first) {
+          if (e.src.si !== undefined) bl.push(e.src.si);
+          xp += T.xp; gold += T.gold; inv[T.loot] = (inv[T.loot] || 0) + 1; loot.push('+1 ' + LOOT[T.loot].name + ' (bond)');
+          stats[e.type] = (stats[e.type] || 0) + 1;
+        } else loot.push('Already bonded before - no bonus rewards');
+      } else if (e.ko) {
+        xp += T.bxp; gold += T.bgold;
+        if (T.boss || Math.random() < 0.5) { inv[T.loot] = (inv[T.loot] || 0) + 1; loot.push('+1 ' + LOOT[T.loot].name); }
+        if (Math.random() < 0.2) { inv.potion = (inv.potion || 0) + 1; loot.push('+1 Potion'); }
+        if (Math.random() < 0.12) { inv.ether = (inv.ether || 0) + 1; loot.push('+1 Ether'); }
+      }
+      if (T.boss) { const bb = bs(e.type); bb.done = true; if (e.gone) bb.friend = true; else bb.at = Date.now(); if (T.sigil && !inv[T.sigil]) { inv[T.sigil] = 1; loot.push('Obtained the ' + LOOT[T.sigil].name + '!'); } }
+    });
+    player.gold += gold;
+    const up = addXp(xp);
+    B.joined.forEach(e => { if (party.length < MAX_PARTY) { const a = newAlly(e.type); a.from = { map: M.id, si: e.src.si }; party.push(a); } });
+    party.forEach(p => { p.hp = p.maxHp; });   // allies recover after each fight
+    B.enemies.forEach(e => {
+      const i = M.monsters.indexOf(e.src); if (i >= 0) M.monsters.splice(i, 1);
+      if (e.gone && e.src.si !== undefined) { (cleared[M.id] = cleared[M.id] || []).push(e.src.si); }
+    });
+    B.rewards = { xp, gold, loot, up };
+    B.state = 'victory'; B.endT = B.t; B.msg = 'Victory!'; B.msgT = 99;
+    save();
+  }
+  function endBattle() {
+    const st = B.state, joined = B.joined.slice();
+    const bossKilled = (B.enemies.find(e => e.boss && e.ko) || {}).type;
+    if (st === 'fled') {
+      B.enemies.forEach(e => { e.src.hitCd = 3; e.src.st = 'idle'; });
+      player.inv = 2;
+    }
+    B = null;
+    if (st === 'defeat') {
+      restAll(); player.inv = 1.5; loadMap('village', 9.5, 9.5);
+      say('You', ['...Ow. I blacked out.', 'Someone dragged me back to the village. These girls are stronger than they look.']);
+      return;
+    }
+    if (st === 'victory') {
+      const lines = []; let who = '';
+      joined.forEach(e => { who = who || MON[e.type].name; MON[e.type].join.forEach(l => lines.push(l)); });
+      if (!joined.length && bossKilled) { who = MON[bossKilled].name; MON[bossKilled].defeat.forEach(l => lines.push(l)); }
+      const finT = joined.length ? joined[0].type : bossKilled;
+      if (finT && MON[finT].final && !flags.endingShown) { flags.endingShown = true; MON[finT].epilogue.forEach(l => lines.push(l)); }
+      if (lines.length) say(who, lines);
+    }
+    save();
+  }
+
+  function updateBattle(dt) {
+    B.t += dt; B.msgT -= dt;
+    B.floats.forEach(f => { f.t += dt; });
+    B.floats = B.floats.filter(f => f.t < 1.1);
+    B.enemies.concat(B.allies).forEach(c => {
+      if (c.flash > 0) c.flash -= dt; if (c.shake > 0) c.shake -= dt;
+      if (c.side === 'e' && (c.ko || c.gone)) c.fade = Math.min(1, (c.fade || 0) + dt * 1.6);
+    });
+    if (B.state === 'intro') { if (B.t > 1.0) B.state = 'run'; return; }
+    if (B.state === 'anim') {
+      const an = B.anim; an.t += dt;
+      const p = Math.min(1, an.t / an.dur), a = an.a;
+      if (a.kind === 'attack' || a.kind === 'skill' || a.kind === 'aoe') a.actor.off = Math.sin(p * Math.PI) * 60 * (a.actor.side === 'e' ? 1 : -1);
+      if (!an.applied && p >= 0.5) { an.applied = true; applyAction(a); }
+      if (p >= 1) finishAction();
+      return;
+    }
+    if (B.state === 'fled') { if (B.t - B.endT > 0.9) endBattle(); return; }
+    if (B.state !== 'run') return;
+    // ATB fill (paused while a menu is open or an action plays)
+    let best = null;
+    B.enemies.concat(B.allies).forEach(c => {
+      if (!alive(c)) return;
+      c.gauge = Math.min(100, c.gauge + c.spd * dt * 3.2);
+      if (c.gauge >= 100 && (!best || c.gauge > best.gauge)) best = c;
+    });
+    if (best) {
+      if (best.isPlayer) { B.state = 'menu'; B.menu = 'cmd'; B.pend = null; }
+      else aiAct(best);
+    }
+  }
+
+  // ---- Battle input ----
+  function chooseTarget(c) {
+    const p = B.pend; if (!p) return;
+    if (p.kind === 'befriend') {
+      if (c.hp / c.maxHp > befThr(MON[c.type])) { B.msg = 'She does not trust you yet. Weaken her first!'; B.msgT = 1.6; B.menu = 'cmd'; return; }
+      if (party.length + B.joined.length >= MAX_PARTY) { B.msg = 'Your party is full (3/3)'; B.msgT = 1.6; B.menu = 'cmd'; return; }
+    }
+    if (p.mp) player.mp -= p.mp;
+    const a = { actor: pc, kind: p.kind, name: p.name, mult: p.mult, amount: p.amount, target: c };
+    B.menu = 'cmd'; B.pend = null;
+    startAction(a);
+  }
+  function pickTarget(pend) {
+    B.pend = pend;
+    const list = pend.side === 'e' ? B.enemies.filter(alive) : B.allies.filter(alive);
+    if (list.length === 1) chooseTarget(list[0]); else B.menu = 'target';
+  }
+  function battleTap(p) {
+    if (!B) return;
+    if (B.state === 'victory' || B.state === 'defeat') { if (B.t - B.endT > 0.5) endBattle(); return; }
+    if (B.state !== 'menu') return;
+    for (const u of B.ui) if (p[0] >= u.x && p[0] <= u.x + u.w && p[1] >= u.y && p[1] <= u.y + u.h) { u.fn(); return; }
+    if (B.menu === 'target') {
+      const list = B.pend.side === 'e' ? B.enemies.filter(alive) : B.allies.filter(alive);
+      for (const c of list) if (Math.abs(p[0] - c.x) < 90 && p[1] > c.y - 240 && p[1] < c.y + 40) { chooseTarget(c); return; }
+    }
+  }
+
+  // ---- Battle drawing ----
+  function groundId() { return ({ rock: 'tile_rock', cave: 'tile_cave', crypt: 'tile_crypt', moss: 'tile_moss', snow: 'tile_snow', lava: 'tile_lava', marble: 'tile_marble' })[M.ground] || 'tile_grass'; }
+  function groundCol() { return ({ rock: '#7b7468', cave: '#2a3042', crypt: '#2b2438', moss: '#27402a', snow: '#dbe8f4', lava: '#3a2420', marble: '#e6e2da' })[M.ground] || '#3f8f3a'; }
+  function btn(x, y, w, h, label, enabled, fn, sub) {
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.fillStyle = enabled ? '#e8e8f0' : '#555a7a'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillStyle = enabled ? '#26399e' : '#1a2058'; ctx.fillRect(x, y, w, h);
+    txt(label, x + w / 2, y + (sub ? h / 2 - 2 : h / 2 + 8), 24, enabled ? '#fff' : '#7a85c8', 'center');
+    if (sub) txt(sub, x + w / 2, y + h / 2 + 24, 16, enabled ? '#f0d070' : '#6a73b0', 'center');
+    B.ui.push({ x, y, w, h, fn: enabled ? fn : () => {} });
+  }
+  function drawCombatant(c, idx) {
+    const isE = c.side === 'e';
+    const x = c.x + (c.shake > 0 ? Math.sin(B.t * 70) * 7 : 0), y = c.y + c.off;
+    let alpha = 1;
+    if (isE) alpha = 1 - (c.fade || 0); else if (c.ko) alpha = 0.35;
+    if (alpha <= 0.02) return;
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.3 * alpha) + ')'; ctx.fillRect(x - (c.boss ? 70 : 46), c.y - 6, c.boss ? 140 : 92, 14);
+    if (c.flash > 0 && Math.floor(B.t * 30) % 2) alpha *= 0.45;
+    let H = 100;
+    if (c.isPlayer) {
+      const acting = B.anim && B.anim.a.actor === c && (B.anim.a.kind === 'attack' || B.anim.a.kind === 'skill');
+      const id = acting ? 'player_attack_up' : 'player_walk_up';
+      const f = acting ? Math.min(2, Math.floor(Math.min(1, B.anim.t / B.anim.dur) * 3)) : 1;
+      H = SHEET[id].H * 1.3;
+      if (!drawChar(id, f, x, y, false, alpha, 1.3)) { ctx.globalAlpha = alpha; ctx.fillStyle = '#3f9a4a'; ctx.fillRect(x - 24, y - 120, 48, 120); ctx.globalAlpha = 1; }
+    } else {
+      const T = MON[c.type], sc = isE ? (c.boss ? 1.6 : 1.5) : 1.3, f = [0, 1, 2, 1][Math.floor(B.t * 4 + idx) % 4];
+      H = SHEET[T.sheet].H * sc;
+      if (!drawChar(T.sheet, f, x, y, false, alpha, sc)) { ctx.globalAlpha = alpha; ctx.fillStyle = T.color; ctx.fillRect(x - 40, y - 110, 80, 110); ctx.globalAlpha = 1; }
+    }
+    if (isE && alpha > 0.5 && !c.ko) {
+      const top = y - H - 38, bw = c.boss ? 180 : 100;
+      txt(c.name + (c.boss ? '  (BOSS)' : ''), x, top, 18, c.boss ? '#f0d070' : '#fff', 'center');
+      bar(x - bw / 2, top + 8, bw, 10, c.hp, c.maxHp, '#e0453a');
+      if (c.hp / c.maxHp <= befThr(MON[c.type])) heart(x + bw / 2 + 16, top + 12, 3, '#ff5a8a');
+    }
+    if (!isE) {
+      bar(x - 40, c.y + 16, 80, 7, c.gauge || 0, 100, (c.gauge || 0) >= 100 ? '#f0d070' : '#4fa0ff');
+    }
+    if (B.state === 'menu' && c.isPlayer) {
+      const bob = Math.sin(B.t * 8) * 4;
+      ctx.fillStyle = '#f0d070'; ctx.beginPath(); ctx.moveTo(x - 12, y - H - 26 + bob); ctx.lineTo(x + 12, y - H - 26 + bob); ctx.lineTo(x, y - H - 8 + bob); ctx.fill();
+    }
+    if (B.state === 'menu' && B.menu === 'target' && B.pend) {
+      const valid = B.pend.side === c.side && alive(c);
+      if (valid) {
+        const bob = Math.sin(B.t * 10) * 5;
+        ctx.fillStyle = '#ff5a5a'; ctx.beginPath(); ctx.moveTo(x - 16, y - H - 70 + bob); ctx.lineTo(x + 16, y - H - 70 + bob); ctx.lineTo(x, y - H - 46 + bob); ctx.fill();
+      }
+    }
+  }
+  function drawBattle() {
+    B.ui = [];
+    ctx.fillStyle = groundCol(); ctx.fillRect(0, 0, 720, 960);
+    for (let ty = 0; ty < 10; ty++) for (let tx = 0; tx < 8; tx++) drawTileS(groundId(), 0, tx * 96, ty * 96, 96);
+    const g = ctx.createLinearGradient(0, 0, 0, 960); g.addColorStop(0, 'rgba(5,10,40,0.75)'); g.addColorStop(0.55, 'rgba(5,10,40,0.15)'); g.addColorStop(1, 'rgba(5,10,40,0.35)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 720, 960);
+    B.enemies.forEach((e, i) => drawCombatant(e, i));
+    B.allies.forEach((a, i) => drawCombatant(a, i));
+    B.floats.forEach(f => {
+      ctx.globalAlpha = Math.max(0, 1 - f.t / 1.1);
+      ctx.fillStyle = '#000'; ctx.font = 'bold 40px monospace'; ctx.textAlign = 'center'; ctx.fillText(f.text, f.x + 2, f.y - f.t * 50 + 2);
+      ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y - f.t * 50); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    });
+    if (B.msgT > 0 && B.msg) { win(60, 24, 600, 56); txt(B.msg, 360, 62, 24, '#fff', 'center'); }
+    ctx.fillStyle = '#070b2a'; ctx.fillRect(0, 960, 720, 320);
+    win(14, 974, 380, 292);
+    win(412, 974, 294, 292);
+    drawStatus();
+    drawCommands();
+    if (B.state === 'victory') drawVictory();
+    if (B.state === 'defeat') { win(110, 360, 500, 200); txt('DEFEAT...', 360, 440, 40, '#e0453a', 'center'); txt('Tap to continue', 360, 500, 20, '#b8c0ff', 'center'); }
+    if (B.state === 'intro') { ctx.fillStyle = 'rgba(255,255,255,' + Math.max(0, 0.9 - B.t * 1.6) + ')'; ctx.fillRect(0, 0, 720, 1280); }
+  }
+  function drawStatus() {
+    const n = B.allies.length, rh = Math.min(70, 270 / n);
+    B.allies.forEach((a, i) => {
+      const y = 996 + i * rh;
+      txt(a.name, 426, y + 20, 17, a.ko ? '#7a85c8' : '#fff');
+      txt('HP ' + a.hp + '/' + a.maxHp, 694, y + 20, 17, a.hp / a.maxHp < 0.3 ? '#ff7a7a' : '#fff', 'right');
+      bar(426, y + 28, 268, 8, a.hp, a.maxHp, '#e0453a');
+      if (a.isPlayer) { bar(426, y + 40, 130, 7, player.mp, player.maxMp, '#4fa0ff'); txt('MP ' + player.mp + '/' + player.maxMp, 694, y + 48, 14, '#b8c0ff', 'right'); }
+      else bar(426, y + 40, 268, 5, a.gauge || 0, 100, '#4fa0ff');
+      if (a.isPlayer) bar(426, y + 52, 268, 5, a.gauge || 0, 100, (a.gauge || 0) >= 100 ? '#f0d070' : '#4fa0ff');
+    });
+  }
+  function drawCommands() {
+    const x0 = 28;
+    if (B.state !== 'menu') {
+      txt(B.state === 'run' || B.state === 'anim' ? 'Gauge filling...' : '', x0 + 170, 1120, 22, '#7a85c8', 'center');
+      if (B.state === 'run') txt('Wait for your turn', x0 + 170, 1152, 16, '#7a85c8', 'center');
+      return;
+    }
+    if (B.menu === 'cmd') {
+      txt('Your turn!', x0, 1004, 20, '#f0d070');
+      const hasE = B.enemies.some(alive);
+      btn(x0, 1016, 172, 74, 'Attack', hasE, () => pickTarget({ kind: 'attack', side: 'e' }));
+      btn(x0 + 184, 1016, 172, 74, 'Skill', true, () => { B.menu = 'skill'; });
+      btn(x0, 1100, 172, 74, 'Befriend', hasE, () => pickTarget({ kind: 'befriend', side: 'e' }), 'weaken her first');
+      btn(x0 + 184, 1100, 172, 74, 'Item', true, () => { B.menu = 'item'; });
+      btn(x0, 1184, 172, 66, 'Flee', true, () => startAction({ actor: pc, kind: 'flee' }));
+    } else if (B.menu === 'skill') {
+      txt('Skill', x0, 1004, 20, '#f0d070');
+      btn(x0, 1016, 356, 74, 'Power Strike', player.mp >= 3, () => pickTarget({ kind: 'skill', name: 'Power Strike', mult: 1.9, mp: 3, side: 'e' }), '3 MP - heavy hit');
+      btn(x0, 1100, 356, 74, 'Heal', player.mp >= 3, () => pickTarget({ kind: 'heal', name: 'Heal', amount: 14 + 2 * player.lvl, mp: 3, side: 'a' }), '3 MP - restore HP to one ally');
+      btn(x0, 1184, 172, 66, 'Back', true, () => { B.menu = 'cmd'; });
+    } else if (B.menu === 'item') {
+      txt('Item', x0, 1004, 20, '#f0d070');
+      btn(x0, 1016, 356, 74, 'Potion x' + (inv.potion || 0), (inv.potion || 0) > 0, () => pickTarget({ kind: 'item', name: 'Potion', amount: 20, side: 'a' }), 'restores 20 HP');
+      btn(x0, 1100, 356, 74, 'Ether x' + (inv.ether || 0), (inv.ether || 0) > 0 && player.mp < player.maxMp, () => startAction({ actor: pc, kind: 'ether', amount: 8, target: pc }), 'restores 8 MP');
+      btn(x0, 1184, 172, 66, 'Back', true, () => { B.menu = 'cmd'; });
+    } else if (B.menu === 'target') {
+      txt('Choose a target:', x0, 1004, 20, '#f0d070');
+      txt('Tap the character', x0, 1050, 20, '#fff');
+      txt(B.pend && B.pend.kind === 'befriend' ? '(heart = ready to befriend)' : '', x0, 1080, 16, '#b8c0ff');
+      btn(x0, 1184, 172, 66, 'Back', true, () => { B.menu = 'cmd'; B.pend = null; });
+    }
+  }
+  function drawVictory() {
+    const r = B.rewards;
+    win(80, 250, 560, 420);
+    txt('VICTORY!', 360, 316, 40, '#f0d070', 'center');
+    txt('EXP  +' + r.xp, 130, 380, 26, '#fff'); txt('Gold +' + r.gold, 130, 424, 26, '#fff');
+    if (r.up) txt('LEVEL UP!  Lv ' + player.lvl, 360, 478, 28, '#4fd0b8', 'center');
+    r.loot.forEach((l, i) => txt(l, 130, 530 + i * 30, 20, '#b8c0ff'));
+    if (B.joined.length) txt(B.joined.map(e => e.name).join(', ') + ' joined!', 360, 640, 20, '#ff7aa8', 'center');
+    txt('Tap to continue', 360, 658, 16, '#7a85c8', 'center');
+  }
+
+  // ============================================================
+  // FORGE (Smith Bruna): craft gear and potions from monster materials
+  // ============================================================
+  const FORGE_CATS = ['Weapons', 'Armor', 'Charms', 'Items', 'Relics', 'Veil', 'Realms'];
+  function recipesOf(cat) { return RECIPES.filter(r => r.cat === cat); }
+  function canAfford(r) { return player.gold >= r.gold && Object.keys(r.cost).every(k => (inv[k] || 0) >= r.cost[k]); }
+  function openForge() { forge.open = true; forge.cat = 0; forge.scroll = 0; forge.msgUntil = 0; joy.id = null; joy.dx = joy.dy = 0; }
+  function forgeMsg(s) { forge.msg = s; forge.msgUntil = t + 2.2; }
+  function craft(r) {
+    if (r.gear && owned[r.id]) { EQUIP[GEAR[r.id].slot] = r.id; recomputeMax(); forgeMsg(GEAR[r.id].name + ' equipped!'); save(); return; }
+    if (!canAfford(r)) { forgeMsg('Not enough materials or gold'); return; }
+    player.gold -= r.gold;
+    Object.keys(r.cost).forEach(k => { inv[k] -= r.cost[k]; });
+    if (r.gear) { owned[r.id] = true; EQUIP[GEAR[r.id].slot] = r.id; recomputeMax(); forgeMsg('Forged ' + GEAR[r.id].name + '! Equipped.'); }
+    else { const it = r.item || 'potion'; inv[it] = (inv[it] || 0) + r.qty; forgeMsg('Brewed +' + r.qty + ' ' + LOOT[it].name + ' (have ' + inv[it] + ')'); }
+    save();
+  }
+  function forgeTap(p) {
+    for (const u of forge.ui) if (p[0] >= u.x && p[0] <= u.x + u.w && p[1] >= u.y && p[1] <= u.y + u.h && (!u.list || (p[1] >= 298 && p[1] <= 1178))) { u.fn(); return; }
+  }
+  function scrollBar(x, y, h, tg) {
+    if (tg.max <= 0) return;
+    const th = Math.max(40, h * h / (h + tg.max)), ty = y + (h - th) * (tg.scroll / tg.max);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x, y, 6, h);
+    ctx.fillStyle = 'rgba(240,208,112,0.85)'; ctx.fillRect(x, ty, 6, th);
+  }
+  function fbtn(x, y, w, h, label, enabled, fn, col, list) {
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.fillStyle = enabled ? '#e8e8f0' : '#555a7a'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillStyle = enabled ? (col || '#2f8a6b') : '#1a2058'; ctx.fillRect(x, y, w, h);
+    txt(label, x + w / 2, y + h / 2 + 8, w > 120 ? 22 : 20, enabled ? '#fff' : '#7a85c8', 'center');
+    forge.ui.push({ x, y, w, h, fn: enabled ? fn : () => {}, list: !!list });
+  }
+  function drawForge() {
+    forge.ui = [];
+    if (forge.lastCat !== forge.cat) { forge.lastCat = forge.cat; forge.scroll = 0; }
+    ctx.fillStyle = '#1a0d08'; ctx.fillRect(0, 0, 720, 1280);
+    win(14, 14, 692, 66);
+    txt('FORGE', 38, 58, 32, '#fff'); txt('Smith Bruna', 220, 58, 22, '#f0d070');
+    ctx.fillStyle = '#000'; ctx.fillRect(620, 20, 80, 54); ctx.fillStyle = '#c0392b'; ctx.fillRect(623, 23, 74, 48);
+    txt('X', 660, 58, 32, '#fff', 'center');
+    forge.ui.push({ x: 620, y: 20, w: 80, h: 54, fn: () => { forge.open = false; } });
+    // gold + materials (two rows)
+    win(14, 98, 692, 108);
+    txt('Gold ' + player.gold, 34, 132, 24, '#f0d070');
+    const mats = ['jelly', 'feather', 'scale', 'queenscale', 'spirit', 'veil', 'sap', 'frost', 'ember', 'crest', 'crown'];
+    const short = { jelly: 'Jelly', feather: 'Feather', scale: 'Scale', queenscale: 'Q.Scale', spirit: 'Spirit', veil: 'Veil', sap: 'Sap', frost: 'Frost', ember: 'Ember', crest: 'Crest', crown: 'Crown' };
+    mats.forEach((k, i) => txt(short[k] + ' ' + (inv[k] || 0), 30 + (i % 6) * 112, i < 6 ? 164 : 190, 16, LOOT[k].color));
+    // categories
+    const tw = Math.floor(692 / FORGE_CATS.length);
+    FORGE_CATS.forEach((c, i) => fbtn(14 + i * tw, 214, tw - 4, 64, c, true, () => { forge.cat = i; }, i === forge.cat ? '#c08a1e' : '#26399e'));
+    // recipes (drag or wheel to scroll)
+    win(14, 298, 692, 880);
+    const rs = recipesOf(forge.cat);
+    forge.max = Math.max(0, rs.length * 214 - 864);
+    forge.scroll = Math.max(0, Math.min(forge.max, forge.scroll));
+    ctx.save(); ctx.beginPath(); ctx.rect(14, 298, 692, 880); ctx.clip();
+    rs.forEach((r, i) => {
+      const x = 30, y = 314 + i * 214 - forge.scroll, w = 660, h = 200;
+      if (y > 1178 || y + h < 298) return;
+      const g = r.gear ? GEAR[r.id] : null, name = g ? g.name : r.name, have = g && owned[r.id];
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, y, w, h);
+      txt(name, x + 16, y + 38, 26, '#fff');
+      txt(g ? gearStat(g) : '+' + r.qty + ' ' + LOOT[r.item || 'potion'].name, x + 16, y + 66, 20, '#4fd0b8');
+      ctx.font = '16px monospace'; ctx.fillStyle = '#b8c0ff';
+      wrap(g ? g.desc : r.desc, w - 200).forEach((l, k) => ctx.fillText(l, x + 16, y + 92 + k * 20));
+      let cy = y + 126;
+      Object.keys(r.cost).forEach(k => {
+        const ok = (inv[k] || 0) >= r.cost[k];
+        txt(LOOT[k].name + '  ' + (inv[k] || 0) + '/' + r.cost[k], x + 16, cy, 17, ok ? '#6fe08a' : '#ff7a7a'); cy += 21;
+      });
+      txt('Gold  ' + player.gold + '/' + r.gold, x + 16, cy, 17, player.gold >= r.gold ? '#6fe08a' : '#ff7a7a');
+      const equipped = g && EQUIP[g.slot] === r.id;
+      if (have) fbtn(x + w - 170, y + 50, 150, 90, equipped ? 'EQUIPPED' : 'EQUIP', !equipped, () => craft(r), '#2f6fc4', true);
+      else fbtn(x + w - 170, y + 50, 150, 90, 'CRAFT', canAfford(r), () => craft(r), null, true);
+    });
+    ctx.restore();
+    scrollBar(698, 304, 868, forge);
+    // message
+    win(14, 1196, 692, 62);
+    if (t < forge.msgUntil) txt(forge.msg, 360, 1236, 22, '#f0d070', 'center');
+    else txt(forge.max > 0 ? 'Drag the list to see more recipes.' : 'Materials come from monster girls you befriend or defeat.', 360, 1234, 16, '#7a85c8', 'center');
+  }
+
+  // ============================================================
+  // MARKET (Merchant Lyra): buy Potions, sell spare materials
+  // ============================================================
+  const SHOP_BUY = [
+    { id: 'potion1', item: 'potion', name: 'Potion', qty: 1, price: 15, desc: 'Restores 20 HP in battle.' },
+    { id: 'potion5', item: 'potion', name: 'Potion x5', qty: 5, price: 65, desc: 'A bundle of five. Saves 10 gold.' },
+    { id: 'ether1', item: 'ether', name: 'Ether', qty: 1, price: 30, desc: 'Restores 8 MP in battle.' },
+    { id: 'ether3', item: 'ether', name: 'Ether x3', qty: 3, price: 80, desc: 'A bundle of three. Saves 10 gold.' }
+  ];
+  const SELL_PRICE = { jelly: 3, feather: 5, scale: 8, queenscale: 40, spirit: 12, sap: 15, frost: 20, ember: 25, crest: 30 };
+  const MAX_POTIONS = 99;
+  function openShop() { shop.open = true; shop.tab = 0; shop.scroll = 0; shop.msgUntil = 0; joy.id = null; joy.dx = joy.dy = 0; }
+  function shopMsg(m) { shop.msg = m; shop.msgUntil = t + 2.2; }
+  function buyItem(it) {
+    if (player.gold < it.price) { shopMsg('Not enough gold'); return; }
+    if ((inv[it.item] || 0) + it.qty > MAX_POTIONS) { shopMsg('Your bag is full (max ' + MAX_POTIONS + ' ' + LOOT[it.item].name + ')'); return; }
+    player.gold -= it.price; inv[it.item] = (inv[it.item] || 0) + it.qty;
+    shopMsg('Bought ' + it.name + '! (' + LOOT[it.item].name + ': ' + inv[it.item] + ')'); save();
+  }
+  function sellMat(k, all) {
+    const n = all ? (inv[k] || 0) : Math.min(1, inv[k] || 0);
+    if (n <= 0) { shopMsg('You have none to sell'); return; }
+    inv[k] -= n; player.gold += n * SELL_PRICE[k];
+    shopMsg('Sold ' + n + ' ' + LOOT[k].name + ' for ' + (n * SELL_PRICE[k]) + ' gold'); save();
+  }
+  function shopTap(p) {
+    for (const u of shop.ui) if (p[0] >= u.x && p[0] <= u.x + u.w && p[1] >= u.y && p[1] <= u.y + u.h && (!u.list || (p[1] >= 298 && p[1] <= 1178))) { u.fn(); return; }
+  }
+  function sbtn(x, y, w, h, label, enabled, fn, col, list) {
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.fillStyle = enabled ? '#e8e8f0' : '#555a7a'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillStyle = enabled ? (col || '#2f8a6b') : '#1a2058'; ctx.fillRect(x, y, w, h);
+    txt(label, x + w / 2, y + h / 2 + 8, w > 120 ? 22 : 20, enabled ? '#fff' : '#7a85c8', 'center');
+    shop.ui.push({ x, y, w, h, fn: enabled ? fn : () => {}, list: !!list });
+  }
+  function drawShop() {
+    shop.ui = [];
+    if (shop.lastTab !== shop.tab) { shop.lastTab = shop.tab; shop.scroll = 0; }
+    ctx.fillStyle = '#0d1a10'; ctx.fillRect(0, 0, 720, 1280);
+    win(14, 14, 692, 66);
+    txt('MARKET', 38, 58, 32, '#fff'); txt('Merchant Lyra', 250, 58, 22, '#f0d070');
+    ctx.fillStyle = '#000'; ctx.fillRect(620, 20, 80, 54); ctx.fillStyle = '#c0392b'; ctx.fillRect(623, 23, 74, 48);
+    txt('X', 660, 58, 32, '#fff', 'center');
+    shop.ui.push({ x: 620, y: 20, w: 80, h: 54, fn: () => { shop.open = false; } });
+    win(14, 98, 692, 96);
+    txt('Gold ' + player.gold, 34, 138, 24, '#f0d070');
+    txt('Potions ' + (inv.potion || 0), 330, 138, 24, LOOT.potion.color);
+    txt('Ether ' + (inv.ether || 0), 540, 138, 24, LOOT.ether.color);
+    txt('HP ' + player.hp + '/' + player.maxHp, 34, 176, 20, '#e0786f');
+    txt('MP ' + player.mp + '/' + player.maxMp, 250, 176, 20, '#6fa8ff');
+    ['Buy', 'Sell'].forEach((c, i) => sbtn(14 + i * 350, 214, 342, 64, c, true, () => { shop.tab = i; }, shop.tab === i ? '#c08a1e' : '#26399e'));
+    win(14, 298, 692, 880);
+    shop.max = 0;
+    if (shop.tab === 0) {
+      SHOP_BUY.forEach((it, i) => {
+        const x = 30, y = 314 + i * 176, w = 660, h = 160;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = '#000'; ctx.fillRect(x + 14, y + 36, 58, 58); ctx.fillStyle = LOOT[it.item].color; ctx.fillRect(x + 18, y + 40, 50, 50);
+        txt(it.name, x + 90, y + 52, 26, '#fff');
+        ctx.font = '17px monospace'; ctx.fillStyle = '#b8c0ff'; ctx.fillText(it.desc, x + 90, y + 82);
+        txt('Price  ' + it.price + ' gold', x + 90, y + 122, 20, player.gold >= it.price ? '#6fe08a' : '#ff7a7a');
+        sbtn(x + w - 170, y + 36, 150, 90, 'BUY', player.gold >= it.price, () => buyItem(it));
+      });
+      ctx.font = '17px monospace'; ctx.fillStyle = '#7a85c8';
+      wrap('Potions and Ether are used from the Item command in battle. The Forge can also brew them from jelly and Spirit Dust.', 640).forEach((l, i) => ctx.fillText(l, 36, 1040 + i * 24));
+    } else {
+      const keys = Object.keys(SELL_PRICE);
+      shop.max = Math.max(0, keys.length * 170 - 864);
+      shop.scroll = Math.max(0, Math.min(shop.max, shop.scroll));
+      ctx.save(); ctx.beginPath(); ctx.rect(14, 298, 692, 880); ctx.clip();
+      keys.forEach((k, i) => {
+        const x = 30, y = 314 + i * 170 - shop.scroll, w = 660, h = 160, n = inv[k] || 0;
+        if (y > 1178 || y + h < 298) return;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = '#000'; ctx.fillRect(x + 14, y + 36, 58, 58); ctx.fillStyle = LOOT[k].color; ctx.fillRect(x + 18, y + 40, 50, 50);
+        txt(LOOT[k].name, x + 90, y + 52, 24, '#fff');
+        txt('You have ' + n, x + 90, y + 84, 18, n > 0 ? '#f0d070' : '#7a85c8');
+        txt('Sells for ' + SELL_PRICE[k] + ' gold each', x + 90, y + 120, 18, '#6fe08a');
+        sbtn(x + w - 260, y + 44, 120, 74, 'SELL 1', n > 0, () => sellMat(k, false), null, true);
+        sbtn(x + w - 130, y + 44, 120, 74, 'ALL', n > 0, () => sellMat(k, true), '#a05a1e', true);
+      });
+      ctx.restore();
+      scrollBar(698, 304, 868, shop);
+    }
+    win(14, 1196, 692, 62);
+    if (t < shop.msgUntil) txt(shop.msg, 360, 1236, 22, '#f0d070', 'center');
+    else txt(shop.tab === 1 ? (shop.max > 0 ? 'Drag the list for more. Keep what the Forge needs!' : 'Keep the materials you need for the Forge!') : 'Tap X to leave the market.', 360, 1234, 16, '#7a85c8', 'center');
+  }
+
+  // ---- Journal open/close ----
+  function openJournal() {
+    journal.open = true; journal.tab = 0; journal.resetUntil = 0; journal.scroll = 0; journal.max = 0;
+    joy.id = null; joy.dx = joy.dy = 0; joy.ox = JOY_HOME.x; joy.oy = JOY_HOME.y;
+  }
+  function closeJournal() { journal.open = false; }
+  // System tab layout (content origin y = 176): Save 226..306, Reset 366..446
+  // Release a friend: she goes home. Regular monsters become wild again on that map (they respawn when you re-enter it);
+  // Queen Lamia returns to her throne after the usual 12 hours.
+  function releaseAlly(i) {
+    const p = party[i]; if (!p) return;
+    party.splice(i, 1); hist.length = 0;
+    if (MON[p.type].boss) { const bb = bs(p.type); bb.friend = false; bb.at = Date.now(); }
+    else {
+      let id = p.from && p.from.map, si = p.from && p.from.si;
+      if (!id || !MAPS[id]) id = Object.keys(MAPS).find(k => (cleared[k] || []).some(ix => MAPS[k].spawns[ix] && MAPS[k].spawns[ix][0] === p.type));
+      if (id) {
+        const arr = cleared[id] || [];
+        let k = si !== undefined ? arr.indexOf(si) : -1;
+        if (k < 0) for (let j = arr.length - 1; j >= 0; j--) if (MAPS[id].spawns[arr[j]] && MAPS[id].spawns[arr[j]][0] === p.type) { k = j; break; }
+        if (k >= 0) arr.splice(k, 1);
+      }
+    }
+    journal.relMsg = p.name + ' went back home. Thank you for everything!'; journal.relMsgUntil = t + 3;
+    save();
+  }
+  function journalTap(p) {
+    if (p[0] > 610 && p[1] < 92) { closeJournal(); return; }
+    if (p[0] < 204 && p[1] >= 108) {
+      const i = Math.floor((p[1] - 108) / 96);
+      if (i >= 0 && i < TABS.length) { journal.tab = i; journal.resetUntil = 0; }
+      return;
+    }
+    if (journal.tab === 2 && p[0] > 530 && p[0] < 682) {
+      for (let i = 0; i < party.length; i++) {
+        const yy = 176 + i * 250;
+        if (p[1] > yy && p[1] < yy + 58) {
+          if (journal.releaseSlot === i && t < journal.releaseUntil) { releaseAlly(i); journal.releaseSlot = -1; }
+          else { journal.releaseSlot = i; journal.releaseUntil = t + 4; }
+          return;
+        }
+      }
+      return;
+    }
+    if (journal.tab === 1 && p[0] > 240 && p[0] < 682) {
+      const sl = (p[1] > 176 && p[1] < 326) ? 'weapon' : (p[1] > 346 && p[1] < 496) ? 'armor' : (p[1] > 516 && p[1] < 666) ? 'accessory' : null;
+      if (sl) cycleGear(sl);
+      return;
+    }
+    if (journal.tab === 6 && p[0] > 238 && p[0] < 686) {
+      if (p[1] > 226 && p[1] < 306) { save(); journal.msgUntil = t + 2; journal.resetUntil = 0; return; }
+      if (p[1] > 366 && p[1] < 446) {
+        if (t < journal.resetUntil) resetProgress(); else journal.resetUntil = t + 4;
+      }
+    }
+  }
+
+  // ---- Input (touch events + mouse fallback) ----
+  window.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if (B) { e.preventDefault(); return; }
+    if (forge.open) { if (k === 'escape') forge.open = false; e.preventDefault(); return; }
+    if (shop.open) { if (k === 'escape') shop.open = false; e.preventDefault(); return; }
+    if (k === 'j' || k === 'escape') { if (journal.open) closeJournal(); else if (!dlg) openJournal(); return; }
+    if (journal.open) {
+      if (k === 'arrowup' || k === 'w') journal.tab = (journal.tab + TABS.length - 1) % TABS.length;
+      if (k === 'arrowdown' || k === 's') journal.tab = (journal.tab + 1) % TABS.length;
+      e.preventDefault(); return;
+    }
+    keys[k] = true;
+    if (e.key === ' ' || k === 'e') { e.preventDefault(); action(); }
+  });
+  window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+  function pt(cx, cy) { const r = cv.getBoundingClientRect(); return [(cx - r.left) * 720 / r.width, (cy - r.top) * 1280 / r.height]; }
+  // drag (or mouse wheel) scrolling for the Forge list, the Market sell list and the long Journal tabs
+  const drag = { id: null, y0: 0, s0: 0, moved: false, tgt: null, p0: null };
+  function startDrag(id, p, tg) { drag.id = id; drag.y0 = p[1]; drag.s0 = tg.scroll; drag.moved = false; drag.tgt = tg; drag.p0 = p; }
+  function tapTarget(tg, p) { if (tg === forge) forgeTap(p); else if (tg === shop) shopTap(p); else journalTap(p); }
+  function inDown(id, cx, cy) {
+    const p = pt(cx, cy);
+    if (B) { battleTap(p); return; }
+    if (forge.open) { if (forge.max > 0 && p[1] > 298 && p[1] < 1178) startDrag(id, p, forge); else forgeTap(p); return; }
+    if (shop.open) { if (shop.max > 0 && p[1] > 298 && p[1] < 1178) startDrag(id, p, shop); else shopTap(p); return; }
+    if (journal.open) { if (journal.max > 0 && p[0] > 216 && p[1] > 160) startDrag(id, p, journal); else journalTap(p); return; }
+    if (!dlg && p[0] > 604 && p[0] < 716 && p[1] > 58 && p[1] < 166) { openJournal(); return; }
+    if (Math.hypot(p[0] - BTN.x, p[1] - BTN.y) < BTN.r + 20) { action(); return; }
+    if (dlg && p[1] < VIEW_H) { action(); return; }
+    if (p[1] >= VIEW_H && p[0] < 400 && joy.id === null) { joy.id = id; joy.ox = p[0]; joy.oy = p[1]; joy.dx = joy.dy = 0; }
+  }
+  function inMove(id, cx, cy) {
+    if (drag.id !== null && id === drag.id) {
+      const pp = pt(cx, cy), dy = pp[1] - drag.y0;
+      if (Math.abs(dy) > 10) drag.moved = true;
+      if (drag.moved) drag.tgt.scroll = Math.max(0, Math.min(drag.tgt.max, drag.s0 - dy));
+      return;
+    }
+    if (id !== joy.id) return;
+    const p = pt(cx, cy); let dx = p[0] - joy.ox, dy = p[1] - joy.oy; const d = Math.hypot(dx, dy), mx = 90;
+    if (d > mx) { dx = dx / d * mx; dy = dy / d * mx; }
+    joy.dx = dx / mx; joy.dy = dy / mx;
+  }
+  function inUp(id) {
+    if (drag.id !== null && id === drag.id) { const tg = drag.tgt, pp = drag.p0, tap = !drag.moved; drag.id = null; if (tap) tapTarget(tg, pp); return; }
+    if (id !== joy.id) return;
+    joy.id = null; joy.dx = joy.dy = 0; joy.ox = JOY_HOME.x; joy.oy = JOY_HOME.y;
+  }
+  const TOPT = { passive: false };
+  cv.addEventListener('touchstart', e => { e.preventDefault(); for (const tc of e.changedTouches) inDown(tc.identifier, tc.clientX, tc.clientY); }, TOPT);
+  cv.addEventListener('touchmove', e => { e.preventDefault(); for (const tc of e.changedTouches) inMove(tc.identifier, tc.clientX, tc.clientY); }, TOPT);
+  cv.addEventListener('touchend', e => { e.preventDefault(); for (const tc of e.changedTouches) inUp(tc.identifier); }, TOPT);
+  cv.addEventListener('touchcancel', e => { for (const tc of e.changedTouches) inUp(tc.identifier); }, TOPT);
+  cv.addEventListener('mousedown', e => inDown('mouse', e.clientX, e.clientY));
+  window.addEventListener('mousemove', e => inMove('mouse', e.clientX, e.clientY));
+  window.addEventListener('mouseup', () => inUp('mouse'));
+  window.addEventListener('blur', () => { inUp(joy.id); Object.keys(keys).forEach(k => keys[k] = false); });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('wheel', e => {
+    const tg = forge.open ? forge : shop.open ? shop : journal.open ? journal : null;
+    if (tg && tg.max > 0) { tg.scroll = Math.max(0, Math.min(tg.max, tg.scroll + e.deltaY)); e.preventDefault(); }
+  }, { passive: false });
+
+  // ---- Overworld interaction ----
+  function nearestNpc() {
+    let best = null, bd = 1e9;
+    M.npcs.forEach(n => { const d = Math.hypot(n.x * TILE - player.x, n.y * TILE - player.y); if (d < bd) { bd = d; best = n; } });
+    return bd < 100 ? best : null;
+  }
+  function nearestSign() {
+    for (const sg of M.signs) if (Math.hypot((sg.x + 0.5) * TILE - player.x, (sg.y + 1) * TILE - player.y) < 90) return sg;
+    return null;
+  }
+  function bossStatus(type, name) {
+    const b = bs(type);
+    if (b.friend) return 'Status: ' + name + ' travels with you.';
+    if (bossAvailable(type)) return 'Status: ' + name + ' is in her chamber.';
+    return 'Status: ' + name + ' will return in ' + fmtRemain(bossRemaining(type)) + '.';
+  }
+  const RULE12 = 'If she is defeated, she returns after 12 hours (real time). If you befriend her she joins your party; release her and she goes home and returns after 12 hours.';
+  const SIGNS = {
+    boss:   { lines: ['QUEEN LAMIA - RULER OF THE CAVE', 'Her throne room is the north-east chamber of this cave.', RULE12], boss: ['queen', 'Queen Lamia'] },
+    crypt:  { lines: ['HAUNTED CRYPT', 'The restless dead drift between the graves. Undead girls drain life with Soul Drain.', 'The WRAITH QUEEN rules the north-east chamber and holds the seal on the eastern gate.', RULE12], boss: ['wraith', 'The Wraith Queen'] },
+    grove:  { lines: ['WHISPERING GROVE', 'Alraune and Dryad girls roam between the ancient trees.', 'The DRYAD QUEEN rules the north-east clearing and keeps the Verdant Sigil.', RULE12], boss: ['dryadq', 'The Dryad Queen'] },
+    peaks:  { lines: ['FROSTVEIL PEAKS', 'Snow Girls and Ice Harpies haunt these slopes.', 'The SNOW QUEEN rules the north-east summit and keeps the Frost Sigil.', RULE12], boss: ['snowq', 'The Snow Queen'] },
+    caldera:{ lines: ['EMBER CALDERA', 'Salamander Girls and Ember Sprites bask in the heat.', 'The FLAME QUEEN rules the south-east crater and keeps the Ember Sigil.', RULE12], boss: ['flameq', 'The Flame Queen'] },
+    court:  { lines: ['COURT OF QUEENS', 'Royal Guards patrol the hall. The OVERQUEEN waits on her throne at the far end.', RULE12], boss: ['overq', 'The Overqueen'] },
+    hub_grove:   { lines: ['WHISPERING GROVE (north-west)', 'A dark forest of living trees. Alraune and Dryad girls live there.', 'Its ruler, the Dryad Queen, keeps the Verdant Sigil.'], sigil: 'sigilg' },
+    hub_peaks:   { lines: ['FROSTVEIL PEAKS (east)', 'A frozen mountain range. Snow Girls and Ice Harpies live there.', 'Its ruler, the Snow Queen, keeps the Frost Sigil.'], sigil: 'sigilf' },
+    hub_caldera: { lines: ['EMBER CALDERA (south)', 'A volcanic crater. Salamander Girls and Ember Sprites live there.', 'Its ruler, the Flame Queen, keeps the Ember Sigil.'], sigil: 'sigile' },
+    hub_court:   { lines: ['COURT OF QUEENS (north-east)', 'The gate opens only for those who hold the Verdant, Frost and Ember Sigils.', 'Beyond it lies the throne of the Overqueen.'], sigils: true }
+  };
+  function signLines(kind) {
+    const d = SIGNS[kind] || SIGNS.boss, out = d.lines.slice();
+    if (d.boss) out.push(bossStatus(d.boss[0], d.boss[1]));
+    if (d.sigil) out.push(inv[d.sigil] ? 'Sigil: collected.' : 'Sigil: not collected yet.');
+    if (d.sigils) out.push('Sigils collected: ' + sigilCount() + '/' + SIGIL_NEED);
+    return out;
+  }
+  function action() {
+    if (journal.open || forge.open || shop.open || B) return;
+    if (dlg) { const af = dlg.after; dlg.i++; if (dlg.i >= dlg.lines.length) { dlg = null; save(); if (af === 'forge') openForge(); else if (af === 'market') openShop(); } return; }
+    const n = nearestNpc();
+    if (n) {
+      const first = !flags.met[n.name]; flags.met[n.name] = true;
+      say(n.name, (first || !n.again) ? n.lines : n.again);
+      if (n.shop === 'forge') dlg.after = 'forge'; else if (n.shop === 'market') dlg.after = 'market';
+      return;
+    }
+    const sg = nearestSign();
+    if (sg) { say('Notice Board', signLines(sg.kind)); return; }
+    if (player.atk <= 0) { player.atk = ATK_T; player.atkHit = false; }
+  }
+  // sword swing: hitting a monster girl = first strike (starts the battle with your turn ready)
+  function doHit() {
+    const dx = player.dir === 'left' ? -1 : player.dir === 'right' ? 1 : 0, dy = player.dir === 'up' ? -1 : player.dir === 'down' ? 1 : 0;
+    const hx = player.x + dx * 54, hy = player.y - 30 + dy * 54;
+    for (const m of M.monsters) {
+      if (Math.hypot(m.x - hx, (m.y - 30) - hy) < (MON[m.type].boss ? 96 : 66)) { startBattle(m, true); return; }
+    }
+  }
+
+  // ---- Collision ----
+  function outAllowed(tx, ty) {
+    return M.exits.some(e => (e.side === 'e' || e.side === 'w')
+      ? (e.row === ty && ((e.side === 'e' && tx >= M.W) || (e.side === 'w' && tx < 0)))
+      : (Math.abs(tx - e.col) <= 1 && ((e.side === 's' && ty >= M.H) || (e.side === 'n' && ty < 0))));
+  }
+  function blockedAt(px, py, hw, hh, withNpc) {
+    const pts = [[px - hw, py], [px + hw, py], [px - hw, py - hh], [px + hw, py - hh]];
+    for (const p of pts) {
+      const tx = Math.floor(p[0] / TILE), ty = Math.floor(p[1] / TILE);
+      if (tx < 0 || ty < 0 || tx >= M.W || ty >= M.H) { if (!outAllowed(tx, ty)) return true; continue; }
+      if (M.solid.has(key(tx, ty))) return true;
+    }
+    if (withNpc) for (const n of M.npcs) if (Math.abs(px - n.x * TILE) < 30 && Math.abs(py - n.y * TILE) < 22) return true;
+    return false;
+  }
+
+  // ---- Update ----
+  function update(dt) {
+    t += dt; playSec += dt;
+    if (B) { updateBattle(dt); return; }
+    if (journal.open || forge.open || shop.open) return;
+    let ix = 0, iy = 0;
+    if (keys['arrowleft'] || keys['a']) ix -= 1;
+    if (keys['arrowright'] || keys['d']) ix += 1;
+    if (keys['arrowup'] || keys['w']) iy -= 1;
+    if (keys['arrowdown'] || keys['s']) iy += 1;
+    if (joy.id !== null && Math.hypot(joy.dx, joy.dy) > 0.2) { ix = joy.dx; iy = joy.dy; }
+    const mg = Math.hypot(ix, iy);
+    player.moving = false;
+    if (mg > 0.01 && !dlg) {
+      ix /= Math.max(1, mg); iy /= Math.max(1, mg);
+      const sp = player.atk > 0 ? 110 : 230;
+      const nx = player.x + ix * sp * dt, ny = player.y + iy * sp * dt;
+      if (!blockedAt(nx, player.y, 16, 14, true)) player.x = nx;
+      if (!blockedAt(player.x, ny, 16, 14, true)) player.y = ny;
+      player.moving = true;
+      if (player.atk <= 0) {
+        if (Math.abs(ix) > Math.abs(iy)) player.dir = ix < 0 ? 'left' : 'right'; else player.dir = iy < 0 ? 'up' : 'down';
+      }
+      const l = hist[hist.length - 1];
+      if (!l || Math.hypot(player.x - l[0], player.y - l[1]) > 10) { hist.push([player.x, player.y]); if (hist.length > 60) hist.shift(); }
+    }
+    if (player.atk > 0) {
+      player.atk -= dt;
+      if (!player.atkHit && player.atk <= ATK_T * 0.5) { player.atkHit = true; doHit(); if (B) return; }
+    }
+    if (player.inv > 0) player.inv -= dt;
+    if (exitCool > 0) exitCool -= dt;
+    checkExits();
+    updateMonsters(dt);
+    if (B) return;
+    updateParty(dt);
+    if (toast) { toast.t -= dt; if (toast.t <= 0) toast = null; }
+    cam.x = Math.max(0, Math.min(M.W * TILE - VIEW_W, player.x - VIEW_W / 2));
+    cam.y = Math.max(0, Math.min(M.H * TILE - VIEW_H, player.y - VIEW_H / 2 - 40));
+  }
+  function checkExits() {
+    if (exitCool > 0) return;
+    const row = Math.floor(player.y / TILE), col = Math.floor(player.x / TILE);
+    for (const e of M.exits) {
+      let hit = false;
+      if (e.side === 'e' || e.side === 'w') {
+        if (e.row !== row) continue;
+        hit = e.side === 'e' ? player.x > (M.W - 0.4) * TILE : player.x < 0.4 * TILE;
+      } else {
+        if (Math.abs(col - e.col) > 1) continue;
+        hit = e.side === 's' ? player.y > (M.H - 0.4) * TILE : player.y < 0.4 * TILE;
+      }
+      if (!hit) continue;
+      const blockedMsg = e.locked ? (typeof e.locked === 'function' ? e.locked() : e.locked) : ((e.need && !e.need()) ? e.msg : null);
+      if (blockedMsg) {
+        showToast(blockedMsg); exitCool = 2;
+        if (e.side === 'e') player.x = (M.W - 1.5) * TILE; else if (e.side === 'w') player.x = 1.5 * TILE;
+        else if (e.side === 's') player.y = (M.H - 1.5) * TILE; else player.y = 1.5 * TILE;
+        return;
+      }
+      loadMap(e.to, e.sx, e.sy); save();
+      return;
+    }
+  }
+  function updateMonsters(dt) {
+    for (const m of M.monsters) {
+      const T = MON[m.type];
+      m.hitCd = Math.max(0, m.hitCd - dt);
+      const dx = player.x - m.x, dy = player.y - m.y, d = Math.hypot(dx, dy) || 1;
+      if (T.boss) {   // stationary boss: battle when you get close
+        if (d < 84 && player.inv <= 0 && m.hitCd <= 0 && !dlg) { startBattle(m, false); return; }
+        continue;
+      }
+      let vx = 0, vy = 0;
+      if (T.dash && m.st === 'wind') { m.stT -= dt; if (m.stT <= 0) { m.st = 'dash'; m.stT = 0.4; } }
+      else if (T.dash && m.st === 'dash') { vx = m.dx * 330; vy = m.dy * 330; m.stT -= dt; if (m.stT <= 0) { m.st = 'idle'; m.dashCd = 2; } }
+      else {
+        if (T.dash) m.dashCd = Math.max(0, m.dashCd - dt);
+        if (d < T.chase && m.hitCd <= 0) {
+          vx = dx / d * T.speed; vy = dy / d * T.speed;
+          if (T.dash && d < 240 && m.dashCd <= 0 && !dlg) { m.st = 'wind'; m.stT = 0.55; m.dx = dx / d; m.dy = dy / d; vx = vy = 0; }
+        } else {
+          m.wanderT -= dt;
+          if (m.wanderT <= 0) { m.wanderT = 1.2 + Math.random() * 2; const a = Math.random() * 6.28, on = Math.random() < 0.6; m.vx = on ? Math.cos(a) * 38 : 0; m.vy = on ? Math.sin(a) * 38 : 0; }
+          vx = m.vx; vy = m.vy;
+        }
+      }
+      if (d < 46 && player.inv <= 0 && m.hitCd <= 0 && !dlg) { startBattle(m, false); return; }
+      if (vx || vy) {
+        if (Math.abs(vx) > Math.abs(vy)) m.dir = vx < 0 ? 'left' : 'right';
+        if (!blockedAt(m.x + vx * dt, m.y, 18, 12, false)) m.x += vx * dt; else { m.vx = -m.vx; if (m.st === 'dash') m.stT = 0; }
+        if (!blockedAt(m.x, m.y + vy * dt, 18, 12, false)) m.y += vy * dt; else { m.vy = -m.vy; if (m.st === 'dash') m.stT = 0; }
+      }
+    }
+  }
+  function updateParty(dt) {
+    party.forEach((p, i) => {
+      const idx = hist.length - 1 - (i + 1) * 4;
+      const tgt = idx >= 0 ? hist[idx] : [player.x - 34 * (i + 1), player.y];
+      const dx = tgt[0] - p.x, dy = tgt[1] - p.y, d = Math.hypot(dx, dy);
+      if (d > 4) { const s = Math.min(d, 260 * dt); p.x += dx / d * s; p.y += dy / d * s; if (Math.abs(dx) > 2) p.dir = dx < 0 ? 'left' : 'right'; }
+    });
+  }
+
+  // ---- Drawing: world ----
+  function drawGround() {
+    const x0 = Math.floor(cam.x / TILE), y0 = Math.floor(cam.y / TILE);
+    const wf = Math.floor(t * 3) % 3;
+    const gid = groundId(), gcol = groundCol();
+    for (let ty = y0; ty <= y0 + 15; ty++) for (let tx = x0; tx <= x0 + 11; tx++) {
+      if (tx < 0 || ty < 0 || tx >= M.W || ty >= M.H) continue;
+      const sx = tx * TILE - cam.x, sy = ty * TILE - cam.y, k = key(tx, ty);
+      if (M.water.has(k)) { if (!drawTile('tile_water', wf, sx, sy)) { ctx.fillStyle = '#2b6fc4'; ctx.fillRect(sx, sy, TILE, TILE); } }
+      else if (M.pathT.has(k)) { if (!drawTile('tile_path', 0, sx, sy)) { ctx.fillStyle = '#9a7648'; ctx.fillRect(sx, sy, TILE, TILE); } }
+      else { if (!drawTile(gid, 0, sx, sy)) { ctx.fillStyle = gcol; ctx.fillRect(sx, sy, TILE, TILE); } }
+    }
+  }
+  function drawHouse(h) {
+    const x = h.x * TILE - cam.x, y = h.y * TILE - cam.y, w = h.w * TILE;
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 6, y - 14, w + 12, 146);
+    ctx.fillStyle = h.roof; ctx.fillRect(x - 4, y - 12, w + 8, 76);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let r = 0; r < 4; r++) ctx.fillRect(x - 4, y - 12 + r * 19, w + 8, 3);
+    ctx.fillStyle = '#c9a36a'; ctx.fillRect(x, y + 64, w, 64);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    for (let c = 0; c < h.w * 4; c++) ctx.fillRect(x + c * 16, y + 64, 2, 64);
+    ctx.fillStyle = '#5a3a1e'; ctx.fillRect(x + w / 2 - 16, y + 80, 32, 48);
+    ctx.fillStyle = '#e9d76a'; ctx.fillRect(x + w / 2 + 8, y + 104, 4, 4);
+    ctx.fillStyle = '#9ad4f0'; ctx.fillRect(x + 14, y + 80, 28, 24); ctx.fillRect(x + w - 42, y + 80, 28, 24);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(h.name, x + w / 2, y + 52); ctx.textAlign = 'left';
+  }
+  function drawObstacle(tp) {
+    const cx = tp[0] * TILE + TILE / 2 - cam.x, by = (tp[1] + 1) * TILE - cam.y - 2;
+    if (!drawFit(M.obs, 0, cx, by, 84, 112, false)) {
+      if (M.obs === 'tree_01') { ctx.fillStyle = '#5a3a1e'; ctx.fillRect(cx - 7, by - 30, 14, 30); ctx.fillStyle = '#2f7a2f'; ctx.fillRect(cx - 28, by - 86, 56, 62); }
+      else { ctx.fillStyle = '#000'; ctx.fillRect(cx - 28, by - 74, 56, 74); ctx.fillStyle = '#8a8a92'; ctx.fillRect(cx - 25, by - 71, 50, 68); }
+    }
+  }
+  function drawTorch(tp) {
+    const cx = Math.round(tp[0] * TILE + TILE / 2 - cam.x), by = Math.round((tp[1] + 1) * TILE - cam.y - 4);
+    const f = Math.floor(t * 6) % 3;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(cx - 14, by - 3, 28, 7);
+    ctx.fillStyle = '#000'; ctx.fillRect(cx - 6, by - 56, 12, 56);
+    ctx.fillStyle = '#6b4a2a'; ctx.fillRect(cx - 4, by - 54, 8, 52);
+    ctx.fillStyle = '#000'; ctx.fillRect(cx - 10, by - 64, 20, 12);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(cx - 8, by - 62, 16, 8);
+    const fh = [18, 26, 21][f], ox = [-2, 2, 0][f];
+    ctx.fillStyle = '#d9541e'; ctx.fillRect(cx - 8 + ox, by - 62 - fh, 16, fh);
+    ctx.fillStyle = '#ffa63a'; ctx.fillRect(cx - 5 + ox, by - 62 - fh * 0.75, 10, fh * 0.75);
+    ctx.fillStyle = '#ffe27a'; ctx.fillRect(cx - 2 + ox, by - 62 - fh * 0.45, 4, fh * 0.45);
+  }
+  function drawSign(sg) {
+    const cx = sg.x * TILE + TILE / 2 - cam.x, by = (sg.y + 1) * TILE - cam.y - 4;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(cx - 22, by - 4, 44, 8);
+    ctx.fillStyle = '#000'; ctx.fillRect(cx - 5, by - 50, 10, 50);
+    ctx.fillStyle = '#6b4a2a'; ctx.fillRect(cx - 3, by - 48, 6, 46);
+    ctx.fillStyle = '#000'; ctx.fillRect(cx - 30, by - 94, 60, 48);
+    ctx.fillStyle = '#c9a36a'; ctx.fillRect(cx - 27, by - 91, 54, 42);
+    ctx.fillStyle = '#5a3a1e';
+    ctx.fillRect(cx - 20, by - 82, 40, 3); ctx.fillRect(cx - 20, by - 74, 40, 3); ctx.fillRect(cx - 20, by - 66, 28, 3); ctx.fillRect(cx - 20, by - 58, 34, 3);
+    if (nearestSign() === sg) { ctx.fillStyle = '#fff'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('!', cx, by - 102); ctx.textAlign = 'left'; }
+  }
+  function drawNpc(n) {
+    const cx = n.x * TILE - cam.x, by = n.y * TILE - cam.y + 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(cx - 18, by - 4, 36, 8);
+    const f = [0, 1, 2, 1][Math.floor(t * 2.5 + n.x) % 4];
+    if (!drawChar(n.sheet, f, cx, by, false)) {
+      const bob = Math.sin(t * 3 + n.x) > 0 ? 0 : 2;
+      ctx.fillStyle = '#000'; ctx.fillRect(cx - 17, by - 74 + bob, 34, 74 - bob);
+      ctx.fillStyle = n.dress; ctx.fillRect(cx - 15, by - 44 + bob, 30, 42 - bob);
+      ctx.fillStyle = '#f2c7a0'; ctx.fillRect(cx - 11, by - 72 + bob, 22, 22);
+      ctx.fillStyle = n.hair; ctx.fillRect(cx - 13, by - 76 + bob, 26, 10);
+    }
+    if (nearestNpc() === n) { ctx.fillStyle = '#fff'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('!', cx, by - SHEET[n.sheet].H - 6); ctx.textAlign = 'left'; }
+  }
+  function heart(cx, cy, s, col) {
+    ctx.fillStyle = col;
+    ctx.fillRect(cx - 2 * s, cy - 2 * s, s, s); ctx.fillRect(cx + s, cy - 2 * s, s, s);
+    ctx.fillRect(cx - 3 * s, cy - s, 7 * s, s); ctx.fillRect(cx - 3 * s, cy, 7 * s, s);
+    ctx.fillRect(cx - 2 * s, cy + s, 5 * s, s); ctx.fillRect(cx - s, cy + 2 * s, 3 * s, s); ctx.fillRect(cx, cy + 3 * s, s, s);
+  }
+  function drawMon(m, isParty) {
+    const T = MON[m.type], H = SHEET[T.sheet].H;
+    const cx = m.x - cam.x, by = m.y - cam.y + 6;
+    const f = Math.floor(t * (m.st === 'dash' ? 10 : 4) + (m.ph || 0)) % 3;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(cx - (T.boss ? 36 : 22), by - 4, T.boss ? 72 : 44, 8);
+    if (!drawChar(T.sheet, f, cx, by, m.dir === 'left')) {
+      ctx.fillStyle = '#000'; ctx.fillRect(cx - 24, by - 60, 48, 60);
+      ctx.fillStyle = T.color; ctx.fillRect(cx - 21, by - 57, 42, 54);
+    }
+    const top = by - H - 8;
+    if (isParty) { heart(cx, top + Math.sin(t * 3 + m.ph) * 3, 3, '#ff5a8a'); return; }
+    if (T.boss) { ctx.fillStyle = '#f0d070'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center'; ctx.fillText(T.name, cx, top - 2); ctx.textAlign = 'left'; }
+    if (m.st === 'wind') { ctx.fillStyle = '#ff3030'; ctx.font = 'bold 34px monospace'; ctx.textAlign = 'center'; ctx.fillText('!', cx, top - 4); ctx.textAlign = 'left'; }
+  }
+  function drawPlayer() {
+    const cx = player.x - cam.x, by = player.y - cam.y + 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(cx - 18, by - 4, 36, 8);
+    const part = (player.dir === 'left' || player.dir === 'right') ? 'side' : player.dir;
+    let id, f;
+    if (player.atk > 0) { id = 'player_attack_' + part; f = Math.min(2, Math.floor((1 - player.atk / ATK_T) * 3)); }
+    else { id = 'player_walk_' + part; const seq = [0, 1, 2, 1]; f = player.moving ? seq[Math.floor(t * 8) % 4] : 1; }
+    const blink = player.inv > 0 && Math.floor(t * 20) % 2;
+    if (!drawChar(id, f, cx, by, player.dir === 'left', blink ? 0.4 : 1)) {
+      ctx.fillStyle = '#000'; ctx.fillRect(cx - 17, by - 70, 34, 70);
+      ctx.fillStyle = '#3f9a4a'; ctx.fillRect(cx - 14, by - 44, 28, 40);
+      ctx.fillStyle = '#f2c7a0'; ctx.fillRect(cx - 11, by - 68, 22, 22);
+      ctx.fillStyle = '#5a3a1e'; ctx.fillRect(cx - 12, by - 72, 24, 9);
+    }
+  }
+  // cave darkness: lit area around the player, warm glow around torches
+  function drawDarkness() {
+    const px = player.x - cam.x, py = player.y - cam.y - 40;
+    const g = ctx.createRadialGradient(px, py, 70, px, py, 460);
+    g.addColorStop(0, 'rgba(2,4,18,0)'); g.addColorStop(1, 'rgba(2,4,18,0.78)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    M.torches.forEach(tp => {
+      const cx = tp[0] * TILE + TILE / 2 - cam.x, cy = (tp[1] + 1) * TILE - cam.y - 70;
+      const fl2 = 0.22 + 0.05 * Math.sin(t * 9 + tp[0]);
+      const gg = ctx.createRadialGradient(cx, cy, 8, cx, cy, 170);
+      gg.addColorStop(0, 'rgba(255,160,60,' + fl2 + ')'); gg.addColorStop(1, 'rgba(255,160,60,0)');
+      ctx.fillStyle = gg; ctx.fillRect(cx - 170, cy - 170, 340, 340);
+    });
+    ctx.restore();
+  }
+  function drawControls() {
+    ctx.fillStyle = '#14141f'; ctx.fillRect(0, VIEW_H, 720, 320);
+    ctx.fillStyle = '#2a2a40'; ctx.fillRect(0, VIEW_H, 720, 4);
+    const jx = joy.id !== null ? joy.ox : JOY_HOME.x, jy = joy.id !== null ? joy.oy : JOY_HOME.y;
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.beginPath(); ctx.arc(jx, jy, 90, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(jx + joy.dx * 60, jy + joy.dy * 60, 40, 0, 7); ctx.fill();
+    ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(BTN.x, BTN.y, BTN.r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 52px monospace'; ctx.textAlign = 'center'; ctx.fillText('A', BTN.x, BTN.y + 18);
+    ctx.font = '16px monospace'; ctx.fillStyle = '#7a7a99';
+    ctx.fillText(nearestNpc() ? 'Talk' : nearestSign() ? 'Read' : 'Attack', BTN.x, BTN.y + 110); ctx.textAlign = 'left';
+  }
+  function drawHud() {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, 720, 54);
+    ctx.fillStyle = '#333'; ctx.fillRect(14, 14, 170, 26);
+    ctx.fillStyle = '#e0453a'; ctx.fillRect(16, 16, 166 * Math.max(0, player.hp) / player.maxHp, 22);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 18px monospace'; ctx.fillText('HP ' + Math.max(0, player.hp) + '/' + player.maxHp, 20, 34);
+    ctx.fillText('MP ' + player.mp, 196, 34);
+    ctx.fillText('Lv ' + player.lvl, 276, 34);
+    ctx.fillText('G ' + player.gold, 346, 34);
+    ctx.fillText('Party ' + party.length + '/' + MAX_PARTY, 424, 34);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#f0d070'; ctx.font = 'bold 16px monospace'; ctx.fillText(M.name, 706, 34); ctx.textAlign = 'left';
+    drawJournalBtn();
+  }
+  function drawJournalBtn() {
+    const x = 622, y = 66, w = 80, h = 80;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#e8e8f0'; ctx.fillRect(x, y, w, 3); ctx.fillRect(x, y + h - 3, w, 3); ctx.fillRect(x, y, 3, h); ctx.fillRect(x + w - 3, y, 3, h);
+    ctx.fillStyle = '#000'; ctx.fillRect(x + 16, y + 12, 48, 44);
+    ctx.fillStyle = '#8a3b2f'; ctx.fillRect(x + 18, y + 14, 44, 40);
+    ctx.fillStyle = '#f0e6c8'; ctx.fillRect(x + 22, y + 18, 17, 32); ctx.fillRect(x + 41, y + 18, 17, 32);
+    ctx.fillStyle = '#8a7a5a'; ctx.fillRect(x + 25, y + 24, 11, 2); ctx.fillRect(x + 25, y + 31, 11, 2); ctx.fillRect(x + 44, y + 24, 11, 2); ctx.fillRect(x + 44, y + 31, 11, 2);
+    ctx.fillStyle = '#f0d070'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.fillText('JOURNAL', x + w / 2, y + 73); ctx.textAlign = 'left';
+  }
+  function wrap(text, maxW) {
+    const words = text.split(' '); const out = []; let line = '';
+    words.forEach(w => { const tst = line ? line + ' ' + w : w; if (ctx.measureText(tst).width > maxW && line) { out.push(line); line = w; } else line = tst; });
+    if (line) out.push(line); return out;
+  }
+  function drawDialogue() {
+    if (!dlg) return;
+    const x = 20, y = 700, w = 680, h = 240;
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+    ctx.fillStyle = '#1c1c34'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#f0d070'; ctx.font = 'bold 26px monospace'; ctx.fillText(dlg.name, x + 22, y + 40);
+    ctx.fillStyle = '#fff'; ctx.font = '26px monospace';
+    wrap(dlg.lines[dlg.i], w - 44).forEach((l, i) => ctx.fillText(l, x + 22, y + 84 + i * 34));
+    ctx.fillStyle = '#7a7a99'; ctx.font = '18px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(Math.floor(t * 2) % 2 ? 'tap  >' : 'tap', x + w - 20, y + h - 16); ctx.textAlign = 'left';
+  }
+
+  // ---- Drawing: shared UI helpers + journal ----
+  function win(x, y, w, h) {
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, '#2a42b8'); g.addColorStop(1, '#0c1658');
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 5, y - 5, w + 10, h + 10);
+    ctx.fillStyle = '#e8e8f0'; ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.fillStyle = '#4a5a9a'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  }
+  function txt(s, x, y, size, col, align) {
+    ctx.font = (size >= 22 ? 'bold ' : '') + size + 'px monospace';
+    ctx.fillStyle = col || '#fff'; ctx.textAlign = align || 'left'; ctx.fillText(s, x, y); ctx.textAlign = 'left';
+  }
+  function bar(x, y, w, h, v, max, col) {
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.fillStyle = '#333'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = col; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, v / max)), h);
+  }
+  function row(label, value, x, y, w) {
+    txt(label, x, y, 22, '#b8c0ff'); txt(String(value), x + w, y, 22, '#fff', 'right');
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(x, y + 10, w, 2);
+  }
+  function fmtTime(s) { s = Math.floor(s); const m = Math.floor(s / 60), ss = s % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
+
+  function tabProfile(x, y, w) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x, y, w, 300);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x + w / 2 - 60, y + 262, 120, 14);
+    const f = [0, 1, 2, 1][Math.floor(t * 2.5) % 4];
+    if (!drawChar('player_walk_down', f, x + w / 2, y + 272, false, 1, 2.1)) { ctx.fillStyle = '#3f9a4a'; ctx.fillRect(x + w / 2 - 30, y + 80, 60, 190); }
+    txt('Traveler', x + w / 2, y + 336, 34, '#f0d070', 'center');
+    txt('Lost in a world of girls', x + w / 2, y + 362, 16, '#b8c0ff', 'center');
+    let yy = y + 410;
+    row('Level', player.lvl, x, yy, w); yy += 46;
+    txt('HP', x, yy, 22, '#b8c0ff'); bar(x + 70, yy - 18, w - 160, 18, player.hp, player.maxHp, '#e0453a'); txt(player.hp + '/' + player.maxHp, x + w, yy, 22, '#fff', 'right'); yy += 46;
+    txt('MP', x, yy, 22, '#b8c0ff'); bar(x + 70, yy - 18, w - 160, 18, player.mp, player.maxMp, '#4fa0ff'); txt(player.mp + '/' + player.maxMp, x + w, yy, 22, '#fff', 'right'); yy += 46;
+    const need = player.lvl * 20;
+    txt('EXP', x, yy, 22, '#b8c0ff'); bar(x + 70, yy - 18, w - 160, 18, player.xp, need, '#4fd0b8'); txt(player.xp + '/' + need, x + w, yy, 22, '#fff', 'right'); yy += 46;
+    row('ATK / DEF', pAtk() + ' / ' + pDef(), x, yy, w); yy += 46;
+    row('Gold', player.gold, x, yy, w); yy += 46;
+    row('Location', M.name, x, yy, w); yy += 46;
+    row('Party', party.length + ' / ' + MAX_PARTY, x, yy, w); yy += 46;
+    row('Friends made', Object.keys(stats).reduce((s, k) => s + (stats[k] || 0), 0), x, yy, w); yy += 46;
+    row('Play time', fmtTime(playSec), x, yy, w);
+  }
+  function slot(x, y, w, h, label, item, stat) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, y, w, h);
+    txt(label, x + 16, y + 34, 20, '#f0d070');
+    if (item) {
+      txt(item.name, x + 16, y + 74, 26, '#fff'); txt(stat, x + w - 16, y + 34, 22, '#4fd0b8', 'right');
+      ctx.font = '18px monospace'; ctx.fillStyle = '#b8c0ff';
+      wrap(item.desc, w - 32).forEach((l, i) => ctx.fillText(l, x + 16, y + 106 + i * 24));
+    } else txt('- Empty -', x + 16, y + 74, 24, '#7a85c8');
+  }
+  function gearStat(g) {
+    if (!g) return '';
+    const p = []; if (g.atk) p.push('ATK +' + g.atk); if (g.def) p.push('DEF +' + g.def); if (g.hp) p.push('HP +' + g.hp);
+    return p.join('  ');
+  }
+  function tabEquip(x, y, w) {
+    slot(x, y, w, 150, 'WEAPON', gear(EQUIP.weapon), gearStat(gear(EQUIP.weapon)));
+    slot(x, y + 170, w, 150, 'ARMOR', gear(EQUIP.armor), gearStat(gear(EQUIP.armor)));
+    slot(x, y + 340, w, 150, 'ACCESSORY', gear(EQUIP.accessory), gearStat(gear(EQUIP.accessory)));
+    row('Battle ATK', pAtk(), x, y + 540, w); row('Battle DEF', pDef(), x, y + 590, w); row('Max HP', player.maxHp, x, y + 640, w);
+    ctx.font = '18px monospace'; ctx.fillStyle = '#b8c0ff';
+    wrap('Tap a slot to switch between gear you own. Smith Bruna in the village forges new gear from monster materials.', w).forEach((l, i) => ctx.fillText(l, x, y + 706 + i * 26));
+  }
+  function cycleGear(slotName) {
+    const ids = Object.keys(GEAR).filter(id => GEAR[id].slot === slotName && owned[id]);
+    const list = slotName === 'accessory' ? [null].concat(ids) : ids;
+    if (!list.length) return;
+    const i = list.indexOf(EQUIP[slotName]);
+    EQUIP[slotName] = list[(i + 1) % list.length];
+    recomputeMax(); save();
+  }
+  function tabParty(x, y, w) {
+    for (let i = 0; i < MAX_PARTY; i++) {
+      const yy = y + i * 250, p = party[i];
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, yy, w, 230);
+      txt('SLOT ' + (i + 1), x + 14, yy + 32, 18, '#f0d070');
+      if (p) {
+        const T = MON[p.type];
+        const f = [0, 1, 2, 1][Math.floor(t * 4 + i) % 4];
+        if (!drawChar(T.sheet, f, x + 100, yy + 205, false, 1, 1.1)) { ctx.fillStyle = T.color; ctx.fillRect(x + 60, yy + 100, 80, 100); }
+        txt(T.name, x + 200, yy + 76, 28, '#fff');
+        txt('HP ' + p.maxHp + '  ATK ' + p.atk + '  DEF ' + p.def + '  SPD ' + p.spd, x + 200, yy + 104, 15, '#4fd0b8');
+        txt('Skill: ' + T.ally.skill, x + 200, yy + 130, 18, '#f0d070');
+        ctx.font = '16px monospace'; ctx.fillStyle = '#b8c0ff';
+        wrap(T.role, w - 205).forEach((l, k) => ctx.fillText(l, x + 200, yy + 158 + k * 21));
+        txt('Acts automatically in battle', x + 200, yy + 222, 14, '#7a85c8');
+        const armed = journal.releaseSlot === i && t < journal.releaseUntil;
+        ctx.fillStyle = '#000'; ctx.fillRect(x + w - 152, yy + 4, 140, 48);
+        ctx.fillStyle = armed ? (Math.floor(t * 4) % 2 ? '#e0453a' : '#a02a2a') : '#5a2a2a'; ctx.fillRect(x + w - 150, yy + 6, 136, 44);
+        txt(armed ? 'SURE?' : 'RELEASE', x + w - 82, yy + 36, 20, '#fff', 'center');
+      } else {
+        txt('- Empty -', x + 200, yy + 110, 26, '#7a85c8');
+        txt('Befriend a monster girl', x + 200, yy + 142, 18, '#7a85c8');
+      }
+    }
+  }
+  function tabPartyFooter(x, y) {
+    if (t < journal.relMsgUntil) txt(journal.relMsg, x, y + 790, 17, '#f0d070');
+    else txt('Tap RELEASE twice to let a friend go home.', x, y + 790, 16, '#7a85c8');
+  }
+  function tabItems(x, y, w) {
+    row('Gold', player.gold, x, y + 30, w);
+    const list = Object.keys(LOOT).filter(k => (inv[k] || 0) > 0);
+    let yy = y + 70;
+    list.forEach(k => {
+      const L = LOOT[k];
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, yy, w, 62);
+      ctx.fillStyle = '#000'; ctx.fillRect(x + 8, yy + 10, 42, 42); ctx.fillStyle = L.color; ctx.fillRect(x + 11, yy + 13, 36, 36);
+      txt(L.name, x + 64, yy + 26, 20, '#fff'); txt('x' + inv[k], x + w - 12, yy + 26, 20, '#f0d070', 'right');
+      ctx.font = '14px monospace'; ctx.fillStyle = '#b8c0ff';
+      wrap(L.desc, w - 80).slice(0, 2).forEach((l, i) => ctx.fillText(l, x + 64, yy + 42 + i * 16));
+      yy += 68;
+    });
+    if (!list.length) txt('No items yet. Befriend monsters!', x, y + 110, 20, '#7a85c8');
+    journal.max = Math.max(0, yy - 1250);
+  }
+  function bossTag(type) {
+    const b = bs(type);
+    return b.friend ? 'befriended' : b.done ? (bossAvailable(type) ? 'she returned!' : 'back in ' + fmtRemain(bossRemaining(type))) : 'boss';
+  }
+  function tabQuests(x, y, w) {
+    const Q = [
+      ['Speak with Elder Mira', !!flags.met['Elder Mira'], ''],
+      ['Befriend a Slime Girl', (stats.slime || 0) > 0, ''],
+      ['Befriend a Harpy Girl', (stats.harpy || 0) > 0, ''],
+      ['Face Queen Lamia', !!bs('queen').done, bossTag('queen')],
+      ['Fill your party', party.length >= MAX_PARTY, party.length + '/' + MAX_PARTY],
+      ['Forge new gear (Smith Bruna)', Object.keys(owned).length > 2, ''],
+      ['Face Wraith Queen', !!bs('wraith').done, bossTag('wraith')],
+      ['Reach the Crossroads', !!seen.map_hub, ''],
+      ['Face Dryad Queen', !!bs('dryadq').done, bossTag('dryadq')],
+      ['Face Snow Queen', !!bs('snowq').done, bossTag('snowq')],
+      ['Face Flame Queen', !!bs('flameq').done, bossTag('flameq')],
+      ['Open the Court of Queens', !!seen.map_court, 'Sigils ' + sigilCount() + '/' + SIGIL_NEED],
+      ['Face the Overqueen', !!bs('overq').done, bossTag('overq')]
+    ];
+    Q.forEach((q, i) => {
+      const yy = y + i * 80;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, yy, w, 70);
+      ctx.fillStyle = '#000'; ctx.fillRect(x + 14, yy + 17, 36, 36); ctx.fillStyle = q[1] ? '#4fd0b8' : '#2a3278'; ctx.fillRect(x + 17, yy + 20, 30, 30);
+      if (q[1]) { ctx.fillStyle = '#fff'; ctx.fillRect(x + 22, yy + 33, 8, 5); ctx.fillRect(x + 28, yy + 27, 6, 14); }
+      txt(q[0], x + 66, yy + 42, 20, q[1] ? '#7a85c8' : '#fff');
+      if (q[2]) txt(q[2], x + w - 14, yy + 42, 16, '#f0d070', 'right');
+    });
+    journal.max = Math.max(0, y + Q.length * 80 - 1250);
+  }
+  function tabBestiary(x, y, w) {
+    const ids = ['slime', 'harpy', 'lamia', 'queen', 'undead', 'wraith', 'alraune', 'dryad', 'dryadq', 'yuki', 'iceharpy', 'snowq', 'salamander', 'sprite', 'flameq', 'guard', 'overq'];
+    ids.forEach((id, i) => {
+      const yy = y + i * 180, T = MON[id], known = !!seen[id];
+      if (yy - journal.scroll > 1262 || yy - journal.scroll + 170 < 160) return;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, yy, w, 170);
+      if (known) {
+        const f = [0, 1, 2, 1][Math.floor(t * 4 + i) % 4];
+        if (!drawChar(T.sheet, f, x + 90, yy + 158, false, 1, T.boss ? 0.95 : 1.1)) { ctx.fillStyle = T.color; ctx.fillRect(x + 50, yy + 70, 80, 88); }
+        txt(T.name + (T.boss ? ' (BOSS)' : ''), x + 180, yy + 40, T.boss ? 22 : 26, T.boss ? '#f0d070' : '#fff');
+        txt('Befriended: ' + (stats[id] || 0), x + 180, yy + 66, 16, '#4fd0b8');
+        txt('HP ' + T.bhp + '  ATK ' + T.batk + '  Loot: ' + LOOT[T.loot].name, x + 180, yy + 90, 14, '#f0d070');
+        ctx.font = '15px monospace'; ctx.fillStyle = '#b8c0ff';
+        wrap(T.lore, w - 196).forEach((l, k) => { if (k < 4) ctx.fillText(l, x + 180, yy + 114 + k * 18); });
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x + 50, yy + 50, 80, 108);
+        txt('???', x + 90, yy + 112, 30, '#7a85c8', 'center');
+        txt('Unknown', x + 180, yy + 60, 26, '#7a85c8');
+        txt('Not yet encountered', x + 180, yy + 90, 18, '#7a85c8');
+      }
+    });
+    journal.max = Math.max(0, y + ids.length * 180 - 1250);
+  }
+  function tabSystem(x, y, w) {
+    // Save button: y+50..y+130
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 2, y + 48, w + 4, 84);
+    ctx.fillStyle = '#2f8a6b'; ctx.fillRect(x, y + 50, w, 80);
+    txt('SAVE GAME', x + w / 2, y + 100, 30, '#fff', 'center');
+    if (t < journal.msgUntil) txt('Game saved!', x + w / 2, y + 168, 22, '#f0d070', 'center');
+    // Reset button: y+190..y+270 (two taps to confirm)
+    const armed = t < journal.resetUntil;
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 2, y + 188, w + 4, 84);
+    ctx.fillStyle = armed ? (Math.floor(t * 4) % 2 ? '#e0453a' : '#a02a2a') : '#7a2f2f'; ctx.fillRect(x, y + 190, w, 80);
+    txt(armed ? 'TAP AGAIN TO CONFIRM' : 'RESET PROGRESS', x + w / 2, y + 226, armed ? 24 : 30, '#fff', 'center');
+    txt('Deletes your save and restarts the game', x + w / 2, y + 254, 15, '#ffd0d0', 'center');
+    ctx.font = '18px monospace'; ctx.fillStyle = '#b8c0ff';
+    ['Move: joystick or WASD / arrows', 'A button or Space: talk or swing sword', 'J or Esc: open / close Journal', 'Up / Down: switch tabs (keyboard)', '',
+     'Battle: touch a monster girl or hit her', 'with the sword (first strike).', 'Weaken her, then use Befriend.', 'Rest in the village to heal.', '', 'Isekai: Land of Girls  v14'].forEach((s, i) => ctx.fillText(s, x, y + 330 + i * 30));
+  }
+  function drawJournal() {
+    ctx.fillStyle = '#070b2a'; ctx.fillRect(0, 0, 720, 1280);
+    win(14, 14, 692, 66);
+    txt('JOURNAL', 38, 58, 32, '#fff');
+    ctx.fillStyle = '#000'; ctx.fillRect(620, 20, 80, 54); ctx.fillStyle = '#c0392b'; ctx.fillRect(623, 23, 74, 48);
+    txt('X', 660, 58, 32, '#fff', 'center');
+    win(14, 98, 186, 1166);
+    TABS.forEach((name, i) => {
+      const ty = 108 + i * 96, sel = i === journal.tab;
+      if (sel) { ctx.fillStyle = 'rgba(240,208,112,0.22)'; ctx.fillRect(18, ty, 178, 88); }
+      if (sel) { ctx.fillStyle = '#f0d070'; ctx.beginPath(); ctx.moveTo(26, ty + 30); ctx.lineTo(26, ty + 58); ctx.lineTo(44, ty + 44); ctx.fill(); }
+      txt(name, 54, ty + 52, sel ? 22 : 20, sel ? '#f0d070' : '#e8e8f0');
+    });
+    win(216, 98, 490, 1166);
+    txt(TABS[journal.tab].toUpperCase(), 240, 140, 24, '#f0d070');
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(240, 152, 442, 2);
+    if (journal.lastTab !== journal.tab) { journal.lastTab = journal.tab; journal.scroll = 0; }
+    journal.max = 0;
+    ctx.save(); ctx.beginPath(); ctx.rect(216, 160, 490, 1102); ctx.clip();
+    ctx.translate(0, -journal.scroll);
+    [tabProfile, tabEquip, tabParty, tabItems, tabQuests, tabBestiary, tabSystem][journal.tab](240, 176, 442);
+    ctx.restore();
+    journal.scroll = Math.max(0, Math.min(journal.max, journal.scroll));
+    scrollBar(698, 164, 1090, journal);
+    if (journal.tab === 2) tabPartyFooter(240, 176);
+  }
+
+  function render() {
+    ctx.imageSmoothingEnabled = false;
+    if (B) { drawBattle(); return; }
+    ctx.fillStyle = '#0d0d14'; ctx.fillRect(0, 0, 720, 1280);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VIEW_W, VIEW_H); ctx.clip();
+    drawGround();
+    const items = [];
+    M.trees.forEach(tp => items.push({ y: (tp[1] + 1) * TILE, f: () => drawObstacle(tp) }));
+    M.houses.forEach(h => items.push({ y: (h.y + 2) * TILE, f: () => drawHouse(h) }));
+    M.torches.forEach(tp => items.push({ y: (tp[1] + 1) * TILE, f: () => drawTorch(tp) }));
+    M.signs.forEach(sg => items.push({ y: (sg.y + 1) * TILE, f: () => drawSign(sg) }));
+    M.npcs.forEach(n => items.push({ y: n.y * TILE, f: () => drawNpc(n) }));
+    M.monsters.forEach(m => items.push({ y: m.y, f: () => drawMon(m, false) }));
+    party.forEach(p => items.push({ y: p.y, f: () => drawMon(p, true) }));
+    items.push({ y: player.y, f: drawPlayer });
+    items.sort((a, b) => a.y - b.y).forEach(i => i.f());
+    if (M.tint) { ctx.fillStyle = M.tint; ctx.fillRect(0, 0, VIEW_W, VIEW_H); }
+    if (M.dark) drawDarkness();
+    ctx.restore();
+    drawHud();
+    drawDialogue();
+    if (toast) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(30, 110, 560, 56);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText(toast.s, 310, 146); ctx.textAlign = 'left';
+    }
+    drawControls();
+    if (journal.open) drawJournal();
+    if (forge.open) drawForge();
+    if (shop.open) drawShop();
+  }
+
+  function loop(ts) {
+    const dt = Math.min(0.11, (ts - last) / 1000 || 0); last = ts;
+    update(dt); render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(ts => { last = ts; loop(ts); });
+}
+window.run = run;
+</script>
+</body>
+</html>

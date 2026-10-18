@@ -1,0 +1,452 @@
+{
+  "player_walk_down": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1413,
+      781
+    ],
+    "description": "Player walk down sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56XJ09ER2GDJBDK6XWAZ1M9_7d31c83f-7720-47f1-af37-be43e9e6611b_5f466708-78a7-4818-b010-e6492fc43dfd.webp"
+  },
+  "player_walk_up": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1428,
+      502
+    ],
+    "description": "Player walk up sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56YDKX2FFJZ90WHVPQ6NWA9_686c3f37-6d58-448c-b594-4047ebb4d855_ad1058ea-560a-448b-81b0-d03b738874d0.webp"
+  },
+  "player_walk_side": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1431,
+      497
+    ],
+    "description": "Player walk side sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56YDMM96SP9ZPCND2P5YFYM_549aee0d-2746-44c9-abe5-0becd29f37cc_a674658e-d8b9-4a22-8daa-8125df50dab5.webp"
+  },
+  "player_attack_down": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1546,
+      497
+    ],
+    "description": "Player attack down sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56YDHX2A4SABV3819K1RRM1_f097ea5e-2fa1-46d6-8cc1-91c687af4176_e9cfb621-c60e-4f85-9f8c-b73c32e8191d.webp"
+  },
+  "player_attack_up": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1562,
+      436
+    ],
+    "description": "Player attack up sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56YDJJ7YW4AMXZ6AEWW157Q_ac3df5f0-493e-4ffd-aefd-44e6353ddb46_cf734350-b4b0-4004-95f9-42053184bdea.webp"
+  },
+  "player_attack_side": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1639,
+      496
+    ],
+    "description": "Player attack side sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56YDK7JA9M87JDTVJNDBBMX_d9cdd0ca-e661-4dda-a3b3-3f8280fb4bb2_834a24d2-41b4-40cf-907c-4788c78534ab.webp"
+  },
+  "slime_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1792,
+      521
+    ],
+    "description": "Slime girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56YDNB77HSAFBBVAGY929BB_bc7d0204-537b-4c58-b6f9-5e15af0d7cb7_07c11263-25e8-4052-82f3-ad54505c4708.webp"
+  },
+  "harpy_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1429,
+      448
+    ],
+    "description": "Harpy girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56ZKMS3NY8NXYCB1CNASTRE_24196a6f-ff4f-419c-88c1-b14a2e9def6e_11251438-6edd-4794-965c-b7582b1413d6.webp"
+  },
+  "lamia_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1792,
+      382
+    ],
+    "description": "Lamia girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M57202H85C1YR3YHBVXWB055_e6290a49-87ed-4a59-abd9-53c847c51ee2_8d9aaca2-6132-4db2-a138-24bccc0eb2bb.webp"
+  },
+  "queen_lamia_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1614,
+      511
+    ],
+    "description": "Queen Lamia boss sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M57206XF7NAMVN8DG7QPQVM5_726744e0-efeb-4834-9a0b-1815645b74f3_d12182eb-cffb-4a65-9e0f-51f0d55c5124.webp"
+  },
+  "undead_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1470,
+      520
+    ],
+    "description": "Undead girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5755TBXMW0Z12NKRZ9RH7A9_e40b8538-ef69-4219-a82e-7e677f2a53a6_87c8ffb8-f3ec-40d3-88a8-44e3affcc67d.webp"
+  },
+  "wraith_queen_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1432,
+      505
+    ],
+    "description": "Wraith Queen boss sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5768817AS71REN446EFWW9M_be6cc860-cafb-4f5f-a45e-e3c30b6136e3_48cf83bd-a9a6-4182-8af3-14b5a27e6c38.webp"
+  },
+  "npc_mira_idle": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1177,
+      703
+    ],
+    "description": "Elder Mira idle sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56ZKA6P10F0PVEFHCA2PG4A_9be6327e-67fc-43ca-9588-bd915a37596b_481928d1-2cb4-4be3-b963-9490184794b3.webp"
+  },
+  "npc_bruna_idle": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1405,
+      520
+    ],
+    "description": "Smith Bruna idle sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56ZKDP3KVSEGY8CC6CW7EF4_1efab919-afce-4a26-862a-b8d28b769619_79413261-0f45-4d97-bbfa-ff760864fd5e.webp"
+  },
+  "npc_lyra_idle": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1502,
+      509
+    ],
+    "description": "Merchant Lyra idle sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56ZKH7ZVTE4KT0C70BTBCC5_8f314233-b653-484d-882b-efea858b3b70_c29549ed-3385-4761-a173-d4c6f3a5c53b.webp"
+  },
+  "tile_water": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1536,
+      1024
+    ],
+    "description": "Animated water tile sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56XJ12AYWM25XHQW49SD6Y1_dfb5c89e-b06d-430a-be7a-b5078cef961e_89266458-6ae0-4ccd-b94d-e99ce9420c53.webp"
+  },
+  "torch_anim": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1218,
+      801
+    ],
+    "description": "Torch sprite sheet (unused)",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56XJ1R7471WWSEWTGG8N56D_687911b4-580b-4b0b-b654-05d15fd656da_6fc0d8f4-539b-4afb-9c90-1e25b7de27ce.webp"
+  },
+  "tile_grass": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "description": "Grass ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56XJ2DDRAXKRCA08F6Q103C_e072ea69-a72e-4dc2-a923-a6ce83019e1f_8b2b3d2b-8e86-4a8b-9cf1-36a9778a47bf.webp"
+  },
+  "tile_path": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "description": "Dirt path ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56XJ31HCAQPP9AH8GHVXKAS_c8ca7b70-0669-4801-861b-2f8c8e36e3e2_1420f657-b086-40cb-8fa3-04923d7eec31.webp"
+  },
+  "tile_rock": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "description": "Rocky cliff ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56ZKNQB8WY7ZCND21WVPZJ8_530d2c32-d690-4b2f-9d54-8afb032f9164_8f00d39a-8794-475c-becf-f21bb17efaa3.webp"
+  },
+  "tile_cave": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "description": "Dark cave floor ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M57207WG5GQJN2RB19Q9CKRF_fd4e55be-2ccc-41b5-b135-44f498c81a49_f8968524-1305-4092-be1c-db37dc2bec69.webp"
+  },
+  "tile_crypt": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1536,
+      1024
+    ],
+    "description": "Crypt floor ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5755V9X8H2RKYQ7AYESM15N_e6bb7f7a-d7ec-4216-a2a9-74114e5ee341_17cf4450-4dbe-49ca-ab53-82b738473eba.webp"
+  },
+  "tree_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      855,
+      1407
+    ],
+    "description": "Upright pixel tree",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56XJ3R3XD5ZKCWK0VDKHTNA_edcd5e4c-56e3-4868-bafc-13b0af92dfc5_a7160b6f-f53d-4184-a7f3-3bdaf322bac4.webp"
+  },
+  "boulder_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      590,
+      1453
+    ],
+    "description": "Upright rock pillar boulder",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56ZKPN37EY5DSD0WP1NK6RT_5306cda4-3f26-4f0c-a8be-63f913f73753_3cdffeec-444b-4589-82a2-3bf060bb9d50.webp"
+  },
+  "stalagmite_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      526,
+      1484
+    ],
+    "description": "Upright cave stalagmite with glowing crystals",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M57208VR44NPACJ8K0NSMD44_fcef1a87-5159-4d07-b71f-8c7741362429_e5eb5a56-6199-4e03-8b3d-c39d2d8913ef.webp"
+  },
+  "gravestone_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      843,
+      1413
+    ],
+    "description": "Upright gravestone",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5755W7VEJCFEMHDJ5PW0ACM_108f8ec7-ed26-4605-af4e-1229a0e5a74e_2783182f-bf39-4cf3-9018-09b368f0cfe7.webp"
+  },
+  "alraune_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1575,
+      464
+    ],
+    "description": "Alraune girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577Y269S2SSJBBH27EWH26S_133678e6-90e0-4344-a93a-b1b9b85562f0_57ae23ac-e78e-4e05-8f86-7252b0aedf0c.webp"
+  },
+  "dryad_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1452,
+      520
+    ],
+    "description": "Dryad girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577Y5NPHDGZMC92N9PYKMZ4_2e716ff2-59ab-4d65-ae02-6793734b65ec_7b8dd2b6-b373-4222-9f67-2ba5114d518e.webp"
+  },
+  "yuki_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      985,
+      405
+    ],
+    "description": "Snow girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577Y9K1QZ7GZPZZS9M2TS35_fb852d7d-ea93-464f-9ce2-9672e6d00f5a_60dce585-f89f-4df0-9ac7-6763769f7d21.webp"
+  },
+  "ice_harpy_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1264,
+      417
+    ],
+    "description": "Ice harpy sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577YCVZE9438C0VGNF2JE82_b76f7fd4-199a-477b-a99d-090654c02c94_1d87f933-eff6-4f88-9f83-a7efd6ff4bbd.webp"
+  },
+  "salamander_girl_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1479,
+      592
+    ],
+    "description": "Salamander girl sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577YGQ859AJKJ7S2DYBJBBA_31feaa04-0af5-470f-9c62-8ff631eeae73_9c6ac301-d879-46ea-acfc-75ce83f16c96.webp"
+  },
+  "ember_sprite_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1363,
+      521
+    ],
+    "description": "Ember sprite sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577YMQ4ZZ1ZRY5YKF17J4HT_e68b42c4-b0ca-4682-99b5-ed0812dc574b_938d3dad-d6b2-4ba0-a07c-0c0a7fc06390.webp"
+  },
+  "royal_guard_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1157,
+      542
+    ],
+    "description": "Royal guard sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577YR4J3DVQ08Z5EA6804TV_8de968f2-39e9-4e21-afea-e2c499a7e82e_a4b687c0-081e-4e48-9226-2cc71dce5966.webp"
+  },
+  "dryad_queen_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1639,
+      508
+    ],
+    "description": "Dryad Queen boss sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577YVYCBMN0PSK2RAXTQJHT_9f5c113a-5a96-4ef4-bf11-6a1dc0fb00fa_1edbcfa7-02fa-4ce7-ae88-81a9bc246547.webp"
+  },
+  "snow_queen_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1673,
+      495
+    ],
+    "description": "Snow Queen boss sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577YZC8WFVAFJBKER3F9502_7e16f27a-b740-4836-906d-af38518f107e_dabf5e89-0e71-4a7b-96e8-63a5d4b1e844.webp"
+  },
+  "flame_queen_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1627,
+      548
+    ],
+    "description": "Flame Queen boss sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577Z2WPB4YDFZZJTB505EMJ_caa78ef9-c311-4951-87b1-e18080b0ec6c_bf5923e7-fc7e-416f-932c-822795d60c96.webp"
+  },
+  "overqueen_walk": {
+    "type": "image",
+    "subtype": "character",
+    "aspect_ratio": [
+      1202,
+      517
+    ],
+    "description": "Overqueen final boss sprite sheet, 3 frames",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577Z969JDE60KWMV0RFZC38_c619031c-e32f-4fcf-a634-c8d847660b76_983e9cb7-ae24-4d2d-94cb-7067447b0c79.webp"
+  },
+  "tile_moss": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1536,
+      1024
+    ],
+    "description": "Dark forest moss ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577ZA1KYAQAKARFWEM6FJNA_1d3fbd25-e3fe-403a-85bd-564c7a0a4c59_68a8ace0-cdb7-44d3-818e-aea5ac866ad5.webp"
+  },
+  "tile_snow": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "description": "Snow ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577ZB51H5Z9SD4RH6MVSHP8_7dd574f7-a5d9-4fa6-a100-cd1eb6047a69_2781d218-48a5-4cc7-b253-6279086edde1.webp"
+  },
+  "tile_lava": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "description": "Volcanic ground tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577ZC3839FZG7FNEDARWZMX_fd63c3b3-225b-46e6-88e8-ba620f14ee74_253b5485-b5b7-47d9-80ae-a4d76e8eced0.webp"
+  },
+  "tile_marble": {
+    "type": "image",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "description": "Royal marble floor tile",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577ZD20FM3NQCWZXHJ2JVGR_3131b18e-58ff-440e-a3d1-254457e99961_755bdc53-34b0-4980-abc8-0ce97f8e2647.webp"
+  },
+  "darktree_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      939,
+      1292
+    ],
+    "description": "Twisted forest tree",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577ZE8K8XPBVYDKMYXDRE0N_13e4c57e-052a-47be-a8bb-154fc22af203_5a397ea1-87b7-407e-8ea4-ba6894d9194b.webp"
+  },
+  "icepine_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      927,
+      1530
+    ],
+    "description": "Snow covered pine tree",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577ZFA54VBPJWV9DR062YFA_25d2fb73-d638-4a92-8caa-ddd6ee54881e_807c3154-a15c-4c21-872c-5684da7d9795.webp"
+  },
+  "obsidian_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      537,
+      1416
+    ],
+    "description": "Obsidian rock spike with lava veins",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5786MZ1EF6EAK6WM17KRE3R_bb863991-4108-4dfd-83e4-119cc5153bcd_85931ba0-f857-4908-b8d8-e7b447ccbff0.webp"
+  },
+  "pillar_01": {
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      526,
+      1313
+    ],
+    "description": "White marble palace pillar",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M577ZHDSF7XHG0ZW1PN6X7QM_deed653b-7573-44ee-8cc2-f5fa40bc6342_559213e9-4b21-4435-8a03-250a8bac472e.webp"
+  }
+}
