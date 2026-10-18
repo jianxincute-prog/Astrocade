@@ -46,6 +46,13 @@
     #clock.dbl { border-color: #ffcf3a; } #clock.dbl b, #clock.dbl small { color: #ffcf3a; }
     #clock.ot { border-color: #ff4a3a; animation: otp .7s infinite alternate; } #clock.ot b, #clock.ot small { color: #ff6b5a; }
     @keyframes otp { to { transform: scale(1.08); } }
+    #speedBtn { position: absolute; left: 16px; top: 270px; width: 124px; height: 44px; font: inherit; font-size: 20px; color: #fff; cursor: pointer; background: linear-gradient(#5b6b9c, #34406e); border: 4px solid #05070f; border-radius: 10px; box-shadow: 0 4px 0 #05070f; text-shadow: 0 2px 0 #000; }
+    #speedBtn.fast { background: linear-gradient(#ffcf3a, #f08a12); color: #3a2300; text-shadow: none; }
+    #coach { position: absolute; left: 16px; top: 742px; width: 452px; box-sizing: border-box; padding: 10px 16px 36px; background: rgba(10,14,40,.96); border: 4px solid #ffcf3a; border-radius: 14px; font-size: 23px; line-height: 29px; text-shadow: 0 2px 0 #000; z-index: 30; pointer-events: none; }
+    #coach b { color: #ffcf3a; font-weight: normal; font-size: 27px; }
+    #coachSkip { position: absolute; right: 8px; bottom: 6px; pointer-events: auto; font: inherit; font-size: 15px; color: #cfd8ff; background: rgba(255,255,255,.12); border: 2px solid #3a4580; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+    #coachRing { position: absolute; border: 5px solid #ffcf3a; border-radius: 14px; box-shadow: 0 0 20px #ffcf3a, inset 0 0 14px rgba(255,207,58,.5); pointer-events: none; z-index: 29; animation: ringp .6s infinite alternate; }
+    @keyframes ringp { to { transform: scale(1.07); } }
     #turnBar { position: absolute; right: 16px; top: 762px; width: 220px; height: 34px; background: #05070f; border: 4px solid #05070f; border-radius: 10px; overflow: hidden; box-sizing: border-box; box-shadow: 0 4px 0 #000; }
     #turnBar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(#7be08a, #1fa04a); }
     #turnBar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: normal; text-shadow: 0 2px 0 #000; }
@@ -260,6 +267,9 @@
             <div id="eplate" class="plate"><div class="nm" id="ename">RIVAL REX</div><div class="bar"><i id="ebar"></i><b id="etxt">20</b></div></div>
             <div id="roundTag"><div class="rd" id="rd">ROUND 1</div><div class="pips" id="epips"></div><div id="ehand"></div></div>
             <button id="exitBtn">EXIT</button>
+            <button id="speedBtn">SPEED x1</button>
+            <div id="coachRing" class="hidden"></div>
+            <div id="coach" class="hidden"><div id="coachTxt"></div><button id="coachSkip">SKIP TUTORIAL</button></div>
             <div id="clock"><small id="clkL">TIME</small><b id="clkT">3:00</b></div>
             <div id="turnBar" class="off"><i id="turnFill"></i><b id="turnTxt">30</b></div>
             <button id="fightBtn" class="off">FIGHT!</button>
@@ -436,9 +446,9 @@ async function run(mode) {
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 8;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
-        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null],
+        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false,
         owned: STARTER.slice(), deck: STARTER.slice(),
-        settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal' }
+        settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal', lowQ: false, speed: 1, perfAsked: false }
     };
     const level = () => 1 + Math.floor((profile.wins + profile.losses) / 3);
 
@@ -654,6 +664,7 @@ async function run(mode) {
     /* ============================ THREE.JS SETUP ============================ */
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: !touch, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    const normalPR = Math.min(window.devicePixelRatio || 1, 1.5);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x141a3a);
     const camera = new THREE.PerspectiveCamera(48, 720 / 1280, 0.5, 200);
@@ -714,6 +725,8 @@ async function run(mode) {
     const arenaIndex = (tro) => { let i = 0; ARENAS.forEach((a, k) => { if (tro >= a.min) i = k; }); return i; };
     let paintArena = () => {};
     let updateScenery = () => {};
+    let applyQuality = () => {};
+    let lowQ = false;                   // Low Quality mode: fewer particles + crowd, 1x pixel ratio
     /* per-arena scenery palette: outer wall, trim, tribune steps, seat colours, banners */
     const SCEN = [
         { wall: 0x56734a, trim: 0x34502e, stand: [0x7a6648, 0x66553c], seat: [0xe8c34a, 0x4aa86a], banner: [0xd04040, 0xf0e2a0] },
@@ -822,6 +835,7 @@ async function run(mode) {
         }
         bakeStatic(rimGroup); bakeStatic(standG); bakeStatic(wallG);
         // the crowd: three instanced meshes (bodies, heads, hair) with a lazy bounce
+        seats.sort(() => Math.random() - 0.5);                                // so a reduced crowd stays evenly spread
         const CROWD = seats.length, dummy = new THREE.Object3D();
         const iBody = new THREE.InstancedMesh(boxGeo(0.8, 1.0, 0.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), CROWD);
         const iHead = new THREE.InstancedMesh(boxGeo(0.6, 0.6, 0.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), CROWD);
@@ -835,9 +849,9 @@ async function run(mode) {
             phase[i] = Math.random() * 6.28; freq[i] = 1.6 + Math.random() * 2.2;
         });
         [iBody, iHead, iHair].forEach((m) => { m.frustumCulled = false; scene.add(m); });
-        let crowdAcc = 0;
+        let crowdAcc = 0, crowdN = CROWD;
         const crowdUpdate = (t) => {
-            for (let i = 0; i < CROWD; i++) {
+            for (let i = 0; i < crowdN; i++) {
                 const st = seats[i], b = Math.max(0, Math.sin(t * freq[i] + phase[i])), j = b * b * b * 0.3;
                 dummy.position.set(st[0], st[1] + 0.5 + j, st[2]); dummy.updateMatrix(); iBody.setMatrixAt(i, dummy.matrix);
                 dummy.position.y = st[1] + 1.3 + j; dummy.updateMatrix(); iHead.setMatrixAt(i, dummy.matrix);
@@ -846,9 +860,16 @@ async function run(mode) {
             iBody.instanceMatrix.needsUpdate = iHead.instanceMatrix.needsUpdate = iHair.instanceMatrix.needsUpdate = true;
         };
         crowdUpdate(0);
+        applyQuality = () => {
+            lowQ = !!profile.settings.lowQ;
+            crowdN = lowQ ? Math.floor(CROWD * 0.35) : CROWD;
+            [iBody, iHead, iHair].forEach((m) => { m.count = crowdN; });
+            renderer.setPixelRatio(lowQ ? 1 : normalPR); resize();
+            crowdUpdate(S.t || 0);
+        };
         updateScenery = (t, dt) => {
             crowdAcc += dt;
-            if (crowdAcc > 0.07) { crowdAcc = 0; crowdUpdate(t); }
+            if (crowdAcc > (lowQ ? 0.4 : 0.07)) { crowdAcc = 0; crowdUpdate(t); }
             flameG.children.forEach((f) => { const k = f.userData.flame; f.scale.y = 0.85 + 0.3 * Math.sin(t * 9 + k * 1.7) * Math.sin(t * 5.3 + k); f.scale.x = f.scale.z = 0.9 + 0.12 * Math.sin(t * 7 + k * 2.3); });
         };
         // duelist daises
@@ -1441,6 +1462,7 @@ async function run(mode) {
     let pIdx = 0;
     for (let i = 0; i < MAXP; i++) { dummy.scale.setScalar(0); dummy.updateMatrix(); pMesh.setMatrixAt(i, dummy.matrix); pMesh.setColorAt(i, pcol.setHex(0xffffff)); }
     function emit(x, y, z, color, n, spread, up, size, life, grav) {
+        if (lowQ) n = Math.ceil(n * 0.5);
         for (let k = 0; k < n; k++) {
             const i = pIdx; pIdx = (pIdx + 1) % MAXP;
             const p = PS[i];
@@ -2057,7 +2079,7 @@ async function run(mode) {
         refreshUI();
     }
     async function playPlayerCard(idx, target) {
-        const tok = S.token;
+        const tok = S.token; S.cardsPlayed = (S.cardsPlayed || 0) + 1;
         S.phase = 'busy'; S.sel = null; S.valid = []; clearMarkers(); setHint('');
         try { await playCard('p', idx, target, tok); } catch (e) { lib.log('Card failed: ' + e.message); }
         if (!alive(tok)) return;
@@ -2416,13 +2438,16 @@ async function run(mode) {
         const ai = arenaIndex(profile.trophies);
         paintArena(ai); S.rivalLv = Math.min(LV_MAX, 1 + ai);
         S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
-        S.matchT = rule('matchTime'); S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
+        S.tutorial = !profile.tutorialDone; S.tut = { step: 0, t: 0 }; S.cardsPlayed = 0; S.fights = 0; setCoach(null);
+        S.matchT = S.tutorial ? 99999 : rule('matchTime'); S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
         S.p.hp = S.e.hp = rule('duelistHealth');
+        if (S.tutorial) S.e.hp = Math.round(rule('duelistHealth') * 0.6);     // an easier first rival
+        updateSpeedBtn();
         S.p.hand = []; S.e.hand = [];
         fillHand('p'); fillHand('e');
         // guarantee a playable opening hand
         for (const s of ['p', 'e']) if (!S[s].hand.some((c) => c.type === 'monster' && c.cost <= rule('startEnergy'))) S[s].hand[0] = starterCard(s);
-        const rn = rivalName || NAMES[Math.floor(Math.random() * NAMES.length)];
+        const rn = S.tutorial ? 'RIVAL REX' : rivalName || NAMES[Math.floor(Math.random() * NAMES.length)];
         setRival(rn); $('ename').textContent = rn;
         menuRoot.classList.add('hidden'); battleHud.classList.remove('hidden'); $('endscreen').classList.add('hidden');
         setMusic('music_battle');
@@ -2463,7 +2488,7 @@ async function run(mode) {
         refreshUI();
     }
     async function startFight() {
-        const tok = S.token;
+        const tok = S.token; S.fights = (S.fights || 0) + 1;
         deselect();
         S.phase = 'busy'; setHint(''); refreshUI();
         banner('FIGHT!');
@@ -2505,6 +2530,7 @@ async function run(mode) {
             if (!loser) return;
         }
         S.over = true; S.phase = 'over'; deselect();
+        if (S.tutorial) endTutorial();
         const won = !draw && loser === 'e', tok0 = S.token;
         setMusic(null); sfx(won ? 'win' : 'lose'); setTimeout(() => { if (tok0 === S.token) setMusic('music_menu'); }, 4200);
         const tok = S.token;
@@ -2540,6 +2566,8 @@ async function run(mode) {
             profile.lv[k] = profile.owned.includes(k) ? clampLv(profile.lv[k]) : 1;
             profile.copies[k] = Math.max(0, Math.floor(Number(profile.copies[k]) || 0));
         });
+        if (profile.tutorialDone === undefined) profile.tutorialDone = (profile.wins + profile.losses) > 0;
+        profile.tutorialDone = !!profile.tutorialDone;
         const rawCh = Array.isArray(profile.chests) ? profile.chests : [];
         profile.chests = [0, 1, 2].map((i) => { const c = rawCh[i]; return c && typeof c === 'object' ? { readyAt: c.readyAt ? Number(c.readyAt) || 0 : 0 } : null; });
         if (!profile.offers || typeof profile.offers !== 'object' || !Array.isArray(profile.offers.bought)) profile.offers = { day: 0, bought: [] };
@@ -2625,7 +2653,8 @@ async function run(mode) {
     function updateClocks(dt) {
         const inMatch = !S.over && S.phase !== 'menu' && S.phase !== 'over' && S.matchT !== undefined;
         const clock = $('clock'), tb = $('turnBar');
-        if (!inMatch) return;
+        clock.classList.toggle('hidden', !!S.tutorial); tb.classList.toggle('hidden', !!S.tutorial);
+        if (!inMatch || S.tutorial) return;
         const paused = !$('exitOv').classList.contains('hidden');
         if (!paused) {
             if (S.matchT > 0) { S.matchT -= dt; if (S.matchT <= 0) { S.matchT = 0; S.timeUp = true; } }
@@ -2655,23 +2684,38 @@ async function run(mode) {
         $('turnTxt').textContent = S.phase === 'player' ? Math.ceil(tl) + 's' : '';
         tb.classList.toggle('off', S.phase !== 'player'); tb.classList.toggle('low', S.phase === 'player' && tl <= 8);
     }
+    const battleSpeed = () => (S.phase === 'menu' ? 1 : (profile.settings.speed === 2 ? 2 : 1));
+    function updateSpeedBtn() { const b = $('speedBtn'), f = profile.settings.speed === 2; b.textContent = 'SPEED x' + (f ? 2 : 1); b.classList.toggle('fast', f); }
+    $('speedBtn').addEventListener('click', () => { profile.settings.speed = profile.settings.speed === 2 ? 1 : 2; saveProfile(); updateSpeedBtn(); sfx('card'); });
+    const perf = { t: 0, sum: 0, n: 0 };
+    function perfSample(raw) {                       // auto-enable Low Quality when the phone cannot keep up
+        if (S.phase === 'menu' || S.over || profile.settings.lowQ || profile.settings.perfAsked || document.hidden) return;
+        perf.t += raw; if (perf.t < 2.5) return;
+        perf.sum += raw; perf.n++;
+        if (perf.sum >= 6) {
+            const fps = perf.n / perf.sum; perf.sum = 0; perf.n = 0;
+            if (fps < 28) { profile.settings.lowQ = true; profile.settings.perfAsked = true; applyQuality(); saveProfile(); toast('Slow device detected - Low Quality turned on. Change it in SETTINGS.'); }
+        }
+    }
     function loop(ts) {
-        const dt = Math.min(((ts || performance.now()) - last) / 1000, 0.11);
-        last = ts || performance.now(); S.t += dt;
+        const now = ts || performance.now(), raw = Math.min((now - last) / 1000, 0.11), dt = raw * battleSpeed();
+        last = now; S.t += dt; perfSample(raw);
         const t = S.t;
         updateTweens(dt);
         updateTasks(dt);
         updateMonsters(dt);
         updateParticles(dt);
-        updateScenery(t, dt);
-        updateClocks(dt);
+        updateScenery(t, raw);
+        updateClocks(raw);
+        if (S.tutorial && !S.over) tutorialTick(raw);
+        placeRing();
         // idle animation + auras
         for (const s of ['p', 'e']) {
             const side = S[s];
             side.mons.forEach((m) => {
                 if (m.dead) return;
                 if (m.model.idle && !m.posing) m.model.idle(t + m.id);
-                if (m.ready && Math.random() < dt * 1.3) {              // subtle elemental ambience
+                if (m.ready && !lowQ && Math.random() < dt * 1.3) {              // subtle elemental ambience
                     const a = AMBIENT[m.def.elem], p = m.holder.position;
                     if (a) emit(p.x + (Math.random() - 0.5) * m.size.w * 0.6, 0.6 + Math.random() * m.size.h * 0.6, p.z + (Math.random() - 0.5) * m.size.d * 0.5, a[0], 1, 0.4, a[1], 0.13, 1.0, a[2]);
                 }
@@ -2749,6 +2793,52 @@ async function run(mode) {
         $('popOk').onclick = () => ov.classList.add('hidden');
     }
 
+    /* ---- TUTORIAL: guided first battle ---- */
+    function setCoach(text, target) {
+        const c = $('coach');
+        c.classList.toggle('hidden', !text);
+        if (text && c.dataset.t !== text) { $('coachTxt').innerHTML = text; c.dataset.t = text; }
+        S.coachTarget = text ? (target || null) : null;
+        if (!S.coachTarget) $('coachRing').classList.add('hidden');
+    }
+    function placeRing() {
+        const ring = $('coachRing'), el = S.coachTarget && S.coachTarget();
+        if (!el) { ring.classList.add('hidden'); return; }
+        const r = el.getBoundingClientRect(), g = gameWorld.getBoundingClientRect(), sc = gameWorld.clientWidth / (g.width || 720);
+        ring.style.left = ((r.left - g.left) * sc - 6) + 'px'; ring.style.top = ((r.top - g.top) * sc - 6) + 'px';
+        ring.style.width = (r.width * sc + 12) + 'px'; ring.style.height = (r.height * sc + 12) + 'px';
+        ring.classList.remove('hidden');
+    }
+    const handCard = (idx) => () => handEl.querySelector('.card[data-i="' + idx + '"]');
+    function endTutorial() {
+        S.tutorial = false; setCoach(null);
+        if (!profile.tutorialDone) { profile.tutorialDone = true; saveProfile(); }
+    }
+    function tutorialTick(dt) {
+        const T = S.tut, mine = S.phase === 'player';
+        if (T.step === 0) {
+            if (S.cardsPlayed > 0) { T.step = 1; return; }
+            if (!mine) { setCoach(null); return; }
+            const idx = S.p.hand.findIndex((c) => c.type === 'monster' && c.cost <= S.p.energy);
+            setCoach('<b>1. Summon a monster</b><br>Tap a monster card, then tap it again to drop it into the arena. Energy (yellow pips) pays for cards.', idx >= 0 ? handCard(idx) : null);
+        } else if (T.step === 1) {
+            if (S.fights > 0) { T.step = 2; setCoach(null); return; }
+            if (!mine) { setCoach(null); return; }
+            setCoach('<b>2. Attack!</b><br>Press FIGHT! Your monsters charge the rival, then the rival strikes back.', () => fightBtn);
+        } else if (T.step === 2) {
+            if (!mine || S.round < 2) { if (!mine) setCoach(null); return; }
+            if (S.cardsPlayed >= 2) { T.step = 3; T.t = 0; return; }
+            const idx = S.p.hand.findIndex((c) => c.type !== 'monster' && !canPlay('p', c));
+            if (idx >= 0) setCoach('<b>3. Spells and traps</b><br>SKILL cards hurt or help, TRAPS ambush enemies. Tap the highlighted card twice.', handCard(idx));
+            else setCoach('<b>3. Your turn again</b><br>Summon more monsters (max 3 each) or press FIGHT!', () => fightBtn);
+        } else if (T.step === 3) {
+            T.t += dt;
+            setCoach('<b>You got this!</b><br>Drop the rival to 0 HP to win and earn a FREE CHEST. Good luck!');
+            if (T.t > 5) endTutorial();
+        }
+    }
+    $('coachSkip').addEventListener('click', endTutorial);
+
     /* ---- FREE CHESTS: a win drops one into a free slot (3 slots); each takes 2 minutes to open, one at a time ---- */
     const CHEST_MS = 120000, CHEST_GOLD = [20, 150], CHEST_CARDS = 3;
     const chestState = (c) => !c.readyAt ? 'idle' : (Date.now() >= c.readyAt ? 'ready' : 'opening');
@@ -2804,6 +2894,7 @@ async function run(mode) {
         paintArena(ai);
         $('deckRow').innerHTML = profile.deck.map((k) => `<div class="mi">${iconSVG(CARDS[k])}</div>`).join('');
         renderChests();
+        $('findBtn').textContent = profile.tutorialDone ? 'FIND OPPONENT' : 'START TRAINING';
         $('rec').textContent = 'Wins ' + profile.wins + '   Losses ' + profile.losses + '   Best streak ' + profile.best;
     }
     async function findOpponent() {
@@ -2812,12 +2903,12 @@ async function run(mode) {
         const tok = { cancel: false }; searchTok = tok;
         const ov = $('searchOv');
         ov.classList.remove('hidden');
-        ov.innerHTML = `<h1 style="font-size:54px">SEARCHING...</h1><div class="spin"></div><p>Looking for an opponent near ${profile.trophies} trophies</p><button class="btn red" id="cancelSearch">CANCEL</button>`;
+        ov.innerHTML = `<h1 style="font-size:54px">FINDING A RIVAL...</h1><div class="spin"></div><p>Calling a rival duelist for ${ARENAS[arenaIndex(profile.trophies)].name}</p><button class="btn red" id="cancelSearch">CANCEL</button>`;
         $('cancelSearch').onclick = () => { tok.cancel = true; searchTok = null; ov.classList.add('hidden'); };
         await wait(1.6 + Math.random() * 1.6);
         if (tok.cancel) return;
         const name = NAMES[Math.floor(Math.random() * NAMES.length)], tro = Math.max(0, profile.trophies + Math.round((Math.random() - 0.4) * 80));
-        ov.innerHTML = `<h1 style="font-size:54px">OPPONENT FOUND!</h1><div class="vs"><div class="panel side"><b>YOU</b><div>${profile.trophies} trophies</div></div><div class="x">VS</div><div class="panel side"><b>${name}</b><div>${tro} trophies</div></div></div><p>Get ready!</p>`;
+        ov.innerHTML = `<h1 style="font-size:54px">RIVAL READY!</h1><div class="vs"><div class="panel side"><b>YOU</b><div>${profile.trophies} trophies</div></div><div class="x">VS</div><div class="panel side"><b>${profile.tutorialDone ? name : 'RIVAL REX'}</b><div>Rival duelist (AI) - Lv ${Math.min(LV_MAX, 1 + arenaIndex(profile.trophies))} cards</div></div></div><p>Get ready!</p>`;
         sfx('summon');
         await wait(1.7);
         if (tok.cancel) return;
@@ -2978,18 +3069,19 @@ async function run(mode) {
         const tg = (k, label) => `<div class="setrow"><span>${label}</span><button class="btn ${st[k] ? 'green' : 'grey'}" data-tg="${k}">${st[k] ? 'ON' : 'OFF'}</button></div>`;
         const vol = (k) => `<div class="setrow"><span>Volume</span><input type="range" min="0" max="100" value="${Math.round(st[k] * 100)}" data-vol="${k}"></div>`;
         $('pg-set').innerHTML = `<div class="sect">AUDIO</div><div class="panel">${tg('music', 'Music')}${vol('musicVol')}${tg('sfx', 'Sound FX')}${vol('sfxVol')}</div>
+            <div class="sect">PERFORMANCE</div><div class="panel">${tg('lowQ', 'Low Quality (smoother on old phones)')}</div>
             <div class="sect">RIVAL DIFFICULTY</div><div class="panel"><div class="seg">${['easy', 'normal', 'hard'].map((d) => `<button class="btn ${st.difficulty === d ? '' : 'grey'}" data-diff="${d}">${d.toUpperCase()}</button>`).join('')}</div></div>
-            <div class="sect">HOW TO PLAY</div><div class="panel how"><b>1.</b> Tap a card, then tap where to summon it or aim it.<br><b>2.</b> Monsters roam the square arena. Buffs, curses and traps change how they look and fight.<br><b>3.</b> Press <b>FIGHT!</b> and your monsters rush the nearest enemy, or the rival duelist.<br><b>4.</b> Win duels for coins and trophies, then unlock new cards in the shop.</div>
+            <div class="sect">HOW TO PLAY</div><div class="panel how"><b>1.</b> Tap a card, then tap where to summon it or aim it.<br><b>2.</b> Monsters roam the square arena. Buffs, curses and traps change how they look and fight.<br><b>3.</b> Press <b>FIGHT!</b> and your monsters rush the nearest enemy, or the rival duelist.<br><b>4.</b> Each turn lasts 30 seconds and a duel 3 minutes (double energy in the last minute). If time runs out, more HP wins - a tie goes to sudden-death overtime.<br><b>5.</b> Every win drops a FREE CHEST (3 slots, 2 minutes to open). Cards only come from chests and Daily Offers - duplicates level them up!</div>
             <div class="sect">DATA</div><div class="panel"><button class="btn red" id="resetBtn">${resetArmed ? 'TAP AGAIN TO CONFIRM' : 'RESET PROGRESS'}</button></div>`;
     }
     $('pg-set').addEventListener('click', (e) => {
         const t = e.target.closest('[data-tg]'), d = e.target.closest('[data-diff]'), r = e.target.closest('#resetBtn');
-        if (t) { profile.settings[t.dataset.tg] = !profile.settings[t.dataset.tg]; updateMusic(); saveProfile(); renderSettings(); sfx('card'); }
+        if (t) { profile.settings[t.dataset.tg] = !profile.settings[t.dataset.tg]; if (t.dataset.tg === 'lowQ') { profile.settings.perfAsked = true; applyQuality(); } updateMusic(); saveProfile(); renderSettings(); sfx('card'); }
         else if (d) { profile.settings.difficulty = d.dataset.diff; saveProfile(); renderSettings(); }
         else if (r) {
             if (!resetArmed) { resetArmed = true; renderSettings(); setTimeout(() => { resetArmed = false; if (curTab === 'set') renderSettings(); }, 3000); return; }
             resetArmed = false;
-            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
+            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
             saveProfile(); renderTop(); renderSettings(); toast('Progress reset.');
         }
     });
@@ -3015,6 +3107,7 @@ async function run(mode) {
         ({ battle: renderBattle, deck: renderDeck, shop: renderShop, rank: renderRank, set: renderSettings })[id]();
     }
     function showMenu() {
+        if (S.tutorial) endTutorial();
         S.token++; S.over = true; S.phase = 'menu'; S.sel = null; S.valid = [];
         clearMarkers(); clearBoard(); setHint('');
         setRival(NAMES[Math.floor(Math.random() * NAMES.length)]);
@@ -3056,8 +3149,10 @@ async function run(mode) {
     let loadDone = 0;
     await Promise.all(loadJobs.map((job) => Promise.race([job(), new Promise((r) => setTimeout(r, 9000))]).then(() => { loadDone++; LD.set(22 + 68 * loadDone / loadJobs.length); })));
     await loadProfile();
+    applyQuality();
     LD.set(96);
     refreshUI();
+    updateSpeedBtn();
     showMenu();
     window.__bcd = { S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
     requestAnimationFrame(loop);
