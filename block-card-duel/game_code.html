@@ -97,6 +97,9 @@
     .bigbtn:active { transform: translateY(5px); box-shadow: 0 4px 0 #05070f; }
     .stats { margin-top: 24px; font-size: 26px; color: #ffe9a8; }
     .hidden { display: none !important; }
+    #hurt { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; z-index: 12; background: radial-gradient(ellipse at 50% 55%, rgba(255,40,40,0) 52%, rgba(255,30,30,.55) 100%); }
+    #hurt.on { animation: hurt .5s ease-out; }
+    @keyframes hurt { 0% { opacity: 1; } 100% { opacity: 0; } }
     #battleHud { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
     #exitBtn { position: absolute; left: 16px; top: 120px; width: 120px; height: 56px; font: inherit; font-size: 22px; color: #fff; cursor: pointer; background: linear-gradient(#5b6b9c, #34406e); border: 4px solid #05070f; border-radius: 10px; box-shadow: 0 5px 0 #05070f; }
     .btn { font: inherit; font-size: 28px; letter-spacing: 1px; color: #fff; cursor: pointer; padding: 10px 26px; min-height: 64px; background: linear-gradient(#ffb23a, #e8791a); border: 5px solid #05070f; border-radius: 12px; box-shadow: 0 6px 0 #05070f; text-shadow: 0 3px 0 rgba(0,0,0,.6); }
@@ -193,6 +196,7 @@
     <canvas id="game-canvas"></canvas>
     <div id="ui">
         <div id="fxlayer"></div>
+        <div id="hurt"></div>
         <div id="banner"></div>
         <div id="reveal"></div>
         <div id="battleHud" class="hidden">
@@ -676,38 +680,189 @@ async function run(mode) {
         scene.add(ground); pickables.push(ground);
     })();
 
-    /* ---- blocky duelists ---- */
-    function buildAvatar(cfg, faceDir) {
-        const g = new THREE.Group();
-        const mats = [];
-        const mk = (color) => { const m = new THREE.MeshLambertMaterial({ color }); mats.push(m); return m; };
-        const part = (w, h, d, x, y, z, color, parent) => {
-            const m = new THREE.Mesh(boxGeo(w, h, d), mk(color)); m.position.set(x, y, z); (parent || g).add(m); return m;
+    /* ---- DUELISTS: a premium hero for you and five rivals with clearly different silhouettes, palettes and props.
+       Every duelist is a rig (tilts when hit) with a head, two arm pivots and a per-character update() for
+       cape / scarf / hair-flame sway, orbiting cards and embers. ---- */
+    function buildAvatar(kind, faceDir) {
+        const g = new THREE.Group(), rig = new THREE.Group();
+        g.add(rig);
+        const matCache = new Map(), glowMats = [];
+        const matFor = (color, metal) => {
+            const key = color + (metal ? 'm' : 'l');
+            let m = matCache.get(key);
+            if (!m) {
+                m = metal ? new THREE.MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.4 }) : new THREE.MeshLambertMaterial({ color });
+                if (metal) m.emissive.setHex(color).multiplyScalar(0.3);          // keeps gold / steel bright without an environment map
+                m.userData.base = m.emissive.clone(); matCache.set(key, m);
+            }
+            return m;
         };
-        part(0.75, 1.6, 0.8, -0.42, 0.8, 0, cfg.pants); part(0.75, 1.6, 0.8, 0.42, 0.8, 0, cfg.pants);
-        part(1.7, 1.9, 0.95, 0, 2.55, 0, cfg.shirt);
-        part(1.74, 0.3, 0.99, 0, 1.85, 0, cfg.belt);
-        part(1.3, 1.3, 1.3, 0, 4.15, 0, cfg.skin);
-        part(1.36, 0.5, 1.36, 0, 4.7, -0.02, cfg.hair);
-        part(0.2, 0.26, 0.1, -0.3, 4.2, 0.66, 0x10131f); part(0.2, 0.26, 0.1, 0.3, 4.2, 0.66, 0x10131f);
-        part(0.5, 0.1, 0.1, 0, 3.8, 0.66, 0x7a3a2a);
-        if (cfg.hat) part(1.7, 0.2, 1.7, 0, 4.98, 0, cfg.hat);
-        const armL = new THREE.Group(), armR = new THREE.Group();
-        armL.position.set(-1.2, 3.3, 0); armR.position.set(1.2, 3.3, 0);
-        part(0.6, 1.7, 0.6, 0, -0.8, 0, cfg.shirt, armL); part(0.6, 0.5, 0.6, 0, -1.7, 0, cfg.skin, armL);
-        part(0.6, 1.7, 0.6, 0, -0.8, 0, cfg.shirt, armR); part(0.6, 0.5, 0.6, 0, -1.7, 0, cfg.skin, armR);
-        g.add(armL, armR);
+        const P = (w, h, d, x, y, z, color, parent, metal) => { const m = new THREE.Mesh(boxGeo(w, h, d), matFor(color, metal)); m.position.set(x, y, z); (parent || rig).add(m); return m; };
+        const G = (w, h, d, x, y, z, color, parent, op) => {          // self-lit glow piece (neon, gems, eyes, flames)
+            const mat = new THREE.MeshBasicMaterial({ color, transparent: op !== undefined, opacity: op === undefined ? 1 : op });
+            glowMats.push(mat);
+            const m = new THREE.Mesh(boxGeo(w, h, d), mat); m.position.set(x, y, z); (parent || rig).add(m); return m;
+        };
+        const head = piv(rig, 0, 4.15, 0);
+        const armL = piv(rig, -1.2, 3.3, 0), armR = piv(rig, 1.2, 3.3, 0);
+        const ext = { cape: null, scarf: null, flames: [], orbit: null, orbitCards: [], bird: null, katana: null, cubes: [], sparkCol: 0, sparkRate: 0, sparkAt: null };
+        // ---------- shared body ----------
+        const body = (o) => {
+            if (!o.noLegs) {
+                P(0.75, 1.25, 0.8, -0.42, 1.0, 0, o.pants); P(0.75, 1.25, 0.8, 0.42, 1.0, 0, o.pants);
+                P(0.84, 0.55, 1.0, -0.42, 0.28, 0.06, o.boots); P(0.84, 0.55, 1.0, 0.42, 0.28, 0.06, o.boots);
+                P(0.7, 0.14, 0.5, -0.42, 0.57, 0.38, o.boots); P(0.7, 0.14, 0.5, 0.42, 0.57, 0.38, o.boots);
+            }
+            P(1.7, 1.9, 0.95, 0, 2.55, 0, o.shirt);
+            P(1.74, 0.3, 0.99, 0, 1.72, 0, o.belt);
+            for (const [arm, sx] of [[armL, -1], [armR, 1]]) {
+                P(0.6, 1.2, 0.6, 0, -0.6, 0, o.sleeve || o.shirt, arm);
+                P(0.64, 0.5, 0.64, 0, -1.35, 0, o.cuff || o.sleeve || o.shirt, arm);
+                P(0.58, 0.5, 0.58, 0, -1.8, 0, o.hand || o.skin, arm);
+            }
+        };
+        const face = (o) => {
+            P(1.3, 1.3, 1.3, 0, 0, 0, o.skin, head);
+            P(0.26, 0.2, 0.1, -0.3, 0.05, 0.66, 0xffffff, head); P(0.26, 0.2, 0.1, 0.3, 0.05, 0.66, 0xffffff, head);
+            if (o.eyeGlow) { G(0.2, 0.2, 0.1, -0.3, 0.05, 0.69, o.eyeGlow, head); G(0.2, 0.2, 0.1, 0.3, 0.05, 0.69, o.eyeGlow, head); }
+            else { P(0.14, 0.2, 0.1, -0.3, 0.05, 0.69, o.eye || 0x10131f, head); P(0.14, 0.2, 0.1, 0.3, 0.05, 0.69, o.eye || 0x10131f, head); }
+            P(0.34, 0.08, 0.08, -0.3, 0.3, 0.68, o.brow || 0x2a1a10, head); P(0.34, 0.08, 0.08, 0.3, 0.3, 0.68, o.brow || 0x2a1a10, head);
+            P(0.18, 0.2, 0.15, 0, -0.1, 0.72, o.skin2 || o.skin, head);
+            P(0.5, 0.08, 0.08, 0, -0.38, 0.68, o.mouth || 0x7a3a2a, head);
+        };
+        const cape = (o, w, h, y) => {
+            const c = piv(rig, 0, y, -0.55); ext.cape = c;
+            P(w, h, 0.12, 0, -h / 2, 0, o.main, c);
+            if (o.lining) P(w - 0.1, h - 0.1, 0.06, 0, -h / 2, 0.08, o.lining, c);
+            if (o.trim) { P(w + 0.14, 0.16, 0.16, 0, -h + 0.05, -0.02, o.trim, c, true); P(0.14, h, 0.16, -w / 2, -h / 2, -0.02, o.trim, c, true); P(0.14, h, 0.16, w / 2, -h / 2, -0.02, o.trim, c, true); }
+            return c;
+        };
+        let H = null;
+        if (kind === 'hero') {
+            H = { skin: 0xf0c39a, shirt: 0x2c63d8, sleeve: 0x2c63d8, cuff: 0xe8b73a, hand: 0xf6f3ff, pants: 0x1b2754, boots: 0x3a2412, belt: 0x3a2412 };
+            body(H); face({ skin: 0xf0c39a, eye: 0x2a6fff, brow: 0x5a3418, mouth: 0xc0604a });
+            const gold = 0xe8b73a;
+            P(0.36, 1.7, 0.06, -0.55, 2.55, 0.5, 0xf6f3ff); P(0.36, 1.7, 0.06, 0.55, 2.55, 0.5, 0xf6f3ff); P(0.3, 1.7, 0.05, 0, 2.55, 0.5, 0x1b2754);
+            for (const y of [3.0, 2.6, 2.2]) P(0.16, 0.16, 0.07, 0, y, 0.55, gold, rig, true);
+            P(0.5, 0.34, 0.12, 0, 1.72, 0.52, gold, rig, true);
+            P(0.55, 0.62, 0.36, 0.95, 1.5, 0.42, 0x5a3418); G(0.3, 0.42, 0.06, 0.95, 1.66, 0.62, 0x7be8ff);
+            for (const sx of [-1, 1]) { P(0.95, 0.3, 0.95, sx * 1.22, 3.64, 0, gold, rig, true); P(0.95, 0.12, 0.95, sx * 1.22, 3.42, 0, 0x1b2754); for (let i = -1; i <= 1; i++) P(0.12, 0.34, 0.12, sx * 1.22 + i * 0.3, 3.3, 0.38, gold, rig, true); }
+            for (const sx of [-1, 1]) { P(0.9, 0.14, 1.04, sx * 0.42, 0.62, 0.06, gold, rig, true); P(0.66, 0.14, 0.66, 0, -1.58, 0, gold, sx < 0 ? armL : armR, true); }
+            cape({ main: 0x2c63d8, lining: 0x1b2754, trim: gold }, 1.95, 3.0, 3.85);
+            P(0.8, 1.0, 0.05, 0, -1.5, -0.1, gold, ext.cape, true); P(0.56, 0.76, 0.06, 0, -1.5, -0.13, 0x1b2754, ext.cape); G(0.22, 0.22, 0.07, 0, -1.5, -0.16, 0x7be8ff, ext.cape);
+            P(1.38, 0.5, 1.38, 0, 0.62, -0.02, 0x5a3418, head); P(1.38, 1.0, 0.3, 0, 0.1, -0.62, 0x5a3418, head);
+            for (const [x, h, z] of [[-0.45, 0.5, 0.5], [0, 0.65, 0.55], [0.45, 0.5, 0.5], [-0.25, 0.4, 0.2], [0.25, 0.4, 0.2]]) P(0.38, h, 0.38, x, 0.85 + h / 2 - 0.15, z * 0.6, 0x6e4220, head);
+            P(1.44, 0.2, 1.44, 0, 0.36, 0, gold, head, true); G(0.22, 0.22, 0.08, 0, 0.36, 0.74, 0x7be8ff, head);
+            // orbiting spell cards
+            const orbit = piv(rig, 1.9, 2.5, 0.4); ext.orbit = orbit;
+            [0x7be8ff, 0xffd75a, 0xffffff].forEach((c, i) => { const cd = piv(orbit, 0, 0, 0); cd.userData.i = i; G(0.5, 0.7, 0.05, 0.95, 0, 0, c, cd, 0.95); P(0.5, 0.05, 0.07, 0.95, 0.38, 0, gold, cd, true); ext.orbitCards.push(cd); });
+            ext.sparkCol = 0x7be8ff; ext.sparkRate = 0.35; ext.sparkAt = [1.9, 2.5, 0.4];
+        } else if (kind === 'baron') {
+            H = { skin: 0xf2d8c6, shirt: 0x17121c, sleeve: 0x17121c, cuff: 0xf6f3ff, hand: 0xf6f3ff, pants: 0x17121c, boots: 0x0c0a10, belt: 0x0c0a10 };
+            body(H); face({ skin: 0xf2d8c6, eye: 0xb02a3a, brow: 0xd9d9e6, mouth: 0x7a3a3a });
+            const gold = 0xd4a542, red = 0xa3202e;
+            P(0.9, 1.5, 0.06, 0, 2.55, 0.5, red); P(0.5, 0.6, 0.1, 0, 3.2, 0.52, 0xf6f3ff);
+            for (const y of [2.9, 2.55, 2.2, 1.9]) P(0.14, 0.14, 0.07, 0, y, 0.56, gold, rig, true);
+            P(0.2, 1.1, 0.06, -0.62, 2.7, 0.52, 0x0c0a10); P(0.2, 1.1, 0.06, 0.62, 2.7, 0.52, 0x0c0a10);
+            P(1.5, 1.2, 0.4, 0, 1.35, -0.5, 0x17121c); P(0.05, 1.2, 0.42, 0, 1.35, -0.5, red);
+            P(0.5, 0.34, 0.1, 0, 1.72, 0.52, gold, rig, true);
+            for (const sx of [-1, 1]) { P(0.7, 0.18, 0.7, sx * 1.2, 3.55, 0, gold, rig, true); P(0.22, 0.22, 0.05, sx * 0.42, 0.28, 0.58, gold, rig, true); }
+            cape({ main: 0x17121c, lining: red, trim: gold }, 2.2, 3.1, 3.9);
+            P(2.4, 0.7, 0.5, 0, 3.55, -0.3, 0x17121c);
+            P(1.9, 0.14, 1.9, 0, 0.72, 0, 0x0c0a10, head); P(1.2, 1.2, 1.2, 0, 1.4, 0, 0x0c0a10, head); P(1.26, 0.22, 1.26, 0, 0.95, 0, red, head); P(0.34, 0.26, 0.07, 0, 0.95, 0.65, gold, head, true);
+            P(0.22, 0.5, 1.2, -0.72, 0.2, 0, 0xd9d9e6, head); P(0.22, 0.5, 1.2, 0.72, 0.2, 0, 0xd9d9e6, head);
+            P(0.9, 0.12, 0.12, 0, -0.26, 0.69, 0xd9d9e6, head); P(0.16, 0.16, 0.1, -0.5, -0.2, 0.69, 0xd9d9e6, head); P(0.16, 0.16, 0.1, 0.5, -0.2, 0.69, 0xd9d9e6, head);
+            P(0.4, 0.4, 0.06, 0.3, 0.05, 0.74, gold, head, true); G(0.26, 0.26, 0.07, 0.3, 0.05, 0.76, 0xbfeaff, head, 0.6); P(0.04, 0.9, 0.04, 0.5, -0.4, 0.72, gold, head, true);
+            P(0.14, 3.2, 0.14, 0.15, -0.8, 0.55, 0x2a1a10, armR); P(0.38, 0.38, 0.38, 0.15, 0.85, 0.55, gold, armR, true);
+            ext.sparkCol = 0xb02a3a; ext.sparkRate = 0.08; ext.sparkAt = [0, 2.8, 0];
+        } else if (kind === 'lava') {
+            H = { skin: 0xe0a070, shirt: 0x1a1014, sleeve: 0x1a1014, cuff: 0x2a1a1a, hand: 0xe0a070, pants: 0x1a1014, boots: 0x1a1014, belt: 0x2a1a1a, noLegs: true };
+            body(H); face({ skin: 0xe0a070, eyeGlow: 0xffb02e, brow: 0x7a2a10, mouth: 0xb0432a });
+            const orange = 0xff7a1a;
+            P(1.9, 0.9, 1.3, 0, 1.45, 0, 0x1a1014); P(2.3, 0.8, 1.6, 0, 0.75, 0, 0x241418); P(2.7, 0.7, 1.9, 0, 0.3, 0, 0x1a1014);
+            G(2.75, 0.1, 1.95, 0, 0.04, 0, orange); G(2.35, 0.08, 1.65, 0, 0.7, 0, orange, rig, 0.8); G(1.95, 0.08, 1.35, 0, 1.3, 0, orange, rig, 0.8);
+            G(0.1, 1.5, 0.05, -0.3, 2.55, 0.5, orange); G(0.1, 1.5, 0.05, 0.3, 2.55, 0.5, orange); G(0.34, 0.34, 0.1, 0, 3.05, 0.52, 0xffd23a); G(0.7, 0.08, 0.05, 0, 1.98, 0.52, orange);
+            for (const sx of [-1, 1]) { P(0.9, 0.3, 0.9, sx * 1.25, 3.58, 0, 0x2a1a1a, rig, true); P(0.26, 0.7, 0.26, sx * 1.4, 4.0, 0, 0x2a1a1a, rig, true); G(0.16, 0.24, 0.16, sx * 1.4, 4.45, 0, orange); G(0.7, 0.26, 0.7, 0, -1.55, 0, orange, sx < 0 ? armL : armR, 0.9); }
+            // flame hair (tiers flicker in update)
+            const tiers = [[1.38, 0.45, 1.38, 0, 0.66, 0, 0xff5a1a], [1.0, 0.65, 1.0, 0, 1.12, 0, 0xff8a2b], [0.62, 0.75, 0.62, 0, 1.72, 0, 0xffd23a], [0.3, 0.6, 0.3, 0, 2.3, 0, 0xfff0a0]];
+            tiers.forEach((t, i) => { const f = P(t[0], t[1], t[2], t[3], t[4], t[5], t[6], head); f.userData.baseY = t[4]; f.userData.i = i; ext.flames.push(f); });
+            P(0.42, 1.5, 0.42, -0.8, -0.3, 0.1, 0xff5a1a, head); P(0.42, 1.5, 0.42, 0.8, -0.3, 0.1, 0xff5a1a, head); P(1.5, 2.0, 0.34, 0, -0.35, -0.66, 0xff5a1a, head); P(0.9, 1.4, 0.3, 0, -0.9, -0.7, 0xff8a2b, head);
+            const fl = piv(rig, 0, 3.3, -0.6); ext.scarf = fl; G(1.1, 2.6, 0.2, 0, -1.3, 0, 0xff5a1a, fl, 0.55); G(0.7, 2.0, 0.22, 0, -1.2, 0.02, 0xffd23a, fl, 0.6);
+            ext.sparkCol = 0xff8a2b; ext.sparkRate = 0.18; ext.sparkAt = [0, 5.2, 0];
+        } else if (kind === 'pirate') {
+            H = { skin: 0xd9a06a, shirt: 0xb02a2a, sleeve: 0xb02a2a, cuff: 0xf6f3ff, hand: 0xd9a06a, pants: 0x2a2a3a, boots: 0x3a2412, belt: 0x120c08 };
+            body(H); face({ skin: 0xd9a06a, eye: 0x2a1a10, brow: 0x5a3418, mouth: 0x5a3418 });
+            const gold = 0xe8b73a, beard = 0x5a3418;
+            P(0.7, 1.3, 0.05, 0, 2.7, 0.5, 0xf6f3ff); P(0.14, 0.14, 0.07, -0.55, 2.9, 0.54, gold, rig, true); P(0.14, 0.14, 0.07, -0.55, 2.5, 0.54, gold, rig, true); P(0.14, 0.14, 0.07, 0.55, 2.9, 0.54, gold, rig, true); P(0.14, 0.14, 0.07, 0.55, 2.5, 0.54, gold, rig, true);
+            P(2.0, 0.9, 1.15, 0, 1.45, 0, 0x8a1f1f); P(2.04, 0.12, 1.19, 0, 1.0, 0, gold, rig, true);
+            P(0.55, 0.42, 0.1, 0, 1.72, 0.52, gold, rig, true);
+            P(0.15, 0.6, 0.15, -1.15, 1.6, 0.35, 0x3a2412); P(0.55, 0.12, 0.25, -1.15, 1.95, 0.35, gold, rig, true); P(0.16, 2.2, 0.1, -1.15, 0.75, 0.35, 0xcfd6e6, rig, true);
+            for (const sx of [-1, 1]) { P(0.8, 0.2, 0.8, sx * 1.22, 3.6, 0, gold, rig, true); P(0.98, 0.62, 1.04, sx * 0.42, 0.68, 0.06, 0x3a2412); P(1.0, 0.14, 1.06, sx * 0.42, 1.0, 0.06, 0x120c08); }
+            P(0.22, 0.5, 0.22, 0, -1.7, 0.05, 0xb9c2d6, armL, true); P(0.5, 0.14, 0.2, 0.12, -2.0, 0.05, 0xb9c2d6, armL, true); P(0.16, 0.36, 0.16, 0.3, -1.85, 0.05, 0xb9c2d6, armL, true);
+            P(1.9, 0.16, 1.9, 0, 0.74, 0, 0x2a1a10, head); P(1.2, 0.55, 1.2, 0, 1.05, -0.1, 0x2a1a10, head); P(1.9, 0.5, 0.22, 0, 1.0, 0.85, 0x2a1a10, head); P(0.22, 0.5, 1.5, -0.85, 1.0, 0, 0x2a1a10, head); P(0.22, 0.5, 1.5, 0.85, 1.0, 0, 0x2a1a10, head); P(1.95, 0.1, 1.95, 0, 0.84, 0, gold, head, true);
+            P(0.34, 0.34, 0.06, 0, 1.1, 0.96, 0xf6f3ff, head); P(0.18, 1.1, 0.18, 0.85, 1.6, -0.1, 0xff3b3b, head); P(0.14, 0.9, 0.14, 0.95, 2.3, -0.2, 0xff7a7a, head);
+            P(0.46, 0.36, 0.06, -0.3, 0.05, 0.72, 0x120c08, head); P(1.4, 0.08, 1.4, 0, 0.34, 0, 0x120c08, head);
+            P(1.3, 0.8, 0.5, 0, -0.5, 0.58, beard, head); P(0.9, 0.5, 0.4, 0, -1.0, 0.52, beard, head); P(1.1, 0.24, 0.2, 0, -0.2, 0.76, beard, head); P(0.14, 0.5, 0.14, -0.3, -1.45, 0.52, beard, head); P(0.14, 0.5, 0.14, 0.3, -1.45, 0.52, beard, head);
+            const bird = piv(rig, 1.35, 4.1, -0.1); ext.bird = bird;
+            P(0.42, 0.55, 0.42, 0, 0, 0, 0x3ad66a, bird); P(0.32, 0.32, 0.32, 0, 0.45, 0.08, 0x3ad66a, bird); P(0.16, 0.16, 0.22, 0, 0.42, 0.3, 0xffb02e, bird); P(0.16, 0.7, 0.16, 0, -0.5, -0.2, 0xff3b3b, bird); P(0.1, 0.1, 0.1, 0.12, 0.52, 0.2, 0x10131f, bird);
+        } else if (kind === 'ninja') {
+            H = { skin: 0x2a2548, shirt: 0x2a2548, sleeve: 0x322c58, cuff: 0x3d3670, hand: 0x2a2548, pants: 0x2a2548, boots: 0x14102a, belt: 0x6a2bd8 };
+            body(H);
+            const cy = 0x35e8ff, mg = 0xb05cff;
+            P(1.38, 1.38, 1.38, 0, 0, 0, 0x2a2548, head); G(1.1, 0.34, 0.1, 0, 0.1, 0.7, cy); G(0.5, 0.1, 0.1, -0.35, 0.1, 0.74, 0xffffff, head, 0.9); G(0.5, 0.1, 0.1, 0, -0.2, 0.7, cy, head, 0.6);
+            P(0.3, 0.55, 1.0, 0, 0.95, -0.1, 0x2a2548, head); G(0.08, 0.5, 0.9, 0, 1.0, -0.1, cy, head); P(0.14, 0.7, 0.6, -0.7, 0.1, -0.2, 0x23203a, head); P(0.14, 0.7, 0.6, 0.7, 0.1, -0.2, 0x23203a, head); G(0.06, 0.5, 0.4, -0.78, 0.1, -0.2, mg, head); G(0.06, 0.5, 0.4, 0.78, 0.1, -0.2, mg, head);
+            P(1.5, 0.4, 1.15, 0, -0.78, 0, 0x6a2bd8); G(1.52, 0.06, 1.17, 0, -0.6, 0, cy);
+            const sc = piv(rig, 0.25, 3.65, -0.55); ext.scarf = sc; P(0.62, 2.3, 0.12, 0, -1.15, 0, 0x6a2bd8, sc); G(0.62, 0.06, 0.14, 0, -2.2, 0, cy, sc); P(0.5, 1.7, 0.12, -0.55, -0.85, 0.02, 0x4a1fa8, sc); G(0.5, 0.06, 0.14, -0.55, -1.7, 0.02, mg, sc);
+            G(0.08, 1.5, 0.05, -0.35, 2.55, 0.5, cy); G(0.08, 1.5, 0.05, 0.35, 2.55, 0.5, cy); G(0.9, 0.08, 0.05, 0, 3.0, 0.5, cy); G(0.32, 0.32, 0.06, 0, 2.45, 0.52, mg); G(1.76, 0.07, 1.02, 0, 1.58, 0, cy);
+            for (const sx of [-1, 1]) { P(1.0, 0.3, 1.0, sx * 1.25, 3.62, 0, 0x23203a, rig, true); G(1.0, 0.06, 1.0, sx * 1.25, 3.78, 0, cy); G(0.66, 0.08, 0.66, 0, -0.95, 0, cy, sx < 0 ? armL : armR); G(0.06, 1.1, 0.06, sx * 0.84, 1.0, 0.0, cy); G(0.86, 0.07, 1.04, sx * 0.42, 0.04, 0.06, cy); }
+            const kt = piv(rig, 0, 2.9, -0.65); kt.rotation.z = 0.75; ext.katana = kt;
+            P(0.16, 3.6, 0.07, 0, 0.9, 0, 0xcfd6e6, kt, true); G(0.05, 3.6, 0.08, 0.08, 0.9, 0, cy, kt, 0.8); P(0.5, 0.12, 0.2, 0, -0.95, 0, 0x6a2bd8, kt, true); P(0.2, 0.9, 0.2, 0, -1.5, 0, 0x14121f, kt);
+            const orbit = piv(rig, 0, 3.0, 0); ext.orbit = orbit;
+            for (let i = 0; i < 4; i++) { const c = piv(orbit, 0, 0, 0); c.userData.i = i; G(0.3, 0.3, 0.3, 2.0, 0, 0, i % 2 ? cy : mg, c); ext.cubes.push(c); }
+            ext.sparkCol = 0x35e8ff; ext.sparkRate = 0.1; ext.sparkAt = [0, 3.0, 0];
+        } else if (kind === 'barb') {
+            H = { skin: 0xd99a6c, shirt: 0x6b4a2b, sleeve: 0xd99a6c, cuff: 0x8c94a6, hand: 0xd99a6c, pants: 0x4a3a2a, boots: 0x3a2412, belt: 0x2a1a10 };
+            body(H); face({ skin: 0xd99a6c, eye: 0x1a2a4a, brow: 0x2a1a10, mouth: 0x5a2a1a });
+            const iron = 0x8c94a6, fur = 0xe2dccd, bone = 0xf0e6c8, beard = 0xb5461f;
+            P(0.25, 2.5, 0.06, 0, 2.55, 0.52, 0x3a2412).rotation.z = 0.5; P(0.25, 2.5, 0.06, 0, 2.55, 0.52, 0x3a2412).rotation.z = -0.5; P(1.2, 0.5, 0.05, 0, 3.3, 0.5, 0xd99a6c);
+            for (const [x, y] of [[-0.45, 2.2], [0.45, 2.2], [-0.45, 2.9], [0.45, 2.9]]) P(0.14, 0.14, 0.06, x, y, 0.57, iron, rig, true);
+            P(2.7, 0.75, 1.6, 0, 3.6, 0, fur); for (const [x, z] of [[-1.2, 0.5], [1.2, 0.5], [-0.6, 0.75], [0.6, 0.75], [0, 0.8], [-1.3, -0.4], [1.3, -0.4]]) P(0.5, 0.5, 0.5, x, 3.25, z, fur);
+            P(1.8, 0.8, 1.1, 0, 1.4, 0, fur); P(0.5, 0.5, 0.12, 0, 1.72, 0.54, bone, rig, true);
+            for (const sx of [-1, 1]) { P(0.9, 0.5, 1.0, sx * 0.42, 0.68, 0.06, fur); P(0.72, 0.7, 0.72, 0, -1.3, 0, iron, sx < 0 ? armL : armR, true); P(0.76, 0.1, 0.76, 0, -1.0, 0, 0x3a2412, sx < 0 ? armL : armR); }
+            P(1.42, 0.6, 1.42, 0, 0.72, 0, iron, head, true); P(0.18, 0.7, 0.1, 0, 0.1, 0.76, iron, head, true); P(1.5, 0.12, 1.5, 0, 0.45, 0, 0x3a2412, head);
+            for (const sx of [-1, 1]) { P(0.34, 0.34, 0.34, sx * 0.85, 0.85, 0, bone, head); P(0.32, 0.6, 0.32, sx * 1.05, 1.25, 0, bone, head); P(0.24, 0.55, 0.24, sx * 1.0, 1.75, 0, bone, head); P(0.14, 0.4, 0.14, sx * 0.9, 2.1, 0, 0xffffff, head); G(0.12, 0.12, 0.06, sx * 0.4, 0.8, 0.74, 0xffd23a, head); }
+            P(1.3, 0.9, 0.5, 0, -0.55, 0.58, beard, head); P(0.34, 1.4, 0.34, -0.42, -1.2, 0.55, beard, head); P(0.34, 1.4, 0.34, 0.42, -1.2, 0.55, beard, head); P(0.38, 0.14, 0.38, -0.42, -1.8, 0.55, 0xe8b73a, head, true); P(0.38, 0.14, 0.38, 0.42, -1.8, 0.55, 0xe8b73a, head, true);
+            P(0.18, 2.9, 0.18, 0.1, -0.7, 0.6, 0x6b4a2b, armR); P(0.22, 1.0, 0.95, 0.12, 0.85, 0.6, iron, armR, true); G(0.06, 1.0, 1.0, 0.24, 0.85, 0.6, 0xdfe8ff, armR); P(0.2, 0.5, 0.5, 0.12, 0.2, 0.92, iron, armR, true);
+            ext.sparkCol = 0xffffff; ext.sparkRate = 0.0; ext.sparkAt = null;
+        }
         g.rotation.y = faceDir;
         g.scale.setScalar(AV_SCALE);
         const hit = new THREE.Mesh(boxGeo(3.4, 5.6, 2.6), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-        hit.position.y = 2.8;
-        g.add(hit);
-        return { group: g, armL, armR, mats, hit, flash: 0, down: 0, base: g.position.clone() };
+        hit.position.y = 2.8; g.add(hit);
+        const av = { group: g, rig, head, armL, armR, mats: Array.from(matCache.values()), glowMats, hit, flash: 0, down: 0, hitT: 0, kind, ext, t0: Math.random() * 10 };
+        av.update = (t, dt) => {
+            const e = ext, tt = t + av.t0;
+            if (e.cape) e.cape.rotation.x = 0.08 + Math.sin(tt * 1.6) * 0.05 + Math.sin(tt * 3.1) * 0.02;
+            if (e.scarf) { e.scarf.rotation.x = 0.18 + Math.sin(tt * 2.4) * 0.12; e.scarf.rotation.z = Math.sin(tt * 1.7) * 0.08; }
+            if (e.flames.length) e.flames.forEach((f) => { f.scale.y = 1 + Math.sin(tt * 7 + f.userData.i * 1.3) * 0.14; f.scale.x = f.scale.z = 1 + Math.sin(tt * 5 + f.userData.i) * 0.05; });
+            if (e.bird) { e.bird.position.y = 4.1 + Math.abs(Math.sin(tt * 3)) * 0.12; e.bird.rotation.y = Math.sin(tt * 1.2) * 0.5; }
+            if (e.katana) e.katana.rotation.z = 0.75 + Math.sin(tt * 1.5) * 0.02;
+            if (kind === 'hero' && e.orbit) { e.orbit.rotation.y += dt * 2.2; e.orbitCards.forEach((c) => { c.rotation.y = c.userData.i * 2.094; c.position.y = Math.sin(tt * 2 + c.userData.i * 2) * 0.25; c.rotation.z = Math.sin(tt * 1.5 + c.userData.i) * 0.2; }); }
+            if (kind === 'ninja' && e.orbit) { e.orbit.rotation.y += dt * 1.6; e.cubes.forEach((c) => { c.rotation.y = c.userData.i * 1.571; c.position.y = Math.sin(tt * 2 + c.userData.i * 1.7) * 0.9; }); }
+            if (e.sparkAt && e.sparkRate > 0 && Math.random() < e.sparkRate * dt * 60 * 0.12) {
+                const gp = g.position, s = AV_SCALE;
+                emit(gp.x + (Math.random() - 0.5) * 1.6, gp.y + e.sparkAt[1] * s + Math.random() * 0.6, gp.z + (Math.random() - 0.5) * 1.6, e.sparkCol, 1, 0.5, 1.6, 0.14, 0.9, -1);
+            }
+        };
+        return av;
     }
-    const AV_CFG = {
-        p: { skin: 0xf0c39a, hair: 0x3a2314, shirt: 0x2f8cff, pants: 0x243a7a, belt: 0xffcf3a, hat: 0 },
-        e: { skin: 0xd9a77c, hair: 0x15110f, shirt: 0xd8404f, pants: 0x3a1f2a, belt: 0x9a7a3a, hat: 0x2a1530 }
+    const RIVALS = {
+        'BARON BLOCK': 'baron', 'LADY LAVA': 'lava', 'CAPTAIN CUBE': 'pirate', 'DUELIST ZERO': 'ninja', 'RIVAL REX': 'barb'
     };
+    function disposeAvatar(av) {
+        av.mats.forEach((m) => m.dispose()); av.glowMats.forEach((m) => m.dispose());
+        av.hit.material.dispose();
+    }
 
     /* ---- monster models (all face +Z). Each exposes pose(kind, k) for its attack animation:
        'windup' / 'strike' (melee), 'aim' / 'fire' (ranged), 'reset'. ---- */
@@ -966,10 +1121,17 @@ async function run(mode) {
         e: { hp: 20, energy: 0, hand: [], mons: [], traps: [], avatar: null }
     };
     let uid = 0;
-    S.p.avatar = buildAvatar(AV_CFG.p, Math.PI); S.p.avatar.group.position.set(0, 0, AV_Z.p); scene.add(S.p.avatar.group);
-    S.e.avatar = buildAvatar(AV_CFG.e, 0); S.e.avatar.group.position.set(0, 0, AV_Z.e); scene.add(S.e.avatar.group);
+    S.p.avatar = buildAvatar('hero', Math.PI); S.p.avatar.group.position.set(0, 0, AV_Z.p); scene.add(S.p.avatar.group);
     S.p.avatar.hit.userData.target = { kind: 'face', side: 'p', key: 'fp' }; pickables.push(S.p.avatar.hit);
-    S.e.avatar.hit.userData.target = { kind: 'face', side: 'e', key: 'fe' }; pickables.push(S.e.avatar.hit);
+    function setRival(name) {                         // swap the far-side duelist for the chosen rival
+        const old = S.e.avatar;
+        if (old) { scene.remove(old.group); const i = pickables.indexOf(old.hit); if (i >= 0) pickables.splice(i, 1); disposeAvatar(old); }
+        const av = buildAvatar(RIVALS[name] || 'baron', 0);
+        av.group.position.set(0, 0, AV_Z.e); scene.add(av.group);
+        av.hit.userData.target = { kind: 'face', side: 'e', key: 'fe' }; pickables.push(av.hit);
+        S.e.avatar = av;
+    }
+    setRival(NAMES[Math.floor(Math.random() * NAMES.length)]);
 
     const drawCard = (side) => {
         const pool = side === 'p' && profile.deck.length ? profile.deck : DECK;
@@ -1143,8 +1305,16 @@ async function run(mode) {
         av.throwing = true;
         return tween(0.3, (k) => { av.armR.rotation.x = -Math.PI * 0.9 * Math.sin(k * Math.PI); }, linear).then(() => { av.throwing = false; });
     }
-    function avatarHit(side) {
-        const av = S[side].avatar; av.flash = 1; S.shake = Math.max(S.shake, 0.5); sfx('hit');
+    const hurtEl = $('hurt');
+    function hurtFlash() { hurtEl.classList.remove('on'); void hurtEl.offsetWidth; hurtEl.classList.add('on'); }
+    // a monster hits a duelist: flash, recoil, crossed impact streaks, shockwave, sparks (and a red edge flash for you)
+    function avatarHit(side, amt) {
+        const av = S[side].avatar, p = av.group.position, big = (amt || 1) >= 4;
+        av.flash = 1; av.hitT = 1; S.shake = Math.max(S.shake, big ? 0.8 : 0.55); sfx('hit');
+        streak(p.x, 3.0, p.z, 0, 0.8, 0xffffff, big ? 3.2 : 2.4, 0.22); streak(p.x, 3.0, p.z, 0, -0.8, 0xff6a4a, big ? 3.0 : 2.2, 0.22);
+        shockRing(p.x, p.z, 0xff6a4a, big);
+        emit(p.x, 3.0, p.z, 0xff6a4a, big ? 14 : 9, 3.5, 4, 0.2, 0.5); emit(p.x, 3.0, p.z, 0xffffff, 6, 2.5, 3, 0.16, 0.4);
+        if (side === 'p') hurtFlash();
     }
     function flyCard(c, from, to, dur) {
         const g = new THREE.Group();
@@ -1318,7 +1488,7 @@ async function run(mode) {
     }
     function damageFace(side, amt) {
         if (amt <= 0) return;
-        S[side].hp -= amt; avatarHit(side);
+        S[side].hp -= amt; avatarHit(side, amt);
         fxNum(S[side].avatar.group.position.clone().setY(5), '-' + amt, 'dmg');
         const p = S[side].avatar.group.position; emit(p.x, 3, p.z, 0xffffff, 10, 3, 5, 0.3, 0.5);
         refreshUI(); checkEnd();
@@ -1860,7 +2030,7 @@ async function run(mode) {
             S[s].mons = [];
             S[s].traps.forEach((t) => scene.remove(t.mesh));
             S[s].traps = [];
-            S[s].avatar.down = 0; S[s].avatar.group.rotation.x = 0; S[s].avatar.group.position.y = 0;
+            S[s].avatar.down = 0; S[s].avatar.group.rotation.x = 0; S[s].avatar.group.position.y = 0; S[s].avatar.hitT = 0;
         }
         tweens.length = 0; tasks.length = 0;
         fxlayer.innerHTML = '';
@@ -1876,7 +2046,8 @@ async function run(mode) {
         fillHand('p'); fillHand('e');
         // guarantee a playable opening hand
         for (const s of ['p', 'e']) if (!S[s].hand.some((c) => c.type === 'monster' && c.cost <= rule('startEnergy'))) S[s].hand[0] = starterCard(s);
-        $('ename').textContent = rivalName || NAMES[Math.floor(Math.random() * NAMES.length)];
+        const rn = rivalName || NAMES[Math.floor(Math.random() * NAMES.length)];
+        setRival(rn); $('ename').textContent = rn;
         menuRoot.classList.add('hidden'); battleHud.classList.remove('hidden'); $('endscreen').classList.add('hidden');
         setMusic('music_battle');
         await startRound(tok, true);
@@ -2065,18 +2236,22 @@ async function run(mode) {
             });
             side.traps.forEach((tr, n) => { tr.mesh.position.y = Math.sin(t * 2 + n) * 0.2; tr.mesh.rotation.y += dt; });
             const av = side.avatar;
+            if (av.hitT > 0) { av.hitT = Math.max(0, av.hitT - dt * 3.2); const e = Math.pow(av.hitT, 1.5); av.rig.rotation.x = -0.45 * e; av.rig.position.z = -0.7 * e; av.rig.position.x = Math.sin(t * 70) * 0.18 * e; }
+            else { av.rig.rotation.x = 0; av.rig.position.z = 0; av.rig.position.x = 0; }
+            av.update(t, dt);
             if (!S.over) {
                 av.armL.rotation.x = Math.sin(t * 1.8 + (s === 'p' ? 0 : 2)) * 0.12;
                 if (!av.throwing) av.armR.rotation.x = -Math.sin(t * 1.8 + (s === 'p' ? 0 : 2)) * 0.12;
                 av.group.position.y = Math.abs(Math.sin(t * 2 + (s === 'p' ? 0 : 1))) * 0.1;
             }
-            if (av.flash > 0) { av.flash = Math.max(0, av.flash - dt * 3); av.mats.forEach((m) => m.emissive.setRGB(av.flash, av.flash * 0.15, av.flash * 0.15)); }
+            if (av.flash > 0) { av.flash = Math.max(0, av.flash - dt * 3); av.mats.forEach((m) => { const b = m.userData.base; m.emissive.setRGB(b.r + av.flash, b.g + av.flash * 0.15, b.b + av.flash * 0.15); }); }
         }
         if (spawnZone.visible) spawnZone.material.opacity = 0.26 + Math.sin(t * 5) * 0.12;
         markers.forEach((m, i) => { if (m.visible) { m.material.opacity = 0.55 + Math.sin(t * 7 + i) * 0.35; } });
         // camera (with hit shake)
         S.shake = Math.max(0, S.shake - dt * 2.2);
-        if (S.phase === 'menu') {                       // slow fly-around behind the menu
+        if (S.debugCam) { camera.position.copy(S.debugCam.pos); camera.lookAt(S.debugCam.look); }
+        else if (S.phase === 'menu') {                       // slow fly-around behind the menu
             const ang = t * 0.16;
             camera.position.set(Math.sin(ang) * 50, 34, Math.cos(ang) * 50);
             camera.lookAt(0, 0, 2);
@@ -2354,6 +2529,7 @@ async function run(mode) {
     function showMenu() {
         S.token++; S.over = true; S.phase = 'menu'; S.sel = null; S.valid = [];
         clearMarkers(); clearBoard(); setHint('');
+        setRival(NAMES[Math.floor(Math.random() * NAMES.length)]);
         battleHud.classList.add('hidden'); $('endscreen').classList.add('hidden'); $('exitOv').classList.add('hidden');
         menuRoot.classList.remove('hidden');
         setMusic('music_menu');
@@ -2384,7 +2560,7 @@ async function run(mode) {
     await loadProfile();
     refreshUI();
     showMenu();
-    window.__bcd = { S, CARDS, profile, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
+    window.__bcd = { S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
     requestAnimationFrame(loop);
 }
 </script>
