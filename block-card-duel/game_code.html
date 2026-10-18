@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Block Card Duel</title>
+<title>Card Clash: Block Legends</title>
 <style>
     html, body {
         margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
@@ -279,7 +279,7 @@ window.__threeReady = new Promise((resolve, reject) => {
 
 <script>
 /*
- * BLOCK CARD DUEL
+ * CARD CLASH: BLOCK LEGENDS
  * A turn-based card duel. You are a blocky duelist; play a card and what is inside it
  * appears in a wide SQUARE arena (you hold the near half, the rival the far half):
  *   MONSTER  - bursts out of the card wherever you tap and roams the arena freely
@@ -306,7 +306,7 @@ async function run(mode) {
         return (r && r[k] !== undefined && r[k] !== null) ? Number(r[k]) : DEFAULTS[k];
     };
     lib.showGameParameters({
-        name: 'Block Card Duel',
+        name: 'Card Clash: Block Legends',
         params: {
             'Duelist Health': { key: 'rules.duelistHealth', type: 'slider', min: 8, max: 40, step: 1 },
             'Start Energy': { key: 'rules.startEnergy', type: 'slider', min: 1, max: 5, step: 1 },
