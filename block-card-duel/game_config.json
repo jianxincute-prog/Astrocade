@@ -1,1 +1,1 @@
-{ "rules": { "duelistHealth": 20, "startEnergy": 2, "maxEnergy": 8, "handSize": 5, "enemyThinkTime": 0.7, "enemySmarts": 0.8, "turnTime": 30, "matchTime": 180, "overtimeTime": 60 } }
+{ "rules": { "duelistHealth": 20, "startEnergy": 2, "maxEnergy": 6, "handSize": 5, "enemyThinkTime": 0.7, "enemySmarts": 0.8, "turnTime": 30, "matchTime": 180, "overtimeTime": 60 } }
