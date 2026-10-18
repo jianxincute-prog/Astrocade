@@ -156,6 +156,18 @@
     .arenaPlate { cursor: pointer; margin: 6px auto 0; width: 500px; text-align: center; padding: 10px 14px; }
     .arenaPlate b { font-size: 30px; text-shadow: 0 4px 0 #000; } .arenaPlate div { font-size: 22px; color: #9fd0ff; }
     #pg-battle.on { display: flex; flex-direction: column; justify-content: space-between; }
+    .chestRow { display: flex; gap: 10px; justify-content: center; margin: 0 6px; }
+    .cslot { position: relative; flex: 1; max-width: 218px; height: 196px; box-sizing: border-box; padding: 8px 6px; text-align: center; cursor: pointer; background: rgba(10,14,40,.93); border: 4px solid #05070f; border-radius: 12px; box-shadow: 0 5px 0 #05070f; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-shadow: 0 2px 0 #000; }
+    .cslot.empty { border-style: dashed; border-color: #3a4580; box-shadow: none; opacity: .75; cursor: default; }
+    .cslot .cic { width: 84px; height: 84px; } .cslot .cic svg { width: 100%; height: 100%; }
+    .cslot .cnm { font-size: 20px; line-height: 22px; } .cslot .csub { font-size: 18px; color: #9fd0ff; line-height: 20px; }
+    .cslot .cb { width: 100%; height: 18px; background: #05070f; border-radius: 6px; overflow: hidden; position: relative; }
+    .cslot .cb i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#ffe66b, #f08a12); }
+    .cslot.opening { border-color: #5aa9ff; } .cslot.opening .csub { color: #ffe08a; font-size: 24px; }
+    .cslot.ready { border-color: #ffcf3a; background: linear-gradient(rgba(70,50,10,.9), rgba(10,14,40,.85)); animation: cready .8s infinite alternate; }
+    .cslot.ready .csub { color: #ffcf3a; font-size: 24px; }
+    @keyframes cready { to { transform: translateY(-6px); box-shadow: 0 5px 0 #05070f, 0 0 22px rgba(255,207,58,.7); } }
+    .tab.center .dot { top: -36px; right: calc(50% - 82px); z-index: 2; }
     .deckRow { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
     .deckRow .mi { width: 76px; height: 86px; background: rgba(10,14,40,.82); border: 4px solid #05070f; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .deckRow .mi svg, .deckRow .mi img { width: 66px; height: 66px; object-fit: contain; }
@@ -267,6 +279,7 @@
             <div id="pages">
                 <section class="page on" id="pg-battle">
                     <div class="panel arenaPlate" id="arenaPlate"><b id="arenaName">BLOCK PLAINS</b><div id="arenaSub"></div><div class="cbar big" id="arenaBar" style="margin-top:6px"><i></i><b></b></div></div>
+                    <div class="chestRow" id="chestRow"></div>
                     <div>
                         <div class="deckRow" id="deckRow"></div>
                         <button class="btn" id="findBtn">FIND OPPONENT</button>
@@ -423,7 +436,7 @@ async function run(mode) {
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 8;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
-        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] },
+        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null],
         owned: STARTER.slice(), deck: STARTER.slice(),
         settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal' }
     };
@@ -2505,7 +2518,7 @@ async function run(mode) {
             if (tok !== S.token) return;
             $('endTitle').textContent = draw ? 'DRAW' : (won ? 'VICTORY!' : 'DEFEAT');
             $('endLine').textContent = (note ? note + '  |  ' : '') + (draw ? 'Streak kept. Wins: ' + profile.wins : (won ? 'Win streak: ' + profile.streak + '  |  Best: ' + profile.best : 'Streak reset. Wins: ' + profile.wins + '  |  Losses: ' + profile.losses));
-            $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.spoils ? '<br>Card copies: ' + esc(reward.spoils) : '');
+            $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.chest === undefined ? '' : (reward.chest >= 0 ? '<br>FREE CHEST added to slot ' + (reward.chest + 1) + '!' : '<br>Chest slots are full - open one to get more!'));
             $('endscreen').classList.remove('hidden');
         }, 1500);
         setHint(''); refreshUI();
@@ -2527,6 +2540,8 @@ async function run(mode) {
             profile.lv[k] = profile.owned.includes(k) ? clampLv(profile.lv[k]) : 1;
             profile.copies[k] = Math.max(0, Math.floor(Number(profile.copies[k]) || 0));
         });
+        const rawCh = Array.isArray(profile.chests) ? profile.chests : [];
+        profile.chests = [0, 1, 2].map((i) => { const c = rawCh[i]; return c && typeof c === 'object' ? { readyAt: c.readyAt ? Number(c.readyAt) || 0 : 0 } : null; });
         if (!profile.offers || typeof profile.offers !== 'object' || !Array.isArray(profile.offers.bought)) profile.offers = { day: 0, bought: [] };
         profile.coins = Math.max(0, profile.coins); profile.trophies = Math.max(0, profile.trophies);
     }
@@ -2565,6 +2580,7 @@ async function run(mode) {
         const mul = 1 + 0.15 * arenaIndex(profile.trophies);
         const reward = draw ? { coins: Math.round(LOSS_COINS * mul * 2), trophies: 0 } : won ? { coins: Math.round(WIN_COINS * mul), trophies: WIN_TROPHIES } : { coins: Math.round(LOSS_COINS * mul), trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
         if (draw) { /* a draw changes neither the streak nor the record */ } else if (won) { profile.wins++; profile.streak++; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; }
+        if (won && !draw) reward.chest = giveChest();
         profile.coins += reward.coins; profile.trophies = Math.max(0, profile.trophies + reward.trophies);
         saveProfile(); submitScore();
         return reward;
@@ -2712,7 +2728,7 @@ async function run(mode) {
     };
     const TABS = [['deck', 'CARDS'], ['shop', 'SHOP'], ['battle', 'BATTLE'], ['rank', 'RANKS'], ['set', 'SETTINGS']];
     $('tabbar').innerHTML = TABS.map(([id, label]) =>
-        `<button class="tab${id === 'battle' ? ' center' : ''}" data-tab="${id}">${id === 'battle' ? `<div class="ic">${ICON[id]}</div>` : ICON[id]}<span>${label}</span>${id === 'shop' ? '<i class="dot hidden" id="shopDot"></i>' : ''}</button>`).join('');
+        `<button class="tab${id === 'battle' ? ' center' : ''}" data-tab="${id}">${id === 'battle' ? `<div class="ic">${ICON[id]}</div>` : ICON[id]}<span>${label}</span>${id === 'shop' ? '<i class="dot hidden" id="shopDot"></i>' : ''}${id === 'battle' ? '<i class="dot hidden" id="chestDot"></i>' : ''}</button>`).join('');
     $('tabbar').addEventListener('click', (e) => {
         const b = e.target.closest('.tab');
         if (!b) return;
@@ -2722,6 +2738,7 @@ async function run(mode) {
     function renderTop() {
         $('mTro').textContent = profile.trophies; $('mCoin').textContent = profile.coins; $('mLv').textContent = 'Lv ' + level();
         $('shopDot').classList.toggle('hidden', giftLeft() > 0);
+        $('chestDot').classList.toggle('hidden', !profile.chests.some((c) => c && chestState(c) === 'ready'));
     }
     const giftLeft = () => Math.max(0, profile.lastGift + GIFT_HOURS * 3600000 - Date.now());
     function fmtLeft(ms) { const m = Math.ceil(ms / 60000); return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; }
@@ -2732,6 +2749,52 @@ async function run(mode) {
         $('popOk').onclick = () => ov.classList.add('hidden');
     }
 
+    /* ---- FREE CHESTS: a win drops one into a free slot (3 slots); each takes 2 minutes to open, one at a time ---- */
+    const CHEST_MS = 120000, CHEST_GOLD = [20, 150], CHEST_CARDS = 3;
+    const chestState = (c) => !c.readyAt ? 'idle' : (Date.now() >= c.readyAt ? 'ready' : 'opening');
+    function giveChest() {
+        const i = profile.chests.findIndex((c) => !c);
+        if (i < 0) return -1;
+        profile.chests[i] = { readyAt: 0 };
+        return i;
+    }
+    const fmtMs = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+    function renderChests() {
+        const busy = profile.chests.some((c) => c && chestState(c) === 'opening');
+        $('chestRow').innerHTML = profile.chests.map((c, i) => {
+            if (!c) return `<div class="cslot empty"><div class="cic" style="opacity:.3">${CHEST_SVG}</div><div class="csub">EMPTY<br>Win a duel!</div><div></div></div>`;
+            const st = chestState(c), left = c.readyAt - Date.now();
+            if (st === 'ready') return `<div class="cslot ready" data-chest="${i}"><div class="cnm">FREE CHEST</div><div class="cic">${CHEST_SVG}</div><div class="csub">TAP TO OPEN!</div></div>`;
+            if (st === 'opening') return `<div class="cslot opening" data-chest="${i}"><div class="cnm">OPENING...</div><div class="cic">${CHEST_SVG}</div><div class="csub">${fmtMs(left)}</div><div class="cb"><i style="width:${Math.min(100, (1 - left / CHEST_MS) * 100)}%"></i></div></div>`;
+            return `<div class="cslot" data-chest="${i}"><div class="cnm">FREE CHEST</div><div class="cic">${CHEST_SVG}</div><div class="csub">${busy ? 'WAITING' : 'TAP TO START'}<br>${fmtMs(CHEST_MS)}</div></div>`;
+        }).join('');
+        renderTop();
+    }
+    function collectChest(i) {
+        const gold = CHEST_GOLD[0] + Math.floor(Math.random() * (CHEST_GOLD[1] - CHEST_GOLD[0] + 1));
+        let pool = Object.keys(CARDS).filter((k) => !profile.owned.includes(k) || (profile.lv[k] || 1) < LV_MAX);
+        if (!pool.length) pool = Object.keys(CARDS);
+        const got = {}, fresh = [];
+        for (let n = 0; n < CHEST_CARDS; n++) { const k = pool[Math.floor(Math.random() * pool.length)]; got[k] = (got[k] || 0) + 1; }
+        profile.chests[i] = null; profile.coins += gold;
+        Object.keys(got).forEach((k) => { if (addCopies(k, got[k])) fresh.push(k); });
+        saveProfile(); sfx('summon');
+        showPopup('FREE CHEST!', fresh[0] || Object.keys(got)[0], '+' + gold + ' coins<br>' + Object.keys(got).map((k) => esc(CARDS[k].name) + ' x' + got[k] + (fresh.includes(k) ? ' (NEW!)' : '')).join('<br>'));
+        renderChests();
+    }
+    $('chestRow').addEventListener('click', (e) => {
+        const el = e.target.closest('[data-chest]');
+        if (!el) return;
+        const i = Number(el.dataset.chest), c = profile.chests[i];
+        if (!c) return;
+        const st = chestState(c);
+        if (st === 'ready') { collectChest(i); return; }
+        if (st === 'opening') { toast('Opening... ' + fmtMs(c.readyAt - Date.now()) + ' left.'); return; }
+        if (profile.chests.some((o) => o && chestState(o) === 'opening')) { toast('Another chest is already opening!'); sfx('no'); return; }
+        c.readyAt = Date.now() + CHEST_MS; saveProfile(); sfx('card'); renderChests();
+    });
+    setInterval(() => { if (S.phase === 'menu') { if (curTab === 'battle') renderChests(); else renderTop(); } }, 1000);
+
     /* ---- BATTLE tab (opponent search) ---- */
     function renderBattle() {
         const ai = arenaIndex(profile.trophies), cur = ARENAS[ai], nxt = ARENAS[ai + 1];
@@ -2740,6 +2803,7 @@ async function run(mode) {
         const bar = $('arenaBar'); bar.firstChild.style.width = (nxt ? Math.min(100, (profile.trophies - cur.min) / (nxt.min - cur.min) * 100) : 100) + '%'; bar.lastChild.textContent = 'Rival cards: Lv ' + Math.min(LV_MAX, 1 + ai);
         paintArena(ai);
         $('deckRow').innerHTML = profile.deck.map((k) => `<div class="mi">${iconSVG(CARDS[k])}</div>`).join('');
+        renderChests();
         $('rec').textContent = 'Wins ' + profile.wins + '   Losses ' + profile.losses + '   Best streak ' + profile.best;
     }
     async function findOpponent() {
@@ -2925,7 +2989,7 @@ async function run(mode) {
         else if (r) {
             if (!resetArmed) { resetArmed = true; renderSettings(); setTimeout(() => { resetArmed = false; if (curTab === 'set') renderSettings(); }, 3000); return; }
             resetArmed = false;
-            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
+            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
             saveProfile(); renderTop(); renderSettings(); toast('Progress reset.');
         }
     });
