@@ -419,7 +419,7 @@ async function run(mode) {
     const THREE = window.THREE;
 
     /* ============================ CONFIG ============================ */
-    const DEFAULTS = { duelistHealth: 20, startEnergy: 2, maxEnergy: 6, handSize: 5, enemyThinkTime: 0.7, enemySmarts: 0.8, turnTime: 30, matchTime: 180, overtimeTime: 60 };
+    const DEFAULTS = { duelistHealth: 20, startEnergy: 2, maxEnergy: 6, handSize: 5, enemyThinkTime: 0.7, enemySmarts: 0.55, turnTime: 30, matchTime: 180, overtimeTime: 60 };
     window.gameConfig = window.gameConfig || {};
     const rule = (k) => {
         const r = window.gameConfig.rules;
@@ -452,7 +452,7 @@ async function run(mode) {
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 10;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
-        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null,
+        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0,
         owned: STARTER.slice(), deck: STARTER.slice(),
         settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal', lowQ: false, speed: 1, perfAsked: false }
     };
@@ -1725,13 +1725,25 @@ async function run(mode) {
     /* ---- RIVAL ADAPTS TO YOU: the rival only fields monsters up to a little above the strongest one you own,
        and its card level is capped by your own average deck level, so a new player never meets late-game cards ---- */
     const monPower = (c) => c.atk * 1.2 + c.hp * 0.6;
+    /* The rival is deliberately softer than the player: low arenas give it less HP, weaker monsters, less energy,
+       a smaller hand and fewer plays per turn; every consecutive loss makes it a little gentler still (up to 3). */
+    function rivalTune() {
+        const ai = Math.min(5, arenaIndex(profile.trophies)), mercy = Math.min(3, profile.lossStreak || 0);
+        return {
+            hpMul: Math.max(0.4, [0.65, 0.75, 0.85, 0.95, 1, 1][ai] - 0.08 * mercy),
+            statMul: Math.max(0.6, [0.8, 0.85, 0.9, 0.95, 1, 1][ai] - 0.06 * mercy),
+            maxPlays: [2, 2, 3, 3, 4, 4][ai],
+            energyCut: (ai <= 1 ? 1 : 0) + (mercy >= 2 ? 1 : 0),
+            hand: ai <= 2 ? 4 : rule('handSize')
+        };
+    }
     function rivalPowerLimit() {
         const mx = profile.owned.map((k) => CARDS[k]).filter((c) => c && c.type === 'monster').reduce((m, c) => Math.max(m, monPower(c)), 0);
-        return Math.max(6, mx) * 1.1;
+        return Math.max(5.5, mx) * 0.9;
     }
     function rivalLevelNow() {
         const lvs = profile.deck.map((k) => clampLv(profile.lv[k])), avg = lvs.length ? lvs.reduce((a, b) => a + b, 0) / lvs.length : 1;
-        return Math.min(LV_MAX, 1 + arenaIndex(profile.trophies), Math.max(1, Math.round(avg) + 1));
+        return Math.min(LV_MAX, 1 + arenaIndex(profile.trophies), Math.max(1, Math.round(avg)));
     }
     function buildRivalPool(src) {
         const lim = rivalPowerLimit(), ok = (k) => CARDS[k].type !== 'monster' || monPower(CARDS[k]) <= lim;
@@ -1753,7 +1765,7 @@ async function run(mode) {
         return Math.min(1, Math.max(0, rule('enemySmarts') + d));
     }
     function fillHand(side) {
-        const hand = S[side].hand, size = rule('handSize');
+        const hand = S[side].hand, size = side === 'e' && S.tune ? S.tune.hand : rule('handSize');
         while (hand.length < size) hand.push(drawCard(side));
     }
     const dist2d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -1997,6 +2009,7 @@ async function run(mode) {
         holder.rotation.y = side === 'p' ? Math.PI : 0;
         const lvl = clampLv(lv), ms = monStats(def, lvl), sc0 = MON_SCALE * (def.scale || 1);
         holder.scale.setScalar(sc0);
+        if (side === 'e' && S.tune && S.tune.statMul < 1) { ms.atk = Math.max(1, Math.round(ms.atk * S.tune.statMul)); ms.hp = Math.max(1, Math.round(ms.hp * S.tune.statMul)); }
         const m = {
             id: ++uid, side, def, lv: lvl, base: ms, scale0: sc0, atk: ms.atk, hp: ms.hp, maxHp: ms.hp, ranged: !!def.ranged, chained: 0, dead: false, armor: 0, immune: false, burn: 0, pounce: false, volley: false, chill: false, auraCol: 0,
             holder, model, size: model.size, buff: null, debuff: null, flash: null, chain: null, ember: 0, home: holder.position.clone(), ready: false, state: 'idle', wt: 1 + Math.random() * 2, wto: null
@@ -2647,7 +2660,7 @@ async function run(mode) {
     async function enemyTurn(tok) {
         banner('RIVAL TURN');
         await wait(1.0);
-        for (let guard = 0; guard < 8 && alive(tok); guard++) {
+        for (let guard = 0; guard < (S.tune ? S.tune.maxPlays : 8) && alive(tok); guard++) {
             const pick = aiPick();
             if (!pick) break;
             await wait(rule('enemyThinkTime'));
@@ -2689,7 +2702,8 @@ async function run(mode) {
         S.tutorial = !profile.tutorialDone; S.tut = { step: 0, t: 0 }; S.cardsPlayed = 0; S.fights = 0; setCoach(null);
         S.matchT = S.tutorial ? 99999 : rule('matchTime'); S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
         S.p.hp = S.e.hp = rule('duelistHealth');
-        if (S.tutorial) S.e.hp = Math.round(rule('duelistHealth') * 0.6);     // an easier first rival
+        S.tune = rivalTune();
+        S.e.hp = Math.max(4, Math.round(rule('duelistHealth') * (S.tutorial ? 0.6 : S.tune.hpMul)));     // a softer rival, much softer in the tutorial
         updateSpeedBtn();
         S.p.hand = []; S.e.hand = [];
         fillHand('p'); fillHand('e');
@@ -2721,7 +2735,7 @@ async function run(mode) {
     }
     async function startRound(tok, first) {
         const maxE = energyCap();
-        S.p.energy = S.e.energy = maxE;
+        S.p.energy = maxE; S.e.energy = Math.max(1, maxE - (S.tune ? S.tune.energyCut : 0));
         if (!first) { fillHand('p'); fillHand('e'); }
         S.phase = 'busy'; refreshUI();
         banner('ROUND ' + S.round);
@@ -2816,6 +2830,7 @@ async function run(mode) {
         if (profile.tutorialDone === undefined) profile.tutorialDone = (profile.wins + profile.losses) > 0;
         profile.tutorialDone = !!profile.tutorialDone;
         if (profile.missions && (typeof profile.missions !== 'object' || !Array.isArray(profile.missions.list))) profile.missions = null;
+        profile.lossStreak = Math.max(0, Math.floor(Number(profile.lossStreak) || 0));
         const rawCh = Array.isArray(profile.chests) ? profile.chests : [];
         profile.chests = [0, 1, 2].map((i) => { const c = rawCh[i]; return c && typeof c === 'object' ? { readyAt: c.readyAt ? Number(c.readyAt) || 0 : 0 } : null; });
         if (!profile.offers || typeof profile.offers !== 'object' || !Array.isArray(profile.offers.bought)) profile.offers = { day: 0, bought: [] };
@@ -2897,7 +2912,7 @@ async function run(mode) {
     function applyResult(won, draw) {
         const mul = 1 + 0.15 * arenaIndex(profile.trophies);
         const reward = draw ? { coins: Math.round(LOSS_COINS * mul * 2), trophies: 0 } : won ? { coins: Math.round(WIN_COINS * mul), trophies: WIN_TROPHIES } : { coins: Math.round(LOSS_COINS * mul), trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
-        if (draw) { /* a draw changes neither the streak nor the record */ } else if (won) { profile.wins++; profile.streak++; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; }
+        if (draw) { /* a draw changes neither the streak nor the record */ } else if (won) { profile.wins++; profile.streak++; profile.lossStreak = 0; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; profile.lossStreak = (profile.lossStreak || 0) + 1; }
         trackMission('play'); if (won && !draw) trackMission('win');
         if (won && !draw) {
             reward.chest = giveChest();
@@ -3431,7 +3446,7 @@ async function run(mode) {
         else if (r) {
             if (!resetArmed) { resetArmed = true; renderSettings(); setTimeout(() => { resetArmed = false; if (curTab === 'set') renderSettings(); }, 3000); return; }
             resetArmed = false;
-            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
+            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
             saveProfile(); renderTop(); renderSettings(); toast('Progress reset.');
         }
     });
@@ -3475,7 +3490,7 @@ async function run(mode) {
     $('stayBtn').addEventListener('click', () => $('exitOv').classList.add('hidden'));
     $('leaveBtn').addEventListener('click', () => {
         if (!S.over) {                                     // leaving counts as a loss (no coins)
-            profile.losses++; profile.streak = 0; profile.trophies = Math.max(0, profile.trophies - LOSS_TROPHIES);
+            profile.losses++; profile.streak = 0; profile.lossStreak = (profile.lossStreak || 0) + 1; profile.trophies = Math.max(0, profile.trophies - LOSS_TROPHIES);
             saveProfile(); submitScore();
         }
         showMenu();
