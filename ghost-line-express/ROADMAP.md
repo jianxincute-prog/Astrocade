@@ -16,7 +16,7 @@ tuyul mencuri poin, anak sekolah = 3 penumpang sekaligus (x3), wewe gombel langk
 Belum: genderuwo yang menghalangi lajur dan suster ngesot (keduanya butuh sistem tabrakan/rintangan Fase 4).
 
 Fase 4 dikerjakan: fail state (HP bus + kesabaran penumpang), 7 rintangan/lalu lintas hantu (batu, lubang, pohon tumbang,
-mobil jenazah, motor tanpa kepala, suster ngesot, genderuwo penghadang) yang terbuka bertahap per level, combo + bonus
+pocong racing (Supra ugal-ugalan dari belakang), mobil jenazah, motor tanpa kepala, suster ngesot, genderuwo penghadang) yang terbuka bertahap per level, combo + bonus
 waktu + PERFECT stop, kabut yang menebal per level, leaderboard, save/load (rekor, koin, koleksi hantu, upgrade, hint),
 bengkel dengan 5 upgrade, layar judul/game over, dan hint tutorial sekali-tampil. Belum: upgrade kosmetik bus, tombol
 kontrol tilt, SFX/musik (Fase 5).
