@@ -25,6 +25,10 @@ Fase 5 dikerjakan (kecuali thumbnail dan publish, sengaja ditunda atas permintaa
 (`asset_map.json`), mesin/angin/decit rem/detak jantung/bunyi UI sintetis lewat WebAudio, tombol mute tersimpan, dan layar judul
 sinematik (kamera berputar pelan, judul berkedip, tagline, ringkasan kontrol, koleksi hantu). Tersisa: thumbnail dan publish.
 
+Jalur desa (permintaan lanjutan): pinggir jalan kini diisi bangunan landmark (Dapur MBG/SPPG biru-putih, Kopdes Merah Putih
+merah-putih dengan gerai, klinik/apotek desa dan gudang, plus warung, pos ronda, rumah warga, gapura desa), tiang listrik berkabel,
+dan sawah. Tiap bangunan punya dua suasana (ramai: lampu, orang, uap, truk; sepi: gelap). Dapur MBG dan Kopdes juga jadi tujuan antar.
+
 ## Kondisi awal (hasil baca kode, sebelum rewrite)
 - Loop inti: gas/rem/steer -> berhenti di bay hijau dekat kuburan -> kuntilanak naik -> berhenti di "Abandoned House" (~500 unit) -> +100 poin -> ulang.
 - Tidak ada fail state, rintangan, lalu lintas, suara, atau progres kesulitan. Hanya 1 jenis hantu, 1 tujuan.

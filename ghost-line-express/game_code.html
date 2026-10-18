@@ -410,6 +410,35 @@ async function run(mode) {
         t.userData = { crown, branches: [b1, b2] };
         return t;
     }
+    // ------------------------------------------------------------------
+    // VILLAGE STRIP (part 1): utility poles with sagging cables and rice paddies. Landmark buildings are below.
+    // ------------------------------------------------------------------
+    const polePostGeo = new THREE.CylinderGeometry(0.14, 0.2, 8, 6).translate(0, 4, 0);
+    const poleArmGeo = new THREE.BoxGeometry(2.2, 0.15, 0.15).translate(0, 7.5, 0);
+    const concreteMat = new THREE.MeshStandardMaterial({ color: 0x6d7378, roughness: 1, flatShading: true });
+    const cableGeo = (() => {                                     // three cables from this pole to the next one 40 units ahead
+        const pts = [];
+        [-0.9, 0, 0.9].forEach((cx) => {
+            for (let i = 0; i < 10; i++) {
+                [i, i + 1].forEach((k) => { const t = k / 10; pts.push(cx, 7.5 - 0.9 * Math.sin(Math.PI * t), -40 * t); });
+            }
+        });
+        return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    })();
+    const cableMat = new THREE.LineBasicMaterial({ color: 0x0e1014 });
+    const paddyTex = canvasTex(256, 256, (g, w, h) => {
+        g.fillStyle = '#1b3320'; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 8; i++) {
+            const y = i * 32;
+            g.fillStyle = i % 2 ? '#2b5a2c' : '#3a7a32'; g.fillRect(0, y + 5, w, 22);
+            g.fillStyle = 'rgba(120,170,200,.22)'; g.fillRect(rand(0, 150), y + 8, rand(40, 100), 5);
+            g.fillStyle = '#3a2f20'; g.fillRect(0, y, w, 4);                                  // earth dikes
+        }
+        for (let i = 0; i < 300; i++) { g.fillStyle = 'rgba(160,200,90,.35)'; g.fillRect(rand(0, w), rand(0, h), 2, rand(3, 7)); }
+    }, 3);
+    const paddyGeo = new THREE.PlaneGeometry(30, 40).rotateX(-Math.PI / 2);
+    const paddyMat = new THREE.MeshStandardMaterial({ map: paddyTex, roughness: 0.8 });
+
     function makeSegment(i) {
         const seg = new THREE.Group();
         seg.position.z = SEG_LEN - i * SEG_LEN;
@@ -429,6 +458,11 @@ async function run(mode) {
         seg.add(pump); p.pumpkin = pump;
         for (let k = 0; k < 2; k++) { const s = new THREE.Mesh(stoneGeo, stoneMat); seg.add(s); p.stones.push(s); }
         const pd = new THREE.Mesh(puddleGeo, puddleMat); pd.position.y = 0.05; seg.add(pd); p.puddle = pd;
+        const pole = new THREE.Group(); pole.position.set(-12.5, 0, 20);
+        pole.add(new THREE.Mesh(polePostGeo, concreteMat), new THREE.Mesh(poleArmGeo, concreteMat), new THREE.LineSegments(cableGeo, cableMat));
+        seg.add(pole); p.pole = pole;
+        const paddy = new THREE.Mesh(paddyGeo, paddyMat); paddy.position.y = 0.01; paddy.visible = false; seg.add(paddy); p.paddy = paddy;
+        p.lm = null; p.paddyOn = false;
         return seg;
     }
 
@@ -443,11 +477,19 @@ async function run(mode) {
         obj.position.x = x; obj.position.z = z;
     }
     function applyClearance(seg) {
-        const p = seg.userData;
-        const all = [...p.trees, p.lamp, p.pumpkin, ...p.stones];
-        all.forEach((o) => { o.visible = o.userData.want && !blocked(o.userData.lx, seg.position.z + o.userData.lz); });
+        const p = seg.userData, z0 = seg.position.z;
+        const covered = (o) => p.lm && Math.sign(o.userData.lx) === p.lmSide && Math.abs(o.userData.lz - p.lmZ) < p.lmHalf + 1.5;
+        const onPaddy = (o) => p.paddyOn && Math.sign(o.userData.lx) === p.paddySide && Math.abs(o.userData.lx) > 11;
+        [...p.trees, p.pumpkin, ...p.stones].forEach((o) => {
+            o.visible = o.userData.want && !blocked(o.userData.lx, z0 + o.userData.lz) && !covered(o) && !onPaddy(o);
+        });
+        p.lamp.visible = p.lamp.userData.want && !blocked(p.lamp.userData.lx, z0 + p.lamp.userData.lz);
+        p.pole.visible = !blocked(-12.5, z0 + 20) && !blocked(-12.5, z0);
+        const span = (x, c, h) => blocked(x, c - h) || blocked(x, c) || blocked(x, c + h);
+        if (p.lm) p.lm.group.visible = !span(p.lmSide * 18, z0 + p.lmZ, p.lmHalf);
+        p.paddy.visible = p.paddyOn && !span(p.paddySide * 28, z0, 20);
     }
-    function randomizeSegment(seg) {
+    function randomizeSegment(seg, forcedLandmark) {
         const p = seg.userData;
         p.trees.forEach((t, k) => {
             const side = k === 0 ? -1 : 1, dead = Math.random() < 0.4, s = rand(0.8, 1.5);
@@ -468,6 +510,7 @@ async function run(mode) {
         p.puddle.visible = Math.random() < 0.4;
         p.puddle.position.x = rand(-4.5, 4.5); p.puddle.position.z = rand(-16, 16);
         p.puddle.scale.set(rand(2.5, 5), 1, rand(5, 9));
+        placeLandmark(seg, forcedLandmark);
         applyClearance(seg);
     }
 
@@ -612,6 +655,277 @@ async function run(mode) {
     const sites = { cemetery, halte, banyan };
 
     // ------------------------------------------------------------------
+    // VILLAGE STRIP (part 2): roadside landmarks. Every builder makes a building whose front faces +x (right-hand
+    // side placements are rotated 180 degrees). Each one has two moods: ramai (lit, people, steam) and sepi (dark).
+    //   mbg    Dapur MBG / SPPG kitchen: blue-white building, enclosed loading dock, vents, delivery truck, name board
+    //   kopdes Koperasi Desa Merah Putih: red-white compound with gerai, klinik/apotek desa, gudang and flag
+    //   rumah, warung, pos ronda, gapura: village fillers
+    // Facades are painted on canvases (one lit and one dark texture per building type), so a building is ~10-20 meshes.
+    // ------------------------------------------------------------------
+    const lmTexCache = {};
+    function lmTex(key, w, h, paint) {                       // returns { lit, dark } textures, built once per key
+        if (!lmTexCache[key]) lmTexCache[key] = { lit: canvasTex(w, h, (g) => paint(g, true, w, h)), dark: canvasTex(w, h, (g) => paint(g, false, w, h)) };
+        return lmTexCache[key];
+    }
+    function txt(g, s, x, y, size, color, align) {
+        g.fillStyle = color; g.font = '800 ' + size + 'px Trebuchet MS, Arial'; g.textAlign = align || 'center'; g.fillText(s, x, y);
+    }
+    const lm = (color, extra) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.9 }, extra || {}));
+    const LMM = {
+        wall: lm(0x8e9aa8), white: lm(0xb8c2cc), blue: lm(0x1c5ea8, { roughness: 0.6 }), roofBlue: lm(0x24589a, { roughness: 0.5, metalness: 0.3, flatShading: true }),
+        red: lm(0xb0152a), roofRed: lm(0x8a1c24, { flatShading: true }), metal: lm(0xb0b8c2, { metalness: 0.7, roughness: 0.35 }), dark: lm(0x20242a),
+        wood: lm(0x4a3524, { flatShading: true }), tarp: lm(0x2d6aa0, { roughness: 1 }), tile: lm(0x7a3a2a, { flatShading: true }), person: lm(0xffffff)
+    };
+    const flagTex = canvasTex(64, 42, (g, w, h) => { g.fillStyle = '#c8102e'; g.fillRect(0, 0, w, h / 2); g.fillStyle = '#e8e8e0'; g.fillRect(0, h / 2, w, h / 2); });
+    const capsuleGeo = (() => {                                  // a body capsule with a head sphere, merged into one geometry
+        const parts = [new THREE.CapsuleGeometry(0.26, 0.75, 3, 6), new THREE.SphereGeometry(0.21, 8, 6).translate(0, 0.78, 0)];
+        const pos = [], nor = [], uv = [], idx = []; let off = 0;
+        parts.forEach((p) => {
+            pos.push(...p.attributes.position.array); nor.push(...p.attributes.normal.array); uv.push(...p.attributes.uv.array);
+            for (const i of p.index.array) idx.push(i + off);
+            off += p.attributes.position.count;
+        });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+        return g;
+    })();
+    function addGlow(parent, x, y, z, size, color) {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: color || 0xffc070, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+        s.scale.setScalar(size); s.position.set(x, y, z); parent.add(s); return s;
+    }
+    function crowd(parent, spots, palette) {                  // instanced capsule "people" (dark silhouettes with tinted clothes)
+        const im = new THREE.InstancedMesh(capsuleGeo, LMM.person, spots.length), d = new THREE.Object3D(), c = new THREE.Color();
+        spots.forEach(([x, z], i) => {
+            d.position.set(x, 0.65, z); d.scale.set(1, rand(0.9, 1.1), 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix);
+            im.setColorAt(i, c.setHex(palette[i % palette.length]));
+        });
+        parent.add(im); return im;
+    }
+    function mkLm(group, D, W, setMode, update) {
+        return { group, D, half: W / 2, inUse: false, mood: true, setMode(m) { this.mood = m; setMode(m); }, update: update || (() => {}) };
+    }
+    function facade(group, w, h, x, y, z, key, cw, ch, paint, tint) {
+        const t = lmTex(key, cw, ch, paint);
+        const base = new THREE.Color(tint || 0xffffff), m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t.lit }));
+        m.position.set(x, y, z); m.rotation.y = Math.PI / 2; group.add(m);
+        const api = { mesh: m, set(ramai) { m.material.map = ramai ? t.lit : t.dark; m.material.color.copy(base).multiplyScalar(ramai ? 0.72 : 0.45); } };
+        api.set(true);
+        return api;
+    }
+    function window3(g, x, y, w, h, lit, frame) {              // painted window: glass, frame and mullion
+        g.fillStyle = lit ? '#ffe9a0' : '#0b141c'; g.fillRect(x, y, w, h);
+        if (lit) { g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(x + 3, y + 3, w - 6, h * 0.35); }
+        g.strokeStyle = frame || '#dfe6ee'; g.lineWidth = 4; g.strokeRect(x, y, w, h);
+        g.beginPath(); g.moveTo(x + w / 2, y); g.lineTo(x + w / 2, y + h); g.stroke();
+    }
+    function gable(D, W, rise, mat) {                          // gable roof, ridge along z
+        const sh = new THREE.Shape(); sh.moveTo(-D / 2 - 0.5, 0); sh.lineTo(D / 2 + 0.5, 0); sh.lineTo(0, rise); sh.lineTo(-D / 2 - 0.5, 0);
+        return new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: W + 0.8, bevelEnabled: false }).translate(0, 0, -(W + 0.8) / 2), mat);
+    }
+    function box(parent, w, h, d, mat, x, y, z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); parent.add(m); return m; }
+    function flagPole(parent, x, z, height, fw) {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, height, 6).translate(0, height / 2, 0), LMM.metal); pole.position.set(x, 0, z); parent.add(pole);
+        const flag = new THREE.Mesh(new THREE.PlaneGeometry(fw, fw * 0.66, 4, 1).translate(fw / 2, 0, 0), new THREE.MeshBasicMaterial({ map: flagTex, side: THREE.DoubleSide, color: 0xbbbbbb }));
+        flag.position.set(x, height - fw * 0.4, z); flag.rotation.y = Math.PI / 2; parent.add(flag); return flag;
+    }
+
+    // ---- Dapur MBG (SPPG): blue-white building with enclosed loading dock, exhaust vents, truck and name board
+    function buildMBG() {
+        const D = 12, W = 20, g = new THREE.Group();
+        box(g, D, 5, W, LMM.white, 0, 2.5, 0);
+        const roof = gable(D, W, 1.6, LMM.roofBlue); roof.position.y = 5; g.add(roof);
+        const fac = facade(g, W, 5, D / 2 + 0.02, 2.5, 0, 'mbg-front', 640, 160, (c, lit) => {
+            c.fillStyle = '#8a97a8'; c.fillRect(0, 0, 640, 160);
+            c.fillStyle = '#1c5ea8'; c.fillRect(0, 0, 640, 38); c.fillRect(0, 128, 640, 32);
+            c.fillStyle = '#e8eef5'; c.beginPath(); c.arc(28, 19, 12, 0, 7); c.fill(); c.fillStyle = '#1c5ea8'; c.beginPath(); c.arc(28, 19, 7, 0, 7); c.fill();
+            txt(c, 'SATUAN PELAYANAN PEMENUHAN GIZI (SPPG)', 340, 27, 22, '#ffffff');
+            txt(c, 'MAKAN BERGIZI GRATIS', 320, 153, 22, '#ffffff');
+            [30, 125, 210].forEach((x) => window3(c, x, 56, 64, 52, lit)); [420, 505, 580].forEach((x) => window3(c, x, 56, 52, 52, lit));
+            window3(c, 285, 52, 70, 76, lit, '#e8eef5');
+        });
+        // enclosed loading dock at the left end of the front
+        box(g, 2.4, 3.8, 7, LMM.white, D / 2 + 1.2, 1.9, -6);
+        box(g, 2.8, 0.25, 7.4, LMM.roofBlue, D / 2 + 1.2, 3.95, -6);
+        const dock = facade(g, 5.6, 3.2, D / 2 + 2.42, 1.7, -6, 'mbg-dock', 180, 102, (c, lit) => {
+            c.fillStyle = lit ? '#ffb552' : '#59626c'; c.fillRect(0, 0, 180, 102);
+            if (lit) { c.fillStyle = '#5a3a1c'; for (let i = 0; i < 4; i++) c.fillRect(8, 14 + i * 22, 164, 3); [30, 85, 135].forEach((x) => { c.fillStyle = '#1c2a44'; c.beginPath(); c.arc(x, 44, 9, 0, 7); c.fill(); c.fillRect(x - 10, 52, 20, 40); }); }
+            else { c.fillStyle = '#3d444c'; for (let i = 0; i < 12; i++) c.fillRect(0, i * 9, 180, 2); c.fillStyle = '#1a1e22'; c.fillRect(84, 80, 12, 8); }
+            c.strokeStyle = '#e8eef5'; c.lineWidth = 5; c.strokeRect(2, 2, 176, 98);
+        });
+        // roof vents and a steaming exhaust stack
+        [[-3, 5.9, -6], [1, 5.9, -2], [-2, 5.9, 6]].forEach(([x, y, z]) => { const v = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 1.2, 8), LMM.metal); v.position.set(x, y, z); g.add(v); });
+        const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 3, 8), LMM.metal); stack.position.set(-3.5, 6.2, 5); g.add(stack);
+        const steam = [0, 1, 2].map((i) => { const s = addGlow(g, -3.5, 8.2 + i, 5, 2.4, 0xdfe8f0); s.userData.ph = i * 2.1; return s; });
+        // name board in the front yard (Badan Gizi Nasional / SPPG)
+        const board = facade(g, 2.8, 1.5, D / 2 + 2.2, 2.2, 7.8, 'mbg-board', 256, 136, (c, lit) => {
+            c.fillStyle = '#e4eaf2'; c.fillRect(0, 0, 256, 136); c.strokeStyle = '#1c5ea8'; c.lineWidth = 8; c.strokeRect(4, 4, 248, 128);
+            c.fillStyle = '#1c5ea8'; c.beginPath(); c.arc(34, 38, 18, 0, 7); c.fill(); c.fillStyle = '#e4eaf2'; c.beginPath(); c.arc(34, 38, 9, 0, 7); c.fill();
+            txt(c, 'BADAN GIZI NASIONAL', 150, 34, 16, '#1c3f78'); txt(c, 'SPPG SUKAMAJU', 128, 84, 28, '#1c5ea8'); txt(c, 'MAKAN BERGIZI GRATIS', 128, 114, 15, '#c8102e');
+        }, 0xc0c8d4);
+        [-1.2, 1.2].forEach((dz) => box(g, 0.12, 2.2, 0.12, LMM.metal, D / 2 + 2.2, 1.1, 7.8 + dz));
+        // delivery truck (only when busy)
+        const truck = new THREE.Group(); truck.position.set(D / 2 + 2.3, 0, 6); g.add(truck);
+        box(truck, 2.4, 2.4, 4.4, LMM.white, 0, 1.6, 1.0); box(truck, 2.3, 1.8, 1.7, LMM.blue, 0, 1.35, -2.0);
+        box(truck, 0.1, 0.7, 4.4, LMM.blue, 1.22, 1.3, 1.0); box(truck, 0.35, 0.5, 5.8, LMM.dark, 1.0, 0.45, 0); box(truck, 0.35, 0.5, 5.8, LMM.dark, -1.0, 0.45, 0);
+        const th = addGlow(truck, 0, 1.1, -3.1, 2.2, 0xfff0c0);
+        const workers = crowd(g, [[D / 2 + 3.0, -9.5], [D / 2 + 3.4, -8.2], [D / 2 + 2.2, 0.5]], [0x1c4fa0, 0xe8e8e8, 0x1c4fa0]);
+        const glows = [addGlow(g, D / 2 + 0.8, 3.2, -4, 7), addGlow(g, D / 2 + 0.8, 3.0, 4, 7), addGlow(g, D / 2 + 2.6, 2.6, -6, 6)];
+        const inst = mkLm(g, D, W, (ramai) => {
+            fac.set(ramai); dock.set(ramai); board.set(ramai);
+            truck.visible = ramai; workers.visible = ramai; steam.forEach((s) => { s.visible = ramai; }); th.material.opacity = ramai ? 0.7 : 0;
+            glows.forEach((s) => { s.material.opacity = ramai ? 0.55 : 0; });
+        }, (t) => {
+            if (!inst.mood) return;
+            steam.forEach((s) => { const u = ((t * 0.35 + s.userData.ph) % 3) / 3; s.position.y = 7.5 + u * 5; s.scale.setScalar(1.8 + u * 3); s.material.opacity = (1 - u) * 0.4; });
+        });
+        inst.truck = truck;
+        return inst;
+    }
+
+    // ---- Kopdes Merah Putih: red-white compound (gerai + klinik/apotek desa + gudang), flag and a rooftop sign
+    function buildKopdes() {
+        const D = 12, W = 22, g = new THREE.Group();
+        box(g, D, 4.2, 14, LMM.white, 0, 2.1, -4);
+        const roof = gable(D, 14, 1.4, LMM.roofRed); roof.position.set(0, 4.2, -4); g.add(roof);
+        const fac = facade(g, 14, 4.2, D / 2 + 0.02, 2.1, -4, 'kop-front', 448, 134, (c, lit) => {
+            c.fillStyle = '#9aa3ae'; c.fillRect(0, 0, 448, 134);
+            c.fillStyle = '#c8102e'; c.fillRect(0, 0, 448, 40); c.fillRect(0, 122, 448, 12);
+            c.fillStyle = '#e8e8e0'; c.beginPath(); c.arc(26, 20, 13, 0, 7); c.fill(); c.fillStyle = '#c8102e'; c.beginPath(); c.arc(26, 20, 13, Math.PI, 0); c.fill();
+            txt(c, 'KOPERASI DESA MERAH PUTIH', 240, 28, 25, '#ffffff');
+            [[14, 124, 'GERAI SEMBAKO'], [268, 84, 'KLINIK DESA'], [362, 76, 'APOTEK DESA']].forEach(([x, w, label]) => {
+                txt(c, label, x + w / 2, 56, 14, '#ffffff'); window3(c, x, 62, w, 52, lit, '#c8102e');
+            });
+            window3(c, 160, 58, 90, 64, lit, '#c8102e');
+        });
+        // striped canopy over the shop front
+        const canopyTex = canvasTex(224, 38, (c) => { for (let i = 0; i < 14; i++) { c.fillStyle = i % 2 ? '#e8e8e0' : '#c8102e'; c.fillRect(i * 16, 0, 16, 38); } });
+        const canopy = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.4).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: canopyTex, roughness: 1, side: THREE.DoubleSide }));
+        canopy.position.set(D / 2 + 1.2, 3.3, -4); canopy.rotation.z = 0.12; g.add(canopy);
+        [-9.5, -4, 1.5].forEach((z) => box(g, 0.1, 3.3, 0.1, LMM.metal, D / 2 + 2.2, 1.65, z));
+        // rooftop sign, easier to read from far away
+        const sign = facade(g, 10, 1.9, D / 2 - 0.3, 6.3, -4, 'kop-sign', 512, 96, (c, lit) => {
+            c.fillStyle = '#e8e8e0'; c.fillRect(0, 0, 512, 96); c.strokeStyle = '#c8102e'; c.lineWidth = 8; c.strokeRect(4, 4, 504, 88);
+            c.fillStyle = '#c8102e'; c.beginPath(); c.arc(56, 48, 30, Math.PI, 0); c.fill(); c.fillStyle = '#9a9a94'; c.beginPath(); c.arc(56, 48, 30, 0, Math.PI); c.fill();
+            txt(c, 'KOPERASI DESA', 300, 44, 36, '#c8102e'); txt(c, 'MERAH PUTIH', 300, 80, 36, '#c8102e');
+        }, 0xcfcfcf);
+        // warehouse (gudang), set back on the right
+        box(g, 9, 4.8, 7, LMM.white, -1.5, 2.4, 7.5);
+        const groof = gable(9, 7, 1.0, LMM.metal); groof.position.set(-1.5, 4.8, 7.5); g.add(groof);
+        const gate = facade(g, 4.8, 3.4, 3.02, 1.8, 7.5, 'kop-gudang', 154, 109, (c, lit) => {
+            c.fillStyle = lit ? '#b8202e' : '#6d1a22'; c.fillRect(0, 0, 154, 109); c.fillStyle = 'rgba(0,0,0,.3)'; for (let i = 0; i < 12; i++) c.fillRect(0, i * 9, 154, 2);
+            txt(c, 'GUDANG', 77, 60, 26, '#ffffff'); c.strokeStyle = '#e8e8e0'; c.lineWidth = 5; c.strokeRect(2, 2, 150, 105);
+        });
+        const flag = flagPole(g, D / 2 + 2.4, -10.5, 8.5, 2.8);
+        const people = crowd(g, [[D / 2 + 2.0, -6.4], [D / 2 + 2.6, -5.4], [D / 2 + 2.1, -3.6], [D / 2 + 2.7, -2.4], [D / 2 + 2.2, 0.2]], [0xb0152a, 0x3a5a8a, 0xe0e0d8, 0x4a7a3a, 0x6a4a8a]);
+        const glows = [addGlow(g, D / 2 + 1.5, 2.2, -8, 7), addGlow(g, D / 2 + 1.5, 2.2, -1, 7), addGlow(g, D / 2 + 1.5, 4.0, 5.5, 5)];
+        return mkLm(g, D, W, (ramai) => {
+            fac.set(ramai); gate.set(ramai); sign.set(ramai);
+            people.visible = ramai; glows.forEach((s) => { s.material.opacity = ramai ? 0.55 : 0.08; });
+            flag.material.color.setHex(ramai ? 0xcccccc : 0x777777);
+        }, (t) => { flag.rotation.z = Math.sin(t * 2.2) * 0.12; flag.scale.x = 1 + Math.sin(t * 3.1) * 0.04; });
+    }
+
+    // ---- Fillers: rumah warga, warung, pos ronda, gapura desa
+    function buildRumah() {
+        const D = 6, W = 8, g = new THREE.Group();
+        const body = new THREE.MeshStandardMaterial({ color: [0x8fa88a, 0xc8b890, 0x98aabc, 0xb89890][Math.floor(rand(0, 4))], roughness: 1 });
+        box(g, D, 3.2, W, body, 0, 1.6, 0);
+        const roof = gable(D, W, 1.8, LMM.tile); roof.position.y = 3.2; g.add(roof);
+        const fac = facade(g, W, 3.2, D / 2 + 0.02, 1.6, 0, 'rumah-front', 256, 102, (c, lit) => {
+            c.fillStyle = '#a0a8a0'; c.fillRect(0, 0, 256, 102);
+            window3(c, 24, 28, 56, 44, lit, '#e8e8e0'); window3(c, 176, 28, 56, 44, lit, '#e8e8e0');
+            c.fillStyle = lit ? '#ffe0a0' : '#2a1c10'; c.fillRect(104, 30, 48, 72); c.strokeStyle = '#e8e8e0'; c.lineWidth = 4; c.strokeRect(104, 30, 48, 72);
+        });
+        const lamp = addGlow(g, D / 2 + 0.6, 2.6, 0, 3.2);
+        const flag = flagPole(g, D / 2 + 1.4, W / 2 - 0.8, 4.6, 1.2);
+        return mkLm(g, D, W, (ramai) => { fac.set(ramai); lamp.material.opacity = ramai ? 0.8 : 0.18; }, (t) => { flag.rotation.z = Math.sin(t * 2 + 1) * 0.12; });
+    }
+    function buildWarung() {
+        const D = 4, W = 6, g = new THREE.Group();
+        box(g, D, 2.4, W, LMM.wood, 0, 1.2, 0);
+        const tarp = box(g, D + 1.6, 0.1, W + 0.8, LMM.tarp, 0.5, 2.7, 0); tarp.rotation.z = -0.18;
+        const fac = facade(g, W, 2.4, D / 2 + 0.02, 1.2, 0, 'warung-front', 192, 72, (c, lit) => {
+            c.fillStyle = lit ? '#6a4a2a' : '#3a2a1a'; c.fillRect(0, 0, 192, 72);
+            c.fillStyle = lit ? '#ffd890' : '#17110a'; c.fillRect(16, 22, 160, 36);
+            if (lit) { for (let i = 0; i < 6; i++) { c.fillStyle = ['#c84a2a', '#e0c040', '#4a90c8'][i % 3]; c.fillRect(24 + i * 25, 30, 14, 22); } }
+            c.fillStyle = '#1c1c1c'; c.fillRect(30, 4, 132, 16); txt(c, 'WARUNG • KOPI • MIE', 96, 17, 13, '#ffd23c');
+        });
+        box(g, 0.9, 0.8, 1.6, LMM.wood, D / 2 + 1.3, 0.4, 0.5);
+        [-0.3, 1.3].forEach((z) => { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.5, 8), LMM.wood); s.position.set(D / 2 + 1.3, 0.25, z + 0.2); s.userData.stool = true; g.add(s); });
+        const bulb = addGlow(g, D / 2 + 0.7, 2.2, 0, 3.4);
+        const people = crowd(g, [[D / 2 + 1.9, -0.8], [D / 2 + 2.2, 1.4]], [0x4a6a3a, 0x8a4a3a]);
+        return mkLm(g, D, W, (ramai) => { fac.set(ramai); bulb.material.opacity = ramai ? 0.85 : 0.1; people.visible = ramai; });
+    }
+    function buildPos() {
+        const D = 4, W = 4, g = new THREE.Group();
+        [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]].forEach(([x, z]) => { box(g, 0.25, 3.0, 0.25, LMM.wood, x, 1.5, z); });
+        box(g, 4, 0.2, 4, LMM.wood, 0, 0.9, 0);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(3.4, 1.8, 4), LMM.tile); roof.position.y = 3.9; roof.rotation.y = Math.PI / 4; g.add(roof);
+        const kent = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 8).rotateZ(Math.PI / 2), LMM.wood); kent.position.set(2.0, 2.4, 0.6); g.add(kent);
+        const lamp = addGlow(g, 0, 3.0, 0, 5);
+        const people = crowd(g, [[0.3, -0.7], [0.2, 0.7]], [0x3a4a6a, 0x6a3a3a]); people.position.y = 0.9;
+        return mkLm(g, D, W, (ramai) => { lamp.material.opacity = ramai ? 0.85 : 0.15; people.visible = ramai; });
+    }
+    function buildGapura() {
+        const D = 1.4, W = 16, g = new THREE.Group();
+        [-7, 7].forEach((z) => { box(g, 1.4, 6, 1.4, LMM.white, 0, 3, z); box(g, 1.8, 0.4, 1.8, LMM.red, 0, 6.2, z); });
+        box(g, 1.2, 1.4, W - 1, LMM.red, 0, 5.4, 0);
+        const sign = facade(g, 11, 1.7, D / 2 + 0.05, 5.4, 0, 'gapura', 512, 80, (c, lit) => {
+            c.fillStyle = lit ? '#f0f0e8' : '#a0a098'; c.fillRect(0, 0, 512, 80); c.strokeStyle = '#c8102e'; c.lineWidth = 6; c.strokeRect(3, 3, 506, 74);
+            txt(c, 'SELAMAT DATANG DI DESA SUKAMAJU', 256, 50, 34, '#a01020');
+        }, 0xd0d0d0);
+        const f1 = flagPole(g, 0.2, -7, 8.4, 1.8), f2 = flagPole(g, 0.2, 7, 8.4, 1.8);
+        const glows = [addGlow(g, 1, 4.6, -7, 4), addGlow(g, 1, 4.6, 7, 4)];
+        return mkLm(g, D, W, (ramai) => { sign.set(ramai); glows.forEach((s) => { s.material.opacity = ramai ? 0.7 : 0.1; }); }, (t) => { f1.rotation.z = Math.sin(t * 2) * 0.12; f2.rotation.z = Math.sin(t * 2.3 + 1) * 0.12; });
+    }
+
+    // ---- placement: pooled instances, attached to whichever road segment is using them
+    const LM_TYPES = { mbg: { build: buildMBG, pool: 2 }, kopdes: { build: buildKopdes, pool: 2 }, rumah: { build: buildRumah, pool: 3 },
+        warung: { build: buildWarung, pool: 2 }, pos: { build: buildPos, pool: 2 }, gapura: { build: buildGapura, pool: 1 } };
+    const lmPool = {};
+    let heroCool = 0;
+    function acquireLandmark(type) {
+        const pool = lmPool[type] || (lmPool[type] = []);
+        let o = pool.find((p) => !p.inUse);
+        if (!o) { if (pool.length >= LM_TYPES[type].pool) return null; o = LM_TYPES[type].build(); o.type = type; pool.push(o); }
+        o.inUse = true; return o;
+    }
+    function releaseLandmark(seg) {
+        const p = seg.userData;
+        if (p.lm) { seg.remove(p.lm.group); p.lm.inUse = false; p.lm = null; }
+    }
+    function pickLandmark() {
+        heroCool = Math.max(0, heroCool - 1);
+        if (Math.random() > 0.55) return null;
+        const opts = [['rumah', 3], ['warung', 2], ['pos', 2], ['gapura', 1]];
+        if (heroCool === 0) opts.push(['mbg', 2], ['kopdes', 2]);
+        let r = Math.random() * opts.reduce((a, o) => a + o[1], 0), pick = opts[0][0];
+        for (const o of opts) { r -= o[1]; if (r <= 0) { pick = o[0]; break; } }
+        if (pick === 'mbg' || pick === 'kopdes') heroCool = 6;
+        return pick;
+    }
+    function placeLandmark(seg, forced) {
+        const p = seg.userData;
+        releaseLandmark(seg);
+        p.lmSide = Math.random() < 0.5 ? -1 : 1;
+        const type = forced || pickLandmark();
+        const inst = type ? acquireLandmark(type) : null;
+        if (inst) {
+            inst.setMode(forced ? true : Math.random() < 0.5);
+            p.lm = inst; p.lmHalf = inst.half;
+            const lim = Math.max(0, 19 - inst.half);
+            p.lmZ = rand(-lim, lim);
+            inst.group.position.set(p.lmSide * (12.5 + inst.D / 2), 0, p.lmZ);
+            inst.group.rotation.y = p.lmSide > 0 ? Math.PI : 0;
+            seg.add(inst.group);
+        }
+        p.paddyOn = Math.random() < (inst ? 0.3 : 0.45);
+        p.paddySide = inst ? -p.lmSide : (Math.random() < 0.5 ? -1 : 1);
+        p.paddy.position.x = p.paddySide * 28;
+    }
+
+    // ------------------------------------------------------------------
     // ABANDONED HOUSE (destination)
     // ------------------------------------------------------------------
     const destination = new THREE.Group();
@@ -621,6 +935,7 @@ async function run(mode) {
     // Three destinations share one footprint (door on the +x face at local x = 4) so the
     // delivery ceremony works for all of them; only the active one is visible.
     const buildings = {};
+    const destLm = {};
     const doorGlows = [];
     const windowMats = [0, 1].map(() => new THREE.MeshBasicMaterial({
         map: canvasTex(64, 96, (g, w, h) => {
@@ -722,6 +1037,17 @@ async function run(mode) {
             [[2.2, -2.2], [2.2, 2.2], [4.8, -2.2], [4.8, 2.2]].forEach(([y, x], i) => southWin(b, y, x, 4.52, i));
             const tree = makeDeadTree(1.3); tree.position.set(-1, 0, 7.5); b.add(tree);
         }
+
+        // --- Dapur MBG and Kopdes Merah Putih as destinations (always busy and lit)
+        [['mbg', buildMBG, 0], ['kopdes', buildKopdes, -4]].forEach(([key, build, doorZ]) => {
+            const b = mk(key), inst = build();
+            inst.setMode(true);
+            if (inst.truck) inst.truck.visible = false;                              // keep the delivery lane clear for the ceremony
+            inst.group.position.set(4 - inst.D / 2, 0, -doorZ);                      // front face on the shared door line, door centred on the route
+            const dg = new THREE.Mesh(new THREE.PlaneGeometry(3, 2.6), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, depthWrite: false }));
+            dg.position.set(inst.D / 2 + 0.08, 1.4, doorZ); dg.rotation.y = Math.PI / 2; inst.group.add(dg); doorGlows.push(dg);
+            b.add(inst.group); destLm[key] = inst;
+        });
 
         // --- Pasar Malam (night market): gate with lanterns, striped stalls, slow ferris wheel
         {
@@ -1558,22 +1884,23 @@ async function run(mode) {
 
     // site: where the passenger waits; weight: spawn odds; routeMult: route length; count: passengers (score is per type)
     const GHOST_TYPES = {
-        kuntilanak: { name: 'Kuntilanak', create: createKuntilanak, points: 1, weight: 3, site: 'cemetery', routeMult: 1, dests: ['house', 'bamboo'], speedMult: 1, accelMult: 1,
+        kuntilanak: { name: 'Kuntilanak', create: createKuntilanak, points: 1, weight: 3, site: 'cemetery', routeMult: 1, dests: ['house', 'bamboo', 'kopdes'], speedMult: 1, accelMult: 1,
             intro: 'Kuntilanak menunggu di gerbang kuburan', drop: 'Kuntilanak turun dan melayang menuju tujuannya...' },
-        pocong: { name: 'Pocong', create: createPocong, points: 1.5, weight: 3, site: 'cemetery', routeMult: 1, dests: ['hospital', 'bridge'], speedMult: 1, accelMult: 1,
+        pocong: { name: 'Pocong', create: createPocong, points: 1.5, weight: 3, site: 'cemetery', routeMult: 1, dests: ['hospital', 'bridge', 'kopdes'], speedMult: 1, accelMult: 1,
             intro: 'Pocong melompat-lompat. Ikuti bay yang bergerak!', drop: 'Pocong melompat turun...' },
-        tuyul: { name: 'Tuyul', create: createTuyul, points: 2, weight: 3, site: 'cemetery', routeMult: 1, dests: ['school', 'market'], speedMult: 1, accelMult: 1,
+        tuyul: { name: 'Tuyul', create: createTuyul, points: 2, weight: 3, site: 'cemetery', routeMult: 1, dests: ['school', 'market', 'mbg'], speedMult: 1, accelMult: 1,
             intro: 'Tuyul berlari bolak-balik. Awas, ia suka mencuri poin!', drop: 'Tuyul berlari turun sambil cekikikan...' },
-        genderuwo: { name: 'Genderuwo', create: createGenderuwo, points: 2.5, weight: 2, site: 'cemetery', routeMult: 1, dests: ['house', 'hospital', 'school', 'market', 'bridge', 'bamboo'], speedMult: 0.8, accelMult: 0.7,
+        genderuwo: { name: 'Genderuwo', create: createGenderuwo, points: 2.5, weight: 2, site: 'cemetery', routeMult: 1, dests: ['house', 'hospital', 'school', 'market', 'bridge', 'bamboo', 'mbg', 'kopdes'], speedMult: 0.8, accelMult: 0.7,
             intro: 'Genderuwo sangat berat. Bus akan melambat!', drop: 'Genderuwo turun dengan langkah berat...' },
-        anak: { name: 'Hantu Sekolah', create: createAnak, points: 3, weight: 2, site: 'halte', routeMult: 0.9, dests: ['school', 'market'], speedMult: 1, accelMult: 1,
+        anak: { name: 'Hantu Sekolah', create: createAnak, points: 3, weight: 2, site: 'halte', routeMult: 0.9, dests: ['school', 'market', 'mbg'], speedMult: 1, accelMult: 1,
             intro: 'Tiga hantu murid menunggu di halte. Jemput sekaligus!', drop: 'Tiga hantu murid turun dan berbaris pergi...' },
         wewe: { name: 'Wewe Gombel', create: createWewe, points: 4, weight: 1, site: 'banyan', routeMult: 1.4, dests: ['bridge'], speedMult: 1, accelMult: 1,
             intro: 'Wewe Gombel langka muncul di bawah beringin. Rute jauh, hadiah besar!', drop: 'Wewe Gombel turun sambil menimang bungkusannya...' }
     };
     const DESTS = {
         house: { name: 'Rumah Kosong' }, school: { name: 'Sekolah Tua' }, hospital: { name: 'Rumah Sakit Tua' },
-        market: { name: 'Pasar Malam' }, bridge: { name: 'Jembatan Tua' }, bamboo: { name: 'Hutan Bambu' }
+        market: { name: 'Pasar Malam' }, bridge: { name: 'Jembatan Tua' }, bamboo: { name: 'Hutan Bambu' },
+        mbg: { name: 'Dapur MBG' }, kopdes: { name: 'Kopdes Merah Putih' }
     };
     const ghosts = {};
     Object.keys(GHOST_TYPES).forEach((k) => { ghosts[k] = GHOST_TYPES[k].create(); });
@@ -2504,6 +2831,8 @@ async function run(mode) {
         windowMats[1].color.setScalar(0.5 + Math.sin(time * 1.4 + 1) * 0.12 + houseGlow * 1.2);
         doorGlows.forEach((d) => { d.material.opacity = clamp(houseGlow * 0.9, 0, 0.9); });
 
+        segments.forEach((sg) => { const m = sg.userData.lm; if (m && m.group.visible) m.update(time); });
+        Object.keys(destLm).forEach((k) => { if (buildings[k].visible) destLm[k].update(time); });
         const mk = buildings.market;
         if (mk.visible) {
             const w = mk.userData.wheel; w.rotation.x += dt * 0.25;
@@ -2553,7 +2882,8 @@ async function run(mode) {
     // ------------------------------------------------------------------
     await Promise.race([loadSave(), new Promise((r) => setTimeout(r, 2500))]);
     refreshEff();
-    segments.forEach(randomizeSegment);
+    const firstLook = { 2: 'rumah', 3: 'mbg', 4: 'warung', 5: 'kopdes', 6: 'pos' };
+    segments.forEach((sg, i) => randomizeSegment(sg, firstLook[i]));
     destination.position.set(DEST_X, 0, 0);
     resetRun();
     camera.position.set(0, 10, 18);
