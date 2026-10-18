@@ -447,7 +447,7 @@ async function run(mode) {
 
     /* ============================ PLAYER PROFILE (saved with lib.saveUserGameState) ============================ */
     const STARTER = ['slime', 'golem', 'wolf', 'archer', 'fireball', 'heal', 'flameaura', 'chaintrap'];
-    const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250, bat: 180, treant: 200, turtle: 250, priest: 220, creeper: 160, ironguard: 120, swiftwind: 140, divineshield: 150, mirrortrap: 260, landmine: 200 };
+    const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250, bat: 180, treant: 200, turtle: 250, priest: 220, creeper: 160, ironguard: 120, swiftwind: 140, divineshield: 150, mirrortrap: 260, landmine: 200, sponge: 80, plankton: 90, squid: 220, crab: 450, starfish: 420 };
     const LV_MAX = 5, COPIES_NEED = [2, 4, 6, 10], COIN_NEED = [50, 100, 200, 400];
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 10;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
@@ -468,7 +468,9 @@ async function run(mode) {
         dark: { color: 0x6b4bb8, glow: 0xb07dff },
         light: { color: 0xf3e7a8, glow: 0xfff2b0 },
         creep: { color: 0x5fbf4a, glow: 0xaaff7a },
-        wind: { color: 0x6fe3d6, glow: 0xaaf5ee }
+        wind: { color: 0x6fe3d6, glow: 0xaaf5ee },
+        sea: { color: 0x3fc8d8, glow: 0x8ff0ff },
+        coral: { color: 0xff7f96, glow: 0xffb3c1 }
     };
     const CARDS = {
         slime: { type: 'monster', name: 'CUBE SLIME', cost: 1, atk: 2, hp: 3, elem: 'grass', model: 'slime', speed: 6.5, desc: 'CUBE SLIME: a cheap, bouncy blocker.' },
@@ -486,6 +488,11 @@ async function run(mode) {
         turtle: { type: 'monster', name: 'MAGMA TURTLE', cost: 3, atk: 3, hp: 6, elem: 'fire', model: 'turtle', speed: 4.8, desc: 'MAGMA TURTLE: a slow, armoured lava tank.' },
         priest: { type: 'monster', name: 'MOON PRIEST', cost: 3, atk: 1, hp: 5, elem: 'light', model: 'priest', speed: 5.5, ranged: true, desc: 'MOON PRIEST: fires holy bolts from afar and mends your most wounded monster each round (+1 HP, +2 from Lv3).' },
         creeper: { type: 'monster', name: 'BOMB CREEPER', cost: 2, atk: 4, hp: 2, elem: 'creep', model: 'creeper', speed: 8, desc: 'BOMB CREEPER: explodes after its strike, hurting every other enemy monster for 2.' },
+        sponge: { type: 'monster', name: 'BUBBLE SPONGE', cost: 1, atk: 1, hp: 5, elem: 'bolt', model: 'sponge', speed: 5.5, desc: 'BUBBLE SPONGE: a cheerful, squishy sponge that soaks up hits for just 1 energy.' },
+        plankton: { type: 'monster', name: 'TINY PLANKTON', cost: 1, atk: 2, hp: 2, elem: 'creep', model: 'plankton', speed: 7, ranged: true, desc: 'TINY PLANKTON: a sneaky little schemer that zaps from range for 1 energy.' },
+        squid: { type: 'monster', name: 'CRANKY SQUID', cost: 3, atk: 4, hp: 5, elem: 'sea', model: 'squid', speed: 6, desc: 'CRANKY SQUID: a grumpy squid that slaps hard with its tentacles.' },
+        crab: { type: 'monster', name: 'TITAN CRAB', cost: 6, atk: 8, hp: 11, elem: 'fire', model: 'crab', speed: 5.5, desc: 'TITAN CRAB: a giant armoured crab with crushing pincers. Costs your whole energy bar.' },
+        starfish: { type: 'monster', name: 'COLOSSAL STARFISH', cost: 6, atk: 5, hp: 15, elem: 'coral', model: 'starfish', speed: 4.2, desc: 'COLOSSAL STARFISH: a gentle sleepy giant with enormous HP. Costs your whole energy bar.' },
         ironguard: { type: 'buff', name: 'IRON GUARD', cost: 1, target: 'ownMon', elem: 'earth', desc: 'IRON GUARD: bonus HP and a grey iron aura.' },
         swiftwind: { type: 'buff', name: 'SWIFT WIND', cost: 1, target: 'ownMon', elem: 'wind', desc: 'SWIFT WIND: bonus ATK, faster legs and a cyan wind aura.' },
         divineshield: { type: 'buff', name: 'DIVINE SHIELD', cost: 1, target: 'ownMon', elem: 'light', desc: 'DIVINE SHIELD: a golden shield that absorbs damage.' },
@@ -505,6 +512,11 @@ async function run(mode) {
     CARDS.treant.l5 = { buff: 'OVERGROWTH', buffDesc: 'regrows 2 HP at the start of every round', skill: 'ENTANGLE', skillDesc: 'its strike chains the target for a round', atk: 0 };
     CARDS.turtle.l5 = { buff: 'MOLTEN SHELL', buffDesc: 'attackers take 2 damage when they strike it', skill: 'ERUPTION', skillDesc: 'when it dies it blasts every enemy monster for 3', atk: 0 };
     CARDS.priest.l5 = { buff: 'HOLY LIGHT', buffDesc: 'mends every wounded ally monster, not just one', skill: 'HOLY NOVA', skillDesc: 'at the start of each round, 2 damage to every enemy monster', atk: 0 };
+    CARDS.sponge.l5 = { buff: 'SPONGY HIDE', buffDesc: 'takes 1 less damage from every hit', skill: 'SOAK UP', skillDesc: 'regrows 1 HP at the start of every round', atk: 0 };
+    CARDS.plankton.l5 = { buff: 'STATIC SPARK', buffDesc: 'zaps chill targets (-1 ATK)', skill: 'ARC ZAP', skillDesc: 'also zaps a second enemy for half damage', atk: 0 };
+    CARDS.squid.l5 = { buff: 'INK ARMOR', buffDesc: 'attackers take 2 damage when they strike it', skill: 'TENTACLE FLURRY', skillDesc: 'strikes twice per attack', atk: 0 };
+    CARDS.crab.l5 = { buff: 'IRON SHELL', buffDesc: 'immune to curses and chains', skill: 'CLAW SLAM', skillDesc: 'its strike shakes the arena: 2 damage to every other enemy monster', atk: 1 };
+    CARDS.starfish.l5 = { buff: 'REGROWTH', buffDesc: 'regrows 2 HP at the start of every round', skill: 'STAR BURST', skillDesc: 'when it dies it blasts every enemy monster for 3', atk: 0 };
     CARDS.creeper.l5 = { buff: 'REINFORCED FUSE', buffDesc: 'survives its own blast', skill: 'MEGA BLAST', skillDesc: 'its blast deals 4 to every other enemy monster', atk: 0 };
     const LVV = {
         ironguard: { hp: [3, 4, 5, 6, 7], armor: [0, 0, 1, 1, 1] }, swiftwind: { atk: [1, 1, 2, 2, 2] }, divineshield: { shield: [3, 4, 5, 6, 8] },
@@ -543,7 +555,8 @@ async function run(mode) {
     const DECK = [
         'slime', 'slime', 'slime', 'golem', 'golem', 'wolf', 'wolf', 'wolf', 'archer', 'archer', 'drake', 'drake',
         'fireball', 'fireball', 'heal', 'storm', 'flameaura', 'flameaura', 'frostcurse', 'frostcurse', 'chaintrap', 'spiketrap',
-        'bat', 'treant', 'turtle', 'priest', 'creeper', 'ironguard', 'swiftwind', 'divineshield', 'mirrortrap', 'landmine'
+        'bat', 'treant', 'turtle', 'priest', 'creeper', 'ironguard', 'swiftwind', 'divineshield', 'mirrortrap', 'landmine',
+        'sponge', 'plankton', 'squid', 'crab', 'starfish'
     ];
     const TYPE_LABEL = { skill: 'SKILL', buff: 'BUFF', debuff: 'DEBUFF', trap: 'TRAP' };
     const TYPE_COLOR = { skill: 0xff8a3c, buff: 0xff4a3a, debuff: 0x8d5bff, trap: 0x5b6b8c };
@@ -1252,6 +1265,114 @@ async function run(mode) {
                     else { g.rotation.x = 0; hd.rotation.x = 0; tail.rotation.x = 0; jw.rotation.x = 0; }
                 } };
         },
+        sponge() {
+            const g = new THREE.Group(), Y = 0xffe14a, Yl = 0xfff08a, Yd = 0xd9b52a;
+            for (const x of [-0.45, 0.45]) { addBox(g, 0.28, 0.9, 0.28, x, 0.75, 0, 0xf2c82e); addBox(g, 0.58, 0.28, 0.78, x, 0.14, 0.12, 0x2a2018); }
+            addBox(g, 2.1, 2.0, 1.3, 0, 2.2, 0, Y); addBox(g, 2.1, 0.2, 1.3, 0, 3.3, 0, Yl); addBox(g, 2.1, 0.32, 1.3, 0, 1.4, 0, Yd);
+            for (const [x, y] of [[-0.7, 2.95], [0.55, 2.55], [-0.25, 1.85], [0.75, 3.0], [-0.8, 2.0], [0.2, 3.1]]) addBox(g, 0.3, 0.3, 0.08, x, y, 0.68, Yd);
+            for (const [y, z] of [[2.7, 0.2], [1.9, -0.2], [2.9, -0.3]]) { addBox(g, 0.08, 0.3, 0.3, 1.07, y, z, Yd); addBox(g, 0.08, 0.3, 0.3, -1.07, y, z, Yd); }
+            for (const x of [-0.45, 0.45]) { addBox(g, 0.66, 0.82, 0.1, x, 2.7, 0.68, 0xffffff); addBox(g, 0.34, 0.44, 0.12, x, 2.66, 0.72, 0x3acf8a); addBox(g, 0.16, 0.22, 0.14, x, 2.66, 0.76, 0x10131f); addBox(g, 0.1, 0.1, 0.14, x + 0.06, 2.8, 0.78, 0xffffff); }
+            addBox(g, 0.12, 0.5, 0.12, 0.1, 3.6, 0, 0x3aa86a); addBox(g, 0.5, 0.14, 0.3, 0.35, 3.9, 0, 0x57d68a); addBox(g, 0.5, 0.14, 0.3, -0.15, 3.78, 0, 0x7be8a0);
+            addBox(g, 0.8, 0.1, 0.1, 0, 2.0, 0.7, 0x4a2a10); for (const x of [-0.45, 0.45]) addBox(g, 0.1, 0.16, 0.1, x, 2.08, 0.7, 0x4a2a10);
+            addBox(g, 0.22, 0.24, 0.3, 0, 2.35, 0.8, Yl);
+            const arms = [piv(g, -1.2, 2.9, 0), piv(g, 1.2, 2.9, 0)];
+            arms.forEach((a) => { addBox(a, 0.26, 1.0, 0.26, 0, -0.5, 0, 0xf2c82e); addBox(a, 0.42, 0.42, 0.42, 0, -1.1, 0, Y); });
+            const drops = [[-0.9, 0.5, 0.9], [1.0, 0.8, 0.6]].map(([x, y, z]) => alphaB(g, 0.2, 0.28, 0.2, x, y, z, 0x9fe8ff, 0.8, true));
+            const setArms = (x) => arms.forEach((a, i) => { a.rotation.x = x; a.rotation.z = (i ? -1 : 1) * 0.12; });
+            return { group: g, size: { w: 2.7, h: 3.7, d: 1.8 }, idle: (t) => { const s = Math.sin(t * 3) * 0.5 + 0.5; g.scale.set(1 + s * 0.04, 1 - s * 0.05, 1 + s * 0.04); arms.forEach((a, i) => { a.rotation.z = (i ? -1 : 1) * (0.15 + Math.sin(t * 2 + i) * 0.1); }); drops.forEach((d, i) => { d.position.y = 0.55 + ((t * 0.6 + i * 0.5) % 1) * -0.4 + 0.4; }); },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { setArms(2.4 * k); g.scale.set(1 + 0.15 * k, 1 - 0.2 * k, 1 + 0.15 * k); }
+                    else if (kind === 'strike') { setArms(2.4 - 4.0 * k); g.scale.set(1.15 - 0.2 * k, 0.8 + 0.28 * k, 1.15 - 0.2 * k); }
+                    else { setArms(0); g.scale.set(1, 1, 1); }
+                } };
+        },
+        plankton() {
+            const g = new THREE.Group(), G = 0x3fbf5a, Gd = 0x2a8a40;
+            for (const x of [-0.3, 0.3]) { addBox(g, 0.25, 0.7, 0.25, x, 0.55, 0, Gd); addBox(g, 0.4, 0.2, 0.6, x, 0.1, 0.1, 0x1c5a2a); }
+            addBox(g, 1.1, 1.3, 0.9, 0, 1.6, 0, G); addBox(g, 0.8, 0.8, 0.1, 0, 1.4, 0.46, 0x8fe8a0); addBox(g, 1.1, 0.25, 0.9, 0, 2.3, 0, 0x5fd878);
+            addBox(g, 0.85, 0.85, 0.12, 0, 1.95, 0.46, 0xffffff); addBox(g, 0.46, 0.46, 0.14, 0, 1.95, 0.5, 0xb8ff6a); addBox(g, 0.22, 0.28, 0.16, 0, 1.95, 0.54, 0x10131f); addBox(g, 0.08, 0.08, 0.18, 0.08, 2.07, 0.56, 0xffffff);
+            addBox(g, 0.5, 0.1, 0.1, 0, 1.3, 0.5, 0x10131f); addBox(g, 0.1, 0.12, 0.1, -0.3, 1.36, 0.5, 0x10131f); addBox(g, 0.1, 0.12, 0.1, 0.3, 1.36, 0.5, 0x10131f);
+            const tips = [];
+            for (const x of [-0.3, 0.3]) { addBox(g, 0.1, 0.8, 0.1, x, 2.8, 0, Gd); tips.push(glowB(g, 0.26, 0.26, 0.26, x, 3.3, 0, 0xfff27a, 0.95, true)); }
+            addBox(g, 0.2, 0.2, 0.5, -0.65, 1.55, 0.2, G);
+            const arm = piv(g, 0.65, 1.7, 0.2);
+            addBox(arm, 0.22, 0.22, 0.6, 0, 0, 0.3, G); metalB(arm, 0.34, 0.34, 0.9, 0, 0, 0.9, 0x8a92a8); glowB(arm, 0.28, 0.28, 0.2, 0, 0, 1.4, 0x9dffb0, 0.95); addBox(arm, 0.18, 0.4, 0.18, 0, -0.3, 0.8, 0x4a4e58);
+            arm.rotation.x = 0.4;
+            return { group: g, size: { w: 1.9, h: 3.0, d: 1.5 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 4)) * 0.1; tips.forEach((tp, i) => { const s = 1 + Math.sin(t * 6 + i * 2) * 0.25; tp.scale.set(s, s, s); }); arm.rotation.x = 0.4 + Math.sin(t * 2) * 0.05; },
+                pose: (kind, k) => {
+                    if (kind === 'aim') { arm.rotation.x = 0.4 - 0.5 * k; g.rotation.y = 0.25 * k; }
+                    else if (kind === 'fire') { arm.rotation.x = -0.1 - 0.3 * k; g.rotation.x = -0.2 * k; }
+                    else { arm.rotation.x = 0.4; g.rotation.x = 0; g.rotation.y = 0; }
+                } };
+        },
+        squid() {
+            const g = new THREE.Group(), T = 0x5fd0c8, Td = 0x3fa8a0, Tl = 0xa8f0e8;
+            const legs = [[-0.55, 0.3], [0.55, 0.3], [-0.55, -0.3], [0.55, -0.3]].map(([x, z]) => { const l = piv(g, x, 1.5, z); addBox(l, 0.42, 1.4, 0.42, 0, -0.7, 0, T); addBox(l, 0.5, 0.3, 0.7, 0, -1.4, 0.12, Tl); return l; });
+            addBox(g, 1.7, 1.3, 1.2, 0, 2.15, 0, T); addBox(g, 1.3, 0.9, 0.1, 0, 2.05, 0.62, Tl); addBox(g, 1.75, 0.25, 1.25, 0, 1.55, 0, Td);
+            const head = piv(g, 0, 3.4, 0);
+            addBox(head, 1.9, 1.5, 1.4, 0, 0, 0, T); addBox(head, 1.5, 0.5, 1.1, 0, 0.95, 0, 0x7fe0d8); addBox(head, 1.0, 1.1, 0.5, 0, 0.55, -0.85, Td);
+            for (const x of [-0.45, 0.45]) { addBox(head, 0.56, 0.52, 0.1, x, 0.05, 0.72, 0xffffff); addBox(head, 0.22, 0.26, 0.12, x, -0.02, 0.76, 0x10131f); addBox(head, 0.64, 0.24, 0.14, x, 0.24, 0.76, Td); addBox(head, 0.1, 0.1, 0.14, x * 1.4, 0.55, 0.74, 0x10131f); }
+            addBox(head, 0.7, 0.1, 0.1, 0, -0.48, 0.72, 0x10131f); for (const x of [-0.38, 0.38]) addBox(head, 0.1, 0.14, 0.1, x, -0.56, 0.72, 0x10131f);
+            addBox(head, 0.3, 0.18, 0.08, -0.85, -0.3, 0.7, 0xff9aa8); addBox(head, 0.3, 0.18, 0.08, 0.85, -0.3, 0.7, 0xff9aa8);
+            const arms = [piv(g, -1.05, 2.6, 0), piv(g, 1.05, 2.6, 0)];
+            arms.forEach((a) => { addBox(a, 0.36, 1.3, 0.36, 0, -0.65, 0, T); addBox(a, 0.52, 0.42, 0.52, 0, -1.4, 0, Tl); });
+            const setArms = (x) => arms.forEach((a, i) => { a.rotation.x = x; a.rotation.z = (i ? -1 : 1) * 0.1; });
+            return { group: g, size: { w: 2.8, h: 4.9, d: 1.8 }, idle: (t) => { head.position.y = 3.4 + Math.sin(t * 2.4) * 0.06; head.rotation.z = Math.sin(t * 1.5) * 0.04; legs.forEach((l, i) => { l.rotation.z = Math.sin(t * 3 + i * 1.3) * 0.12; }); arms.forEach((a, i) => { a.rotation.z = (i ? -1 : 1) * (0.1 + Math.sin(t * 2 + i) * 0.08); }); },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { setArms(2.2 * k); g.rotation.x = -0.15 * k; head.rotation.x = -0.1 * k; }
+                    else if (kind === 'strike') { setArms(2.2 - 3.8 * k); g.rotation.x = -0.15 + 0.35 * k; head.rotation.x = 0.1 * k; }
+                    else { setArms(0); g.rotation.x = 0; head.rotation.x = 0; }
+                } };
+        },
+        crab() {
+            const g = new THREE.Group(), R = 0xe8402a, Rd = 0xc83428, Rk = 0xa8241a, Rl = 0xff6a4a;
+            const legs = [];
+            for (const sd of [-1, 1]) for (const z of [-0.8, 0, 0.8]) { const l = piv(g, sd * 1.7, 1.3, z); addBox(l, 0.9, 0.26, 0.26, sd * 0.45, 0, 0, Rd); addBox(l, 0.26, 1.1, 0.26, sd * 0.85, -0.6, 0, Rd); addBox(l, 0.4, 0.14, 0.4, sd * 0.9, -1.2, 0.05, Rk); legs.push(l); }
+            addBox(g, 3.4, 1.2, 2.6, 0, 1.8, 0, R); addBox(g, 3.0, 0.5, 2.2, 0, 2.55, -0.05, Rd); addBox(g, 2.6, 0.5, 0.15, 0, 1.5, 1.32, 0xffc8a0); addBox(g, 3.5, 0.25, 2.7, 0, 1.25, 0, Rk);
+            for (const x of [-1.2, -0.6, 0, 0.6, 1.2]) addBox(g, 0.3, 0.5 + (x === 0 ? 0.2 : 0), 0.3, x, 3.0, -0.2, Rk);
+            for (const [x, z] of [[-1.0, 0.5], [0.9, -0.3], [0.1, 0.7]]) addBox(g, 0.35, 0.1, 0.35, x, 2.84, z, Rl);
+            addBox(g, 1.0, 0.12, 0.1, 0, 1.7, 1.36, 0x3a1010); for (const x of [-0.5, 0.5]) addBox(g, 0.1, 0.14, 0.1, x, 1.78, 1.36, 0x3a1010);
+            const eyes = [];
+            for (const x of [-0.55, 0.55]) { addBox(g, 0.15, 0.7, 0.15, x, 3.05, 0.9, R); const e = piv(g, x, 3.5, 0.9); addBox(e, 0.5, 0.5, 0.5, 0, 0, 0, 0xffffff); addBox(e, 0.24, 0.3, 0.12, 0, -0.02, 0.28, 0x10131f); addBox(e, 0.28, 0.12, 0.54, 0, 0.2, 0, Rd); eyes.push(e); }
+            const arms = [], jawsU = [], jawsL = [];
+            for (const sd of [-1, 1]) {
+                const a = piv(g, sd * 1.95, 2.0, 0.8); arms.push(a);
+                addBox(a, 0.5, 0.5, 1.3, 0, 0, 0.65, R);
+                const hand = piv(a, 0, 0, 1.4); addBox(hand, 1.5, 0.9, 1.1, 0, 0, 0.3, R); addBox(hand, 1.3, 0.2, 0.9, 0, 0.5, 0.3, Rd);
+                const up = piv(hand, 0, 0.28, 0.85), lo = piv(hand, 0, -0.28, 0.85);
+                addBox(up, 0.5, 0.3, 1.1, 0, 0, 0.55, Rl); metalB(up, 0.3, 0.2, 0.3, 0, -0.18, 1.0, 0xffffff);
+                addBox(lo, 0.5, 0.3, 1.1, 0, 0, 0.55, Rl); metalB(lo, 0.3, 0.2, 0.3, 0, 0.18, 1.0, 0xffffff);
+                jawsU.push(up); jawsL.push(lo);
+            }
+            const setClaws = (lift, open) => { arms.forEach((a, i) => { a.rotation.x = -lift; a.rotation.y = (i ? -1 : 1) * 0.25 * lift; }); jawsU.forEach((j) => { j.rotation.x = -0.5 * open + 0.05; }); jawsL.forEach((j) => { j.rotation.x = 0.5 * open - 0.05; }); };
+            setClaws(0, 0.3);
+            return { group: g, size: { w: 5.4, h: 3.9, d: 3.4 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.8)) * 0.1; legs.forEach((l, i) => { l.rotation.z = Math.sin(t * 5 + i) * 0.08; }); eyes.forEach((e, i) => { e.rotation.z = Math.sin(t * 2 + i) * 0.15; }); jawsU.forEach((j, i) => { j.rotation.x = -0.15 - Math.sin(t * 2.5 + i) * 0.12; }); jawsL.forEach((j, i) => { j.rotation.x = 0.15 + Math.sin(t * 2.5 + i) * 0.12; }); },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { setClaws(0.7 * k, 0.3 + 1.0 * k); g.rotation.x = -0.1 * k; }
+                    else if (kind === 'strike') { setClaws(0.7 - 1.0 * k, 1.3 - 1.3 * k); g.rotation.x = -0.1 + 0.22 * k; }
+                    else { setClaws(0, 0.3); g.rotation.x = 0; }
+                } };
+        },
+        starfish() {
+            const g = new THREE.Group(), P = 0xff8fa3, Pl = 0xffb3c1, Po = 0xff9a5a, CY = 2.1;
+            const pivots = [];
+            [0, 72, 144, 216, 288].forEach((deg, i) => {
+                const a = deg * Math.PI / 180, pv = piv(g, 0, CY, 0); pv.rotation.z = -a;
+                addBox(pv, 0.85, 1.4, 0.9, 0, 1.2, 0, P); addBox(pv, 0.62, 0.8, 0.7, 0, 2.0, 0, Pl); addBox(pv, 0.6, 0.12, 0.1, 0, 1.2, 0.5, Po);
+                for (const [y, o] of [[0.95, -0.16], [1.35, 0.14], [1.85, -0.1], [2.15, 0.1]]) addBox(pv, 0.18, 0.18, 0.1, o, y, 0.48, Po);
+                pivots.push({ pv, base: -a });
+            });
+            addBox(g, 1.8, 1.8, 1.1, 0, CY, 0, P); addBox(g, 1.5, 0.3, 0.1, 0, CY + 0.7, 0.56, Pl);
+            for (const x of [-0.45, 0.45]) { addBox(g, 0.52, 0.34, 0.1, x, CY + 0.2, 0.56, 0xffffff); addBox(g, 0.2, 0.2, 0.12, x, CY + 0.12, 0.6, 0x10131f); addBox(g, 0.6, 0.2, 0.12, x, CY + 0.36, 0.62, 0xd96a80); addBox(g, 0.3, 0.16, 0.08, x * 1.9, CY - 0.2, 0.56, 0xff6a8a); }
+            addBox(g, 0.8, 0.1, 0.1, 0, CY - 0.45, 0.58, 0x6a2a3a); for (const x of [-0.4, 0.4]) addBox(g, 0.1, 0.14, 0.1, x, CY - 0.38, 0.58, 0x6a2a3a);
+            const arms = pivots.filter((o, i) => i === 1 || i === 4);
+            return { group: g, size: { w: 4.6, h: 4.6, d: 1.6 }, idle: (t) => { g.position.y = Math.abs(Math.sin(t * 1.4)) * 0.06; g.rotation.z = Math.sin(t * 1.2) * 0.03; pivots.forEach((o, i) => { o.pv.rotation.z = o.base + Math.sin(t * 2 + i * 1.3) * 0.07; }); },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { g.rotation.x = -0.28 * k; arms.forEach((o) => { o.pv.rotation.z = o.base + (o.base < 0 ? -0.35 : 0.35) * k; }); }
+                    else if (kind === 'strike') { g.rotation.x = -0.28 + 0.8 * k; arms.forEach((o) => { o.pv.rotation.z = o.base + (o.base < 0 ? -0.35 : 0.35) * (1 - k); }); }
+                    else { g.rotation.x = 0; pivots.forEach((o) => { o.pv.rotation.z = o.base; }); }
+                } };
+        },
         bat() {
             const g = new THREE.Group();
             addBox(g, 1.2, 1.1, 1.1, 0, 2.0, 0, 0x3a2a5a); addBox(g, 0.9, 0.6, 0.2, 0, 1.95, 0.55, 0x6a4f9a); addBox(g, 1.4, 0.35, 1.3, 0, 2.5, 0.45, 0x6a4f9a);
@@ -1808,6 +1929,11 @@ async function run(mode) {
             if (def.key === 'turtle') m.thorns = 2;
             if (def.key === 'priest') m.massMend = true;
             if (def.key === 'creeper') m.reinforced = true;
+            if (def.key === 'sponge') { m.armor = 1; m.regen = 1; }
+            if (def.key === 'plankton') { m.chill = true; m.volley = true; }
+            if (def.key === 'squid') { m.thorns = 2; m.pounce = true; }
+            if (def.key === 'crab') m.immune = true;
+            if (def.key === 'starfish') m.regen = 2;
         }
         return m;
     }
@@ -1847,7 +1973,7 @@ async function run(mode) {
         shockRing(p.x, p.z, 0xffffff, false);
         if (m.chain) { m.holder.remove(m.chain); m.chain = null; }
         if (m.def.key === 'slime' && m.lv >= LV_MAX && !S.over) spawnSplit(m);
-        if (m.def.key === 'turtle' && m.lv >= LV_MAX && !S.over) eruption(m);
+        if ((m.def.key === 'turtle' || m.def.key === 'starfish') && m.lv >= LV_MAX && !S.over) eruption(m);
         tween(0.3, (k) => { m.holder.scale.setScalar(m.scale0 * (1 - k)); m.holder.position.y = 0.2 + k * 1.2; }, easeIn).then(() => {
             scene.remove(m.holder);
             m.holder.traverse((o) => { if (o.material && !sharedMats.has(o.material)) o.material.dispose(); if (o.geometry && o.geometry.userData.merged) o.geometry.dispose(); });
@@ -2154,11 +2280,16 @@ async function run(mode) {
         bat: { wind: 0.26, back: 0, rise: 2.6, lunge: 0.17, dist: 1.5, hop: 0, fx: 'rake', trail: 0xb07dff },
         treant: { wind: 0.36, back: 0, lunge: 0.2, dist: 0.9, hop: 0, fx: 'sweep', trail: 0x7dff8a },
         turtle: { wind: 0.3, back: 0.9, lunge: 0.22, dist: 2.0, hop: 0.1, fx: 'ram', trail: 0xff7a1a },
-        creeper: { wind: 0.42, back: 0, lunge: 0.12, dist: 1.2, hop: 0.2, fx: 'none' }
+        creeper: { wind: 0.42, back: 0, lunge: 0.12, dist: 1.2, hop: 0.2, fx: 'none' },
+        sponge: { wind: 0.26, back: 0.1, lunge: 0.16, dist: 1.6, hop: 1.1, fx: 'squish' },
+        squid: { wind: 0.3, back: 0.2, lunge: 0.16, dist: 1.9, hop: 0.3, fx: 'slap', trail: 0x6fe3d6 },
+        crab: { wind: 0.4, back: 0.2, lunge: 0.14, dist: 2.2, hop: 0.2, fx: 'pinch', trail: 0xff6a4a },
+        starfish: { wind: 0.44, back: 0, lunge: 0.2, dist: 1.8, hop: 0.2, fx: 'flop', trail: 0xffb3c1 }
     };
     const RANGED = {
         archer: { aim: 0.4, fly: 0.34, proj: 'arrow', color: 0x9fe4ff },
-        priest: { aim: 0.5, fly: 0.42, proj: 'orb', color: 0xfff2b0 }
+        priest: { aim: 0.5, fly: 0.42, proj: 'orb', color: 0xfff2b0 },
+        plankton: { aim: 0.3, fly: 0.3, proj: 'orb', color: 0x9dffb0 }
     };
     // a thin additive streak (slash mark / spark line) that fades quickly
     function streak(x, y, z, yaw, tilt, color, len, life) {
@@ -2175,6 +2306,10 @@ async function run(mode) {
             case 'bite': streak(ax, h, az, yaw, 1.57, 0xffe14d, 1.6, 0.2); emit(ax, h, az, 0xffe14d, 5, 2.5, 2, 0.2, 0.4); break;
             case 'rake': for (const o of [-0.5, 0, 0.5]) streak(ax + o * Math.cos(yaw), h - o, az - o * Math.sin(yaw), yaw + Math.PI / 2, -0.8, 0xb07dff, 1.8, 0.22); break;
             case 'sweep': streak(ax, h, az, yaw + Math.PI / 2, 0, 0x7dff8a, 3.0, 0.26); emit(ax, h, az, 0x57c04a, 6, 2.5, 3, 0.2, 0.6, 4); break;
+            case 'squish': emit(ax, 0.9, az, 0xfff08a, 6, 2.2, 3, 0.2, 0.45); emit(ax, 1.2, az, 0x9fe8ff, 4, 1.6, 3, 0.16, 0.5, -1); break;
+            case 'slap': streak(ax, h, az, yaw + Math.PI / 2, 0, 0x6fe3d6, 2.6, 0.24); emit(ax, h, az, 0x6fe3d6, 4, 2, 2, 0.18, 0.4); break;
+            case 'pinch': streak(ax, h + 0.3, az, yaw, 0.5, 0xff6a4a, 1.8, 0.2); streak(ax, h - 0.3, az, yaw, -0.5, 0xffd23a, 1.8, 0.2); emit(ax, h, az, 0xff6a4a, 5, 2.4, 2, 0.2, 0.4); break;
+            case 'flop': shockRing(ax, az, 0xffb3c1, false); emit(ax, 0.5, az, 0xffb3c1, 8, 3, 3, 0.24, 0.5); S.shake = Math.max(S.shake, 0.35); break;
             case 'ram': shockRing(ax, az, 0xff7a1a, false); emit(ax, 0.8, az, 0xff7a1a, 7, 3, 3, 0.22, 0.5); break;
         }
     }
@@ -2191,7 +2326,7 @@ async function run(mode) {
         if (m.lv >= LV_MAX && !m.dead && m.def.key === 'treant' && !tgt.dead) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'ENTANGLE!', 'info'); await chainMon(tgt, 1, 'ENTANGLED!'); return; }
         if (m.lv < LV_MAX || m.dead) return;
         const foeSide = other(m.side);
-        if (m.def.key === 'golem') {                                  // QUAKE
+        if (m.def.key === 'golem' || m.def.key === 'crab') {          // QUAKE / CLAW SLAM
             const others = liveMons(foeSide).filter((o) => o !== tgt);
             if (others.length) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'QUAKE!', 'info'); S.shake = 0.8; shockRing(m.holder.position.x, m.holder.position.z, 0xd9c9a0, true); others.forEach((o) => damageMon(o, 2)); }
         } else if (m.def.key === 'drake') {                           // CHAIN LIGHTNING
@@ -2605,7 +2740,7 @@ async function run(mode) {
     /* The leaderboard is the only data shared between players, so each score carries the trophies AND the deck:
        score = (trophies + 1) * 2^19 + deckCode (the deck as a combination index of 8 out of all cards). Other players
        meet that deck as a GHOST rival. Scores below 2^19 are old plain-trophy scores. Kept under 2^31 for safety. */
-    const SCORE_MUL = 524288, TRO_CAP = 4094, GHOST_SIZE = 8, CARD_KEYS = Object.keys(CARDS);   // a ghost plays 8 cards of the deck (fits the score)
+    const SCORE_MUL = 524288, TRO_CAP = 4094, GHOST_SIZE = 6, CARD_KEYS = Object.keys(CARDS);   // a ghost plays 6 cards of the deck: C(cards, 6) must stay under 2^19 (fine up to 29 cards)
     function binom(n, k) { if (k < 0 || k > n) return 0; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
     function encodeDeck(deck) {
         const idx = deck.map((k) => CARD_KEYS.indexOf(k)).sort((a, b) => a - b);
@@ -2618,7 +2753,7 @@ async function run(mode) {
         const keys = out.reverse().map((i) => CARD_KEYS[i]);
         return keys.every((k) => k) && new Set(keys).size === GHOST_SIZE ? keys : null;
     }
-    function ghostCards(deck) {                    // the 8 cards a ghost brings: monsters first, then the priciest
+    function ghostCards(deck) {                    // the 6 cards a ghost brings: monsters first, then the priciest
         if (deck.length <= GHOST_SIZE) return deck;
         return deck.slice().sort((a, b) => (CARDS[b].type === 'monster') - (CARDS[a].type === 'monster') || CARDS[b].cost - CARDS[a].cost).slice(0, GHOST_SIZE);
     }
@@ -2672,7 +2807,7 @@ async function run(mode) {
     }
 
     /* ============================ MONSTER IDLE LIFE ============================ */
-    const AMBIENT = { fire: [0xff8a2b, 1.6, -1], bolt: [0xffe14d, 0.6, 0], ice: [0xbfeaff, -0.2, 0.5], grass: [0x7dff8a, 0.8, -0.5], dark: [0xb07dff, 1.2, -1], light: [0xfff2b0, 1.0, -1], creep: [0xaaff7a, 1.2, -0.6], earth: [0xd9c9a0, 0.5, 1.5] };
+    const AMBIENT = { fire: [0xff8a2b, 1.6, -1], bolt: [0xffe14d, 0.6, 0], ice: [0xbfeaff, -0.2, 0.5], grass: [0x7dff8a, 0.8, -0.5], dark: [0xb07dff, 1.2, -1], light: [0xfff2b0, 1.0, -1], creep: [0xaaff7a, 1.2, -0.6], earth: [0xd9c9a0, 0.5, 1.5], sea: [0x8fe8ff, 0.9, -0.5], coral: [0xffb3c1, 0.6, -0.3] };
     function updateMonsters(dt) {
         const all = S.p.mons.concat(S.e.mons).filter((m) => !m.dead);
         // gentle separation so free-roaming monsters never stack on top of each other

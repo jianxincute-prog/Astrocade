@@ -454,5 +454,85 @@
     "subtype": "object",
     "type": "image",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M562JCJTVEA1SBH4YW8QE4KQ_b6747874-b512-4639-a9bd-63b51462da1c_05739663-95b4-4ca2-8edd-60b26d70520d.webp"
+  },
+  "art_sponge": {
+    "animation": null,
+    "aspect_ratio": [
+      824,
+      861
+    ],
+    "compression_suggestion": "original",
+    "description": "Cute blocky voxel yellow porous sea sponge cube creature with small pore holes, two big friendly round eyes, rosy cheeks, tiny arms and legs, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Cute blocky voxel yellow porous sea sponge cube creature with small pore holes, two big friendly round eyes, rosy cheeks, tiny arms and legs, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56JDJT3140K86KQ83X4VSD0_e4535cc5-af87-4256-a447-507e5ff7dbc7_8623a9bc-14a2-4ea1-8796-ce71f586a8db.webp"
+  },
+  "art_plankton": {
+    "animation": null,
+    "aspect_ratio": [
+      738,
+      796
+    ],
+    "compression_suggestion": "original",
+    "description": "Tiny blocky voxel green plankton creature with two antennae with glowing tips, one big scheming eye, holding a small glowing zap blaster, mischievous, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Tiny blocky voxel green plankton creature with two antennae with glowing tips, one big scheming eye, holding a small glowing zap blaster, mischievous, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56JDKNYHQ5KYR2B5045RTKK_fdd5f3ea-f876-4ab3-ac87-8abd111961c9_759bf113-28f6-47b8-975d-f738df49cbd1.webp"
+  },
+  "art_squid": {
+    "animation": null,
+    "aspect_ratio": [
+      752,
+      1290
+    ],
+    "compression_suggestion": "original",
+    "description": "Grumpy blocky voxel teal squid creature with a tall dome head, half-closed unimpressed eyes, a frown and four curly tentacle legs, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Grumpy blocky voxel teal squid creature with a tall dome head, half-closed unimpressed eyes, a frown and four curly tentacle legs, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56JDMN7AH1X4384DQMW6FFA_fc7bb941-4e97-4d86-85f5-21799cf6ec4d_9a0c2831-6a7e-4dfa-bd2c-6d8bd65a30f4.webp"
+  },
+  "art_crab": {
+    "animation": null,
+    "aspect_ratio": [
+      949,
+      910
+    ],
+    "compression_suggestion": "original",
+    "description": "Giant blocky voxel titan crab with a red spiked shell, huge raised pincer claws, eyes on stalks and a fierce look, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Giant blocky voxel titan crab with a red spiked shell, huge raised pincer claws, eyes on stalks and a fierce look, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56JDNGTMQ3NEBDKMWRE7JB9_16f204ef-a1fc-43de-a042-889f4de8bf74_21b17368-b8e1-4b4c-a1c0-24d1981b57c2.webp"
+  },
+  "art_starfish": {
+    "animation": null,
+    "aspect_ratio": [
+      917,
+      940
+    ],
+    "compression_suggestion": "original",
+    "description": "Colossal blocky voxel pink-coral starfish standing upright like a big sleepy giant, five thick arms with orange speckles, calm half-closed eyes and a small smile, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Colossal blocky voxel pink-coral starfish standing upright like a big sleepy giant, five thick arms with orange speckles, calm half-closed eyes and a small smile, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56JDPJA0DG9HF9FSY86RRAM_08c17b7c-fbbd-40b2-9a13-bde231f4f494_cc5fbea3-aa86-4068-83f6-2cbc18ceb849.webp"
   }
 }
