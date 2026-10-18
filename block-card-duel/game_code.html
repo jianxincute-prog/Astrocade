@@ -2564,9 +2564,6 @@ async function run(mode) {
     function applyResult(won, draw) {
         const mul = 1 + 0.15 * arenaIndex(profile.trophies);
         const reward = draw ? { coins: Math.round(LOSS_COINS * mul * 2), trophies: 0 } : won ? { coins: Math.round(WIN_COINS * mul), trophies: WIN_TROPHIES } : { coins: Math.round(LOSS_COINS * mul), trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
-        const pool = profile.deck.filter((k) => (profile.lv[k] || 1) < LV_MAX), got = {};
-        for (let i = 0; i < (won ? 3 : 1) && pool.length; i++) { const k = pool[Math.floor(Math.random() * pool.length)]; got[k] = (got[k] || 0) + 1; addCopies(k, 1); }
-        reward.spoils = Object.keys(got).map((k) => CARDS[k].name + ' +' + got[k]).join(', ');
         if (draw) { /* a draw changes neither the streak nor the record */ } else if (won) { profile.wins++; profile.streak++; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; }
         profile.coins += reward.coins; profile.trophies = Math.max(0, profile.trophies + reward.trophies);
         saveProfile(); submitScore();
@@ -2777,7 +2774,7 @@ async function run(mode) {
     function deckInfoHTML() {
         if (dsel.key) {
             const k = dsel.key, c = CARDS[k], lv = profile.lv[k] || 1;
-            if (!profile.owned.includes(k)) return `<b>${c.name}</b> is LOCKED. Buy it in the SHOP for ${coinI}${PRICE[k]}.<br>${esc(descAt(c, 1))}`;
+            if (!profile.owned.includes(k)) return `<b>${c.name}</b> is LOCKED. Find it in a Card Chest in the SHOP.<br>${esc(descAt(c, 1))}`;
             let h = `<b>${c.name}</b> <span class="lvtxt">LEVEL ${lv}${lv >= LV_MAX ? ' (MAX)' : ''}</span><br>${esc(descAt(c, lv))}`;
             if (lv < LV_MAX) {
                 const have = profile.copies[k] || 0, need = COPIES_NEED[lv - 1], cost = COIN_NEED[lv - 1], ok = have >= need && profile.coins >= cost;
@@ -2799,7 +2796,7 @@ async function run(mode) {
             <div class="sect">COLLECTION <small>${profile.owned.length}/${all.length} cards</small></div>
             <div class="grid4">${ordered.map((k) => {
                 const o = profile.owned.includes(k), lv = profile.lv[k] || 1, have = profile.copies[k] || 0;
-                const bar = !o ? `<div class="tag">${PRICE[k]} coins</div>` : (lv >= LV_MAX ? '<div class="cbar full"><i style="width:100%"></i><b>MAX</b></div>' : `<div class="cbar ${have >= COPIES_NEED[lv - 1] ? 'ready' : ''}"><i style="width:${Math.min(100, have / COPIES_NEED[lv - 1] * 100)}%"></i><b>${have}/${COPIES_NEED[lv - 1]}</b></div>`);
+                const bar = !o ? `<div class="tag">In chests</div>` : (lv >= LV_MAX ? '<div class="cbar full"><i style="width:100%"></i><b>MAX</b></div>' : `<div class="cbar ${have >= COPIES_NEED[lv - 1] ? 'ready' : ''}"><i style="width:${Math.min(100, have / COPIES_NEED[lv - 1] * 100)}%"></i><b>${have}/${COPIES_NEED[lv - 1]}</b></div>`);
                 return `<div class="slot ${o ? '' : 'locked'} ${deck.includes(k) ? 'indeck' : ''} ${dsel.key === k ? 'pick' : ''}" data-k="${k}">${cardHTML(CARDS[k], '', undefined, lv)}${o ? '' : `<div class="lk">${LOCK}</div>`}${bar}</div>`;
             }).join('')}</div>`;
         $('pg-deck').scrollTop = keep;
@@ -2808,7 +2805,7 @@ async function run(mode) {
         const lv = profile.lv[k] || 1;
         if (lv >= LV_MAX) { toast('Already at max level!'); return; }
         const have = profile.copies[k] || 0, need = COPIES_NEED[lv - 1], cost = COIN_NEED[lv - 1];
-        if (have < need) { toast('You need ' + (need - have) + ' more copies. Win duels or open chests!'); sfx('no'); return; }
+        if (have < need) { toast('You need ' + (need - have) + ' more copies. Open chests or check the Daily Offers!'); sfx('no'); return; }
         if (profile.coins < cost) { toast('Not enough coins (' + cost + ' needed).'); sfx('no'); return; }
         profile.copies[k] = have - need; profile.coins -= cost; profile.lv[k] = lv + 1;
         saveProfile(); sfx('win'); renderTop();
@@ -2817,7 +2814,7 @@ async function run(mode) {
         renderDeck();
     }
     function placeCard(slot, key) {
-        if (!profile.owned.includes(key)) { toast(CARDS[key].name + ' is locked - buy it in the SHOP.'); sfx('no'); return; }
+        if (!profile.owned.includes(key)) { toast(CARDS[key].name + ' is locked - find it in a Card Chest!'); sfx('no'); return; }
         const deck = profile.deck.slice(), old = deck[slot], at = deck.indexOf(key);
         if (at === slot) { dsel = { slot: null, key: null }; renderDeck(); return; }
         if (at >= 0) deck[at] = old;
@@ -2847,14 +2844,16 @@ async function run(mode) {
     const dayKey = () => Math.floor(Date.now() / 86400000);
     function dailyOffers() {
         let seed = dayKey() * 9301 + 49297;
-        const arr = upgradable().sort();
+        if (Array.isArray(profile.offers.list)) return profile.offers.list.filter((k) => CARDS[k] && profile.owned.includes(k));
+        const arr = upgradable().sort();                 // only cards you already own are ever offered
         for (let i = arr.length - 1; i > 0; i--) { seed = (seed * 9301 + 49297) % 233280; const j = Math.floor(seed / 233280 * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
-        return arr.slice(0, 3);
+        profile.offers.list = arr.slice(0, 3); saveProfile();   // frozen for the day, so chests do not reshuffle it
+        return profile.offers.list.slice();
     }
     const offerPrice = (k) => Math.round(PRICE[k] * 0.4);
     function renderShop() {
-        const left = giftLeft(), locked = Object.keys(CARDS).filter((k) => !profile.owned.includes(k));
-        if (profile.offers.day !== dayKey()) profile.offers = { day: dayKey(), bought: [] };
+        const left = giftLeft();
+        if (profile.offers.day !== dayKey()) profile.offers = { day: dayKey(), bought: [], list: null };
         const afford = (n) => (profile.coins >= n ? '' : 'off');
         const offers = dailyOffers();
         $('pg-shop').innerHTML = `<div class="sect">DAILY GIFT</div>
@@ -2864,14 +2863,11 @@ async function run(mode) {
             <div class="sect">DAILY OFFERS <small>3 copies each</small></div>` + (offers.length ? offers.map((k) => {
                 const c = CARDS[k], got = profile.offers.bought.includes(k);
                 return `<div class="panel shopitem"><div class="pic">${iconSVG(c)}</div><div class="info"><b>${c.name} x3</b><br>Level ${profile.lv[k] || 1} card copies</div><button class="btn ${got ? 'grey off' : afford(offerPrice(k))}" data-offer="${k}">${got ? 'SOLD' : coinI + offerPrice(k)}</button></div>`;
-            }).join('') : '<div class="panel">Everything is maxed out!</div>') + `<div class="sect">CARDS FOR SALE</div>` + (locked.length ? locked.map((k) => {
-                const c = CARDS[k];
-                return `<div class="panel shopitem"><div class="pic">${iconSVG(c)}</div><div class="info"><b>${c.name}</b><br>${c.type === 'monster' ? 'ATK ' + c.atk + ' / HP ' + c.hp + ' | ' : ''}Energy ${c.cost}</div><button class="btn ${afford(PRICE[k])}" data-buy="${k}">${coinI}${PRICE[k]}</button></div>`;
-            }).join('') : '<div class="panel">You own every card!</div>');
+            }).join('') : '<div class="panel">Everything is maxed out!</div>') + `<div class="panel" style="color:#cfd8ff">New cards can only be found in <b>CARD CHESTS</b> and the <b>DAILY OFFERS</b> (which only offer cards you already own).</div>`;
         renderTop();
     }
     $('pg-shop').addEventListener('click', (e) => {
-        const g = e.target.closest('[data-gift]'), ch = e.target.closest('[data-chest]'), by = e.target.closest('[data-buy]'), of = e.target.closest('[data-offer]');
+        const g = e.target.closest('[data-gift]'), ch = e.target.closest('[data-chest]'), of = e.target.closest('[data-offer]');
         if (g && giftLeft() === 0) {
             profile.coins += GIFT_COINS; profile.lastGift = Date.now(); saveProfile(); sfx('heal');
             showPopup('GIFT!', null, '+' + GIFT_COINS + ' coins'); renderShop();
@@ -2894,11 +2890,6 @@ async function run(mode) {
             if (profile.coins < offerPrice(k)) { toast('Not enough coins - win duels to earn more!'); sfx('no'); return; }
             profile.coins -= offerPrice(k); profile.offers.bought.push(k); addCopies(k, 3); saveProfile(); sfx('summon');
             showPopup('COPIES!', k, esc(CARDS[k].name) + ' +3 copies'); renderShop();
-        } else if (by) {
-            const k = by.dataset.buy;
-            if (profile.coins < PRICE[k]) { toast('Not enough coins - win duels to earn more!'); sfx('no'); return; }
-            profile.coins -= PRICE[k]; addCopies(k, 1); saveProfile(); sfx('summon');
-            showPopup('CARD UNLOCKED!', k, 'Add it to your deck in the CARDS tab.'); renderShop();
         }
     });
     setInterval(() => { if (S.phase === 'menu' && curTab === 'shop') renderShop(); else if (S.phase === 'menu') renderTop(); }, 30000);
