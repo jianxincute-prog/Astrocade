@@ -2156,8 +2156,25 @@ async function run(mode) {
             } catch (e) { lb.textContent = ''; lib.log('leaderboard failed: ' + e); }
         }
     }
+    // Driving past the waiting passenger without stopping: lose points, break the combo, and a new passenger
+    // (possibly a different ghost) is placed ahead with a fresh destination.
+    function missPickup() {
+        const gt = GHOST_TYPES[route.type];
+        const penalty = Math.round(cfg.environment.pointsPerDelivery * 0.5 * (1 + Math.min(deliveries, 5) * 0.2));
+        const lost = Math.min(score, penalty);
+        score -= lost; combo = 0; flash = 0.5; shake = 0.5; busFlicker = 0.6;
+        audio.sfx('sfx_laugh', 0.7, 0.8);
+        applyRoute(pickRoute());
+        const nextPickup = bus.position.z - cfg.environment.passengerSpawnDistance;
+        setPickup(nextPickup);
+        destination.position.z = nextPickup - cfg.environment.routeLength * GHOST_TYPES[route.type].routeMult;
+        pendingDestZ = null; showBuilding(route.dest); destBay.visible = true; houseGlow = 0;
+        segments.forEach(applyClearance);
+        showMessage(gt.name + ' terlewat!' + (lost ? ' -' + lost + ' poin.' : '') + ' Penumpang baru menunggu di depan.');
+    }
     function updateRunState(dt) {
         if (phase !== 'playing') return;
+        if (!pickupDone && !onboard && !delivering && bus.position.z < ghostBase.z - PICKUP_L / 2 - 20) missPickup();
         if (onboard && !delivering && ghostState.mode !== 'boarding') {
             patience -= dt;
             const ratio = patience / patienceMax;
