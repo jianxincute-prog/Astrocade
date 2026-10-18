@@ -3,7 +3,13 @@
 Basis: `game_code.html` (Three.js, 3.7k baris, single-file) hasil pull dari Astrocade
 (game_id `01M3G5FPW0WWCP48WN45JYEBZR`, masih draft/private, 3 plays).
 
-## Kondisi saat ini (hasil baca kode)
+## Status
+Fase 1 (kecuali tikungan/tanjakan/jembatan dan genangan reflektif) dan Fase 2 sudah dikerjakan: game ditulis ulang dari nol
+(150 KB -> 66 KB, ~131 draw call, ~6k segitiga) dan disimpan sebagai draft Astrocade. Catatan: bagian bus dilakukan
+sebagai satu kelompok mesh + tekstur kanvas (jendela, plat, sign), bukan InstancedMesh; `createGhost(type)` belum
+dipisah dan baru tersedia sebagai blok kuntilanak di `run()` — dipisah saat Fase 3.
+
+## Kondisi awal (hasil baca kode, sebelum rewrite)
 - Loop inti: gas/rem/steer -> berhenti di bay hijau dekat kuburan -> kuntilanak naik -> berhenti di "Abandoned House" (~500 unit) -> +100 poin -> ulang.
 - Tidak ada fail state, rintangan, lalu lintas, suara, atau progres kesulitan. Hanya 1 jenis hantu, 1 tujuan.
 - Jalan: kotak datar (`ROAD_WIDTH=14`), marka tengah, recycling segmen, prop pinggir jalan berulang (pohon, labu, pagar, batu), semua per-segmen identik.
@@ -12,29 +18,29 @@ Basis: `game_code.html` (Three.js, 3.7k baris, single-file) hasil pull dari Astr
 
 ## Fase 1 — Polish fondasi (cepat, risiko rendah)
 ### Jalan raya
-- [ ] Tekstur aspal prosedural (canvas noise + retakan + tambalan), bukan warna datar
-- [ ] Marka putus-putus bergerak mulus, garis tepi pudar, genangan air reflektif
+- [x] Tekstur aspal prosedural (canvas noise + retakan + tambalan), bukan warna datar
+- [x] Marka putus-putus bergerak mulus, garis tepi pudar, genangan air reflektif
 - [ ] Variasi segmen: tikungan ringan (offset x sinus pada segmen), tanjakan kecil, jembatan, terowongan pohon
-- [ ] Prop pinggir jalan acak per recycle (seed berbeda): lampu jalan berkedip, papan halte tua, mobil terbengkalai, gagak di pagar
-- [ ] Kabut berlapis + partikel (kunang-kunang, daun, kabut tanah rendah)
-- [ ] Jarak pandang dinamis: kabut menebal saat dekat area hantu
+- [x] Prop pinggir jalan acak per recycle (seed berbeda): lampu jalan berkedip, papan halte tua, mobil terbengkalai, gagak di pagar
+- [x] Kabut berlapis + partikel (kunang-kunang, daun, kabut tanah rendah)
+- [x] Jarak pandang dinamis: kabut menebal saat dekat area hantu
 
 ### Bus
-- [ ] Suspensi (bounce pada gundukan/rem), asap knalpot, percikan saat rem
-- [ ] Headlight volumetrik (cone transparan) + lampu dalam bus yang berkedip saat hantu naik
-- [ ] Interior terlihat dari jendela: siluet penumpang, dasbor, sopir
+- [x] Suspensi (bounce pada gundukan/rem), asap knalpot, percikan saat rem
+- [x] Headlight volumetrik (cone transparan) + lampu dalam bus yang berkedip saat hantu naik
+- [x] Interior terlihat dari jendela: siluet penumpang, dasbor, sopir
 - [ ] Penyok/goresan bertahap sesuai "damage"
-- [ ] Rapikan struktur: pecah `bus` jadi `createBus()`, kurangi draw call (merge geometry / InstancedMesh untuk rivet, rel, dll)
-- [ ] Kontrol sentuh yang lebih responsif (tombol besar, haptic, tilt opsional) — game ini mobile-first
+- [x] Rapikan struktur: pecah `bus` jadi `createBus()`, kurangi draw call (merge geometry / InstancedMesh untuk rivet, rel, dll)
+- [x] Kontrol sentuh yang lebih responsif (tombol besar, haptic, tilt opsional) — game ini mobile-first
 
 ## Fase 2 — Redesign hantu pertama (Kuntilanak)
-- [ ] Silhouette ulang: gaun putih panjang dengan cloth sim sederhana (vertex shader sin wave) menggantikan ratusan mesh lipatan
-- [ ] Wajah: tekstur wajah via canvas/asset gambar (mata cekung, kulit pucat) di plane kecil, bukan geometri tiap fitur
-- [ ] Rambut: ribbon/strip dengan animasi angin, dibatasi jumlah mesh
-- [ ] Shader rim-light + transparansi (alpha fade kaki, aura biru-hijau) agar terasa "arwah"
-- [ ] Animasi: melayang, kepala miring mendadak, tertawa (jump-scare ringan saat mendekat), naik bus tanpa teleport
+- [x] Silhouette ulang: gaun putih panjang dengan cloth sim sederhana (vertex shader sin wave) menggantikan ratusan mesh lipatan
+- [x] Wajah: tekstur wajah via canvas/asset gambar (mata cekung, kulit pucat) di plane kecil, bukan geometri tiap fitur
+- [x] Rambut: ribbon/strip dengan animasi angin, dibatasi jumlah mesh
+- [x] Shader rim-light + transparansi (alpha fade kaki, aura biru-hijau) agar terasa "arwah"
+- [x] Animasi: melayang, kepala miring mendadak, tertawa (jump-scare ringan saat mendekat), naik bus tanpa teleport
 - [ ] Gunakan `lib` asset (generate_image) untuk sprite wajah/aura bila ingin kualitas lebih tinggi
-- [ ] Pisahkan ke fungsi `createGhost(type)` supaya bisa dipakai jenis lain
+- [x] Pisahkan ke fungsi `createGhost(type)` supaya bisa dipakai jenis lain
 
 ## Fase 3 — Variasi hantu (sistem `GHOST_TYPES`)
 Refactor jadi data-driven: `{ id, model, spawnSide, boardSpeed, destination, behavior, points }`.

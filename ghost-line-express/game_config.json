@@ -1,0 +1,23 @@
+{
+  "visual": {
+    "busColor": "#1f3d52",
+    "headlightColor": "#cdeeff",
+    "fogColor": "#22304a",
+    "ghostAuraColor": "#7fe9ff"
+  },
+  "gameplay": {
+    "maxSpeed": 0.55,
+    "accelerationRate": 0.018,
+    "brakingPower": 0.04,
+    "requiredStopSpeed": 0.08
+  },
+  "environment": {
+    "fogDensity": 100,
+    "passengerSpawnDistance": 260,
+    "routeLength": 500,
+    "pointsPerDelivery": 100
+  },
+  "locations": {
+    "destinationName": "Abandoned House"
+  }
+}
