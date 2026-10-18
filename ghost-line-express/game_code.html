@@ -1734,11 +1734,11 @@ async function run(mode) {
             transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
             vertexShader: `
                 uniform float uTime, uAmp, uH, uFlip;
-                varying vec3 vN; varying vec3 vV; varying float vT; varying vec3 vP;
+                varying vec3 vN; varying vec3 vV; varying float vT; varying vec3 vP; varying vec2 vUv;
                 #include <fog_pars_vertex>
                 void main() {
                     vec3 p = position;
-                    vP = position;
+                    vP = position; vUv = uv;
                     float t = uFlip > 0.5 ? clamp(-p.y / uH, 0.0, 1.0) : clamp(1.0 - p.y / uH, 0.0, 1.0);
                     float w = t * t;
                     float a = atan(p.z, p.x);
@@ -1754,7 +1754,7 @@ async function run(mode) {
                 }`,
             fragmentShader: `
                 uniform vec3 uColor, uRim, uGrime, uStain; uniform float uOpacity, uFade, uMode, uStainAmt, uSeed;
-                varying vec3 vN; varying vec3 vV; varying float vT; varying vec3 vP;
+                varying vec3 vN; varying vec3 vV; varying float vT; varying vec3 vP; varying vec2 vUv;
                 #include <fog_pars_fragment>
                 float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
                 float vn(vec2 p) {
@@ -1765,12 +1765,17 @@ async function run(mode) {
                     float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);
                     float ang = atan(vP.z, vP.x);
                     vec2 q = vec2(ang * 3.0 + uSeed, vP.y * 1.4);
-                    vec3 base;
+                    vec3 base; float hairA = 1.0;
                     float low = 1.0 - vT;
                     if (uMode > 0.5) {                                   // hair: many fine strands plus a soft sheen
                         float st = vn(vec2(ang * 46.0 + uSeed, vP.y * 1.1)) * 0.7 + vn(vec2(ang * 120.0, vP.y * 3.0)) * 0.3;
                         base = uColor * (0.35 + st * 1.3);
                         base += vec3(0.05, 0.05, 0.06) * pow(st, 4.0);
+                        float sl = vn(vec2(vUv.x * 70.0 + uSeed, 1.0)), sw = vn(vec2(vUv.x * 23.0, 5.0 + uSeed));
+                        float tp = 1.0 - vUv.y, ed = min(vUv.x, 1.0 - vUv.x);
+                        float len = 0.62 + sl * 0.38;
+                        if (tp > len || ed < (0.012 + tp * 0.2 * sw) * (0.5 + sl)) discard;    // ragged tips, strand-thin sides
+                        hairA = 1.0 - smoothstep(0.55, 1.0, tp / len);
                     } else {                                             // cloth: folds, dirt and stains
                         float folds = 0.5 + 0.5 * sin(ang * 15.0 + sin(vP.y * 2.6 + vn(q * 2.0) * 3.0) * 1.6);
                         float n = vn(q * 3.0) * 0.6 + vn(q * 9.0) * 0.4;
@@ -1783,7 +1788,7 @@ async function run(mode) {
                     }
                     vec3 c = base + (uMode > 0.5 ? vec3(0.0) : uRim * f * 0.55);
                     float a = mix(1.0, 1.0 - vT * 0.55, uFade) + f * 0.2;
-                    if (uMode > 0.5) a = 1.0;
+                    if (uMode > 0.5) a = hairA;
                     gl_FragColor = vec4(c, clamp(a, 0.0, 1.0) * uOpacity);
                     #include <colorspace_fragment>
                     #include <fog_fragment>
@@ -2099,8 +2104,8 @@ async function run(mode) {
         // head: sculpted ape-like skull with heavy brow, wide flat nose and a fanged maw
         const f = getFace('genderuwo');
         const head = new THREE.Group(); head.position.set(0, 4.95, 0.62); head.rotation.x = 0.22; body.add(head);
-        head.add(new THREE.Mesh(faceHeadGeo(0.8, 0.96, { jaw: 0.1, chin: 0.2, brow: 0.2, hollow: 0.02, socket: 0.14, nose: 0.14, lip: 0.06 }),
-            std({ map: f.map, bumpMap: f.bump, bumpScale: 4, emissiveMap: f.map, emissive: 0x884433, emissiveIntensity: 0.35, roughness: 0.75 })));
+        head.add(new THREE.Mesh(faceHeadGeo(0.8, 0.96, { jaw: 0.1, chin: 0.2, brow: 0.08, hollow: 0.02, socket: 0.1, nose: 0.07, lip: 0.05 }),
+            std({ map: f.map, bumpMap: f.bump, bumpScale: 1.1, emissiveMap: f.map, emissive: 0xaa5535, emissiveIntensity: 0.55, roughness: 0.75 })));
         const mane = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.25, 3.0, 30, 10, true, 0.9, Math.PI * 2 - 1.8).translate(0, -1.5, 0), shader(0x1c120d, 0.12, 3.0, true, false, 0xff3a2a, { mode: 1 }));
         mane.position.y = 0.55; mane.renderOrder = 2; head.add(mane);
         const hl = [];
