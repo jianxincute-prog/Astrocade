@@ -2534,9 +2534,9 @@ async function run(mode) {
         // During the delivery ceremony the camera drifts toward the house so the exit is in frame
         camFocus = lerp(camFocus, delivering ? -3 : 0, 1 - Math.exp(-2.5 * dt));
         camera.position.x = lerp(camera.position.x, bus.position.x * 0.92 + camFocus * 0.6, blend);
-        camera.position.y = lerp(camera.position.y, bus.position.y + 6.3 + Math.sin(time * 31) * 0.012 * sp, blend);
+        camera.position.y = lerp(camera.position.y, bus.position.y + 7.6 + Math.sin(time * 31) * 0.012 * sp, blend);
         camera.position.z = lerp(camera.position.z, bus.position.z + 18 + sp * 1.0, blend);
-        camera.lookAt(bus.position.x + (bus.userData.steer || 0) * 3 + camFocus, bus.position.y + 0.9, bus.position.z - 32);
+        camera.lookAt(bus.position.x + (bus.userData.steer || 0) * 3 + camFocus, bus.position.y + 0.9, bus.position.z - 25);
         const fov = 56 + sp * 6;
         if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = lerp(camera.fov, fov, 0.1); camera.updateProjectionMatrix(); }
         if (shake > 0) {
