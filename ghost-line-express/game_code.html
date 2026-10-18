@@ -1169,77 +1169,136 @@ async function run(mode) {
     const tailMat = new THREE.MeshBasicMaterial({ color: 0x7a0e0e });
     const tailGlow = new THREE.SpriteMaterial({ map: glowTex, color: 0xff2a2a, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending });
 
-    // Passenger silhouettes drawn inside a 100-unit-tall box (origin at the feet, y up is negative)
+    // Passengers seen through the bus glass: the painted HD faces are cropped, feathered and set into hair, cloth and
+    // shadow, then the glass itself (haze, condensation, cracks, a smeared handprint) is laid on top.
+    const portraitBuf = document.createElement('canvas'); portraitBuf.width = portraitBuf.height = 160;
+    function portrait(g, key, cx, cy, pw, ph, crop) {
+        const src = getFace(key).canvas, c = crop || [60, 80, 392, 380], b = portraitBuf.getContext('2d');
+        b.globalCompositeOperation = 'source-over'; b.clearRect(0, 0, 160, 160);
+        b.drawImage(src, c[0], c[1], c[2], c[3], 0, 0, 160, 160);
+        const m = b.createRadialGradient(80, 80, 40, 80, 80, 80);
+        m.addColorStop(0, '#000'); m.addColorStop(0.72, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
+        b.globalCompositeOperation = 'destination-in'; b.fillStyle = m; b.fillRect(0, 0, 160, 160);
+        g.drawImage(portraitBuf, cx - pw / 2, cy - ph / 2, pw, ph);
+    }
+    function strands(g, x0, y0, x1, y1, n, len, col, wid) {            // hair-like strokes hanging from a band
+        for (let i = 0; i < n; i++) {
+            const x = lerp(x0, x1, Math.random()), y = lerp(y0, y1, Math.random()), l = len * rand(0.6, 1.2);
+            g.strokeStyle = col(); g.lineWidth = wid * rand(0.6, 1.4);
+            g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + rand(-4, 4), y + l * 0.5, x + rand(-7, 7), y + l); g.stroke();
+        }
+    }
+    // Draws one passenger inside a 100-unit-tall box: origin at the feet, head near y = -66
     function drawFigure(g, kind, cx, floorY, size) {
         g.save();
         g.translate(cx, floorY); g.scale(size / 100, size / 100);
         const ell = (x, y, rx, ry) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); };
-        const tri = (a, b, c, d, e, f) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.lineTo(e, f); g.closePath(); g.fill(); };
+        const dark = () => rgba(rand(2, 14), rand(2, 14), rand(4, 16), rand(0.6, 1));
         if (kind === 'kuntilanak') {
-            g.fillStyle = '#05060a'; g.fillRect(-23, -74, 46, 74);
-            g.fillStyle = '#e8f1ee'; ell(0, -64, 14, 19);
-            g.fillStyle = '#05060a'; ell(0, -78, 19, 13); ell(-6, -62, 3.5, 5); ell(6, -62, 3.5, 5);
-            g.fillStyle = '#ff4040'; g.fillRect(-7, -63, 2, 3); g.fillRect(5, -63, 2, 3);
+            g.fillStyle = '#d8dcd8'; g.beginPath(); g.moveTo(-26, 0); g.lineTo(-18, -44); g.lineTo(18, -44); g.lineTo(26, 0); g.fill();     // dress
+            g.fillStyle = 'rgba(120,10,10,.45)'; ell(-8, -22, 4, 12); ell(10, -14, 3, 8);
+            g.fillStyle = '#050609'; g.beginPath(); g.moveTo(-26, 0); g.lineTo(-30, -62); g.quadraticCurveTo(0, -102, 30, -62); g.lineTo(26, 0); g.lineTo(18, 0); g.lineTo(14, -52); g.lineTo(-14, -52); g.lineTo(-18, 0); g.fill();
+            portrait(g, 'kuntilanak', 0, -62, 42, 42);
+            g.fillStyle = '#050609'; g.beginPath(); g.moveTo(-19, -82); g.quadraticCurveTo(0, -96, 19, -82); g.lineTo(18, -70); g.quadraticCurveTo(0, -78, -18, -70); g.fill();
+            strands(g, -18, -78, 18, -72, 18, 14, dark, 0.6);
+            strands(g, -22, -72, -15, -52, 10, 40, dark, 0.7); strands(g, 15, -72, 22, -52, 10, 40, dark, 0.7);
         } else if (kind === 'pocong') {
-            g.fillStyle = '#e9e6da'; g.beginPath(); g.moveTo(-17, 0); g.lineTo(17, 0); g.lineTo(14, -50); g.lineTo(-14, -50); g.fill();
-            ell(0, -68, 15, 22); tri(-5, -86, 0, -99, 5, -86);
-            g.fillStyle = '#9a968a'; g.fillRect(-15, -48, 30, 3); g.fillRect(-12, -88, 24, 2);
-            g.fillStyle = '#000'; g.fillRect(-9, -72, 6, 9); g.fillRect(3, -72, 6, 9);
-            g.fillStyle = '#ff4040'; g.fillRect(-7, -69, 2, 2); g.fillRect(5, -69, 2, 2);
+            g.fillStyle = '#cfc9b4'; g.beginPath(); g.moveTo(-16, 0); g.lineTo(16, 0); g.lineTo(13, -52); g.lineTo(-13, -52); g.fill();
+            g.strokeStyle = 'rgba(70,56,36,.5)'; g.lineWidth = 0.8; for (let i = -12; i <= 12; i += 5) { g.beginPath(); g.moveTo(i, -2); g.lineTo(i * 0.8, -50); g.stroke(); }
+            g.fillStyle = 'rgba(100,60,20,.35)'; ell(-6, -22, 5, 9); ell(8, -34, 4, 7);
+            g.fillStyle = '#b8b29c'; ell(0, -70, 19, 25); g.beginPath(); g.moveTo(-6, -92); g.lineTo(0, -104); g.lineTo(6, -92); g.fill();    // hood and knot
+            portrait(g, 'pocong', 0, -68, 38, 44, [104, 64, 304, 372]);
+            g.strokeStyle = '#7e7762'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-11, -52); g.lineTo(11, -52); g.moveTo(-9, -91); g.lineTo(9, -91); g.stroke();
         } else if (kind === 'tuyul') {
-            g.fillStyle = '#8fae7e'; ell(0, -50, 16, 15); ell(0, -24, 11, 16);
-            tri(-14, -56, -31, -66, -14, -46); tri(14, -56, 31, -66, 14, -46);
-            g.fillStyle = '#ffe94a'; ell(-6, -52, 4.5, 4.5); ell(6, -52, 4.5, 4.5);
-            g.fillStyle = '#000'; g.fillRect(-6.5, -55, 1.5, 6); g.fillRect(5, -55, 1.5, 6);
-            g.fillStyle = '#f4f0e0'; g.fillRect(-7, -42, 14, 2);
+            const sk = g.createLinearGradient(0, -70, 0, -20); sk.addColorStop(0, '#7f9c6c'); sk.addColorStop(1, '#4f6a46');
+            g.fillStyle = sk; ell(0, -26, 12, 18);
+            g.beginPath(); g.moveTo(-14, -58); g.lineTo(-36, -70); g.lineTo(-15, -44); g.fill(); g.beginPath(); g.moveTo(14, -58); g.lineTo(36, -70); g.lineTo(15, -44); g.fill();
+            g.fillStyle = sk; ell(0, -54, 19, 20);
+            portrait(g, 'tuyul', 0, -53, 42, 44);
         } else if (kind === 'anak') {
-            [[-26, 62], [0, 58], [26, 66]].forEach(([x, hgt]) => {
-                g.fillStyle = '#d6dcd4'; ell(x, -hgt + 10, 9, 10); g.fillRect(x - 6, -hgt + 58, 4, hgt - 58); g.fillRect(x + 2, -hgt + 58, 4, hgt - 58);
-                g.fillStyle = '#e8e8e0'; g.fillRect(x - 8, -hgt + 20, 16, 24);
-                g.fillStyle = '#a02020'; g.fillRect(x - 9, -hgt + 44, 18, 14);
-                g.fillStyle = '#05060a'; g.beginPath(); g.ellipse(x, -hgt + 7, 9.5, 7, 0, Math.PI, 0); g.fill();
-                g.fillRect(x - 5, -hgt + 8, 3, 4); g.fillRect(x + 2, -hgt + 8, 3, 4);
+            [[-27, 6, 'anakBoy', 56], [0, 0, 'anakGirl', 62], [27, 8, 'anakBoy', 54]].forEach(([x, dy, key, hgt], i) => {
+                g.fillStyle = '#b9c0bf'; g.fillRect(x - 8, -hgt + 26 + dy, 16, hgt - 26);
+                g.fillStyle = '#7a1818'; g.fillRect(x - 8, -hgt + 46 + dy, 16, hgt - 46);
+                g.fillStyle = '#05060a'; ell(x, -hgt + 12 + dy, 12, 13);
+                portrait(g, key, x, -hgt + 15 + dy, 22, 22);
+                g.fillStyle = '#05060a'; g.beginPath(); g.ellipse(x, -hgt + 6 + dy, 12, 6, 0, Math.PI, 0); g.fill();
+                if (key === 'anakGirl') { strands(g, x - 12, -hgt + 8 + dy, x - 9, -hgt + 12 + dy, 6, 24, dark, 1); strands(g, x + 9, -hgt + 8 + dy, x + 12, -hgt + 12 + dy, 6, 24, dark, 1); }
             });
         } else if (kind === 'wewe') {
-            g.fillStyle = '#5c5c66'; ell(0, -62, 25, 32);
-            g.fillStyle = '#2a201c'; ell(0, -30, 26, 34);
-            g.fillStyle = '#a99d88'; ell(0, -62, 13, 17);
-            g.fillStyle = '#ffe050'; g.fillRect(-8, -65, 5, 4); g.fillRect(3, -65, 5, 4);
-            g.fillStyle = '#6a5a48'; ell(-21, -30, 10, 8);
-            g.fillStyle = '#ffa0d8'; ell(-21, -35, 3.5, 3.5);
+            g.fillStyle = '#2c2420'; ell(0, -26, 26, 30);
+            g.fillStyle = '#6c6c74'; g.beginPath(); g.moveTo(-34, 0); g.lineTo(-30, -70); g.quadraticCurveTo(0, -108, 30, -70); g.lineTo(34, 0); g.lineTo(24, 0); g.lineTo(18, -52); g.lineTo(-18, -52); g.lineTo(-24, 0); g.fill();
+            g.fillStyle = '#8b8d96'; strands(g, -30, -78, 30, -78, 60, 70, () => { const v = rand(120, 200); return rgba(v, v, v + 8, rand(0.4, 0.85)); }, 0.8);
+            portrait(g, 'wewe', 0, -64, 42, 40);
+            g.fillStyle = 'rgba(138,140,150,.9)'; g.beginPath(); g.moveTo(-20, -84); g.quadraticCurveTo(0, -96, 20, -84); g.lineTo(19, -76); g.quadraticCurveTo(0, -84, -19, -76); g.fill();
+            strands(g, -20, -80, 20, -78, 22, 14, () => { const v = rand(130, 200); return rgba(v, v, v + 8, 0.8); }, 0.8);
         } else {
-            g.fillStyle = '#0c0a09'; ell(0, -36, 33, 38); ell(0, -80, 21, 19); ell(-30, -48, 11, 22); ell(30, -48, 11, 22);
-            g.fillStyle = '#ff2a1a'; g.fillRect(-13, -84, 8, 5); g.fillRect(5, -84, 8, 5);
-            g.fillStyle = '#f4f0e0'; tri(-9, -70, -6, -58, -3, -70); tri(3, -70, 6, -58, 9, -70);
+            g.fillStyle = '#1a110c'; ell(0, -34, 36, 40); ell(-31, -46, 10, 26); ell(31, -46, 10, 26);
+            strands(g, -34, -70, 34, -20, 80, 22, () => rgba(rand(60, 110), rand(36, 66), rand(24, 42), rand(0.4, 0.9)), 1);
+            g.fillStyle = '#1a110c'; ell(0, -78, 24, 22);
+            portrait(g, 'genderuwo', 0, -76, 46, 42, [40, 60, 432, 420]);
+            const rg = g.createRadialGradient(0, -78, 2, 0, -78, 22); rg.addColorStop(0, 'rgba(255,50,30,.35)'); rg.addColorStop(1, 'rgba(255,50,30,0)');
+            g.fillStyle = rg; g.fillRect(-24, -100, 48, 44);
+            strands(g, -22, -98, 22, -94, 22, 12, () => rgba(rand(30, 70), rand(18, 40), rand(10, 24), 0.9), 1.1);
         }
         g.restore();
     }
+    // The glass over a passenger: dim, haze at the bottom, condensation, a crack and a handprint
+    function glassFx(g, x, y, w, h, kind) {
+        g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+        g.fillStyle = 'rgba(4,8,12,.2)'; g.fillRect(x, y, w, h);
+        const hz = g.createLinearGradient(0, y, 0, y + h); hz.addColorStop(0, 'rgba(150,190,200,.10)'); hz.addColorStop(0.5, 'rgba(120,160,170,.04)'); hz.addColorStop(1, 'rgba(160,200,210,.22)');
+        g.fillStyle = hz; g.fillRect(x, y, w, h);
+        for (let i = 0; i < w * h / 320; i++) {                                                  // condensation beads
+            const px = x + rand(0, w), py = y + rand(0, h), r = rand(0.5, 1.7);
+            g.fillStyle = rgba(190, 220, 230, rand(0.06, 0.18)); g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+            if (Math.random() < 0.12) { g.strokeStyle = rgba(190, 220, 230, 0.08); g.lineWidth = 0.8; g.beginPath(); g.moveTo(px, py); g.lineTo(px + rand(-1, 1), py + rand(4, 14)); g.stroke(); }
+        }
+        g.strokeStyle = 'rgba(210,230,235,.35)'; g.lineWidth = 0.9;                              // hairline crack
+        const cx0 = x + w * rand(0.1, 0.3), cy0 = y; g.beginPath(); g.moveTo(cx0, cy0);
+        for (let i = 1; i <= 5; i++) g.lineTo(cx0 + rand(-6, 14) * i * 0.6, cy0 + (h * i) / 5.5);
+        g.stroke();
+        if (kind === 'kuntilanak' || kind === 'anak' || kind === 'wewe') {                       // a pale hand pressed on the glass
+            g.fillStyle = 'rgba(210,225,230,.20)'; const hx = x + w * 0.78, hy = y + h * 0.7;
+            g.beginPath(); g.ellipse(hx, hy, w * 0.045, h * 0.1, 0, 0, 7); g.fill();
+            for (let k = -2; k <= 2; k++) { g.beginPath(); g.ellipse(hx + k * w * 0.02, hy - h * 0.14 - Math.abs(k) * -2, w * 0.01, h * 0.07, k * 0.1, 0, 7); g.fill(); }
+        }
+        const vg = g.createRadialGradient(x + w / 2, y + h / 2, h * 0.3, x + w / 2, y + h / 2, w * 0.7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
+        g.fillStyle = vg; g.fillRect(x, y, w, h);
+        g.restore();
+    }
     function drawWindows(kind) {
-        return canvasTex(1024, 160, (g, w, h) => {
-            const n = 5, gap = 22, ww = (w - gap * (n + 1)) / n;
+        return canvasTex(2048, 320, (g) => {
+            g.scale(2, 2);
+            const w = 1024, h = 160, n = 5, gap = 22, ww = (w - gap * (n + 1)) / n;
             for (let i = 0; i < n; i++) {
                 const x = gap + i * (ww + gap);
                 const gr = g.createLinearGradient(0, 0, 0, h);
-                gr.addColorStop(0, '#1b2f38'); gr.addColorStop(1, '#31524a');
+                gr.addColorStop(0, '#162a33'); gr.addColorStop(1, '#2a4a43');
                 g.fillStyle = gr; g.fillRect(x, 10, ww, h - 20);
                 g.fillStyle = 'rgba(8,10,14,.85)';
                 g.fillRect(x + ww * 0.1, 90, ww * 0.35, 60);                 // seat backs
                 g.fillRect(x + ww * 0.55, 90, ww * 0.35, 60);
                 if (kind && i === 3) {
                     g.save(); g.beginPath(); g.rect(x, 10, ww, h - 20); g.clip();
-                    drawFigure(g, kind, x + ww / 2, h - 10, 118); g.restore();
+                    drawFigure(g, kind, x + ww / 2, h - 8, 126); g.restore();
+                    glassFx(g, x, 10, ww, h - 20, kind);
                 }
                 g.strokeStyle = '#0b0f14'; g.lineWidth = 7; g.strokeRect(x, 10, ww, h - 20);
             }
         });
     }
     function drawRear(kind) {
-        return canvasTex(256, 128, (g, w, h) => {
+        return canvasTex(512, 256, (g) => {
+            g.scale(2, 2);
+            const w = 256, h = 128;
             const gr = g.createLinearGradient(0, 0, 0, h);
-            gr.addColorStop(0, '#17303a'); gr.addColorStop(1, '#2e5249');
+            gr.addColorStop(0, '#142a33'); gr.addColorStop(1, '#2a4a43');
             g.fillStyle = gr; g.fillRect(0, 0, w, h);
             g.fillStyle = 'rgba(8,10,14,.85)'; g.fillRect(24, 80, 80, 48); g.fillRect(152, 80, 80, 48);
-            if (kind) { g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip(); drawFigure(g, kind, 128, h, 112); g.restore(); }
+            if (kind) {
+                g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip(); drawFigure(g, kind, 128, h + 4, 118); g.restore();
+                glassFx(g, 0, 0, w, h, kind);
+            }
             g.strokeStyle = '#0b0f14'; g.lineWidth = 8; g.strokeRect(0, 0, w, h);
         });
     }
@@ -1386,19 +1445,300 @@ async function run(mode) {
         const d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
         return a + d * t;
     }
-    function ghostMaterial(color, amp, h, flip, fade, rim) {
+    // ------------------------------------------------------------------
+    // GHOST FACES (HD): every face is hand-painted onto a 512x512 colour map plus a matching relief (bump) map and
+    // wrapped on a sculpted head (jaw, brow, eye sockets, nose, cheeks), so lighting shows real depth. The same
+    // paintings are reused as portraits in the bus windows.
+    // ------------------------------------------------------------------
+    const rgba = (r, g, b, a) => 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+    function mergeGeos(list) {
+        const pos = [], nor = [], uv = [], idx = []; let off = 0;
+        list.forEach((p) => {
+            pos.push(...p.attributes.position.array); nor.push(...p.attributes.normal.array);
+            uv.push(...(p.attributes.uv ? p.attributes.uv.array : new Float32Array(p.attributes.position.count * 2)));
+            const ix = p.index ? Array.from(p.index.array) : Array.from({ length: p.attributes.position.count }, (_, i) => i);
+            ix.forEach((i) => idx.push(i + off)); off += p.attributes.position.count;
+        });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+        return g;
+    }
+    // Sculpted head: a sphere pushed into a skull shape. UVs are projected flat so the whole 512px face lands on the front.
+    function faceHeadGeo(R, sy, o) {
+        o = Object.assign({ jaw: 0.28, chin: 0.1, brow: 0.07, hollow: 0.05, socket: 0.1, nose: 0.1, lip: 0.04 }, o || {});
+        const g = new THREE.SphereGeometry(R, 56, 44), pos = g.attributes.position, uv = g.attributes.uv;
+        for (let i = 0; i < pos.count; i++) {
+            let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+            uv.setXY(i, 0.5 + x / (2 * R), 0.5 + y / (2 * R));
+            const nx = x / R, ny = y / R, front = smoothstep(0.0, 0.55, z / R);
+            if (ny < 0) { const k = 1 - o.jaw * ny * ny; x *= k; z *= k; }
+            z += front * o.brow * R * Math.exp(-Math.pow((ny - 0.2) / 0.1, 2));
+            z -= front * o.hollow * R * Math.exp(-Math.pow((Math.abs(nx) - 0.55) / 0.2, 2) - Math.pow((ny + 0.25) / 0.25, 2));
+            [-1, 1].forEach((s) => { z -= front * o.socket * R * Math.exp(-(Math.pow((nx - s * 0.34) / 0.17, 2) + Math.pow((ny - 0.08) / 0.1, 2))); });
+            z += front * o.nose * R * Math.exp(-(Math.pow(nx / 0.09, 2) + Math.pow((ny + 0.12) / 0.2, 2)));
+            z -= front * o.lip * R * Math.exp(-(Math.pow(nx / 0.3, 2) + Math.pow((ny + 0.38) / 0.04, 2)));
+            if (ny < -0.5) z += front * o.chin * R * smoothstep(-0.5, -0.8, ny);
+            pos.setXYZ(i, x, y * sy, z);
+        }
+        g.computeVertexNormals();
+        return g;
+    }
+    // painting primitives (g = colour canvas, h = relief canvas: mid-grey flat, dark recessed, light raised)
+    function soft(g, x, y, rx, ry, r, gr, b, a) {
+        g.save(); g.translate(x, y); g.scale(rx, ry);
+        const grd = g.createRadialGradient(0, 0, 0, 0, 0, 1); grd.addColorStop(0, rgba(r, gr, b, a)); grd.addColorStop(1, rgba(r, gr, b, 0));
+        g.fillStyle = grd; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+    }
+    const dent = (h, x, y, rx, ry, d) => soft(h, x, y, rx, ry, 0, 0, 0, d);
+    const raise = (h, x, y, rx, ry, a) => soft(h, x, y, rx, ry, 255, 255, 255, a);
+    function speckle(g, S, n, a1, a2) {
+        for (let i = 0; i < n; i++) {
+            g.fillStyle = Math.random() < 0.5 ? rgba(0, 0, 0, rand(0.02, a1)) : rgba(255, 255, 255, rand(0.02, a2));
+            g.fillRect(rand(0, S), rand(0, S), rand(1, 2.4), rand(1, 2.4));
+        }
+    }
+    function veins(g, x, y, ang, len, w, col, depth) {
+        if (depth <= 0 || len < 8) return;
+        const pts = [[x, y]]; let a = ang, px = x, py = y; const branches = [];
+        for (let i = 0; i < Math.ceil(len / 9); i++) {
+            a += rand(-0.5, 0.5); px += Math.cos(a) * 9; py += Math.sin(a) * 9; pts.push([px, py]);
+            if (Math.random() < 0.28) branches.push([px, py, a + rand(-1.1, 1.1)]);
+        }
+        g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+        pts.forEach((p) => g.lineTo(p[0], p[1])); g.stroke();
+        branches.forEach((b) => veins(g, b[0], b[1], b[2], len * 0.55, w * 0.7, col, depth - 1));
+    }
+    function fillSkin(g, h, S, c1, c2, c3) {
+        const gr = g.createLinearGradient(0, 0, 0, S); gr.addColorStop(0, c1); gr.addColorStop(0.55, c2); gr.addColorStop(1, c3);
+        g.fillStyle = gr; g.fillRect(0, 0, S, S); h.fillStyle = '#808080'; h.fillRect(0, 0, S, S);
+    }
+    function vignette(g, S, a) {
+        const grd = g.createRadialGradient(S / 2, S * 0.5, S * 0.28, S / 2, S * 0.5, S * 0.75);
+        grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, rgba(0, 0, 0, a)); g.fillStyle = grd; g.fillRect(0, 0, S, S);
+    }
+    // an open mouth with irregular teeth (upper hang down, lower point up), lips and cracks
+    function mouth(g, h, cx, cy, hw, open, smile, o) {
+        const yU = (t) => cy - open * 0.15 * (1 - t * t) - smile * t * t, yL = (t) => cy + open * (1 - t * t) - smile * t * t;
+        g.fillStyle = o.cavity || '#12050a'; g.beginPath();
+        for (let i = 0; i <= 24; i++) { const t = -1 + i / 12; if (i === 0) g.moveTo(cx + t * hw, yU(t)); else g.lineTo(cx + t * hw, yU(t)); }
+        for (let i = 24; i >= 0; i--) g.lineTo(cx + (-1 + i / 12) * hw, yL(-1 + i / 12));
+        g.fill();
+        soft(g, cx, cy + open * 0.5, hw * 0.8, open * 0.5, 60, 10, 14, 0.5);                              // red-black depth
+        h.fillStyle = 'rgba(0,0,0,.85)'; h.beginPath(); for (let i = 0; i <= 24; i++) { const t = -1 + i / 12; h.lineTo(cx + t * hw, yU(t)); } for (let i = 24; i >= 0; i--) h.lineTo(cx + (-1 + i / 12) * hw, yL(-1 + i / 12)); h.fill();
+        const n = Math.round(hw / 9);
+        for (let side = 0; side < 2; side++) {
+            for (let i = -n; i <= n; i++) {
+                if (Math.random() < (o.missing || 0.1)) continue;
+                const t = i / n * 0.92, x = cx + t * hw, w = hw / n * 0.82, len = rand(o.tmin || 9, o.tmax || 16) * (1 - 0.35 * t * t) * (side ? 0.85 : 1);
+                const y0 = side ? yL(t) : yU(t), dir = side ? -1 : 1;
+                const gr = g.createLinearGradient(0, y0, 0, y0 + dir * len); gr.addColorStop(0, o.tooth0 || '#a89f84'); gr.addColorStop(1, o.tooth1 || '#e2dcc4');
+                g.fillStyle = gr; g.beginPath(); g.moveTo(x - w / 2, y0); g.lineTo(x + w / 2, y0); g.lineTo(x + (o.fang ? 0 : rand(-1, 1)) , y0 + dir * len); g.closePath(); g.fill();
+                g.fillStyle = rgba(60, 40, 10, rand(0.1, 0.35)); g.fillRect(x - w / 2, y0 + dir * len * 0.4, w, len * 0.4 * dir > 0 ? len * 0.3 : -len * 0.3);
+                raise(h, x, y0 + dir * len * 0.4, w * 0.6, len * 0.5, 0.7);
+            }
+        }
+        g.strokeStyle = o.lip || 'rgba(70,40,70,.9)'; g.lineWidth = o.lipW || 4; g.lineCap = 'round';
+        [yU, yL].forEach((fn) => { g.beginPath(); for (let i = 0; i <= 24; i++) { const t = -1 + i / 12; (i ? g.lineTo : g.moveTo).call(g, cx + t * hw, fn(t)); } g.stroke(); });
+        for (let i = 0; i < 7; i++) { const x = cx + rand(-hw, hw); g.strokeStyle = 'rgba(40,10,16,.6)'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(x, cy + rand(-open, open) * 0.7 - 6); g.lineTo(x + rand(-3, 3), cy + rand(-open, open) * 0.7 + 8); g.stroke(); }  // cracked lips
+    }
+    function eyeSocket(g, h, x, y, rx, ry, bruise) {
+        soft(g, x, y + 4, rx * 1.3, ry * 1.3, bruise[0], bruise[1], bruise[2], 0.6);
+        soft(g, x, y + 2, rx, ry, 8, 5, 10, 0.95);
+        dent(h, x, y + 2, rx * 1.1, ry * 1.15, 0.95);
+    }
+    function noseShade(g, h) {
+        soft(g, 256, 262, 30, 62, 110, 120, 125, 0.22); raise(h, 256, 270, 16, 52, 0.5);
+        [238, 274].forEach((x) => { soft(g, x, 306, 11, 7, 10, 6, 8, 0.92); dent(h, x, 306, 13, 9, 0.8); });
+        soft(g, 214, 300, 14, 22, 30, 30, 40, 0.18); soft(g, 298, 300, 14, 22, 30, 30, 40, 0.18);
+    }
+
+    const FACE_DEFS = {};
+    FACE_DEFS.kuntilanak = (g, h, S) => {
+        fillSkin(g, h, S, '#d3dad5', '#bcc6c3', '#9ca8aa');
+        soft(g, 256, 140, 170, 90, 215, 222, 218, 0.28);
+        soft(g, 90, 230, 70, 120, 50, 70, 105, 0.42); soft(g, 422, 230, 70, 120, 50, 70, 105, 0.42);
+        soft(g, 150, 335, 60, 50, 95, 60, 95, 0.32); soft(g, 362, 335, 60, 50, 95, 60, 95, 0.32);
+        speckle(g, S, 9000, 0.12, 0.08);
+        veins(g, 120, 200, 3.5, 100, 2, rgba(70, 95, 140, 0.55), 3); veins(g, 392, 200, -0.3, 100, 2, rgba(70, 95, 140, 0.55), 3); veins(g, 256, 130, 1.57, 70, 1.6, rgba(80, 100, 140, 0.4), 3);
+        [172, 340].forEach((x) => {
+            const s = x < 256 ? -1 : 1;
+            eyeSocket(g, h, x, 236, 54, 36, [70, 38, 68]);
+            g.fillStyle = '#040305'; g.beginPath(); g.ellipse(x, 239, 31, 18, 0, 0, 7); g.fill();               // glossy black void eye
+            soft(g, x - 9, 232, 13, 8, 205, 220, 255, 0.9);                                                   // wet glint
+            g.fillStyle = 'rgba(200,30,40,.85)'; g.beginPath(); g.arc(x + s * 8, 243, 3.2, 0, 7); g.fill();
+            veins(g, x + s * 30, 252, s > 0 ? 0.6 : 2.5, 55, 1.3, rgba(140, 30, 45, 0.55), 2);
+            const grd = g.createLinearGradient(0, 258, 0, 400); grd.addColorStop(0, rgba(105, 8, 16, 0.8)); grd.addColorStop(1, rgba(105, 8, 16, 0));
+            g.strokeStyle = grd; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(x + s * 6, 258); g.quadraticCurveTo(x + s * 18, 320, x + s * 8, 410); g.stroke();   // blood tear
+        });
+        soft(g, 256, 206, 150, 14, 30, 22, 30, 0.35); raise(h, 256, 206, 150, 14, 0.5);
+        noseShade(g, h);
+        mouth(g, h, 256, 352, 78, 34, 12, { lip: 'rgba(80,40,80,.9)', missing: 0.12 });
+        soft(g, 256, 420, 60, 30, 70, 8, 14, 0.25);                                                           // dried blood on the chin
+        vignette(g, S, 0.55);
+    };
+    FACE_DEFS.pocong = (g, h, S) => {
+        const cloth = g.createLinearGradient(0, 0, 0, S); cloth.addColorStop(0, '#dcd6c4'); cloth.addColorStop(1, '#bcb6a2'); g.fillStyle = cloth; g.fillRect(0, 0, S, S);
+        h.fillStyle = '#808080'; h.fillRect(0, 0, S, S);
+        for (let i = 0; i < 70; i++) {                                                                       // wrinkles and folds radiating from the opening
+            const a = rand(0, 6.283), r0 = rand(150, 200), x = 256 + Math.cos(a) * r0, y = 262 + Math.sin(a) * r0 * 1.25;
+            g.strokeStyle = rgba(60, 50, 30, rand(0.08, 0.22)); g.lineWidth = rand(1, 3); g.beginPath(); g.moveTo(x, y);
+            g.quadraticCurveTo(x + Math.cos(a) * 40 + rand(-12, 12), y + Math.sin(a) * 50, x + Math.cos(a) * 90, y + Math.sin(a) * 110); g.stroke();
+            h.strokeStyle = i % 2 ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.3)'; h.lineWidth = 3; h.beginPath(); h.moveTo(x, y); h.lineTo(x + Math.cos(a) * 80, y + Math.sin(a) * 100); h.stroke();
+        }
+        [[90, 120, 40, 70], [420, 150, 50, 80], [120, 430, 70, 50], [400, 420, 60, 60]].forEach(([x, y, rx, ry]) => soft(g, x, y, rx, ry, 110, 70, 40, 0.45));   // rust and earth stains
+        speckle(g, S, 5000, 0.12, 0.05);
+        g.save(); g.beginPath(); g.ellipse(256, 262, 146, 188, 0, 0, 7); g.clip();                           // the opening: sunken, grey-green face
+        const sk = g.createLinearGradient(0, 80, 0, 440); sk.addColorStop(0, '#9ea898'); sk.addColorStop(1, '#7d8a7e'); g.fillStyle = sk; g.fillRect(100, 60, 320, 400);
+        soft(g, 256, 150, 120, 70, 190, 196, 180, 0.3); speckle(g, S, 5000, 0.18, 0.06);
+        soft(g, 110, 260, 60, 150, 40, 60, 60, 0.5); soft(g, 402, 260, 60, 150, 40, 60, 60, 0.5);
+        [172, 340].forEach((x) => {
+            const s = x < 256 ? -1 : 1;
+            eyeSocket(g, h, x, 236, 50, 34, [50, 50, 40]);
+            g.fillStyle = '#c9c7b0'; g.beginPath(); g.ellipse(x, 238, 24, 12, 0, 0, 7); g.fill();            // milky dead eye
+            g.fillStyle = '#6a6a58'; g.beginPath(); g.arc(x + s * 4, 238, 8, 0, 7); g.fill(); g.fillStyle = '#050505'; g.beginPath(); g.arc(x + s * 4, 238, 4, 0, 7); g.fill();
+            veins(g, x, 238, s > 0 ? 0 : 3.14, 30, 1.2, rgba(150, 50, 50, 0.6), 2); soft(g, x - 6, 234, 8, 5, 255, 255, 255, 0.5);
+        });
+        noseShade(g, h); soft(g, 256, 306, 22, 14, 30, 20, 20, 0.4);
+        mouth(g, h, 256, 356, 62, 30, -4, { lip: 'rgba(40,40,30,.9)', tooth0: '#8a8466', tooth1: '#c9c3a0', missing: 0.2, cavity: '#0a0808' });
+        g.restore();
+        g.strokeStyle = 'rgba(30,24,16,.7)'; g.lineWidth = 10; g.beginPath(); g.ellipse(256, 262, 146, 188, 0, 0, 7); g.stroke();   // hood edge shadow
+        soft(g, 256, 262, 170, 210, 20, 16, 10, 0.0);
+        vignette(g, S, 0.45);
+    };
+    FACE_DEFS.tuyul = (g, h, S) => {
+        fillSkin(g, h, S, '#9fbd8c', '#82a272', '#6a8a5c');
+        soft(g, 256, 150, 160, 80, 190, 215, 160, 0.3); soft(g, 96, 260, 60, 100, 40, 70, 50, 0.4); soft(g, 416, 260, 60, 100, 40, 70, 50, 0.4);
+        speckle(g, S, 8000, 0.14, 0.09);
+        veins(g, 256, 90, 1.57, 70, 2, rgba(60, 110, 90, 0.5), 3); veins(g, 150, 120, 2.4, 70, 1.6, rgba(60, 110, 90, 0.4), 3); veins(g, 362, 120, 0.7, 70, 1.6, rgba(60, 110, 90, 0.4), 3);
+        [168, 344].forEach((x) => {
+            const s = x < 256 ? -1 : 1;
+            eyeSocket(g, h, x, 234, 56, 42, [40, 60, 30]);
+            const eg = g.createRadialGradient(x, 234, 2, x, 234, 36); eg.addColorStop(0, '#fff6a0'); eg.addColorStop(0.7, '#e8d440'); eg.addColorStop(1, '#a08a10');
+            g.fillStyle = eg; g.beginPath(); g.ellipse(x, 234, 38, 30, 0, 0, 7); g.fill();                    // huge glossy yellow eyes
+            veins(g, x + s * 30, 234, s > 0 ? 3.1 : 0, 26, 1.2, rgba(170, 50, 20, 0.55), 2);
+            g.fillStyle = '#020202'; g.beginPath(); g.ellipse(x, 234, 5.5, 26, 0, 0, 7); g.fill();            // slit pupil
+            soft(g, x - 10, 224, 12, 8, 255, 255, 255, 0.95);
+            g.strokeStyle = 'rgba(20,40,20,.8)'; g.lineWidth = 5; g.beginPath(); g.moveTo(x - s * 40, 200); g.lineTo(x + s * 42, 214); g.stroke();   // heavy brow
+        });
+        raise(h, 256, 200, 150, 14, 0.5);
+        soft(g, 256, 290, 20, 20, 120, 150, 100, 0.25); [244, 268].forEach((x) => { soft(g, x, 300, 6, 5, 10, 20, 10, 0.9); });
+        mouth(g, h, 256, 352, 98, 44, 18, { lip: 'rgba(30,50,30,.9)', tooth0: '#d8d4b8', tooth1: '#f0ecd8', fang: true, tmin: 12, tmax: 22, missing: 0.04, cavity: '#220808' });
+        vignette(g, S, 0.5);
+    };
+    FACE_DEFS.genderuwo = (g, h, S) => {
+        fillSkin(g, h, S, '#3a2a22', '#2a1d18', '#1c130f');
+        for (let i = 0; i < 1400; i++) {                                                                    // coarse fur growing down the face
+            const x = rand(0, S), y = rand(0, S), a = Math.PI / 2 + rand(-0.4, 0.4), l = rand(10, 34);
+            g.strokeStyle = Math.random() < 0.6 ? rgba(10, 6, 4, rand(0.4, 0.8)) : rgba(110, 78, 50, rand(0.15, 0.4)); g.lineWidth = rand(1, 2.4);
+            g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+        }
+        soft(g, 256, 270, 130, 150, 60, 40, 30, 0.45);                                                      // bare, leathery skin of the face
+        speckle(g, S, 6000, 0.2, 0.06);
+        soft(g, 256, 210, 190, 24, 0, 0, 0, 0.7); raise(h, 256, 206, 180, 20, 0.7);                         // massive brow
+        [168, 344].forEach((x) => {
+            const s = x < 256 ? -1 : 1;
+            eyeSocket(g, h, x, 238, 52, 34, [30, 12, 8]);
+            soft(g, x, 238, 52, 36, 255, 40, 20, 0.7);                                                      // hot red glow
+            const eg = g.createRadialGradient(x, 238, 2, x, 238, 26); eg.addColorStop(0, '#fff2a0'); eg.addColorStop(0.45, '#ff5020'); eg.addColorStop(1, '#6a0808');
+            g.fillStyle = eg; g.beginPath(); g.ellipse(x, 238, 28, 18, 0, 0, 7); g.fill();
+            g.fillStyle = '#100000'; g.beginPath(); g.ellipse(x, 238, 5, 14, 0, 0, 7); g.fill(); soft(g, x - 8, 232, 8, 5, 255, 255, 255, 0.9);
+            g.strokeStyle = 'rgba(0,0,0,.9)'; g.lineWidth = 9; g.beginPath(); g.moveTo(x - s * 46, 204); g.lineTo(x + s * 38, 226); g.stroke();   // angry brow
+        });
+        raise(h, 256, 285, 40, 40, 0.5); [236, 276].forEach((x) => { soft(g, x, 316, 14, 9, 0, 0, 0, 0.95); dent(h, x, 316, 16, 11, 0.9); });   // flat wide nostrils
+        mouth(g, h, 256, 372, 104, 56, 10, { lip: 'rgba(20,6,6,.95)', lipW: 7, tooth0: '#a89a72', tooth1: '#efe6c8', fang: true, tmin: 14, tmax: 26, missing: 0.1, cavity: '#2a0606' });
+        g.fillStyle = 'rgba(190,40,60,.85)'; g.beginPath(); g.moveTo(236, 380); g.quadraticCurveTo(256, 450, 280, 380); g.fill();   // lolling tongue
+        const dr = g.createLinearGradient(0, 400, 0, 500); dr.addColorStop(0, 'rgba(210,225,235,.6)'); dr.addColorStop(1, 'rgba(210,225,235,0)'); g.strokeStyle = dr; g.lineWidth = 3; g.beginPath(); g.moveTo(300, 400); g.lineTo(304, 500); g.stroke();
+        vignette(g, S, 0.6);
+    };
+    FACE_DEFS.wewe = (g, h, S) => {
+        fillSkin(g, h, S, '#b2a48c', '#9a8c76', '#80745f');
+        soft(g, 256, 150, 160, 80, 210, 195, 160, 0.25); soft(g, 90, 250, 60, 110, 60, 50, 40, 0.4); soft(g, 422, 250, 60, 110, 60, 50, 40, 0.4);
+        speckle(g, S, 11000, 0.2, 0.1);
+        for (let i = 0; i < 46; i++) {                                                                       // deep wrinkles
+            const x = rand(110, 400), y = rand(130, 420); g.strokeStyle = rgba(40, 28, 18, rand(0.2, 0.5)); g.lineWidth = rand(1, 2.6);
+            g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + rand(-30, 30), y + rand(-6, 6), x + rand(-50, 50), y + rand(-10, 10)); g.stroke();
+            h.strokeStyle = 'rgba(0,0,0,.4)'; h.lineWidth = 3; h.beginPath(); h.moveTo(x, y); h.lineTo(x + rand(-40, 40), y + rand(-8, 8)); h.stroke();
+        }
+        veins(g, 120, 210, 3.5, 90, 1.6, rgba(80, 70, 110, 0.5), 3); veins(g, 392, 210, -0.3, 90, 1.6, rgba(80, 70, 110, 0.5), 3);
+        [172, 340].forEach((x) => {
+            const s = x < 256 ? -1 : 1;
+            eyeSocket(g, h, x, 238, 54, 38, [50, 36, 30]);
+            const eg = g.createRadialGradient(x, 238, 1, x, 238, 30); eg.addColorStop(0, '#fff6b0'); eg.addColorStop(0.6, '#f0c830'); eg.addColorStop(1, '#a07010');
+            g.fillStyle = eg; g.beginPath(); g.ellipse(x, 238, 31, 19, 0, 0, 7); g.fill();
+            g.fillStyle = '#050403'; g.beginPath(); g.ellipse(x, 238, 4, 17, 0, 0, 7); g.fill(); soft(g, x - 8, 231, 9, 6, 255, 255, 255, 0.9);
+            veins(g, x + s * 26, 244, s > 0 ? 0.3 : 2.8, 30, 1.1, rgba(150, 40, 20, 0.6), 2);
+            soft(g, x, 238, 44, 30, 255, 210, 80, 0.2);
+        });
+        soft(g, 256, 208, 150, 16, 30, 22, 14, 0.4); raise(h, 256, 206, 150, 14, 0.5);
+        soft(g, 256, 270, 26, 70, 130, 110, 90, 0.3); raise(h, 256, 285, 20, 70, 0.6); dent(h, 238, 318, 12, 9, 0.8); dent(h, 274, 318, 12, 9, 0.8); soft(g, 238, 318, 11, 8, 10, 6, 4, 0.9); soft(g, 274, 318, 11, 8, 10, 6, 4, 0.9);
+        mouth(g, h, 256, 372, 74, 30, 6, { lip: 'rgba(60,30,30,.9)', tooth0: '#7a6e50', tooth1: '#c8bc98', missing: 0.45, tmin: 7, tmax: 14, cavity: '#100606' });
+        vignette(g, S, 0.5);
+    };
+    const kidFace = (boy) => (g, h, S) => {
+        fillSkin(g, h, S, '#dde3df', '#c8d0cc', '#aab4b4');
+        soft(g, 256, 150, 160, 80, 230, 235, 232, 0.3); soft(g, 96, 270, 56, 100, 70, 90, 125, 0.35); soft(g, 416, 270, 56, 100, 70, 90, 125, 0.35);
+        soft(g, 150, 330, 44, 30, 200, 90, 90, 0.28); soft(g, 362, 330, 44, 30, 200, 90, 90, 0.28);
+        speckle(g, S, 6000, 0.1, 0.06);
+        [172, 340].forEach((x) => {
+            eyeSocket(g, h, x, 236, 48, 34, [60, 50, 90]);
+            g.fillStyle = '#dcdcd0'; g.beginPath(); g.ellipse(x, 238, 26, 15, 0, 0, 7); g.fill();
+            g.fillStyle = '#0a0808'; g.beginPath(); g.arc(x, 238, 13, 0, 7); g.fill(); soft(g, x - 5, 232, 6, 4, 255, 255, 255, 0.95);   // huge wet pupils
+            veins(g, x + (x < 256 ? -24 : 24), 240, x < 256 ? 3.1 : 0, 26, 1.1, rgba(150, 50, 60, 0.5), 2);
+            g.strokeStyle = 'rgba(40,24,24,.6)'; g.lineWidth = 3; g.beginPath(); g.moveTo(x - 30, 205); g.quadraticCurveTo(x, boy ? 196 : 192, x + 30, 205); g.stroke();
+        });
+        noseShade(g, h);
+        g.strokeStyle = 'rgba(70,40,70,.95)'; g.lineWidth = 8; g.lineCap = 'round'; g.beginPath(); g.moveTo(206, 356); g.quadraticCurveTo(256, 372, 306, 356); g.stroke();   // bluish pressed lips
+        soft(g, 256, 358, 52, 16, 70, 70, 130, 0.35);
+        g.strokeStyle = 'rgba(120,10,16,.7)'; g.lineWidth = 3; g.beginPath(); g.moveTo(298, 360); g.lineTo(300, 430); g.stroke();     // thin trickle from the mouth
+        vignette(g, S, 0.5);
+    };
+    FACE_DEFS.anakBoy = kidFace(true); FACE_DEFS.anakGirl = kidFace(false);
+
+    const FACE_CACHE = {};
+    function getFace(key) {
+        if (FACE_CACHE[key]) return FACE_CACHE[key];
+        const S = 512, c = document.createElement('canvas'), b = document.createElement('canvas');
+        c.width = c.height = b.width = b.height = S;
+        FACE_DEFS[key](c.getContext('2d'), b.getContext('2d'), S);
+        const map = new THREE.CanvasTexture(c), bump = new THREE.CanvasTexture(b);
+        map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
+        return (FACE_CACHE[key] = { map, bump, canvas: c });
+    }
+    // Procedural skin map (pores, veins) for limbs and bodies
+    const skinCache = {};
+    function skinTexture(c1, vein) {
+        const key = c1 + vein;
+        if (skinCache[key]) return skinCache[key];
+        const t = canvasTex(256, 256, (g, w, h) => {
+            g.fillStyle = c1; g.fillRect(0, 0, w, h); speckle(g, w, 3000, 0.16, 0.08);
+            for (let i = 0; i < 9; i++) veins(g, rand(0, w), rand(0, h), rand(0, 6.28), 80, 1.3, vein, 3);
+        }, 1);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        return (skinCache[key] = t);
+    }
+
+    // Ghost cloth / hair shader: wave animation, fabric folds, grime climbing from the hem, blood or earth stains,
+    // ragged torn edges and (mode 1) hair strands with a soft sheen.
+    function ghostMaterial(color, amp, h, flip, fade, rim, opts) {
+        opts = opts || {};
         const m = new THREE.ShaderMaterial({
             uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
                 uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uRim: { value: new THREE.Color(rim) },
-                uOpacity: { value: 1 }, uAmp: { value: amp }, uH: { value: h }, uFlip: { value: flip ? 1 : 0 }, uFade: { value: fade ? 1 : 0 }
+                uOpacity: { value: 1 }, uAmp: { value: amp }, uH: { value: h }, uFlip: { value: flip ? 1 : 0 }, uFade: { value: fade ? 1 : 0 },
+                uMode: { value: opts.mode || 0 }, uGrime: { value: new THREE.Color(opts.grime === undefined ? 0x2a241c : opts.grime) },
+                uStain: { value: new THREE.Color(opts.stain === undefined ? 0x5a0c10 : opts.stain) }, uStainAmt: { value: opts.stainAmt || 0 },
+                uSeed: { value: Math.random() * 20 }
             }]),
             transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
             vertexShader: `
                 uniform float uTime, uAmp, uH, uFlip;
-                varying vec3 vN; varying vec3 vV; varying float vT;
+                varying vec3 vN; varying vec3 vV; varying float vT; varying vec3 vP;
                 #include <fog_pars_vertex>
                 void main() {
                     vec3 p = position;
+                    vP = position;
                     float t = uFlip > 0.5 ? clamp(-p.y / uH, 0.0, 1.0) : clamp(1.0 - p.y / uH, 0.0, 1.0);
                     float w = t * t;
                     float a = atan(p.z, p.x);
@@ -1413,13 +1753,37 @@ async function run(mode) {
                     #include <fog_vertex>
                 }`,
             fragmentShader: `
-                uniform vec3 uColor, uRim; uniform float uOpacity, uFade;
-                varying vec3 vN; varying vec3 vV; varying float vT;
+                uniform vec3 uColor, uRim, uGrime, uStain; uniform float uOpacity, uFade, uMode, uStainAmt, uSeed;
+                varying vec3 vN; varying vec3 vV; varying float vT; varying vec3 vP;
                 #include <fog_pars_fragment>
+                float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+                float vn(vec2 p) {
+                    vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+                    return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);
+                }
                 void main() {
                     float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);
-                    vec3 c = uColor + uRim * f * 0.8;
-                    float a = mix(1.0, 1.0 - vT * 0.8, uFade) + f * 0.25;
+                    float ang = atan(vP.z, vP.x);
+                    vec2 q = vec2(ang * 3.0 + uSeed, vP.y * 1.4);
+                    vec3 base;
+                    float low = 1.0 - vT;
+                    if (uMode > 0.5) {                                   // hair: many fine strands plus a soft sheen
+                        float st = vn(vec2(ang * 46.0 + uSeed, vP.y * 1.1)) * 0.7 + vn(vec2(ang * 120.0, vP.y * 3.0)) * 0.3;
+                        base = uColor * (0.35 + st * 1.3);
+                        base += vec3(0.05, 0.05, 0.06) * pow(st, 4.0);
+                    } else {                                             // cloth: folds, dirt and stains
+                        float folds = 0.5 + 0.5 * sin(ang * 15.0 + sin(vP.y * 2.6 + vn(q * 2.0) * 3.0) * 1.6);
+                        float n = vn(q * 3.0) * 0.6 + vn(q * 9.0) * 0.4;
+                        base = uColor * (0.74 + 0.26 * folds) * (0.9 + 0.2 * n);
+                        base = mix(base, uGrime, clamp(low * low * 1.25 + n * 0.3 * low, 0.0, 0.88));
+                        float stain = smoothstep(0.6, 0.76, vn(q * 1.7 + 7.0)) * uStainAmt;
+                        base = mix(base, uStain, stain);
+                        float tatter = vn(vec2(ang * 11.0 + uSeed, 3.0));
+                        if (uFade > 0.5 && low > 0.92 && tatter < (low - 0.92) * 14.0) discard;
+                    }
+                    vec3 c = base + (uMode > 0.5 ? vec3(0.0) : uRim * f * 0.55);
+                    float a = mix(1.0, 1.0 - vT * 0.55, uFade) + f * 0.2;
+                    if (uMode > 0.5) a = 1.0;
                     gl_FragColor = vec4(c, clamp(a, 0.0, 1.0) * uOpacity);
                     #include <colorspace_fragment>
                     #include <fog_fragment>
@@ -1445,7 +1809,7 @@ async function run(mode) {
         const root = new THREE.Group(); root.visible = false; scene.add(root);
         const body = new THREE.Group(); root.add(body);
         const mats = [], sprites = [];
-        const shader = (color, amp, h, flip, fade, rim) => { const m = ghostMaterial(color, amp, h, flip, fade, rim === undefined ? auraColor : rim); mats.push(m); return m; };
+        const shader = (color, amp, h, flip, fade, rim, opts) => { const m = ghostMaterial(color, amp, h, flip, fade, rim === undefined ? auraColor : rim, opts); mats.push(m); return m; };
         const std = (p) => { const m = new THREE.MeshStandardMaterial(Object.assign({ transparent: true, roughness: 0.9 }, p)); mats.push(m); return m; };
         const glow = (color) => new THREE.MeshBasicMaterial({ map: glowTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
         const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: auraColor, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -1464,75 +1828,85 @@ async function run(mode) {
         return o;
     }
 
-    // ---- Kuntilanak: long white dress (wave shader), painted face, long hair, dangling arms
+    // ---- shared sculpting helpers for the HD ghosts
+    function handGeo(scale, claw) {                       // a gaunt hand: palm, 4 curled fingers, thumb, long nails; hangs down along -y
+        const parts = [new THREE.SphereGeometry(0.1, 10, 8).scale(1.15, 0.55, 0.8)];
+        const finger = (x, z, len, bend, side) => {
+            let y = -0.04, zz = z, b = 0;
+            [0.45, 0.33, 0.22].forEach((f, k) => {
+                const l = len * f; b += bend;
+                const seg = new THREE.CylinderGeometry(0.017 - k * 0.003, 0.02 - k * 0.003, l, 6).translate(0, -l / 2, 0).rotateX(b).rotateZ(side * 0.08 * k).translate(x, y, zz);
+                parts.push(seg); y -= l * Math.cos(b); zz += l * Math.sin(b);
+            });
+            if (claw) parts.push(new THREE.ConeGeometry(0.014, 0.085, 5).translate(0, -0.042, 0).rotateX(b + 0.2).translate(x, y, zz));
+        };
+        [[-0.06, 0.2, 0.18], [-0.02, 0.27, 0.12], [0.02, 0.29, 0.1], [0.06, 0.23, 0.2]].forEach(([x, l, bend], i) => finger(x, 0, l, bend * 0.5, i - 1.5));
+        finger(-0.115, 0.05, 0.17, 0.35, -1);
+        const g = mergeGeos(parts); g.scale(scale, scale, scale);
+        return g;
+    }
+    function limbTube(pts, radii, seg, rad) {            // tapered, bent limb as one continuous mesh
+        seg = seg || 20; rad = rad || 12;
+        const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
+        const g = new THREE.TubeGeometry(curve, seg, 1, rad, false), pos = g.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3(), ring = rad + 1;
+        for (let i = 0; i <= seg; i++) {
+            curve.getPointAt(i / seg, c);
+            const f = (i / seg) * (radii.length - 1), k = Math.min(radii.length - 2, Math.floor(f)), r = lerp(radii[k], radii[k + 1], f - k);
+            for (let j = 0; j < ring; j++) { const n = i * ring + j; v.set(pos.getX(n), pos.getY(n), pos.getZ(n)).sub(c).multiplyScalar(r).add(c); pos.setXYZ(n, v.x, v.y, v.z); }
+        }
+        g.computeVertexNormals();
+        return g;
+    }
+    function tufts(parent, mat, list, geo) {            // instanced fur tufts: [position, direction, scale]
+        const im = new THREE.InstancedMesh(geo, mat, list.length), d = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0);
+        list.forEach(([p, dir, s], i) => { d.position.copy(p); d.quaternion.setFromUnitVectors(up, dir.clone().normalize()); d.scale.setScalar(s); d.updateMatrix(); im.setMatrixAt(i, d.matrix); });
+        parent.add(im); return im;
+    }
+
+    // ---- Kuntilanak: tattered blood-stained white dress, sculpted face, long strand-shaded hair, gaunt clawed hands
     function createKuntilanak() {
         const o = newGhost(cfg.visual.ghostAuraColor, 5.5, 7.5, 2.0);
         const { root, body, shader, std } = o;
-        const dressMat = shader(0xdfe9ea, 0.22, 3.1, false, true);
-        const sleeveMat = shader(0xdfe9ea, 0.12, 1.5, true, true);
-        const hairMat = shader(0x07080c, 0.2, 3.4, true, false);
-        hairMat.uniforms.uRim.value.multiplyScalar(0.25);
-        const skinMat = std({ color: 0xcbd5d3, emissive: 0x24313a });
-        const faceTex = faceTexture((g, w, h, blob) => {
-            const gr = g.createLinearGradient(0, 0, 0, h);
-            gr.addColorStop(0, '#d9e0dd'); gr.addColorStop(1, '#aab5b6'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-            const hg = g.createRadialGradient(256, 256, 50, 256, 256, 300);
-            hg.addColorStop(0, 'rgba(0,0,0,0)'); hg.addColorStop(1, 'rgba(8,12,18,.6)'); g.fillStyle = hg; g.fillRect(0, 0, w, h);
-            const cx = 256, cy = 256;
-            blob(cx - 58, cy - 12, 40, 28, 'rgba(10,8,16,.95)'); blob(cx + 58, cy - 12, 40, 28, 'rgba(10,8,16,.95)');
-            blob(cx - 52, cy + 52, 26, 22, 'rgba(10,8,16,.28)'); blob(cx + 52, cy + 52, 26, 22, 'rgba(10,8,16,.28)');
-            [-1, 1].forEach((s) => {
-                g.fillStyle = '#f2f4e8'; g.beginPath(); g.ellipse(cx + s * 58, cy - 12, 16, 9, 0, 0, 7); g.fill();
-                g.fillStyle = '#b01818'; g.beginPath(); g.arc(cx + s * 58, cy - 12, 5.5, 0, 7); g.fill();
-                g.fillStyle = '#000'; g.beginPath(); g.arc(cx + s * 58, cy - 12, 2.5, 0, 7); g.fill();
-                g.strokeStyle = 'rgba(10,8,16,.8)'; g.lineWidth = 4;
-                g.beginPath(); g.moveTo(cx + s * 30, cy - 44); g.lineTo(cx + s * 88, cy - 54); g.stroke();
-            });
-            g.strokeStyle = 'rgba(40,40,50,.45)'; g.lineWidth = 3;
-            g.beginPath(); g.moveTo(cx, cy - 6); g.lineTo(cx - 6, cy + 34); g.lineTo(cx + 8, cy + 36); g.stroke();
-            g.fillStyle = '#12060a'; g.beginPath();
-            g.moveTo(cx - 52, cy + 70); g.quadraticCurveTo(cx, cy + 118, cx + 52, cy + 70);
-            g.quadraticCurveTo(cx, cy + 86, cx - 52, cy + 70); g.fill();
-            g.strokeStyle = '#d8d4c0'; g.lineWidth = 3;
-            for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(cx + i * 11, cy + 82 - Math.abs(i) * 1.2); g.lineTo(cx + i * 11, cy + 90 - Math.abs(i) * 2); g.stroke(); }
-            g.strokeStyle = 'rgba(40,60,90,.35)'; g.lineWidth = 1.5;
-            for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(cx + rand(-90, 90), cy - 60); g.lineTo(cx + rand(-100, 100), cy + rand(-30, 20)); g.stroke(); }
-        });
-
+        const dressMat = shader(0xe4eae8, 0.22, 3.1, false, true, undefined, { grime: 0x3a3226, stain: 0x6a0e12, stainAmt: 0.85 });
+        const sleeveMat = shader(0xe4eae8, 0.12, 1.5, true, true, undefined, { grime: 0x3a3226, stain: 0x6a0e12, stainAmt: 0.5 });
+        const hairMat = shader(0x0a0b10, 0.2, 3.4, true, false, undefined, { mode: 1 });
+        hairMat.uniforms.uRim.value.multiplyScalar(0.3);
+        const skinMat = std({ color: 0xffffff, map: skinTexture('#bcc6c3', 'rgba(70,95,140,.5)'), emissive: 0x24313a, roughness: 0.75 });
+        const f = getFace('kuntilanak');
+        const faceMat = std({ map: f.map, bumpMap: f.bump, bumpScale: 3, emissiveMap: f.map, emissive: 0x8899aa, emissiveIntensity: 0.12, roughness: 0.65 });
         const pts = [];
-        for (let i = 0; i <= 32; i++) {
-            const t = i / 32, y = t * 3.1;
+        for (let i = 0; i <= 40; i++) {
+            const t = i / 40, y = t * 3.1;
             pts.push(new THREE.Vector2(0.28 + 0.95 * Math.pow(1 - t, 1.8) + 0.14 * Math.exp(-Math.pow((t - 0.9) / 0.07, 2)), y));
         }
-        const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 36), dressMat);
+        const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 48), dressMat);
         dress.renderOrder = 1; body.add(dress);
-        body.add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.6, 8), skinMat).translateY(3.2));
+        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.1, 0.62, 10), skinMat); neck.position.y = 3.22; body.add(neck);
         const head = new THREE.Group(); head.position.y = 3.58; body.add(head);
-        head.add(new THREE.Mesh(new THREE.SphereGeometry(0.46, 28, 20).scale(1, 1.14, 1),
-            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x8899aa, emissiveIntensity: 0.45 })));
+        head.add(new THREE.Mesh(faceHeadGeo(0.46, 1.14, { jaw: 0.3, chin: 0.12, brow: 0.06, hollow: 0.07, socket: 0.11, nose: 0.09, lip: 0.04 }), faceMat));
         const curtain = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.55, 0.64, 3.4, 26, 10, true, 0.95, Math.PI * 2 - 1.9).translate(0, -1.7, 0), hairMat);
+            new THREE.CylinderGeometry(0.55, 0.64, 3.4, 30, 12, true, 0.95, Math.PI * 2 - 1.9).translate(0, -1.7, 0), hairMat);
         curtain.position.y = 0.38; curtain.renderOrder = 2; head.add(curtain);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 10, 0, Math.PI * 2, 0, 1.15).scale(1, 1.14, 1), hairMat);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 12, 0, Math.PI * 2, 0, 1.12).scale(1, 1.14, 1), hairMat);
         cap.renderOrder = 2; head.add(cap);
         [-1, 1].forEach((s) => {
-            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 2.0, 2, 8).translate(0, -1.0, 0), hairMat);
+            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 2.2, 3, 10).translate(0, -1.1, 0), hairMat);
             lock.position.set(s * 0.43, 0.3, 0.2); lock.rotation.set(0, s * -0.55, s * 0.06); lock.renderOrder = 3; head.add(lock);
+            [0.14, 0.26].forEach((dx, k) => {                                                       // thin wisps crossing the cheeks
+                const w = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.95 + k * 0.3, 1, 6).translate(0, -0.47, 0), hairMat);
+                w.position.set(s * (0.3 + dx * 0.4), 0.18 - k * 0.05, 0.36); w.rotation.set(0.1, s * -0.25, s * (0.08 + k * 0.05)); w.renderOrder = 3; head.add(w);
+            });
         });
+        const hand = handGeo(1.5, true);
         const makeArm = (s) => {
             const a = new THREE.Group(); a.position.set(s * 0.52, 2.85, 0); a.rotation.z = s * -0.3;
-            const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.34, 1.5, 12, 6, true).translate(0, -0.75, 0), sleeveMat);
-            sleeve.renderOrder = 1; a.add(sleeve);
-            a.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 1.0, 6).translate(0, -1.95, 0), skinMat));
-            for (let k = -1; k <= 1; k++) {
-                const f = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.38, 4).translate(0, -0.19, 0), skinMat);
-                f.position.set(k * 0.04, -2.45, 0); f.rotation.z = k * 0.2; a.add(f);
-            }
+            const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.34, 1.5, 14, 6, true).translate(0, -0.75, 0), sleeveMat); sleeve.renderOrder = 1; a.add(sleeve);
+            a.add(new THREE.Mesh(limbTube([[0, -1.4, 0], [0, -1.95, 0.03], [0, -2.4, 0.06]], [0.055, 0.048, 0.04], 8, 8), skinMat));
+            const hm = new THREE.Mesh(hand, skinMat); hm.position.set(0, -2.4, 0.06); hm.rotation.y = s > 0 ? 0 : Math.PI; a.add(hm);
             body.add(a); return a;
         };
         const armL = makeArm(-1), armR = makeArm(1);
 
-        // Sudden head tilt every few seconds
         let tilt = 0, tiltTimer = rand(2, 4), tiltDir = 1;
         const tiltHead = (dt) => {
             tiltTimer -= dt;
@@ -1556,50 +1930,42 @@ async function run(mode) {
         };
         o.setAura = (col) => {
             dressMat.uniforms.uRim.value.set(col); sleeveMat.uniforms.uRim.value.set(col);
-            hairMat.uniforms.uRim.value.set(col).multiplyScalar(0.25);
+            hairMat.uniforms.uRim.value.set(col).multiplyScalar(0.3);
             o.aura.material.color.set(col); o.mist.material.color.set(col);
         };
         return o;
     }
 
-    // Shared by the Pocong passenger and the Pocong racer
-    function pocongFaceTexture() {
-        return canvasTex(256, 256, (g, w, h) => {
-            const gr = g.createRadialGradient(128, 128, 40, 128, 128, 124);
-            gr.addColorStop(0, 'rgba(190,198,188,1)'); gr.addColorStop(0.7, 'rgba(172,180,170,1)'); gr.addColorStop(1, 'rgba(170,178,168,0)');
-            g.fillStyle = gr; g.fillRect(0, 0, w, h);
-            const blob = (x, y, rx, ry, a) => {
-                g.save(); g.translate(x, y); g.scale(rx, ry);
-                const r = g.createRadialGradient(0, 0, 0, 0, 0, 1); r.addColorStop(0, `rgba(6,4,8,${a})`); r.addColorStop(1, 'rgba(6,4,8,0)');
-                g.fillStyle = r; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
-            };
-            blob(90, 112, 28, 34, 1); blob(166, 112, 28, 34, 1);
-            g.fillStyle = '#e8e8d8'; g.beginPath(); g.arc(92, 116, 4, 0, 7); g.arc(168, 116, 4, 0, 7); g.fill();
-            g.strokeStyle = 'rgba(30,30,36,.5)'; g.lineWidth = 3; g.beginPath(); g.moveTo(128, 130); g.lineTo(122, 160); g.lineTo(134, 162); g.stroke();
-            blob(128, 196, 18, 26, 0.95);
-            blob(100, 190, 14, 10, 0.4); blob(160, 150, 12, 16, 0.35);
+    // ---- Pocong head: sculpted skull in a tied hood, shared with the Pocong racer
+    function pocongHead(std, shader) {
+        const g = new THREE.Group(), f = getFace('pocong');
+        g.add(new THREE.Mesh(faceHeadGeo(0.44, 1.18, { jaw: 0.34, chin: 0.06, brow: 0.05, hollow: 0.12, socket: 0.13, nose: 0.05, lip: 0.04 }),
+            std({ map: f.map, bumpMap: f.bump, bumpScale: 3, roughness: 0.85, emissiveMap: f.map, emissive: 0x607060, emissiveIntensity: 0.25 })));
+        const clothOpt = { grime: 0x4a3c28, stain: 0x7a5530, stainAmt: 0.9 };
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.486, 28, 16, 0, Math.PI * 2, 0, 1.0).scale(1, 1.22, 1), shader(0xd8d2c0, 0.03, 1, false, false, 0xbfe8d0, clothOpt));
+        cap.position.y = 0.05; cap.renderOrder = 2; g.add(cap);
+        const cm = shader(0xd2ccb8, 0.05, 1, false, false, 0xbfe8d0, clothOpt);
+        [[-0.1, 0.5], [0.1, 0.55]].forEach(([x, rz], i) => {                                      // twisted knot of cloth
+            const k = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.46, 6), cm); k.position.set(x, 0.68, 0); k.rotation.z = (i ? -1 : 1) * 0.35; k.renderOrder = 2; g.add(k);
         });
+        [-1, 0, 1].forEach((s) => {                                                              // frayed ends of the knot
+            const fr = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.34, 1, 4).translate(0, -0.17, 0), cm);
+            fr.position.set(s * 0.09, 0.9, 0); fr.rotation.set(0.2, 0, s * 0.6); fr.renderOrder = 2; g.add(fr);
+        });
+        return g;
     }
-    // ---- Pocong: shrouded corpse that hops back and forth, so its stop bay moves
     function createPocong() {
         const o = newGhost(0xbfe8d0, 4.5, 6.6, 2.2);
         const { root, body, shader, std } = o;
-        const prof = [[0.001, 0], [0.34, 0], [0.36, 0.25], [0.55, 0.9], [0.62, 1.7], [0.66, 2.4], [0.58, 2.85], [0.4, 3.05],
-            [0.5, 3.25], [0.55, 3.5], [0.48, 3.85], [0.25, 4.05], [0.08, 4.12], [0.001, 4.15]].map(([r, y]) => new THREE.Vector2(r, y));
-        const shroud = new THREE.Mesh(new THREE.LatheGeometry(new THREE.SplineCurve(prof).getPoints(40), 28),
-            shader(0xdad4c0, 0.05, 4.15, false, false, 0xbfe8d0));
+        const prof = [[0.001, 0], [0.34, 0], [0.36, 0.25], [0.55, 0.9], [0.62, 1.7], [0.66, 2.4], [0.58, 2.85], [0.4, 3.02], [0.34, 3.12], [0.001, 3.2]].map(([r, y]) => new THREE.Vector2(r, y));
+        const shroud = new THREE.Mesh(new THREE.LatheGeometry(new THREE.SplineCurve(prof).getPoints(48), 40),
+            shader(0xdad4c0, 0.05, 4.1, false, false, 0xbfe8d0, { grime: 0x3a2e1c, stain: 0x6a4222, stainAmt: 1.0 }));
         shroud.renderOrder = 1; body.add(shroud);
-        const tieMat = std({ color: 0x8f8a78, emissive: 0x2a2a22 });
-        [[0.3, 0.37], [2.95, 0.43], [3.98, 0.28]].forEach(([y, r]) => {
-            const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 6, 18).rotateX(Math.PI / 2), tieMat); t.position.y = y; body.add(t);
+        const tieMat = std({ color: 0x8f8a78, emissive: 0x2a2a22, roughness: 1 });
+        [[0.3, 0.37], [1.55, 0.6], [3.04, 0.37]].forEach(([y, r]) => {
+            const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.04, 8, 28).rotateX(Math.PI / 2), tieMat); t.position.y = y; body.add(t);
         });
-        const knot = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.4, 6), std({ color: 0xdad4c0, emissive: 0x4a4a40 }));
-        knot.position.y = 4.25; body.add(knot);
-        const faceTex = pocongFaceTexture();
-        const faceMat = new THREE.MeshBasicMaterial({ map: faceTex, transparent: true, depthWrite: false });
-        o.mats.push(faceMat);
-        const face = new THREE.Mesh(new THREE.CylinderGeometry(0.575, 0.575, 0.95, 14, 1, true, -0.5, 1.0).translate(0, 3.45, 0), faceMat);
-        face.renderOrder = 2; body.add(face);
+        const head = pocongHead(std, shader); head.position.y = 3.5; body.add(head);
 
         let hopT = 0, pace = rand(0, 6);
         const hop = (dt) => {
@@ -1611,52 +1977,43 @@ async function run(mode) {
         };
         o.reset = () => { hopT = 0; pace = rand(0, 6); body.rotation.set(0, 0, 0); };
         o.waitPos = (c) => { pace += c.dt * 0.45; return { dx: 0, dz: Math.sin(pace) * 5 }; };
-        o.wait = (c) => { hop(c.dt); root.rotation.y = -0.6 + Math.cos(pace) * 0.5; };
+        o.wait = (c) => { hop(c.dt); root.rotation.y = -0.6 + Math.cos(pace) * 0.5; head.rotation.z = Math.sin(time * 1.3) * 0.08; };
         o.walk = (c) => { hop(c.dt); };
         return o;
     }
 
-    // ---- Tuyul: small green goblin child that sprints along the road; calms down as the bus nears
+    // ---- Tuyul: sickly green goblin child, sculpted big-eyed head, pointed veined ears, clawed hands
     function createTuyul() {
         const o = newGhost(0x9bff8a, 3.0, 3.6, 1.4);
         o.sprites.forEach((p) => { p.base *= 0.55; });
         const { root, body, std } = o;
         body.scale.setScalar(1.4);
-        const skin = std({ color: 0x8fae7e, emissive: 0x16240f });
-        const shorts = std({ color: 0x2a2a33 });
-        const faceTex = faceTexture((g, w, h, blob) => {
-            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#9dbd8a'); gr.addColorStop(1, '#6f8f62');
-            g.fillStyle = gr; g.fillRect(0, 0, w, h);
-            const cx = 256, cy = 256;
-            blob(cx - 56, cy - 8, 44, 36, 'rgba(10,20,8,.55)'); blob(cx + 56, cy - 8, 44, 36, 'rgba(10,20,8,.55)');
-            [-1, 1].forEach((s) => {
-                g.fillStyle = '#f0e860'; g.beginPath(); g.ellipse(cx + s * 56, cy - 8, 30, 26, 0, 0, 7); g.fill();
-                g.fillStyle = '#000'; g.beginPath(); g.ellipse(cx + s * 56, cy - 8, 5, 22, 0, 0, 7); g.fill();
-                g.strokeStyle = 'rgba(10,20,8,.8)'; g.lineWidth = 5; g.beginPath(); g.moveTo(cx + s * 24, cy - 42); g.lineTo(cx + s * 86, cy - 30); g.stroke();
-            });
-            g.fillStyle = 'rgba(10,20,8,.6)'; g.beginPath(); g.arc(cx - 6, cy + 30, 4, 0, 7); g.arc(cx + 6, cy + 30, 4, 0, 7); g.fill();
-            g.fillStyle = '#1a0808'; g.beginPath(); g.moveTo(cx - 74, cy + 62); g.quadraticCurveTo(cx, cy + 130, cx + 74, cy + 62);
-            g.quadraticCurveTo(cx, cy + 82, cx - 74, cy + 62); g.fill();
-            g.fillStyle = '#f4f0e0';
-            for (let i = -5; i <= 5; i++) { g.beginPath(); g.moveTo(cx + i * 12 - 4, cy + 80 - Math.abs(i)); g.lineTo(cx + i * 12, cy + 94 - Math.abs(i) * 2); g.lineTo(cx + i * 12 + 4, cy + 80 - Math.abs(i)); g.fill(); }
-        });
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 22, 16).scale(1, 1.05, 1),
-            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x99aa88, emissiveIntensity: 0.5 }));
+        const skin = std({ color: 0xffffff, map: skinTexture('#86a676', 'rgba(40,100,80,.6)'), emissive: 0x16240f, roughness: 0.7 });
+        const earIn = std({ color: 0x8a5a58, emissive: 0x2a1010, roughness: 0.6 });
+        const shorts = std({ color: 0x2a2a33, roughness: 1 });
+        const f = getFace('tuyul');
+        const head = new THREE.Mesh(faceHeadGeo(0.42, 1.05, { jaw: 0.22, chin: 0.1, brow: 0.1, hollow: 0.02, socket: 0.1, nose: 0.05, lip: 0.03 }),
+            std({ map: f.map, bumpMap: f.bump, bumpScale: 3, emissiveMap: f.map, emissive: 0x99aa88, emissiveIntensity: 0.3, roughness: 0.6 }));
         head.position.y = 1.35; body.add(head);
         [-1, 1].forEach((s) => {
-            const ear = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.55, 6), skin);
-            ear.position.set(s * 0.46, 1.42, 0); ear.rotation.z = s * -1.1; body.add(ear);
+            const ear = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.62, 10).scale(1, 1, 0.3), skin);
+            ear.position.set(s * 0.47, 1.45, 0); ear.rotation.z = s * -1.15; body.add(ear);
+            const inn = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.46, 8).scale(1, 1, 0.3), earIn);
+            inn.position.set(s * 0.5, 1.45, 0.025); inn.rotation.z = s * -1.15; body.add(inn);
         });
-        const torso = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 10).scale(1, 1.2, 0.85), skin); torso.position.y = 0.88; body.add(torso);
-        const belly = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8), skin); belly.position.set(0, 0.74, 0.12); body.add(belly);
-        const trunks = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.28, 10), shorts); trunks.position.y = 0.58; body.add(trunks);
-        const limb = (x, y, len, r) => {
+        const torso = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 14).scale(1, 1.2, 0.85), skin); torso.position.y = 0.88; body.add(torso);
+        const belly = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 10), skin); belly.position.set(0, 0.72, 0.12); body.add(belly);
+        const trunks = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.33, 0.3, 12), shorts); trunks.position.y = 0.58; body.add(trunks);
+        const limb = (x, y, pts, radii) => {
             const p = new THREE.Group(); p.position.set(x, y, 0);
-            p.add(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.8, len, 6).translate(0, -len / 2, 0), skin));
-            body.add(p); return p;
+            p.add(new THREE.Mesh(limbTube(pts, radii, 8, 8), skin)); body.add(p); return p;
         };
-        const legL = limb(-0.14, 0.5, 0.5, 0.09), legR = limb(0.14, 0.5, 0.5, 0.09);
-        const armL = limb(-0.3, 1.0, 0.6, 0.06), armR = limb(0.3, 1.0, 0.6, 0.06);
+        const legL = limb(-0.14, 0.5, [[0, 0, 0], [0, -0.25, 0.02], [0, -0.5, 0]], [0.1, 0.075, 0.06]);
+        const legR = limb(0.14, 0.5, [[0, 0, 0], [0, -0.25, 0.02], [0, -0.5, 0]], [0.1, 0.075, 0.06]);
+        const armL = limb(-0.3, 1.0, [[0, 0, 0], [0, -0.3, 0.03], [0, -0.58, 0]], [0.075, 0.06, 0.05]);
+        const armR = limb(0.3, 1.0, [[0, 0, 0], [0, -0.3, 0.03], [0, -0.58, 0]], [0.075, 0.06, 0.05]);
+        const hg = handGeo(0.8, true);
+        [armL, armR].forEach((a) => { const h = new THREE.Mesh(hg, skin); h.position.y = -0.58; a.add(h); });
 
         let phase = rand(0, 6), amp = 6;
         const run = (speed) => {
@@ -1673,59 +2030,87 @@ async function run(mode) {
         };
         o.wait = (c) => {
             root.rotation.y = lerpAngle(root.rotation.y, Math.cos(phase) > 0 ? -0.2 : Math.PI - 0.2, 0.12);
-            run(14 - c.near * 5);
+            run(14 - c.near * 5); head.rotation.z = Math.sin(time * 9) * 0.06;
         };
         o.walk = () => run(16);
         return o;
     }
 
-    // ---- Genderuwo: huge hairy brute with glowing eyes; slows the bus while it rides
+    // ---- Genderuwo: one continuous hulking body (sculpted torso, tapered limbs, fur tufts, mane) with a sculpted fanged face
     function createGenderuwo() {
         const o = newGhost(0xff3a2a, 6.5, 8.5, 2.8);
-        const { root, body, std } = o;
-        const fur = std({ color: 0x1a1410, flatShading: true, roughness: 1 });
-        const fur2 = std({ color: 0x261d17, flatShading: true, roughness: 1 });
-        const faceTex = faceTexture((g, w, h, blob) => {
-            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#2d221b'); gr.addColorStop(1, '#17110d');
-            g.fillStyle = gr; g.fillRect(0, 0, w, h);
-            for (let i = 0; i < 500; i++) { g.strokeStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.4)' : 'rgba(90,70,50,.25)'; g.lineWidth = 1.5; const x = rand(0, w), y = rand(0, h); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-4, 4), y + rand(10, 24)); g.stroke(); }
-            const cx = 256, cy = 256;
-            blob(cx, cy - 36, 120, 26, 'rgba(0,0,0,.7)');
-            [-1, 1].forEach((s) => { blob(cx + s * 56, cy - 10, 40, 30, 'rgba(255,40,20,.8)'); blob(cx + s * 56, cy - 10, 16, 12, 'rgba(255,230,120,1)'); });
-            blob(cx - 14, cy + 36, 10, 8, 'rgba(0,0,0,.9)'); blob(cx + 14, cy + 36, 10, 8, 'rgba(0,0,0,.9)');
-            g.fillStyle = '#0a0404'; g.beginPath(); g.ellipse(cx, cy + 80, 74, 30, 0, 0, 7); g.fill();
-            g.fillStyle = '#efe8d4';
-            [-1, 1].forEach((s) => { g.beginPath(); g.moveTo(cx + s * 40 - 9, cy + 66); g.lineTo(cx + s * 40, cy + 112); g.lineTo(cx + s * 40 + 9, cy + 66); g.fill(); });
-        });
-        const torso = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1).scale(1.55, 1.9, 1.15), fur); torso.position.y = 3.0; body.add(torso);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 20, 14).scale(1, 0.95, 1),
-            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x663322, emissiveIntensity: 0.5, flatShading: false }));
-        head.position.set(0, 5.15, 0.1); body.add(head);
-        for (let i = 0; i < 12; i++) {
-            const a = rand(0, Math.PI * 2), sp = new THREE.Mesh(new THREE.ConeGeometry(0.16, rand(0.5, 0.9), 5), fur2);
-            const onHead = i < 7;
-            sp.position.set(Math.cos(a) * (onHead ? 0.55 : 1.4), onHead ? 5.75 : 4.2 + rand(0, 0.5), Math.sin(a) * (onHead ? 0.55 : 0.9) - (onHead ? 0 : 0.2));
-            sp.rotation.set(rand(-0.4, 0.4), 0, rand(-0.4, 0.4)); body.add(sp);
+        const { root, body, shader, std } = o;
+        const furTex = canvasTex(256, 256, (g, w, h) => {
+            g.fillStyle = '#4a3528'; g.fillRect(0, 0, w, h);
+            for (let i = 0; i < 2600; i++) {
+                const x = rand(0, w), y = rand(0, h), l = rand(8, 26), a = Math.PI / 2 + rand(-0.35, 0.35);
+                g.strokeStyle = Math.random() < 0.7 ? rgba(8, 5, 3, rand(0.4, 0.9)) : rgba(120, 86, 56, rand(0.12, 0.4)); g.lineWidth = rand(0.8, 2);
+                g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+            }
+        }, 1);
+        furTex.wrapS = furTex.wrapT = THREE.RepeatWrapping; furTex.repeat.set(3, 3);
+        const fur = std({ color: 0xffffff, map: furTex, bumpMap: furTex, bumpScale: 2.5, roughness: 1, emissive: 0x2a1812, emissiveIntensity: 0.6 });
+        const tuftMat = std({ color: 0x33241a, roughness: 1, emissive: 0x1a100a, emissiveIntensity: 0.5 });
+        const claw = std({ color: 0xcfc8b0, roughness: 0.5 });
+        // torso: ellipsoid pushed into chest, belly and a hunched back
+        const tg = new THREE.SphereGeometry(1, 56, 42), tp = tg.attributes.position;
+        for (let i = 0; i < tp.count; i++) {
+            const x = tp.getX(i), y = tp.getY(i), z = tp.getZ(i);
+            let X = x * 1.55 * (1 + 0.2 * smoothstep(0, 1, y)), Y = y * 1.85, Z = z * 1.15;
+            Z += 0.3 * smoothstep(0.1, 0.9, y) * Math.max(z, 0) + 0.34 * Math.exp(-Math.pow((y + 0.35) / 0.35, 2)) * Math.max(z, 0) - 0.34 * smoothstep(0.25, 1, y) * Math.max(-z, 0);
+            X *= 1 - 0.14 * Math.exp(-Math.pow((y + 0.45) / 0.3, 2));
+            tp.setXYZ(i, X, Y, Z);
         }
+        tg.computeVertexNormals();
+        const torso = new THREE.Mesh(tg, fur); torso.position.y = 3.1; body.add(torso);
+        [-1, 1].forEach((s) => { const d = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 18).scale(1, 0.95, 1), fur); d.position.set(s * 1.5, 4.2, -0.05); body.add(d); });   // deltoids
+        const hump = new THREE.Mesh(new THREE.SphereGeometry(1.1, 24, 16).scale(1.2, 0.7, 0.9), fur); hump.position.set(0, 4.55, -0.5); body.add(hump);
+        // legs and feet
         [-1, 1].forEach((s) => {
-            const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 5), std({ color: 0xefe8d4, emissive: 0x333322 }));
-            tusk.position.set(s * 0.3, 4.9, 0.78); body.add(tusk);
-            const eye = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3020, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-            eye.scale.setScalar(1.0); eye.position.set(s * 0.32, 5.25, 0.8); body.add(eye); o.sprites.push({ s: eye, base: 0.9 });
+            const leg = new THREE.Mesh(limbTube([[s * 0.7, 2.4, 0], [s * 0.85, 1.3, 0.3], [s * 0.8, 0.4, 0.05]], [0.66, 0.54, 0.42, 0.34], 18, 12), fur); body.add(leg);
+            const foot = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12).scale(1, 0.4, 1.5), fur); foot.position.set(s * 0.8, 0.22, 0.38); body.add(foot);
+            [-0.3, 0, 0.3].forEach((dx) => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 5).rotateX(Math.PI / 2 + 0.2), claw); c.position.set(s * 0.8 + dx, 0.14, 1.05); body.add(c); });
         });
-        const arm = (s) => {
-            const p = new THREE.Group(); p.position.set(s * 1.6, 4.0, 0);
-            p.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.75, 1), fur2));
-            p.add(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 1.5, 8).translate(0, -0.85, 0), fur));
-            const fore = new THREE.Group(); fore.position.y = -1.6; fore.rotation.x = -0.25;
-            fore.add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 1.5, 8).translate(0, -0.75, 0), fur));
-            const fist = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), fur2); fist.position.y = -1.6; fore.add(fist);
-            p.add(fore); body.add(p); return p;
-        };
-        const armL = arm(-1), armR = arm(1);
+        // arms: continuous shoulder-to-wrist tubes carrying instanced fur and a clawed hand
+        const handG = handGeo(2.6, true);
+        const arms = [-1, 1].map((s) => {
+            const a = new THREE.Group(); a.position.set(s * 1.5, 4.2, 0);
+            const pts = [[0, 0.1, 0], [s * 0.2, -0.9, 0.15], [s * 0.38, -1.9, 0.45], [s * 0.28, -2.85, 0.6]];
+            a.add(new THREE.Mesh(limbTube(pts, [0.7, 0.58, 0.46, 0.36], 22, 14), fur));
+            const hm = new THREE.Mesh(handG, fur); hm.position.set(s * 0.28, -2.9, 0.6); hm.rotation.y = s > 0 ? 0 : Math.PI; a.add(hm);
+            const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))), list = [];
+            for (let i = 0; i < 70; i++) {
+                const t = rand(0.05, 0.95), c = curve.getPoint(t), r = lerp(0.62, 0.36, t) * 1.02, th = rand(0, 6.283);
+                const n = new THREE.Vector3(Math.cos(th), 0, Math.sin(th));
+                list.push([c.clone().addScaledVector(n, r), n.clone().multiplyScalar(0.5).add(new THREE.Vector3(0, -1, 0)), rand(0.7, 1.5)]);
+            }
+            tufts(a, tuftMat, list, new THREE.ConeGeometry(0.09, 0.55, 4).translate(0, 0.27, 0));
+            body.add(a); return a;
+        });
+        const bl = [];                                            // shaggy tufts over the torso and hump
+        for (let i = 0; i < 240; i++) {
+            const th = rand(0, 6.283), ph = Math.acos(rand(-0.6, 1)), n = new THREE.Vector3(Math.sin(ph) * Math.cos(th), Math.cos(ph), Math.sin(ph) * Math.sin(th));
+            bl.push([new THREE.Vector3(n.x * 1.55 * 1.0, 3.1 + n.y * 1.85, n.z * 1.15 * 1.0), n.clone().multiplyScalar(0.55).add(new THREE.Vector3(0, -1, 0)), rand(0.8, 1.7)]);
+        }
+        tufts(body, tuftMat, bl, new THREE.ConeGeometry(0.1, 0.6, 4).translate(0, 0.3, 0));
+        const loin = new THREE.Mesh(new THREE.CylinderGeometry(0.98, 1.12, 0.95, 28, 4, true),
+            shader(0x4a3626, 0.14, 0.95, false, true, 0xff3a2a, { grime: 0x14100a, stain: 0x3a0a0a, stainAmt: 0.6 }));
+        loin.position.y = 2.15; loin.renderOrder = 1; body.add(loin);
+        // head: sculpted ape-like skull with heavy brow, wide flat nose and a fanged maw
+        const f = getFace('genderuwo');
+        const head = new THREE.Group(); head.position.set(0, 4.95, 0.62); head.rotation.x = 0.22; body.add(head);
+        head.add(new THREE.Mesh(faceHeadGeo(0.8, 0.96, { jaw: 0.1, chin: 0.2, brow: 0.2, hollow: 0.02, socket: 0.14, nose: 0.14, lip: 0.06 }),
+            std({ map: f.map, bumpMap: f.bump, bumpScale: 4, emissiveMap: f.map, emissive: 0x884433, emissiveIntensity: 0.35, roughness: 0.75 })));
+        const mane = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.25, 3.0, 30, 10, true, 0.9, Math.PI * 2 - 1.8).translate(0, -1.5, 0), shader(0x1c120d, 0.12, 3.0, true, false, 0xff3a2a, { mode: 1 }));
+        mane.position.y = 0.55; mane.renderOrder = 2; head.add(mane);
+        const hl = [];
+        for (let i = 0; i < 26; i++) { const a = rand(0, 6.283), up = rand(0.2, 1); hl.push([new THREE.Vector3(Math.cos(a) * 0.62, 0.62 + up * 0.3, Math.sin(a) * 0.5 - 0.1), new THREE.Vector3(Math.cos(a) * 0.5, 1, Math.sin(a) * 0.5 - 0.15), rand(1, 2)]); }
+        tufts(head, tuftMat, hl, new THREE.ConeGeometry(0.1, 0.55, 4).translate(0, 0.27, 0));
         [-1, 1].forEach((s) => {
-            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.45, 1.9, 8).translate(0, 0.95, 0), fur); leg.position.x = s * 0.7; body.add(leg);
-            const foot = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, 1.5), fur2); foot.position.set(s * 0.7, 0.2, 0.3); body.add(foot);
+            const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.45, 8).translate(0, 0.22, 0), claw);
+            tusk.position.set(s * 0.34, -0.42, 0.68); tusk.rotation.set(-0.15, 0, s * -0.18); head.add(tusk);
+            const eye = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3020, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+            eye.scale.setScalar(1.1); eye.position.set(s * 0.27, 0.07, 0.78); head.add(eye); o.sprites.push({ s: eye, base: 0.9 });
         });
 
         let thump = 0, thumpTimer = rand(3, 6);
@@ -1736,57 +2121,53 @@ async function run(mode) {
             const lift = Math.sin(Math.min(thump, 1) * Math.PI) * -1.3;
             root.position.y = 0.1;
             body.scale.y = 1 + Math.sin(time * 1.4) * 0.015;
-            armL.rotation.x = lerp(armL.rotation.x, lift + Math.sin(time * 1.1) * 0.08, 0.2);
-            armR.rotation.x = lerp(armR.rotation.x, lift - Math.sin(time * 1.1) * 0.08, 0.2);
+            arms[0].rotation.x = lerp(arms[0].rotation.x, lift + Math.sin(time * 1.1) * 0.08, 0.2);
+            arms[1].rotation.x = lerp(arms[1].rotation.x, lift - Math.sin(time * 1.1) * 0.08, 0.2);
             head.rotation.y = lerp(head.rotation.y, clamp(c.yawRel, -0.8, 0.8) * c.near, 0.08);
         };
         o.walk = () => {
             const s = Math.sin(time * 4);
             root.position.y = 0.1 + Math.abs(s) * 0.15;
             body.rotation.z = s * 0.04;
-            armL.rotation.x = s * 0.4; armR.rotation.x = -s * 0.4;
+            arms[0].rotation.x = s * 0.4; arms[1].rotation.x = -s * 0.4;
             head.rotation.y = lerp(head.rotation.y, 0, 0.1);
         };
         return o;
     }
 
-    // ---- Hantu Anak Sekolah: three pale pupils waiting together at the halte (group pickup)
+    // ---- Hantu Anak Sekolah: three drowned-looking pupils (sculpted faces, strand hair, soiled uniforms)
     function createAnak() {
         const o = newGhost(0xa8c8ff, 5.5, 4.2, 1.5);
-        const { root, std } = o;
-        const skin = std({ color: 0xd6dcd4, emissive: 0x203038 });
-        const shirt = std({ color: 0xe8e8e0, emissive: 0x303038 });
-        const red = std({ color: 0xa02020, emissive: 0x200404 });
-        const hairM = std({ color: 0x0a0a0d });
-        const bagM = std({ color: 0x3a2a1c });
-        const faceTex = faceTexture((g, w, h, blob) => {
-            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#dfe5dc'); gr.addColorStop(1, '#b8c2bc');
-            g.fillStyle = gr; g.fillRect(0, 0, w, h);
-            const cx = 256, cy = 256;
-            blob(cx - 52, cy - 6, 38, 36, 'rgba(6,6,10,.98)'); blob(cx + 52, cy - 6, 38, 36, 'rgba(6,6,10,.98)');
-            g.fillStyle = '#f4f4ea'; g.beginPath(); g.arc(cx - 52, cy - 4, 5, 0, 7); g.arc(cx + 52, cy - 4, 5, 0, 7); g.fill();
-            blob(cx - 60, cy + 44, 22, 14, 'rgba(200,80,80,.35)'); blob(cx + 60, cy + 44, 22, 14, 'rgba(200,80,80,.35)');
-            g.strokeStyle = '#2a1214'; g.lineWidth = 5; g.beginPath(); g.moveTo(cx - 26, cy + 76); g.quadraticCurveTo(cx, cy + 92, cx + 26, cy + 76); g.stroke();
-        });
-        const headMat = std({ map: faceTex, emissiveMap: faceTex, emissive: 0x8899aa, emissiveIntensity: 0.4 });
+        const { root, std, shader } = o;
+        const skin = std({ color: 0xffffff, map: skinTexture('#cdd5d1', 'rgba(70,90,130,.45)'), emissive: 0x203038, roughness: 0.7 });
+        const shirt = shader(0xe8e8e0, 0.03, 0.7, false, false, 0xa8c8ff, { grime: 0x5a4a38, stain: 0x4a1616, stainAmt: 0.5 });
+        const red = shader(0xa02020, 0.05, 0.5, false, false, 0xa8c8ff, { grime: 0x2a0808, stain: 0x1a0404, stainAmt: 0.3 });
+        const hairM = shader(0x08090d, 0.02, 0.4, false, false, 0xa8c8ff, { mode: 1 });
+        const bagM = std({ color: 0x3a2a1c, roughness: 1 });
+        const heads = { boy: getFace('anakBoy'), girl: getFace('anakGirl') };
+        const headMat = (k) => std({ map: heads[k].map, bumpMap: heads[k].bump, bumpScale: 2.5, emissiveMap: heads[k].map, emissive: 0x8899aa, emissiveIntensity: 0.3, roughness: 0.65 });
+        const hm = { boy: headMat('boy'), girl: headMat('girl') };
+        const hg = handGeo(0.85, false);
         const limb = (parent, x, y, len, r, mat) => {
             const p = new THREE.Group(); p.position.set(x, y, 0);
-            p.add(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, len, 6).translate(0, -len / 2, 0), mat)); parent.add(p); return p;
+            p.add(new THREE.Mesh(limbTube([[0, 0, 0], [0, -len / 2, 0.015], [0, -len, 0]], [r, r * 0.9, r * 0.75], 6, 8), mat)); parent.add(p); return p;
         };
         const kids = [];
         [[-1.7, 'boy', 1.05], [0, 'girl', 1.0], [1.7, 'boy', 1.12]].forEach(([z, kind, s], i) => {
             const k = new THREE.Group(); k.position.set(rand(-0.2, 0.2), 0, z); k.scale.setScalar(s); root.add(k);
-            const legL = limb(k, -0.1, 0.85, 0.85, 0.07, skin), legR = limb(k, 0.1, 0.85, 0.85, 0.07, skin);
-            const bottom = kind === 'girl' ? new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.5, 10, 1, true).translate(0, -0.25, 0), red)
-                : new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.23, 0.38, 8), red);
+            const legL = limb(k, -0.1, 0.85, 0.85, 0.075, skin), legR = limb(k, 0.1, 0.85, 0.85, 0.075, skin);
+            const bottom = kind === 'girl' ? new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.5, 14, 1, true).translate(0, -0.25, 0), red)
+                : new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.23, 0.38, 12), red);
             bottom.position.y = kind === 'girl' ? 1.15 : 0.98; k.add(bottom);
-            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.22, 0.7, 8), shirt); torso.position.y = 1.5; k.add(torso);
-            const tie = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3, 0.03), red); tie.position.set(0, 1.58, 0.2); k.add(tie);
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.22, 0.7, 12), shirt); torso.position.y = 1.5; k.add(torso);
+            const tie = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3, 0.03), std({ color: 0xa02020 })); tie.position.set(0, 1.58, 0.2); k.add(tie);
             const bag = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.16), bagM); bag.position.set(0, 1.5, -0.24); k.add(bag);
-            const armL = limb(k, -0.25, 1.78, 0.62, 0.055, shirt), armR = limb(k, 0.25, 1.78, 0.62, 0.055, shirt);
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12).scale(1, 1.08, 1), headMat); head.position.y = 2.05; k.add(head);
-            const cap = new THREE.Mesh(new THREE.SphereGeometry(0.315, 14, 8, 0, Math.PI * 2, 0, 1.25).scale(1, 1.08, 1), hairM); cap.position.y = 2.05; cap.rotation.y = Math.PI; k.add(cap);
-            if (kind === 'girl') [-1, 1].forEach((sd) => { const br = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.025, 0.55, 5).translate(0, -0.27, 0), hairM); br.position.set(sd * 0.3, 2.0, -0.05); k.add(br); });
+            const armL = limb(k, -0.25, 1.78, 0.62, 0.06, shirt), armR = limb(k, 0.25, 1.78, 0.62, 0.06, shirt);
+            [armL, armR].forEach((a) => { const h = new THREE.Mesh(hg, skin); h.position.y = -0.62; a.add(h); });
+            const head = new THREE.Mesh(faceHeadGeo(0.3, 1.08, { jaw: 0.2, chin: 0.1, brow: 0.05, hollow: 0.03, socket: 0.1, nose: 0.07, lip: 0.03 }), hm[kind === 'girl' ? 'girl' : 'boy']);
+            head.position.y = 2.05; k.add(head);
+            const cap = new THREE.Mesh(new THREE.SphereGeometry(0.318, 22, 12, 0, Math.PI * 2, 0, 1.28).scale(1, 1.08, 1), hairM); cap.position.y = 2.05; cap.rotation.y = Math.PI; k.add(cap);
+            if (kind === 'girl') [-1, 1].forEach((sd) => { const br = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.025, 0.6, 7).translate(0, -0.3, 0), hairM); br.position.set(sd * 0.3, 2.0, -0.05); k.add(br); });
             kids.push({ k, legL, legR, armL, armR, head, ph: i * 2.1 });
         });
         o.wait = (c) => {
@@ -1796,12 +2177,11 @@ async function run(mode) {
                 q.k.rotation.z = sw * 0.03;
                 q.head.rotation.y = lerp(q.head.rotation.y, clamp(c.yawRel, -0.9, 0.9) * c.near, 0.08);
                 q.head.rotation.z = Math.sin(time * 0.7 + q.ph) * 0.12;
-                q.armR.rotation.z = i === 1 ? -2.5 + Math.sin(time * 5) * 0.35 : 0.1 + c.near * 0.2;   // the girl waves
+                q.armR.rotation.z = i === 1 ? -2.5 + Math.sin(time * 5) * 0.35 : 0.1 + c.near * 0.2;
                 q.armL.rotation.z = -0.1;
             });
         };
         o.walk = () => {
-            const s = Math.sin(time * 6);
             root.position.y = 0.1;
             kids.forEach((q, i) => {
                 const p = Math.sin(time * 6 + i * 1.3);
@@ -1814,50 +2194,43 @@ async function run(mode) {
         return o;
     }
 
-    // ---- Wewe Gombel: rare elite ogress. Hunched, long limbs, wild grey hair, carries a glowing bundle
+    // ---- Wewe Gombel: hunched ogress with a deeply lined sculpted face, strand-shaded grey hair and long clawed hands
     function createWewe() {
         const o = newGhost(0xb070ff, 5.5, 7.0, 2.0);
         const { root, body, shader, std } = o;
         body.rotation.x = 0.2;
-        const dressMat = shader(0x3b2d27, 0.25, 3.0, false, true, 0xb070ff);
-        const sleeveMat = shader(0x3b2d27, 0.14, 1.3, true, true, 0xb070ff);
-        const hairMat = shader(0x5c5c66, 0.3, 3.8, true, false, 0xb070ff);
-        const skin = std({ color: 0xa99d88, emissive: 0x201c14 });
-        const faceTex = faceTexture((g, w, h, blob) => {
-            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#b0a48e'); gr.addColorStop(1, '#8a7e6a');
-            g.fillStyle = gr; g.fillRect(0, 0, w, h);
-            const cx = 256, cy = 256;
-            for (let i = 0; i < 40; i++) { g.strokeStyle = 'rgba(30,20,12,.35)'; g.lineWidth = 1.5; const x = cx + rand(-110, 110), y = cy + rand(-70, 90); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-30, 30), y + rand(-4, 6)); g.stroke(); }
-            blob(cx - 54, cy - 10, 40, 32, 'rgba(10,6,4,.95)'); blob(cx + 54, cy - 10, 40, 32, 'rgba(10,6,4,.95)');
-            [-1, 1].forEach((s) => { blob(cx + s * 54, cy - 10, 20, 15, 'rgba(255,225,80,.95)'); g.fillStyle = '#000'; g.beginPath(); g.ellipse(cx + s * 54, cy - 10, 3, 11, 0, 0, 7); g.fill(); });
-            g.strokeStyle = 'rgba(30,20,12,.7)'; g.lineWidth = 4; g.beginPath(); g.moveTo(cx, cy - 20); g.lineTo(cx - 10, cy + 50); g.lineTo(cx + 12, cy + 54); g.stroke();
-            g.fillStyle = '#120808'; g.beginPath(); g.moveTo(cx - 62, cy + 84); g.quadraticCurveTo(cx, cy + 140, cx + 62, cy + 84); g.quadraticCurveTo(cx, cy + 96, cx - 62, cy + 84); g.fill();
-            g.fillStyle = '#d8d0b0'; [-30, -8, 16, 38].forEach((x) => g.fillRect(cx + x, cy + 94 + Math.abs(x) * -0.05, 6, 12));
-        });
+        const dressMat = shader(0x4a3a30, 0.25, 3.0, false, true, 0xb070ff, { grime: 0x14100c, stain: 0x3a0c10, stainAmt: 0.7 });
+        const sleeveMat = shader(0x4a3a30, 0.14, 1.3, true, true, 0xb070ff, { grime: 0x14100c, stain: 0x3a0c10, stainAmt: 0.4 });
+        const hairMat = shader(0x6a6a74, 0.3, 3.8, true, false, 0xb070ff, { mode: 1 });
+        const skin = std({ color: 0xffffff, map: skinTexture('#a99d88', 'rgba(80,70,110,.5)'), emissive: 0x201c14, roughness: 0.8 });
+        const f = getFace('wewe');
         const pts = [];
-        for (let i = 0; i <= 28; i++) { const t = i / 28; pts.push(new THREE.Vector2(0.24 + 0.85 * Math.pow(1 - t, 1.6) + 0.12 * Math.exp(-Math.pow((t - 0.88) / 0.08, 2)), t * 3.0)); }
-        const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 30), dressMat); dress.renderOrder = 1; body.add(dress);
-        body.add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 8), skin).translateY(3.05));
+        for (let i = 0; i <= 36; i++) { const t = i / 36; pts.push(new THREE.Vector2(0.24 + 0.85 * Math.pow(1 - t, 1.6) + 0.12 * Math.exp(-Math.pow((t - 0.88) / 0.08, 2)), t * 3.0)); }
+        const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), dressMat); dress.renderOrder = 1; body.add(dress);
+        body.add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 10), skin).translateY(3.05));
         const head = new THREE.Group(); head.position.set(0, 3.42, 0.22); body.add(head);
-        head.add(new THREE.Mesh(new THREE.SphereGeometry(0.43, 24, 18).scale(0.9, 1.2, 0.95),
-            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x887766, emissiveIntensity: 0.4 })));
-        const curtain = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.85, 3.8, 26, 10, true, 0.8, Math.PI * 2 - 1.6).translate(0, -1.9, 0), hairMat);
+        head.add(new THREE.Mesh(faceHeadGeo(0.43, 1.2, { jaw: 0.36, chin: 0.2, brow: 0.08, hollow: 0.14, socket: 0.13, nose: 0.14, lip: 0.04 }),
+            std({ map: f.map, bumpMap: f.bump, bumpScale: 3.5, emissiveMap: f.map, emissive: 0x887766, emissiveIntensity: 0.3, roughness: 0.7 })));
+        const curtain = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.85, 3.8, 30, 12, true, 0.8, Math.PI * 2 - 1.6).translate(0, -1.9, 0), hairMat);
         curtain.position.y = 0.42; curtain.renderOrder = 2; head.add(curtain);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.48, 18, 10, 0, Math.PI * 2, 0, 1.2).scale(0.92, 1.2, 0.97), hairMat); cap.renderOrder = 2; head.add(cap);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.48, 24, 12, 0, Math.PI * 2, 0, 1.15).scale(0.92, 1.2, 0.97), hairMat); cap.renderOrder = 2; head.add(cap);
         [-1, 1].forEach((s) => {
-            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 2.4, 2, 8).translate(0, -1.2, 0), hairMat);
+            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 2.4, 3, 10).translate(0, -1.2, 0), hairMat);
             lock.position.set(s * 0.42, 0.4, 0.15); lock.rotation.set(0, s * -0.5, s * 0.08); lock.renderOrder = 3; head.add(lock);
+            const wisp = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 1.2, 1, 6).translate(0, -0.6, 0), hairMat);
+            wisp.position.set(s * 0.26, 0.2, 0.38); wisp.rotation.set(0.1, s * -0.2, s * 0.1); wisp.renderOrder = 3; head.add(wisp);
         });
+        const hand = handGeo(1.9, true);
         const makeArm = (s) => {
             const a = new THREE.Group(); a.position.set(s * 0.5, 2.78, 0); a.rotation.z = s * -0.22;
-            const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.3, 1.3, 10, 5, true).translate(0, -0.65, 0), sleeveMat); sl.renderOrder = 1; a.add(sl);
-            a.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 1.5, 6).translate(0, -2.05, 0), skin));
-            for (let k = -1; k <= 1; k++) { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, 0.5, 4).translate(0, -0.25, 0), skin); f.position.set(k * 0.045, -2.8, 0); f.rotation.z = k * 0.25; a.add(f); }
+            const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.3, 1.3, 14, 5, true).translate(0, -0.65, 0), sleeveMat); sl.renderOrder = 1; a.add(sl);
+            a.add(new THREE.Mesh(limbTube([[0, -1.2, 0], [0, -2.0, 0.05], [0, -2.7, 0.1]], [0.06, 0.05, 0.04], 8, 8), skin));
+            const hm = new THREE.Mesh(hand, skin); hm.position.set(0, -2.7, 0.1); hm.rotation.y = s > 0 ? 0 : Math.PI; a.add(hm);
             body.add(a); return a;
         };
         const armL = makeArm(-1), armR = makeArm(1);
         const bundle = new THREE.Group(); bundle.position.set(-0.55, 1.7, 0.55); body.add(bundle);
-        bundle.add(new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10).scale(1, 0.8, 1.3), std({ color: 0x6a5a48, flatShading: true })));
+        bundle.add(new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12).scale(1, 0.8, 1.3), std({ color: 0x6a5a48, roughness: 1 })));
         const bg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffa0d8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
         bg.scale.setScalar(1.4); bg.position.y = 0.15; bundle.add(bg); o.sprites.push({ s: bg, base: 0.55 });
 
@@ -2208,15 +2581,13 @@ async function run(mode) {
         [-1, 1].forEach((s) => { const d = add(new THREE.PlaneGeometry(0.6, 0.22), new THREE.MeshBasicMaterial({ map: decal }), s * 0.215, 0.8, 0.72); d.rotation.y = s * Math.PI / 2; });
 
         // pocong rider: shroud (wave shader), ties, knot, head turned back toward the bus
-        const shroud = ghostMaterial(0xdad4c0, 0.07, 2.2, false, false, 0xbfe8d0);
-        const prof = [[0.001, 0], [0.3, 0], [0.34, 0.35], [0.38, 0.9], [0.34, 1.25], [0.25, 1.4], [0.33, 1.55], [0.36, 1.75], [0.3, 2.0], [0.14, 2.15], [0.001, 2.2]].map(([r, y]) => new THREE.Vector2(r, y));
+        const shroud = ghostMaterial(0xdad4c0, 0.05, 2.2, false, false, 0xbfe8d0, { grime: 0x3a2e1c, stain: 0x6a4222, stainAmt: 0.9 });
+        const prof = [[0.001, 0], [0.3, 0], [0.34, 0.35], [0.38, 0.9], [0.34, 1.25], [0.25, 1.42], [0.16, 1.5], [0.001, 1.56]].map(([r, y]) => new THREE.Vector2(r, y));
         const rider = new THREE.Group(); rider.position.set(0, 1.05 - 0.42, 0.45 - 0.95); rider.rotation.x = -0.35; pivot.add(rider);
         rider.add(new THREE.Mesh(new THREE.LatheGeometry(new THREE.SplineCurve(prof).getPoints(24), 14), shroud));
         const tie = std2(0x8f8a78);
-        [[0.35, 0.38], [1.45, 0.3], [2.05, 0.2]].forEach(([y, r]) => { const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 14).rotateX(Math.PI / 2), tie); t.position.y = y; rider.add(t); });
-        const knot = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 6), std2(0xdad4c0)); knot.position.y = 2.3; rider.add(knot);
-        const faceMat = new THREE.MeshBasicMaterial({ map: pocongFaceTexture(), transparent: true, depthWrite: false });
-        const face = new THREE.Mesh(new THREE.CylinderGeometry(0.375, 0.375, 0.75, 12, 1, true, -0.5, 1.0).translate(0, 1.75, 0), faceMat); face.renderOrder = 2; rider.add(face);
+        [[0.35, 0.38], [1.45, 0.3]].forEach(([y, r]) => { const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 14).rotateX(Math.PI / 2), tie); t.position.y = y; rider.add(t); });
+        const rhead = pocongHead((p) => new THREE.MeshStandardMaterial(p), ghostMaterial); rhead.position.y = 1.95; rhead.scale.setScalar(0.85); rider.add(rhead);
         const strips = [-0.3, 0, 0.3].map((x) => {
             const st = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 2.4, 1, 8).translate(0, -1.2, 0), ghostMaterial(0xe8e4d4, 0.25, 2.4, true, false, 0xbfe8d0));
             st.position.set(x, 1.5, 0.3); st.rotation.x = -1.35; rider.add(st); return st;           // shroud tail streaming behind
@@ -2940,6 +3311,7 @@ async function run(mode) {
         renderer.render(scene, camera);
         requestAnimationFrame(loop);
     }
+    ['kuntilanak', 'pocong', 'tuyul', 'genderuwo', 'anak', 'wewe'].forEach((k, i) => setTimeout(() => { if (!passengerTex[k]) passengerTex[k] = { win: drawWindows(k), rear: drawRear(k) }; }, 1500 + i * 400));   // no hitch at pickup
     requestAnimationFrame(loop);
 
     setTimeout(() => {
