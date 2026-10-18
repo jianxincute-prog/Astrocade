@@ -534,5 +534,53 @@
     "subtype": "character",
     "type": "image",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M56JDPJA0DG9HF9FSY86RRAM_08c17b7c-fbbd-40b2-9a13-bde231f4f494_cc5fbea3-aa86-4068-83f6-2cbc18ceb849.webp"
+  },
+  "art_sunninja": {
+    "animation": null,
+    "aspect_ratio": [
+      845,
+      1309
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel young ninja with spiky golden hair, an orange jacket with dark-blue sleeves, a plain blue headband with a blank metal plate, a big confident grin, holding a glowing swirling blue energy sphere in one hand, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel young ninja with spiky golden hair, an orange jacket with dark-blue sleeves, a plain blue headband with a blank metal plate, a big confident grin, holding a glowing swirling blue energy sphere in one hand, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5773YPZG0GP42Y2ADZ8ZA4Y_1543472c-9c85-4ba4-bb34-bedf3a293aef_717250a1-1a10-499a-bc1a-9bb57cd640c7.webp"
+  },
+  "art_ravenninja": {
+    "animation": null,
+    "aspect_ratio": [
+      918,
+      1355
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel brooding young ninja with spiky raven-black hair, a dark navy high-collar outfit, a sword on his back, calm cold eyes, crackling blue lightning in his raised hand, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel brooding young ninja with spiky raven-black hair, a dark navy high-collar outfit, a sword on his back, calm cold eyes, crackling blue lightning in his raised hand, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5773ZSKMM96AT1AB9GWNDSN_26189680-d054-4c36-8eec-e8fb7c041275_93803fc6-daf5-45cd-94b6-c91e09f638e2.webp"
+  },
+  "art_blossom": {
+    "animation": null,
+    "aspect_ratio": [
+      969,
+      1366
+    ],
+    "compression_suggestion": "original",
+    "description": "Blocky voxel kunoichi with short pink hair, a red ribbon headband, a red and cream outfit with black gloves, green eyes, a determined look, smashing the ground with a glowing fist so the floor cracks, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "prompt": "Blocky voxel kunoichi with short pink hair, a red ribbon headband, a red and cream outfit with black gloves, green eyes, a determined look, smashing the ground with a glowing fist so the floor cracks, Minecraft-style, bold dark outline, vibrant colors, centered game card illustration, no text",
+    "subtype": "character",
+    "type": "image",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M57740V80MY0TCXPJH5JNX4K_cafc8321-81de-4b0f-95d4-038b14dec701_3a3f8d28-5d39-446a-bffe-a024110663b6.webp"
   }
 }

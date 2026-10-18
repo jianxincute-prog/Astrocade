@@ -447,7 +447,7 @@ async function run(mode) {
 
     /* ============================ PLAYER PROFILE (saved with lib.saveUserGameState) ============================ */
     const STARTER = ['slime', 'golem', 'wolf', 'archer', 'fireball', 'heal', 'flameaura', 'chaintrap'];
-    const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250, bat: 180, treant: 200, turtle: 250, priest: 220, creeper: 160, ironguard: 120, swiftwind: 140, divineshield: 150, mirrortrap: 260, landmine: 200, sponge: 80, plankton: 90, squid: 220, crab: 450, starfish: 420 };
+    const PRICE = { slime: 80, golem: 220, wolf: 150, archer: 150, drake: 400, fireball: 120, heal: 80, storm: 300, flameaura: 100, frostcurse: 200, chaintrap: 160, spiketrap: 250, bat: 180, treant: 200, turtle: 250, priest: 220, creeper: 160, ironguard: 120, swiftwind: 140, divineshield: 150, mirrortrap: 260, landmine: 200, sponge: 80, plankton: 90, squid: 220, crab: 450, starfish: 420, sunninja: 380, ravenninja: 380, blossom: 300 };
     const LV_MAX = 5, COPIES_NEED = [2, 4, 6, 10], COIN_NEED = [50, 100, 200, 400];
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 10;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
@@ -470,7 +470,9 @@ async function run(mode) {
         creep: { color: 0x5fbf4a, glow: 0xaaff7a },
         wind: { color: 0x6fe3d6, glow: 0xaaf5ee },
         sea: { color: 0x3fc8d8, glow: 0x8ff0ff },
-        coral: { color: 0xff7f96, glow: 0xffb3c1 }
+        coral: { color: 0xff7f96, glow: 0xffb3c1 },
+        sun: { color: 0xff9a2e, glow: 0xffc266 },
+        storm: { color: 0x6f7bff, glow: 0x9fb0ff }
     };
     const CARDS = {
         slime: { type: 'monster', name: 'CUBE SLIME', cost: 1, atk: 2, hp: 3, elem: 'grass', model: 'slime', speed: 6.5, desc: 'CUBE SLIME: a cheap, bouncy blocker.' },
@@ -493,6 +495,9 @@ async function run(mode) {
         squid: { type: 'monster', name: 'CRANKY SQUID', cost: 3, atk: 4, hp: 5, elem: 'sea', model: 'squid', speed: 6, desc: 'CRANKY SQUID: a grumpy squid that slaps hard with its tentacles.' },
         crab: { type: 'monster', name: 'TITAN CRAB', cost: 6, atk: 8, hp: 11, elem: 'fire', model: 'crab', speed: 5.5, desc: 'TITAN CRAB: a giant armoured crab with crushing pincers. Costs your whole energy bar.' },
         starfish: { type: 'monster', name: 'COLOSSAL STARFISH', cost: 6, atk: 5, hp: 15, elem: 'coral', model: 'starfish', speed: 4.2, desc: 'COLOSSAL STARFISH: a gentle sleepy giant with enormous HP. Costs your whole energy bar.' },
+        sunninja: { type: 'monster', name: 'SUNRISE NINJA', cost: 4, atk: 5, hp: 7, elem: 'sun', model: 'sunninja', speed: 9.5, desc: 'SUNRISE NINJA: a loud, never-give-up ninja who charges in with a swirling energy sphere.' },
+        ravenninja: { type: 'monster', name: 'RAVEN NINJA', cost: 4, atk: 6, hp: 5, elem: 'storm', model: 'ravenninja', speed: 12, desc: 'RAVEN NINJA: a cool, lightning-fast swordsman who hits first and hits hard.' },
+        blossom: { type: 'monster', name: 'BLOSSOM KUNOICHI', cost: 3, atk: 4, hp: 6, elem: 'coral', model: 'blossom', speed: 7, desc: 'BLOSSOM KUNOICHI: a sturdy fighter with a ground-shaking punch.' },
         ironguard: { type: 'buff', name: 'IRON GUARD', cost: 1, target: 'ownMon', elem: 'earth', desc: 'IRON GUARD: bonus HP and a grey iron aura.' },
         swiftwind: { type: 'buff', name: 'SWIFT WIND', cost: 1, target: 'ownMon', elem: 'wind', desc: 'SWIFT WIND: bonus ATK, faster legs and a cyan wind aura.' },
         divineshield: { type: 'buff', name: 'DIVINE SHIELD', cost: 1, target: 'ownMon', elem: 'light', desc: 'DIVINE SHIELD: a golden shield that absorbs damage.' },
@@ -517,6 +522,9 @@ async function run(mode) {
     CARDS.squid.l5 = { buff: 'INK ARMOR', buffDesc: 'attackers take 2 damage when they strike it', skill: 'TENTACLE FLURRY', skillDesc: 'strikes twice per attack', atk: 0 };
     CARDS.crab.l5 = { buff: 'IRON SHELL', buffDesc: 'immune to curses and chains', skill: 'CLAW SLAM', skillDesc: 'its strike shakes the arena: 2 damage to every other enemy monster', atk: 1 };
     CARDS.starfish.l5 = { buff: 'REGROWTH', buffDesc: 'regrows 2 HP at the start of every round', skill: 'STAR BURST', skillDesc: 'when it dies it blasts every enemy monster for 3', atk: 0 };
+    CARDS.sunninja.l5 = { buff: 'SUN SURGE', buffDesc: '+1 ATK and a blazing orange aura', skill: 'SHADOW CLONES', skillDesc: 'strikes twice per attack', atk: 1 };
+    CARDS.ravenninja.l5 = { buff: 'SHARP SENSES', buffDesc: '+1 ATK and a stormy aura', skill: 'LIGHTNING BLADE', skillDesc: 'lightning arcs to another enemy for 3 damage', atk: 1 };
+    CARDS.blossom.l5 = { buff: 'HEALING PALM', buffDesc: 'regrows 2 HP at the start of every round', skill: 'GROUND SMASH', skillDesc: 'its punch shakes the arena: 2 damage to every other enemy monster', atk: 0 };
     CARDS.creeper.l5 = { buff: 'REINFORCED FUSE', buffDesc: 'survives its own blast', skill: 'MEGA BLAST', skillDesc: 'its blast deals 4 to every other enemy monster', atk: 0 };
     const LVV = {
         ironguard: { hp: [3, 4, 5, 6, 7], armor: [0, 0, 1, 1, 1] }, swiftwind: { atk: [1, 1, 2, 2, 2] }, divineshield: { shield: [3, 4, 5, 6, 8] },
@@ -556,7 +564,7 @@ async function run(mode) {
         'slime', 'slime', 'slime', 'golem', 'golem', 'wolf', 'wolf', 'wolf', 'archer', 'archer', 'drake', 'drake',
         'fireball', 'fireball', 'heal', 'storm', 'flameaura', 'flameaura', 'frostcurse', 'frostcurse', 'chaintrap', 'spiketrap',
         'bat', 'treant', 'turtle', 'priest', 'creeper', 'ironguard', 'swiftwind', 'divineshield', 'mirrortrap', 'landmine',
-        'sponge', 'plankton', 'squid', 'crab', 'starfish'
+        'sponge', 'plankton', 'squid', 'crab', 'starfish', 'sunninja', 'ravenninja', 'blossom'
     ];
     const TYPE_LABEL = { skill: 'SKILL', buff: 'BUFF', debuff: 'DEBUFF', trap: 'TRAP' };
     const TYPE_COLOR = { skill: 0xff8a3c, buff: 0xff4a3a, debuff: 0x8d5bff, trap: 0x5b6b8c };
@@ -1189,7 +1197,76 @@ async function run(mode) {
             });
         });
     }
+    // blocky ninja body shared by the three ninja cards: legs, torso, two arm pivots and a head pivot
+    function ninjaRig(o) {
+        const g = new THREE.Group();
+        const legs = [-0.42, 0.42].map((x) => { const l = piv(g, x, 1.5, 0); addBox(l, 0.66, 1.1, 0.66, 0, -0.55, 0, o.pants); addBox(l, 0.74, 0.4, 0.95, 0, -1.3, 0.12, o.boots); return l; });
+        addBox(g, 1.7, 1.7, 0.95, 0, 2.35, 0, o.top); addBox(g, 1.74, 0.28, 1.0, 0, 1.65, 0, o.belt);
+        const arms = [-1.25, 1.25].map((x) => { const a = piv(g, x, 3.0, 0); addBox(a, 0.6, 1.1, 0.6, 0, -0.55, 0, o.sleeve); addBox(a, 0.5, 0.9, 0.5, 0, -1.5, 0, o.skin); addBox(a, 0.62, 0.45, 0.62, 0, -2.1, 0, o.glove); return a; });
+        const head = piv(g, 0, 3.95, 0); addBox(head, 1.3, 1.3, 1.2, 0, 0, 0, o.skin);
+        const R = { g, head, legs, arms, armL: arms[0], armR: arms[1] };
+        R.finish = (cfg) => {
+            const setArms = (x) => { arms[0].rotation.x = x * 0.7; arms[1].rotation.x = x; arms[0].rotation.z = 0.08; arms[1].rotation.z = -0.08; };
+            return { group: g, size: cfg.size,
+                idle: (t) => { g.position.y = Math.abs(Math.sin(t * 2.2)) * 0.1; head.rotation.z = Math.sin(t * 1.6) * 0.04; arms[0].rotation.z = 0.1 + Math.sin(t * 2) * 0.08; arms[1].rotation.z = -0.1 - Math.sin(t * 2 + 1) * 0.08; legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 2 + i * 3.14) * 0.05; }); cfg.extraIdle(t); },
+                pose: (kind, k) => {
+                    if (kind === 'windup') { setArms(2.3 * k); g.rotation.x = -0.15 * k; head.rotation.x = -0.1 * k; }
+                    else if (kind === 'strike') { setArms(2.3 - 3.9 * k); g.rotation.x = -0.15 + 0.4 * k; head.rotation.x = 0.12 * k; }
+                    else { setArms(0); g.rotation.x = 0; head.rotation.x = 0; }
+                    cfg.extraPose(kind, k);
+                } };
+        };
+        return R;
+    }
     const MODELS = {
+        sunninja() {
+            const r = ninjaRig({ skin: 0xf4c79a, top: 0xff8a1e, belt: 0x1e2f7a, pants: 0x1e2f7a, boots: 0x1a2250, glove: 0x2a3c8a, sleeve: 0x1e2f7a });
+            const { g, head } = r;
+            // spiky golden hair, plain headband with a blank plate
+            const Hy = 0xffd23a, Hy2 = 0xffb81e;
+            addBox(head, 1.5, 0.5, 1.4, 0, 0.7, -0.05, Hy); addBox(head, 0.3, 0.8, 1.2, -0.8, 0.1, -0.05, Hy2); addBox(head, 0.3, 0.8, 1.2, 0.8, 0.1, -0.05, Hy2);
+            for (const [x, h, z, rz] of [[-0.55, 0.7, 0.1, 0.35], [-0.2, 0.95, 0.15, 0.1], [0.2, 0.95, 0.15, -0.1], [0.55, 0.7, 0.1, -0.35], [0, 0.8, -0.35, 0]]) { const sp = addBox(head, 0.3, h, 0.3, x, 1.15 + h / 2 - 0.4, z, Hy); sp.rotation.z = rz; }
+            addBox(head, 1.4, 0.26, 1.3, 0, 0.42, 0.02, 0x2a3c8a); metalB(head, 0.6, 0.24, 0.1, 0, 0.42, 0.68, 0xc8d0e0);
+            for (const x of [-0.32, 0.32]) { addBox(head, 0.34, 0.3, 0.1, x, 0.02, 0.62, 0xffffff); addBox(head, 0.18, 0.24, 0.12, x, 0.0, 0.66, 0x4aa8ff); }
+            addBox(head, 0.7, 0.16, 0.1, 0, -0.38, 0.63, 0x3a1010); addBox(head, 0.5, 0.06, 0.12, 0, -0.34, 0.66, 0xffffff);
+            addBox(r.g, 0.5, 0.9, 0.3, 0, 2.5, 0.52, 0x1e2f7a); addBox(r.g, 0.12, 1.5, 0.08, 0.7, 2.4, 0.5, 0xffd23a);                                // jacket zip stripe
+            const orb = new THREE.Group(); r.armR.add(orb); orb.position.set(0, -2.3, 0.7);
+            const core = glowB(orb, 0.6, 0.6, 0.6, 0, 0, 0, 0x6fd0ff, 0.95, true), halo = glowB(orb, 1.0, 1.0, 1.0, 0, 0, 0, 0xffa03a, 0.35, true); orb.visible = false;
+            return r.finish({ size: { w: 3.0, h: 5.2, d: 1.7 }, extraIdle: (t) => { halo.rotation.y = t * 8; core.rotation.x = t * 6; },
+                extraPose: (kind, k) => { orb.visible = kind === 'windup' || kind === 'strike'; const s = kind === 'windup' ? k : 1; orb.scale.setScalar(0.4 + 0.8 * s); } });
+        },
+        ravenninja() {
+            const r = ninjaRig({ skin: 0xf0cfae, top: 0x2a3450, belt: 0x6a4fa0, pants: 0x3a3f50, boots: 0x1a1c28, glove: 0xe8e8f0, sleeve: 0x2a3450 });
+            const { g, head } = r;
+            const H = 0x2a2440, H2 = 0x3a3260;
+            addBox(head, 1.5, 0.5, 1.4, 0, 0.68, -0.1, H); addBox(head, 0.3, 0.8, 1.3, -0.8, 0.05, -0.1, H); addBox(head, 0.3, 0.8, 1.3, 0.8, 0.05, -0.1, H);
+            for (const [x, z, rx] of [[-0.5, -0.5, -0.5], [-0.1, -0.7, -0.6], [0.3, -0.6, -0.5], [0.65, -0.45, -0.4]]) { const sp = addBox(head, 0.34, 0.5, 0.9, x, 1.0, z, H2); sp.rotation.x = rx; }
+            for (const x of [-0.3, 0.3]) addBox(head, 0.34, 0.8, 0.14, x, 0.3, 0.68, H);                                  // bangs
+            addBox(head, 1.4, 0.2, 1.3, 0, 0.44, 0.0, 0x4a4a68);
+            for (const x of [-0.32, 0.32]) { addBox(head, 0.34, 0.26, 0.1, x, -0.02, 0.62, 0xe8e8f0); glowB(head, 0.18, 0.2, 0.12, x, -0.02, 0.67, 0x9a6bff, 0.95); addBox(head, 0.4, 0.1, 0.12, x, 0.15, 0.68, H); }
+            addBox(head, 0.4, 0.07, 0.1, 0, -0.4, 0.63, 0x3a1a1a);
+            addBox(g, 1.9, 0.5, 1.1, 0, 3.15, 0, 0x3a4670);                                                               // high collar
+            addBox(g, 0.35, 1.0, 0.1, 0, 2.4, 0.52, 0x6a4fa0);                                                            // sash
+            addBox(g, 0.5, 0.4, 0.2, -0.3, 1.7, 0.55, 0x6a4fa0); addBox(g, 0.5, 0.4, 0.2, 0.3, 1.7, 0.55, 0x6a4fa0);   // belt bow
+            const sword = piv(g, 0, 2.6, -0.6); sword.rotation.z = 0.5; metalB(sword, 0.18, 2.6, 0.12, 0, 0.4, 0, 0xcfd6e6); addBox(sword, 0.5, 0.14, 0.3, 0, -0.9, 0, 0x2a2a38); addBox(sword, 0.2, 0.6, 0.2, 0, -1.3, 0, 0x6a4fa0);
+            const bolts = [0, 1, 2].map((i) => { const b = glowB(r.armR, 0.1, 0.9, 0.1, (i - 1) * 0.35, -2.5, 0.6, i === 1 ? 0xfff27a : 0x9fb0ff, 0.95, true); b.rotation.z = (i - 1) * 0.5; b.visible = false; return b; });
+            return r.finish({ size: { w: 3.0, h: 5.2, d: 1.7 }, extraIdle: () => {},
+                extraPose: (kind, k, t) => { bolts.forEach((b, i) => { b.visible = kind === 'windup' || kind === 'strike'; b.scale.y = 0.6 + 0.8 * Math.abs(Math.sin(k * 20 + i * 2)); }); } });
+        },
+        blossom() {
+            const r = ninjaRig({ skin: 0xf6d0b0, top: 0xd8344a, belt: 0x3a2a30, pants: 0x3a2a30, boots: 0x2a2a3a, glove: 0x1a1a22, sleeve: 0xd8344a });
+            const { g, head } = r;
+            const H = 0xff8fb0, H2 = 0xff6f98;
+            addBox(head, 1.5, 0.55, 1.4, 0, 0.66, -0.05, H); addBox(head, 0.35, 1.1, 1.3, -0.82, -0.05, -0.05, H2); addBox(head, 0.35, 1.1, 1.3, 0.82, -0.05, -0.05, H2); addBox(head, 1.5, 0.9, 0.35, 0, 0.1, -0.7, H2);
+            for (const x of [-0.45, 0, 0.45]) addBox(head, 0.4, 0.4, 0.14, x, 0.52, 0.7, H);                                // bangs
+            addBox(head, 1.45, 0.2, 1.35, 0, 0.4, 0.0, 0xd8344a); addBox(head, 0.35, 0.35, 0.3, 0.55, 0.4, -0.75, 0xd8344a);
+            for (const x of [-0.32, 0.32]) { addBox(head, 0.34, 0.3, 0.1, x, -0.02, 0.62, 0xffffff); addBox(head, 0.18, 0.24, 0.12, x, -0.02, 0.66, 0x3ad08a); addBox(head, 0.3, 0.14, 0.08, x * 2.0, -0.28, 0.62, 0xff9aa8); }
+            addBox(head, 0.35, 0.08, 0.1, 0, -0.38, 0.63, 0x7a2a3a);
+            addBox(g, 1.0, 1.3, 0.12, 0, 2.4, 0.5, 0xffe9c8); addBox(g, 1.5, 0.22, 0.1, 0, 2.95, 0.5, 0xffe9c8); addBox(g, 1.8, 0.3, 1.0, 0, 1.62, 0, 0xffe9c8);
+            const fist = glowB(r.armR, 0.8, 0.8, 0.8, 0, -2.2, 0.6, 0xffb3c1, 0.9, true); fist.visible = false;
+            return r.finish({ size: { w: 2.9, h: 5.1, d: 1.6 }, extraIdle: (t) => { fist.rotation.y = t * 5; },
+                extraPose: (kind, k) => { fist.visible = kind === 'windup' || kind === 'strike'; fist.scale.setScalar(0.5 + 0.7 * (kind === 'windup' ? k : 1)); } });
+        },
         slime() {
             const g = new THREE.Group();
             addBox(g, 2.5, 0.3, 2.5, 0, 0.15, 0, 0x4fbf63);
@@ -1952,6 +2029,8 @@ async function run(mode) {
             if (def.key === 'squid') { m.thorns = 2; m.pounce = true; }
             if (def.key === 'crab') m.immune = true;
             if (def.key === 'starfish') m.regen = 2;
+            if (def.key === 'sunninja') m.pounce = true;
+            if (def.key === 'blossom') m.regen = 2;
         }
         return m;
     }
@@ -2302,7 +2381,10 @@ async function run(mode) {
         sponge: { wind: 0.26, back: 0.1, lunge: 0.16, dist: 1.6, hop: 1.1, fx: 'squish' },
         squid: { wind: 0.3, back: 0.2, lunge: 0.16, dist: 1.9, hop: 0.3, fx: 'slap', trail: 0x6fe3d6 },
         crab: { wind: 0.4, back: 0.2, lunge: 0.14, dist: 2.2, hop: 0.2, fx: 'pinch', trail: 0xff6a4a },
-        starfish: { wind: 0.44, back: 0, lunge: 0.2, dist: 1.8, hop: 0.2, fx: 'flop', trail: 0xffb3c1 }
+        starfish: { wind: 0.44, back: 0, lunge: 0.2, dist: 1.8, hop: 0.2, fx: 'flop', trail: 0xffb3c1 },
+        sunninja: { wind: 0.22, back: 0.5, lunge: 0.14, dist: 2.0, hop: 0.9, fx: 'spiral', trail: 0xffa03a },
+        ravenninja: { wind: 0.16, back: 0.7, lunge: 0.11, dist: 2.2, hop: 0.4, fx: 'zap', trail: 0x9fb0ff },
+        blossom: { wind: 0.4, back: 0.1, lunge: 0.16, dist: 1.6, hop: 0.3, fx: 'smash', trail: 0xffb3c1 }
     };
     const RANGED = {
         archer: { aim: 0.4, fly: 0.34, proj: 'arrow', color: 0x9fe4ff },
@@ -2327,6 +2409,9 @@ async function run(mode) {
             case 'squish': emit(ax, 0.9, az, 0xfff08a, 6, 2.2, 3, 0.2, 0.45); emit(ax, 1.2, az, 0x9fe8ff, 4, 1.6, 3, 0.16, 0.5, -1); break;
             case 'slap': streak(ax, h, az, yaw + Math.PI / 2, 0, 0x6fe3d6, 2.6, 0.24); emit(ax, h, az, 0x6fe3d6, 4, 2, 2, 0.18, 0.4); break;
             case 'pinch': streak(ax, h + 0.3, az, yaw, 0.5, 0xff6a4a, 1.8, 0.2); streak(ax, h - 0.3, az, yaw, -0.5, 0xffd23a, 1.8, 0.2); emit(ax, h, az, 0xff6a4a, 5, 2.4, 2, 0.2, 0.4); break;
+            case 'spiral': shockRing(ax, az, 0x6fd0ff, false); emit(ax, h, az, 0xffa03a, 6, 2.6, 2, 0.2, 0.45); emit(ax, h, az, 0x6fd0ff, 5, 2.2, 2, 0.18, 0.45); break;
+            case 'zap': streak(ax, h + 0.4, az, yaw, 0.9, 0x9fb0ff, 2.6, 0.18); streak(ax, h - 0.2, az, yaw, -0.6, 0xfff27a, 2.2, 0.16); emit(ax, h, az, 0x9fb0ff, 6, 2.4, 2, 0.16, 0.35); break;
+            case 'smash': shockRing(ax, az, 0xffb3c1, false); emit(ax, 0.4, az, 0xd9c9a0, 8, 3, 3, 0.26, 0.55); emit(ax, 0.8, az, 0xffb3c1, 5, 2.4, 3, 0.18, 0.45); S.shake = Math.max(S.shake, 0.45); break;
             case 'flop': shockRing(ax, az, 0xffb3c1, false); emit(ax, 0.5, az, 0xffb3c1, 8, 3, 3, 0.24, 0.5); S.shake = Math.max(S.shake, 0.35); break;
             case 'ram': shockRing(ax, az, 0xff7a1a, false); emit(ax, 0.8, az, 0xff7a1a, 7, 3, 3, 0.22, 0.5); break;
         }
@@ -2344,10 +2429,10 @@ async function run(mode) {
         if (m.lv >= LV_MAX && !m.dead && m.def.key === 'treant' && !tgt.dead) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'ENTANGLE!', 'info'); await chainMon(tgt, 1, 'ENTANGLED!'); return; }
         if (m.lv < LV_MAX || m.dead) return;
         const foeSide = other(m.side);
-        if (m.def.key === 'golem' || m.def.key === 'crab') {          // QUAKE / CLAW SLAM
+        if (m.def.key === 'golem' || m.def.key === 'crab' || m.def.key === 'blossom') {          // QUAKE / CLAW SLAM / GROUND SMASH
             const others = liveMons(foeSide).filter((o) => o !== tgt);
             if (others.length) { fxNum(m.holder.position.clone().setY(m.size.h * MON_SCALE + 3.4), 'QUAKE!', 'info'); S.shake = 0.8; shockRing(m.holder.position.x, m.holder.position.z, 0xd9c9a0, true); others.forEach((o) => damageMon(o, 2)); }
-        } else if (m.def.key === 'drake') {                           // CHAIN LIGHTNING
+        } else if (m.def.key === 'drake' || m.def.key === 'ravenninja') {   // CHAIN LIGHTNING
             const pool = liveMons(foeSide).filter((o) => o !== tgt).sort((a, b) => dist2d(a.holder.position, tgt.holder.position) - dist2d(b.holder.position, tgt.holder.position));
             const o = pool[0];
             if (o) {
@@ -2757,9 +2842,9 @@ async function run(mode) {
         }, 300);
     }
     /* The leaderboard is the only data shared between players, so each score carries the trophies AND the deck:
-       score = (trophies + 1) * 2^19 + deckCode (the deck as a combination index of 8 out of all cards). Other players
-       meet that deck as a GHOST rival. Scores below 2^19 are old plain-trophy scores. Kept under 2^31 for safety. */
-    const SCORE_MUL = 524288, TRO_CAP = 4094, GHOST_SIZE = 6, CARD_KEYS = Object.keys(CARDS);   // a ghost plays 6 cards of the deck: C(cards, 6) must stay under 2^19 (fine up to 29 cards)
+       score = (trophies + 1) * 2^20 + deckCode (the deck as a combination index of 8 out of all cards). Other players
+       meet that deck as a GHOST rival. Scores below 2^20 are old plain-trophy scores. Kept under 2^31 for safety. */
+    const SCORE_MUL = 1048576, TRO_CAP = 2046, GHOST_SIZE = 6, CARD_KEYS = Object.keys(CARDS);   // a ghost plays 6 cards of the deck: C(cards, 6) must stay under 2^20 (fine up to 32 cards)
     function binom(n, k) { if (k < 0 || k > n) return 0; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
     function encodeDeck(deck) {
         const idx = deck.map((k) => CARD_KEYS.indexOf(k)).sort((a, b) => a - b);
@@ -2826,7 +2911,7 @@ async function run(mode) {
     }
 
     /* ============================ MONSTER IDLE LIFE ============================ */
-    const AMBIENT = { fire: [0xff8a2b, 1.6, -1], bolt: [0xffe14d, 0.6, 0], ice: [0xbfeaff, -0.2, 0.5], grass: [0x7dff8a, 0.8, -0.5], dark: [0xb07dff, 1.2, -1], light: [0xfff2b0, 1.0, -1], creep: [0xaaff7a, 1.2, -0.6], earth: [0xd9c9a0, 0.5, 1.5], sea: [0x8fe8ff, 0.9, -0.5], coral: [0xffb3c1, 0.6, -0.3] };
+    const AMBIENT = { fire: [0xff8a2b, 1.6, -1], bolt: [0xffe14d, 0.6, 0], ice: [0xbfeaff, -0.2, 0.5], grass: [0x7dff8a, 0.8, -0.5], dark: [0xb07dff, 1.2, -1], light: [0xfff2b0, 1.0, -1], creep: [0xaaff7a, 1.2, -0.6], earth: [0xd9c9a0, 0.5, 1.5], sea: [0x8fe8ff, 0.9, -0.5], coral: [0xffb3c1, 0.6, -0.3], sun: [0xffc266, 1.0, -0.8], storm: [0x9fb0ff, 0.4, 0] };
     function updateMonsters(dt) {
         const all = S.p.mons.concat(S.e.mons).filter((m) => !m.dead);
         // gentle separation so free-roaming monsters never stack on top of each other
