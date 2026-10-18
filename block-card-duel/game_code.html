@@ -40,6 +40,17 @@
         background: linear-gradient(#ff7a3c, #d8341c); border: 5px solid #05070f; border-radius: 14px; box-shadow: 0 7px 0 #05070f;
         text-shadow: 0 3px 0 #000;
     }
+    #clock { position: absolute; left: 16px; top: 192px; min-width: 124px; padding: 4px 14px 6px; box-sizing: border-box; text-align: center; background: rgba(5,7,15,.84); border: 4px solid #05070f; border-radius: 12px; text-shadow: 0 2px 0 #000; }
+    #clock small { display: block; font-size: 14px; letter-spacing: 2px; color: #8fa0d8; line-height: 14px; margin-top: 2px; }
+    #clock b { display: block; font-size: 38px; line-height: 40px; font-weight: normal; }
+    #clock.dbl { border-color: #ffcf3a; } #clock.dbl b, #clock.dbl small { color: #ffcf3a; }
+    #clock.ot { border-color: #ff4a3a; animation: otp .7s infinite alternate; } #clock.ot b, #clock.ot small { color: #ff6b5a; }
+    @keyframes otp { to { transform: scale(1.08); } }
+    #turnBar { position: absolute; right: 16px; top: 762px; width: 220px; height: 34px; background: #05070f; border: 4px solid #05070f; border-radius: 10px; overflow: hidden; box-sizing: border-box; box-shadow: 0 4px 0 #000; }
+    #turnBar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(#7be08a, #1fa04a); }
+    #turnBar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: normal; text-shadow: 0 2px 0 #000; }
+    #turnBar.low i { background: linear-gradient(#ff8a7a, #d8341c); } #turnBar.low { animation: otp .35s infinite alternate; }
+    #turnBar.off { opacity: .35; }
     #fightBtn:active { transform: translateY(4px); box-shadow: 0 3px 0 #05070f; }
     #fightBtn.off { filter: grayscale(1) brightness(.55); }
     #hint {
@@ -237,6 +248,8 @@
             <div id="eplate" class="plate"><div class="nm" id="ename">RIVAL REX</div><div class="bar"><i id="ebar"></i><b id="etxt">20</b></div></div>
             <div id="roundTag"><div class="rd" id="rd">ROUND 1</div><div class="pips" id="epips"></div><div id="ehand"></div></div>
             <button id="exitBtn">EXIT</button>
+            <div id="clock"><small id="clkL">TIME</small><b id="clkT">3:00</b></div>
+            <div id="turnBar" class="off"><i id="turnFill"></i><b id="turnTxt">30</b></div>
             <button id="fightBtn" class="off">FIGHT!</button>
             <div id="pplate" class="plate"><div class="nm">YOU</div><div class="bar"><i id="pbar"></i><b id="ptxt">20</b></div></div>
             <div id="pe"><div class="pips" id="ppips"></div></div>
@@ -377,7 +390,7 @@ async function run(mode) {
     const THREE = window.THREE;
 
     /* ============================ CONFIG ============================ */
-    const DEFAULTS = { duelistHealth: 20, startEnergy: 2, maxEnergy: 8, handSize: 5, enemyThinkTime: 0.7, enemySmarts: 0.8 };
+    const DEFAULTS = { duelistHealth: 20, startEnergy: 2, maxEnergy: 8, handSize: 5, enemyThinkTime: 0.7, enemySmarts: 0.8, turnTime: 30, matchTime: 180, overtimeTime: 60 };
     window.gameConfig = window.gameConfig || {};
     const rule = (k) => {
         const r = window.gameConfig.rules;
@@ -391,7 +404,9 @@ async function run(mode) {
             'Max Energy': { key: 'rules.maxEnergy', type: 'slider', min: 4, max: 10, step: 1 },
             'Hand Size': { key: 'rules.handSize', type: 'slider', min: 3, max: 6, step: 1 },
             'Rival Think Time': { key: 'rules.enemyThinkTime', type: 'slider', min: 0.2, max: 1.5, step: 0.1 },
-            'Rival Smarts': { key: 'rules.enemySmarts', type: 'slider', min: 0, max: 1, step: 0.1 }
+            'Rival Smarts': { key: 'rules.enemySmarts', type: 'slider', min: 0, max: 1, step: 0.1 },
+            'Turn Time (sec)': { key: 'rules.turnTime', type: 'slider', min: 10, max: 60, step: 5 },
+            'Match Time (sec)': { key: 'rules.matchTime', type: 'slider', min: 60, max: 300, step: 15 }
         }
     });
 
@@ -618,6 +633,8 @@ async function run(mode) {
             case 'win': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'square', 0.08, f, i * 0.14)); break;
             case 'lose': [392, 330, 262, 196].forEach((f, i) => tone(f, 0.3, 'triangle', 0.1, f, i * 0.18)); break;
             case 'no': tone(140, 0.15, 'square', 0.07); break;
+            case 'tick': tone(980, 0.05, 'square', 0.05); break;
+            case 'horn': tone(330, 0.35, 'sawtooth', 0.08, 440); tone(440, 0.4, 'sawtooth', 0.08, 660, 0.3); break;
         }
     }
 
@@ -1517,11 +1534,13 @@ async function run(mode) {
         for (let i = 0; i < max; i++) h += `<span class="${i < n ? 'on' : ''}"></span>`;
         el.innerHTML = h;
     }
+    const doubleEnergy = () => S.overtime || (S.matchT <= 60 && S.matchT > 0) || S.timeUp;
+    const energyCap = () => Math.min(rule('maxEnergy'), rule('startEnergy') + S.round - 1 + (doubleEnergy() ? 2 : 0));
     function refreshUI() {
         const maxHp = rule('duelistHealth');
         $('pbar').style.width = Math.max(0, S.p.hp / maxHp * 100) + '%'; $('ptxt').textContent = Math.max(0, S.p.hp) + ' / ' + maxHp;
         $('ebar').style.width = Math.max(0, S.e.hp / maxHp * 100) + '%'; $('etxt').textContent = Math.max(0, S.e.hp) + ' / ' + maxHp;
-        const maxE = Math.min(rule('maxEnergy'), rule('startEnergy') + S.round - 1);
+        const maxE = energyCap();
         renderPips($('ppips'), S.p.energy, maxE); renderPips($('epips'), S.e.energy, maxE);
         $('rd').textContent = 'ROUND ' + S.round;
         $('ehand').innerHTML = S.e.hand.map(() => '<span></span>').join('');
@@ -1630,7 +1649,8 @@ async function run(mode) {
         }
         deselect();
     });
-    fightBtn.addEventListener('click', () => { if (S.phase === 'player') startFight(); });
+    fightBtn.addEventListener('click', () => { if (S.phase === 'player') { S.touched = true; startFight(); } });
+    window.addEventListener('pointerdown', () => { S.touched = true; });
 
     /* ============================ ANIMATION HELPERS ============================ */
     function throwAnim(side) {
@@ -2383,6 +2403,7 @@ async function run(mode) {
         const ai = arenaIndex(profile.trophies);
         paintArena(ai); S.rivalLv = Math.min(LV_MAX, 1 + ai);
         S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
+        S.matchT = rule('matchTime'); S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
         S.p.hp = S.e.hp = rule('duelistHealth');
         S.p.hand = []; S.e.hand = [];
         fillHand('p'); fillHand('e');
@@ -2413,14 +2434,16 @@ async function run(mode) {
         if (acted) await wait(0.6);
     }
     async function startRound(tok, first) {
-        const maxE = Math.min(rule('maxEnergy'), rule('startEnergy') + S.round - 1);
+        const maxE = energyCap();
         S.p.energy = S.e.energy = maxE;
         if (!first) { fillHand('p'); fillHand('e'); }
         S.phase = 'busy'; refreshUI();
         banner('ROUND ' + S.round);
         await wait(1.0);
         if (!alive(tok)) return;
+        if (doubleEnergy() && !S.dblShown) { S.dblShown = true; sfx('horn'); banner(S.overtime ? 'OVERTIME!' : 'DOUBLE ENERGY!'); await wait(1.0); if (!alive(tok)) return; }
         if (!first) { await roundStartEffects(tok); if (!alive(tok)) return; }
+        S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0;
         S.phase = 'player';
         banner('YOUR TURN');
         setHint('Tap a card to see what it does.');
@@ -2437,23 +2460,51 @@ async function run(mode) {
         await enemyTurn(tok); if (!alive(tok)) return;
         banner('RIVAL FIGHT!'); await wait(0.8);
         await attackPhase('e', tok); if (!alive(tok)) return;
+        if (S.timeUp) { timeUp(); if (S.over) return; }
         S.round++;
         await startRound(tok, false);
     }
-    function checkEnd() {
+    const boardHp = (side) => liveMons(side).reduce((n, m) => n + Math.max(0, m.hp), 0);
+    // match clock ran out: more HP wins, a tie goes to sudden-death overtime (first duelist to take damage loses)
+    function timeUp() {
+        S.timeUp = false;
         if (S.over) return;
-        if (S.p.hp > 0 && S.e.hp > 0) return;
-        S.over = true; S.phase = 'over';
-        const won = S.e.hp <= 0 && S.p.hp > 0, loser = won ? 'e' : 'p', tok0 = S.token;
+        if (S.overtime) {
+            const bp = boardHp('p'), be = boardHp('e');
+            if (bp !== be) { checkEnd({ loser: bp < be ? 'p' : 'e', note: 'Overtime over - the stronger board wins' }); return; }
+            checkEnd({ draw: true, note: 'Overtime over - nobody broke through' }); return;
+        }
+        if (S.p.hp !== S.e.hp) { checkEnd({ loser: S.p.hp < S.e.hp ? 'p' : 'e', note: "Time's up - more HP wins" }); return; }
+        S.overtime = true; S.ot = { p: S.p.hp, e: S.e.hp }; S.matchT = rule('overtimeTime'); S.dblShown = true;
+        sfx('horn'); banner('OVERTIME!'); setHint('Sudden death: the first duelist to take damage loses!');
+    }
+    function checkEnd(force) {
+        if (S.over) return;
+        let loser = null, draw = false, note = '';
+        if (force) { loser = force.loser || null; draw = !!force.draw; note = force.note || ''; }
+        else {
+            if (S.p.hp <= 0) loser = 'p'; else if (S.e.hp <= 0) loser = 'e';
+            else if (S.overtime && S.ot) {
+                const pd = S.ot.p - S.p.hp, ed = S.ot.e - S.e.hp;
+                if (pd > 0 || ed > 0) { if (pd > ed) loser = 'p'; else if (ed > pd) loser = 'e'; }
+                if (loser) note = 'Overtime - first blood!';
+            }
+            if (!loser) return;
+        }
+        S.over = true; S.phase = 'over'; deselect();
+        const won = !draw && loser === 'e', tok0 = S.token;
         setMusic(null); sfx(won ? 'win' : 'lose'); setTimeout(() => { if (tok0 === S.token) setMusic('music_menu'); }, 4200);
-        const av = S[loser].avatar, tok = S.token;
-        tween(0.8, (k) => { av.group.rotation.x = -Math.PI / 2 * k; av.group.position.y = 1.2 * k; }, easeIn);
-        emit(av.group.position.x, 3, av.group.position.z, won ? 0xffcf3a : 0xff5a4a, 40, 6, 9, 0.5, 1.2);
-        const reward = applyResult(won);
+        const tok = S.token;
+        if (loser) {
+            const av = S[loser].avatar;
+            tween(0.8, (k) => { av.group.rotation.x = -Math.PI / 2 * k; av.group.position.y = 1.2 * k; }, easeIn);
+            emit(av.group.position.x, 3, av.group.position.z, won ? 0xffcf3a : 0xff5a4a, 40, 6, 9, 0.5, 1.2);
+        }
+        const reward = applyResult(won, draw);
         setTimeout(() => {
             if (tok !== S.token) return;
-            $('endTitle').textContent = won ? 'VICTORY!' : 'DEFEAT';
-            $('endLine').textContent = won ? 'Win streak: ' + profile.streak + '  |  Best: ' + profile.best : 'Streak reset. Wins: ' + profile.wins + '  |  Losses: ' + profile.losses;
+            $('endTitle').textContent = draw ? 'DRAW' : (won ? 'VICTORY!' : 'DEFEAT');
+            $('endLine').textContent = (note ? note + '  |  ' : '') + (draw ? 'Streak kept. Wins: ' + profile.wins : (won ? 'Win streak: ' + profile.streak + '  |  Best: ' + profile.best : 'Streak reset. Wins: ' + profile.wins + '  |  Losses: ' + profile.losses));
             $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.spoils ? '<br>Card copies: ' + esc(reward.spoils) : '');
             $('endscreen').classList.remove('hidden');
         }, 1500);
@@ -2510,13 +2561,13 @@ async function run(mode) {
         return fresh;
     }
     const upgradable = () => profile.owned.filter((k) => (profile.lv[k] || 1) < LV_MAX);
-    function applyResult(won) {
+    function applyResult(won, draw) {
         const mul = 1 + 0.15 * arenaIndex(profile.trophies);
-        const reward = won ? { coins: Math.round(WIN_COINS * mul), trophies: WIN_TROPHIES } : { coins: Math.round(LOSS_COINS * mul), trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
+        const reward = draw ? { coins: Math.round(LOSS_COINS * mul * 2), trophies: 0 } : won ? { coins: Math.round(WIN_COINS * mul), trophies: WIN_TROPHIES } : { coins: Math.round(LOSS_COINS * mul), trophies: -Math.min(LOSS_TROPHIES, profile.trophies) };
         const pool = profile.deck.filter((k) => (profile.lv[k] || 1) < LV_MAX), got = {};
         for (let i = 0; i < (won ? 3 : 1) && pool.length; i++) { const k = pool[Math.floor(Math.random() * pool.length)]; got[k] = (got[k] || 0) + 1; addCopies(k, 1); }
         reward.spoils = Object.keys(got).map((k) => CARDS[k].name + ' +' + got[k]).join(', ');
-        if (won) { profile.wins++; profile.streak++; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; }
+        if (draw) { /* a draw changes neither the streak nor the record */ } else if (won) { profile.wins++; profile.streak++; profile.best = Math.max(profile.best, profile.streak); } else { profile.losses++; profile.streak = 0; }
         profile.coins += reward.coins; profile.trophies = Math.max(0, profile.trophies + reward.trophies);
         saveProfile(); submitScore();
         return reward;
@@ -2558,6 +2609,39 @@ async function run(mode) {
 
     /* ============================ MAIN LOOP ============================ */
     let last = performance.now();
+    function updateClocks(dt) {
+        const inMatch = !S.over && S.phase !== 'menu' && S.phase !== 'over' && S.matchT !== undefined;
+        const clock = $('clock'), tb = $('turnBar');
+        if (!inMatch) return;
+        const paused = !$('exitOv').classList.contains('hidden');
+        if (!paused) {
+            if (S.matchT > 0) { S.matchT -= dt; if (S.matchT <= 0) { S.matchT = 0; S.timeUp = true; } }
+            if (S.timeUp && S.phase === 'player') timeUp();
+            if (S.over) return;
+            if (S.phase === 'player') {
+                S.turnT -= dt;
+                const sec = Math.ceil(S.turnT);
+                if (sec <= 8 && sec > 0 && sec !== S.lastTick) { S.lastTick = sec; sfx('tick'); }
+                if (S.turnT <= 0) {
+                    S.turnT = 0;
+                    if (!S.touched) {
+                        S.afk++;
+                        if (S.afk >= 2) { checkEnd({ loser: 'p', note: 'You were away - forfeited' }); return; }
+                        toast('Still there? Do something next turn or you forfeit!');
+                    } else S.afk = 0;
+                    startFight();
+                }
+            }
+        }
+        const m = Math.max(0, Math.ceil(S.matchT));
+        $('clkT').textContent = Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
+        $('clkL').textContent = S.overtime ? 'OVERTIME' : (doubleEnergy() ? 'x2 ENERGY' : 'TIME');
+        clock.classList.toggle('ot', !!S.overtime); clock.classList.toggle('dbl', !S.overtime && doubleEnergy());
+        const tl = Math.max(0, S.turnT), full = rule('turnTime');
+        $('turnFill').style.width = (S.phase === 'player' ? tl / full * 100 : 0) + '%';
+        $('turnTxt').textContent = S.phase === 'player' ? Math.ceil(tl) + 's' : '';
+        tb.classList.toggle('off', S.phase !== 'player'); tb.classList.toggle('low', S.phase === 'player' && tl <= 8);
+    }
     function loop(ts) {
         const dt = Math.min(((ts || performance.now()) - last) / 1000, 0.11);
         last = ts || performance.now(); S.t += dt;
@@ -2567,6 +2651,7 @@ async function run(mode) {
         updateMonsters(dt);
         updateParticles(dt);
         updateScenery(t, dt);
+        updateClocks(dt);
         // idle animation + auras
         for (const s of ['p', 'e']) {
             const side = S[s];
