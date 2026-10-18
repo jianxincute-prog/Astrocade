@@ -1645,12 +1645,30 @@ async function run(mode) {
     }
     setRival(NAMES[Math.floor(Math.random() * NAMES.length)]);
 
+    /* ---- RIVAL ADAPTS TO YOU: the rival only fields monsters up to a little above the strongest one you own,
+       and its card level is capped by your own average deck level, so a new player never meets late-game cards ---- */
+    const monPower = (c) => c.atk * 1.2 + c.hp * 0.6;
+    function rivalPowerLimit() {
+        const mx = profile.owned.map((k) => CARDS[k]).filter((c) => c && c.type === 'monster').reduce((m, c) => Math.max(m, monPower(c)), 0);
+        return Math.max(6, mx) * 1.1;
+    }
+    function rivalLevelNow() {
+        const lvs = profile.deck.map((k) => clampLv(profile.lv[k])), avg = lvs.length ? lvs.reduce((a, b) => a + b, 0) / lvs.length : 1;
+        return Math.min(LV_MAX, 1 + arenaIndex(profile.trophies), Math.max(1, Math.round(avg) + 1));
+    }
+    function buildRivalPool(src) {
+        const lim = rivalPowerLimit(), ok = (k) => CARDS[k].type !== 'monster' || monPower(CARDS[k]) <= lim;
+        const mons = (a) => a.filter((k) => CARDS[k].type === 'monster').length;
+        let pool = (src || DECK).filter(ok);
+        if (mons(pool) < 2) pool = DECK.filter(ok);
+        return pool;
+    }
     const drawCard = (side) => {
-        const pool = side === 'p' ? (profile.deck.length ? profile.deck : DECK) : (S.ghostDeck || DECK);
+        const pool = side === 'p' ? (profile.deck.length ? profile.deck : DECK) : (S.rivalPool || DECK);
         return CARDS[pool[Math.floor(Math.random() * pool.length)]];
     };
     function starterCard(side) {
-        const pool = side === 'p' ? profile.deck : (S.ghostDeck || DECK);
+        const pool = side === 'p' ? profile.deck : (S.rivalPool || DECK);
         return pool.map((k) => CARDS[k]).filter((c) => c.type === 'monster').sort((a, b) => a.cost - b.cost)[0] || CARDS.slime;
     }
     function aiSmarts() {
@@ -2579,9 +2597,10 @@ async function run(mode) {
         S.token++; const tok = S.token;
         clearBoard();
         const ai = arenaIndex(profile.trophies);
-        paintArena(ai); S.rivalLv = Math.min(LV_MAX, 1 + ai);
+        paintArena(ai); S.rivalLv = rivalLevelNow();
         S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
         S.ghostDeck = !profile.tutorialDone ? null : (ghost && ghost.deck) || null;
+        S.rivalPool = buildRivalPool(S.ghostDeck);
         S.tutorial = !profile.tutorialDone; S.tut = { step: 0, t: 0 }; S.cardsPlayed = 0; S.fights = 0; setCoach(null);
         S.matchT = S.tutorial ? 99999 : rule('matchTime'); S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
         S.p.hp = S.e.hp = rule('duelistHealth');
@@ -3121,7 +3140,7 @@ async function run(mode) {
         const ai = arenaIndex(profile.trophies), cur = ARENAS[ai], nxt = ARENAS[ai + 1];
         $('arenaName').textContent = 'ARENA ' + (ai + 1) + ': ' + cur.name;
         $('arenaSub').textContent = nxt ? profile.trophies + ' / ' + nxt.min + ' trophies to ' + nxt.name : profile.trophies + ' trophies - top arena!';
-        const bar = $('arenaBar'); bar.firstChild.style.width = (nxt ? Math.min(100, (profile.trophies - cur.min) / (nxt.min - cur.min) * 100) : 100) + '%'; bar.lastChild.textContent = 'Rival cards: Lv ' + Math.min(LV_MAX, 1 + ai);
+        const bar = $('arenaBar'); bar.firstChild.style.width = (nxt ? Math.min(100, (profile.trophies - cur.min) / (nxt.min - cur.min) * 100) : 100) + '%'; bar.lastChild.textContent = 'Rival cards: Lv ' + rivalLevelNow();
         paintArena(ai);
         $('deckRow').innerHTML = profile.deck.map((k) => `<div class="mi">${iconSVG(CARDS[k])}</div>`).join('');
         renderChests();
@@ -3142,7 +3161,7 @@ async function run(mode) {
         const ghost = await ghostP;
         if (tok.cancel) return;
         const name = ghost ? ghost.name : NAMES[Math.floor(Math.random() * NAMES.length)];
-        ov.innerHTML = `<h1 style="font-size:54px">RIVAL READY!</h1><div class="vs"><div class="panel side"><b>YOU</b><div>${profile.trophies} trophies</div></div><div class="x">VS</div><div class="panel side"><b>${esc((profile.tutorialDone ? name : 'RIVAL REX').toUpperCase())}</b><div>${ghost ? 'Ghost of a real player - plays their deck (AI)' : 'Rival duelist (AI)'} - Lv ${Math.min(LV_MAX, 1 + arenaIndex(profile.trophies))} cards</div></div></div><p>Get ready!</p>`;
+        ov.innerHTML = `<h1 style="font-size:54px">RIVAL READY!</h1><div class="vs"><div class="panel side"><b>YOU</b><div>${profile.trophies} trophies</div></div><div class="x">VS</div><div class="panel side"><b>${esc((profile.tutorialDone ? name : 'RIVAL REX').toUpperCase())}</b><div>${ghost ? 'Ghost of a real player - plays their deck (AI)' : 'Rival duelist (AI)'} - Lv ${rivalLevelNow()} cards, matched to your collection</div></div></div><p>Get ready!</p>`;
         sfx('summon');
         await wait(1.7);
         if (tok.cancel) return;
@@ -3154,7 +3173,7 @@ async function run(mode) {
         const ai = arenaIndex(profile.trophies);
         const rows = ARENAS.map((a, i) => `<div class="panel rk ${i === ai ? 'me' : ''}" style="${i > ai ? 'opacity:.55' : ''}"><span class="n">${i + 1}</span><span class="u">${a.name}</span><span class="sc">${a.min}+</span></div>`).join('');
         const ov = $('popOv');
-        ov.innerHTML = `<h1 style="font-size:56px">ARENAS</h1><div style="width:640px">${rows}</div><p>Higher arenas pay more coins, but the rival's cards get stronger (Lv ${Math.min(LV_MAX, 1 + ai)} now, up to Lv 5).</p><button class="btn" id="popOk">OK</button>`;
+        ov.innerHTML = `<h1 style="font-size:56px">ARENAS</h1><div style="width:640px">${rows}</div><p>Higher arenas pay more coins, but the rival's cards get stronger (Lv ${rivalLevelNow()} now, up to Lv 5).</p><button class="btn" id="popOk">OK</button>`;
         ov.classList.remove('hidden'); $('popOk').onclick = () => ov.classList.add('hidden');
     });
 
@@ -3364,7 +3383,7 @@ async function run(mode) {
         const ai = arenaIndex(profile.trophies);
         if (ai > (profile.arenaBest || 0)) {
             profile.arenaBest = ai; saveProfile(); sfx('win');
-            showPopup('NEW ARENA!', null, 'Welcome to <b>' + ARENAS[ai].name + '</b>!<br>Coin rewards +' + ai * 15 + '%. The rival\'s cards are now Lv ' + Math.min(LV_MAX, 1 + ai) + '.');
+            showPopup('NEW ARENA!', null, 'Welcome to <b>' + ARENAS[ai].name + '</b>!<br>Coin rewards +' + ai * 15 + '%. The rival\'s cards can now reach Lv ' + Math.min(LV_MAX, 1 + ai) + ' (matched to your own card levels).');
         }
     }
     $('exitBtn').addEventListener('click', () => { if (!S.over) $('exitOv').classList.remove('hidden'); });
@@ -3400,7 +3419,7 @@ async function run(mode) {
     refreshUI();
     updateSpeedBtn();
     showMenu();
-    window.__bcd = { ghostCards, encodeScore, decodeScore, encodeDeck, decodeDeck, findGhost, trackMission, S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
+    window.__bcd = { buildRivalPool, rivalPowerLimit, rivalLevelNow, ghostCards, encodeScore, decodeScore, encodeDeck, decodeDeck, findGhost, trackMission, S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
     requestAnimationFrame(loop);
     LD.finish();
 }
