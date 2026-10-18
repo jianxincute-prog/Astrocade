@@ -9,6 +9,12 @@ Fase 1 (kecuali tikungan/tanjakan/jembatan dan genangan reflektif) dan Fase 2 su
 sebagai satu kelompok mesh + tekstur kanvas (jendela, plat, sign), bukan InstancedMesh; `createGhost(type)` belum
 dipisah dan baru tersedia sebagai blok kuntilanak di `run()` — dipisah saat Fase 3.
 
+Fase 3 (sebagian) sudah dikerjakan: sistem `GHOST_TYPES` + `DESTS` data-driven, dengan 4 hantu
+(kuntilanak, pocong, tuyul, genderuwo) dan 3 tujuan (Rumah Kosong, Sekolah Tua, Rumah Sakit Tua). Pocong dan tuyul
+memakai bay yang bergerak; genderuwo memperlambat bus selama ia di dalam. Belum: hantu anak sekolah (penumpang
+berkelompok), suster ngesot (bahaya jalan, menunggu Fase 4), wewe gombel/leak, tujuan Pasar Malam/Jembatan/Hutan Bambu,
+dan tuyul yang mencuri poin.
+
 ## Kondisi awal (hasil baca kode, sebelum rewrite)
 - Loop inti: gas/rem/steer -> berhenti di bay hijau dekat kuburan -> kuntilanak naik -> berhenti di "Abandoned House" (~500 unit) -> +100 poin -> ulang.
 - Tidak ada fail state, rintangan, lalu lintas, suara, atau progres kesulitan. Hanya 1 jenis hantu, 1 tujuan.
@@ -47,10 +53,10 @@ Refactor jadi data-driven: `{ id, model, spawnSide, boardSpeed, destination, beh
 
 | Hantu | Perilaku | Efek gameplay |
 |---|---|---|
-| Kuntilanak (sekarang) | Berdiri menunggu | Pickup standar |
-| Pocong | Melompat-lompat di jalan menuju bus | Bay bergerak, harus sinkron |
-| Tuyul | Kecil, berlari zig-zag, mencuri koin/poin | Harus dikejar/dihindari |
-| Genderuwo | Besar, menghalangi satu lajur | Rintangan + penumpang berat (bus melambat) |
+| Kuntilanak (selesai) | Berdiri menunggu | Pickup standar |
+| Pocong (selesai) | Melompat-lompat di jalan menuju bus | Bay bergerak, harus sinkron |
+| Tuyul (selesai, tanpa pencurian poin) | Kecil, berlari zig-zag, mencuri koin/poin | Harus dikejar/dihindari |
+| Genderuwo (selesai, tanpa blokir lajur) | Besar, menghalangi satu lajur | Rintangan + penumpang berat (bus melambat) |
 | Hantu Anak Sekolah | Menunggu di halte sekolah | Pickup berkelompok (2-3 sekaligus) |
 | Suster Ngesot | Merayap di aspal | Bahaya jalan: jangan tabrak (penalti) |
 | Wewe Gombel / Leak | Elite, muncul malam tertentu | Bonus tinggi, tujuan sulit |

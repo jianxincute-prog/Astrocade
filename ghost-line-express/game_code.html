@@ -111,8 +111,7 @@ async function run(mode) {
     const DEFAULTS = {
         visual: { busColor: '#1f3d52', headlightColor: '#cdeeff', fogColor: '#22304a', ghostAuraColor: '#7fe9ff' },
         gameplay: { maxSpeed: 0.55, accelerationRate: 0.018, brakingPower: 0.04, requiredStopSpeed: 0.08 },
-        environment: { fogDensity: 100, passengerSpawnDistance: 260, routeLength: 500, pointsPerDelivery: 100 },
-        locations: { destinationName: 'Abandoned House' }
+        environment: { fogDensity: 100, passengerSpawnDistance: 260, routeLength: 500, pointsPerDelivery: 100 }
     };
     function fillDefaults(target, defs) {
         for (const k in defs) {
@@ -131,7 +130,6 @@ async function run(mode) {
     const PICKUP_X = 6, PICKUP_W = 3.6, PICKUP_L = 5;
     const DEST_X = -5, DEST_W = 4, DEST_L = 6;
     const HOUSE_DX = -10, CEM_DX = 13;
-    const DEST_NAME = cfg.locations.destinationName || 'Abandoned House';
 
     // Runtime state
     let speed = 0, score = 0, prevSpeed = 0;
@@ -463,9 +461,10 @@ async function run(mode) {
     scene.add(destination);
     const destBay = makeBay(DEST_W, DEST_L, '#ffb15a', 0xffb15a);
     destination.add(destBay);
-    const house = new THREE.Group();
-    house.position.x = HOUSE_DX;
-    destination.add(house);
+    // Three destinations share one footprint (door on the +x face at local x = 4) so the
+    // delivery ceremony works for all of them; only the active one is visible.
+    const buildings = {};
+    const doorGlows = [];
     const windowMats = [0, 1].map(() => new THREE.MeshBasicMaterial({
         map: canvasTex(64, 96, (g, w, h) => {
             g.fillStyle = '#e8c870'; g.fillRect(0, 0, w, h);
@@ -474,35 +473,99 @@ async function run(mode) {
             g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
         }), color: 0x9a8a50
     }));
-    let doorGlow;
     {
-        const wallTex = canvasTex(128, 128, (g, w, h) => {
-            g.fillStyle = '#4a4036'; g.fillRect(0, 0, w, h);
-            for (let y = 0; y < h; y += 16) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, y, w, 2); }
-            for (let i = 0; i < 400; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.18)' : 'rgba(120,130,110,.1)'; g.fillRect(rand(0, w), rand(0, h), rand(1, 6), rand(1, 3)); }
-        }, 1);
-        wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.repeat.set(2, 1.2);
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 1 });
+        const wallTex = (base, rx, ry) => {
+            const t = canvasTex(128, 128, (g, w, h) => {
+                g.fillStyle = base; g.fillRect(0, 0, w, h);
+                for (let y = 0; y < h; y += 16) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, y, w, 2); }
+                for (let i = 0; i < 400; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.18)' : 'rgba(120,130,110,.1)'; g.fillRect(rand(0, w), rand(0, h), rand(1, 6), rand(1, 3)); }
+            });
+            t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+            return t;
+        };
         const dark = new THREE.MeshStandardMaterial({ color: 0x1d1a1f, roughness: 1, flatShading: true });
-        const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); (parent || house).add(m); return m; };
-        add(new THREE.BoxGeometry(8.4, 0.5, 7.4), stoneMat, 0, 0.25, 0);
-        add(new THREE.BoxGeometry(8, 4.6, 7), wallMat, 0, 2.8, 0);
-        const roof = add(new THREE.ConeGeometry(6.3, 3.2, 4), dark, 0, 6.7, 0);
-        roof.rotation.y = Math.PI / 4; roof.scale.z = 0.88;
-        add(new THREE.BoxGeometry(0.9, 2.2, 0.9), stoneMat, -2, 7.2, -1.5);
-        add(new THREE.BoxGeometry(2.4, 0.2, 4), trunkMat, 5.2, 0.4, 0);               // porch floor
-        add(new THREE.BoxGeometry(2.8, 0.15, 4.4), dark, 5.3, 3, 0).rotation.z = -0.08; // porch roof
-        [-1.8, 1.8].forEach((z) => add(new THREE.BoxGeometry(0.18, 2.6, 0.18), trunkMat, 6.2, 1.7, z));
-        add(new THREE.PlaneGeometry(1.5, 2.5), new THREE.MeshBasicMaterial({ color: 0x0b0806 }), 4.02, 1.75, 0).rotation.y = Math.PI / 2;
-        doorGlow = add(new THREE.PlaneGeometry(1.5, 2.5), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, depthWrite: false }), 4.04, 1.75, 0);
-        doorGlow.rotation.y = Math.PI / 2;
+        const doorMat = new THREE.MeshBasicMaterial({ color: 0x0b0806 });
         const wg = new THREE.PlaneGeometry(1.2, 1.8);
-        [[4.02, 3.4, -2.4, Math.PI / 2], [4.02, 3.4, 2.4, Math.PI / 2], [-2.4, 3.4, 3.52, 0], [2.4, 3.4, 3.52, 0]].forEach(([x, y, z, ry], i) => {
-            const w = add(wg, windowMats[i % 2], x, y, z); w.rotation.y = ry;
-        });
-        const tree = makeDeadTree(1.3); tree.position.set(-1, 0, 6.5); house.add(tree);
-        const hg = new THREE.Sprite(glowAmber); hg.scale.setScalar(7); hg.position.set(5.2, 2, 0); house.add(hg);
+        const add = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+        const door = (b, y = 1.75) => {
+            add(b, new THREE.PlaneGeometry(1.5, 2.5), doorMat, 4.02, y, 0).rotation.y = Math.PI / 2;
+            const dg = add(b, new THREE.PlaneGeometry(1.5, 2.5), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, depthWrite: false }), 4.04, y, 0);
+            dg.rotation.y = Math.PI / 2; doorGlows.push(dg);
+            const hg = new THREE.Sprite(glowAmber); hg.scale.setScalar(7); hg.position.set(5.2, 2, 0); b.add(hg);
+        };
+        const eastWin = (b, y, z, i) => { add(b, wg, windowMats[i % 2], 4.02, y, z).rotation.y = Math.PI / 2; };
+        const southWin = (b, y, x, zFace, i) => { add(b, wg, windowMats[i % 2], x, y, zFace); };
+        const mk = (key) => { const b = new THREE.Group(); b.position.x = HOUSE_DX; b.visible = false; destination.add(b); buildings[key] = b; return b; };
+
+        // --- Rumah Kosong (abandoned house)
+        {
+            const b = mk('house');
+            const wallMat = new THREE.MeshStandardMaterial({ map: wallTex('#4a4036', 2, 1.2), roughness: 1 });
+            add(b, new THREE.BoxGeometry(8.4, 0.5, 7.4), stoneMat, 0, 0.25, 0);
+            add(b, new THREE.BoxGeometry(8, 4.6, 7), wallMat, 0, 2.8, 0);
+            const roof = add(b, new THREE.ConeGeometry(6.3, 3.2, 4), dark, 0, 6.7, 0);
+            roof.rotation.y = Math.PI / 4; roof.scale.z = 0.88;
+            add(b, new THREE.BoxGeometry(0.9, 2.2, 0.9), stoneMat, -2, 7.2, -1.5);
+            add(b, new THREE.BoxGeometry(2.4, 0.2, 4), trunkMat, 5.2, 0.4, 0);
+            add(b, new THREE.BoxGeometry(2.8, 0.15, 4.4), dark, 5.3, 3, 0).rotation.z = -0.08;
+            [-1.8, 1.8].forEach((z) => add(b, new THREE.BoxGeometry(0.18, 2.6, 0.18), trunkMat, 6.2, 1.7, z));
+            door(b);
+            [[3.4, -2.4], [3.4, 2.4]].forEach(([y, z], i) => eastWin(b, y, z, i));
+            [-2.4, 2.4].forEach((x, i) => southWin(b, 3.4, x, 3.52, i));
+            const tree = makeDeadTree(1.3); tree.position.set(-1, 0, 6.5); b.add(tree);
+        }
+
+        // --- Sekolah Tua (old school): long low building, gable roof, bell tower, torn flag
+        {
+            const b = mk('school');
+            const wallMat = new THREE.MeshStandardMaterial({ map: wallTex('#5b5748', 3, 1), roughness: 1 });
+            add(b, new THREE.BoxGeometry(8.4, 0.5, 12.4), stoneMat, 0, 0.25, 0);
+            add(b, new THREE.BoxGeometry(8, 3.8, 12), wallMat, 0, 2.4, 0);
+            const shape = new THREE.Shape(); shape.moveTo(-4.7, 0); shape.lineTo(4.7, 0); shape.lineTo(0, 2.2); shape.lineTo(-4.7, 0);
+            const rg = new THREE.ExtrudeGeometry(shape, { depth: 12.8, bevelEnabled: false }).translate(0, 0, -6.4);
+            add(b, rg, new THREE.MeshStandardMaterial({ color: 0x5a2a22, roughness: 1, flatShading: true }), 0, 4.3, 0);
+            add(b, new THREE.BoxGeometry(1.6, 2.6, 1.6), wallMat, 1.2, 6.5, 0);
+            add(b, new THREE.ConeGeometry(1.3, 1.3, 4), dark, 1.2, 8.45, 0).rotation.y = Math.PI / 4;
+            add(b, new THREE.CylinderGeometry(0.3, 0.4, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0x8a6a2a, metalness: 0.5, roughness: 0.6 }), 1.2, 6.9, 0);
+            door(b);
+            add(b, new THREE.BoxGeometry(2.2, 0.15, 1.2), dark, 4.6, 3.1, 0);
+            [-4.5, -2.5, 2.5, 4.5].forEach((z, i) => eastWin(b, 2.6, z, i));
+            const signTex = canvasTex(256, 64, (g, w, h) => {
+                g.fillStyle = '#1a2a20'; g.fillRect(0, 0, w, h); g.strokeStyle = '#c8c0a0'; g.lineWidth = 4; g.strokeRect(3, 3, w - 6, h - 6);
+                g.fillStyle = '#d8d0b0'; g.font = '800 30px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('SD NEGERI 13', w / 2, 42);
+            });
+            add(b, new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: signTex, color: 0xaaaaaa }), 4.03, 3.65, 0).rotation.y = Math.PI / 2;
+            add(b, new THREE.CylinderGeometry(0.06, 0.08, 7, 6), poleMat, 6.6, 3.5, -5.2);
+            const flag = add(b, new THREE.PlaneGeometry(1.5, 0.9), new THREE.MeshBasicMaterial({
+                map: canvasTex(64, 40, (g, w, h) => { g.fillStyle = '#9a2020'; g.fillRect(0, 0, w, h / 2); g.fillStyle = '#d8d8d0'; g.fillRect(0, h / 2, w, h / 2); g.fillStyle = '#151515'; g.fillRect(w - 16, 0, 16, h); }),
+                side: THREE.DoubleSide, color: 0xaaaaaa
+            }), 6.6, 6.5, -4.5);
+            flag.rotation.y = Math.PI / 2;
+            const tree = makeDeadTree(1.2); tree.position.set(-1, 0, 8.5); b.add(tree);
+        }
+
+        // --- Rumah Sakit Tua (old hospital): two storeys, red cross, entrance canopy
+        {
+            const b = mk('hospital');
+            const wallMat = new THREE.MeshStandardMaterial({ map: wallTex('#4d5a55', 2, 2), roughness: 1 });
+            add(b, new THREE.BoxGeometry(8.4, 0.5, 9.4), stoneMat, 0, 0.25, 0);
+            add(b, new THREE.BoxGeometry(8, 7, 9), wallMat, 0, 4, 0);
+            add(b, new THREE.BoxGeometry(8.6, 0.3, 9.6), dark, 0, 7.65, 0);
+            add(b, new THREE.CylinderGeometry(0.9, 0.9, 1.6, 10), stoneMat, -1.2, 8.6, -2);
+            [[-1.8, -2.6], [-0.6, -2.6], [-1.8, -1.4], [-0.6, -1.4]].forEach(([x, z]) => add(b, new THREE.BoxGeometry(0.1, 0.8, 0.1), poleMat, x, 8.0, z));
+            add(b, new THREE.BoxGeometry(2.6, 0.2, 3.8), dark, 5.2, 3.2, 0);
+            [-1.6, 1.6].forEach((z) => add(b, new THREE.BoxGeometry(0.15, 2.8, 0.15), poleMat, 6.3, 1.7, z));
+            door(b);
+            const crossTex = canvasTex(128, 128, (g, w, h) => {
+                g.fillStyle = '#d8d8d0'; g.fillRect(0, 0, w, h); g.fillStyle = '#b01c1c'; g.fillRect(48, 16, 32, 96); g.fillRect(16, 48, 96, 32);
+            });
+            add(b, new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: crossTex, color: 0xb0a0a0 }), 4.03, 5.9, 0).rotation.y = Math.PI / 2;
+            [[2.2, -2.8], [2.2, 2.8], [4.8, -3.2], [4.8, 3.2]].forEach(([y, z], i) => eastWin(b, y, z, i));
+            [[2.2, -2.2], [2.2, 2.2], [4.8, -2.2], [4.8, 2.2]].forEach(([y, x], i) => southWin(b, y, x, 4.52, i));
+            const tree = makeDeadTree(1.3); tree.position.set(-1, 0, 7.5); b.add(tree);
+        }
     }
+    function showBuilding(key) { Object.keys(buildings).forEach((k) => { buildings[k].visible = k === key; }); }
 
     // ------------------------------------------------------------------
     // PICKUP BAY
@@ -525,7 +588,37 @@ async function run(mode) {
     const tailMat = new THREE.MeshBasicMaterial({ color: 0x7a0e0e });
     const tailGlow = new THREE.SpriteMaterial({ map: glowTex, color: 0xff2a2a, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending });
 
-    function drawWindows(boarded) {
+    // Passenger silhouettes drawn inside a 100-unit-tall box (origin at the feet, y up is negative)
+    function drawFigure(g, kind, cx, floorY, size) {
+        g.save();
+        g.translate(cx, floorY); g.scale(size / 100, size / 100);
+        const ell = (x, y, rx, ry) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); };
+        const tri = (a, b, c, d, e, f) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.lineTo(e, f); g.closePath(); g.fill(); };
+        if (kind === 'kuntilanak') {
+            g.fillStyle = '#05060a'; g.fillRect(-23, -74, 46, 74);
+            g.fillStyle = '#e8f1ee'; ell(0, -64, 14, 19);
+            g.fillStyle = '#05060a'; ell(0, -78, 19, 13); ell(-6, -62, 3.5, 5); ell(6, -62, 3.5, 5);
+            g.fillStyle = '#ff4040'; g.fillRect(-7, -63, 2, 3); g.fillRect(5, -63, 2, 3);
+        } else if (kind === 'pocong') {
+            g.fillStyle = '#e9e6da'; g.beginPath(); g.moveTo(-17, 0); g.lineTo(17, 0); g.lineTo(14, -50); g.lineTo(-14, -50); g.fill();
+            ell(0, -68, 15, 22); tri(-5, -86, 0, -99, 5, -86);
+            g.fillStyle = '#9a968a'; g.fillRect(-15, -48, 30, 3); g.fillRect(-12, -88, 24, 2);
+            g.fillStyle = '#000'; g.fillRect(-9, -72, 6, 9); g.fillRect(3, -72, 6, 9);
+            g.fillStyle = '#ff4040'; g.fillRect(-7, -69, 2, 2); g.fillRect(5, -69, 2, 2);
+        } else if (kind === 'tuyul') {
+            g.fillStyle = '#8fae7e'; ell(0, -50, 16, 15); ell(0, -24, 11, 16);
+            tri(-14, -56, -31, -66, -14, -46); tri(14, -56, 31, -66, 14, -46);
+            g.fillStyle = '#ffe94a'; ell(-6, -52, 4.5, 4.5); ell(6, -52, 4.5, 4.5);
+            g.fillStyle = '#000'; g.fillRect(-6.5, -55, 1.5, 6); g.fillRect(5, -55, 1.5, 6);
+            g.fillStyle = '#f4f0e0'; g.fillRect(-7, -42, 14, 2);
+        } else {
+            g.fillStyle = '#0c0a09'; ell(0, -36, 33, 38); ell(0, -80, 21, 19); ell(-30, -48, 11, 22); ell(30, -48, 11, 22);
+            g.fillStyle = '#ff2a1a'; g.fillRect(-13, -84, 8, 5); g.fillRect(5, -84, 8, 5);
+            g.fillStyle = '#f4f0e0'; tri(-9, -70, -6, -58, -3, -70); tri(3, -70, 6, -58, 9, -70);
+        }
+        g.restore();
+    }
+    function drawWindows(kind) {
         return canvasTex(1024, 160, (g, w, h) => {
             const n = 5, gap = 22, ww = (w - gap * (n + 1)) / n;
             for (let i = 0; i < n; i++) {
@@ -536,37 +629,40 @@ async function run(mode) {
                 g.fillStyle = 'rgba(8,10,14,.85)';
                 g.fillRect(x + ww * 0.1, 90, ww * 0.35, 60);                 // seat backs
                 g.fillRect(x + ww * 0.55, 90, ww * 0.35, 60);
-                if (boarded && i === 3) {                                   // the passenger
-                    g.fillStyle = '#e8f1ee'; g.beginPath(); g.ellipse(x + ww / 2, 70, 15, 20, 0, 0, 7); g.fill();
-                    g.fillStyle = '#05060a'; g.fillRect(x + ww / 2 - 22, 52, 9, 74); g.fillRect(x + ww / 2 + 13, 52, 9, 74);
-                    g.beginPath(); g.ellipse(x + ww / 2, 48, 22, 16, 0, Math.PI, 0); g.fill();
-                    g.fillStyle = '#05060a'; g.fillRect(x + ww / 2 - 9, 66, 5, 6); g.fillRect(x + ww / 2 + 4, 66, 5, 6);
+                if (kind && i === 3) {
+                    g.save(); g.beginPath(); g.rect(x, 10, ww, h - 20); g.clip();
+                    drawFigure(g, kind, x + ww / 2, h - 10, 118); g.restore();
                 }
                 g.strokeStyle = '#0b0f14'; g.lineWidth = 7; g.strokeRect(x, 10, ww, h - 20);
             }
         });
     }
-    function drawRear(boarded) {
+    function drawRear(kind) {
         return canvasTex(256, 128, (g, w, h) => {
             const gr = g.createLinearGradient(0, 0, 0, h);
             gr.addColorStop(0, '#17303a'); gr.addColorStop(1, '#2e5249');
             g.fillStyle = gr; g.fillRect(0, 0, w, h);
             g.fillStyle = 'rgba(8,10,14,.85)'; g.fillRect(24, 80, 80, 48); g.fillRect(152, 80, 80, 48);
-            if (boarded) {
-                g.fillStyle = '#05060a'; g.fillRect(92, 20, 72, 108);
-                g.fillStyle = '#e8f1ee'; g.beginPath(); g.ellipse(128, 62, 22, 28, 0, 0, 7); g.fill();
-                g.fillStyle = '#05060a'; g.beginPath(); g.ellipse(128, 44, 26, 20, 0, Math.PI, 0); g.fill();
-                g.fillRect(100, 40, 8, 86); g.fillRect(148, 40, 8, 86);
-                g.fillStyle = '#05060a'; g.beginPath(); g.ellipse(118, 66, 5, 8, 0, 0, 7); g.ellipse(138, 66, 5, 8, 0, 0, 7); g.fill();
-                g.fillStyle = '#ff4040'; g.fillRect(117, 64, 2, 3); g.fillRect(137, 64, 2, 3);
-            }
+            if (kind) { g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip(); drawFigure(g, kind, 128, h, 112); g.restore(); }
             g.strokeStyle = '#0b0f14'; g.lineWidth = 8; g.strokeRect(0, 0, w, h);
         });
     }
-    const winEmpty = drawWindows(false), winBoarded = drawWindows(true);
-    const rearEmpty = drawRear(false), rearBoarded = drawRear(true);
+    const winEmpty = drawWindows(null), rearEmpty = drawRear(null);
+    const passengerTex = {};
     const windowMat = new THREE.MeshBasicMaterial({ map: winEmpty, transparent: true });
     const rearMat = new THREE.MeshBasicMaterial({ map: rearEmpty });
+    function setPassenger(kind) {
+        if (kind && !passengerTex[kind]) passengerTex[kind] = { win: drawWindows(kind), rear: drawRear(kind) };
+        windowMat.map = kind ? passengerTex[kind].win : winEmpty;
+        rearMat.map = kind ? passengerTex[kind].rear : rearEmpty;
+    }
+    let signTex;
+    function paintSign(text) {
+        const g = signTex.image.getContext('2d');
+        g.fillStyle = '#080a0e'; g.fillRect(0, 0, 512, 64);
+        g.fillStyle = '#ffa83c'; g.font = '800 40px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText(text, 256, 46);
+        signTex.needsUpdate = true;
+    }
 
     {
         const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); (parent || chassis).add(m); return m; };
@@ -588,10 +684,7 @@ async function run(mode) {
         const sr = add(new THREE.PlaneGeometry(8.6, 1.08), stripeMat, 1.61, 1.2, 0); sr.rotation.y = Math.PI / 2;
         // front
         add(new THREE.PlaneGeometry(2.8, 1.1), new THREE.MeshBasicMaterial({ color: 0x16303a }), 0, 2.35, -4.41).rotation.y = Math.PI;
-        const signTex = canvasTex(512, 64, (g, w, h) => {
-            g.fillStyle = '#080a0e'; g.fillRect(0, 0, w, h);
-            g.fillStyle = '#ffa83c'; g.font = '800 44px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('RUTE 13 • KUBURAN', w / 2, 46);
-        });
+        signTex = canvasTex(512, 64, () => {});
         add(new THREE.PlaneGeometry(2.6, 0.32), new THREE.MeshBasicMaterial({ map: signTex }), 0, 3.05, -4.41).rotation.y = Math.PI;
         add(new THREE.BoxGeometry(3.4, 0.28, 0.4), trimMat, 0, 0.55, -4.55);
         [-1.1, 1.1].forEach((x) => add(new THREE.SphereGeometry(0.22, 10, 8), headMat, x, 1.15, -4.55));
@@ -685,13 +778,20 @@ async function run(mode) {
     }
 
     // ------------------------------------------------------------------
-    // THE KUNTILANAK
+    // GHOST ROSTER
+    // Every ghost is built once and driven by one shared state machine. A type exposes:
+    //   root, setOpacity(v), reset(), waitPos(ctx) -> {dx, dz} (moving bay), wait(ctx), walk(ctx)
     // ------------------------------------------------------------------
-    const ghostMats = [];
-    function ghostMaterial(color, amp, h, flip, fade) {
+    const ghostMats = [];   // shader materials that need uTime
+    const ZERO = { dx: 0, dz: 0 };
+    function lerpAngle(a, b, t) {
+        const d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+        return a + d * t;
+    }
+    function ghostMaterial(color, amp, h, flip, fade, rim) {
         const m = new THREE.ShaderMaterial({
             uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
-                uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uRim: { value: new THREE.Color(cfg.visual.ghostAuraColor) },
+                uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uRim: { value: new THREE.Color(rim) },
                 uOpacity: { value: 1 }, uAmp: { value: amp }, uH: { value: h }, uFlip: { value: flip ? 1 : 0 }, uFade: { value: fade ? 1 : 0 }
             }]),
             transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
@@ -730,66 +830,88 @@ async function run(mode) {
         ghostMats.push(m);
         return m;
     }
-    const dressMat = ghostMaterial(0xdfe9ea, 0.22, 3.1, false, true);
-    const sleeveMat = ghostMaterial(0xdfe9ea, 0.12, 1.5, true, true);
-    const hairMat = ghostMaterial(0x07080c, 0.2, 3.4, true, false);
-    hairMat.uniforms.uRim.value.multiplyScalar(0.25);
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xcbd5d3, roughness: 0.9, emissive: 0x24313a, transparent: true });
-    const faceTex = canvasTex(1024, 512, (g, w, h) => {
-        const gr = g.createLinearGradient(0, 0, 0, h);
-        gr.addColorStop(0, '#d9e0dd'); gr.addColorStop(1, '#aab5b6'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-        const hg = g.createRadialGradient(256, 256, 50, 256, 256, 300);
-        hg.addColorStop(0, 'rgba(0,0,0,0)'); hg.addColorStop(1, 'rgba(8,12,18,.6)'); g.fillStyle = hg; g.fillRect(0, 0, w, h);
-        const cx = 256, cy = 256;
-        const blob = (x, y, rx, ry, a) => {
-            g.save(); g.translate(x, y); g.scale(rx, ry);
-            const r = g.createRadialGradient(0, 0, 0, 0, 0, 1); r.addColorStop(0, `rgba(10,8,16,${a})`); r.addColorStop(1, 'rgba(10,8,16,0)');
-            g.fillStyle = r; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
-        };
-        blob(cx - 58, cy - 12, 40, 28, 0.95); blob(cx + 58, cy - 12, 40, 28, 0.95); // hollow sockets
-        blob(cx - 52, cy + 52, 26, 22, 0.28); blob(cx + 52, cy + 52, 26, 22, 0.28); // cheek hollows
-        [-1, 1].forEach((s) => {
-            g.fillStyle = '#f2f4e8'; g.beginPath(); g.ellipse(cx + s * 58, cy - 12, 16, 9, 0, 0, 7); g.fill();
-            g.fillStyle = '#b01818'; g.beginPath(); g.arc(cx + s * 58, cy - 12, 5.5, 0, 7); g.fill();
-            g.fillStyle = '#000'; g.beginPath(); g.arc(cx + s * 58, cy - 12, 2.5, 0, 7); g.fill();
-            g.strokeStyle = 'rgba(10,8,16,.8)'; g.lineWidth = 4;
-            g.beginPath(); g.moveTo(cx + s * 30, cy - 44); g.lineTo(cx + s * 88, cy - 54 + s * 0); g.stroke();
-        });
-        g.strokeStyle = 'rgba(40,40,50,.45)'; g.lineWidth = 3;                      // nose
-        g.beginPath(); g.moveTo(cx, cy - 6); g.lineTo(cx - 6, cy + 34); g.lineTo(cx + 8, cy + 36); g.stroke();
-        g.fillStyle = '#12060a'; g.beginPath();                                       // grin
-        g.moveTo(cx - 52, cy + 70); g.quadraticCurveTo(cx, cy + 118, cx + 52, cy + 70);
-        g.quadraticCurveTo(cx, cy + 86, cx - 52, cy + 70); g.fill();
-        g.strokeStyle = '#d8d4c0'; g.lineWidth = 3;
-        for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(cx + i * 11, cy + 82 - Math.abs(i) * 1.2); g.lineTo(cx + i * 11, cy + 90 - Math.abs(i) * 2); g.stroke(); }
-        g.strokeStyle = 'rgba(40,60,90,.35)'; g.lineWidth = 1.5;                      // veins
-        for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(cx + rand(-90, 90), cy - 60); g.lineTo(cx + rand(-100, 100), cy + rand(-30, 20)); g.stroke(); }
-    });
 
-    const ghost = new THREE.Group();
-    scene.add(ghost);
-    const body = new THREE.Group();
-    ghost.add(body);
-    let head, armL, armR, ghostAura, ghostMist;
-    {
+    // Equirectangular face painter for sphere heads: the face is centred at (256, 256) of a 1024x512 canvas
+    function faceTexture(paint) {
+        return canvasTex(1024, 512, (g, w, h) => {
+            const blob = (x, y, rx, ry, col) => {
+                g.save(); g.translate(x, y); g.scale(rx, ry);
+                const r = g.createRadialGradient(0, 0, 0, 0, 0, 1); r.addColorStop(0, col); r.addColorStop(1, 'rgba(0,0,0,0)');
+                g.fillStyle = r; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+            };
+            paint(g, w, h, blob);
+        });
+    }
+
+    function newGhost(auraColor, sx, sy, auraY) {
+        const root = new THREE.Group(); root.visible = false; scene.add(root);
+        const body = new THREE.Group(); root.add(body);
+        const mats = [], sprites = [];
+        const shader = (color, amp, h, flip, fade, rim) => { const m = ghostMaterial(color, amp, h, flip, fade, rim === undefined ? auraColor : rim); mats.push(m); return m; };
+        const std = (p) => { const m = new THREE.MeshStandardMaterial(Object.assign({ transparent: true, roughness: 0.9 }, p)); mats.push(m); return m; };
+        const glow = (color) => new THREE.MeshBasicMaterial({ map: glowTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+        const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: auraColor, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+        aura.scale.set(sx, sy, 1); aura.position.y = auraY; root.add(aura); sprites.push({ s: aura, base: 0.32 });
+        const mist = new THREE.Mesh(new THREE.PlaneGeometry(sx * 0.9, sx * 0.9).rotateX(-Math.PI / 2), glow(auraColor));
+        mist.position.y = 0.07; root.add(mist); sprites.push({ s: mist, base: 0.4 });
+        const o = {
+            root, body, mats, sprites, shader, std, aura, mist,
+            setOpacity(v) {
+                mats.forEach((m) => { if (m.isShaderMaterial) m.uniforms.uOpacity.value = v; else m.opacity = v; });
+                sprites.forEach((p) => { p.s.material.opacity = p.base * v; });
+            },
+            reset() {}, waitPos() { return ZERO; }, wait() {}, walk() {}
+        };
+        o.setOpacity(1);
+        return o;
+    }
+
+    // ---- Kuntilanak: long white dress (wave shader), painted face, long hair, dangling arms
+    function createKuntilanak() {
+        const o = newGhost(cfg.visual.ghostAuraColor, 5.5, 7.5, 2.0);
+        const { root, body, shader, std } = o;
+        const dressMat = shader(0xdfe9ea, 0.22, 3.1, false, true);
+        const sleeveMat = shader(0xdfe9ea, 0.12, 1.5, true, true);
+        const hairMat = shader(0x07080c, 0.2, 3.4, true, false);
+        hairMat.uniforms.uRim.value.multiplyScalar(0.25);
+        const skinMat = std({ color: 0xcbd5d3, emissive: 0x24313a });
+        const faceTex = faceTexture((g, w, h, blob) => {
+            const gr = g.createLinearGradient(0, 0, 0, h);
+            gr.addColorStop(0, '#d9e0dd'); gr.addColorStop(1, '#aab5b6'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+            const hg = g.createRadialGradient(256, 256, 50, 256, 256, 300);
+            hg.addColorStop(0, 'rgba(0,0,0,0)'); hg.addColorStop(1, 'rgba(8,12,18,.6)'); g.fillStyle = hg; g.fillRect(0, 0, w, h);
+            const cx = 256, cy = 256;
+            blob(cx - 58, cy - 12, 40, 28, 'rgba(10,8,16,.95)'); blob(cx + 58, cy - 12, 40, 28, 'rgba(10,8,16,.95)');
+            blob(cx - 52, cy + 52, 26, 22, 'rgba(10,8,16,.28)'); blob(cx + 52, cy + 52, 26, 22, 'rgba(10,8,16,.28)');
+            [-1, 1].forEach((s) => {
+                g.fillStyle = '#f2f4e8'; g.beginPath(); g.ellipse(cx + s * 58, cy - 12, 16, 9, 0, 0, 7); g.fill();
+                g.fillStyle = '#b01818'; g.beginPath(); g.arc(cx + s * 58, cy - 12, 5.5, 0, 7); g.fill();
+                g.fillStyle = '#000'; g.beginPath(); g.arc(cx + s * 58, cy - 12, 2.5, 0, 7); g.fill();
+                g.strokeStyle = 'rgba(10,8,16,.8)'; g.lineWidth = 4;
+                g.beginPath(); g.moveTo(cx + s * 30, cy - 44); g.lineTo(cx + s * 88, cy - 54); g.stroke();
+            });
+            g.strokeStyle = 'rgba(40,40,50,.45)'; g.lineWidth = 3;
+            g.beginPath(); g.moveTo(cx, cy - 6); g.lineTo(cx - 6, cy + 34); g.lineTo(cx + 8, cy + 36); g.stroke();
+            g.fillStyle = '#12060a'; g.beginPath();
+            g.moveTo(cx - 52, cy + 70); g.quadraticCurveTo(cx, cy + 118, cx + 52, cy + 70);
+            g.quadraticCurveTo(cx, cy + 86, cx - 52, cy + 70); g.fill();
+            g.strokeStyle = '#d8d4c0'; g.lineWidth = 3;
+            for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(cx + i * 11, cy + 82 - Math.abs(i) * 1.2); g.lineTo(cx + i * 11, cy + 90 - Math.abs(i) * 2); g.stroke(); }
+            g.strokeStyle = 'rgba(40,60,90,.35)'; g.lineWidth = 1.5;
+            for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(cx + rand(-90, 90), cy - 60); g.lineTo(cx + rand(-100, 100), cy + rand(-30, 20)); g.stroke(); }
+        });
+
         const pts = [];
         for (let i = 0; i <= 32; i++) {
             const t = i / 32, y = t * 3.1;
-            const r = 0.28 + 0.95 * Math.pow(1 - t, 1.8) + 0.14 * Math.exp(-Math.pow((t - 0.9) / 0.07, 2));
-            pts.push(new THREE.Vector2(r, y));
+            pts.push(new THREE.Vector2(0.28 + 0.95 * Math.pow(1 - t, 1.8) + 0.14 * Math.exp(-Math.pow((t - 0.9) / 0.07, 2)), y));
         }
         const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 36), dressMat);
         dress.renderOrder = 1; body.add(dress);
-
         body.add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.6, 8), skinMat).translateY(3.2));
-        head = new THREE.Group(); head.position.y = 3.58; body.add(head);
-        faceTex.colorSpace = THREE.SRGBColorSpace;
-        const skull = new THREE.Mesh(new THREE.SphereGeometry(0.46, 28, 20).scale(1, 1.14, 1),
-            new THREE.MeshStandardMaterial({ map: faceTex, emissiveMap: faceTex, emissive: 0x8899aa, emissiveIntensity: 0.45, roughness: 0.9, transparent: true }));
-        skull.material.userData.ghostSkin = true;
-        head.add(skull);
-        ghost.userData.skull = skull;
-
+        const head = new THREE.Group(); head.position.y = 3.58; body.add(head);
+        head.add(new THREE.Mesh(new THREE.SphereGeometry(0.46, 28, 20).scale(1, 1.14, 1),
+            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x8899aa, emissiveIntensity: 0.45 })));
         const curtain = new THREE.Mesh(
             new THREE.CylinderGeometry(0.55, 0.64, 3.4, 26, 10, true, 0.95, Math.PI * 2 - 1.9).translate(0, -1.7, 0), hairMat);
         curtain.position.y = 0.38; curtain.renderOrder = 2; head.add(curtain);
@@ -799,89 +921,304 @@ async function run(mode) {
             const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 2.0, 2, 8).translate(0, -1.0, 0), hairMat);
             lock.position.set(s * 0.43, 0.3, 0.2); lock.rotation.set(0, s * -0.55, s * 0.06); lock.renderOrder = 3; head.add(lock);
         });
-
         const makeArm = (s) => {
             const a = new THREE.Group(); a.position.set(s * 0.52, 2.85, 0); a.rotation.z = s * -0.3;
             const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.34, 1.5, 12, 6, true).translate(0, -0.75, 0), sleeveMat);
             sleeve.renderOrder = 1; a.add(sleeve);
-            const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 1.0, 6).translate(0, -1.95, 0), skinMat); a.add(fore);
+            a.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 1.0, 6).translate(0, -1.95, 0), skinMat));
             for (let k = -1; k <= 1; k++) {
                 const f = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.38, 4).translate(0, -0.19, 0), skinMat);
                 f.position.set(k * 0.04, -2.45, 0); f.rotation.z = k * 0.2; a.add(f);
             }
             body.add(a); return a;
         };
-        armL = makeArm(-1); armR = makeArm(1);
+        const armL = makeArm(-1), armR = makeArm(1);
 
-        ghostAura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: cfg.visual.ghostAuraColor, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending }));
-        ghostAura.scale.set(5.5, 7.5, 1); ghostAura.position.y = 2.0; ghost.add(ghostAura);
-        ghostMist = new THREE.Mesh(new THREE.PlaneGeometry(5, 5).rotateX(-Math.PI / 2),
-            new THREE.MeshBasicMaterial({ map: glowTex, color: cfg.visual.ghostAuraColor, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }));
-        ghostMist.position.y = 0.07; ghost.add(ghostMist);
+        // Sudden head tilt every few seconds
+        let tilt = 0, tiltTimer = rand(2, 4), tiltDir = 1;
+        const tiltHead = (dt) => {
+            tiltTimer -= dt;
+            if (tiltTimer <= 0) { tiltTimer = rand(2.5, 5.5); tilt = 1; tiltDir = Math.random() < 0.5 ? -1 : 1; }
+            tilt = Math.max(0, tilt - dt * 1.3);
+            head.rotation.z = lerp(head.rotation.z, tiltDir * 0.6 * (tilt > 0.55 ? 1 : tilt / 0.55), 0.25);
+        };
+        o.wait = (c) => {
+            tiltHead(c.dt);
+            root.position.y = 0.12 + Math.sin(time * 1.6) * 0.12 + c.near * 0.15;
+            root.rotation.z = Math.sin(time * 0.9) * 0.03;
+            head.rotation.y = lerp(head.rotation.y, clamp(c.yawRel, -0.9, 0.9) * c.near, 0.08);
+            armL.rotation.z = lerp(armL.rotation.z, -0.3 - c.near * 0.5, 0.1);
+            armR.rotation.z = lerp(armR.rotation.z, 0.3 + c.near * 0.5, 0.1);
+        };
+        o.walk = (c) => {
+            tiltHead(c.dt);
+            root.position.y = 0.2 + Math.sin(time * 2) * 0.1;
+            root.rotation.z = Math.sin(time * 2.2) * 0.05;
+            head.rotation.y = lerp(head.rotation.y, 0, 0.1);
+        };
+        o.setAura = (col) => {
+            dressMat.uniforms.uRim.value.set(col); sleeveMat.uniforms.uRim.value.set(col);
+            hairMat.uniforms.uRim.value.set(col).multiplyScalar(0.25);
+            o.aura.material.color.set(col); o.mist.material.color.set(col);
+        };
+        return o;
     }
-    const skullMat = ghost.userData.skull.material;
-    const ghostState = { mode: 'waiting', t: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), tilt: 0, tiltTimer: rand(2, 4), tiltDir: 1, opacity: 1 };
 
-    function setGhostOpacity(v) {
-        ghostState.opacity = v;
-        ghostMats.forEach((m) => { m.uniforms.uOpacity.value = v; });
-        skinMat.opacity = v; skullMat.opacity = v;
-        ghostAura.material.opacity = 0.32 * v; ghostMist.material.opacity = 0.4 * v;
+    // ---- Pocong: shrouded corpse that hops back and forth, so its stop bay moves
+    function createPocong() {
+        const o = newGhost(0xbfe8d0, 4.5, 6.6, 2.2);
+        const { root, body, shader, std } = o;
+        const prof = [[0.001, 0], [0.34, 0], [0.36, 0.25], [0.55, 0.9], [0.62, 1.7], [0.66, 2.4], [0.58, 2.85], [0.4, 3.05],
+            [0.5, 3.25], [0.55, 3.5], [0.48, 3.85], [0.25, 4.05], [0.08, 4.12], [0.001, 4.15]].map(([r, y]) => new THREE.Vector2(r, y));
+        const shroud = new THREE.Mesh(new THREE.LatheGeometry(new THREE.SplineCurve(prof).getPoints(40), 28),
+            shader(0xdad4c0, 0.05, 4.15, false, false, 0xbfe8d0));
+        shroud.renderOrder = 1; body.add(shroud);
+        const tieMat = std({ color: 0x8f8a78, emissive: 0x2a2a22 });
+        [[0.3, 0.37], [2.95, 0.43], [3.98, 0.28]].forEach(([y, r]) => {
+            const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 6, 18).rotateX(Math.PI / 2), tieMat); t.position.y = y; body.add(t);
+        });
+        const knot = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.4, 6), std({ color: 0xdad4c0, emissive: 0x4a4a40 }));
+        knot.position.y = 4.25; body.add(knot);
+        const faceTex = canvasTex(256, 256, (g, w, h) => {
+            const gr = g.createRadialGradient(128, 128, 40, 128, 128, 124);
+            gr.addColorStop(0, 'rgba(190,198,188,1)'); gr.addColorStop(0.7, 'rgba(172,180,170,1)'); gr.addColorStop(1, 'rgba(170,178,168,0)');
+            g.fillStyle = gr; g.fillRect(0, 0, w, h);
+            const blob = (x, y, rx, ry, a) => {
+                g.save(); g.translate(x, y); g.scale(rx, ry);
+                const r = g.createRadialGradient(0, 0, 0, 0, 0, 1); r.addColorStop(0, `rgba(6,4,8,${a})`); r.addColorStop(1, 'rgba(6,4,8,0)');
+                g.fillStyle = r; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+            };
+            blob(90, 112, 28, 34, 1); blob(166, 112, 28, 34, 1);
+            g.fillStyle = '#e8e8d8'; g.beginPath(); g.arc(92, 116, 4, 0, 7); g.arc(168, 116, 4, 0, 7); g.fill();
+            g.strokeStyle = 'rgba(30,30,36,.5)'; g.lineWidth = 3; g.beginPath(); g.moveTo(128, 130); g.lineTo(122, 160); g.lineTo(134, 162); g.stroke();
+            blob(128, 196, 18, 26, 0.95);
+            blob(100, 190, 14, 10, 0.4); blob(160, 150, 12, 16, 0.35);
+        });
+        const faceMat = new THREE.MeshBasicMaterial({ map: faceTex, transparent: true, depthWrite: false });
+        o.mats.push(faceMat);
+        const face = new THREE.Mesh(new THREE.CylinderGeometry(0.575, 0.575, 0.95, 14, 1, true, -0.5, 1.0).translate(0, 3.45, 0), faceMat);
+        face.renderOrder = 2; body.add(face);
+
+        let hopT = 0, pace = rand(0, 6);
+        const hop = (dt) => {
+            hopT += dt / 0.95;
+            const ph = hopT % 1;
+            root.position.y = 0.12 + Math.sin(ph * Math.PI) * 0.95;
+            body.rotation.x = lerp(body.rotation.x, 0.16 * Math.sin(ph * Math.PI * 2), 0.3);
+            body.scale.set(1, 1 + 0.05 * Math.cos(ph * Math.PI * 2), 1);
+        };
+        o.reset = () => { hopT = 0; pace = rand(0, 6); body.rotation.set(0, 0, 0); };
+        o.waitPos = (c) => { pace += c.dt * 0.45; return { dx: 0, dz: Math.sin(pace) * 5 }; };
+        o.wait = (c) => { hop(c.dt); root.rotation.y = -0.6 + Math.cos(pace) * 0.5; };
+        o.walk = (c) => { hop(c.dt); };
+        return o;
     }
+
+    // ---- Tuyul: small green goblin child that sprints along the road; calms down as the bus nears
+    function createTuyul() {
+        const o = newGhost(0x9bff8a, 3.0, 3.6, 1.4);
+        o.sprites.forEach((p) => { p.base *= 0.55; });
+        const { root, body, std } = o;
+        body.scale.setScalar(1.4);
+        const skin = std({ color: 0x8fae7e, emissive: 0x16240f });
+        const shorts = std({ color: 0x2a2a33 });
+        const faceTex = faceTexture((g, w, h, blob) => {
+            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#9dbd8a'); gr.addColorStop(1, '#6f8f62');
+            g.fillStyle = gr; g.fillRect(0, 0, w, h);
+            const cx = 256, cy = 256;
+            blob(cx - 56, cy - 8, 44, 36, 'rgba(10,20,8,.55)'); blob(cx + 56, cy - 8, 44, 36, 'rgba(10,20,8,.55)');
+            [-1, 1].forEach((s) => {
+                g.fillStyle = '#f0e860'; g.beginPath(); g.ellipse(cx + s * 56, cy - 8, 30, 26, 0, 0, 7); g.fill();
+                g.fillStyle = '#000'; g.beginPath(); g.ellipse(cx + s * 56, cy - 8, 5, 22, 0, 0, 7); g.fill();
+                g.strokeStyle = 'rgba(10,20,8,.8)'; g.lineWidth = 5; g.beginPath(); g.moveTo(cx + s * 24, cy - 42); g.lineTo(cx + s * 86, cy - 30); g.stroke();
+            });
+            g.fillStyle = 'rgba(10,20,8,.6)'; g.beginPath(); g.arc(cx - 6, cy + 30, 4, 0, 7); g.arc(cx + 6, cy + 30, 4, 0, 7); g.fill();
+            g.fillStyle = '#1a0808'; g.beginPath(); g.moveTo(cx - 74, cy + 62); g.quadraticCurveTo(cx, cy + 130, cx + 74, cy + 62);
+            g.quadraticCurveTo(cx, cy + 82, cx - 74, cy + 62); g.fill();
+            g.fillStyle = '#f4f0e0';
+            for (let i = -5; i <= 5; i++) { g.beginPath(); g.moveTo(cx + i * 12 - 4, cy + 80 - Math.abs(i)); g.lineTo(cx + i * 12, cy + 94 - Math.abs(i) * 2); g.lineTo(cx + i * 12 + 4, cy + 80 - Math.abs(i)); g.fill(); }
+        });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 22, 16).scale(1, 1.05, 1),
+            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x99aa88, emissiveIntensity: 0.5 }));
+        head.position.y = 1.35; body.add(head);
+        [-1, 1].forEach((s) => {
+            const ear = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.55, 6), skin);
+            ear.position.set(s * 0.46, 1.42, 0); ear.rotation.z = s * -1.1; body.add(ear);
+        });
+        const torso = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 10).scale(1, 1.2, 0.85), skin); torso.position.y = 0.88; body.add(torso);
+        const belly = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8), skin); belly.position.set(0, 0.74, 0.12); body.add(belly);
+        const trunks = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.28, 10), shorts); trunks.position.y = 0.58; body.add(trunks);
+        const limb = (x, y, len, r) => {
+            const p = new THREE.Group(); p.position.set(x, y, 0);
+            p.add(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.8, len, 6).translate(0, -len / 2, 0), skin));
+            body.add(p); return p;
+        };
+        const legL = limb(-0.14, 0.5, 0.5, 0.09), legR = limb(0.14, 0.5, 0.5, 0.09);
+        const armL = limb(-0.3, 1.0, 0.6, 0.06), armR = limb(0.3, 1.0, 0.6, 0.06);
+
+        let phase = rand(0, 6), amp = 6;
+        const run = (speed) => {
+            const s = Math.sin(time * speed);
+            legL.rotation.x = s * 0.9; legR.rotation.x = -s * 0.9;
+            armL.rotation.x = -s * 0.9; armR.rotation.x = s * 0.9;
+            root.position.y = 0.1 + Math.abs(s) * 0.14;
+        };
+        o.reset = () => { phase = rand(0, 6); amp = 6; };
+        o.waitPos = (c) => {
+            amp = lerp(amp, 6 - c.near * 3.5, 0.02);
+            phase += c.dt * 0.9;
+            return { dx: Math.sin(phase * 1.7) * 0.8, dz: Math.sin(phase) * amp };
+        };
+        o.wait = (c) => {
+            root.rotation.y = lerpAngle(root.rotation.y, Math.cos(phase) > 0 ? -0.2 : Math.PI - 0.2, 0.12);
+            run(14 - c.near * 5);
+        };
+        o.walk = () => run(16);
+        return o;
+    }
+
+    // ---- Genderuwo: huge hairy brute with glowing eyes; slows the bus while it rides
+    function createGenderuwo() {
+        const o = newGhost(0xff3a2a, 6.5, 8.5, 2.8);
+        const { root, body, std } = o;
+        const fur = std({ color: 0x1a1410, flatShading: true, roughness: 1 });
+        const fur2 = std({ color: 0x261d17, flatShading: true, roughness: 1 });
+        const faceTex = faceTexture((g, w, h, blob) => {
+            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#2d221b'); gr.addColorStop(1, '#17110d');
+            g.fillStyle = gr; g.fillRect(0, 0, w, h);
+            for (let i = 0; i < 500; i++) { g.strokeStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.4)' : 'rgba(90,70,50,.25)'; g.lineWidth = 1.5; const x = rand(0, w), y = rand(0, h); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-4, 4), y + rand(10, 24)); g.stroke(); }
+            const cx = 256, cy = 256;
+            blob(cx, cy - 36, 120, 26, 'rgba(0,0,0,.7)');
+            [-1, 1].forEach((s) => { blob(cx + s * 56, cy - 10, 40, 30, 'rgba(255,40,20,.8)'); blob(cx + s * 56, cy - 10, 16, 12, 'rgba(255,230,120,1)'); });
+            blob(cx - 14, cy + 36, 10, 8, 'rgba(0,0,0,.9)'); blob(cx + 14, cy + 36, 10, 8, 'rgba(0,0,0,.9)');
+            g.fillStyle = '#0a0404'; g.beginPath(); g.ellipse(cx, cy + 80, 74, 30, 0, 0, 7); g.fill();
+            g.fillStyle = '#efe8d4';
+            [-1, 1].forEach((s) => { g.beginPath(); g.moveTo(cx + s * 40 - 9, cy + 66); g.lineTo(cx + s * 40, cy + 112); g.lineTo(cx + s * 40 + 9, cy + 66); g.fill(); });
+        });
+        const torso = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1).scale(1.55, 1.9, 1.15), fur); torso.position.y = 3.0; body.add(torso);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 20, 14).scale(1, 0.95, 1),
+            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x663322, emissiveIntensity: 0.5, flatShading: false }));
+        head.position.set(0, 5.15, 0.1); body.add(head);
+        for (let i = 0; i < 12; i++) {
+            const a = rand(0, Math.PI * 2), sp = new THREE.Mesh(new THREE.ConeGeometry(0.16, rand(0.5, 0.9), 5), fur2);
+            const onHead = i < 7;
+            sp.position.set(Math.cos(a) * (onHead ? 0.55 : 1.4), onHead ? 5.75 : 4.2 + rand(0, 0.5), Math.sin(a) * (onHead ? 0.55 : 0.9) - (onHead ? 0 : 0.2));
+            sp.rotation.set(rand(-0.4, 0.4), 0, rand(-0.4, 0.4)); body.add(sp);
+        }
+        [-1, 1].forEach((s) => {
+            const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 5), std({ color: 0xefe8d4, emissive: 0x333322 }));
+            tusk.position.set(s * 0.3, 4.9, 0.78); body.add(tusk);
+            const eye = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff3020, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+            eye.scale.setScalar(1.0); eye.position.set(s * 0.32, 5.25, 0.8); body.add(eye); o.sprites.push({ s: eye, base: 0.9 });
+        });
+        const arm = (s) => {
+            const p = new THREE.Group(); p.position.set(s * 1.6, 4.0, 0);
+            p.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.75, 1), fur2));
+            p.add(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 1.5, 8).translate(0, -0.85, 0), fur));
+            const fore = new THREE.Group(); fore.position.y = -1.6; fore.rotation.x = -0.25;
+            fore.add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 1.5, 8).translate(0, -0.75, 0), fur));
+            const fist = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), fur2); fist.position.y = -1.6; fore.add(fist);
+            p.add(fore); body.add(p); return p;
+        };
+        const armL = arm(-1), armR = arm(1);
+        [-1, 1].forEach((s) => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.45, 1.9, 8).translate(0, 0.95, 0), fur); leg.position.x = s * 0.7; body.add(leg);
+            const foot = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, 1.5), fur2); foot.position.set(s * 0.7, 0.2, 0.3); body.add(foot);
+        });
+
+        let thump = 0, thumpTimer = rand(3, 6);
+        o.wait = (c) => {
+            thumpTimer -= c.dt;
+            if (thumpTimer <= 0) { thumpTimer = rand(4, 7); thump = 1; }
+            thump = Math.max(0, thump - c.dt * 1.2);
+            const lift = Math.sin(Math.min(thump, 1) * Math.PI) * -1.3;
+            root.position.y = 0.1;
+            body.scale.y = 1 + Math.sin(time * 1.4) * 0.015;
+            armL.rotation.x = lerp(armL.rotation.x, lift + Math.sin(time * 1.1) * 0.08, 0.2);
+            armR.rotation.x = lerp(armR.rotation.x, lift - Math.sin(time * 1.1) * 0.08, 0.2);
+            head.rotation.y = lerp(head.rotation.y, clamp(c.yawRel, -0.8, 0.8) * c.near, 0.08);
+        };
+        o.walk = () => {
+            const s = Math.sin(time * 4);
+            root.position.y = 0.1 + Math.abs(s) * 0.15;
+            body.rotation.z = s * 0.04;
+            armL.rotation.x = s * 0.4; armR.rotation.x = -s * 0.4;
+            head.rotation.y = lerp(head.rotation.y, 0, 0.1);
+        };
+        return o;
+    }
+
+    const GHOST_TYPES = {
+        kuntilanak: { name: 'Kuntilanak', create: createKuntilanak, points: 1, dests: ['house'], speedMult: 1, accelMult: 1,
+            intro: 'Kuntilanak menunggu di gerbang kuburan', drop: 'Kuntilanak turun dan melayang menuju rumah...' },
+        pocong: { name: 'Pocong', create: createPocong, points: 1.5, dests: ['hospital'], speedMult: 1, accelMult: 1,
+            intro: 'Pocong melompat-lompat. Ikuti bay yang bergerak!', drop: 'Pocong melompat turun menuju rumah sakit...' },
+        tuyul: { name: 'Tuyul', create: createTuyul, points: 2, dests: ['school'], speedMult: 1, accelMult: 1,
+            intro: 'Tuyul berlari bolak-balik. Ia melambat saat bus mendekat.', drop: 'Tuyul berlari masuk ke sekolah...' },
+        genderuwo: { name: 'Genderuwo', create: createGenderuwo, points: 2.5, dests: ['house', 'hospital', 'school'], speedMult: 0.8, accelMult: 0.7,
+            intro: 'Genderuwo sangat berat. Bus akan melambat!', drop: 'Genderuwo turun dengan langkah berat...' }
+    };
+    const DESTS = {
+        house: { name: 'Rumah Kosong' }, school: { name: 'Sekolah Tua' }, hospital: { name: 'Rumah Sakit Tua' }
+    };
+    const ghosts = {};
+    Object.keys(GHOST_TYPES).forEach((k) => { ghosts[k] = GHOST_TYPES[k].create(); });
+    let route = { type: 'kuntilanak', dest: 'house' };
+    let cur = ghosts.kuntilanak;
+    const ghostBase = { x: 0, z: 0 };
+    const ghostState = { mode: 'waiting', t: 0, from: new THREE.Vector3(), to: new THREE.Vector3() };
+    const ghostCtx = { dt: 0, near: 0, yawRel: 0 };
+
+    function ease(t) { return t * t * (3 - 2 * t); }
     function resetGhost() {
         ghostState.mode = 'waiting'; ghostState.t = 0;
-        ghost.visible = true; ghost.scale.setScalar(1);
-        ghost.position.set(pickup.position.x + 3.3, 0.12, pickup.position.z);
-        ghost.rotation.set(0, -0.6, 0);
-        setGhostOpacity(1);
+        Object.keys(ghosts).forEach((k) => { ghosts[k].root.visible = ghosts[k] === cur; });
+        cur.reset();
+        cur.root.scale.setScalar(1);
+        ghostBase.x = pickup.position.x + 3.3; ghostBase.z = pickup.position.z;
+        cur.root.position.set(ghostBase.x, 0.12, ghostBase.z);
+        cur.root.rotation.set(0, -0.6, 0);
+        cur.setOpacity(1);
     }
-    function ease(t) { return t * t * (3 - 2 * t); }
 
     function updateGhost(dt) {
         ghostMats.forEach((m) => { m.uniforms.uTime.value = time; });
-        const st = ghostState;
-        ghost.visible = Math.abs(ghost.position.z - bus.position.z) < 230 && st.mode !== 'hidden';
-        if (!ghost.visible) return;
-
-        // Sudden head tilt every few seconds
-        st.tiltTimer -= dt;
-        if (st.tiltTimer <= 0) { st.tiltTimer = rand(2.5, 5.5); st.tilt = 1; st.tiltDir = Math.random() < 0.5 ? -1 : 1; }
-        st.tilt = Math.max(0, st.tilt - dt * 1.3);
-        const tilt = st.tilt > 0.55 ? 1 : st.tilt / 0.55;
-        head.rotation.z = lerp(head.rotation.z, st.tiltDir * 0.6 * tilt, 0.25);
+        const st = ghostState, root = cur.root;
+        root.visible = st.mode !== 'hidden' && Math.abs(root.position.z - bus.position.z) < 230;
+        if (!root.visible) return;
 
         if (st.mode === 'waiting') {
-            const d = Math.hypot(bus.position.x - ghost.position.x, bus.position.z - ghost.position.z);
-            const near = clamp(1 - d / 35, 0, 1);
-            ghost.position.y = 0.12 + Math.sin(time * 1.6) * 0.12 + near * 0.15;
-            ghost.rotation.z = Math.sin(time * 0.9) * 0.03;
-            const yaw = Math.atan2(bus.position.x - ghost.position.x, bus.position.z - ghost.position.z) - ghost.rotation.y;
-            head.rotation.y = lerp(head.rotation.y, clamp(Math.atan2(Math.sin(yaw), Math.cos(yaw)), -0.9, 0.9) * near, 0.08);
-            armL.rotation.z = lerp(armL.rotation.z, -0.3 - near * 0.5, 0.1);
-            armR.rotation.z = lerp(armR.rotation.z, 0.3 + near * 0.5, 0.1);
+            const c = ghostCtx; c.dt = dt;
+            const o = cur.waitPos(c);
+            root.position.x = ghostBase.x + o.dx; root.position.z = ghostBase.z + o.dz;
+            if (!pickupDone) pickup.position.z = ghostBase.z + o.dz;          // the bay follows moving ghosts
+            const dx = bus.position.x - root.position.x, dz = bus.position.z - root.position.z;
+            c.near = clamp(1 - Math.hypot(dx, dz) / 35, 0, 1);
+            const yaw = Math.atan2(dx, dz) - root.rotation.y;
+            c.yawRel = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+            cur.wait(c);
         } else if (st.mode === 'boarding') {
             st.t += dt / 1.1;
             const u = ease(Math.min(st.t, 1));
             st.to.set(bus.position.x + 1.9, 1.5, bus.position.z - 1);
-            ghost.position.lerpVectors(st.from, st.to, u);
-            ghost.position.y += Math.sin(u * Math.PI) * 1.2;
-            ghost.scale.setScalar(lerp(1, 0.3, u));
-            ghost.rotation.y += dt * 4 * u;
-            setGhostOpacity(clamp(1.6 - u * 1.6, 0, 1));
+            root.position.lerpVectors(st.from, st.to, u);
+            root.position.y += Math.sin(u * Math.PI) * 1.2;
+            root.scale.setScalar(lerp(1, 0.3, u));
+            root.rotation.y += dt * 4 * u;
+            cur.setOpacity(clamp(1.6 - u * 1.6, 0, 1));
             if (st.t >= 1) {
-                st.mode = 'hidden'; ghost.visible = false;
-                windowMat.map = winBoarded; rearMat.map = rearBoarded;
+                st.mode = 'hidden'; root.visible = false;
+                setPassenger(route.type);
                 busFlicker = 1.4;
             }
         } else if (st.mode === 'departing') {
             st.t += dt / DEPART_TIME;
             const u = Math.min(st.t, 1);
-            ghost.position.lerpVectors(st.from, st.to, ease(u));
-            ghost.position.y = 0.2 + Math.sin(time * 2) * 0.1;
-            ghost.rotation.y = lerp(ghost.rotation.y, -Math.PI / 2, 0.08);
-            ghost.rotation.z = Math.sin(time * 2.2) * 0.05;
-            head.rotation.y = lerp(head.rotation.y, 0, 0.1);
-            setGhostOpacity(u < 0.2 ? u / 0.2 : (u > 0.78 ? clamp((1 - u) / 0.22, 0, 1) : 1));
+            root.position.lerpVectors(st.from, st.to, ease(u));
+            root.rotation.y = lerpAngle(root.rotation.y, -Math.PI / 2, 0.08);
+            ghostCtx.dt = dt;
+            cur.walk(ghostCtx);
+            cur.setOpacity(u < 0.2 ? u / 0.2 : (u > 0.78 ? clamp((1 - u) / 0.22, 0, 1) : 1));
             houseGlow = Math.max(houseGlow, u > 0.7 ? (u - 0.7) / 0.3 : 0);
             if (st.t >= 1) finishDelivery();
         }
@@ -893,6 +1230,17 @@ async function run(mode) {
     const DEPART_TIME = 3.6;
     let busFlicker = 0, houseGlow = 0, camFocus = 0;
 
+    function pickRoute() {
+        const keys = Object.keys(GHOST_TYPES).filter((k) => k !== route.type);
+        const type = keys[Math.floor(Math.random() * keys.length)];
+        const d = GHOST_TYPES[type].dests;
+        return { type, dest: d[Math.floor(Math.random() * d.length)] };
+    }
+    function applyRoute(r) {
+        route = r; cur = ghosts[r.type];
+        paintSign('RUTE 13 • ' + DESTS[r.dest].name.toUpperCase());
+        setDestinationLabel('Jemput ' + GHOST_TYPES[r.type].name);
+    }
     function setPickup(z) {
         pickup.position.set(PICKUP_X, 0, z);
         cemetery.position.set(PICKUP_X + CEM_DX, 0, z - 3);
@@ -903,31 +1251,33 @@ async function run(mode) {
     }
     function beginDeparture() {
         delivering = true; destDone = true;
-        const st = ghostState;
+        const st = ghostState, root = cur.root;
         st.mode = 'departing'; st.t = 0;
         st.from.set(bus.position.x - 2.4, 0.2, bus.position.z - 1);
         st.to.set(destination.position.x + HOUSE_DX + 4.7, 0.2, destination.position.z);
-        ghost.visible = true; ghost.scale.setScalar(1);
-        ghost.rotation.set(0, -Math.PI / 2, 0);
-        ghost.position.copy(st.from);
-        setGhostOpacity(0);
-        windowMat.map = winEmpty; rearMat.map = rearEmpty;
+        root.visible = true; root.scale.setScalar(1);
+        root.rotation.set(0, -Math.PI / 2, 0);
+        root.position.copy(st.from);
+        cur.setOpacity(0);
+        setPassenger(null);
         destBay.visible = false;
-        showMessage('Kuntilanak turun dan berjalan menuju rumah...');
+        showMessage(GHOST_TYPES[route.type].drop);
     }
     function finishDelivery() {
         delivering = false; onboard = false; houseGlow = 1;
-        ghostState.mode = 'hidden'; ghost.visible = false;
-        // The house stays put until it is behind the camera, then moves to the next route
+        ghostState.mode = 'hidden'; cur.root.visible = false;
+        applyRoute(pickRoute());
+        // The old destination stays until it is behind the camera, then moves (and changes
+        // building) for the next route
         const nextPickup = bus.position.z - cfg.environment.passengerSpawnDistance;
         pendingDestZ = nextPickup - cfg.environment.routeLength;
         setPickup(nextPickup);
-        setDestinationLabel('Cemetery');
-        showMessage('Rute baru: jemput hantu berikutnya di kuburan.');
+        showMessage(GHOST_TYPES[route.type].intro);
     }
     function updateDestinationRelocation() {
         if (pendingDestZ !== null && destination.position.z > camera.position.z + 30) {
             destination.position.z = pendingDestZ; pendingDestZ = null;
+            showBuilding(route.dest);
             destBay.visible = true; houseGlow = 0;
             segments.forEach(applyClearance);
         }
@@ -956,7 +1306,7 @@ async function run(mode) {
         $('score-value').textContent = score;
         const target = onboard ? destination : pickup;
         const d = Math.max(0, Math.round(Math.hypot(bus.position.x - target.position.x, bus.position.z - target.position.z)));
-        $('distance-label').textContent = delivering ? 'ARRIVED' : (onboard ? 'TO ' + DEST_NAME.toUpperCase() : 'TO CEMETERY');
+        $('distance-label').textContent = delivering ? 'ARRIVED' : (onboard ? 'TO ' + DESTS[route.dest].name.toUpperCase() : 'TO ' + GHOST_TYPES[route.type].name.toUpperCase());
         $('distance-value').textContent = delivering ? '0 m' : d + ' m';
     }
 
@@ -979,9 +1329,7 @@ async function run(mode) {
             }),
             'Fog Color': P('visual.fogColor', 'color', null, (v) => { fogColor.set(v); scene.fog.color.set(v); paintSky(); }),
             'Ghost Aura Color': P('visual.ghostAuraColor', 'color', null, (v) => {
-                ghostMats.forEach((m) => m.uniforms.uRim.value.set(v));
-                hairMat.uniforms.uRim.value.multiplyScalar(0.25);
-                ghostAura.material.color.set(v); ghostMist.material.color.set(v);
+                ghosts.kuntilanak.setAura(v);
             }),
             'Max Speed': P('gameplay.maxSpeed', 'slider', { min: 0.3, max: 0.8, step: 0.05 }),
             'Acceleration': P('gameplay.accelerationRate', 'slider', { min: 0.01, max: 0.03, step: 0.002 }),
@@ -1017,9 +1365,11 @@ async function run(mode) {
         let steer = 0;
         if (keys['arrowleft'] || keys['a']) steer -= 1;
         if (keys['arrowright'] || keys['d']) steer += 1;
-        if (keys['arrowup'] || keys['w']) speed += g.accelerationRate * f; else speed -= 0.006 * f;
+        const mod = onboard ? GHOST_TYPES[route.type] : null;   // heavy passengers slow the bus
+        const accelMult = mod ? mod.accelMult : 1, maxSpeed = g.maxSpeed * (mod ? mod.speedMult : 1);
+        if (keys['arrowup'] || keys['w']) speed += g.accelerationRate * accelMult * f; else speed -= 0.006 * f;
         if (keys[' '] || keys['s'] || keys['arrowdown']) speed -= g.brakingPower * f;
-        speed = clamp(speed, 0, g.maxSpeed);
+        speed = clamp(speed, 0, maxSpeed);
 
         const steerTarget = steer * (0.16 + speed * 0.22);
         bus.userData.steer = lerp(bus.userData.steer || 0, steerTarget, 1 - Math.exp(-10 * dt));
@@ -1034,10 +1384,10 @@ async function run(mode) {
             Math.abs(bus.position.x - pickup.position.x) <= PICKUP_W / 2) {
             if (speed < g.requiredStopSpeed) {
                 pickupDone = true; onboard = true;
-                ghostState.mode = 'boarding'; ghostState.t = 0; ghostState.from.copy(ghost.position);
+                ghostState.mode = 'boarding'; ghostState.t = 0; ghostState.from.copy(cur.root.position);
                 pickup.visible = false;
-                setDestinationLabel(DEST_NAME);
-                showMessage('Penumpang naik! Tujuan: ' + DEST_NAME);
+                setDestinationLabel(DESTS[route.dest].name);
+                showMessage('Penumpang naik! Tujuan: ' + DESTS[route.dest].name);
             } else showMessage('Pelan-pelan dan berhenti di samping penumpang!');
         }
         // Delivery
@@ -1046,8 +1396,9 @@ async function run(mode) {
             Math.abs(bus.position.x - destination.position.x) <= DEST_W / 2) {
             if (speed < g.requiredStopSpeed) {
                 destDone = true;
-                score += cfg.environment.pointsPerDelivery;
-                showMessage('Penumpang tiba! +' + cfg.environment.pointsPerDelivery);
+                const pts = Math.round(cfg.environment.pointsPerDelivery * GHOST_TYPES[route.type].points);
+                score += pts;
+                showMessage('Penumpang tiba! +' + pts);
                 beginDeparture();
             } else showMessage('Rem dan berhenti di tujuan!');
         }
@@ -1087,7 +1438,7 @@ async function run(mode) {
         const base = 0.55 + Math.sin(time * 2.1) * 0.08 + (Math.sin(time * 13) > 0.92 ? 0.25 : 0);
         windowMats[0].color.setScalar(base + houseGlow * 1.2);
         windowMats[1].color.setScalar(0.5 + Math.sin(time * 1.4 + 1) * 0.12 + houseGlow * 1.2);
-        doorGlow.material.opacity = clamp(houseGlow * 0.9, 0, 0.9);
+        doorGlows.forEach((d) => { d.material.opacity = clamp(houseGlow * 0.9, 0, 0.9); });
 
         // Dynamic fog thickens close to the next stop
         const target = onboard ? destination : pickup;
@@ -1117,8 +1468,9 @@ async function run(mode) {
     // ------------------------------------------------------------------
     segments.forEach(randomizeSegment);
     destination.position.set(DEST_X, 0, -535);
+    showBuilding(route.dest);
+    applyRoute(route);
     setPickup(-35);
-    setDestinationLabel('Cemetery');
     camera.position.set(0, 10, 18);
     camera.lookAt(0, 0, -12);
 
@@ -1126,7 +1478,7 @@ async function run(mode) {
         $('controls').style.display = 'none';
         showMessage('Edit Mode: ubah parameter di panel');
     } else {
-        showMessage('Menuju kuburan untuk menjemput penumpang');
+        showMessage(GHOST_TYPES[route.type].intro);
     }
 
     let last = performance.now();

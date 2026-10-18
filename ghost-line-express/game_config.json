@@ -16,8 +16,5 @@
     "passengerSpawnDistance": 260,
     "routeLength": 500,
     "pointsPerDelivery": 100
-  },
-  "locations": {
-    "destinationName": "Abandoned House"
   }
 }
