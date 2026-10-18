@@ -81,7 +81,14 @@
     .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; }
     .chip { padding: 6px 14px; border-radius: 99px; border: 1px solid rgba(127, 233, 255, .3); font-size: 17px; color: #5d7f8c; }
     .chip.on { color: #ffb05d; border-color: #ffb05d; }
-    .lb { font-size: 20px; line-height: 1.5; color: #9fd8e8; min-height: 120px; }
+    .lb-row { width: 600px; height: 58px; display: flex; align-items: center; gap: 14px; padding: 0 20px; margin-bottom: 8px; border-radius: 16px;
+        background: rgba(8, 14, 26, .6); border: 1px solid rgba(127, 233, 255, .22); font-size: 22px; text-align: left; }
+    .lb-row .rk { width: 40px; color: #7fb6c8; font-weight: 800; }
+    .lb-row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-row .sc { font-weight: 800; color: #fff; }
+    .lb-row.top { border-color: #ffb05d; } .lb-row.top .rk { color: #ffb05d; }
+    .lb-note { font-size: 20px; color: #8fb4c4; padding: 40px 0; }
+    .lb { font-size: 22px; line-height: 1.5; color: #ffb05d; min-height: 34px; }
     .shop-row { width: 640px; height: 96px; display: flex; justify-content: space-between; align-items: center; text-align: left;
         padding: 0 24px; border-radius: 22px; font-size: 22px; font-weight: 700; }
     .shop-row small { display: block; font-size: 15px; font-weight: 400; color: #8fb4c4; letter-spacing: 0; }
@@ -143,6 +150,7 @@
     <div class="ov-controls">◀ ▶ KEMUDI &nbsp;•&nbsp; GAS &nbsp;•&nbsp; BRAKE &nbsp;•&nbsp; BERHENTI TEPAT DI BAY</div>
     <button class="bigbtn" id="btn-play">MAIN</button>
     <button class="midbtn" id="btn-shop">BENGKEL</button>
+    <button class="midbtn" id="btn-board">PERINGKAT</button>
 </div>
 <div id="over" class="overlay hidden">
     <div class="ov-kicker" id="over-kicker">TAMAT</div>
@@ -151,6 +159,14 @@
     <div class="lb" id="over-lb"></div>
     <button class="bigbtn" id="btn-again">MAIN LAGI</button>
     <button class="midbtn" id="btn-shop2">BENGKEL</button>
+    <button class="midbtn" id="btn-board2">PERINGKAT</button>
+</div>
+<div id="board" class="overlay hidden">
+    <div class="ov-kicker">PAPAN PERINGKAT</div>
+    <div class="ov-title" style="font-size:44px">SOPIR TERBAIK</div>
+    <div class="ov-stat" id="board-me"></div>
+    <div id="board-list"></div>
+    <button class="midbtn" id="btn-back2">KEMBALI</button>
 </div>
 <div id="shop" class="overlay hidden">
     <div class="ov-kicker">BENGKEL</div>
@@ -1916,7 +1932,7 @@ async function run(mode) {
     // RUN FLOW + OVERLAYS
     // ------------------------------------------------------------------
     function showOverlay(id) {
-        ['title', 'over', 'shop'].forEach((k) => $(k).classList.toggle('hidden', k !== id));
+        ['title', 'over', 'shop', 'board'].forEach((k) => $(k).classList.toggle('hidden', k !== id));
         document.body.classList.toggle('in-title', id === 'title');
     }
     function resetRun() {
@@ -1977,6 +1993,32 @@ async function run(mode) {
     }
     let shopFrom = 'title';
     function openShop(from) { shopFrom = from; renderShop(); showOverlay('shop'); }
+    let boardFrom = 'title';
+    function leaveTo(from) { if (from === 'over') showOverlay('over'); else { renderTitle(); showOverlay('title'); } }
+    async function openBoard(from) {
+        boardFrom = from;
+        const list = $('board-list'), me = $('board-me');
+        list.textContent = ''; me.textContent = '';
+        const note = (t) => { list.textContent = ''; const d = document.createElement('div'); d.className = 'lb-note'; d.textContent = t; list.appendChild(d); };
+        note('Memuat papan peringkat...');
+        showOverlay('board');
+        try {
+            const r = await lib.getTopNEntriesFromLeaderboard(10);
+            const entries = (r && r.entries) || [];
+            if (!entries.length) { note('Belum ada skor. Jadilah yang pertama!'); }
+            else {
+                list.textContent = '';
+                entries.slice(0, 10).forEach((e, i) => {
+                    const row = document.createElement('div'); row.className = 'lb-row' + (i < 3 ? ' top' : '');
+                    const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = '#' + (i + 1);
+                    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = e.username;
+                    const sc = document.createElement('span'); sc.className = 'sc'; sc.textContent = e.score;
+                    row.appendChild(rk); row.appendChild(nm); row.appendChild(sc); list.appendChild(row);
+                });
+            }
+            me.textContent = r && r.userRank ? 'Peringkat kamu: #' + r.userRank : 'Rekor kamu: ' + save.best;
+        } catch (e) { note('Papan peringkat belum tersedia.'); lib.log('leaderboard load failed: ' + e); }
+    }
     async function endRun(reason) {
         if (phase !== 'playing') return;
         phase = 'over';
@@ -1992,14 +2034,12 @@ async function run(mode) {
             if (i) st.appendChild(document.createTextNode('   •   '));
             st.appendChild(document.createTextNode(k + ' ')); const b = document.createElement('b'); b.textContent = v; st.appendChild(b);
         });
-        const lb = $('over-lb'); lb.textContent = score > 0 ? 'Memuat papan peringkat...' : '';
+        const lb = $('over-lb'); lb.textContent = score > 0 ? 'Menyimpan skor...' : '';
         showOverlay('over');
         if (score > 0) {
             try {
-                const r = await lib.addPlayerScoreToLeaderboard(score, 5);
-                lb.textContent = '';
-                const h = document.createElement('div'); h.textContent = 'PERINGKAT' + (r.userRank ? ' • kamu #' + r.userRank : ''); h.style.color = '#ffb05d'; lb.appendChild(h);
-                (r.entries || []).slice(0, 5).forEach((e, i) => { const d = document.createElement('div'); d.textContent = (i + 1) + '. ' + e.username + '  ' + e.score; lb.appendChild(d); });
+                const r = await lib.addPlayerScoreToLeaderboard(score, 1);
+                lb.textContent = r && r.userRank ? 'Peringkat kamu: #' + r.userRank : '';
             } catch (e) { lb.textContent = ''; lib.log('leaderboard failed: ' + e); }
         }
     }
@@ -2387,8 +2427,11 @@ async function run(mode) {
     $('btn-again').addEventListener('click', startRun);
     $('btn-shop').addEventListener('click', () => openShop('title'));
     $('btn-shop2').addEventListener('click', () => openShop('over'));
-    $('btn-back').addEventListener('click', () => { if (shopFrom === 'over') showOverlay('over'); else { renderTitle(); showOverlay('title'); } });
-    window.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (phase === 'title' || phase === 'over') && !$('shop').offsetParent) startRun(); });
+    $('btn-back').addEventListener('click', () => leaveTo(shopFrom));
+    $('btn-board').addEventListener('click', () => openBoard('title'));
+    $('btn-board2').addEventListener('click', () => openBoard('over'));
+    $('btn-back2').addEventListener('click', () => leaveTo(boardFrom));
+    window.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (phase === 'title' || phase === 'over') && !$('shop').offsetParent && !$('board').offsetParent) startRun(); });
     if (mode === 'edit') {
         showOverlay(null);
         $('controls').style.display = 'none';
