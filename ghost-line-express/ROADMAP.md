@@ -15,6 +15,12 @@ Rumah Sakit Tua, Pasar Malam, Jembatan Tua, Hutan Bambu). Pocong dan tuyul memak
 tuyul mencuri poin, anak sekolah = 3 penumpang sekaligus (x3), wewe gombel langka dengan rute 1,4x dan hadiah x4.
 Belum: genderuwo yang menghalangi lajur dan suster ngesot (keduanya butuh sistem tabrakan/rintangan Fase 4).
 
+Fase 4 dikerjakan: fail state (HP bus + kesabaran penumpang), 7 rintangan/lalu lintas hantu (batu, lubang, pohon tumbang,
+mobil jenazah, motor tanpa kepala, suster ngesot, genderuwo penghadang) yang terbuka bertahap per level, combo + bonus
+waktu + PERFECT stop, kabut yang menebal per level, leaderboard, save/load (rekor, koin, koleksi hantu, upgrade, hint),
+bengkel dengan 5 upgrade, layar judul/game over, dan hint tutorial sekali-tampil. Belum: upgrade kosmetik bus, tombol
+kontrol tilt, SFX/musik (Fase 5).
+
 ## Kondisi awal (hasil baca kode, sebelum rewrite)
 - Loop inti: gas/rem/steer -> berhenti di bay hijau dekat kuburan -> kuntilanak naik -> berhenti di "Abandoned House" (~500 unit) -> +100 poin -> ulang.
 - Tidak ada fail state, rintangan, lalu lintas, suara, atau progres kesulitan. Hanya 1 jenis hantu, 1 tujuan.
@@ -56,21 +62,21 @@ Refactor jadi data-driven: `{ id, model, spawnSide, boardSpeed, destination, beh
 | Kuntilanak (selesai) | Berdiri menunggu | Pickup standar |
 | Pocong (selesai) | Melompat-lompat di jalan menuju bus | Bay bergerak, harus sinkron |
 | Tuyul (selesai) | Kecil, berlari zig-zag, mencuri koin/poin | Harus dikejar/dihindari |
-| Genderuwo (selesai, tanpa blokir lajur) | Besar, menghalangi satu lajur | Rintangan + penumpang berat (bus melambat) |
+| Genderuwo (selesai; versi penghadang jadi rintangan Fase 4) | Besar, menghalangi satu lajur | Rintangan + penumpang berat (bus melambat) |
 | Hantu Anak Sekolah (selesai) | Menunggu di halte sekolah | Pickup berkelompok (2-3 sekaligus) |
-| Suster Ngesot (ditunda ke Fase 4) | Merayap di aspal | Bahaya jalan: jangan tabrak (penalti) |
+| Suster Ngesot (selesai sebagai rintangan Fase 4) | Merayap di aspal | Bahaya jalan: jangan tabrak (penalti) |
 | Wewe Gombel (selesai; Leak tidak dibuat) | Elite, muncul malam tertentu | Bonus tinggi, tujuan sulit |
 
 Tujuan bervariasi: Abandoned House, Sekolah Tua, Rumah Sakit, Pasar Malam, Jembatan, Hutan Bambu — masing-masing dengan landmark & tema pinggir jalan sendiri.
 
 ## Fase 4 — Gameplay & progres
-- [ ] Fail state: hantu bisa "marah" jika penumpang menunggu terlalu lama / bus terlalu kencang saat membawa (meter ketakutan/kesabaran)
-- [ ] Rintangan jalan (batu, pohon tumbang, lubang) + lalu lintas hantu (mobil jenazah, motor tanpa kepala)
-- [ ] Combo pengiriman mulus (stop presisi, bonus waktu), rating bintang per rute
-- [ ] Kesulitan naik: kabut tebal, jalan sempit, hujan, jarak lebih jauh
-- [ ] Skor + `lib` leaderboard & save/load (best score, hantu terbuka = koleksi/"ghost dex")
-- [ ] Upgrade bus (lampu, rem, kecepatan) dibeli dengan poin
-- [ ] Tutorial 10 detik pada rute pertama
+- [x] Fail state: hantu bisa "marah" jika penumpang menunggu terlalu lama / bus terlalu kencang saat membawa (meter ketakutan/kesabaran)
+- [x] Rintangan jalan (batu, pohon tumbang, lubang) + lalu lintas hantu (mobil jenazah, motor tanpa kepala)
+- [x] Combo pengiriman mulus (stop presisi, bonus waktu), rating bintang per rute
+- [x] Kesulitan naik: kabut tebal, jalan sempit, hujan, jarak lebih jauh
+- [x] Skor + `lib` leaderboard & save/load (best score, hantu terbuka = koleksi/"ghost dex")
+- [x] Upgrade bus (lampu, rem, kecepatan) dibeli dengan poin
+- [x] Tutorial (hint sekali-tampil) pada rute pertama
 
 ## Fase 5 — Audio, UI, rilis
 - [ ] Musik ambient horor (generate_music) + SFX mesin, rem, tawa, pintu bus, hujan (generate_sound_effect)

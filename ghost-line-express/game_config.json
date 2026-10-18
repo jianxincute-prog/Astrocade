@@ -9,7 +9,10 @@
     "maxSpeed": 0.55,
     "accelerationRate": 0.018,
     "brakingPower": 0.04,
-    "requiredStopSpeed": 0.08
+    "requiredStopSpeed": 0.08,
+    "maxHealth": 100,
+    "patienceScale": 1,
+    "obstacleRate": 1
   },
   "environment": {
     "fogDensity": 100,

@@ -58,7 +58,36 @@
     }
     button.on { background: rgba(60, 160, 190, .55); border-color: #aef3ff; }
     #brake.on { background: rgba(190, 60, 60, .55); border-color: #ff9a9a; }
-    @media (prefers-reduced-motion: reduce) { #message, #loading-screen { transition: none; } }
+    #bars { position: absolute; top: 116px; left: 20px; right: 20px; display: flex; align-items: center; gap: 12px; }
+    .bar { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 2px; color: #7fb6c8; }
+    .track { flex: 1; height: 16px; border-radius: 9px; overflow: hidden; background: rgba(8, 14, 26, .7); border: 1px solid rgba(127, 233, 255, .3); }
+    .track i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #3fd18a, #8fffb8); transition: width 120ms linear; }
+    #pt-fill { background: linear-gradient(90deg, #ffb05d, #ffe08a); }
+    .track.warn i { background: linear-gradient(90deg, #d13f3f, #ff8a6a); animation: pulse 0.5s infinite alternate; }
+    @keyframes pulse { to { opacity: .55; } }
+    #combo { min-width: 120px; text-align: center; font-weight: 900; font-size: 20px; color: #ffb05d; text-shadow: 0 0 10px rgba(255, 176, 93, .7); }
+    #flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 20;
+        background: radial-gradient(circle at 50% 50%, rgba(255, 30, 30, 0) 35%, rgba(200, 10, 10, .75) 100%); }
+    .overlay { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 18px; padding: 28px; text-align: center; color: #e6fbff;
+        background: radial-gradient(circle at 50% 30%, rgba(20, 40, 60, .55), rgba(5, 8, 16, .9)); }
+    .overlay.hidden { display: none; }
+    .ov-kicker { color: #ffb05d; font-size: 15px; font-weight: 800; letter-spacing: 5px; }
+    .ov-title { font-size: 56px; font-weight: 900; letter-spacing: 3px; line-height: 1.02; color: #aef3ff; text-shadow: 0 0 18px rgba(72, 239, 255, .7), 0 4px 0 #11132a; }
+    .ov-stat { font-size: 24px; color: #9fd8e8; line-height: 1.5; }
+    .ov-stat b { color: #fff; }
+    .bigbtn { width: 380px; height: 100px; border-radius: 28px; font-size: 32px; background: linear-gradient(#2a9bb8, #16607a); border-color: #aef3ff; color: #fff; }
+    .midbtn { width: 380px; height: 96px; border-radius: 28px; font-size: 26px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 640px; }
+    .chip { padding: 6px 14px; border-radius: 99px; border: 1px solid rgba(127, 233, 255, .3); font-size: 17px; color: #5d7f8c; }
+    .chip.on { color: #ffb05d; border-color: #ffb05d; }
+    .lb { font-size: 20px; line-height: 1.5; color: #9fd8e8; min-height: 120px; }
+    .shop-row { width: 640px; height: 96px; display: flex; justify-content: space-between; align-items: center; text-align: left;
+        padding: 0 24px; border-radius: 22px; font-size: 22px; font-weight: 700; }
+    .shop-row small { display: block; font-size: 15px; font-weight: 400; color: #8fb4c4; letter-spacing: 0; }
+    .shop-row.off { opacity: .45; }
+    .pips { letter-spacing: 3px; color: #ffb05d; }
+    @media (prefers-reduced-motion: reduce) { #message, #loading-screen { transition: none; } .track.warn i { animation: none; } }
 </style>
 </head>
 <body>
@@ -77,11 +106,41 @@
     <div id="distance" class="panel"><small id="distance-label">TO CEMETERY</small><b id="distance-value">0 m</b></div>
     <div id="destination" class="panel"><small>DESTINATION</small><b id="destination-value">Cemetery</b></div>
     <div id="score" class="panel"><small>SCORE</small><b id="score-value">0</b></div>
+    <div id="bars">
+        <div class="bar"><span>BUS</span><div class="track" id="hp-track"><i id="hp-fill"></i></div></div>
+        <div id="combo"></div>
+        <div class="bar"><span>SABAR</span><div class="track" id="pt-track"><i id="pt-fill"></i></div></div>
+    </div>
     <div id="message"></div>
     <div id="controls">
         <div class="control-group"><button id="left">◀</button><button id="right">▶</button></div>
         <div class="control-group"><button id="brake">BRAKE</button><button id="accelerate">GAS</button></div>
     </div>
+</div>
+
+<div id="flash"></div>
+
+<div id="title" class="overlay">
+    <div class="ov-kicker">NIGHT ROUTE 13</div>
+    <div class="ov-title">GHOST LINE<br>EXPRESS</div>
+    <div class="ov-stat" id="title-stats"></div>
+    <div class="chips" id="title-dex"></div>
+    <button class="bigbtn" id="btn-play">MAIN</button>
+    <button class="midbtn" id="btn-shop">BENGKEL</button>
+</div>
+<div id="over" class="overlay hidden">
+    <div class="ov-kicker" id="over-kicker">TAMAT</div>
+    <div class="ov-title" id="over-title">BUS HANCUR</div>
+    <div class="ov-stat" id="over-stats"></div>
+    <div class="lb" id="over-lb"></div>
+    <button class="bigbtn" id="btn-again">MAIN LAGI</button>
+    <button class="midbtn" id="btn-shop2">BENGKEL</button>
+</div>
+<div id="shop" class="overlay hidden">
+    <div class="ov-kicker">BENGKEL</div>
+    <div class="ov-stat">KOIN <b id="shop-coins">0</b></div>
+    <div id="shop-list"></div>
+    <button class="midbtn" id="btn-back">KEMBALI</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
@@ -96,6 +155,10 @@
  *
  * Six kinds of ghost (see GHOST_TYPES) wait at three pickup sites and ride to six destinations;
  * some move, some slow the bus, one steals points, and a rare elite pays the most.
+ *
+ * Hazards: rocks, potholes, fallen trees, a hearse, a headless motorbike, a crawling suster ngesot and
+ * a road-blocking genderuwo appear as the level climbs. Bus HP and passenger patience are the fail states.
+ * Coins from deliveries buy upgrades; the best score goes on the leaderboard.
  *
  * Controls: arrows / WASD or on-screen buttons (steer, gas, brake).
  * Everything is built from a handful of shared geometries and canvas textures so the
@@ -113,7 +176,7 @@ async function run(mode) {
     // ------------------------------------------------------------------
     const DEFAULTS = {
         visual: { busColor: '#1f3d52', headlightColor: '#cdeeff', fogColor: '#22304a', ghostAuraColor: '#7fe9ff' },
-        gameplay: { maxSpeed: 0.55, accelerationRate: 0.018, brakingPower: 0.04, requiredStopSpeed: 0.08 },
+        gameplay: { maxSpeed: 0.55, accelerationRate: 0.018, brakingPower: 0.04, requiredStopSpeed: 0.08, maxHealth: 100, patienceScale: 1, obstacleRate: 1 },
         environment: { fogDensity: 100, passengerSpawnDistance: 260, routeLength: 500, pointsPerDelivery: 100 }
     };
     function fillDefaults(target, defs) {
@@ -908,7 +971,7 @@ async function run(mode) {
     function updateSmoke(dt) {
         smokeTimer -= dt;
         if (smokeTimer <= 0) {
-            smokeTimer = 0.07 + (1 - speed / cfg.gameplay.maxSpeed) * 0.1;
+            smokeTimer = (0.07 + (1 - speed / cfg.gameplay.maxSpeed) * 0.1) * (phase === 'playing' && health < maxHealth * 0.4 ? 0.5 : 1);
             const s = smoke.find((p) => p.userData.life <= 0);
             if (s) {
                 s.position.set(bus.position.x + 1.0, 0.7, bus.position.z + 5.2);
@@ -923,7 +986,9 @@ async function run(mode) {
             s.position.addScaledVector(u.vel, dt);
             const k = 1 - u.life / u.max;
             s.scale.setScalar(0.5 + k * 2.6);
-            s.material.opacity = (1 - k) * 0.28;
+            const hurt = phase === 'playing' && health < maxHealth * 0.4;
+            s.material.color.setHex(hurt ? 0x3a3f45 : 0x9aa4ad);
+            s.material.opacity = (1 - k) * (hurt ? 0.5 : 0.28);
         });
     }
 
@@ -1597,6 +1662,336 @@ async function run(mode) {
     }
 
     // ------------------------------------------------------------------
+    // SAVE DATA + UPGRADES (persisted through lib.saveUserGameState)
+    // ------------------------------------------------------------------
+    const save = { best: 0, coins: 0, runs: 0, up: { engine: 0, brake: 0, body: 0, light: 0, incense: 0 }, seen: {}, hints: {} };
+    let saveTimer = null;
+    async function loadSave() {
+        if (mode !== 'play') return;
+        try {
+            const r = await lib.getUserGameState();
+            const s = r && r.state;
+            if (s) {
+                save.best = +s.best || 0; save.coins = +s.coins || 0; save.runs = +s.runs || 0;
+                Object.assign(save.up, s.up || {}); Object.assign(save.seen, s.seen || {}); Object.assign(save.hints, s.hints || {});
+            }
+        } catch (e) { lib.log('load failed: ' + e); }
+    }
+    function saveSoon() {
+        if (mode !== 'play') return;
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(async () => { try { await lib.saveUserGameState(save); } catch (e) { lib.log('save failed: ' + e); } }, 600);
+    }
+    const UPGRADES = [
+        { key: 'engine', name: 'Mesin', desc: '+6% kecepatan dan akselerasi' },
+        { key: 'brake', name: 'Rem', desc: '+10% daya rem' },
+        { key: 'body', name: 'Bodi Baja', desc: '+15 HP bus' },
+        { key: 'light', name: 'Lampu Depan', desc: '+8% jarak pandang' },
+        { key: 'incense', name: 'Dupa', desc: '+10% kesabaran penumpang' }
+    ];
+    const MAX_UP = 5, upCost = (lv) => 150 + lv * 150;
+    const eff = { maxSpeed: 0.55, accel: 0.018, brake: 0.04, maxHealth: 100, fog: 1, patience: 1 };
+    function refreshEff() {
+        const u = save.up, g = cfg.gameplay;
+        eff.maxSpeed = g.maxSpeed * (1 + 0.06 * u.engine); eff.accel = g.accelerationRate * (1 + 0.06 * u.engine);
+        eff.brake = g.brakingPower * (1 + 0.1 * u.brake); eff.maxHealth = (g.maxHealth || 100) + 15 * u.body;
+        eff.fog = 1 + 0.08 * u.light; eff.patience = (1 + 0.1 * u.incense) * (g.patienceScale || 1);
+    }
+
+    // ------------------------------------------------------------------
+    // RUN STATE: bus health, passenger patience, combo, difficulty level (= deliveries this run)
+    // ------------------------------------------------------------------
+    let phase = mode === 'play' ? 'title' : 'edit';       // title | playing | over | edit
+    let health = 100, maxHealth = 100, patience = 1, patienceMax = 1, combo = 0, deliveries = 0, runCoins = 0;
+    let invuln = 0, shake = 0, flash = 0, lowPatienceWarned = false;
+
+    const HINTS = {
+        drive: 'Tahan GAS untuk melaju. Kemudi dengan ◀ ▶',
+        near: 'Berhenti di dalam bay hijau, di samping penumpang',
+        board: 'Antar sebelum SABAR habis! Berhenti tepat di tengah bay untuk bonus PERFECT',
+        obstacle: 'Awas rintangan! Tabrakan merusak bus dan memutus combo',
+        combo: 'Antar tanpa tabrakan untuk menaikkan combo'
+    };
+    function hint(key) {
+        if (save.hints[key] || phase !== 'playing') return;
+        save.hints[key] = 1; showMessage(HINTS[key]); saveSoon();
+    }
+
+    function damage(amount, label, scare) {
+        if (invuln > 0 || phase !== 'playing') return false;
+        health = Math.max(0, health - amount);
+        invuln = 1.2; shake = scare ? 1.6 : 1; flash = scare ? 1 : 0.8; busFlicker = 0.5;
+        if (amount >= 10) combo = 0;
+        showMessage(label + ' -' + amount);
+        if (health <= 0) endRun('bus');
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // OBSTACLES AND GHOST TRAFFIC
+    // ------------------------------------------------------------------
+    const obstacles = [], obsPool = {};
+    let spawnCountdown = 140;
+    const rockGeo = new THREE.IcosahedronGeometry(1, 0).scale(1.3, 0.9, 1.1);
+    const darkMetal = new THREE.MeshStandardMaterial({ color: 0x1c1c22, roughness: 0.5, metalness: 0.4 });
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x1a3a40, roughness: 0.3, emissive: 0x0a2a2a });
+    const redGlow = new THREE.SpriteMaterial({ map: glowTex, color: 0xff2a2a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 });
+    const tyreMat = new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 1 });
+
+    function mkObs(root, hw, hl, dmg, slow, label, far, extra) {
+        root.visible = false; scene.add(root);
+        return Object.assign({ root, hw, hl, dmg, slow, label, far, active: false, hit: false, init() {}, update() {} }, extra);
+    }
+    function buildRock() {
+        const g = new THREE.Group();
+        const a = new THREE.Mesh(rockGeo, stoneMat); a.position.y = 0.7; g.add(a);
+        const b = new THREE.Mesh(rockGeo, stoneMat); b.scale.setScalar(0.55); b.position.set(1.3, 0.35, 0.5); g.add(b);
+        return mkObs(g, 1.4, 1.3, 15, 0.35, 'Menabrak batu!', 150, { init(z) { g.position.set(rand(-5, 5), 0, z); g.rotation.y = rand(0, 6); } });
+    }
+    function buildPothole() {
+        const g = new THREE.Group();
+        const m = new THREE.Mesh(new THREE.CircleGeometry(1.4, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x050507, polygonOffset: true, polygonOffsetFactor: -3 }));
+        m.position.y = 0.05; m.scale.set(1, 1, 1.2); g.add(m);
+        const rim = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.75, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a1a1e, polygonOffset: true, polygonOffsetFactor: -2 }));
+        rim.position.y = 0.045; rim.scale.set(1, 1, 1.2); g.add(rim);
+        return mkObs(g, 1.4, 1.5, 6, 0.7, 'Lubang jalan!', 150, { init(z) { g.position.set(rand(-5.5, 5.5), 0, z); } });
+    }
+    function buildLog() {
+        const g = new THREE.Group();
+        const l = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.7, 6, 8).rotateZ(Math.PI / 2), trunkMat); l.position.y = 0.7; g.add(l);
+        [-1.6, 0.9].forEach((x) => { const b = new THREE.Mesh(branchGeo, trunkMat); b.position.set(x, 0.9, 0); b.rotation.set(0.4, 0, rand(-0.6, 0.6)); g.add(b); });
+        return mkObs(g, 3, 0.8, 20, 0.3, 'Menabrak pohon tumbang!', 150, { init(z) { g.position.set(rand(-3.1, 3.1), 0, z); g.rotation.y = rand(-0.15, 0.15); } });
+    }
+    function buildHearse() {
+        const g = new THREE.Group();
+        const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+        add(new THREE.BoxGeometry(2.2, 1.1, 6), darkMetal, 0, 0.95, 0);
+        add(new THREE.BoxGeometry(2.0, 1.2, 3.6), glassMat, 0, 2.0, 0.5);
+        add(new THREE.BoxGeometry(2.05, 0.15, 3.7), darkMetal, 0, 2.65, 0.5);
+        add(new THREE.BoxGeometry(0.8, 0.6, 2.4), trunkMat, 0, 1.75, 1.0);           // coffin behind the glass
+        [[-1.15, -1.9], [1.15, -1.9], [-1.15, 1.9], [1.15, 1.9]].forEach(([x, z]) => add(new THREE.CylinderGeometry(0.5, 0.5, 0.4, 10).rotateZ(Math.PI / 2), tyreMat, x, 0.5, z));
+        [-0.8, 0.8].forEach((x) => { const s = new THREE.Sprite(redGlow); s.scale.setScalar(1.8); s.position.set(x, 1.2, 3.1); g.add(s); });
+        const inner = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x5affb0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5 }));
+        inner.scale.setScalar(2.6); inner.position.set(0, 2.1, 0.5); g.add(inner);
+        return mkObs(g, 1.25, 3.1, 25, 0.25, 'Menabrak mobil jenazah!', 120, {
+            init(z) { g.position.set(rand(-4, 4), 0, z); },
+            update(dt) { g.position.z -= 0.2 * 60 * dt; }
+        });
+    }
+    function buildMotor() {
+        const g = new THREE.Group(), body = new THREE.Group(); body.rotation.y = Math.PI; g.add(body);   // faces the bus
+        const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); body.add(m); return m; };
+        [-0.95, 0.95].forEach((z) => add(new THREE.TorusGeometry(0.45, 0.12, 6, 12).rotateY(Math.PI / 2), tyreMat, 0, 0.55, z));
+        add(new THREE.BoxGeometry(0.25, 0.4, 1.9), darkMetal, 0, 0.8, 0);
+        add(new THREE.BoxGeometry(0.3, 0.2, 0.9), trunkMat, 0, 1.1, 0.3);
+        add(new THREE.BoxGeometry(0.9, 0.08, 0.08), darkMetal, 0, 1.4, -0.8);
+        add(new THREE.BoxGeometry(0.55, 0.95, 0.4), std2(0x2a1f1a), 0, 1.75, 0.3);   // headless rider
+        [-0.3, 0.3].forEach((x) => add(new THREE.BoxGeometry(0.16, 0.7, 0.2), std2(0x14141a), x, 1.0, 0.35));
+        const neck = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x6ab0ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9 }));
+        neck.scale.setScalar(1.1); neck.position.set(0, 2.35, 0.3); body.add(neck);
+        const lamp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff0c0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+        lamp.scale.setScalar(5); lamp.position.set(0, 1.2, -1.3); body.add(lamp);
+        return mkObs(g, 0.8, 1.2, 15, 0.5, 'Disambar motor tanpa kepala!', 230, {
+            init(z) { g.position.set(rand(-5.5, -1.5), 0, z); },
+            update(dt) { g.position.z += 0.5 * 60 * dt; g.position.y = Math.sin(time * 14) * 0.03; }
+        });
+    }
+    function std2(color) { return new THREE.MeshStandardMaterial({ color, roughness: 0.9 }); }
+    function buildSuster() {
+        const g = new THREE.Group(), body = new THREE.Group(); body.position.x = -2; g.add(body);
+        const dressM = ghostMaterial(0xd8dedc, 0.1, 3.0, false, true, 0x88ddff);
+        const hairM = ghostMaterial(0x07080c, 0.18, 3.0, true, false, 0x88ddff);
+        const pts = [];
+        for (let i = 0; i <= 20; i++) { const t = i / 20; pts.push(new THREE.Vector2(0.2 + 0.7 * Math.pow(1 - t, 1.8), t * 3.0)); }
+        const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 20), dressM); dress.rotation.z = -Math.PI / 2; dress.position.y = 0.45; dress.renderOrder = 1; body.add(dress);
+        const faceTex = faceTexture((c, w, h, blob) => {
+            c.fillStyle = '#c8d0cc'; c.fillRect(0, 0, w, h);
+            blob(256 - 54, 250, 40, 34, 'rgba(8,6,10,.97)'); blob(256 + 54, 250, 40, 34, 'rgba(8,6,10,.97)');
+            c.fillStyle = '#d02020'; c.beginPath(); c.arc(256 - 54, 252, 6, 0, 7); c.arc(256 + 54, 252, 6, 0, 7); c.fill();
+            c.fillStyle = '#12060a'; c.beginPath(); c.ellipse(256, 340, 40, 22, 0, 0, 7); c.fill();
+        });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), new THREE.MeshStandardMaterial({ map: faceTex, emissiveMap: faceTex, emissive: 0x889999, emissiveIntensity: 0.5 }));
+        head.position.set(3.3, 0.5, 0); head.rotation.y = Math.PI / 2; body.add(head);
+        for (let i = 0; i < 3; i++) {
+            const hair = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 3.2, 2, 6).translate(0, -1.6, 0), hairM);
+            hair.position.set(3.1, 0.55, (i - 1) * 0.3); hair.rotation.z = -Math.PI / 2; hair.renderOrder = 2; body.add(hair);
+        }
+        const skinM = std2(0xc8d0cc);
+        const arms = [-1, 1].map((s) => { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.7, 5).translate(0, 0.85, 0).rotateZ(-Math.PI / 2), skinM); a.position.set(3.0, 0.15, s * 0.55); body.add(a); return a; });
+        const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x88ddff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.35 }));
+        aura.scale.set(7, 3, 1); aura.position.set(0.5, 0.5, 0); body.add(aura);
+        let dir = 1;
+        return mkObs(g, 3.2, 0.9, 10, 0.5, 'Ditabrak suster ngesot!', 140, {
+            scare: true,
+            init(z) { g.position.set(-7, 0, z); dir = 1; g.rotation.y = 0; },
+            update(dt) {
+                if (Math.abs(g.position.z - bus.position.z) < 130) g.position.x += dir * 2.6 * dt;
+                if (g.position.x > 7 && dir > 0) dir = -1; if (g.position.x < -7 && dir < 0) dir = 1;
+                g.rotation.y = dir > 0 ? 0 : Math.PI;
+                body.position.y = Math.sin(time * 4) * 0.06;
+                arms.forEach((a, i) => { a.position.x = 3.0 + Math.sin(time * 3 + i * Math.PI) * 0.35; });
+            }
+        });
+    }
+    function buildBrute() {
+        const o = createGenderuwo();
+        o.root.scale.setScalar(0.95);
+        return mkObs(o.root, 2.4, 1.6, 30, 0.2, 'Dihadang genderuwo!', 160, {
+            init(z) { o.root.position.set(rand(-3, 3), 0.1, z); o.root.rotation.set(0, 0, 0); o.root.visible = true; },
+            update(dt) { ghostCtx.dt = dt; ghostCtx.near = 0; ghostCtx.yawRel = 0; o.wait(ghostCtx); }
+        });
+    }
+    const OBS_TYPES = {
+        rock: { min: 0, w: 4, build: buildRock }, pothole: { min: 0, w: 3, build: buildPothole }, log: { min: 1, w: 2, build: buildLog },
+        hearse: { min: 2, w: 2, build: buildHearse }, motor: { min: 2, w: 2, build: buildMotor },
+        suster: { min: 3, w: 2, build: buildSuster }, brute: { min: 4, w: 1, build: buildBrute }
+    };
+    function acquireObstacle(type) {
+        const pool = obsPool[type] || (obsPool[type] = []);
+        let o = pool.find((p) => !p.active);
+        if (!o) { if (pool.length >= 3) return null; o = OBS_TYPES[type].build(); o.type = type; pool.push(o); }
+        return o;
+    }
+    function clearObstacles() {
+        obstacles.forEach((o) => { o.active = false; o.root.visible = false; });
+        obstacles.length = 0;
+        spawnCountdown = 140;
+    }
+    function spawnObstacle() {
+        const types = Object.keys(OBS_TYPES).filter((k) => OBS_TYPES[k].min <= deliveries);
+        let r = Math.random() * types.reduce((a, k) => a + OBS_TYPES[k].w, 0), type = types[0];
+        for (const k of types) { r -= OBS_TYPES[k].w; if (r <= 0) { type = k; break; } }
+        const o = acquireObstacle(type);
+        if (!o) return;
+        const z = bus.position.z - o.far;
+        const nearBay = (!pickupDone && Math.abs(z - pickup.position.z) < 35) ||
+            (onboard && pendingDestZ === null && Math.abs(z - destination.position.z) < 35);
+        if (nearBay) { spawnCountdown = 12; return; }
+        o.active = true; o.hit = false; o.root.visible = true; o.init(z);
+        obstacles.push(o);
+    }
+    function updateObstacles(dt) {
+        if (phase !== 'playing') return;
+        const rate = cfg.gameplay.obstacleRate || 1;
+        if (!delivering) spawnCountdown -= speed * dt * 60;
+        if (spawnCountdown <= 0) {
+            spawnObstacle();
+            if (spawnCountdown <= 0) spawnCountdown = rand(0.7, 1.3) * Math.max(35, 100 - deliveries * 6) / rate;
+        }
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            const o = obstacles[i];
+            o.update(dt);
+            const p = o.root.position;
+            if (!o.hit && Math.abs(bus.position.x - p.x) < o.hw + 1.6 && Math.abs(bus.position.z - p.z) < o.hl + 4.3 && invuln <= 0) {
+                if (damage(o.dmg, o.label, o.scare)) {
+                    o.hit = true; speed *= o.slow;
+                    bus.position.x = clamp(bus.position.x + Math.sign(bus.position.x - p.x || 1) * 0.9, -6.2, 6.2);
+                }
+            }
+            if (p.z > bus.position.z + 45 || p.z < bus.position.z - 420) { o.active = false; o.root.visible = false; obstacles.splice(i, 1); }
+            else if (!save.hints.obstacle && Math.abs(p.z - bus.position.z) < 110) hint('obstacle');
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // RUN FLOW + OVERLAYS
+    // ------------------------------------------------------------------
+    function showOverlay(id) { ['title', 'over', 'shop'].forEach((k) => $(k).classList.toggle('hidden', k !== id)); }
+    function resetRun() {
+        refreshEff();
+        score = 0; health = maxHealth = eff.maxHealth; combo = 0; deliveries = 0; runCoins = 0; invuln = 0; shake = 0; flash = 0;
+        speed = 0; onboard = false; delivering = false; pendingDestZ = null; lowPatienceWarned = false;
+        bus.position.x = 0; bus.rotation.set(0, 0, 0); bus.userData.steer = 0;
+        clearObstacles();
+        route = { type: 'kuntilanak', dest: 'house' };
+        applyRoute(route);
+        const pz = bus.position.z - 120;
+        destination.position.z = pz - cfg.environment.routeLength;
+        showBuilding(route.dest); destBay.visible = true; houseGlow = 0;
+        setPassenger(null);
+        setPickup(pz);
+    }
+    function startRun() {
+        resetRun();
+        phase = 'playing'; showOverlay(null);
+        save.runs++; saveSoon();
+        showMessage(GHOST_TYPES[route.type].intro);
+        setTimeout(() => hint('drive'), 2600);
+    }
+    function renderTitle() {
+        $('title-stats').innerHTML = '';
+        const t = $('title-stats');
+        [['REKOR', save.best], ['KOIN', save.coins]].forEach(([k, v], i) => {
+            if (i) t.appendChild(document.createTextNode('   •   '));
+            t.appendChild(document.createTextNode(k + ' ')); const b = document.createElement('b'); b.textContent = v; t.appendChild(b);
+        });
+        const dex = $('title-dex'); dex.textContent = '';
+        Object.keys(GHOST_TYPES).forEach((k) => {
+            const c = document.createElement('span'); c.className = 'chip' + (save.seen[k] ? ' on' : '');
+            c.textContent = save.seen[k] ? GHOST_TYPES[k].name : '???'; dex.appendChild(c);
+        });
+    }
+    function renderShop() {
+        $('shop-coins').textContent = save.coins;
+        const box = $('shop-list'); box.textContent = '';
+        UPGRADES.forEach((u) => {
+            const lv = save.up[u.key], maxed = lv >= MAX_UP, cost = upCost(lv), can = !maxed && save.coins >= cost;
+            const b = document.createElement('button'); b.className = 'shop-row' + (can ? '' : ' off');
+            const l = document.createElement('span'); l.textContent = u.name;
+            const sm = document.createElement('small'); sm.textContent = u.desc; l.appendChild(sm);
+            const r = document.createElement('span'); r.style.textAlign = 'right';
+            const pips = document.createElement('span'); pips.className = 'pips'; pips.textContent = '■'.repeat(lv) + '□'.repeat(MAX_UP - lv);
+            const c = document.createElement('small'); c.textContent = maxed ? 'MAKS' : cost + ' koin';
+            r.appendChild(pips); r.appendChild(c);
+            b.appendChild(l); b.appendChild(r);
+            b.addEventListener('click', () => {
+                if (!can) return;
+                save.coins -= cost; save.up[u.key]++; saveSoon(); renderShop();
+            });
+            box.appendChild(b); box.appendChild(document.createElement('div')).style.height = '10px';
+        });
+    }
+    let shopFrom = 'title';
+    function openShop(from) { shopFrom = from; renderShop(); showOverlay('shop'); }
+    async function endRun(reason) {
+        if (phase !== 'playing') return;
+        phase = 'over';
+        const isBest = score > save.best;
+        if (isBest) save.best = score;
+        saveSoon();
+        $('over-kicker').textContent = reason === 'bus' ? 'PERJALANAN BERAKHIR' : 'RUTE GAGAL';
+        $('over-title').textContent = reason === 'bus' ? 'BUS HANCUR' : 'PENUMPANG MENGAMUK';
+        const st = $('over-stats'); st.textContent = '';
+        [['SKOR', score], ['ANTAR', deliveries], ['REKOR', save.best + (isBest ? ' (BARU!)' : '')]].forEach(([k, v], i) => {
+            if (i) st.appendChild(document.createTextNode('   •   '));
+            st.appendChild(document.createTextNode(k + ' ')); const b = document.createElement('b'); b.textContent = v; st.appendChild(b);
+        });
+        const lb = $('over-lb'); lb.textContent = score > 0 ? 'Memuat papan peringkat...' : '';
+        showOverlay('over');
+        if (score > 0) {
+            try {
+                const r = await lib.addPlayerScoreToLeaderboard(score, 5);
+                lb.textContent = '';
+                const h = document.createElement('div'); h.textContent = 'PERINGKAT' + (r.userRank ? ' • kamu #' + r.userRank : ''); h.style.color = '#ffb05d'; lb.appendChild(h);
+                (r.entries || []).slice(0, 5).forEach((e, i) => { const d = document.createElement('div'); d.textContent = (i + 1) + '. ' + e.username + '  ' + e.score; lb.appendChild(d); });
+            } catch (e) { lb.textContent = ''; lib.log('leaderboard failed: ' + e); }
+        }
+    }
+    function updateRunState(dt) {
+        if (phase !== 'playing') return;
+        if (onboard && !delivering && ghostState.mode !== 'boarding') {
+            patience -= dt;
+            const ratio = patience / patienceMax;
+            if (ratio < 0.3) {
+                if (!lowPatienceWarned) { lowPatienceWarned = true; showMessage(GHOST_TYPES[route.type].name + ' mulai marah!'); }
+                if (Math.sin(time * 6) > 0.9) busFlicker = 0.2;
+            }
+            if (patience <= 0) endRun('patience');
+        }
+        if (!pickupDone && Math.abs(bus.position.z - pickup.position.z) < 70) hint('near');
+    }
+
+    // ------------------------------------------------------------------
     // INPUT + HUD
     // ------------------------------------------------------------------
     window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
@@ -1617,6 +2012,11 @@ async function run(mode) {
     function setDestinationLabel(t) { $('destination-value').textContent = t; }
     function updateHud() {
         $('score-value').textContent = score;
+        const hpR = clamp(health / maxHealth, 0, 1), ptR = onboard ? clamp(patience / patienceMax, 0, 1) : 1;
+        $('hp-fill').style.width = (hpR * 100) + '%'; $('hp-track').classList.toggle('warn', hpR < 0.35);
+        $('pt-fill').style.width = (ptR * 100) + '%'; $('pt-track').classList.toggle('warn', onboard && ptR < 0.3);
+        $('combo').textContent = combo > 0 ? 'COMBO ×' + (1 + Math.min(combo, 4) * 0.25).toFixed(2) : '';
+        flash = Math.max(0, flash - 0.035); $('flash').style.opacity = flash;
         const target = onboard ? destination : pickup;
         const d = Math.max(0, Math.round(Math.hypot(bus.position.x - target.position.x, bus.position.z - target.position.z)));
         $('distance-label').textContent = delivering ? 'ARRIVED' : (onboard ? 'TO ' + DESTS[route.dest].name.toUpperCase() : 'TO ' + GHOST_TYPES[route.type].name.toUpperCase());
@@ -1647,6 +2047,9 @@ async function run(mode) {
             'Max Speed': P('gameplay.maxSpeed', 'slider', { min: 0.3, max: 0.8, step: 0.05 }),
             'Acceleration': P('gameplay.accelerationRate', 'slider', { min: 0.01, max: 0.03, step: 0.002 }),
             'Braking Power': P('gameplay.brakingPower', 'slider', { min: 0.02, max: 0.06, step: 0.005 }),
+            'Bus Health': P('gameplay.maxHealth', 'slider', { min: 50, max: 200, step: 10 }),
+            'Patience Time': P('gameplay.patienceScale', 'slider', { min: 0.5, max: 2, step: 0.1 }),
+            'Obstacle Frequency': P('gameplay.obstacleRate', 'slider', { min: 0.5, max: 2, step: 0.1 }),
             'Required Stop Speed': P('gameplay.requiredStopSpeed', 'slider', { min: 0.05, max: 0.15, step: 0.01 }),
             'Fog Density': P('environment.fogDensity', 'slider', { min: 50, max: 200, step: 10 }, (v) => { scene.fog.far = v * 1.9; }),
             'Spawn Distance': P('environment.passengerSpawnDistance', 'slider', { min: 200, max: 400, step: 20 }),
@@ -1666,9 +2069,11 @@ async function run(mode) {
     }
 
     function updateDriving(dt) {
+        refreshEff();
         const g = cfg.gameplay;
         const f = dt * 60;
         prevSpeed = speed;
+        invuln = Math.max(0, invuln - dt);
 
         if (delivering) {
             speed = 0; bus.userData.steer = 0;
@@ -1688,9 +2093,9 @@ async function run(mode) {
             }
         }
         const mod = onboard ? GHOST_TYPES[route.type] : null;   // heavy passengers slow the bus
-        const accelMult = mod ? mod.accelMult : 1, maxSpeed = g.maxSpeed * (mod ? mod.speedMult : 1);
-        if (keys['arrowup'] || keys['w']) speed += g.accelerationRate * accelMult * f; else speed -= 0.006 * f;
-        if (keys[' '] || keys['s'] || keys['arrowdown']) speed -= g.brakingPower * f;
+        const accelMult = mod ? mod.accelMult : 1, maxSpeed = eff.maxSpeed * (mod ? mod.speedMult : 1);
+        if (keys['arrowup'] || keys['w']) speed += eff.accel * accelMult * f; else speed -= 0.006 * f;
+        if (keys[' '] || keys['s'] || keys['arrowdown']) speed -= eff.brake * f;
         speed = clamp(speed, 0, maxSpeed);
 
         const steerTarget = steer * (0.16 + speed * 0.22);
@@ -1708,19 +2113,32 @@ async function run(mode) {
                 pickupDone = true; onboard = true; theftTimer = 6;
                 ghostState.mode = 'boarding'; ghostState.t = 0; ghostState.from.copy(cur.root.position);
                 pickup.visible = false;
+                const m2 = GHOST_TYPES[route.type];
+                const dist = Math.abs(bus.position.z - destination.position.z);
+                patienceMax = patience = (8 + dist / (eff.maxSpeed * m2.speedMult * 60 * 0.6)) * eff.patience * Math.max(0.6, 1 - deliveries * 0.04);
+                lowPatienceWarned = false;
+                save.seen[route.type] = 1; saveSoon();
                 setDestinationLabel(DESTS[route.dest].name);
                 showMessage('Penumpang naik! Tujuan: ' + DESTS[route.dest].name);
+                setTimeout(() => hint('board'), 2600);
             } else showMessage('Pelan-pelan dan berhenti di samping penumpang!');
         }
-        // Delivery
+        // Delivery: base points x combo, plus time and stop-precision bonuses
         if (onboard && !destDone && pendingDestZ === null &&
             Math.abs(bus.position.z - destination.position.z) <= DEST_L / 2 &&
             Math.abs(bus.position.x - destination.position.x) <= DEST_W / 2) {
             if (speed < g.requiredStopSpeed) {
                 destDone = true;
-                const pts = Math.round(cfg.environment.pointsPerDelivery * GHOST_TYPES[route.type].points);
-                score += pts;
-                showMessage('Penumpang tiba! +' + pts);
+                const base = Math.round(cfg.environment.pointsPerDelivery * GHOST_TYPES[route.type].points);
+                const perfect = Math.abs(bus.position.z - destination.position.z) < 0.9 && Math.abs(bus.position.x - destination.position.x) < 0.7;
+                const timeBonus = Math.round(40 * Math.max(0, patience) / patienceMax);
+                const pts = Math.round(base * (1 + Math.min(combo, 4) * 0.25)) + timeBonus + (perfect ? 50 : 0);
+                score += pts; runCoins += pts; save.coins += pts;
+                combo++; deliveries++;
+                health = Math.min(maxHealth, health + 15);
+                showMessage('Penumpang tiba! +' + pts + (perfect ? '  PERFECT!' : ''));
+                saveSoon();
+                setTimeout(() => hint('combo'), 3600);
                 beginDeparture();
             } else showMessage('Rem dan berhenti di tujuan!');
         }
@@ -1772,7 +2190,7 @@ async function run(mode) {
         const target = onboard ? destination : pickup;
         const dist = Math.hypot(bus.position.x - target.position.x, bus.position.z - target.position.z);
         const thick = clamp(1 - dist / 120, 0, 1) * 0.3;
-        scene.fog.far = lerp(scene.fog.far, cfg.environment.fogDensity * 1.9 * (1 - thick), 0.03);
+        scene.fog.far = lerp(scene.fog.far, cfg.environment.fogDensity * 1.9 * eff.fog * (1 - Math.min(0.3, deliveries * 0.03)) * (1 - thick), 0.03);
     }
 
     function updateCamera(dt) {
@@ -1786,6 +2204,10 @@ async function run(mode) {
         camera.lookAt(bus.position.x + (bus.userData.steer || 0) * 3 + camFocus, bus.position.y - 0.15, bus.position.z - 13);
         const fov = 56 + sp * 6;
         if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = lerp(camera.fov, fov, 0.1); camera.updateProjectionMatrix(); }
+        if (shake > 0) {
+            shake = Math.max(0, shake - dt * 2.5);
+            camera.position.x += rand(-1, 1) * shake * 0.35; camera.position.y += rand(-1, 1) * shake * 0.25;
+        }
         stars.position.copy(camera.position); sky.position.copy(camera.position);
         moonGlow.position.set(camera.position.x - 90, camera.position.y + 110, camera.position.z - 330);
         moonDisc.position.copy(moonGlow.position);
@@ -1794,19 +2216,26 @@ async function run(mode) {
     // ------------------------------------------------------------------
     // START
     // ------------------------------------------------------------------
+    await Promise.race([loadSave(), new Promise((r) => setTimeout(r, 2500))]);
+    refreshEff();
     segments.forEach(randomizeSegment);
-    destination.position.set(DEST_X, 0, -535);
-    showBuilding(route.dest);
-    applyRoute(route);
-    setPickup(-35);
+    destination.position.set(DEST_X, 0, 0);
+    resetRun();
     camera.position.set(0, 10, 18);
     camera.lookAt(0, 0, -12);
 
+    $('btn-play').addEventListener('click', startRun);
+    $('btn-again').addEventListener('click', startRun);
+    $('btn-shop').addEventListener('click', () => openShop('title'));
+    $('btn-shop2').addEventListener('click', () => openShop('over'));
+    $('btn-back').addEventListener('click', () => { if (shopFrom === 'over') showOverlay('over'); else { renderTitle(); showOverlay('title'); } });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (phase === 'title' || phase === 'over') && !$('shop').offsetParent) startRun(); });
     if (mode === 'edit') {
+        showOverlay(null);
         $('controls').style.display = 'none';
         showMessage('Edit Mode: ubah parameter di panel');
     } else {
-        showMessage(GHOST_TYPES[route.type].intro);
+        renderTitle(); showOverlay('title');
     }
 
     let last = performance.now();
@@ -1815,7 +2244,15 @@ async function run(mode) {
         last = now; time += dt;
 
         if (messageTimer > 0) { messageTimer -= dt; if (messageTimer <= 0) $('message').style.opacity = '0'; }
-        if (mode === 'play') { updateDriving(dt); recycle(dt); }
+        if (mode === 'play') {
+            if (phase === 'playing') { updateDriving(dt); updateObstacles(dt); updateRunState(dt); }
+            else {                                                   // title / game over: the bus coasts to a stop
+                prevSpeed = speed; speed = Math.max(0, speed - 0.012 * dt * 60);
+                bus.position.z -= speed * dt * 60;
+                wheels.forEach((w) => { w.rotation.x -= speed * dt * 60 * 0.72; });
+            }
+            recycle(dt);
+        }
         updateBusVisuals(dt);
         updateGhost(dt);
         updateSmoke(dt);
