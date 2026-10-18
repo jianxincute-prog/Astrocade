@@ -9,11 +9,11 @@ Fase 1 (kecuali tikungan/tanjakan/jembatan dan genangan reflektif) dan Fase 2 su
 sebagai satu kelompok mesh + tekstur kanvas (jendela, plat, sign), bukan InstancedMesh; `createGhost(type)` belum
 dipisah dan baru tersedia sebagai blok kuntilanak di `run()` — dipisah saat Fase 3.
 
-Fase 3 (sebagian) sudah dikerjakan: sistem `GHOST_TYPES` + `DESTS` data-driven, dengan 4 hantu
-(kuntilanak, pocong, tuyul, genderuwo) dan 3 tujuan (Rumah Kosong, Sekolah Tua, Rumah Sakit Tua). Pocong dan tuyul
-memakai bay yang bergerak; genderuwo memperlambat bus selama ia di dalam. Belum: hantu anak sekolah (penumpang
-berkelompok), suster ngesot (bahaya jalan, menunggu Fase 4), wewe gombel/leak, tujuan Pasar Malam/Jembatan/Hutan Bambu,
-dan tuyul yang mencuri poin.
+Fase 3 hampir selesai: sistem `GHOST_TYPES` + `DESTS` data-driven dengan 6 hantu (kuntilanak, pocong, tuyul, genderuwo,
+hantu anak sekolah, wewe gombel), 3 lokasi jemput (kuburan, halte, pohon beringin) dan 6 tujuan (Rumah Kosong, Sekolah Tua,
+Rumah Sakit Tua, Pasar Malam, Jembatan Tua, Hutan Bambu). Pocong dan tuyul memakai bay bergerak, genderuwo memperlambat bus,
+tuyul mencuri poin, anak sekolah = 3 penumpang sekaligus (x3), wewe gombel langka dengan rute 1,4x dan hadiah x4.
+Belum: genderuwo yang menghalangi lajur dan suster ngesot (keduanya butuh sistem tabrakan/rintangan Fase 4).
 
 ## Kondisi awal (hasil baca kode, sebelum rewrite)
 - Loop inti: gas/rem/steer -> berhenti di bay hijau dekat kuburan -> kuntilanak naik -> berhenti di "Abandoned House" (~500 unit) -> +100 poin -> ulang.
@@ -55,11 +55,11 @@ Refactor jadi data-driven: `{ id, model, spawnSide, boardSpeed, destination, beh
 |---|---|---|
 | Kuntilanak (selesai) | Berdiri menunggu | Pickup standar |
 | Pocong (selesai) | Melompat-lompat di jalan menuju bus | Bay bergerak, harus sinkron |
-| Tuyul (selesai, tanpa pencurian poin) | Kecil, berlari zig-zag, mencuri koin/poin | Harus dikejar/dihindari |
+| Tuyul (selesai) | Kecil, berlari zig-zag, mencuri koin/poin | Harus dikejar/dihindari |
 | Genderuwo (selesai, tanpa blokir lajur) | Besar, menghalangi satu lajur | Rintangan + penumpang berat (bus melambat) |
-| Hantu Anak Sekolah | Menunggu di halte sekolah | Pickup berkelompok (2-3 sekaligus) |
-| Suster Ngesot | Merayap di aspal | Bahaya jalan: jangan tabrak (penalti) |
-| Wewe Gombel / Leak | Elite, muncul malam tertentu | Bonus tinggi, tujuan sulit |
+| Hantu Anak Sekolah (selesai) | Menunggu di halte sekolah | Pickup berkelompok (2-3 sekaligus) |
+| Suster Ngesot (ditunda ke Fase 4) | Merayap di aspal | Bahaya jalan: jangan tabrak (penalti) |
+| Wewe Gombel (selesai; Leak tidak dibuat) | Elite, muncul malam tertentu | Bonus tinggi, tujuan sulit |
 
 Tujuan bervariasi: Abandoned House, Sekolah Tua, Rumah Sakit, Pasar Malam, Jembatan, Hutan Bambu — masing-masing dengan landmark & tema pinggir jalan sendiri.
 

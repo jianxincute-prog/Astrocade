@@ -94,6 +94,9 @@
  * house and stop in its bay to deliver her. Each delivery scores points, then a new
  * route starts further down the road.
  *
+ * Six kinds of ghost (see GHOST_TYPES) wait at three pickup sites and ride to six destinations;
+ * some move, some slow the bus, one steals points, and a rare elite pays the most.
+ *
  * Controls: arrows / WASD or on-screen buttons (steer, gas, brake).
  * Everything is built from a handful of shared geometries and canvas textures so the
  * scene stays light on mobile: the road recycles 8 segments, props are re-randomised
@@ -134,7 +137,7 @@ async function run(mode) {
     // Runtime state
     let speed = 0, score = 0, prevSpeed = 0;
     let onboard = false, pickupDone = false, destDone = false, delivering = false;
-    let messageTimer = 0, time = 0, pendingDestZ = null;
+    let messageTimer = 0, time = 0, pendingDestZ = null, theftTimer = 6;
     const keys = {};
 
     const rand = (a, b) => a + Math.random() * (b - a);
@@ -455,6 +458,60 @@ async function run(mode) {
     }
 
     // ------------------------------------------------------------------
+    // PICKUP SITES: cemetery (above), school-bus halte and banyan tree. All sit east of the road.
+    // ------------------------------------------------------------------
+    const halte = new THREE.Group();
+    scene.add(halte);
+    {
+        const pad = new THREE.Mesh(new THREE.PlaneGeometry(6, 7).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3a3a38, roughness: 1 }));
+        pad.position.set(0.5, 0.04, 0); halte.add(pad);
+        const wood = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 1, flatShading: true });
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.15, 5), new THREE.MeshStandardMaterial({ color: 0x2a3a4a, roughness: 0.8 }));
+        roof.position.set(1.5, 3.3, 0); roof.rotation.z = 0.1; halte.add(roof);
+        [[-0.2, -2.2], [-0.2, 2.2], [3.0, -2.2], [3.0, 2.2]].forEach(([x, z]) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.2, 6).translate(0, 1.6, 0), poleMat); p.position.set(x, 0, z); halte.add(p); });
+        const wall = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.2), new THREE.MeshStandardMaterial({ color: 0x4a5a58, roughness: 1, side: THREE.DoubleSide }));
+        wall.position.set(3.0, 1.9, 0); wall.rotation.y = Math.PI / 2; halte.add(wall);
+        const bench = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 3.6), wood); bench.position.set(2.5, 0.7, 0); halte.add(bench);
+        const signTex = canvasTex(256, 96, (g, w, h) => {
+            g.fillStyle = '#1a3a52'; g.fillRect(0, 0, w, h); g.strokeStyle = '#d8d8c8'; g.lineWidth = 4; g.strokeRect(3, 3, w - 6, h - 6);
+            g.fillStyle = '#e8e8d8'; g.font = '800 34px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('HALTE', w / 2, 44); g.font = '700 22px Trebuchet MS, Arial'; g.fillText('SEKOLAH 13', w / 2, 76);
+        });
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.68), new THREE.MeshBasicMaterial({ map: signTex, color: 0xbbbbbb }));
+        sign.position.set(-1.6, 3.4, -2.6); sign.rotation.y = 0.5; halte.add(sign);
+        const gl = new THREE.Sprite(glowAmber.clone()); gl.scale.setScalar(5); gl.position.set(1.5, 3.0, 0); halte.add(gl);
+        halte.userData.glow = gl;
+        const mist = new THREE.Mesh(new THREE.PlaneGeometry(14, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x8fb8d8, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
+        mist.position.set(2, 0.35, 0); halte.add(mist);
+    }
+    const banyan = new THREE.Group();
+    scene.add(banyan);
+    {
+        const bark = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 1, flatShading: true });
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.9, 7, 9).translate(0, 3.5, 0), bark); banyan.add(trunk);
+        const crownMat = new THREE.MeshStandardMaterial({ color: 0x14302a, roughness: 1, flatShading: true });
+        [[0, 8.6, 0, 4.6], [-3.2, 8.0, 1.2, 3.4], [3.0, 8.2, -1, 3.6], [0.4, 9.8, 0.6, 3]].forEach(([x, y, z, r]) => {
+            const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1).scale(1.2, 0.7, 1.1), crownMat); c.position.set(x, y, z); banyan.add(c);
+        });
+        const N = 28, roots = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.04, 0.07, 1, 4).translate(0, -0.5, 0), bark, N);
+        const d = new THREE.Object3D();
+        for (let i = 0; i < N; i++) {
+            const a = rand(0, Math.PI * 2), r = rand(1.5, 5), len = rand(3, 7.5);
+            d.position.set(Math.cos(a) * r, 7.8, Math.sin(a) * r * 0.9); d.rotation.set(rand(-0.05, 0.05), 0, rand(-0.05, 0.05)); d.scale.set(1, len, 1); d.updateMatrix(); roots.setMatrixAt(i, d.matrix);
+        }
+        banyan.add(roots);
+        const cloth = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.55, 0.9, 12, 1, true), new THREE.MeshStandardMaterial({
+            map: canvasTex(64, 32, (g, w, h) => { for (let x = 0; x < 8; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#e8e8e0' : '#111'; g.fillRect(x * 8, y * 8, 8, 8); } }), roughness: 1, side: THREE.DoubleSide }));
+        cloth.position.y = 1.4; banyan.add(cloth);
+        const shrine = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), stoneMat); shrine.position.set(-3.2, 0.35, 2.8); banyan.add(shrine);
+        const roofS = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.5, 4).translate(0, 0.25, 0), trunkMat); roofS.position.set(-3.2, 0.7, 2.8); roofS.rotation.y = Math.PI / 4; banyan.add(roofS);
+        const inc = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff4a28, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 }));
+        inc.scale.setScalar(1.6); inc.position.set(-3.2, 0.5, 3.3); banyan.add(inc);
+        const mist = new THREE.Mesh(new THREE.PlaneGeometry(16, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xb070ff, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending }));
+        mist.position.y = 0.35; banyan.add(mist);
+    }
+    const sites = { cemetery, halte, banyan };
+
+    // ------------------------------------------------------------------
     // ABANDONED HOUSE (destination)
     // ------------------------------------------------------------------
     const destination = new THREE.Group();
@@ -487,9 +544,10 @@ async function run(mode) {
         const doorMat = new THREE.MeshBasicMaterial({ color: 0x0b0806 });
         const wg = new THREE.PlaneGeometry(1.2, 1.8);
         const add = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
-        const door = (b, y = 1.75) => {
-            add(b, new THREE.PlaneGeometry(1.5, 2.5), doorMat, 4.02, y, 0).rotation.y = Math.PI / 2;
-            const dg = add(b, new THREE.PlaneGeometry(1.5, 2.5), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, depthWrite: false }), 4.04, y, 0);
+        const door = (b, y = 1.75, opt = {}) => {
+            const dw = opt.w || 1.5, dh = opt.h || 2.5;
+            if (opt.solid !== false) add(b, new THREE.PlaneGeometry(dw, dh), doorMat, 4.02, y, 0).rotation.y = Math.PI / 2;
+            const dg = add(b, new THREE.PlaneGeometry(dw, dh), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, depthWrite: false }), 4.04, y, 0);
             dg.rotation.y = Math.PI / 2; doorGlows.push(dg);
             const hg = new THREE.Sprite(glowAmber); hg.scale.setScalar(7); hg.position.set(5.2, 2, 0); b.add(hg);
         };
@@ -564,6 +622,103 @@ async function run(mode) {
             [[2.2, -2.2], [2.2, 2.2], [4.8, -2.2], [4.8, 2.2]].forEach(([y, x], i) => southWin(b, y, x, 4.52, i));
             const tree = makeDeadTree(1.3); tree.position.set(-1, 0, 7.5); b.add(tree);
         }
+
+        // --- Pasar Malam (night market): gate with lanterns, striped stalls, slow ferris wheel
+        {
+            const b = mk('market');
+            const dirt = add(b, new THREE.PlaneGeometry(10, 16).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 1 }), -0.5, 0.05, 0);
+            const stripe = (a, c) => { const t = canvasTex(64, 64, (g, w, h) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? a : c; g.fillRect(i * 8, 0, 8, h); } }); return new THREE.MeshStandardMaterial({ map: t, roughness: 1, side: THREE.DoubleSide }); };
+            const awnings = [stripe('#a8261f', '#d8d0b8'), stripe('#1f6a8a', '#d8d0b8'), stripe('#c8841c', '#2a2420')];
+            const bamboo = new THREE.MeshStandardMaterial({ color: 0x6a5a30, roughness: 1, flatShading: true });
+            const counter = new THREE.MeshStandardMaterial({ color: 0x3a2c20, roughness: 1 });
+            [[-1.2, -5], [-1.2, -1.7], [-1.2, 1.7], [-1.2, 5], [1.8, -3.3], [1.8, 3.3]].forEach(([x, z], i) => {
+                add(b, new THREE.BoxGeometry(2.4, 0.9, 2.2), counter, x, 0.5, z);
+                const aw = add(b, new THREE.BoxGeometry(2.8, 0.1, 2.6), awnings[i % 3], x - 0.1, 2.9, z); aw.rotation.z = 0.12;
+                [[1.2, 1.1], [1.2, -1.1], [-1.2, 1.1], [-1.2, -1.1]].forEach(([dx, dz]) => add(b, new THREE.CylinderGeometry(0.05, 0.05, 2.8, 5), bamboo, x + dx, 1.4, z + dz));
+                const gl = new THREE.Sprite(glowAmber); gl.scale.setScalar(3.2); gl.position.set(x + 0.3, 2.4, z); b.add(gl);
+            });
+            // string lights across the aisle
+            for (let i = 0; i < 14; i++) {
+                const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: [0xff5a3c, 0xffd23c, 0x6ad8ff, 0xb06aff][i % 4], transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9 }));
+                s.scale.setScalar(0.9); s.position.set(-0.2 + Math.sin(i) * 0.2, 3.9 - Math.sin((i / 13) * Math.PI) * -0.3 - 0.9, -6.5 + i); b.add(s);
+            }
+            // entrance gate
+            [-1.6, 1.6].forEach((z) => add(b, new THREE.CylinderGeometry(0.12, 0.14, 3.6, 6), bamboo, 4.4, 1.8, z));
+            add(b, new THREE.BoxGeometry(0.2, 0.2, 3.8), bamboo, 4.4, 3.6, 0);
+            const signTex = canvasTex(256, 64, (g, w, h) => {
+                g.fillStyle = '#2a0f1a'; g.fillRect(0, 0, w, h); g.strokeStyle = '#ffd23c'; g.lineWidth = 4; g.strokeRect(3, 3, w - 6, h - 6);
+                g.fillStyle = '#ffd23c'; g.font = '800 30px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('PASAR MALAM', w / 2, 43);
+            });
+            add(b, new THREE.PlaneGeometry(3, 0.75), new THREE.MeshBasicMaterial({ map: signTex, color: 0xbbbbbb }), 4.45, 4.15, 0).rotation.y = Math.PI / 2;
+            door(b, 1.75, { solid: false, w: 3 });
+            // ferris wheel (spins about the x axis, see updateWorld)
+            const wheel = new THREE.Group(); wheel.position.set(-3.8, 5.2, 0); b.add(wheel);
+            wheel.add(new THREE.Mesh(new THREE.TorusGeometry(4, 0.08, 6, 28).rotateY(Math.PI / 2), poleMat));
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 8, 4).rotateX(Math.PI / 2 + 0), poleMat); sp.rotation.x = a; wheel.add(sp);
+                const car = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 1), new THREE.MeshStandardMaterial({ color: [0xa8261f, 0x1f6a8a, 0xc8841c, 0x5a2a8a][i % 4], emissive: 0x201008, roughness: 1 }));
+                car.position.set(0.5, Math.cos(a) * 4, Math.sin(a) * 4); car.userData.car = true; wheel.add(car);
+            }
+            add(b, new THREE.BoxGeometry(0.4, 5.2, 0.4), poleMat, -3.8, 2.6, 2).rotation.x = 0.25;
+            add(b, new THREE.BoxGeometry(0.4, 5.2, 0.4), poleMat, -3.8, 2.6, -2).rotation.x = -0.25;
+            b.userData.wheel = wheel;
+        }
+
+        // --- Jembatan Tua (old footbridge over a dark stream)
+        {
+            const b = mk('bridge');
+            const waterTex = canvasTex(128, 256, (g, w, h) => {
+                g.fillStyle = '#10243a'; g.fillRect(0, 0, w, h);
+                for (let i = 0; i < 60; i++) { g.strokeStyle = `rgba(150,190,230,${rand(0.05, 0.2)})`; g.lineWidth = 1.5; const y = rand(0, h); g.beginPath(); g.moveTo(rand(0, w), y); g.lineTo(rand(0, w), y + rand(-4, 4)); g.stroke(); }
+            });
+            add(b, new THREE.PlaneGeometry(6, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: waterTex, color: 0x8899aa }), -0.5, 0.04, 0);
+            const wood = new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 1, flatShading: true });
+            const deck = add(b, new THREE.BoxGeometry(8.4, 0.25, 2.6), wood, 0.5, 0.9, 0);
+            [-1.2, 1.2].forEach((z) => {
+                add(b, new THREE.BoxGeometry(8.4, 0.12, 0.12), wood, 0.5, 1.9, z);
+                add(b, new THREE.BoxGeometry(8.4, 0.12, 0.12), wood, 0.5, 1.45, z);
+                for (let x = -3.5; x <= 4.5; x += 1.4) add(b, new THREE.BoxGeometry(0.14, 1.2, 0.14), wood, x, 1.4, z);
+                for (let x = -3.5; x <= 4.5; x += 4) { /* end posts are taller */ add(b, new THREE.BoxGeometry(0.2, 2.2, 0.2), wood, x, 1.6, z); }
+            });
+            [-3.5, 4.5].forEach((x) => [-1.2, 1.2].forEach((z) => {
+                add(b, new THREE.SphereGeometry(0.2, 8, 6), lampHeadMat, x, 2.8, z);
+                const gl = new THREE.Sprite(glowAmber); gl.scale.setScalar(3.4); gl.position.set(x, 2.8, z); b.add(gl);
+            }));
+            [-1.7, 1.7].forEach((z) => [-3, -1, 1, 3].forEach((x) => add(b, new THREE.CylinderGeometry(0.18, 0.18, 1.0, 6), wood, x, 0.45, z * 0.6)));
+            door(b, 1.2, { solid: false, w: 2.6, h: 1.8 });
+            const fog = add(b, new THREE.PlaneGeometry(8, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x8fb8d8, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }), -0.5, 0.5, 0);
+            const tree = makeDeadTree(1.3); tree.position.set(-1.5, 0, 9); b.add(tree);
+        }
+
+        // --- Hutan Bambu (bamboo forest) with a stone lantern at the path
+        {
+            const b = mk('bamboo');
+            add(b, new THREE.PlaneGeometry(14, 22).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x14241a, roughness: 1 }), -1, 0.05, 0);
+            const bt = canvasTex(32, 128, (g, w, h) => { g.fillStyle = '#4c6a3a'; g.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 32) { g.fillStyle = '#26381c'; g.fillRect(0, y, w, 3); } g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(4, 0, 4, h); });
+            bt.wrapS = bt.wrapT = THREE.RepeatWrapping; bt.repeat.set(1, 3);
+            const N = 46;
+            const stalks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.13, 0.16, 14, 6).translate(0, 7, 0), new THREE.MeshStandardMaterial({ map: bt, roughness: 0.8 }), N);
+            const leaves = new THREE.InstancedMesh(new THREE.ConeGeometry(0.9, 2.4, 5).translate(0, 1.2, 0), new THREE.MeshStandardMaterial({ color: 0x2a4a2a, roughness: 1, flatShading: true }), N);
+            const d = new THREE.Object3D();
+            for (let i = 0; i < N; i++) {
+                let x, z, tries = 0;
+                do { x = rand(-8, 3.4); z = rand(-10, 10); tries++; } while (x > -2 && Math.abs(z) < 1.6 && tries < 20);   // keep the path clear
+                const h = rand(0.8, 1.15), lean = rand(-0.05, 0.05);
+                d.position.set(x, 0, z); d.rotation.set(lean, 0, lean); d.scale.set(1, h, 1); d.updateMatrix(); stalks.setMatrixAt(i, d.matrix);
+                d.position.set(x + lean * 14 * h, 13.6 * h, z - lean * 14 * h); d.rotation.set(rand(-0.3, 0.3), rand(0, 6), rand(-0.3, 0.3)); d.scale.set(1, 1, 1); d.updateMatrix(); leaves.setMatrixAt(i, d.matrix);
+            }
+            b.add(stalks, leaves);
+            const path = add(b, new THREE.PlaneGeometry(9, 2.4).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3a3a36, roughness: 1 }), 0, 0.07, 0);
+            [-1.4, 1.4].forEach((z) => {
+                add(b, new THREE.BoxGeometry(0.5, 1.1, 0.5), stoneMat, 4.2, 0.55, z);
+                add(b, new THREE.BoxGeometry(0.7, 0.18, 0.7), stoneMat, 4.2, 1.2, z);
+                const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x7affb0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 }));
+                gl.scale.setScalar(2.6); gl.position.set(4.2, 0.85, z); b.add(gl);
+            });
+            door(b, 1.75, { solid: false, w: 3 });
+            const mist = add(b, new THREE.PlaneGeometry(16, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x6fd8a8, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }), -1, 0.4, 0);
+        }
     }
     function showBuilding(key) { Object.keys(buildings).forEach((k) => { buildings[k].visible = k === key; }); }
 
@@ -611,6 +766,21 @@ async function run(mode) {
             g.fillStyle = '#ffe94a'; ell(-6, -52, 4.5, 4.5); ell(6, -52, 4.5, 4.5);
             g.fillStyle = '#000'; g.fillRect(-6.5, -55, 1.5, 6); g.fillRect(5, -55, 1.5, 6);
             g.fillStyle = '#f4f0e0'; g.fillRect(-7, -42, 14, 2);
+        } else if (kind === 'anak') {
+            [[-26, 62], [0, 58], [26, 66]].forEach(([x, hgt]) => {
+                g.fillStyle = '#d6dcd4'; ell(x, -hgt + 10, 9, 10); g.fillRect(x - 6, -hgt + 58, 4, hgt - 58); g.fillRect(x + 2, -hgt + 58, 4, hgt - 58);
+                g.fillStyle = '#e8e8e0'; g.fillRect(x - 8, -hgt + 20, 16, 24);
+                g.fillStyle = '#a02020'; g.fillRect(x - 9, -hgt + 44, 18, 14);
+                g.fillStyle = '#05060a'; g.beginPath(); g.ellipse(x, -hgt + 7, 9.5, 7, 0, Math.PI, 0); g.fill();
+                g.fillRect(x - 5, -hgt + 8, 3, 4); g.fillRect(x + 2, -hgt + 8, 3, 4);
+            });
+        } else if (kind === 'wewe') {
+            g.fillStyle = '#5c5c66'; ell(0, -62, 25, 32);
+            g.fillStyle = '#2a201c'; ell(0, -30, 26, 34);
+            g.fillStyle = '#a99d88'; ell(0, -62, 13, 17);
+            g.fillStyle = '#ffe050'; g.fillRect(-8, -65, 5, 4); g.fillRect(3, -65, 5, 4);
+            g.fillStyle = '#6a5a48'; ell(-21, -30, 10, 8);
+            g.fillStyle = '#ffa0d8'; ell(-21, -35, 3.5, 3.5);
         } else {
             g.fillStyle = '#0c0a09'; ell(0, -36, 33, 38); ell(0, -80, 21, 19); ell(-30, -48, 11, 22); ell(30, -48, 11, 22);
             g.fillStyle = '#ff2a1a'; g.fillRect(-13, -84, 8, 5); g.fillRect(5, -84, 8, 5);
@@ -1148,18 +1318,156 @@ async function run(mode) {
         return o;
     }
 
+    // ---- Hantu Anak Sekolah: three pale pupils waiting together at the halte (group pickup)
+    function createAnak() {
+        const o = newGhost(0xa8c8ff, 5.5, 4.2, 1.5);
+        const { root, std } = o;
+        const skin = std({ color: 0xd6dcd4, emissive: 0x203038 });
+        const shirt = std({ color: 0xe8e8e0, emissive: 0x303038 });
+        const red = std({ color: 0xa02020, emissive: 0x200404 });
+        const hairM = std({ color: 0x0a0a0d });
+        const bagM = std({ color: 0x3a2a1c });
+        const faceTex = faceTexture((g, w, h, blob) => {
+            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#dfe5dc'); gr.addColorStop(1, '#b8c2bc');
+            g.fillStyle = gr; g.fillRect(0, 0, w, h);
+            const cx = 256, cy = 256;
+            blob(cx - 52, cy - 6, 38, 36, 'rgba(6,6,10,.98)'); blob(cx + 52, cy - 6, 38, 36, 'rgba(6,6,10,.98)');
+            g.fillStyle = '#f4f4ea'; g.beginPath(); g.arc(cx - 52, cy - 4, 5, 0, 7); g.arc(cx + 52, cy - 4, 5, 0, 7); g.fill();
+            blob(cx - 60, cy + 44, 22, 14, 'rgba(200,80,80,.35)'); blob(cx + 60, cy + 44, 22, 14, 'rgba(200,80,80,.35)');
+            g.strokeStyle = '#2a1214'; g.lineWidth = 5; g.beginPath(); g.moveTo(cx - 26, cy + 76); g.quadraticCurveTo(cx, cy + 92, cx + 26, cy + 76); g.stroke();
+        });
+        const headMat = std({ map: faceTex, emissiveMap: faceTex, emissive: 0x8899aa, emissiveIntensity: 0.4 });
+        const limb = (parent, x, y, len, r, mat) => {
+            const p = new THREE.Group(); p.position.set(x, y, 0);
+            p.add(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, len, 6).translate(0, -len / 2, 0), mat)); parent.add(p); return p;
+        };
+        const kids = [];
+        [[-1.7, 'boy', 1.05], [0, 'girl', 1.0], [1.7, 'boy', 1.12]].forEach(([z, kind, s], i) => {
+            const k = new THREE.Group(); k.position.set(rand(-0.2, 0.2), 0, z); k.scale.setScalar(s); root.add(k);
+            const legL = limb(k, -0.1, 0.85, 0.85, 0.07, skin), legR = limb(k, 0.1, 0.85, 0.85, 0.07, skin);
+            const bottom = kind === 'girl' ? new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.5, 10, 1, true).translate(0, -0.25, 0), red)
+                : new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.23, 0.38, 8), red);
+            bottom.position.y = kind === 'girl' ? 1.15 : 0.98; k.add(bottom);
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.22, 0.7, 8), shirt); torso.position.y = 1.5; k.add(torso);
+            const tie = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3, 0.03), red); tie.position.set(0, 1.58, 0.2); k.add(tie);
+            const bag = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.16), bagM); bag.position.set(0, 1.5, -0.24); k.add(bag);
+            const armL = limb(k, -0.25, 1.78, 0.62, 0.055, shirt), armR = limb(k, 0.25, 1.78, 0.62, 0.055, shirt);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12).scale(1, 1.08, 1), headMat); head.position.y = 2.05; k.add(head);
+            const cap = new THREE.Mesh(new THREE.SphereGeometry(0.315, 14, 8, 0, Math.PI * 2, 0, 1.25).scale(1, 1.08, 1), hairM); cap.position.y = 2.05; cap.rotation.y = Math.PI; k.add(cap);
+            if (kind === 'girl') [-1, 1].forEach((sd) => { const br = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.025, 0.55, 5).translate(0, -0.27, 0), hairM); br.position.set(sd * 0.3, 2.0, -0.05); k.add(br); });
+            kids.push({ k, legL, legR, armL, armR, head, ph: i * 2.1 });
+        });
+        o.wait = (c) => {
+            root.position.y = 0.1;
+            kids.forEach((q, i) => {
+                const sw = Math.sin(time * 1.3 + q.ph);
+                q.k.rotation.z = sw * 0.03;
+                q.head.rotation.y = lerp(q.head.rotation.y, clamp(c.yawRel, -0.9, 0.9) * c.near, 0.08);
+                q.head.rotation.z = Math.sin(time * 0.7 + q.ph) * 0.12;
+                q.armR.rotation.z = i === 1 ? -2.5 + Math.sin(time * 5) * 0.35 : 0.1 + c.near * 0.2;   // the girl waves
+                q.armL.rotation.z = -0.1;
+            });
+        };
+        o.walk = () => {
+            const s = Math.sin(time * 6);
+            root.position.y = 0.1;
+            kids.forEach((q, i) => {
+                const p = Math.sin(time * 6 + i * 1.3);
+                q.k.position.y = Math.abs(p) * 0.08;
+                q.legL.rotation.x = p * 0.5; q.legR.rotation.x = -p * 0.5;
+                q.armL.rotation.x = -p * 0.4; q.armR.rotation.x = p * 0.4; q.armR.rotation.z = 0.1;
+                q.head.rotation.y = lerp(q.head.rotation.y, 0, 0.1);
+            });
+        };
+        return o;
+    }
+
+    // ---- Wewe Gombel: rare elite ogress. Hunched, long limbs, wild grey hair, carries a glowing bundle
+    function createWewe() {
+        const o = newGhost(0xb070ff, 5.5, 7.0, 2.0);
+        const { root, body, shader, std } = o;
+        body.rotation.x = 0.2;
+        const dressMat = shader(0x3b2d27, 0.25, 3.0, false, true, 0xb070ff);
+        const sleeveMat = shader(0x3b2d27, 0.14, 1.3, true, true, 0xb070ff);
+        const hairMat = shader(0x5c5c66, 0.3, 3.8, true, false, 0xb070ff);
+        const skin = std({ color: 0xa99d88, emissive: 0x201c14 });
+        const faceTex = faceTexture((g, w, h, blob) => {
+            const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#b0a48e'); gr.addColorStop(1, '#8a7e6a');
+            g.fillStyle = gr; g.fillRect(0, 0, w, h);
+            const cx = 256, cy = 256;
+            for (let i = 0; i < 40; i++) { g.strokeStyle = 'rgba(30,20,12,.35)'; g.lineWidth = 1.5; const x = cx + rand(-110, 110), y = cy + rand(-70, 90); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-30, 30), y + rand(-4, 6)); g.stroke(); }
+            blob(cx - 54, cy - 10, 40, 32, 'rgba(10,6,4,.95)'); blob(cx + 54, cy - 10, 40, 32, 'rgba(10,6,4,.95)');
+            [-1, 1].forEach((s) => { blob(cx + s * 54, cy - 10, 20, 15, 'rgba(255,225,80,.95)'); g.fillStyle = '#000'; g.beginPath(); g.ellipse(cx + s * 54, cy - 10, 3, 11, 0, 0, 7); g.fill(); });
+            g.strokeStyle = 'rgba(30,20,12,.7)'; g.lineWidth = 4; g.beginPath(); g.moveTo(cx, cy - 20); g.lineTo(cx - 10, cy + 50); g.lineTo(cx + 12, cy + 54); g.stroke();
+            g.fillStyle = '#120808'; g.beginPath(); g.moveTo(cx - 62, cy + 84); g.quadraticCurveTo(cx, cy + 140, cx + 62, cy + 84); g.quadraticCurveTo(cx, cy + 96, cx - 62, cy + 84); g.fill();
+            g.fillStyle = '#d8d0b0'; [-30, -8, 16, 38].forEach((x) => g.fillRect(cx + x, cy + 94 + Math.abs(x) * -0.05, 6, 12));
+        });
+        const pts = [];
+        for (let i = 0; i <= 28; i++) { const t = i / 28; pts.push(new THREE.Vector2(0.24 + 0.85 * Math.pow(1 - t, 1.6) + 0.12 * Math.exp(-Math.pow((t - 0.88) / 0.08, 2)), t * 3.0)); }
+        const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 30), dressMat); dress.renderOrder = 1; body.add(dress);
+        body.add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 8), skin).translateY(3.05));
+        const head = new THREE.Group(); head.position.set(0, 3.42, 0.22); body.add(head);
+        head.add(new THREE.Mesh(new THREE.SphereGeometry(0.43, 24, 18).scale(0.9, 1.2, 0.95),
+            std({ map: faceTex, emissiveMap: faceTex, emissive: 0x887766, emissiveIntensity: 0.4 })));
+        const curtain = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.85, 3.8, 26, 10, true, 0.8, Math.PI * 2 - 1.6).translate(0, -1.9, 0), hairMat);
+        curtain.position.y = 0.42; curtain.renderOrder = 2; head.add(curtain);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.48, 18, 10, 0, Math.PI * 2, 0, 1.2).scale(0.92, 1.2, 0.97), hairMat); cap.renderOrder = 2; head.add(cap);
+        [-1, 1].forEach((s) => {
+            const lock = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 2.4, 2, 8).translate(0, -1.2, 0), hairMat);
+            lock.position.set(s * 0.42, 0.4, 0.15); lock.rotation.set(0, s * -0.5, s * 0.08); lock.renderOrder = 3; head.add(lock);
+        });
+        const makeArm = (s) => {
+            const a = new THREE.Group(); a.position.set(s * 0.5, 2.78, 0); a.rotation.z = s * -0.22;
+            const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.3, 1.3, 10, 5, true).translate(0, -0.65, 0), sleeveMat); sl.renderOrder = 1; a.add(sl);
+            a.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 1.5, 6).translate(0, -2.05, 0), skin));
+            for (let k = -1; k <= 1; k++) { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.02, 0.5, 4).translate(0, -0.25, 0), skin); f.position.set(k * 0.045, -2.8, 0); f.rotation.z = k * 0.25; a.add(f); }
+            body.add(a); return a;
+        };
+        const armL = makeArm(-1), armR = makeArm(1);
+        const bundle = new THREE.Group(); bundle.position.set(-0.55, 1.7, 0.55); body.add(bundle);
+        bundle.add(new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10).scale(1, 0.8, 1.3), std({ color: 0x6a5a48, flatShading: true })));
+        const bg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffa0d8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+        bg.scale.setScalar(1.4); bg.position.y = 0.15; bundle.add(bg); o.sprites.push({ s: bg, base: 0.55 });
+
+        let cackle = 0, cackleTimer = rand(2, 4);
+        o.wait = (c) => {
+            cackleTimer -= c.dt;
+            if (cackleTimer <= 0) { cackleTimer = rand(3, 6); cackle = 0.9; }
+            cackle = Math.max(0, cackle - c.dt);
+            root.position.y = 0.1 + Math.sin(time * 1.1) * 0.06;
+            body.rotation.z = Math.sin(time * 0.8) * 0.05;
+            bundle.position.y = 1.7 + Math.sin(time * 2.2) * 0.05;
+            head.rotation.z = cackle > 0 ? Math.sin(time * 32) * 0.14 : lerp(head.rotation.z, Math.sin(time * 0.6) * 0.1, 0.1);
+            head.rotation.y = lerp(head.rotation.y, clamp(c.yawRel, -0.9, 0.9) * c.near, 0.08);
+            armR.rotation.z = lerp(armR.rotation.z, 0.22 + c.near * 0.6, 0.1);
+        };
+        o.walk = () => {
+            const s = Math.sin(time * 3);
+            root.position.y = 0.1 + Math.abs(s) * 0.08;
+            body.rotation.z = s * 0.06;
+            armR.rotation.x = s * 0.3; head.rotation.y = lerp(head.rotation.y, 0, 0.1);
+        };
+        return o;
+    }
+
+    // site: where the passenger waits; weight: spawn odds; routeMult: route length; count: passengers (score is per type)
     const GHOST_TYPES = {
-        kuntilanak: { name: 'Kuntilanak', create: createKuntilanak, points: 1, dests: ['house'], speedMult: 1, accelMult: 1,
-            intro: 'Kuntilanak menunggu di gerbang kuburan', drop: 'Kuntilanak turun dan melayang menuju rumah...' },
-        pocong: { name: 'Pocong', create: createPocong, points: 1.5, dests: ['hospital'], speedMult: 1, accelMult: 1,
-            intro: 'Pocong melompat-lompat. Ikuti bay yang bergerak!', drop: 'Pocong melompat turun menuju rumah sakit...' },
-        tuyul: { name: 'Tuyul', create: createTuyul, points: 2, dests: ['school'], speedMult: 1, accelMult: 1,
-            intro: 'Tuyul berlari bolak-balik. Ia melambat saat bus mendekat.', drop: 'Tuyul berlari masuk ke sekolah...' },
-        genderuwo: { name: 'Genderuwo', create: createGenderuwo, points: 2.5, dests: ['house', 'hospital', 'school'], speedMult: 0.8, accelMult: 0.7,
-            intro: 'Genderuwo sangat berat. Bus akan melambat!', drop: 'Genderuwo turun dengan langkah berat...' }
+        kuntilanak: { name: 'Kuntilanak', create: createKuntilanak, points: 1, weight: 3, site: 'cemetery', routeMult: 1, dests: ['house', 'bamboo'], speedMult: 1, accelMult: 1,
+            intro: 'Kuntilanak menunggu di gerbang kuburan', drop: 'Kuntilanak turun dan melayang menuju tujuannya...' },
+        pocong: { name: 'Pocong', create: createPocong, points: 1.5, weight: 3, site: 'cemetery', routeMult: 1, dests: ['hospital', 'bridge'], speedMult: 1, accelMult: 1,
+            intro: 'Pocong melompat-lompat. Ikuti bay yang bergerak!', drop: 'Pocong melompat turun...' },
+        tuyul: { name: 'Tuyul', create: createTuyul, points: 2, weight: 3, site: 'cemetery', routeMult: 1, dests: ['school', 'market'], speedMult: 1, accelMult: 1,
+            intro: 'Tuyul berlari bolak-balik. Awas, ia suka mencuri poin!', drop: 'Tuyul berlari turun sambil cekikikan...' },
+        genderuwo: { name: 'Genderuwo', create: createGenderuwo, points: 2.5, weight: 2, site: 'cemetery', routeMult: 1, dests: ['house', 'hospital', 'school', 'market', 'bridge', 'bamboo'], speedMult: 0.8, accelMult: 0.7,
+            intro: 'Genderuwo sangat berat. Bus akan melambat!', drop: 'Genderuwo turun dengan langkah berat...' },
+        anak: { name: 'Hantu Sekolah', create: createAnak, points: 3, weight: 2, site: 'halte', routeMult: 0.9, dests: ['school', 'market'], speedMult: 1, accelMult: 1,
+            intro: 'Tiga hantu murid menunggu di halte. Jemput sekaligus!', drop: 'Tiga hantu murid turun dan berbaris pergi...' },
+        wewe: { name: 'Wewe Gombel', create: createWewe, points: 4, weight: 1, site: 'banyan', routeMult: 1.4, dests: ['bridge'], speedMult: 1, accelMult: 1,
+            intro: 'Wewe Gombel langka muncul di bawah beringin. Rute jauh, hadiah besar!', drop: 'Wewe Gombel turun sambil menimang bungkusannya...' }
     };
     const DESTS = {
-        house: { name: 'Rumah Kosong' }, school: { name: 'Sekolah Tua' }, hospital: { name: 'Rumah Sakit Tua' }
+        house: { name: 'Rumah Kosong' }, school: { name: 'Sekolah Tua' }, hospital: { name: 'Rumah Sakit Tua' },
+        market: { name: 'Pasar Malam' }, bridge: { name: 'Jembatan Tua' }, bamboo: { name: 'Hutan Bambu' }
     };
     const ghosts = {};
     Object.keys(GHOST_TYPES).forEach((k) => { ghosts[k] = GHOST_TYPES[k].create(); });
@@ -1232,7 +1540,8 @@ async function run(mode) {
 
     function pickRoute() {
         const keys = Object.keys(GHOST_TYPES).filter((k) => k !== route.type);
-        const type = keys[Math.floor(Math.random() * keys.length)];
+        let r = Math.random() * keys.reduce((a, k) => a + GHOST_TYPES[k].weight, 0), type = keys[keys.length - 1];
+        for (const k of keys) { r -= GHOST_TYPES[k].weight; if (r <= 0) { type = k; break; } }
         const d = GHOST_TYPES[type].dests;
         return { type, dest: d[Math.floor(Math.random() * d.length)] };
     }
@@ -1244,6 +1553,10 @@ async function run(mode) {
     function setPickup(z) {
         pickup.position.set(PICKUP_X, 0, z);
         cemetery.position.set(PICKUP_X + CEM_DX, 0, z - 3);
+        halte.position.set(PICKUP_X + 6.8, 0, z - 0.5);
+        banyan.position.set(PICKUP_X + 11, 0, z - 2);
+        const site = GHOST_TYPES[route.type].site;
+        Object.keys(sites).forEach((k) => { sites[k].visible = k === site; });
         pickup.visible = true;
         pickupDone = false; destDone = false;
         resetGhost();
@@ -1270,7 +1583,7 @@ async function run(mode) {
         // The old destination stays until it is behind the camera, then moves (and changes
         // building) for the next route
         const nextPickup = bus.position.z - cfg.environment.passengerSpawnDistance;
-        pendingDestZ = nextPickup - cfg.environment.routeLength;
+        pendingDestZ = nextPickup - cfg.environment.routeLength * GHOST_TYPES[route.type].routeMult;
         setPickup(nextPickup);
         showMessage(GHOST_TYPES[route.type].intro);
     }
@@ -1365,6 +1678,15 @@ async function run(mode) {
         let steer = 0;
         if (keys['arrowleft'] || keys['a']) steer -= 1;
         if (keys['arrowright'] || keys['d']) steer += 1;
+        if (onboard && route.type === 'tuyul') {                // the tuyul steals a few points now and then
+            theftTimer -= dt;
+            if (theftTimer <= 0) {
+                theftTimer = 7;
+                const lost = Math.min(score, 15);
+                score -= lost; busFlicker = 0.7;
+                showMessage(lost > 0 ? 'Tuyul mencuri ' + lost + ' poin!' : 'Tuyul mengacak-acak bus...');
+            }
+        }
         const mod = onboard ? GHOST_TYPES[route.type] : null;   // heavy passengers slow the bus
         const accelMult = mod ? mod.accelMult : 1, maxSpeed = g.maxSpeed * (mod ? mod.speedMult : 1);
         if (keys['arrowup'] || keys['w']) speed += g.accelerationRate * accelMult * f; else speed -= 0.006 * f;
@@ -1383,7 +1705,7 @@ async function run(mode) {
         if (!pickupDone && Math.abs(bus.position.z - pickup.position.z) <= PICKUP_L / 2 &&
             Math.abs(bus.position.x - pickup.position.x) <= PICKUP_W / 2) {
             if (speed < g.requiredStopSpeed) {
-                pickupDone = true; onboard = true;
+                pickupDone = true; onboard = true; theftTimer = 6;
                 ghostState.mode = 'boarding'; ghostState.t = 0; ghostState.from.copy(cur.root.position);
                 pickup.visible = false;
                 setDestinationLabel(DESTS[route.dest].name);
@@ -1439,6 +1761,12 @@ async function run(mode) {
         windowMats[0].color.setScalar(base + houseGlow * 1.2);
         windowMats[1].color.setScalar(0.5 + Math.sin(time * 1.4 + 1) * 0.12 + houseGlow * 1.2);
         doorGlows.forEach((d) => { d.material.opacity = clamp(houseGlow * 0.9, 0, 0.9); });
+
+        const mk = buildings.market;
+        if (mk.visible) {
+            const w = mk.userData.wheel; w.rotation.x += dt * 0.25;
+            w.children.forEach((c) => { if (c.userData.car) c.rotation.x = -w.rotation.x; });
+        }
 
         // Dynamic fog thickens close to the next stop
         const target = onboard ? destination : pickup;
