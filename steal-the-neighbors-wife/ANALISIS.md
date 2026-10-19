@@ -124,3 +124,13 @@ Diuji di Chromium headless (Three.js r128 lokal, `lib` di-stub): tidak ada error
   - *Piano:* menyimpan kunci; partitur di dekat ruangan menunjukkan urutan 3-5 warna, dimainkan di piano.
   - Keypad kecil di bawah layar (game tetap berjalan, pemain diam). Menutup sendiri bila penjaga curiga. Tiga kesalahan memicu alarm kecil: penjaga dalam radius menoleh ke sana (curiga, tidak langsung mengejar) dan keypad terkunci 6 detik.
   - Misi baru ("Solve 2 puzzles", mingguan "Solve 6") dan lencana Safecracker (10 puzzle).
+
+## 9. Paket 3: gadget, suara, dan jebakan baru
+
+- **Gadget (membuat pemain menghilang):** saat vanish, penjaga tidak bisa melihat pemain maupun istri yang mengikuti (model jadi transparan berkedip, ada penanda "VANISHED" dan hitungan mundur). Penjaga tidak bisa menangkap lewat sentuhan, dan keypad puzzle tidak menutup sendiri.
+  - *Fuse box (tombol POWER):* blackout 8 detik, layar menggelap, penjaga yang mengejar mencari lagi dan semua penjaga buta (kerucut hilang), pemain vanish 8 detik. Sekali pakai per level.
+  - *Radio (tombol RADIO):* penjaga dalam radius mendekat untuk memeriksa, pemain vanish 6 detik. Bisa dipakai ulang tiap 22 detik.
+  - Jadwal: L6 radio, L7 fuse box, L8-10 salah satu acak, L11+ keduanya; Daily House selalu keduanya. Misi baru "Use 3 helper gadgets".
+- **Sistem suara:** berlari mengeluarkan suara (radius 4) yang membuat penjaga terdekat curiga dan memeriksa lokasi; dinding meredam (radius ×0,55). Ada cincin gelombang suara di lantai. Alarm puzzle dan semua jebakan memakai sistem yang sama.
+- **Jebakan baru:** lantai berderit (L4), ayam jago di halaman (L5), kelereng (L6), perangkap tikus (L8), robot penyedot debu yang berkeliling (L9); bebek dan sabun tetap di L11+. Jumlah jenis per level naik bertahap dan jenis yang baru terbuka selalu muncul dengan penjelasan singkat.
+- **Bahasa:** seluruh teks yang tampil di game sudah bahasa Inggris (nama dan deskripsi item Eid, spanduk becak, teks kakek). ID internal (mis. `becak_lebaran`, `kakek`) tidak diubah agar data simpanan pemain tetap cocok.
