@@ -86,3 +86,12 @@ Yang sudah bagus: loop-nya jelas (cari, rekrut, kabur), tiap jenis penjaga punya
 | 5 | Masalah 7 dan 8: UI mobile, tutorial, fallback | Sedang |
 
 Rekomendasi: kerjakan 1 dan 2 dulu. Keduanya kecil dan paling memengaruhi retensi, karena pemain macet di level 6 dan tertangkap tanpa bisa lari.
+
+## 5. Perbaikan yang sudah diterapkan (masalah 1-4)
+
+1. **Dinding kapasitas:** harga Sidecar 1.200 → 600 dan Trike 2.800 → 1.500. Kapasitas dihitung dari kendaraan terbesar yang dimiliki, bukan yang dipilih. Kalau bintang belum cukup untuk membeli kendaraan yang diperlukan, tetangga meminjamkan satu untuk level itu (dicatat di layar clear). Kalau bintang cukup, pemain tetap harus membeli.
+2. **Kejar:** suami dan anak perempuan sekarang mengejar (kecepatan kejar 1,7× dan 1,48× kecepatan patroli), tidak lagi langsung menangkap. Skala kecepatan per level dibatasi di level 11 supaya RUN tetap bisa lolos.
+3. **Persembunyian:** cooldown 3 detik setelah keluar lemari. Penjaga yang sedang mengejar saat pemain masuk lemari akan menuju lemari itu dan menangkap pemain jika sempat sampai dalam 1,9 satuan.
+4. **Garis pandang:** diganti uji tabrakan sinar-kotak yang tepat (`rayDist`). Kerucut pandang visual memakai fungsi yang sama.
+
+Diuji di Chromium headless (Three.js r128 lokal, `lib` di-stub): tidak ada error halaman; pandangan tembus dinding setebal 0,24 kini terblokir; suami menangkap pemain yang diam dalam 0,7 detik dan tidak menangkap pemain yang berlari; lemari memicu penangkapan saat dikejar; cooldown dan logika kapasitas sesuai.
