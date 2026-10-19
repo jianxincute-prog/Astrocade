@@ -95,3 +95,10 @@ Rekomendasi: kerjakan 1 dan 2 dulu. Keduanya kecil dan paling memengaruhi retens
 4. **Garis pandang:** diganti uji tabrakan sinar-kotak yang tepat (`rayDist`). Kerucut pandang visual memakai fungsi yang sama.
 
 Diuji di Chromium headless (Three.js r128 lokal, `lib` di-stub): tidak ada error halaman; pandangan tembus dinding setebal 0,24 kini terblokir; suami menangkap pemain yang diam dalam 0,7 detik dan tidak menangkap pemain yang berlari; lemari memicu penangkapan saat dikejar; cooldown dan logika kapasitas sesuai.
+
+## 6. Daily House, misi, dan papan skor harian
+
+- **Daily House:** satu rumah per hari (level 3-11 dipilih dari tanggal UTC), tata letak, penjaga, istri, kunci, dan jebakan sama untuk semua pemain lewat RNG berbenih. Tiga nyawa, percobaan tak terbatas. Skor: `1000 + 100×level + bonus waktu (90 dtk) + 500 jika perfect + 100×nyawa`. Bonus bintang shop hanya untuk clear pertama hari itu. Kapasitas kendaraan tidak menghalangi di mode ini.
+- **Misi:** 3 misi harian dan 2 mingguan, dipilih dari kumpulan berbenih tanggal (reset UTC; mingguan mulai Senin). Progres dan klaim disimpan di profil pemain (`missions`). Hadiah berupa bintang shop. Titik merah di tombol MISSIONS saat ada yang bisa diklaim.
+- **Papan skor:** API hanya menyediakan satu leaderboard, jadi skor dikodekan `hari×1e6 + (daily ? 5e5 : 0) + skor`. Menu punya dua tab (Daily House dan Free Runs) yang hanya menampilkan entri hari ini. Entri lama (papan abadi) tidak lagi tampil.
+- Catatan: jika platform hanya menyimpan skor terbaik per pemain, skor Free Runs yang lebih rendah dari skor Daily House hari itu tidak akan tercatat. Jam perangkat pemain menentukan hari.
