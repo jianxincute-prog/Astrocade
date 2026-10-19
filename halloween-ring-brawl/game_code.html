@@ -862,7 +862,7 @@ const joints=[[head,0,0.45,0,-0.2,0.1],[armL.el,0,-0.05,0,-0.6,0],[armR.el,0,-0.
 const strs=joints.map(()=>{const m=add(root,new THREE.Mesh(sgeo,smat));m.frustumCulled=false;return m;});
 strs[0].userData.anim=(t)=>{joints.forEach((j,i)=>{const p0=worldOf(j[0]);p0.x+=0;p0.y+=0;const lo=root.worldToLocal(p0.clone().add(new THREE.Vector3(j[1],j[2],j[3])));const top=new THREE.Vector3(j[4],6.2,j[5]);const d=top.clone().sub(lo),L=d.length();const m=strs[i];m.position.copy(lo);m.scale.set(1,L,1);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());});bar.rotation.y=Math.sin(t*0.9)*0.25;};
 // orbiting shadow puppets, wisps, violet ground rings
-const orb=add(root,grp(0,0,0)),ol=[];for(let i=0;i<3;i++){const w=wayangMesh();w.scale.setScalar(0.55);orb.add(w);ol.push({w,a:i/3*Math.PI*2,r:1.9,h:1.5+i*0.4});}
+const orb=add(root,grp(0,0,0)),ol=[];for(let i=0;i<3;i++){const w=wayangMesh();w.scale.setScalar(0.3);orb.add(w);ol.push({w,a:i/3*Math.PI*2,r:2.3,h:2.2+i*0.45});}
 orb.userData.anim=(t)=>{ol.forEach(o=>{const a=o.a+t*0.8;o.w.position.set(Math.cos(a)*o.r,o.h+Math.sin(t*1.5+o.a)*0.2,Math.sin(a)*o.r);o.w.rotation.y=-a+Math.PI/2;});};
 points.push(add(root,orbitPoints(80,0xb58cff,0.15,0.8,2.1,4.4)));
 const r1=add(root,new THREE.Mesh(new THREE.PlaneGeometry(5.6,5.6),addMat(0xb58cff,0.75,TEX.ringGreen)));r1.rotation.x=-Math.PI/2;r1.position.y=0.06;rings.push(r1);const r2=add(root,new THREE.Mesh(new THREE.PlaneGeometry(3.2,3.2),addMat(0x8a5aff,0.45,TEX.ringFire)));r2.rotation.x=-Math.PI/2;r2.position.y=0.6;rings.push(r2);
