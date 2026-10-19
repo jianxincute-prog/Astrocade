@@ -113,3 +113,14 @@ Diuji di Chromium headless (Three.js r128 lokal, `lib` di-stub): tidak ada error
 - **Pratinjau 3D:** kartu shop dan buku koleksi merender model aslinya lewat satu renderer tersembunyi (`drawImage` ke kanvas 2D); ketuk untuk memutar.
 - **Kemunculan istri:** tiap istri di level dipilih acak dari semua karakter yang dimiliki (tidak menggeser RNG Daily House).
 - **Koleksi:** tab Wives, Rides, Outfits (siluet "???" bila belum dimiliki, jumlah rescue/getaway/level), dan Badges (15 lencana, hadiah bintang + XP). Peringkat dari XP: Pickpocket → Sneak Thief → Cat Burglar → Shadow Agent → Phantom → Mastermind → Legend, tampil di menu. Tersimpan di profil pemain (`meta`).
+
+## 8. Kakek, roster acak, dan puzzle (paket 1 dan 2)
+
+- **Kakek:** singlet, sarung buluk bertambal berumbai, kacamata hitam, handuk di bahu, sandal jepit, dan tongkat yang diketukkan saat jalan. Jarak pandang 55% penjaga biasa, jalan lambat (0,62×), mengejar tidak secepat suami, dan 55% kemungkinan berhenti mengantuk. Tertangkap: disabet tongkat ("Anak siapa ini?!") lalu jatuh pusing.
+- **Roster acak:** suami selalu ada; jumlah penjaga tetap (1, 2, 3, lalu 4 di level 11+); sisanya diacak tiap level dari yang sudah terbuka (anjing L3, kakek L4, anak L5, anak sapu L8, nenek L12). Memakai RNG berbenih, jadi Daily House tetap sama untuk semua pemain. Penjaga baru diumumkan saat pertama muncul.
+- **Puzzle wajib:** L5 brankas, L8 piano, L9 brankas (petunjuk lebih jauh dari tersembunyi), L10 pintu depan berkode, L11+ satu jenis acak per level. Daily House selalu punya satu puzzle acak berbenih (level 3-11).
+  - *Pintu depan:* pintu kayu menutup celah masuk; 3 angka tersembunyi di 3 benda halaman (kotak surat, kurcaci, papan, pot). Angka muncul di atas benda saat pemain cukup dekat (radius 9, 6, 5, lalu 3,8 satuan makin tinggi level).
+  - *Brankas:* menyimpan kunci kamar tidur terakhir; 3 angka dari benda di dalam rumah (jam standing, easel, lampu).
+  - *Piano:* menyimpan kunci; partitur di dekat ruangan menunjukkan urutan 3-5 warna, dimainkan di piano.
+  - Keypad kecil di bawah layar (game tetap berjalan, pemain diam). Menutup sendiri bila penjaga curiga. Tiga kesalahan memicu alarm kecil: penjaga dalam radius menoleh ke sana (curiga, tidak langsung mengejar) dan keypad terkunci 6 detik.
+  - Misi baru ("Solve 2 puzzles", mingguan "Solve 6") dan lencana Safecracker (10 puzzle).
