@@ -1117,6 +1117,7 @@ async function run(mode) {
     //   rumah, warung, pos ronda, gapura: village fillers
     // Facades are painted on canvases (one lit and one dark texture per building type), so a building is ~10-20 meshes.
     // ------------------------------------------------------------------
+    const LM_BACK = 4.5;                                       // MBG and Kopdes sit this much farther from the road than the other roadside buildings
     const lodV = new THREE.Vector3();
     const lmTexCache = {};
     function lmTex(key, w, h, paint) {                       // returns { lit, dark } textures, built once per key
@@ -1248,7 +1249,7 @@ async function run(mode) {
             if (near) mbgNpcs.forEach(([h, mode, ph]) => h.update(dt, mode, { phase: ph }));
             steam.forEach((s) => { const u = ((t * 0.35 + s.userData.ph) % 3) / 3; s.position.y = 7.5 + u * 5; s.scale.setScalar(1.8 + u * 3); s.material.opacity = (1 - u) * 0.4; });
         });
-        inst.truck = truck; inst.kids = kidsLine;
+        inst.truck = truck; inst.kids = kidsLine; inst.back = LM_BACK;
         return inst;
     }
 
@@ -1305,6 +1306,7 @@ async function run(mode) {
             people.visible = near && inst.mood;
             if (near) npcs.forEach(([h, mode, ph]) => h.update(dt, mode, { phase: ph }));
         });
+        inst.back = LM_BACK;
         return inst;
     }
 
@@ -1398,7 +1400,7 @@ async function run(mode) {
             p.lm = inst; p.lmHalf = inst.half;
             const lim = Math.max(0, 19 - inst.half);
             p.lmZ = rand(-lim, lim);
-            inst.group.position.set(p.lmSide * (12.5 + inst.D / 2), 0, p.lmZ);
+            inst.group.position.set(p.lmSide * (12.5 + (inst.back || 0) + inst.D / 2), 0, p.lmZ);
             inst.group.rotation.y = p.lmSide > 0 ? Math.PI : 0;
             seg.add(inst.group);
         }
@@ -1526,7 +1528,7 @@ async function run(mode) {
             inst.setMode(true);
             if (inst.truck) inst.truck.visible = false;                              // keep the delivery lane clear for the ceremony
             if (inst.kids) { inst.noKids = true; inst.kids.visible = false; }          // the animated panic crowd takes over
-            inst.group.position.set(4 - inst.D / 2, 0, -doorZ);                      // front face on the shared door line, door centred on the route
+            inst.group.position.set(4 - (inst.back || 0) - inst.D / 2, 0, -doorZ);                      // front face on the shared door line, door centred on the route
             const dg = new THREE.Mesh(new THREE.PlaneGeometry(3, 2.6), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, depthWrite: false }));
             dg.position.set(inst.D / 2 + 0.08, 1.4, doorZ); dg.rotation.y = Math.PI / 2; inst.group.add(dg); doorGlows.push(dg);
             b.add(inst.group); destLm[key] = inst;
@@ -1637,7 +1639,7 @@ async function run(mode) {
     // ------------------------------------------------------------------
     const mbgKids = { built: false, list: [], trays: [], state: 'queue', hits: 0, cool: 0 };
     const KID_MIX = [['f', 'sd', {}], ['m', 'sd', {}], ['f', 'smp', { hijab: '#f2f2ee' }], ['m', 'smp', {}], ['f', 'sd', { braids: false }], ['m', 'sd', {}], ['f', 'smp', { hijab: '#1d3f8f' }]];
-    const KID_HOME = [[-4.9, 0.6], [-4.0, 1.5], [-4.9, 2.4], [-4.0, 3.3], [-4.9, 4.2], [-4.0, 5.1], [-4.9, 5.9]];       // the yard between the kitchen and the road (destination-local)
+    const KID_HOME = [[-9.4, 0.6], [-8.5, 1.5], [-9.4, 2.4], [-8.5, 3.3], [-9.4, 4.2], [-8.5, 5.1], [-9.4, 5.9]];       // the yard between the kitchen and the road (destination-local)
     function buildMbgKids() {
         if (mbgKids.built) return;
         mbgKids.built = true;
@@ -1666,7 +1668,7 @@ async function run(mode) {
     }
     function pickKidWp(k) {
         const p = k.h.root.position, cross = Math.random() < 0.65;
-        k.wp.set(cross ? (p.x < 4 ? rand(7, 13.5) : rand(-4.8, -1)) : rand(-4.5, 13), 0, rand(-4, 16));
+        k.wp.set(cross ? (p.x < 4 ? rand(7, 13.5) : rand(-9.5, -3)) : rand(-9, 13), 0, rand(-4, 16));
         k.spd = rand(4.2, 6.2);
     }
     function triggerMbgPanic() {
@@ -2999,7 +3001,7 @@ async function run(mode) {
         const st = ghostState, root = cur.root;
         st.mode = 'departing'; st.t = 0;
         st.from.set(bus.position.x - 2.4, 0.2, bus.position.z - 1);
-        st.to.set(destination.position.x + HOUSE_DX + 4.7, 0.2, destination.position.z);
+        st.to.set(destination.position.x + HOUSE_DX + 4.7 - ((destLm[route.dest] && destLm[route.dest].back) || 0), 0.2, destination.position.z);
         root.visible = true; root.scale.setScalar(1);
         root.rotation.set(0, -Math.PI / 2, 0);
         root.position.copy(st.from);
