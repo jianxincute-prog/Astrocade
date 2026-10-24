@@ -72,13 +72,30 @@
     @keyframes blink { 50% { opacity: .25; } }
     #flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 20;
         background: radial-gradient(circle at 50% 50%, rgba(255, 30, 30, 0) 35%, rgba(200, 10, 10, .75) 100%); }
+    #req { position: absolute; top: 152px; left: 50%; transform: translateX(-50%); width: 430px; padding: 10px 18px 12px; border-radius: 16px; display: none; text-align: center;
+        background: rgba(40, 24, 6, .74); border: 1px solid #ffb05d; box-shadow: 0 0 18px rgba(255, 176, 93, .35); }
+    #req small { display: block; font-size: 12px; letter-spacing: 3px; color: #d6a866; }
+    #req b { display: block; font-size: 20px; color: #ffe2b0; margin-top: 2px; }
+    #req .rt { height: 8px; border-radius: 5px; background: rgba(0, 0, 0, .5); overflow: hidden; margin-top: 8px; }
+    #req .rt i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ffb05d, #ffe08a); }
+    #act { position: absolute; left: 50%; bottom: 44px; margin-left: -75px; width: 150px; height: 150px; border-radius: 75px; display: none; white-space: pre-line;
+        font-size: 21px; line-height: 1.15; background: radial-gradient(#ffc070, #b4641c); color: #fff; border-color: #ffe0a8; animation: actpulse .7s infinite alternate; }
+    @keyframes actpulse { to { transform: scale(1.07); } }
+    .mis-h { width: 620px; text-align: left; font-size: 20px; font-weight: 800; letter-spacing: 4px; color: #ffb05d; margin: 10px 0 6px; }
+    .mis-h small { float: right; font-size: 14px; letter-spacing: 1px; color: #7fb6c8; font-weight: 400; }
+    .mis-row { width: 620px; padding: 12px 18px 10px; margin-bottom: 8px; border-radius: 16px; text-align: left; background: rgba(8, 14, 26, .6); border: 1px solid rgba(127, 233, 255, .22); }
+    .mis-row.done { border-color: #5fd18a; opacity: .75; }
+    .mis-t { font-size: 20px; font-weight: 700; display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .mis-rw { color: #ffb05d; white-space: nowrap; font-weight: 800; }
+    .mis-row.done .mis-rw { color: #7fe3a4; }
+    .mis-row small { display: block; margin-top: 4px; font-size: 14px; color: #8fb4c4; text-align: right; }
     #cine { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 19; transition: opacity .35s;
         background: radial-gradient(ellipse at 50% 46%, rgba(0, 0, 8, 0) 32%, rgba(0, 0, 10, .72) 100%); }
     #cine i { position: absolute; left: 0; right: 0; height: 9%; background: #000; transition: transform .45s ease-out; }
     #cine i:first-child { top: 0; transform: translateY(-100%); } #cine i:last-child { bottom: 0; transform: translateY(100%); }
     #cine.on { opacity: 1; } #cine.on i { transform: none; }
     #ui .panel, #bars, #controls, #warn { transition: opacity .3s; }
-    body.cine #ui .panel, body.cine #bars, body.cine #controls, body.cine #warn { opacity: 0; }
+    body.cine #ui .panel, body.cine #bars, body.cine #controls, body.cine #warn, body.cine #req, body.cine #act { opacity: 0; }
     .overlay { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 18px; padding: 28px; text-align: center; color: #e6fbff;
         background: radial-gradient(circle at 50% 30%, rgba(20, 40, 60, .55), rgba(5, 8, 16, .9)); }
@@ -143,6 +160,8 @@
         <div class="bar"><span>PATIENCE</span><div class="track" id="pt-track"><i id="pt-fill"></i></div></div>
     </div>
     <div id="warn">!</div>
+    <div id="req"><small>PASSENGER REQUEST</small><b id="req-text"></b><div class="rt"><i id="req-fill"></i></div></div>
+    <button id="act"></button>
     <div id="message"></div>
     <div id="controls">
         <div class="control-group"><button id="left">◀</button><button id="right">▶</button></div>
@@ -163,6 +182,7 @@
     <div class="ov-controls">◀ ▶ STEER &nbsp;•&nbsp; GAS &nbsp;•&nbsp; BRAKE &nbsp;•&nbsp; STOP INSIDE THE BAY</div>
     <button class="bigbtn" id="btn-play">PLAY</button>
     <button class="midbtn" id="btn-shop">GARAGE</button>
+    <button class="midbtn" id="btn-missions">MISSIONS</button>
     <button class="midbtn" id="btn-board">LEADERBOARD</button>
 </div>
 <div id="over" class="overlay hidden">
@@ -172,6 +192,7 @@
     <div class="lb" id="over-lb"></div>
     <button class="bigbtn" id="btn-again">PLAY AGAIN</button>
     <button class="midbtn" id="btn-shop2">GARAGE</button>
+    <button class="midbtn" id="btn-missions2">MISSIONS</button>
     <button class="midbtn" id="btn-board2">LEADERBOARD</button>
 </div>
 <div id="board" class="overlay hidden">
@@ -180,6 +201,12 @@
     <div class="ov-stat" id="board-me"></div>
     <div id="board-list"></div>
     <button class="midbtn" id="btn-back2">BACK</button>
+</div>
+<div id="missions" class="overlay hidden">
+    <div class="ov-kicker">MISSIONS</div>
+    <div class="ov-title" style="font-size:44px">ROUTE ORDERS</div>
+    <div id="mis-list"></div>
+    <button class="midbtn" id="btn-back3">BACK</button>
 </div>
 <div id="shop" class="overlay hidden">
     <div class="ov-kicker">GARAGE</div>
@@ -1325,6 +1352,50 @@ async function run(mode) {
         const flag = flagPole(g, D / 2 + 1.4, W / 2 - 0.8, 4.6, 1.2);
         return mkLm(g, D, W, (ramai) => { fac.set(ramai); lamp.material.opacity = ramai ? 0.8 : 0.18; }, (t) => { flag.rotation.z = Math.sin(t * 2 + 1) * 0.12; });
     }
+    // ---- A chicken for the warung yard: pecks about, and panics (flapping and crowing) when the bus rushes past
+    function buildChicken() {
+        const c = HUM.paint, mc = HUM.mergeC, root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+        const bodyGeo = mc([
+            c(new THREE.SphereGeometry(0.22, 10, 8).scale(1, 0.9, 1.3).translate(0, 0.34, 0), '#9a5a2a'), c(new THREE.SphereGeometry(0.16, 8, 6).scale(1, 1, 0.9).translate(0, 0.3, 0.14), '#d8a05c'),
+            ...[-0.5, 0, 0.5].map((a) => c(new THREE.ConeGeometry(0.07, 0.34, 4).rotateX(-0.9).rotateZ(a * 0.5).translate(a * 0.06, 0.55, -0.3), '#2a3a2a')),
+            ...[-1, 1].map((s) => c(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 4).translate(s * 0.07, 0.1, 0.02), '#e0902a'))
+        ]);
+        const vc = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, emissive: 0x2a1a10, emissiveIntensity: 0.4, side: THREE.DoubleSide });
+        body.add(new THREE.Mesh(bodyGeo, vc));
+        const head = new THREE.Group(); head.position.set(0, 0.52, 0.26); body.add(head);
+        head.add(new THREE.Mesh(mc([c(new THREE.SphereGeometry(0.085, 8, 6), '#b06a30'), c(new THREE.ConeGeometry(0.03, 0.09, 4).rotateX(Math.PI / 2).translate(0, -0.01, 0.1), '#e8a830'),
+            c(new THREE.SphereGeometry(0.03, 5, 4).translate(0, -0.08, 0.06), '#d02a2a'), c(new THREE.ConeGeometry(0.025, 0.07, 4).translate(0, 0.1, 0.02), '#d02a2a'), c(new THREE.ConeGeometry(0.025, 0.06, 4).translate(0, 0.09, -0.04), '#d02a2a'),
+            c(new THREE.SphereGeometry(0.012, 4, 3).translate(0.06, 0.02, 0.05), '#050505'), c(new THREE.SphereGeometry(0.012, 4, 3).translate(-0.06, 0.02, 0.05), '#050505')]), vc));
+        const wings = [-1, 1].map((s) => {
+            const w = new THREE.Group(); w.position.set(s * 0.2, 0.42, 0); body.add(w);
+            w.add(new THREE.Mesh(mc([c(new THREE.SphereGeometry(0.2, 8, 6).scale(0.18, 0.55, 1).translate(s * 0.03, -0.05, 0), '#7a4620')]), vc)); return w;
+        });
+        root.scale.setScalar(1.5);
+        let t = rand(0, 6);
+        return {
+            root, update(dt, panic) {
+                t += dt;
+                if (panic > 0) {
+                    const s = Math.sin(t * 28);
+                    wings[0].rotation.z = -0.9 - Math.abs(s) * 0.9; wings[1].rotation.z = 0.9 + Math.abs(s) * 0.9;
+                    body.position.y = Math.abs(Math.sin(t * 7)) * 0.5 * Math.min(1, panic * 1.5); body.rotation.x = -0.35; head.rotation.x = -0.5 + Math.sin(t * 20) * 0.15;
+                } else {
+                    wings[0].rotation.z = wings[1].rotation.z = 0; body.position.y = 0; body.rotation.x = 0;
+                    const peck = Math.max(0, Math.sin(t * 2.3)) ** 6; head.rotation.x = peck * 0.9; head.position.z = 0.26 + peck * 0.06; head.rotation.y = Math.sin(t * 0.7) * 0.4;
+                }
+            }
+        };
+    }
+    function crow() {                                         // kukuruyuk, panicked
+        [[820, 0.09, 0], [1000, 0.09, 120], [1250, 0.12, 240]].forEach(([f, d, w]) => setTimeout(() => audio.blip(f, d, 'sawtooth', 0.05, 1.15), w));
+        setTimeout(() => audio.blip(1500, 0.55, 'sawtooth', 0.05, 0.45), 400);
+    }
+    function villageTrigger(g, cool, ctl) {                   // bus rushing past this landmark (while it is lively)?
+        if (phase !== 'playing' || !ctl.inst.mood || ctl.react > 0 || cool.t > 0) return false;
+        g.getWorldPosition(lodV);
+        const dz = bus.position.z - lodV.z;
+        return dz < 18 && dz > -6 && Math.abs(bus.position.x - lodV.x) < 26 && speed > 0.04;
+    }
     function buildWarung() {
         const D = 4, W = 6, g = new THREE.Group();
         box(g, D, 2.4, W, LMM.wood, 0, 1.2, 0);
@@ -1338,8 +1409,38 @@ async function run(mode) {
         box(g, 0.9, 0.8, 1.6, LMM.wood, D / 2 + 1.3, 0.4, 0.5);
         [-0.3, 1.3].forEach((z) => { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.5, 8), LMM.wood); s.position.set(D / 2 + 1.3, 0.25, z + 0.2); s.userData.stool = true; g.add(s); });
         const bulb = addGlow(g, D / 2 + 0.7, 2.2, 0, 3.4);
-        const people = crowd(g, [[D / 2 + 1.9, -0.8], [D / 2 + 2.2, 1.4]], [0x4a6a3a, 0x8a4a3a]);
-        return mkLm(g, D, W, (ramai) => { fac.set(ramai); bulb.material.opacity = ramai ? 0.85 : 0.1; people.visible = ramai; });
+        const people = new THREE.Group(); g.add(people);
+        const seller = HUM.build(Object.assign(HUM.ADULT.ibuDaster(), { bag: null, poseL: 'chest', poseR: 'down' })); seller.root.position.set(D / 2 + 0.55, 0, 0.5); seller.root.rotation.y = Math.PI / 2; people.add(seller.root);
+        const cust = HUM.build(Object.assign(HUM.ADULT.ibuBatik(), { bag: null, poseL: 'down', poseR: 'fwd' })); cust.root.position.set(D / 2 + 2.6, 0, -0.9); cust.root.rotation.y = -Math.PI / 2 + 0.5; people.add(cust.root);
+        const spoon = new THREE.Mesh(HUM.mergeC([HUM.paint(new THREE.CylinderGeometry(0.012, 0.012, 0.24, 5).rotateX(Math.PI / 2), '#c9ced4'), HUM.paint(new THREE.SphereGeometry(0.04, 6, 4).scale(1, 0.4, 1.2).translate(0, 0, 0.13), '#d8dde2')]),
+            new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.6, roughness: 0.35 }));
+        cust.rig.add(spoon); spoon.position.set(0.25, 1.06, 0.38); spoon.userData.home = spoon.position.clone();
+        const chick = buildChicken(); chick.root.position.set(D / 2 + 3.4, 0, 1.9); chick.root.rotation.y = 1.2; g.add(chick.root);
+        const ctl = { react: 0, inst: null }, cool = { t: 0 }; let lastT = 0, fall = null;
+        const inst = mkLm(g, D, W, (ramai) => { fac.set(ramai); bulb.material.opacity = ramai ? 0.85 : 0.1; people.visible = ramai; chick.root.visible = ramai; }, (t) => {
+            const dt = clamp(t - lastT, 0, 0.1); lastT = t;
+            if (g.getWorldPosition(lodV).distanceTo(camera.position) > 80) return;
+            cool.t = Math.max(0, cool.t - dt);
+            if (villageTrigger(g, cool, ctl)) {
+                ctl.react = 3.0; cool.t = 30; crow();
+                const hand = spoon.userData.home.clone(); cust.rig.localToWorld(hand); g.worldToLocal(hand);
+                spoon.removeFromParent(); g.add(spoon); spoon.position.copy(hand); spoon.rotation.set(0, 0, 0); spoon.scale.setScalar(1.2);
+                fall = { v: new THREE.Vector3(rand(-0.6, 0.6), 2.4, rand(-0.6, 0.6)), s: new THREE.Vector3(rand(-6, 6), rand(-6, 6), rand(-6, 6)) };
+                cust.setMood('scared'); seller.setMood('scared');
+            }
+            if (ctl.react > 0) {
+                ctl.react -= dt;
+                cust.update(dt, 'panic', { phase: 1 }); seller.update(dt, 'panic', { phase: 2 }); chick.update(dt, ctl.react);
+                if (fall) { fall.v.y -= 14 * dt; spoon.position.addScaledVector(fall.v, dt); spoon.rotation.x += fall.s.x * dt; spoon.rotation.z += fall.s.z * dt; if (spoon.position.y < 0.04) { spoon.position.y = 0.04; fall = null; } }
+                bulb.material.opacity = 0.85 + Math.sin(t * 40) * 0.2;
+                if (ctl.react <= 0) { cust.setMood('calm'); seller.setMood('calm'); }
+            } else {
+                cust.update(dt, 'talk', { phase: 1 }); seller.update(dt, 'talk', { phase: 3 }); chick.update(dt, 0);
+                if (!fall && spoon.parent === g && cool.t < 24) { spoon.removeFromParent(); cust.rig.add(spoon); spoon.position.copy(spoon.userData.home); spoon.rotation.set(0, 0, 0); spoon.scale.setScalar(1); }
+            }
+        });
+        ctl.inst = inst;
+        return inst;
     }
     function buildPos() {
         const D = 4, W = 4, g = new THREE.Group();
@@ -1348,8 +1449,33 @@ async function run(mode) {
         const roof = new THREE.Mesh(new THREE.ConeGeometry(3.4, 1.8, 4), LMM.tile); roof.position.y = 3.9; roof.rotation.y = Math.PI / 4; g.add(roof);
         const kent = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 8).rotateZ(Math.PI / 2), LMM.wood); kent.position.set(2.0, 2.4, 0.6); g.add(kent);
         const lamp = addGlow(g, 0, 3.0, 0, 5);
-        const people = crowd(g, [[0.3, -0.7], [0.2, 0.7]], [0x3a4a6a, 0x6a3a3a]); people.position.y = 0.9;
-        return mkLm(g, D, W, (ramai) => { lamp.material.opacity = ramai ? 0.85 : 0.15; people.visible = ramai; });
+        const people = new THREE.Group(); g.add(people);
+        const a = HUM.build(HUM.ADULT.bapakKoko()), b = HUM.build(Object.assign(HUM.ADULT.bapakBatik(), { bag: null, poseR: 'fwd' }));
+        a.root.position.set(D / 2 + 1.5, 0, -0.9); a.root.rotation.y = 0.5; b.root.position.set(D / 2 + 1.6, 0, 0.8); b.root.rotation.y = Math.PI - 0.5; people.add(a.root, b.root);
+        const flashlight = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.28, 6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x222226, emissive: 0xfff0b0, emissiveIntensity: 0.6 }));
+        b.rig.add(flashlight); flashlight.position.set(0.25, 1.06 + 0.3, 0.46);
+        const beam = new THREE.Mesh(new THREE.ConeGeometry(2.2, 12, 24, 1, true).rotateZ(-Math.PI / 2).translate(6, 0, 0), new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+        beam.position.set(D / 2 + 1.9, 1.7, 0.8); beam.visible = false; g.add(beam);
+        const ctl = { react: 0, inst: null }, cool = { t: 0 }; let lastT = 0, tok = 0;
+        const inst = mkLm(g, D, W, (ramai) => { lamp.material.opacity = ramai ? 0.85 : 0.15; people.visible = ramai; if (!ramai) beam.visible = false; }, (t) => {
+            const dt = clamp(t - lastT, 0, 0.1); lastT = t;
+            if (g.getWorldPosition(lodV).distanceTo(camera.position) > 80) return;
+            cool.t = Math.max(0, cool.t - dt);
+            if (villageTrigger(g, cool, ctl)) {
+                ctl.react = 3.4; cool.t = 30; tok = 0; a.setMood('scared'); b.setMood('scared'); audio.blip(190, 0.1, 'square', 0.06, 0.6);
+                [500, 760, 1020].forEach((d) => setTimeout(() => audio.blip(240, 0.07, 'square', 0.07, 0.5), d));       // tok-tok-tok on the kentongan
+            }
+            if (ctl.react > 0) {
+                ctl.react -= dt;
+                const k = clamp(ctl.react / 3.4, 0, 1), jump = ctl.react > 2.3 ? 'panic' : 'talk';
+                a.update(dt, jump, { phase: 1 }); b.update(dt, jump, { phase: 2 });
+                beam.visible = true; beam.material.opacity = 0.14 * Math.min(1, k * 4); beam.rotation.y = Math.sin(t * 2.4) * 0.35 - 0.2; beam.rotation.z = -0.05;
+                lamp.material.opacity = 1.2; lamp.scale.setScalar(5 + Math.sin(t * 30) * 0.6);
+                if (ctl.react <= 0) { a.setMood('calm'); b.setMood('calm'); beam.visible = false; lamp.scale.setScalar(5); }
+            } else { a.update(dt, 'talk', { phase: 1 }); b.update(dt, 'talk', { phase: 2 }); }
+        });
+        ctl.inst = inst;
+        return inst;
     }
     function buildGapura() {
         const D = 1.4, W = 16, g = new THREE.Group();
@@ -1684,6 +1810,7 @@ async function run(mode) {
     }
     function hitKid(k, dxb, dzb) {
         const M = mbgKids;
+        tripHits++;
         k.state = 'hit'; k.t = 0; k.vy = 6.5; k.vel.set((dxb >= 0 ? 1 : -1) * rand(3, 6), 0, -rand(4, 8)); k.invul = 4; k.h.setMood('scared');
         M.hits++;
         if (M.cool > 0) return;
@@ -1859,7 +1986,7 @@ async function run(mode) {
         g.fillStyle = vg; g.fillRect(x, y, w, h);
         g.restore();
     }
-    function drawWindows(kind) {
+    function drawWindows(kind, kind2) {
         return canvasTex(2048, 320, (g) => {
             g.scale(2, 2);
             const w = 1024, h = 160, n = 5, gap = 22, ww = (w - gap * (n + 1)) / n;
@@ -1873,14 +2000,15 @@ async function run(mode) {
                 g.fillRect(x + ww * 0.55, 90, ww * 0.35, 60);
                 if (kind && i === 3) {
                     g.save(); g.beginPath(); g.rect(x, 10, ww, h - 20); g.clip();
-                    drawFigure(g, kind, x + ww / 2, h - 8, 126); g.restore();
+                    if (kind2) { drawFigure(g, kind, x + ww / 2 - 20, h - 8, 104); drawFigure(g, kind2, x + ww / 2 + 22, h - 8, 96); } else drawFigure(g, kind, x + ww / 2, h - 8, 126);
+                    g.restore();
                     glassFx(g, x, 10, ww, h - 20, kind);
                 }
                 g.strokeStyle = '#0b0f14'; g.lineWidth = 7; g.strokeRect(x, 10, ww, h - 20);
             }
         });
     }
-    function drawRear(kind) {
+    function drawRear(kind, kind2) {
         return canvasTex(512, 256, (g) => {
             g.scale(2, 2);
             const w = 256, h = 128;
@@ -1889,7 +2017,8 @@ async function run(mode) {
             g.fillStyle = gr; g.fillRect(0, 0, w, h);
             g.fillStyle = 'rgba(8,10,14,.85)'; g.fillRect(24, 80, 80, 48); g.fillRect(152, 80, 80, 48);
             if (kind) {
-                g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip(); drawFigure(g, kind, 128, h + 4, 118); g.restore();
+                g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip(); if (kind2) { drawFigure(g, kind, 98, h + 4, 100); drawFigure(g, kind2, 158, h + 4, 94); } else drawFigure(g, kind, 128, h + 4, 118);
+                g.restore();
                 glassFx(g, 0, 0, w, h, kind);
             }
             g.strokeStyle = '#0b0f14'; g.lineWidth = 8; g.strokeRect(0, 0, w, h);
@@ -1899,10 +2028,11 @@ async function run(mode) {
     const passengerTex = {};
     const windowMat = new THREE.MeshBasicMaterial({ map: winEmpty, transparent: true });
     const rearMat = new THREE.MeshBasicMaterial({ map: rearEmpty });
-    function setPassenger(kind) {
-        if (kind && !passengerTex[kind]) passengerTex[kind] = { win: drawWindows(kind), rear: drawRear(kind) };
-        windowMat.map = kind ? passengerTex[kind].win : winEmpty;
-        rearMat.map = kind ? passengerTex[kind].rear : rearEmpty;
+    function setPassenger(kind, kind2) {
+        const key = kind ? kind + (kind2 ? '+' + kind2 : '') : null;
+        if (key && !passengerTex[key]) passengerTex[key] = { win: drawWindows(kind, kind2), rear: drawRear(kind, kind2) };
+        windowMat.map = key ? passengerTex[key].win : winEmpty;
+        rearMat.map = key ? passengerTex[key].rear : rearEmpty;
     }
     let signTex;
     function paintSign(text) {
@@ -2878,7 +3008,7 @@ async function run(mode) {
     const ghosts = {};
     Object.keys(GHOST_TYPES).forEach((k) => { ghosts[k] = GHOST_TYPES[k].create(); });
     let route = { type: 'kuntilanak', dest: 'house' };
-    let cur = ghosts.kuntilanak;
+    let cur = ghosts.kuntilanak, cur2 = null;
     const ghostBase = { x: 0, z: 0 };
     const ghostState = { mode: 'waiting', t: 0, from: new THREE.Vector3(), to: new THREE.Vector3() };
     const ghostCtx = { dt: 0, near: 0, yawRel: 0 };
@@ -2886,7 +3016,8 @@ async function run(mode) {
     function ease(t) { return t * t * (3 - 2 * t); }
     function resetGhost() {
         ghostState.mode = 'waiting'; ghostState.t = 0; boardSpot.visible = false; setCine(false);
-        Object.keys(ghosts).forEach((k) => { ghosts[k].root.visible = ghosts[k] === cur; });
+        Object.keys(ghosts).forEach((k) => { ghosts[k].root.visible = ghosts[k] === cur || ghosts[k] === cur2; });
+        if (cur2) { cur2.reset(); cur2.root.scale.setScalar(1); cur2.setOpacity(1); }
         cur.reset();
         cur.root.scale.setScalar(1);
         ghostBase.x = pickup.position.x + 3.3; ghostBase.z = pickup.position.z;
@@ -2895,6 +3026,27 @@ async function run(mode) {
         cur.setOpacity(1);
     }
 
+    const compFrom = new THREE.Vector3();
+    function updateCompanion(dt) {                            // the second passenger of a pair follows the first one through waiting, boarding and departure
+        if (!cur2) return;
+        const st = ghostState, r1 = cur.root, r2 = cur2.root;
+        if (st.mode === 'hidden') { r2.visible = false; return; }
+        r2.visible = r1.visible;
+        if (!r2.visible) return;
+        if (st.mode === 'waiting') {
+            cur2.wait(ghostCtx);
+            r2.position.x = r1.position.x + 2.2; r2.position.z = r1.position.z + 1.3;
+            r2.scale.setScalar(1); cur2.setOpacity(1); compFrom.copy(r2.position);
+        } else if (st.mode === 'boarding') {
+            const u = ease(clamp((st.t - 0.5) / 0.45, 0, 1));
+            r2.position.lerpVectors(compFrom, st.to, u); r2.position.y += Math.sin(u * Math.PI) * 1.2;
+            r2.scale.setScalar(lerp(1, 0.3, u)); if (u > 0) r2.rotation.y += dt * 4 * u; cur2.setOpacity(clamp(1.6 - u * 1.6, 0, 1));
+        } else if (st.mode === 'departing') {
+            const u = Math.min(st.t, 1);
+            r2.position.set(r1.position.x + 1.5, r1.position.y, r1.position.z + 1.9); r2.rotation.y = r1.rotation.y; r2.scale.setScalar(1);
+            cur2.walk(ghostCtx); cur2.setOpacity(u < 0.2 ? u / 0.2 : (u > 0.78 ? clamp((1 - u) / 0.22, 0, 1) : 1));
+        }
+    }
     function updateGhost(dt) {
         ghostMats.forEach((m) => { m.uniforms.uTime.value = time; });
         const st = ghostState, root = cur.root;
@@ -2929,7 +3081,7 @@ async function run(mode) {
             if (st.t >= 1) {
                 st.mode = 'hidden'; root.visible = false;
                 boardSpot.visible = false; setCine(false);
-                setPassenger(route.type);
+                setPassenger(route.type, route.pair);
                 busFlicker = 1.4;
             }
         } else if (st.mode === 'departing') {
@@ -2974,15 +3126,20 @@ async function run(mode) {
 
     function pickRoute() {
         const keys = Object.keys(GHOST_TYPES).filter((k) => k !== route.type);
-        let r = Math.random() * keys.reduce((a, k) => a + GHOST_TYPES[k].weight, 0), type = keys[keys.length - 1];
-        for (const k of keys) { r -= GHOST_TYPES[k].weight; if (r <= 0) { type = k; break; } }
+        let roll = Math.random() * keys.reduce((a, k) => a + GHOST_TYPES[k].weight, 0), type = keys[keys.length - 1];
+        for (const k of keys) { roll -= GHOST_TYPES[k].weight; if (roll <= 0) { type = k; break; } }
         const d = GHOST_TYPES[type].dests;
-        return { type, dest: d[Math.floor(Math.random() * d.length)] };
+        const r = { type, dest: d[Math.floor(Math.random() * d.length)] };
+        if (deliveries >= 5 && Math.random() < (deliveries >= 10 ? 0.45 : 0.3)) {              // later routes carry two passengers at once
+            const others = Object.keys(GHOST_TYPES).filter((k) => k !== type);
+            r.pair = others[Math.floor(Math.random() * others.length)];
+        }
+        return r;
     }
     function applyRoute(r) {
-        route = r; cur = ghosts[r.type];
+        route = r; cur = ghosts[r.type]; cur2 = r.pair ? ghosts[r.pair] : null;
         paintSign('ROUTE 13 • ' + DESTS[r.dest].name.toUpperCase());
-        setDestinationLabel('Pick up ' + GHOST_TYPES[r.type].name);
+        setDestinationLabel('Pick up ' + GHOST_TYPES[r.type].name + (r.pair ? ' & ' + GHOST_TYPES[r.pair].name : ''));
     }
     function setPickup(z) {
         pickup.position.set(PICKUP_X, 0, z);
@@ -2997,7 +3154,7 @@ async function run(mode) {
         segments.forEach(applyClearance);
     }
     function beginDeparture() {
-        delivering = true; destDone = true;
+        delivering = true; destDone = true; if (req.active) endRequest();
         const st = ghostState, root = cur.root;
         st.mode = 'departing'; st.t = 0;
         st.from.set(bus.position.x - 2.4, 0.2, bus.position.z - 1);
@@ -3013,7 +3170,7 @@ async function run(mode) {
     function finishDelivery() {
         calmMbgKids();
         delivering = false; onboard = false; houseGlow = 1;
-        ghostState.mode = 'hidden'; cur.root.visible = false;
+        ghostState.mode = 'hidden'; cur.root.visible = false; if (cur2) cur2.root.visible = false;
         applyRoute(pickRoute());
         // The old destination stays until it is behind the camera, then moves (and changes
         // building) for the next route
@@ -3034,7 +3191,7 @@ async function run(mode) {
     // ------------------------------------------------------------------
     // SAVE DATA + UPGRADES (persisted through lib.saveUserGameState)
     // ------------------------------------------------------------------
-    const save = { mute: false, best: 0, coins: 0, runs: 0, up: { engine: 0, brake: 0, body: 0, light: 0, incense: 0 }, seen: {}, hints: {} };
+    const save = { mute: false, best: 0, coins: 0, runs: 0, up: { engine: 0, brake: 0, body: 0, light: 0, incense: 0 }, seen: {}, hints: {}, missions: null };
     let saveTimer = null;
     async function loadSave() {
         if (mode !== 'play') return;
@@ -3043,7 +3200,7 @@ async function run(mode) {
             const s = r && r.state;
             if (s) {
                 save.mute = !!s.mute; save.best = +s.best || 0; save.coins = +s.coins || 0; save.runs = +s.runs || 0;
-                Object.assign(save.up, s.up || {}); Object.assign(save.seen, s.seen || {}); Object.assign(save.hints, s.hints || {});
+                Object.assign(save.up, s.up || {}); Object.assign(save.seen, s.seen || {}); Object.assign(save.hints, s.hints || {}); if (s.missions && typeof s.missions === 'object') save.missions = s.missions;
             }
         } catch (e) { lib.log('load failed: ' + e); }
     }
@@ -3073,6 +3230,7 @@ async function run(mode) {
     // ------------------------------------------------------------------
     let phase = mode === 'play' ? 'title' : 'edit';       // title | playing | over | edit
     let health = 100, maxHealth = 100, patience = 1, patienceMax = 1, combo = 0, deliveries = 0, runCoins = 0;
+    let tripHits = 0;
     let invuln = 0, shake = 0, flash = 0, lowPatienceWarned = false, heardCue = false, heartT = 0, alarmT = 0;
 
     const HINTS = {
@@ -3089,7 +3247,7 @@ async function run(mode) {
 
     function damage(amount, label, scare, snd, vol) {
         if (invuln > 0 || phase !== 'playing') return false;
-        health = Math.max(0, health - amount);
+        health = Math.max(0, health - amount); tripHits++;
         invuln = 1.2; shake = scare ? 1.6 : 1; flash = scare ? 1 : 0.8; busFlicker = 0.5;
         if (amount >= 10) combo = 0;
         showMessage(label + ' -' + amount);
@@ -3374,7 +3532,7 @@ async function run(mode) {
     // RUN FLOW + OVERLAYS
     // ------------------------------------------------------------------
     function showOverlay(id) {
-        ['title', 'over', 'shop', 'board'].forEach((k) => $(k).classList.toggle('hidden', k !== id));
+        ['title', 'over', 'shop', 'board', 'missions'].forEach((k) => $(k).classList.toggle('hidden', k !== id));
         document.body.classList.toggle('in-title', id === 'title');
     }
     function resetRun() {
@@ -3385,7 +3543,7 @@ async function run(mode) {
         bus.position.x = 0; bus.rotation.set(0, 0, 0); bus.userData.steer = 0;
         clearObstacles();
         route = { type: 'kuntilanak', dest: 'house' };
-        applyRoute(route);
+        applyRoute(route); endRequest();
         const pz = bus.position.z - 120;
         destination.position.z = pz - cfg.environment.routeLength;
         showBuilding(route.dest); destBay.visible = true; houseGlow = 0;
@@ -3407,6 +3565,8 @@ async function run(mode) {
             if (i) t.appendChild(document.createTextNode('   •   '));
             t.appendChild(document.createTextNode(k + ' ')); const b = document.createElement('b'); b.textContent = v; t.appendChild(b);
         });
+        ensureMissions();
+        { const all = [].concat(save.missions.daily, save.missions.weekly); $('btn-missions').textContent = 'MISSIONS  ' + all.filter((m) => m.done).length + '/' + all.length; $('btn-missions2').textContent = $('btn-missions').textContent; }
         const dex = $('title-dex'); dex.textContent = '';
         Object.keys(GHOST_TYPES).forEach((k) => {
             const c = document.createElement('span'); c.className = 'chip' + (save.seen[k] ? ' on' : '');
@@ -3464,7 +3624,7 @@ async function run(mode) {
     }
     async function endRun(reason) {
         if (phase !== 'playing') return;
-        phase = 'over';
+        phase = 'over'; endRequest();
         audio.sfx('sfx_over', 1); audio.duck(0.25); audio.racer(0, 150); $('warn').style.display = 'none';
         setTimeout(() => { if (phase === 'over') { audio.duck(1); audio.playMusic('music_menu'); } }, 3600);
         const isBest = score > save.best;
@@ -3502,8 +3662,156 @@ async function run(mode) {
         segments.forEach(applyClearance);
         showMessage(gt.name + ' was missed!' + (lost ? ' -' + lost + ' points.' : '') + ' A new passenger is waiting ahead.');
     }
+    // ------------------------------------------------------------------
+    // PASSENGER REQUESTS: every ghost asks for something once per trip. Tap the action button (or press E) in time,
+    // or stop at the yellow snack bay. Pleasing the passenger pays points and calms them; ignoring it costs patience.
+    // ------------------------------------------------------------------
+    const REQ_DEFS = {
+        kuntilanak: { kind: 'tap', text: 'wants the window closed', btn: 'CLOSE\nWINDOW', dur: 9 },
+        pocong: { kind: 'tap', text: 'wants some incense lit', btn: 'LIGHT\nINCENSE', dur: 9 },
+        wewe: { kind: 'tap', text: 'wants a lullaby', btn: 'PLAY\nLULLABY', dur: 9 },
+        genderuwo: { kind: 'mash', need: 3, text: 'wants you to honk 3 times', btn: 'HONK', dur: 8 },
+        tuyul: { kind: 'stop', text: 'wants a snack. Stop at the yellow bay', dur: 40 },
+        anak: { kind: 'stop', text: 'want street snacks. Stop at the yellow bay', dur: 40 }
+    };
+    const req = { active: false, def: null, who: '', t: 0, got: 0, hold: 0, timer: 99, done: true, pleased: 0 };
+    const snackBay = makeBay(PICKUP_W, PICKUP_L, '#ffd23c', 0xffd23c);
+    snackBay.visible = false; scene.add(snackBay);
+    function planRequest() { req.active = false; req.done = false; req.timer = rand(9, 16); req.got = 0; req.hold = 0; hideRequest(); }
+    function hideRequest() { $('req').style.display = 'none'; $('act').style.display = 'none'; snackBay.visible = false; }
+    function endRequest() { req.active = false; req.done = true; hideRequest(); }
+    function startRequest() {
+        const pick = route.pair && Math.random() < 0.5 ? route.pair : route.type, def = REQ_DEFS[pick];
+        req.done = true;
+        if (def.kind === 'stop') {
+            const z = Math.max(bus.position.z - rand(130, 160), destination.position.z + 70);
+            if (bus.position.z - z < 90) return;
+            snackBay.position.set(PICKUP_X - 0.5, 0, z); snackBay.visible = true;
+        } else if (bus.position.z - destination.position.z < 120) return;
+        req.active = true; req.def = def; req.who = GHOST_TYPES[pick].name; req.t = def.dur; req.got = 0; req.hold = 0;
+        $('req-text').textContent = req.who + ' ' + def.text;
+        $('req').style.display = 'block';
+        if (def.kind !== 'stop') { const b = $('act'); b.textContent = def.btn; b.style.display = 'block'; }
+        audio.blip(880, 0.1, 'triangle', 0.16); setTimeout(() => audio.blip(1180, 0.14, 'triangle', 0.16), 110);
+    }
+    function requestResult(ok) {
+        const pm = patienceMax || 1;
+        if (ok) {
+            score += 40; runCoins += 40; save.coins += 40; req.pleased++;
+            patience = Math.min(patienceMax, patience + pm * 0.2);
+            showMessage(req.who + ' is pleased! +40');
+            audio.blip(740, 0.1, 'triangle', 0.2); setTimeout(() => audio.blip(1110, 0.18, 'triangle', 0.2), 100);
+            missionEvent('request', 1); saveSoon();
+        } else {
+            patience -= pm * 0.18; flash = Math.max(flash, 0.4); busFlicker = 0.6;
+            showMessage(req.who + ' is annoyed! Patience drops');
+            audio.sfx('sfx_laugh', 0.5, 0.9);
+        }
+        endRequest();
+    }
+    function actPress() {
+        if (phase !== 'playing') return;
+        if (!req.active || req.def.kind === 'stop') { audio.honk(); return; }
+        if (req.def.kind === 'mash') { audio.honk(); req.got++; busFlicker = 0.12; if (req.got >= req.def.need) requestResult(true); return; }
+        if (req.who === 'Kuntilanak') audio.blip(160, 0.12, 'square', 0.1, 0.5);
+        else if (req.who === 'Pocong') { audio.blip(900, 0.2, 'sine', 0.08, 1.3); }
+        else if (req.who === 'Wewe Gombel') [523, 659, 784].forEach((f, i) => setTimeout(() => audio.blip(f, 0.3, 'sine', 0.12), i * 180));
+        requestResult(true);
+    }
+    function updateRequest(dt) {
+        if (!onboard || delivering || ghostState.mode === 'boarding') { if (req.active) endRequest(); return; }
+        if (!req.active) { if (!req.done) { req.timer -= dt; if (req.timer <= 0) startRequest(); } return; }
+        req.t -= dt;
+        $('req-fill').style.width = clamp(req.t / req.def.dur, 0, 1) * 100 + '%';
+        if (req.def.kind === 'stop') {
+            const inside = Math.abs(bus.position.z - snackBay.position.z) <= PICKUP_L / 2 + 0.5 && Math.abs(bus.position.x - snackBay.position.x) <= PICKUP_W / 2 + 0.8;
+            req.hold = inside && speed < 0.08 ? req.hold + dt : Math.max(0, req.hold - dt);
+            const away = Math.round(Math.max(0, bus.position.z - snackBay.position.z));
+            $('req-text').textContent = req.who + ' ' + req.def.text + (inside ? ' - hold still...' : ' (' + away + ' m)');
+            if (req.hold >= 1.2) { requestResult(true); return; }
+            if (bus.position.z < snackBay.position.z - 16) { requestResult(false); return; }
+        }
+        if (req.t <= 0) requestResult(false);
+    }
+    window.addEventListener('keydown', (e) => { if ((e.key === 'e' || e.key === 'E') && !e.repeat) actPress(); });
+    $('act').addEventListener('pointerdown', (e) => { e.preventDefault(); actPress(); });
+
+    // ------------------------------------------------------------------
+    // MISSIONS: three daily and two weekly orders, kept in the save data. Progress comes from deliveries and requests.
+    // ------------------------------------------------------------------
+    const MIS = {
+        deliver: { text: (n) => 'Deliver ' + n + (n === 1 ? ' passenger' : ' passengers'), ev: 'deliver', test: () => true, per: 12 },
+        clean: { text: (n) => 'Deliver ' + n + ' School Ghost trips without a crash', ev: 'deliver', test: (d) => d.type === 'anak' && d.clean, per: 40 },
+        orderly: { text: (n) => 'Stop at the Dapur MBG without hitting a kid, ' + n + 'x', ev: 'deliver', test: (d) => d.orderly, per: 50 },
+        requests: { text: (n) => 'Fulfil ' + n + ' passenger requests', ev: 'request', test: () => true, per: 25 },
+        rain: { text: (n) => 'Deliver ' + n + (n === 1 ? ' passenger' : ' passengers') + ' in the rain', ev: 'deliver', test: (d) => d.rain, per: 30 },
+        combo: { text: (n) => 'Reach a x' + n + ' combo', ev: 'combo', max: true, per: 30 },
+        perfect: { text: (n) => 'Make ' + n + ' PERFECT stops', ev: 'deliver', test: (d) => d.perfect, per: 20 },
+        pair: { text: (n) => 'Deliver ' + n + ' pairs of passengers', ev: 'deliver', test: (d) => d.pair, per: 45 },
+        score: { text: (n) => 'Earn ' + n + ' points from deliveries', ev: 'points', add: true, per: 0.04 }
+    };
+    const DAILY_POOL = [['deliver', 4, 6], ['clean', 2, 3], ['orderly', 1, 2], ['requests', 2, 3], ['rain', 1, 2], ['combo', 3, 4], ['perfect', 2, 3]];
+    const WEEKLY_POOL = [['deliver', 20, 30], ['score', 3000, 5000], ['orderly', 3, 5], ['requests', 8, 12], ['pair', 4, 6], ['perfect', 8, 12]];
+    const ymd = (d) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    function seeded(key) { let h = 1779033703 ^ key.length; for (let i = 0; i < key.length; i++) { h = Math.imul(h ^ key.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; }; }
+    function genMissions(key, pool, count, weekly) {
+        const rnd = seeded(key), left = pool.slice(), out = [];
+        while (out.length < count && left.length) {
+            const [k, lo, hi] = left.splice(Math.floor(rnd() * left.length), 1)[0];
+            const n = lo + Math.floor(rnd() * (hi - lo + 1)), rw = Math.round(MIS[k].per * n * (weekly ? 1.4 : 1) / 5) * 5 + (weekly ? 100 : 30);
+            out.push({ k, n, p: 0, done: 0, rw });
+        }
+        return out;
+    }
+    function ensureMissions() {
+        const now = new Date(), dk = ymd(now), mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+        const wk = ymd(mon), m = save.missions || (save.missions = { d: '', w: '', daily: [], weekly: [] });
+        if (m.d !== dk) { m.d = dk; m.daily = genMissions('d' + dk, DAILY_POOL, 3, false); }
+        if (m.w !== wk) { m.w = wk; m.weekly = genMissions('w' + wk, WEEKLY_POOL, 2, true); }
+    }
+    function missionEvent(ev, data) {
+        ensureMissions();
+        let changed = false;
+        [].concat(save.missions.daily, save.missions.weekly).forEach((ms) => {
+            const def = MIS[ms.k];
+            if (ms.done || def.ev !== ev) return;
+            const before = ms.p;
+            if (def.max) ms.p = Math.max(ms.p, data); else if (def.add) ms.p += data; else if (def.test(data)) ms.p += 1;
+            if (ms.p === before) return;
+            changed = true;
+            if (ms.p >= ms.n) {
+                ms.p = ms.n; ms.done = 1; save.coins += ms.rw; runCoins += ms.rw;
+                setTimeout(() => { showMessage('Mission complete! +' + ms.rw + ' coins'); audio.blip(660, 0.1, 'triangle', 0.2); setTimeout(() => audio.blip(990, 0.2, 'triangle', 0.2), 100); }, 1400);
+            }
+        });
+        if (changed) saveSoon();
+    }
+    function renderMissions() {
+        ensureMissions();
+        const box = $('mis-list'); box.textContent = '';
+        const now = new Date(), nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1), dayLeft = Math.max(0, nextDay - now);
+        const daysLeft = 7 - ((now.getDay() + 6) % 7);
+        const section = (title, sub, list) => {
+            const h = document.createElement('div'); h.className = 'mis-h'; h.textContent = title; const s = document.createElement('small'); s.textContent = sub; h.appendChild(s); box.appendChild(h);
+            list.forEach((ms) => {
+                const r = document.createElement('div'); r.className = 'mis-row' + (ms.done ? ' done' : '');
+                const t = document.createElement('div'); t.className = 'mis-t'; t.textContent = MIS[ms.k].text(ms.n);
+                const rw = document.createElement('span'); rw.className = 'mis-rw'; rw.textContent = ms.done ? '✓ DONE' : '+' + ms.rw;
+                t.appendChild(rw);
+                const tr = document.createElement('div'); tr.className = 'track'; const f = document.createElement('i'); f.style.width = Math.round(ms.p / ms.n * 100) + '%'; tr.appendChild(f);
+                const pr = document.createElement('small'); pr.textContent = ms.p + ' / ' + ms.n;
+                r.appendChild(t); r.appendChild(tr); r.appendChild(pr); box.appendChild(r);
+            });
+        };
+        section('DAILY', 'resets in ' + Math.floor(dayLeft / 3600000) + 'h ' + Math.floor(dayLeft % 3600000 / 60000) + 'm', save.missions.daily);
+        section('WEEKLY', 'resets in ' + daysLeft + (daysLeft === 1 ? ' day' : ' days'), save.missions.weekly);
+    }
+    let misFrom = 'title';
+    function openMissions(from) { misFrom = from; renderMissions(); showOverlay('missions'); }
+
     function updateRunState(dt) {
         if (phase !== 'playing') return;
+        updateRequest(dt);
         if (!pickupDone && !onboard && !delivering && bus.position.z < ghostBase.z - PICKUP_L / 2 - 20) missPickup();
         if (onboard && !delivering && ghostState.mode !== 'boarding') {
             patience -= dt;
@@ -3745,7 +4053,7 @@ async function run(mode) {
         let steer = 0;
         if (keys['arrowleft'] || keys['a']) steer -= 1;
         if (keys['arrowright'] || keys['d']) steer += 1;
-        if (onboard && route.type === 'tuyul') {                // the tuyul steals a few points now and then
+        if (onboard && (route.type === 'tuyul' || route.pair === 'tuyul')) {                // the tuyul steals a few points now and then
             theftTimer -= dt;
             if (theftTimer <= 0) {
                 theftTimer = 7;
@@ -3755,7 +4063,8 @@ async function run(mode) {
             }
         }
         const mod = onboard ? GHOST_TYPES[route.type] : null;   // heavy passengers slow the bus
-        const accelMult = mod ? mod.accelMult : 1, maxSpeed = eff.maxSpeed * (mod ? mod.speedMult : 1);
+        const mod2 = onboard && route.pair ? GHOST_TYPES[route.pair] : null;
+        const accelMult = (mod ? mod.accelMult : 1) * (mod2 ? mod2.accelMult : 1), maxSpeed = eff.maxSpeed * (mod ? mod.speedMult : 1) * (mod2 ? mod2.speedMult : 1);
         if (keys['arrowup'] || keys['w']) speed += eff.accel * accelMult * f; else speed -= 0.006 * f;
         if (keys[' '] || keys['s'] || keys['arrowdown']) speed -= eff.brake * f * (1 - 0.22 * weather.rain);
         speed = clamp(speed, 0, maxSpeed);
@@ -3778,13 +4087,14 @@ async function run(mode) {
                 camLook.set(bus.position.x + (bus.userData.steer || 0) * 3, bus.position.y + 0.9, bus.position.z - 25);
                 pickup.visible = false;
                 audio.sfx('sfx_board', 1);
-                const m2 = GHOST_TYPES[route.type];
+                const m2 = GHOST_TYPES[route.type], m3 = route.pair ? GHOST_TYPES[route.pair] : null;
                 const dist = Math.abs(bus.position.z - destination.position.z);
-                patienceMax = patience = (8 + dist / (eff.maxSpeed * m2.speedMult * 60 * 0.6)) * eff.patience * Math.max(0.6, 1 - deliveries * 0.04);
+                patienceMax = patience = (8 + dist / (eff.maxSpeed * m2.speedMult * (m3 ? m3.speedMult : 1) * 60 * 0.6)) * eff.patience * Math.max(0.6, 1 - deliveries * 0.04) * (m3 ? 0.8 : 1);
+                tripHits = 0; planRequest(); setPassenger(route.type, route.pair);
                 lowPatienceWarned = false;
-                save.seen[route.type] = 1; saveSoon();
+                save.seen[route.type] = 1; if (route.pair) save.seen[route.pair] = 1; saveSoon();
                 setDestinationLabel(DESTS[route.dest].name);
-                showMessage('Passenger aboard! Destination: ' + DESTS[route.dest].name);
+                showMessage(route.pair ? 'Two passengers aboard! x1.6 points. Destination: ' + DESTS[route.dest].name : 'Passenger aboard! Destination: ' + DESTS[route.dest].name);
                 setTimeout(() => hint('board'), 2600);
             } else showMessage('Slow down and stop beside the passenger!');
         }
@@ -3794,13 +4104,15 @@ async function run(mode) {
             Math.abs(bus.position.x - destination.position.x) <= DEST_W / 2) {
             if (speed < g.requiredStopSpeed) {
                 destDone = true;
-                const base = Math.round(cfg.environment.pointsPerDelivery * GHOST_TYPES[route.type].points);
+                const base = Math.round(cfg.environment.pointsPerDelivery * (GHOST_TYPES[route.type].points + (route.pair ? GHOST_TYPES[route.pair].points * 0.8 : 0)));
                 const perfect = Math.abs(bus.position.z - destination.position.z) < 0.9 && Math.abs(bus.position.x - destination.position.x) < 0.7;
                 const timeBonus = Math.round(40 * Math.max(0, patience) / patienceMax);
                 const tertib = route.dest === 'mbg' && mbgKids.built && mbgKids.state !== 'queue' && mbgKids.hits === 0;
                 const pts = Math.round(base * (1 + Math.min(combo, 4) * 0.25)) + timeBonus + (perfect ? 50 : 0) + (tertib ? 60 : 0);
                 score += pts; runCoins += pts; save.coins += pts;
                 combo++; deliveries++;
+                missionEvent('deliver', { type: route.type, dest: route.dest, perfect, orderly: tertib, clean: tripHits === 0, rain: weather.rain > 0.3, pair: !!route.pair });
+                missionEvent('points', pts); missionEvent('combo', combo);
                 audio.sfx('sfx_deliver', 1);
                 health = Math.min(maxHealth, health + 15);
                 showMessage('Passenger delivered! +' + pts + (perfect ? '  PERFECT!' : '') + (tertib ? '  ORDERLY! The kids are safe' : ''));
@@ -4028,7 +4340,10 @@ async function run(mode) {
     $('btn-board').addEventListener('click', () => openBoard('title'));
     $('btn-board2').addEventListener('click', () => openBoard('over'));
     $('btn-back2').addEventListener('click', () => leaveTo(boardFrom));
-    window.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (phase === 'title' || phase === 'over') && !$('shop').offsetParent && !$('board').offsetParent) startRun(); });
+    $('btn-missions').addEventListener('click', () => openMissions('title'));
+    $('btn-missions2').addEventListener('click', () => openMissions('over'));
+    $('btn-back3').addEventListener('click', () => leaveTo(misFrom));
+    window.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (phase === 'title' || phase === 'over') && !$('shop').offsetParent && !$('board').offsetParent && !$('missions').offsetParent) startRun(); });
     if (mode === 'edit') {
         showOverlay(null);
         $('controls').style.display = 'none';
@@ -4055,6 +4370,7 @@ async function run(mode) {
         }
         updateBusVisuals(dt);
         updateGhost(dt);
+        updateCompanion(dt);
         updateMbgKids(dt);
         updateSmoke(dt);
         updateFlies();
