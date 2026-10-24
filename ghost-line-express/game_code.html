@@ -129,7 +129,7 @@
         <div class="loading-kicker">NIGHT ROUTE 13</div>
         <div class="loading-title">GHOST LINE<br>EXPRESS</div>
         <div class="loading-bar"></div>
-        <div class="loading-copy">MEMUAT RUTE MALAM...</div>
+        <div class="loading-copy">LOADING NIGHT ROUTE...</div>
     </div>
 </div>
 
@@ -140,7 +140,7 @@
     <div id="bars">
         <div class="bar"><span>BUS</span><div class="track" id="hp-track"><i id="hp-fill"></i></div></div>
         <div id="combo"></div>
-        <div class="bar"><span>SABAR</span><div class="track" id="pt-track"><i id="pt-fill"></i></div></div>
+        <div class="bar"><span>PATIENCE</span><div class="track" id="pt-track"><i id="pt-fill"></i></div></div>
     </div>
     <div id="warn">!</div>
     <div id="message"></div>
@@ -152,40 +152,40 @@
 
 <div id="flash"></div>
 <div id="cine"><i></i><i></i></div>
-<button id="btn-mute" aria-label="Suara">♪</button>
+<button id="btn-mute" aria-label="Sound">♪</button>
 
 <div id="title" class="overlay">
     <div class="ov-kicker">NIGHT ROUTE 13</div>
     <div class="ov-title">GHOST LINE<br>EXPRESS</div>
-    <div class="ov-tag">Antar penumpang dari alam lain sebelum fajar</div>
+    <div class="ov-tag">Carry passengers from the other side before dawn</div>
     <div class="ov-stat" id="title-stats"></div>
     <div class="chips" id="title-dex"></div>
-    <div class="ov-controls">◀ ▶ KEMUDI &nbsp;•&nbsp; GAS &nbsp;•&nbsp; BRAKE &nbsp;•&nbsp; BERHENTI TEPAT DI BAY</div>
-    <button class="bigbtn" id="btn-play">MAIN</button>
-    <button class="midbtn" id="btn-shop">BENGKEL</button>
-    <button class="midbtn" id="btn-board">PERINGKAT</button>
+    <div class="ov-controls">◀ ▶ STEER &nbsp;•&nbsp; GAS &nbsp;•&nbsp; BRAKE &nbsp;•&nbsp; STOP INSIDE THE BAY</div>
+    <button class="bigbtn" id="btn-play">PLAY</button>
+    <button class="midbtn" id="btn-shop">GARAGE</button>
+    <button class="midbtn" id="btn-board">LEADERBOARD</button>
 </div>
 <div id="over" class="overlay hidden">
-    <div class="ov-kicker" id="over-kicker">TAMAT</div>
-    <div class="ov-title" id="over-title">BUS HANCUR</div>
+    <div class="ov-kicker" id="over-kicker">JOURNEY OVER</div>
+    <div class="ov-title" id="over-title">BUS WRECKED</div>
     <div class="ov-stat" id="over-stats"></div>
     <div class="lb" id="over-lb"></div>
-    <button class="bigbtn" id="btn-again">MAIN LAGI</button>
-    <button class="midbtn" id="btn-shop2">BENGKEL</button>
-    <button class="midbtn" id="btn-board2">PERINGKAT</button>
+    <button class="bigbtn" id="btn-again">PLAY AGAIN</button>
+    <button class="midbtn" id="btn-shop2">GARAGE</button>
+    <button class="midbtn" id="btn-board2">LEADERBOARD</button>
 </div>
 <div id="board" class="overlay hidden">
-    <div class="ov-kicker">PAPAN PERINGKAT</div>
-    <div class="ov-title" style="font-size:44px">SOPIR TERBAIK</div>
+    <div class="ov-kicker">LEADERBOARD</div>
+    <div class="ov-title" style="font-size:44px">TOP DRIVERS</div>
     <div class="ov-stat" id="board-me"></div>
     <div id="board-list"></div>
-    <button class="midbtn" id="btn-back2">KEMBALI</button>
+    <button class="midbtn" id="btn-back2">BACK</button>
 </div>
 <div id="shop" class="overlay hidden">
-    <div class="ov-kicker">BENGKEL</div>
-    <div class="ov-stat">KOIN <b id="shop-coins">0</b></div>
+    <div class="ov-kicker">GARAGE</div>
+    <div class="ov-stat">COINS <b id="shop-coins">0</b></div>
     <div id="shop-list"></div>
-    <button class="midbtn" id="btn-back">KEMBALI</button>
+    <button class="midbtn" id="btn-back">BACK</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
@@ -626,7 +626,7 @@ async function run(mode) {
         const bench = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 3.6), wood); bench.position.set(2.5, 0.7, 0); halte.add(bench);
         const signTex = canvasTex(256, 96, (g, w, h) => {
             g.fillStyle = '#1a3a52'; g.fillRect(0, 0, w, h); g.strokeStyle = '#d8d8c8'; g.lineWidth = 4; g.strokeRect(3, 3, w - 6, h - 6);
-            g.fillStyle = '#e8e8d8'; g.font = '800 34px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('HALTE', w / 2, 44); g.font = '700 22px Trebuchet MS, Arial'; g.fillText('SEKOLAH 13', w / 2, 76);
+            g.fillStyle = '#e8e8d8'; g.font = '800 34px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('BUS STOP', w / 2, 44); g.font = '700 22px Trebuchet MS, Arial'; g.fillText('SCHOOL 13', w / 2, 76);
         });
         const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.68), new THREE.MeshBasicMaterial({ map: signTex, color: 0xbbbbbb }));
         sign.position.set(-1.6, 3.4, -2.6); sign.rotation.y = 0.5; halte.add(sign);
@@ -1195,8 +1195,8 @@ async function run(mode) {
             c.fillStyle = '#8a97a8'; c.fillRect(0, 0, 640, 160);
             c.fillStyle = '#1c5ea8'; c.fillRect(0, 0, 640, 38); c.fillRect(0, 128, 640, 32);
             c.fillStyle = '#e8eef5'; c.beginPath(); c.arc(28, 19, 12, 0, 7); c.fill(); c.fillStyle = '#1c5ea8'; c.beginPath(); c.arc(28, 19, 7, 0, 7); c.fill();
-            txt(c, 'SATUAN PELAYANAN PEMENUHAN GIZI (SPPG)', 340, 27, 22, '#ffffff');
-            txt(c, 'MAKAN BERGIZI GRATIS', 320, 153, 22, '#ffffff');
+            txt(c, 'COMMUNITY NUTRITION SERVICE (SPPG)', 340, 27, 22, '#ffffff');
+            txt(c, 'FREE NUTRITIOUS MEALS', 320, 153, 22, '#ffffff');
             [30, 125, 210].forEach((x) => window3(c, x, 56, 64, 52, lit)); [420, 505, 580].forEach((x) => window3(c, x, 56, 52, 52, lit));
             window3(c, 285, 52, 70, 76, lit, '#e8eef5');
         });
@@ -1217,7 +1217,7 @@ async function run(mode) {
         const board = facade(g, 2.8, 1.5, D / 2 + 2.2, 2.2, 7.8, 'mbg-board', 256, 136, (c, lit) => {
             c.fillStyle = '#e4eaf2'; c.fillRect(0, 0, 256, 136); c.strokeStyle = '#1c5ea8'; c.lineWidth = 8; c.strokeRect(4, 4, 248, 128);
             c.fillStyle = '#1c5ea8'; c.beginPath(); c.arc(34, 38, 18, 0, 7); c.fill(); c.fillStyle = '#e4eaf2'; c.beginPath(); c.arc(34, 38, 9, 0, 7); c.fill();
-            txt(c, 'BADAN GIZI NASIONAL', 150, 34, 16, '#1c3f78'); txt(c, 'SPPG SUKAMAJU', 128, 84, 28, '#1c5ea8'); txt(c, 'MAKAN BERGIZI GRATIS', 128, 114, 15, '#c8102e');
+            txt(c, 'NATIONAL NUTRITION AGENCY', 150, 34, 16, '#1c3f78'); txt(c, 'SUKAMAJU COMMUNITY KITCHEN', 128, 84, 28, '#1c5ea8'); txt(c, 'FREE NUTRITIOUS MEALS', 128, 114, 15, '#c8102e');
         }, 0xc0c8d4);
         [-1.2, 1.2].forEach((dz) => box(g, 0.12, 2.2, 0.12, LMM.metal, D / 2 + 2.2, 1.1, 7.8 + dz));
         // delivery truck (only when busy)
@@ -1261,8 +1261,8 @@ async function run(mode) {
             c.fillStyle = '#9aa3ae'; c.fillRect(0, 0, 448, 134);
             c.fillStyle = '#c8102e'; c.fillRect(0, 0, 448, 40); c.fillRect(0, 122, 448, 12);
             c.fillStyle = '#e8e8e0'; c.beginPath(); c.arc(26, 20, 13, 0, 7); c.fill(); c.fillStyle = '#c8102e'; c.beginPath(); c.arc(26, 20, 13, Math.PI, 0); c.fill();
-            txt(c, 'KOPERASI DESA MERAH PUTIH', 240, 28, 25, '#ffffff');
-            [[14, 124, 'GERAI SEMBAKO'], [268, 84, 'KLINIK DESA'], [362, 76, 'APOTEK DESA']].forEach(([x, w, label]) => {
+            txt(c, 'RED AND WHITE VILLAGE COOPERATIVE', 240, 28, 25, '#ffffff');
+            [[14, 124, 'GROCERY SHOP'], [268, 84, 'VILLAGE CLINIC'], [362, 76, 'VILLAGE PHARMACY']].forEach(([x, w, label]) => {
                 txt(c, label, x + w / 2, 56, 14, '#ffffff'); window3(c, x, 62, w, 52, lit, '#c8102e');
             });
             window3(c, 160, 58, 90, 64, lit, '#c8102e');
@@ -1276,14 +1276,14 @@ async function run(mode) {
         const sign = facade(g, 10, 1.9, D / 2 - 0.3, 6.3, -4, 'kop-sign', 512, 96, (c, lit) => {
             c.fillStyle = '#e8e8e0'; c.fillRect(0, 0, 512, 96); c.strokeStyle = '#c8102e'; c.lineWidth = 8; c.strokeRect(4, 4, 504, 88);
             c.fillStyle = '#c8102e'; c.beginPath(); c.arc(56, 48, 30, Math.PI, 0); c.fill(); c.fillStyle = '#9a9a94'; c.beginPath(); c.arc(56, 48, 30, 0, Math.PI); c.fill();
-            txt(c, 'KOPERASI DESA', 300, 44, 36, '#c8102e'); txt(c, 'MERAH PUTIH', 300, 80, 36, '#c8102e');
+            txt(c, 'VILLAGE COOPERATIVE', 300, 44, 36, '#c8102e'); txt(c, 'RED AND WHITE', 300, 80, 36, '#c8102e');
         }, 0xcfcfcf);
         // warehouse (gudang), set back on the right
         box(g, 9, 4.8, 7, LMM.white, -1.5, 2.4, 7.5);
         const groof = gable(9, 7, 1.0, LMM.metal); groof.position.set(-1.5, 4.8, 7.5); g.add(groof);
         const gate = facade(g, 4.8, 3.4, 3.02, 1.8, 7.5, 'kop-gudang', 154, 109, (c, lit) => {
             c.fillStyle = lit ? '#b8202e' : '#6d1a22'; c.fillRect(0, 0, 154, 109); c.fillStyle = 'rgba(0,0,0,.3)'; for (let i = 0; i < 12; i++) c.fillRect(0, i * 9, 154, 2);
-            txt(c, 'GUDANG', 77, 60, 26, '#ffffff'); c.strokeStyle = '#e8e8e0'; c.lineWidth = 5; c.strokeRect(2, 2, 150, 105);
+            txt(c, 'WAREHOUSE', 77, 60, 26, '#ffffff'); c.strokeStyle = '#e8e8e0'; c.lineWidth = 5; c.strokeRect(2, 2, 150, 105);
         });
         const flag = flagPole(g, D / 2 + 2.4, -10.5, 8.5, 2.8);
         const people = new THREE.Group(); g.add(people);
@@ -1331,7 +1331,7 @@ async function run(mode) {
             c.fillStyle = lit ? '#6a4a2a' : '#3a2a1a'; c.fillRect(0, 0, 192, 72);
             c.fillStyle = lit ? '#ffd890' : '#17110a'; c.fillRect(16, 22, 160, 36);
             if (lit) { for (let i = 0; i < 6; i++) { c.fillStyle = ['#c84a2a', '#e0c040', '#4a90c8'][i % 3]; c.fillRect(24 + i * 25, 30, 14, 22); } }
-            c.fillStyle = '#1c1c1c'; c.fillRect(30, 4, 132, 16); txt(c, 'WARUNG • KOPI • MIE', 96, 17, 13, '#ffd23c');
+            c.fillStyle = '#1c1c1c'; c.fillRect(30, 4, 132, 16); txt(c, 'ROADSIDE CAFE • COFFEE • NOODLES', 96, 17, 13, '#ffd23c');
         });
         box(g, 0.9, 0.8, 1.6, LMM.wood, D / 2 + 1.3, 0.4, 0.5);
         [-0.3, 1.3].forEach((z) => { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.5, 8), LMM.wood); s.position.set(D / 2 + 1.3, 0.25, z + 0.2); s.userData.stool = true; g.add(s); });
@@ -1355,7 +1355,7 @@ async function run(mode) {
         box(g, 1.2, 1.4, W - 1, LMM.red, 0, 5.4, 0);
         const sign = facade(g, 11, 1.7, D / 2 + 0.05, 5.4, 0, 'gapura', 512, 80, (c, lit) => {
             c.fillStyle = lit ? '#f0f0e8' : '#a0a098'; c.fillRect(0, 0, 512, 80); c.strokeStyle = '#c8102e'; c.lineWidth = 6; c.strokeRect(3, 3, 506, 74);
-            txt(c, 'SELAMAT DATANG DI DESA SUKAMAJU', 256, 50, 34, '#a01020');
+            txt(c, 'WELCOME TO SUKAMAJU VILLAGE', 256, 50, 34, '#a01020');
         }, 0xd0d0d0);
         const f1 = flagPole(g, 0.2, -7, 8.4, 1.8), f2 = flagPole(g, 0.2, 7, 8.4, 1.8);
         const glows = [addGlow(g, 1, 4.6, -7, 4), addGlow(g, 1, 4.6, 7, 4)];
@@ -1487,7 +1487,7 @@ async function run(mode) {
             [-4.5, -2.5, 2.5, 4.5].forEach((z, i) => eastWin(b, 2.6, z, i));
             const signTex = canvasTex(256, 64, (g, w, h) => {
                 g.fillStyle = '#1a2a20'; g.fillRect(0, 0, w, h); g.strokeStyle = '#c8c0a0'; g.lineWidth = 4; g.strokeRect(3, 3, w - 6, h - 6);
-                g.fillStyle = '#d8d0b0'; g.font = '800 30px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('SD NEGERI 13', w / 2, 42);
+                g.fillStyle = '#d8d0b0'; g.font = '800 30px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('PUBLIC SCHOOL 13', w / 2, 42);
             });
             add(b, new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: signTex, color: 0xaaaaaa }), 4.03, 3.65, 0).rotation.y = Math.PI / 2;
             add(b, new THREE.CylinderGeometry(0.06, 0.08, 7, 6), poleMat, 6.6, 3.5, -5.2);
@@ -1556,7 +1556,7 @@ async function run(mode) {
             add(b, new THREE.BoxGeometry(0.2, 0.2, 3.8), bamboo, 4.4, 3.6, 0);
             const signTex = canvasTex(256, 64, (g, w, h) => {
                 g.fillStyle = '#2a0f1a'; g.fillRect(0, 0, w, h); g.strokeStyle = '#ffd23c'; g.lineWidth = 4; g.strokeRect(3, 3, w - 6, h - 6);
-                g.fillStyle = '#ffd23c'; g.font = '800 30px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('PASAR MALAM', w / 2, 43);
+                g.fillStyle = '#ffd23c'; g.font = '800 30px Trebuchet MS, Arial'; g.textAlign = 'center'; g.fillText('NIGHT MARKET', w / 2, 43);
             });
             add(b, new THREE.PlaneGeometry(3, 0.75), new THREE.MeshBasicMaterial({ map: signTex, color: 0xbbbbbb }), 4.45, 4.15, 0).rotation.y = Math.PI / 2;
             door(b, 1.75, { solid: false, w: 3 });
@@ -1672,7 +1672,7 @@ async function run(mode) {
     function triggerMbgPanic() {
         mbgKids.state = 'panic'; mbgKids.hits = 0;
         mbgKids.list.forEach((k, i) => { k.state = 'wait'; k.delay = i * 0.18 + rand(0, 0.35); k.t = 0; });
-        showMessage('Anak-anak ketakutan dan berlarian! Pelan-pelan!');
+        showMessage('The kids are terrified and scattering! Slow down!');
         [0, 140, 300].forEach((d) => setTimeout(() => audio.blip(rand(1100, 1700), 0.28, 'sawtooth', 0.05, 1.5), d));
     }
     function calmMbgKids() {
@@ -1687,9 +1687,9 @@ async function run(mode) {
         if (M.cool > 0) return;
         M.cool = 0.8;
         const lost = Math.min(score, 80); score -= lost; combo = 0;
-        damage(5, 'Anak tertabrak!');
+        damage(5, 'Kid hit!');
         speed *= 0.55; shake = Math.max(shake, 1.1); flash = Math.max(flash, 0.5);
-        showMessage('Anak tertabrak!' + (lost ? ' -' + lost + ' poin,' : '') + ' combo putus');
+        showMessage('Kid hit!' + (lost ? ' -' + lost + ' points,' : '') + ' combo broken');
         audio.sfx('sfx_crash', 0.5); thump(); audio.blip(1500, 0.3, 'sawtooth', 0.06, 0.5);
     }
     function updateMbgKids(dt) {
@@ -2856,22 +2856,22 @@ async function run(mode) {
     // site: where the passenger waits; weight: spawn odds; routeMult: route length; count: passengers (score is per type)
     const GHOST_TYPES = {
         kuntilanak: { name: 'Kuntilanak', create: createKuntilanak, points: 1, weight: 3, site: 'cemetery', routeMult: 1, dests: ['house', 'bamboo', 'kopdes'], speedMult: 1, accelMult: 1,
-            intro: 'Kuntilanak menunggu di gerbang kuburan', drop: 'Kuntilanak turun dan melayang menuju tujuannya...' },
+            intro: 'The Kuntilanak waits at the cemetery gate', drop: 'The Kuntilanak steps down and drifts toward her destination...' },
         pocong: { name: 'Pocong', create: createPocong, points: 1.5, weight: 3, site: 'cemetery', routeMult: 1, dests: ['hospital', 'bridge', 'kopdes'], speedMult: 1, accelMult: 1,
-            intro: 'Pocong melompat-lompat. Ikuti bay yang bergerak!', drop: 'Pocong melompat turun...' },
+            intro: 'The Pocong is hopping around. Follow the moving stop bay!', drop: 'The Pocong hops off...' },
         tuyul: { name: 'Tuyul', create: createTuyul, points: 2, weight: 3, site: 'cemetery', routeMult: 1, dests: ['school', 'market', 'mbg'], speedMult: 1, accelMult: 1,
-            intro: 'Tuyul berlari bolak-balik. Awas, ia suka mencuri poin!', drop: 'Tuyul berlari turun sambil cekikikan...' },
+            intro: 'The Tuyul keeps darting around. Watch out—it likes to steal points!', drop: 'The Tuyul runs off with a cackle...' },
         genderuwo: { name: 'Genderuwo', create: createGenderuwo, points: 2.5, weight: 2, site: 'cemetery', routeMult: 1, dests: ['house', 'hospital', 'school', 'market', 'bridge', 'bamboo', 'mbg', 'kopdes'], speedMult: 0.8, accelMult: 0.7,
-            intro: 'Genderuwo sangat berat. Bus akan melambat!', drop: 'Genderuwo turun dengan langkah berat...' },
-        anak: { name: 'Hantu Sekolah', create: createAnak, points: 3, weight: 2, site: 'halte', routeMult: 0.9, dests: ['school', 'market', 'mbg'], speedMult: 1, accelMult: 1,
-            intro: 'Tiga hantu murid menunggu di halte. Jemput sekaligus!', drop: 'Tiga hantu murid turun dan berbaris pergi...' },
+            intro: 'The Genderuwo is very heavy. The bus will slow down!', drop: 'The Genderuwo climbs down with heavy steps...' },
+        anak: { name: 'School Ghosts', create: createAnak, points: 3, weight: 2, site: 'halte', routeMult: 0.9, dests: ['school', 'market', 'mbg'], speedMult: 1, accelMult: 1,
+            intro: 'Three school ghosts are waiting at the bus stop. Pick them all up!', drop: 'The three school ghosts get off and walk away in a line...' },
         wewe: { name: 'Wewe Gombel', create: createWewe, points: 4, weight: 1, site: 'banyan', routeMult: 1.4, dests: ['bridge'], speedMult: 1, accelMult: 1,
-            intro: 'Wewe Gombel langka muncul di bawah beringin. Rute jauh, hadiah besar!', drop: 'Wewe Gombel turun sambil menimang bungkusannya...' }
+            intro: 'The rare Wewe Gombel appears beneath the banyan tree. A long route brings a big reward!', drop: 'The Wewe Gombel climbs down, cradling her bundle...' }
     };
     const DESTS = {
-        house: { name: 'Rumah Kosong' }, school: { name: 'Sekolah Tua' }, hospital: { name: 'Rumah Sakit Tua' },
-        market: { name: 'Pasar Malam' }, bridge: { name: 'Jembatan Tua' }, bamboo: { name: 'Hutan Bambu' },
-        mbg: { name: 'Dapur MBG' }, kopdes: { name: 'Kopdes Merah Putih' }
+        house: { name: 'Abandoned House' }, school: { name: 'Abandoned School' }, hospital: { name: 'Abandoned Hospital' },
+        market: { name: 'Night Market' }, bridge: { name: 'Old Bridge' }, bamboo: { name: 'Bamboo Forest' },
+        mbg: { name: 'Abandoned Kitchen' }, kopdes: { name: 'Village Cooperative' }
     };
     const ghosts = {};
     Object.keys(GHOST_TYPES).forEach((k) => { ghosts[k] = GHOST_TYPES[k].create(); });
@@ -2979,8 +2979,8 @@ async function run(mode) {
     }
     function applyRoute(r) {
         route = r; cur = ghosts[r.type];
-        paintSign('RUTE 13 • ' + DESTS[r.dest].name.toUpperCase());
-        setDestinationLabel('Jemput ' + GHOST_TYPES[r.type].name);
+        paintSign('ROUTE 13 • ' + DESTS[r.dest].name.toUpperCase());
+        setDestinationLabel('Pick up ' + GHOST_TYPES[r.type].name);
     }
     function setPickup(z) {
         pickup.position.set(PICKUP_X, 0, z);
@@ -3051,11 +3051,11 @@ async function run(mode) {
         saveTimer = setTimeout(async () => { try { await lib.saveUserGameState(save); } catch (e) { lib.log('save failed: ' + e); } }, 600);
     }
     const UPGRADES = [
-        { key: 'engine', name: 'Mesin', desc: '+6% kecepatan dan akselerasi' },
-        { key: 'brake', name: 'Rem', desc: '+10% daya rem' },
-        { key: 'body', name: 'Bodi Baja', desc: '+15 HP bus' },
-        { key: 'light', name: 'Lampu Depan', desc: '+8% jarak pandang' },
-        { key: 'incense', name: 'Dupa', desc: '+10% kesabaran penumpang' }
+        { key: 'engine', name: 'Engine', desc: '+6% speed and acceleration' },
+        { key: 'brake', name: 'Brakes', desc: '+10% braking power' },
+        { key: 'body', name: 'Reinforced Body', desc: '+15 bus HP' },
+        { key: 'light', name: 'Headlights', desc: '+8% visibility range' },
+        { key: 'incense', name: 'Incense', desc: '+10% passenger patience' }
     ];
     const MAX_UP = 5, upCost = (lv) => 150 + lv * 150;
     const eff = { maxSpeed: 0.55, accel: 0.018, brake: 0.04, maxHealth: 100, fog: 1, patience: 1 };
@@ -3074,11 +3074,11 @@ async function run(mode) {
     let invuln = 0, shake = 0, flash = 0, lowPatienceWarned = false, heardCue = false, heartT = 0, alarmT = 0;
 
     const HINTS = {
-        drive: 'Tahan GAS untuk melaju. Kemudi dengan ◀ ▶',
-        near: 'Berhenti di dalam bay hijau, di samping penumpang',
-        board: 'Antar sebelum SABAR habis! Berhenti tepat di tengah bay untuk bonus PERFECT',
-        obstacle: 'Awas rintangan! Tabrakan merusak bus dan memutus combo',
-        combo: 'Antar tanpa tabrakan untuk menaikkan combo'
+        drive: 'Hold GAS to accelerate. Steer with ◀ ▶',
+        near: 'Stop inside the green bay beside the passenger',
+        board: 'Deliver the passenger before PATIENCE runs out! Stop in the center of the bay for a PERFECT bonus',
+        obstacle: 'Watch for hazards! Collisions damage the bus and break your combo',
+        combo: 'Deliver passengers without crashing to build your combo'
     };
     function hint(key) {
         if (save.hints[key] || phase !== 'playing') return;
@@ -3116,7 +3116,7 @@ async function run(mode) {
         const g = new THREE.Group();
         const a = new THREE.Mesh(rockGeo, stoneMat); a.position.y = 0.7; g.add(a);
         const b = new THREE.Mesh(rockGeo, stoneMat); b.scale.setScalar(0.55); b.position.set(1.3, 0.35, 0.5); g.add(b);
-        return mkObs(g, 1.4, 1.3, 15, 0.35, 'Menabrak batu!', 150, { init(z) { g.position.set(rand(-5, 5), 0, z); g.rotation.y = rand(0, 6); } });
+        return mkObs(g, 1.4, 1.3, 15, 0.35, 'Rock collision!', 150, { init(z) { g.position.set(rand(-5, 5), 0, z); g.rotation.y = rand(0, 6); } });
     }
     function buildPothole() {
         const g = new THREE.Group();
@@ -3126,13 +3126,13 @@ async function run(mode) {
         rim.position.y = 0.05; rim.scale.set(1, 1, 1.2); g.add(rim);              // broken-asphalt edge, bright enough to read in fog
         const sheen = new THREE.Mesh(new THREE.RingGeometry(2.0, 2.5, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a4048, transparent: true, opacity: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }));
         sheen.position.y = 0.045; sheen.scale.set(1, 1, 1.2); g.add(sheen);
-        return mkObs(g, 1.6, 1.7, 6, 0.7, 'Lubang jalan!', 150, { vol: 0.35, init(z) { g.position.set(rand(-5.5, 5.5), 0, z); } });
+        return mkObs(g, 1.6, 1.7, 6, 0.7, 'Pothole!', 150, { vol: 0.35, init(z) { g.position.set(rand(-5.5, 5.5), 0, z); } });
     }
     function buildLog() {
         const g = new THREE.Group();
         const l = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.7, 6, 8).rotateZ(Math.PI / 2), trunkMat); l.position.y = 0.7; g.add(l);
         [-1.6, 0.9].forEach((x) => { const b = new THREE.Mesh(branchGeo, trunkMat); b.position.set(x, 0.9, 0); b.rotation.set(0.4, 0, rand(-0.6, 0.6)); g.add(b); });
-        return mkObs(g, 3, 0.8, 20, 0.3, 'Menabrak pohon tumbang!', 150, { init(z) { g.position.set(rand(-3.1, 3.1), 0, z); g.rotation.y = rand(-0.15, 0.15); } });
+        return mkObs(g, 3, 0.8, 20, 0.3, 'Fallen tree collision!', 150, { init(z) { g.position.set(rand(-3.1, 3.1), 0, z); g.rotation.y = rand(-0.15, 0.15); } });
     }
     function buildHearse() {
         const g = new THREE.Group();
@@ -3145,7 +3145,7 @@ async function run(mode) {
         [-0.8, 0.8].forEach((x) => { const s = new THREE.Sprite(redGlow); s.scale.setScalar(1.8); s.position.set(x, 1.2, 3.1); g.add(s); });
         const inner = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x5affb0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5 }));
         inner.scale.setScalar(2.6); inner.position.set(0, 2.1, 0.5); g.add(inner);
-        return mkObs(g, 1.25, 3.1, 25, 0.25, 'Menabrak mobil jenazah!', 120, {
+        return mkObs(g, 1.25, 3.1, 25, 0.25, 'Hearse collision!', 120, {
             init(z) { g.position.set(rand(-4, 4), 0, z); },
             update(dt) { g.position.z -= 0.2 * 60 * dt; }
         });
@@ -3163,7 +3163,7 @@ async function run(mode) {
         neck.scale.setScalar(1.1); neck.position.set(0, 2.35, 0.3); body.add(neck);
         const lamp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff0c0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
         lamp.scale.setScalar(5); lamp.position.set(0, 1.2, -1.3); body.add(lamp);
-        return mkObs(g, 0.8, 1.2, 15, 0.5, 'Disambar motor tanpa kepala!', 230, {
+        return mkObs(g, 0.8, 1.2, 15, 0.5, 'Hit by the headless motorcycle!', 230, {
             init(z) { g.position.set(rand(-5.5, -1.5), 0, z); },
             update(dt) { g.position.z += 0.5 * 60 * dt; g.position.y = Math.sin(time * 14) * 0.03; }
         });
@@ -3229,13 +3229,13 @@ async function run(mode) {
 
         g.scale.setScalar(1.25);
         let age = 0, honked = false, wheelieT = rand(1.5, 3), wheelie = 0, ph = 1, f1 = 2.2, ph2 = 0, prevX = 0;
-        return mkObs(g, 1.1, 1.8, 20, 0.6, 'Diserempet pocong racing!', -70, {
+        return mkObs(g, 1.1, 1.8, 20, 0.6, 'Sideswiped by the racing Pocong!', -70, {
             racer: true, rearm: true, snd: 'sfx_laugh',
             init(z) {
                 age = 0; honked = false; wheelie = 0; wheelieT = rand(1.5, 3);
                 ph = 1 + rand(0, 0.4); f1 = rand(1.8, 2.8); ph2 = rand(0, 6);
                 g.position.set(0, 0, z); prevX = 0; g.rotation.set(0, 0, 0);
-                showMessage('Pocong racing ugal-ugalan dari belakang! Minggir!');
+                showMessage('A reckless racing Pocong is coming up from behind! Move aside!');
                 audio.honk();
             },
             gone() { return age > 26 || g.position.z < bus.position.z - 220 || g.position.z > bus.position.z + 130; },
@@ -3285,7 +3285,7 @@ async function run(mode) {
         const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x88ddff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.35 }));
         aura.scale.set(7, 3, 1); aura.position.set(0.5, 0.5, 0); body.add(aura);
         let dir = 1;
-        return mkObs(g, 3.2, 0.9, 10, 0.5, 'Ditabrak suster ngesot!', 140, {
+        return mkObs(g, 3.2, 0.9, 10, 0.5, 'Hit by the crawling nurse!', 140, {
             scare: true, snd: 'sfx_laugh',
             init(z) { g.position.set(-7, 0, z); dir = 1; g.rotation.y = 0; },
             update(dt) {
@@ -3300,7 +3300,7 @@ async function run(mode) {
     function buildBrute() {
         const o = createGenderuwo();
         o.root.scale.setScalar(0.95);
-        return mkObs(o.root, 2.4, 1.6, 30, 0.2, 'Dihadang genderuwo!', 160, {
+        return mkObs(o.root, 2.4, 1.6, 30, 0.2, 'Blocked by the Genderuwo!', 160, {
             snd: 'sfx_growl',
             init(z) { o.root.position.set(rand(-3, 3), 0.1, z); o.root.rotation.set(0, 0, 0); o.root.visible = true; },
             update(dt) { ghostCtx.dt = dt; ghostCtx.near = 0; ghostCtx.yawRel = 0; o.wait(ghostCtx); }
@@ -3401,7 +3401,7 @@ async function run(mode) {
     function renderTitle() {
         $('title-stats').innerHTML = '';
         const t = $('title-stats');
-        [['REKOR', save.best], ['KOIN', save.coins]].forEach(([k, v], i) => {
+        [['BEST', save.best], ['COINS', save.coins]].forEach(([k, v], i) => {
             if (i) t.appendChild(document.createTextNode('   •   '));
             t.appendChild(document.createTextNode(k + ' ')); const b = document.createElement('b'); b.textContent = v; t.appendChild(b);
         });
@@ -3421,7 +3421,7 @@ async function run(mode) {
             const sm = document.createElement('small'); sm.textContent = u.desc; l.appendChild(sm);
             const r = document.createElement('span'); r.style.textAlign = 'right';
             const pips = document.createElement('span'); pips.className = 'pips'; pips.textContent = '■'.repeat(lv) + '□'.repeat(MAX_UP - lv);
-            const c = document.createElement('small'); c.textContent = maxed ? 'MAKS' : cost + ' koin';
+            const c = document.createElement('small'); c.textContent = maxed ? 'MAX' : cost + ' coins';
             r.appendChild(pips); r.appendChild(c);
             b.appendChild(l); b.appendChild(r);
             b.addEventListener('click', () => {
@@ -3441,12 +3441,12 @@ async function run(mode) {
         const list = $('board-list'), me = $('board-me');
         list.textContent = ''; me.textContent = '';
         const note = (t) => { list.textContent = ''; const d = document.createElement('div'); d.className = 'lb-note'; d.textContent = t; list.appendChild(d); };
-        note('Memuat papan peringkat...');
+        note('Loading leaderboard...');
         showOverlay('board');
         try {
             const r = await lib.getTopNEntriesFromLeaderboard(10);
             const entries = (r && r.entries) || [];
-            if (!entries.length) { note('Belum ada skor. Jadilah yang pertama!'); }
+            if (!entries.length) { note('No scores yet. Be the first!'); }
             else {
                 list.textContent = '';
                 entries.slice(0, 10).forEach((e, i) => {
@@ -3457,8 +3457,8 @@ async function run(mode) {
                     row.appendChild(rk); row.appendChild(nm); row.appendChild(sc); list.appendChild(row);
                 });
             }
-            me.textContent = r && r.userRank ? 'Peringkat kamu: #' + r.userRank : 'Rekor kamu: ' + save.best;
-        } catch (e) { note('Papan peringkat belum tersedia.'); lib.log('leaderboard load failed: ' + e); }
+            me.textContent = r && r.userRank ? 'Your rank: #' + r.userRank : 'Your best: ' + save.best;
+        } catch (e) { note('Leaderboard is unavailable.'); lib.log('leaderboard load failed: ' + e); }
     }
     async function endRun(reason) {
         if (phase !== 'playing') return;
@@ -3468,19 +3468,19 @@ async function run(mode) {
         const isBest = score > save.best;
         if (isBest) save.best = score;
         saveSoon();
-        $('over-kicker').textContent = reason === 'bus' ? 'PERJALANAN BERAKHIR' : 'RUTE GAGAL';
-        $('over-title').textContent = reason === 'bus' ? 'BUS HANCUR' : 'PENUMPANG MENGAMUK';
+        $('over-kicker').textContent = reason === 'bus' ? 'JOURNEY ENDED' : 'ROUTE FAILED';
+        $('over-title').textContent = reason === 'bus' ? 'BUS WRECKED' : 'PASSENGER RAGE';
         const st = $('over-stats'); st.textContent = '';
-        [['SKOR', score], ['ANTAR', deliveries], ['REKOR', save.best + (isBest ? ' (BARU!)' : '')]].forEach(([k, v], i) => {
+        [['SCORE', score], ['DELIVERIES', deliveries], ['BEST', save.best + (isBest ? ' (NEW!)' : '')]].forEach(([k, v], i) => {
             if (i) st.appendChild(document.createTextNode('   •   '));
             st.appendChild(document.createTextNode(k + ' ')); const b = document.createElement('b'); b.textContent = v; st.appendChild(b);
         });
-        const lb = $('over-lb'); lb.textContent = score > 0 ? 'Menyimpan skor...' : '';
+        const lb = $('over-lb'); lb.textContent = score > 0 ? 'Submitting score...' : '';
         showOverlay('over');
         if (score > 0) {
             try {
                 const r = await lib.addPlayerScoreToLeaderboard(score, 1);
-                lb.textContent = r && r.userRank ? 'Peringkat kamu: #' + r.userRank : '';
+                lb.textContent = r && r.userRank ? 'Your rank: #' + r.userRank : '';
             } catch (e) { lb.textContent = ''; lib.log('leaderboard failed: ' + e); }
         }
     }
@@ -3498,7 +3498,7 @@ async function run(mode) {
         destination.position.z = nextPickup - cfg.environment.routeLength * GHOST_TYPES[route.type].routeMult;
         pendingDestZ = null; showBuilding(route.dest); destBay.visible = true; houseGlow = 0;
         segments.forEach(applyClearance);
-        showMessage(gt.name + ' terlewat!' + (lost ? ' -' + lost + ' poin.' : '') + ' Penumpang baru menunggu di depan.');
+        showMessage(gt.name + ' was missed!' + (lost ? ' -' + lost + ' points.' : '') + ' A new passenger is waiting ahead.');
     }
     function updateRunState(dt) {
         if (phase !== 'playing') return;
@@ -3507,7 +3507,7 @@ async function run(mode) {
             patience -= dt;
             const ratio = patience / patienceMax;
             if (ratio < 0.3) {
-                if (!lowPatienceWarned) { lowPatienceWarned = true; showMessage(GHOST_TYPES[route.type].name + ' mulai marah!'); }
+                if (!lowPatienceWarned) { lowPatienceWarned = true; showMessage(GHOST_TYPES[route.type].name + ' is getting angry!'); }
                 if (Math.sin(time * 6) > 0.9) busFlicker = 0.2;
             }
             if (patience <= 0) endRun('patience');
@@ -3749,7 +3749,7 @@ async function run(mode) {
                 theftTimer = 7;
                 const lost = Math.min(score, 15);
                 score -= lost; busFlicker = 0.7;
-                showMessage(lost > 0 ? 'Tuyul mencuri ' + lost + ' poin!' : 'Tuyul mengacak-acak bus...');
+                showMessage(lost > 0 ? 'The Tuyul stole ' + lost + ' points!' : 'The Tuyul is rummaging through the bus...');
             }
         }
         const mod = onboard ? GHOST_TYPES[route.type] : null;   // heavy passengers slow the bus
@@ -3782,9 +3782,9 @@ async function run(mode) {
                 lowPatienceWarned = false;
                 save.seen[route.type] = 1; saveSoon();
                 setDestinationLabel(DESTS[route.dest].name);
-                showMessage('Penumpang naik! Tujuan: ' + DESTS[route.dest].name);
+                showMessage('Passenger aboard! Destination: ' + DESTS[route.dest].name);
                 setTimeout(() => hint('board'), 2600);
-            } else showMessage('Pelan-pelan dan berhenti di samping penumpang!');
+            } else showMessage('Slow down and stop beside the passenger!');
         }
         // Delivery: base points x combo, plus time and stop-precision bonuses
         if (onboard && !destDone && pendingDestZ === null &&
@@ -3801,11 +3801,11 @@ async function run(mode) {
                 combo++; deliveries++;
                 audio.sfx('sfx_deliver', 1);
                 health = Math.min(maxHealth, health + 15);
-                showMessage('Penumpang tiba! +' + pts + (perfect ? '  PERFECT!' : '') + (tertib ? '  TERTIB! Anak-anak aman' : ''));
+                showMessage('Passenger delivered! +' + pts + (perfect ? '  PERFECT!' : '') + (tertib ? '  ORDERLY! The kids are safe' : ''));
                 saveSoon();
                 setTimeout(() => hint('combo'), 3600);
                 beginDeparture();
-            } else showMessage('Rem dan berhenti di tujuan!');
+            } else showMessage('Brake and stop at the destination!');
         }
     }
 
@@ -3963,8 +3963,8 @@ async function run(mode) {
         else {
             w.timer -= dt;
             if (w.timer <= 0) {
-                if (w.phase === 'clear') { w.phase = 'rain'; w.target = rand(0.55, 0.75); w.timer = rand(40, 65); w.nextBolt = rand(12, 22); showMessage('Hujan turun... jalan licin, rem lebih jauh!'); }
-                else if (w.phase === 'rain' && Math.random() < 0.6) { w.phase = 'storm'; w.target = 1; w.timer = rand(28, 42); w.nextBolt = rand(1.5, 3.5); showMessage('Badai petir! Pelan-pelan dan waspada!'); }
+                if (w.phase === 'clear') { w.phase = 'rain'; w.target = rand(0.55, 0.75); w.timer = rand(40, 65); w.nextBolt = rand(12, 22); showMessage('Rain is falling... the road is slick, brake early!'); }
+                else if (w.phase === 'rain' && Math.random() < 0.6) { w.phase = 'storm'; w.target = 1; w.timer = rand(28, 42); w.nextBolt = rand(1.5, 3.5); showMessage('Thunderstorm! Take it slow and stay alert!'); }
                 else { w.phase = 'clear'; w.target = 0; w.timer = rand(35, 60); }
             }
             if (w.phase !== 'clear') {
@@ -4030,7 +4030,7 @@ async function run(mode) {
     if (mode === 'edit') {
         showOverlay(null);
         $('controls').style.display = 'none';
-        showMessage('Edit Mode: ubah parameter di panel');
+        showMessage('Edit Mode: adjust parameters in the panel');
     } else {
         renderTitle(); showOverlay('title');
     }
