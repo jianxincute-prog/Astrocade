@@ -76,6 +76,38 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
 #mTitle{font-size:42px;font-weight:800;text-align:center}
 #mBody{font-size:29px;line-height:1.3;margin:12px 0 16px;white-space:pre-line}
 #mBtns{display:flex;flex-direction:column;gap:12px}
+
+#bag{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,10,0,.58);z-index:41;pointer-events:auto}
+#bagBox{width:668px;padding:18px 20px 20px;border-radius:30px;background:linear-gradient(#fff9e8,#f1e0b4);border:5px solid #8a5a2b;box-shadow:0 14px 0 rgba(60,35,10,.35),inset 0 0 0 3px #e9cf94;color:#3d2a14;max-height:1240px;overflow:hidden}
+#bagHead{display:flex;align-items:center;gap:12px}
+#bagTitle{font-size:40px;font-weight:900;flex:1;text-shadow:0 2px 0 #fff}
+#bagCap{font-size:22px;font-weight:800;background:#6b4423;color:#ffe9b0;border-radius:16px;padding:5px 14px}
+#bagX{width:54px;height:54px;border-radius:16px;background:linear-gradient(#ef7a62,#c8472f);color:#fff;font-size:30px;font-weight:900;display:flex;align-items:center;justify-content:center;border:4px solid #8a3a2b;cursor:pointer}
+#bagMoney{font-size:25px;font-weight:900;color:#2f6b24;margin-top:6px}
+#bagTabs{display:flex;gap:10px;margin:10px 0 12px}
+.btab{flex:1;text-align:center;padding:7px;border-radius:16px;font-size:26px;font-weight:800;background:#e6cf9c;border:4px solid #b58a4a;color:#6b4423;cursor:pointer}
+.btab.on{background:linear-gradient(#a26a34,#7a4a22);color:#fff3c8;border-color:#5a3a18}
+#bagGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;padding:12px;border-radius:22px;background:linear-gradient(#c9a56b,#b98f52);box-shadow:inset 0 5px 12px rgba(80,45,10,.5)}
+.bslot{position:relative;aspect-ratio:1;border-radius:18px;border:4px solid var(--rb);background:radial-gradient(circle at 35% 26%,var(--rl),var(--rd));display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 0 rgba(60,35,10,.38),inset 0 2px 0 rgba(255,255,255,.55)}
+.bslot.empty{background:rgba(90,55,20,.26);border:3px dashed rgba(90,55,20,.32);box-shadow:inset 0 3px 8px rgba(60,35,10,.35);cursor:default}
+.bslot.sel{outline:5px solid #ffcf3a;outline-offset:1px;animation:pulse 1s infinite}
+.bslot.r4{box-shadow:0 4px 0 rgba(60,35,10,.38),0 0 16px rgba(255,200,60,.85),inset 0 2px 0 rgba(255,255,255,.55)}
+.bslot .em{font-size:52px;line-height:1;filter:drop-shadow(0 3px 2px rgba(0,0,0,.3))}
+.bslot canvas{width:88%;height:88%;filter:drop-shadow(0 3px 2px rgba(0,0,0,.3))}
+.bslot .cnt{position:absolute;right:4px;bottom:2px;min-width:32px;text-align:center;padding:0 7px;border-radius:12px;background:rgba(40,22,6,.84);color:#fff3c8;font-size:21px;font-weight:900;line-height:28px}
+.bslot .tag{position:absolute;left:5px;top:2px;font-size:19px}
+.r0{--rb:#a98c5e;--rl:#fffaea;--rd:#e8d6a9}.r1{--rb:#5da84a;--rl:#f4ffe4;--rd:#b9e19a}.r2{--rb:#3f86d1;--rl:#ecf6ff;--rd:#a9cff2}.r3{--rb:#9a55c9;--rl:#f8ecff;--rd:#d2adf0}.r4{--rb:#e0a21c;--rl:#fff8d2;--rd:#f7d46a}
+#bagDetail{margin-top:12px;display:flex;gap:14px;align-items:center;min-height:138px;padding:12px 14px;border-radius:20px;background:#fff6dc;border:4px solid #c9a56b}
+#bdIcon{width:106px;height:106px;border-radius:20px;border:4px solid var(--rb);background:radial-gradient(circle at 35% 26%,var(--rl),var(--rd));display:flex;align-items:center;justify-content:center;flex:0 0 106px}
+#bdIcon canvas{width:88%;height:88%}#bdIcon .em{font-size:62px}
+#bdInfo{flex:1;min-width:0}#bdName{font-size:30px;font-weight:900;line-height:1.05}#bdRar{font-size:19px;font-weight:900;letter-spacing:1px;color:var(--rb)}#bdDesc{font-size:20px;line-height:1.22;color:#5a4328;margin-top:3px}
+#bdBtns{display:flex;flex-direction:column;gap:7px}
+.bbtn{min-width:128px;text-align:center;padding:8px 10px;border-radius:16px;font-size:25px;font-weight:900;color:#fff;border:4px solid rgba(0,0,0,.25);cursor:pointer;text-shadow:0 2px 0 rgba(0,0,0,.3)}
+.bbtn.use{background:linear-gradient(#80d062,#3f9a3c)}.bbtn.drop{background:linear-gradient(#ec8a72,#c24a38)}.bbtn.dall{background:linear-gradient(#b58a6a,#7a5638);font-size:20px;padding:5px 8px}.bbtn.dis{opacity:.4;pointer-events:none}
+#bagNotes{display:none;font-size:25px;line-height:1.35;white-space:pre-line;padding:14px 16px;border-radius:20px;background:#fff6dc;border:4px solid #c9a56b;min-height:520px}
+#catchCard{position:absolute;left:50%;top:210px;transform:translate(-50%,-24px) scale(.9);opacity:0;pointer-events:none;z-index:46;width:430px;padding:14px 20px 16px;text-align:center;border-radius:26px;background:linear-gradient(#fff9e8,#f1e0b4);border:5px solid var(--rb,#8a5a2b);box-shadow:0 10px 0 rgba(60,35,10,.35),0 0 22px rgba(255,255,255,.4);transition:opacity .25s,transform .4s cubic-bezier(.2,1.4,.4,1)}
+#catchCard.show{opacity:1;transform:translate(-50%,0) scale(1)}
+#ccTop{font-size:19px;font-weight:900;letter-spacing:3px;color:var(--rb)}#ccArt{height:150px;display:flex;align-items:center;justify-content:center}#ccArt canvas{width:150px;height:150px;filter:drop-shadow(0 5px 3px rgba(0,0,0,.3))}#ccName{font-size:34px;font-weight:900;color:#3d2a14}#ccMeta{font-size:22px;color:#5a4328;font-weight:800}
 #fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .8s;z-index:50}
 #loading{position:absolute;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#d8edc7 0%,#91bd83 48%,#477d68 100%);transition:opacity .3s ease;pointer-events:auto}
 #loading.hide{opacity:0;pointer-events:none}
@@ -129,6 +161,8 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
  <div id="tools"><div id="hv" class="tool harvest"><span class="e">🌾</span><span>Panen</span><i id="hvn"></i></div></div>
 </div>
 <div id="dlg" class="abs card"><div id="dName"></div><div id="dText"></div><div id="dBtns"></div></div>
+<div id="bag"><div id="bagBox"><div id="bagHead"><div id="bagTitle">🎒 Backpack</div><div id="bagCap"></div><div id="bagX">✕</div></div><div id="bagMoney"></div><div id="bagTabs"><div class="btab on" data-t="items">Items</div><div class="btab" data-t="notes">Notes</div></div><div id="bagGrid"></div><div id="bagDetail"><div id="bdIcon"></div><div id="bdInfo"><div id="bdName"></div><div id="bdRar"></div><div id="bdDesc"></div></div><div id="bdBtns"></div></div><div id="bagNotes"></div></div></div>
+<div id="catchCard"><div id="ccTop">NEW CATCH!</div><div id="ccArt"></div><div id="ccName"></div><div id="ccMeta"></div></div>
 <div id="modal"><div id="mBox" class="card"><div id="mTitle"></div><div id="mBody"></div><div id="mBtns"></div></div></div>
 <div id="fade"></div>
 <div id="loading" role="status" aria-label="Loading Sukamaju Village 3D"><div class="loading-card"><div class="loading-icon">🌾</div><div class="loading-title">Sukamaju Village 3D</div><div class="loading-sub">Menyiapkan petualangan desamu...</div><div class="loading-track"><div class="loading-fill"></div></div></div></div>
@@ -1352,8 +1386,8 @@ function fishFinTex(col){
  const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t;
 }
 function makeHangingFish(o){
- const f=new THREE.Group(),hk=o.h||1,L=.27,H=.11*hk,W=.055*(o.w||1);
- const skin=new THREE.MeshPhongMaterial({map:fishSkinTex(o),shininess:85,specular:0x9fb4c0});
+ const f=new THREE.Group(),hk=o.h||1,L=.27*(o.len||1),H=.11*hk,W=.055*(o.w||1);
+ const skin=new THREE.MeshPhongMaterial({map:fishSkinTex(o),shininess:85,specular:0x9fb4c0});if(o.shine){skin.emissive=new THREE.Color(0x4a3600);skin.shininess=140;}
  const body=new THREE.Mesh(fishBodyGeo(),skin);body.scale.set(L,H,W);body.castShadow=true;body.receiveShadow=true;addOutline(body,.04);f.add(body);
  const finM=new THREE.MeshPhongMaterial({map:fishFinTex(o.fin),side:THREE.DoubleSide,shininess:45,specular:0x555555});
  const tail=new THREE.Mesh(FISH_TAIL_GEO,finM);tail.position.x=-L*.84;tail.rotation.y=Math.PI;tail.scale.set(.2,.25*Math.sqrt(hk),1);tail.castShadow=true;f.add(tail);
@@ -1372,6 +1406,83 @@ function makeHangingFish(o){
  });
  return f;
 }
+
+/* ---------- species looks, 2D icons, jump model & catch card ---------- */
+const FISH_LOOK={
+ lele:{back:0x24201c,mid:0x45403a,belly:0xcfc4b0,fin:0x34302a,smooth:true,whisk:true,h:.82,w:1.1,len:1.2,eyeRing:0x8a7a4a},
+ nila:{back:0x37444c,mid:0x8a9aa2,belly:0xeef2f2,fin:0x6c7c86,pattern:'stripe',eyeRing:0xd9a63a,h:1.05},
+ mujair:{back:0x2f3c2c,mid:0x6f7b5a,belly:0xdadcc4,fin:0x4c5a40,h:1.15,eyeRing:0xd2a43a},
+ gurame:{back:0x5a5636,mid:0xa9a07a,belly:0xf2ead0,fin:0x8a8258,pattern:'spot',h:1.45,eyeRing:0xc93a2a,len:.95},
+ mas:{back:0x8f3f12,mid:0xe58a2c,belly:0xffe1a0,fin:0xe17a2a,eyeRing:0xe3b23c,h:1.1},
+ arwana:{back:0x7a5a14,mid:0xe8b838,belly:0xfff0b0,fin:0xd89a28,h:.85,len:1.45,whisk:true,shine:true,eyeRing:0xffe27a},
+ wader:{back:0x485868,mid:0xbac6ce,belly:0xf7f9fb,fin:0x9eacb4,h:.85,len:.8,eyeRing:0xe0c060},
+ baung:{back:0x3a3328,mid:0x7a6c58,belly:0xe6dcc8,fin:0x4a4034,smooth:true,whisk:true,h:.9,len:1.15,eyeRing:0xb8a050}
+};
+const RARITY=[['COMMON'],['FINE'],['RARE'],['EPIC'],['LEGENDARY']];
+const RAR_COL=['#a98c5e','#5da84a','#3f86d1','#9a55c9','#e0a21c'];
+const rarityByPrice=p=>p<30?0:p<60?1:p<100?2:p<200?3:4;
+function drawFishIcon(c,o){
+ const x=c.getContext('2d'),W=c.width,H=c.height,css=n=>'#'+('000000'+n.toString(16)).slice(-6),mix=(a,b,t)=>'#'+('000000'+new THREE.Color(a).lerp(new THREE.Color(b),t).getHex().toString(16)).slice(-6);
+ const L=o.len||1,hk=o.h||1,bl=W*.3*Math.min(1.1,.8+L*.2),bh=H*.1*Math.min(1.5,hk)+H*.035,ol='rgba(28,16,8,.88)';
+ x.clearRect(0,0,W,H);x.save();x.translate(W*.52,H*.5);x.lineJoin='round';x.lineCap='round';
+ x.fillStyle='rgba(0,0,0,.16)';x.beginPath();x.ellipse(0,bh*1.6,bl*.95,bh*.22,0,0,TAU);x.fill();
+ const rays=(x0,y0,pts)=>{x.strokeStyle='rgba(0,0,0,.26)';x.lineWidth=1.4;pts.forEach(q=>{x.beginPath();x.moveTo(x0,y0);x.lineTo(q[0],q[1]);x.stroke();});};
+ // tail fin
+ let g=x.createLinearGradient(-bl*1.3,0,-bl*.7,0);g.addColorStop(0,mix(o.fin,0xffffff,.4));g.addColorStop(1,css(o.fin));
+ x.fillStyle=g;x.strokeStyle=ol;x.lineWidth=3;x.beginPath();x.moveTo(-bl*.7,0);x.quadraticCurveTo(-bl*1.02,-bh*.35,-bl*1.3,-bh*1.1);x.quadraticCurveTo(-bl*1.1,0,-bl*1.3,bh*1.1);x.quadraticCurveTo(-bl*1.02,bh*.35,-bl*.7,0);x.closePath();x.fill();x.stroke();
+ rays(-bl*.78,0,[-3,-2,-1,0,1,2,3].map(i=>[-bl*1.2,i*bh*.32]));
+ // dorsal + anal fins
+ g=x.createLinearGradient(0,-bh*1.9,0,-bh*.7);g.addColorStop(0,mix(o.fin,0xffffff,.35));g.addColorStop(1,css(o.fin));
+ x.fillStyle=g;x.beginPath();x.moveTo(bl*.3,-bh*.9);x.quadraticCurveTo(bl*.05,-bh*1.95,-bl*.52,-bh*1.55);x.lineTo(-bl*.62,-bh*.7);x.closePath();x.fill();x.stroke();
+ rays(-bl*.1,-bh*.85,[[bl*.15,-bh*1.55],[-bl*.05,-bh*1.65],[-bl*.25,-bh*1.6],[-bl*.45,-bh*1.45]]);
+ x.fillStyle=css(o.fin);x.beginPath();x.moveTo(-bl*.1,bh*.9);x.quadraticCurveTo(-bl*.25,bh*1.6,-bl*.62,bh*1.2);x.lineTo(-bl*.6,bh*.55);x.closePath();x.fill();x.stroke();
+ // body
+ const body=new Path2D();body.moveTo(bl,0);body.bezierCurveTo(bl*.7,-bh*1.18,-bl*.2,-bh*1.18,-bl*.78,-bh*.26);body.lineTo(-bl*.78,bh*.26);body.bezierCurveTo(-bl*.2,bh*1.18,bl*.7,bh*1.12,bl,0);body.closePath();
+ g=x.createLinearGradient(0,-bh*1.1,0,bh*1.1);g.addColorStop(0,css(o.back));g.addColorStop(.36,css(o.mid));g.addColorStop(.62,css(o.mid));g.addColorStop(.86,css(o.belly));g.addColorStop(1,mix(o.belly,0xffffff,.4));
+ x.fillStyle=g;x.fill(body);
+ x.save();x.clip(body);
+ if(!o.smooth){x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=1.3;for(let r=-6;r<=6;r++)for(let k=-9;k<=4;k++){const px=k*bl*.105+(r%2)*bl*.052,py=r*bh*.19;x.beginPath();x.arc(px,py,bl*.065,.1*Math.PI,.9*Math.PI);x.stroke();}
+  x.strokeStyle='rgba(0,0,0,.14)';for(let r=-6;r<=6;r++)for(let k=-9;k<=4;k++){const px=k*bl*.105+(r%2)*bl*.052,py=r*bh*.19+2;x.beginPath();x.arc(px,py,bl*.065,.2*Math.PI,.8*Math.PI);x.stroke();}}
+ else{x.fillStyle='rgba(0,0,0,.16)';for(let i=0;i<14;i++){x.beginPath();x.ellipse(-bl*.7+((i*37)%100)/100*bl*1.2,-bh*.7+((i*53)%100)/100*bh*1.3,bl*.07,bh*.1,i,0,TAU);x.fill();}}
+ if(o.pattern==='stripe'){x.fillStyle='rgba(18,26,32,.26)';for(let k=-3;k<=2;k++){x.save();x.rotate(-.1);x.fillRect(k*bl*.2-bl*.05,-bh*1.1,bl*.07,bh*2.2);x.restore();}}
+ if(o.pattern==='spot'){x.fillStyle='rgba(25,22,10,.42)';[[-bl*.2,-bh*.05],[bl*.12,bh*.05]].forEach(q=>{x.beginPath();x.arc(q[0],q[1],bh*.2,0,TAU);x.fill();});}
+ g=x.createLinearGradient(0,-bh*1.1,0,-bh*.1);g.addColorStop(0,'rgba(255,255,255,.42)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.beginPath();x.ellipse(bl*.05,-bh*.55,bl*.8,bh*.5,0,0,TAU);x.fill();
+ g=x.createLinearGradient(bl*.35,0,bl,0);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.16)');x.fillStyle=g;x.fillRect(bl*.35,-bh*1.2,bl*.7,bh*2.4);
+ x.restore();x.strokeStyle=ol;x.lineWidth=3.4;x.stroke(body);
+ // gill cover, mouth, pectoral fin
+ x.strokeStyle='rgba(40,20,14,.6)';x.lineWidth=3.5;x.beginPath();x.moveTo(bl*.44,-bh*.85);x.quadraticCurveTo(bl*.3,0,bl*.44,bh*.85);x.stroke();
+ x.strokeStyle='rgba(255,255,255,.35)';x.lineWidth=1.6;x.beginPath();x.moveTo(bl*.47,-bh*.8);x.quadraticCurveTo(bl*.33,0,bl*.47,bh*.8);x.stroke();
+ x.strokeStyle=ol;x.lineWidth=2.6;x.beginPath();x.moveTo(bl*.99,bh*.05);x.quadraticCurveTo(bl*.9,bh*.2,bl*.8,bh*.14);x.stroke();
+ x.save();x.translate(bl*.3,bh*.35);x.rotate(.5);x.fillStyle=mix(o.fin,0xffffff,.15);x.strokeStyle=ol;x.lineWidth=2.4;x.beginPath();x.ellipse(-bl*.12,0,bl*.2,bh*.2,0,0,TAU);x.fill();x.stroke();x.restore();
+ if(o.whisk){x.strokeStyle='rgba(30,22,16,.9)';x.lineWidth=2.4;[[.95,.1,1.3,.55],[.92,.2,1.22,.95]].forEach(q=>{x.beginPath();x.moveTo(bl*q[0],bh*q[1]);x.quadraticCurveTo(bl*(q[0]+.2),bh*q[1]*1.8,bl*q[2],bh*q[3]);x.stroke();});}
+ // glossy eye
+ const ex=bl*.68,ey=-bh*.22,er=bh*.34;
+ x.fillStyle='#f3ecd6';x.strokeStyle=ol;x.lineWidth=2.4;x.beginPath();x.arc(ex,ey,er,0,TAU);x.fill();x.stroke();
+ x.fillStyle=css(o.eyeRing||0xd8a63a);x.beginPath();x.arc(ex+er*.08,ey,er*.76,0,TAU);x.fill();
+ x.fillStyle='#070707';x.beginPath();x.arc(ex+er*.12,ey,er*.42,0,TAU);x.fill();
+ x.fillStyle='#fff';x.beginPath();x.arc(ex+er*.34,ey-er*.3,er*.2,0,TAU);x.fill();x.beginPath();x.arc(ex-er*.1,ey+er*.28,er*.1,0,TAU);x.fill();
+ x.restore();
+ if(o.shine){x.fillStyle='#fff6b0';[[.16,.2,16],[.82,.14,12],[.88,.8,14],[.12,.82,10]].forEach(q=>{const cx=W*q[0],cy=H*q[1],r=q[2];x.beginPath();x.moveTo(cx,cy-r);x.quadraticCurveTo(cx,cy,cx+r,cy);x.quadraticCurveTo(cx,cy,cx,cy+r);x.quadraticCurveTo(cx,cy,cx-r,cy);x.quadraticCurveTo(cx,cy,cx,cy-r);x.fill();});}
+}
+const fishIconCache={};
+function fishIcon(key){if(!fishIconCache[key]){const c=document.createElement('canvas');c.width=c.height=192;drawFishIcon(c,FISH_LOOK[key]||FISH_LOOK.mas);fishIconCache[key]=c;}return fishIconCache[key];}
+function copyCanvas(src){const c=document.createElement('canvas');c.width=src.width;c.height=src.height;c.getContext('2d').drawImage(src,0,0);return c;}
+// species model for the leap on a successful catch
+const jumpFishCache={};
+function setJumpFish(ty){
+ if(!jumpFishCache[ty]){const h=new THREE.Group(),m=makeHangingFish(FISH_LOOK[ty]||FISH_LOOK.mas);m.scale.setScalar(3.4);h.add(m);jumpFishCache[ty]=h;}
+ while(fish.jump.children.length)fish.jump.remove(fish.jump.children[0]);
+ fish.jump.add(jumpFishCache[ty]);fish.jumpHolder=jumpFishCache[ty];fish.jumpRar=rarityByPrice(FISH[ty].price);
+}
+let catchTimer=0;
+function showCatchCard(ty){
+ const f=FISH[ty],r=rarityByPrice(f.price),card=$('catchCard');
+ card.style.setProperty('--rb',RAR_COL[r]);$('ccTop').textContent=r>=4?'✨ LEGENDARY CATCH! ✨':r>=3?'EPIC CATCH!':'NEW CATCH!';
+ const art=$('ccArt');art.innerHTML='';art.appendChild(copyCanvas(fishIcon(ty)));
+ $('ccName').textContent=f.name;$('ccMeta').textContent=RARITY[r][0]+' · '+rp(f.price);
+ card.classList.add('show');clearTimeout(catchTimer);catchTimer=setTimeout(()=>card.classList.remove('show'),2600);
+}
+function silhouetteGeo(){const sh=new THREE.Shape();sh.moveTo(.5,0);sh.bezierCurveTo(.3,.2,-.15,.2,-.32,.05);sh.lineTo(-.5,.18);sh.quadraticCurveTo(-.42,0,-.5,-.18);sh.lineTo(-.32,-.05);sh.bezierCurveTo(-.15,-.2,.3,-.2,.5,0);return new THREE.ShapeGeometry(sh,10);}
 function weaveTex(){
  const c=document.createElement('canvas');c.width=128;c.height=128;const x=c.getContext('2d');x.fillStyle='#c9a46a';x.fillRect(0,0,128,128);
  for(let i=0;i<16;i++)for(let j=0;j<16;j++){x.fillStyle=(i+j)%2?'#b48f55':'#dcbb7c';x.fillRect(i*8+1,j*8+1,(i+j)%2?6:7,(i+j)%2?7:6);}
@@ -2346,7 +2457,7 @@ function buildPond(){
  water=new THREE.Mesh(new THREE.CircleGeometry(POND.r,48),new THREE.MeshPhongMaterial({color:0x3d9ec4,transparent:true,opacity:.88,shininess:32,specular:0x88ccdd}));water.rotation.x=-Math.PI/2;water.position.set(POND.x,.05,POND.z);scene.add(water);
  const deep=new THREE.Mesh(new THREE.CircleGeometry(POND.r*.62,40),new THREE.MeshBasicMaterial({color:0x2478a6,transparent:true,opacity:.5}));deep.rotation.x=-Math.PI/2;deep.position.set(POND.x,.06,POND.z);scene.add(deep);
  for(let i=0;i<3;i++){const r=new THREE.Mesh(new THREE.RingGeometry(.9,1,32),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.4,depthWrite:false}));r.rotation.x=-Math.PI/2;r.position.set(POND.x+rnd(-3,3),.07,POND.z+rnd(-3,3));r.userData.ph=i/3;ripples.push(r);scene.add(r);}
- for(let i=0;i<5;i++){const f=new THREE.Mesh(new THREE.CircleGeometry(.4,10),new THREE.MeshBasicMaterial({color:0x14527a,transparent:true,opacity:.4}));f.rotation.x=-Math.PI/2;f.scale.y=.45;f.userData={r:rnd(1.5,4.4),sp:rnd(.2,.5)*(i%2?1:-1),ph:rnd(0,TAU)};fishSh.push(f);scene.add(f);}
+ {const sg=silhouetteGeo();for(let i=0;i<6;i++){const f=new THREE.Mesh(sg,new THREE.MeshBasicMaterial({color:i%3===0?0x2a7a8c:0x0f4566,transparent:true,opacity:.46,depthWrite:false}));f.rotation.x=-Math.PI/2;const sz=rnd(.8,1.5);f.scale.setScalar(sz);f.userData={r:rnd(1.5,4.4),sp:rnd(.2,.5)*(i%2?1:-1),ph:rnd(0,TAU),sz};fishSh.push(f);scene.add(f);}}
  for(let i=0;i<7;i++){const a=rnd(0,TAU),r=rnd(3,5.3),lx=POND.x+Math.cos(a)*r,lz=POND.z+Math.sin(a)*r;
   // Keep lily pads out of the access dock so its boards remain visible and unobstructed.
   if(lx>POND.x-7.3&&lx<POND.x-2.7&&Math.abs(lz-POND.z)<1.1)continue;
@@ -2509,7 +2620,7 @@ function updateEnv(dt){
  faceMats.forEach(m=>m.color.setRGB(Lf,Lf,Lf));
  if(flowTex)flowTex.offset.y-=dt*.22;
  ripples.forEach(r=>{r.userData.ph=(r.userData.ph+dt*.35)%1;const s=.4+r.userData.ph*2.6;r.scale.set(s,s,s);r.material.opacity=.45*(1-r.userData.ph);});
- fishSh.forEach(f=>{const u=f.userData;u.ph+=dt*u.sp;f.position.set(POND.x+Math.cos(u.ph)*u.r,.07,POND.z+Math.sin(u.ph)*u.r);f.rotation.z=-u.ph+(u.sp>0?-Math.PI/2:Math.PI/2);});
+ fishSh.forEach(f=>{const u=f.userData;u.ph+=dt*u.sp;f.position.set(POND.x+Math.cos(u.ph)*u.r,.07,POND.z+Math.sin(u.ph)*u.r);f.rotation.z=-u.ph+(u.sp>0?-Math.PI/2:Math.PI/2);f.scale.y=u.sz*(1+Math.sin(T*7+u.ph*6)*.08);});
  const rn=rainF>.05;rainLines.visible=rn;
  if(rn){const p=rainLines.geometry.attributes.position,dr=rainLines.userData.d;for(let k=0;k<dr.length;k++){const q=dr[k];q.y-=24*dt;if(q.y<0)q.y+=14;const x=player.pos.x+q.x,z=player.pos.z+q.z;p.setXYZ(k*2,x,q.y,z);p.setXYZ(k*2+1,x-.06,q.y+.6,z);}p.needsUpdate=true;rainLines.material.opacity=.55*rainF;}
  const showB=!rn&&hr>7&&hr<18;butter.forEach(b=>{b.visible=showB;if(!showB)return;const u=b.userData;u.t+=dt;b.position.set(u.cx+Math.cos(u.t*.7+u.ph)*2.4,1.1+Math.sin(u.t*1.3)*.4,u.cz+Math.sin(u.t*.9+u.ph)*2.4);b.rotation.y=u.t*.7;const fl=Math.abs(Math.sin(u.t*14))*1.2+.2;b.children[0].scale.x=fl;b.children[1].scale.x=-fl;});
@@ -2765,7 +2876,7 @@ function startHarvest(){
 }
 function doHarvestHit(){
  const got={};let any=false;
- harv.targets.forEach(t=>{if(!ripe(t))return;any=true;const n=t.f?2:1+(Math.random()<.25?1:0);S.inv[t.c]=(S.inv[t.c]||0)+n;got[t.c]=(got[t.c]||0)+n;S.stats.harvest++;floatText(CROPS[t.c].emoji+' +'+n,t.x,1.4,t.z);
+ harv.targets.forEach(t=>{if(!ripe(t))return;if(!bagRoomFor('inv',t.c,1)){toast('Backpack is full! 🎒');return;}any=true;const n=bagAdd('inv',t.c,t.f?2:1+(Math.random()<.25?1:0));got[t.c]=(got[t.c]||0)+n;S.stats.harvest++;floatText(CROPS[t.c].emoji+' +'+n,t.x,1.4,t.z);
   const cg=t.crop.children[0];if(cg){scene.attach(cg);cutPieces.push({o:cg,vx:rnd(-1.2,1.2),vy:rnd(2.5,3.8),vz:rnd(-1.2,1.2),sp:rnd(-6,6),life:.8});}
   burst(t.x,.7,t.z,0xffd84a,8);burst(t.x,.5,t.z,0x6cc04a,8);
   t.c=null;t.d=0;t.w=false;t.f=false;refreshTile(t);});
@@ -2815,7 +2926,8 @@ function fishTap(){
  if(fish.phase==='bite'){fish.type=pickFish();fish.phase='reel';fish.w=FISH[fish.type].z;fish.zone=rnd(.1,.9-fish.w);fish.cur=0;fish.dir=1;fish.sp=.9+(.3-fish.w)*3;$('fMsg').textContent='Tap saat merah di zona hijau!';$('fBar').style.display='block';$('fZone').style.left=fish.zone*100+'%';$('fZone').style.width=fish.w*100+'%';triggerFishRipple(fish.target.x,fish.target.z,1.2);fishSplash(fish.target.x,fish.target.z,9);swing();return;}
  if(fish.phase==='reel'){
   const ok=fish.cur>=fish.zone&&fish.cur<=fish.zone+fish.w,ty=fish.type,f=FISH[ty];
-  if(ok){S.inv[ty]=(S.inv[ty]||0)+1;S.stats.fish++;sfx('catch');floatText(f.emoji+' +1',player.pos.x,2.3,player.pos.z);addShake(.13);buzz(40);triggerFishRipple(fish.target.x,fish.target.z,1.5);fishSplash(fish.target.x,fish.target.z,15);fish.jumpActive=true;fish.jumpT=0;fish.jump.position.set(fish.target.x,.12,fish.target.z);fish.jump.rotation.set(0,rnd(0,TAU),0);fish.jump.visible=true;cancelFish(ty==='arwana'?'🐉 WOW! Arwana Emas legendaris!!':'Dapat '+f.emoji+' '+f.name+'!');saveProgress();updateHUD();}
+  if(ok&&!bagRoomFor('inv',ty,1)){sfx('fail');cancelFish('Backpack is full - the fish got away! 🎒');return;}
+  if(ok){bagAdd('inv',ty,1);S.stats.fish++;sfx('catch');floatText(f.emoji+' +1',player.pos.x,2.3,player.pos.z);addShake(.13);buzz(40);triggerFishRipple(fish.target.x,fish.target.z,1.5);fishSplash(fish.target.x,fish.target.z,15);setJumpFish(ty);showCatchCard(ty);fish.jumpActive=true;fish.jumpT=0;fish.jump.position.set(fish.target.x,.12,fish.target.z);fish.jump.rotation.set(0,rnd(0,TAU),0);fish.jump.visible=true;cancelFish(ty==='arwana'?'🐉 WOW! Arwana Emas legendaris!!':'Dapat '+f.emoji+' '+f.name+'!');saveProgress();updateHUD();}
   else{sfx('fail');cancelFish('Yah, ikannya lepas... 🐟💨');}
  }
 }
@@ -2825,7 +2937,7 @@ function updateFishing(dt){
   for(let i=0;i<fish.rings.length;i++){const r=fish.rings[i],age=fish.rippleT-i*.16,dur=.85;if(age<0){r.visible=false;continue;}if(age>=dur){r.visible=false;continue;}const u=age/dur,s=(.35+u*2.5)*fish.ripplePower;r.visible=true;r.scale.set(s,s,s);r.material.opacity=.42*(1-u)*fish.ripplePower;}
   if(fish.rippleT>1.35){fish.rippleT=-1;fish.rings.forEach(r=>r.visible=false);}
  }
- if(fish.jumpActive){fish.jumpT+=dt;const u=fish.jumpT/.72;if(u>=1){fish.jumpActive=false;fish.jump.visible=false;}else{fish.jump.position.y=.12+Math.sin(u*Math.PI)*1.15;fish.jump.rotation.z=Math.sin(u*Math.PI)*-.28;fish.jump.scale.setScalar(.85+.15*Math.sin(u*Math.PI));}}
+ if(fish.jumpActive){fish.jumpT+=dt;const u=fish.jumpT/.95;if(u>=1){fish.jumpActive=false;fish.jump.visible=false;}else{const a=Math.sin(u*Math.PI);fish.jump.position.y=.12+a*1.5;fish.jump.scale.setScalar(.9+.12*a);if(fish.jumpHolder){fish.jumpHolder.rotation.z=Math.cos(u*Math.PI)*.95;fish.jumpHolder.rotation.x=Math.sin(u*Math.PI*3)*.35;}if(fish.jumpRar>=2&&Math.random()<dt*16)burst(fish.jump.position.x,fish.jump.position.y,fish.jump.position.z,fish.jumpRar>=4?0xffe27a:0xbfe8ff,2);}}
  if(!fish.active)return;
  const tip=_v;player.char.rodTip.getWorldPosition(tip);const lp=fish.line.geometry.attributes.position;lp.setXYZ(0,tip.x,tip.y,tip.z);lp.setXYZ(1,fish.bobber.position.x,fish.bobber.position.y+.1,fish.bobber.position.z);lp.needsUpdate=true;
  fish.t+=dt;
@@ -2880,26 +2992,26 @@ function openBayuShop(){
  const buttons=BAYU_GOODS.map(p=>({
   t:p.emoji+' '+p.name+' — '+rp(p.buyPrice)+'  (+'+p.energy+' ⚡) · Tas: '+(S.inv[p.id]||0),
   keep:true,cls:S.money<p.buyPrice?'ghost dis':'',
-  fn:()=>{if(S.money<p.buyPrice)return toast('Uangmu belum cukup untuk '+p.name+'.');S.money-=p.buyPrice;S.inv[p.id]=(S.inv[p.id]||0)+1;sfx('coin');buzz(25);floatText(p.emoji+' +1',player.pos.x,2.2,player.pos.z,'#ffe4a1',30);toast('Mas Bayu: "Kemasan sultan, rasanya juga sultan!"');saveProgress();updateHUD();openBayuShop();}
+  fn:()=>{if(S.money<p.buyPrice)return toast('Uangmu belum cukup untuk '+p.name+'.');if(!bagRoomFor('inv',p.id,1))return toast('Backpack is full! 🎒');S.money-=p.buyPrice;S.inv[p.id]=(S.inv[p.id]||0)+1;sfx('coin');buzz(25);floatText(p.emoji+' +1',player.pos.x,2.2,player.pos.z,'#ffe4a1',30);toast('Mas Bayu: "Kemasan sultan, rasanya juga sultan!"');saveProgress();updateHUD();openBayuShop();}
  }));
  buttons.push({t:'Tutup',cls:'ghost'});
  modal('☕ Stand Kopi Sultan','Ide absurd Mas Bayu akhirnya jadi usaha sungguhan! Pilih kopi sachet premium. Bawa ke dapur untuk meminumnya dan memulihkan energi.\n\nUangmu: '+rp(S.money)+' · Energi: '+Math.round(S.energy)+'/100',buttons);
 }
 function openShop(){
  const tot=sellTotal(),b=[];
- SEEDS.filter(k=>!FAST_SEEDS.includes(k)).forEach(k=>{const c=CROPS[k];b.push({t:c.emoji+' Bibit '+c.name+' — '+rp(c.seed)+' (punya '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});});
+ SEEDS.filter(k=>!FAST_SEEDS.includes(k)).forEach(k=>{const c=CROPS[k];b.push({t:c.emoji+' Bibit '+c.name+' — '+rp(c.seed)+' (punya '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{if(!bagRoomFor('seed',k,1))return toast('Backpack is full! 🎒');S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});});
  b.push({t:'🌱 Bibit Cepat Panen (1 hari) ▸',keep:true,fn:()=>openFastSeeds()});
  const spr=S.sprinkler|0;
  b.push(spr>=2?{t:'💦 Sprinkler kebun: lengkap ✔',keep:true,cls:'ghost dis'}:{t:'💦 '+(spr===0?'Sprinkler baris belakang':'Sprinkler baris depan')+' — '+rp(SPRINKLER_COST[spr])+'  (siram otomatis tiap pagi)',keep:true,cls:S.money<SPRINKLER_COST[spr]?'ghost dis':'',fn:()=>{const cost=SPRINKLER_COST[S.sprinkler|0];if(S.money<cost)return;S.money-=cost;S.sprinkler=(S.sprinkler|0)+1;refreshSprinklers();sfx('coin');buzz(30);toast('Sprinkler terpasang! Petak '+(S.sprinkler>=2?'seluruh kebun':'baris belakang')+' disiram otomatis tiap pagi 💦');saveProgress();updateHUD();openShop();}});
 
- b.push({t:'🧪 Pupuk — '+rp(FERT_PRICE)+' (punya '+(S.fert||0)+')  +1 hari tumbuh, panen ×2',keep:true,cls:S.money<FERT_PRICE?'ghost dis':'',fn:()=>{S.money-=FERT_PRICE;S.fert=(S.fert||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});
+ b.push({t:'🧪 Pupuk — '+rp(FERT_PRICE)+' (punya '+(S.fert||0)+')  +1 hari tumbuh, panen ×2',keep:true,cls:S.money<FERT_PRICE?'ghost dis':'',fn:()=>{if(!bagRoomFor('fert','fert',1))return toast('Backpack is full! 🎒');S.money-=FERT_PRICE;S.fert=(S.fert||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});
  b.push({t:'🍘 Gorengan — Rp 10 (+20 ⚡)',keep:true,cls:S.money<10?'ghost dis':'',fn:()=>{S.money-=10;S.energy=Math.min(100,S.energy+20);sfx('pop');saveProgress();updateHUD();openShop();}});
  b.push({t:tot>0?'💰 Jual semua hasil ('+rp(tot)+')':'Belum ada yang dijual',keep:true,cls:tot>0?'':'ghost dis',fn:()=>{S.money+=tot;for(const k of Object.keys(S.inv))if(ITEM[k]&&ITEM[k].price>0)delete S.inv[k];sfx('coin');buzz(30);floatText('+'+rp(tot),player.pos.x,2.4,player.pos.z,'#c8ff9a',36);toast('Terjual! +'+rp(tot));saveProgress();updateHUD();openShop();}});
  b.push({t:'Tutup',cls:'ghost'});
  modal('🛒 Warung Bu Sari','Uangmu: '+rp(S.money)+'   ·   ⚡ Energi: '+Math.round(S.energy)+'/100',b);
 }
 function openFastSeeds(){
- const b=FAST_SEEDS.map(k=>{const c=CROPS[k];return {t:c.emoji+' Bibit '+c.name+' — '+rp(c.seed)+' → jual '+rp(c.price)+' (punya '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{if(S.money<c.seed)return;S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openFastSeeds();}};});
+ const b=FAST_SEEDS.map(k=>{const c=CROPS[k];return {t:c.emoji+' Bibit '+c.name+' — '+rp(c.seed)+' → jual '+rp(c.price)+' (punya '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{if(S.money<c.seed)return;if(!bagRoomFor('seed',k,1))return toast('Backpack is full! 🎒');S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openFastSeeds();}};});
  b.push({t:'◂ Kembali',keep:true,cls:'ghost',fn:()=>openShop()});
  modal('🌱 Bibit Cepat Panen','Sayuran sehari panen! Tanam, siram, tidur — besoknya langsung matang. Untungnya kecil, cocok untuk pemula yang belum punya banyak modal.\n\nUangmu: '+rp(S.money),b);
 }
@@ -2915,12 +3027,67 @@ function openTV(){
   {t:'🛋️ Nonton 1 jam (+8⚡)',fn:()=>{S.time=Math.min(1439,S.time+60);S.energy=Math.min(100,S.energy+8);toast(TVPROG[Math.floor(Math.random()*TVPROG.length)]);sfx('pop');saveProgress();updateHUD();}},
   {t:'Tidak jadi',cls:'ghost'}]);
 }
-function openBag(){
- let items='';for(const k in S.inv)if(S.inv[k]>0)items+=ITEM[k].emoji+' '+ITEM[k].name+' ×'+S.inv[k]+'   ';
- let seeds=SEEDS.map(k=>CROPS[k].emoji+' ×'+(S.seeds[k]||0)).join('   ')+'   🧪 ×'+(S.fert||0);
- let fr='';npcs.forEach(n=>{fr+=n.def.name+'  '+hearts(n)+'\n';});
- modal('🎒 Tas & Catatan','💰 '+rp(S.money)+'\n\nHasil: '+(items||'(kosong)')+'\nBibit: '+seeds+'\n\nTeman desa:\n'+fr+'\n🌽 Panen: '+S.stats.harvest+'   🎣 Tangkapan: '+S.stats.fish,[{t:'Tutup',cls:'ghost'}]);
+
+/* ---------- backpack: 5x5 slots, 99 per stack, Use / Drop on consumables ---------- */
+const BAG_SLOTS=25,BAG_STACK=99;
+const bag={open:false,sel:0,tab:'items'};
+function bagEntries(){const o=[];
+ Object.keys(FISH).forEach(k=>{if((S.inv[k]|0)>0)o.push({kind:'inv',key:k,n:S.inv[k]});});
+ Object.keys(CROPS).forEach(k=>{if((S.inv[k]|0)>0)o.push({kind:'inv',key:k,n:S.inv[k]});});
+ BAYU_GOODS.forEach(g=>{if((S.inv[g.id]|0)>0)o.push({kind:'inv',key:g.id,n:S.inv[g.id]});});
+ SEEDS.forEach(k=>{if((S.seeds[k]|0)>0)o.push({kind:'seed',key:k,n:S.seeds[k]});});
+ if((S.fert|0)>0)o.push({kind:'fert',key:'fert',n:S.fert});
+ return o;}
+function bagSlots(){const sl=[];bagEntries().forEach(e=>{let n=e.n;while(n>0){sl.push({kind:e.kind,key:e.key,n:Math.min(BAG_STACK,n),total:e.n});n-=BAG_STACK;}});return sl;}
+function bagRoomFor(kind,key,n){let used=0,found=false;bagEntries().forEach(e=>{let c=e.n;if(e.kind===kind&&e.key===key){c+=n;found=true;}used+=Math.ceil(c/BAG_STACK);});if(!found)used+=Math.ceil(n/BAG_STACK);return used<=BAG_SLOTS;}
+function bagAdd(kind,key,n){let added=0;while(added<n&&bagRoomFor(kind,key,added+1))added++;
+ if(added>0){if(kind==='seed')S.seeds[key]=(S.seeds[key]|0)+added;else if(kind==='fert')S.fert=(S.fert|0)+added;else S.inv[key]=(S.inv[key]|0)+added;}
+ if(added<n)toast('Backpack is full! 🎒');return added;}
+function bagMeta(sl){
+ if(sl.kind==='seed'){const c=CROPS[sl.key];return {name:c.name+' Seeds',emoji:c.emoji,tag:'🌱',rar:0,cons:false,desc:'Plant on tilled soil with the Seeds tool. Ripens after '+c.need+' watered day'+(c.need>1?'s':'')+'.'};}
+ if(sl.kind==='fert')return {name:'Fertilizer',emoji:'🧪',rar:1,cons:false,desc:'Use the Fertilizer tool on a growing crop: +1 growth day and a double harvest.'};
+ const it=ITEM[sl.key],e=EAT[sl.key]||0,price=it.price||0,isFish=!!FISH[sl.key],good=BAYU_GOODS.find(g=>g.id===sl.key);
+ const rar=good?(e>=40?3:1):rarityByPrice(price);
+ const desc=(isFish?'Fresh catch. ':good?'Premium instant coffee. ':'Fresh harvest. ')+(price>0?'Sells for '+rp(price)+', or eat':'Drink')+' it for +'+e+' energy (takes 15 min).';
+ return {name:it.name,emoji:it.emoji,fish:isFish?sl.key:null,rar,cons:e>0,desc};}
+function bagIconEl(meta,cls){const w=document.createElement('div');if(meta.fish){w.appendChild(copyCanvas(fishIcon(meta.fish)));}else{const sp=document.createElement('span');sp.className='em';sp.textContent=meta.emoji;w.appendChild(sp);}
+ while(w.firstChild&&false);return w;}
+function openBag(){bag.open=true;modalOpen=true;$('bag').style.display='flex';bagRender();}
+function closeBag(){bag.open=false;modalOpen=false;$('bag').style.display='none';}
+function bagUse(){const sl=bagSlots()[bag.sel];if(!sl||sl.kind!=='inv')return;const e=EAT[sl.key];if(!e)return;
+ if(S.energy>=100)return toast('Your energy is already full 😊');
+ const it=ITEM[sl.key];S.inv[sl.key]--;if(S.inv[sl.key]<=0)delete S.inv[sl.key];
+ S.energy=Math.min(100,S.energy+e);S.time=Math.min(1439,S.time+15);swing('eat');sfx('pop');toast('Yum! '+it.emoji+' +'+e+' energy');saveProgress();updateHUD();bagRender();}
+function bagDrop(all){const sl=bagSlots()[bag.sel];if(!sl||sl.kind!=='inv')return;const n=all?sl.n:1;
+ S.inv[sl.key]=Math.max(0,(S.inv[sl.key]|0)-n);if(S.inv[sl.key]<=0)delete S.inv[sl.key];
+ sfx('pop');toast('Dropped '+ITEM[sl.key].emoji+' ×'+n);saveProgress();updateHUD();bagRender();}
+function bagRender(){
+ const slots=bagSlots();if(bag.sel>=slots.length)bag.sel=Math.max(0,slots.length-1);
+ $('bagCap').textContent=slots.length+' / '+BAG_SLOTS;$('bagMoney').textContent='💰 '+rp(S.money)+'   ·   ⚡ '+Math.round(S.energy)+' / 100';
+ document.querySelectorAll('.btab').forEach(t=>t.classList.toggle('on',t.dataset.t===bag.tab));
+ const items=bag.tab==='items';$('bagGrid').style.display=items?'grid':'none';$('bagDetail').style.display=items?'flex':'none';$('bagNotes').style.display=items?'none':'block';
+ if(!items){let fr='';npcs.forEach(n=>{fr+=n.def.name+'  '+hearts(n)+'\n';});
+  $('bagNotes').textContent='Village friends\n'+fr+'\n🌽 Harvested: '+S.stats.harvest+'     🎣 Caught: '+S.stats.fish+'\n🏠 Dream: '+rp(S.money)+' / '+rp(CFG().goalMoney);return;}
+ const grid=$('bagGrid');grid.innerHTML='';
+ for(let i=0;i<BAG_SLOTS;i++){const el=document.createElement('div'),sl=slots[i];
+  if(!sl){el.className='bslot empty';}
+  else{const m=bagMeta(sl);el.className='bslot r'+m.rar+(i===bag.sel?' sel':'');
+   if(m.fish)el.appendChild(copyCanvas(fishIcon(m.fish)));else{const sp=document.createElement('span');sp.className='em';sp.textContent=m.emoji;el.appendChild(sp);}
+   if(m.tag){const t=document.createElement('span');t.className='tag';t.textContent=m.tag;el.appendChild(t);}
+   const c=document.createElement('span');c.className='cnt';c.textContent='×'+sl.n;el.appendChild(c);
+   el.addEventListener('click',()=>{bag.sel=i;sfx('pop');bagRender();});}
+  grid.appendChild(el);}
+ const ic=$('bdIcon'),nm=$('bdName'),rr=$('bdRar'),ds=$('bdDesc'),bb=$('bdBtns');bb.innerHTML='';ic.innerHTML='';
+ const sl=slots[bag.sel];
+ if(!sl){ic.className='r0';ic.innerHTML='<span class="em">🎒</span>';nm.textContent='Empty backpack';rr.textContent='';ds.textContent='Harvest crops, go fishing or shop to fill your slots. Each slot holds up to 99 of the same item.';return;}
+ const m=bagMeta(sl);ic.className='r'+m.rar;
+ if(m.fish)ic.appendChild(copyCanvas(fishIcon(m.fish)));else{const sp=document.createElement('span');sp.className='em';sp.textContent=m.emoji;ic.appendChild(sp);}
+ nm.textContent=m.name;rr.textContent=RARITY[m.rar][0]+(sl.total>sl.n?'  ·  total ×'+sl.total:'  ·  ×'+sl.n);ds.textContent=m.desc;
+ if(m.cons){const mk=(t,cls,fn,dis)=>{const b=document.createElement('div');b.className='bbtn '+cls+(dis?' dis':'');b.textContent=t;b.addEventListener('click',e=>{e.stopPropagation();fn();});bb.appendChild(b);};
+  mk('🍽 Use','use',bagUse,S.energy>=100);mk('🗑 Drop','drop',()=>bagDrop(false));if(sl.n>1)mk('Drop all','dall',()=>bagDrop(true));}
 }
+function bagBind(){$('bagX').addEventListener('click',closeBag);$('bag').addEventListener('pointerdown',e=>{if(e.target===$('bag'))closeBag();});
+ document.querySelectorAll('.btab').forEach(t=>t.addEventListener('click',()=>{bag.tab=t.dataset.t;sfx('pop');bagRender();}));}
 function checkGoal(){
  if(S.goalDone||S.money<CFG().goalMoney||dlg.open||modalOpen||busy)return;S.goalDone=true;saveProgress();
  modal('🎉 Impian Tercapai!','Tabunganmu sudah '+rp(S.money)+'!\nKamu cukup modal untuk membuka warung kecil di depan rumah nenek. Teman-teman desa bangga padamu.\n\nTapi hidup di desa tidak buru-buru... lanjut santai?',[{t:'🌾 Lanjut hidup santai'}]);
@@ -2983,10 +3150,11 @@ function bindInput(){
  $('hv').addEventListener('pointerdown',e=>{e.preventDefault();startHarvest();});
  const tb=$('tools');TOOLS.forEach((t,i)=>{const d=document.createElement('div');d.className='tool';d.innerHTML='<span class="e">'+TOOL_UI[t][0]+'</span><span>'+TOOL_UI[t][1]+'</span>'+(t==='seed'?'<span id="tc1" style="font-size:20px"></span>':t==='fert'?'<span id="tc2" style="font-size:20px"></span>':'');
   d.addEventListener('pointerdown',e=>{e.preventDefault();if(busy||dlg.open||modalOpen||harv.active||resting)return;if(riding){toast('Turun dulu dari kendaraan ya 🙂');return;}if(t==='seed'&&S.tool===i){S.seedSel=(S.seedSel+1)%SEEDS.length;toast('Bibit: '+CROPS[SEEDS[S.seedSel]].emoji+' '+CROPS[SEEDS[S.seedSel]].name,1400);}setTool(i);updateHUD();});tb.appendChild(d);});tb.appendChild($('hv'));
+ bagBind();
  $('bBag').addEventListener('click',()=>{if(started&&!busy&&!dlg.open&&!modalOpen)openBag();});
  $('bMute').addEventListener('click',()=>{muted=!muted;$('bMute').textContent=muted?'🔇':'🔊';if(master)master.gain.value=muted?0:.8;});
  $('dText').addEventListener('click',()=>{dlg.shown=dlg.text.length;});
- window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=true;if(k===' '||k==='e'||k==='enter'){e.preventDefault();doAction();}if(k==='h')startHarvest();if(k>='1'&&k<='5'&&started&&!dlg.open&&!modalOpen&&!riding&&!resting)setTool(+k-1);if(k==='b'&&started&&!dlg.open&&!modalOpen&&!resting)openBag();});
+ window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=true;if(k===' '||k==='e'||k==='enter'){e.preventDefault();doAction();}if(k==='h')startHarvest();if(k>='1'&&k<='5'&&started&&!dlg.open&&!modalOpen&&!riding&&!resting)setTool(+k-1);if(k==='b'){if(bag.open)closeBag();else if(started&&!dlg.open&&!modalOpen&&!resting)openBag();}if(k==='escape'&&bag.open)closeBag();});
  window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
  window.addEventListener('resize',()=>{renderer.setSize(window.innerWidth,window.innerHeight,false);camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();});
 }
