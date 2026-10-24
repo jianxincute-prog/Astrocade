@@ -46,15 +46,15 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
 #act:active{transform:translateY(5px)}
 #actIcon{font-size:32px;line-height:1}
 #actLbl{font-size:16px;font-weight:800;text-align:center}
-#hv.tool{position:relative;right:auto;bottom:auto;flex:0 0 92px;background:rgba(255,247,226,.94);border-color:#8a5a2b;opacity:.78}
+#hv.tool{position:relative;right:auto;bottom:auto;flex:0 0 76px;background:rgba(255,247,226,.94);border-color:#8a5a2b;opacity:.78}
 #hv.tool.ready{opacity:1;background:#fff3c4;border-color:#6c9a36;animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{box-shadow:0 4px 0 rgba(50,80,25,.3),0 0 0 0 rgba(255,230,90,.8)}50%{box-shadow:0 4px 0 rgba(50,80,25,.3),0 0 0 12px rgba(255,230,90,0)}}
 #hv.tool:active{transform:translateY(4px)}
 #hvn{position:absolute;top:-5px;right:-5px;min-width:28px;height:28px;border-radius:14px;background:#d33;color:#fff;font-style:normal;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0 5px}
 #hvn:empty{display:none}
 #hint{position:absolute;right:18px;bottom:222px;width:205px;text-align:center;font-size:18px;font-weight:700;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.7);pointer-events:none}
-#tools{position:absolute;right:20px;bottom:18px;left:auto;transform:none;display:flex;gap:8px;pointer-events:auto}
-.tool{position:relative;width:92px;height:92px;flex:0 0 92px;border-radius:18px;background:rgba(255,247,226,.94);border:4px solid #8a5a2b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:16px;line-height:1.05}
+#tools{position:absolute;right:20px;bottom:18px;left:auto;transform:none;display:flex;gap:6px;pointer-events:auto}
+.tool{position:relative;width:76px;height:84px;flex:0 0 76px;border-radius:18px;background:rgba(255,247,226,.94);border:4px solid #8a5a2b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:14px;line-height:1.05}
 .tool span.e{font-size:32px}
 .tool.sel{border-color:#f2a33a;background:#fff3c4;transform:translateY(-5px);box-shadow:0 0 0 3px rgba(255,200,60,.6)}
 #fishUI{left:60px;right:60px;top:450px;padding:16px 20px;text-align:center;display:none;pointer-events:none}
@@ -198,8 +198,9 @@ const BAYU_GOODS=[
 ];
 BAYU_GOODS.forEach(p=>{ITEM[p.id]=p;EAT[p.id]=p.energy;});
 const SEEDS=['corn','tomato','chili'];
-const TOOLS=['hoe','seed','water','rod'];
-const TOOL_UI={hoe:['⛏️','Cangkul'],seed:['🌱','Bibit'],water:['💧','Siram'],rod:['🎣','Pancing']};
+const TOOLS=['hoe','seed','water','rod','fert']; // 'fert' is last so old saves keep their tool index
+const FERT_PRICE=35;
+const TOOL_UI={hoe:['⛏️','Cangkul'],seed:['🌱','Bibit'],water:['💧','Siram'],rod:['🎣','Pancing'],fert:['🧪','Pupuk']};
 // Bu Sari's backyard pond: several meters behind the warung, with a clear gap from nearby houses.
 const POND={x:13,z:-25.5,r:6};
 // The well sits in a clear space east of the plaza, outside its pale circular paving.
@@ -313,7 +314,7 @@ const NPCS=[
 ];
 
 function newState(o){return {v:1,name:o.gender==='m'?'Raka':'Rani',gender:o.gender,hairStyle:o.hairStyle,hairColor:o.hairColor,
- money:CFG().startMoney,day:1,time:360,energy:100,seeds:{corn:4,tomato:0,chili:3},inv:{},fp:{},reqIdx:{},reqDone:{},talked:{},tiles:[],weather:'sun',tool:0,seedSel:0,stats:{fish:0,harvest:0},goalDone:false,px:-11,pz:-6.6,loc:'out'};}
+ money:CFG().startMoney,day:1,time:360,energy:100,seeds:{corn:4,tomato:0,chili:3},fert:2,inv:{},fp:{},reqIdx:{},reqDone:{},talked:{},tiles:[],weather:'sun',tool:0,seedSel:0,stats:{fish:0,harvest:0},goalDone:false,px:-11,pz:-6.6,loc:'out'};}
 let S=newState({gender:'m',hairStyle:'short',hairColor:1});
 const opt={gender:'m',hairStyle:'short',hairColor:1};
 let saved=null,started=false,busy=false,modalOpen=false,T=0,hudT=0,warnedNight=false,loc='out',hvKey=-1;
@@ -469,9 +470,10 @@ function addTools(c){
  c.rodTip=new THREE.Object3D();c.rodTip.position.set(0,0,1.7);rod.add(c.rodTip);
  const sick=new THREE.Group();const sh=mesh(new THREE.CylinderGeometry(.03,.03,.5,6),0x8a5a2b,0,0,.2);sh.rotation.x=Math.PI/2;sick.add(sh);
  const sb=mesh(new THREE.TorusGeometry(.3,.028,6,16,Math.PI*1.15),0xcfd5db,-.27,0,.55);sb.rotation.x=Math.PI/2;sick.add(sb);sick.add(mesh(new THREE.SphereGeometry(.04,6,5),0x6b4426,0,0,-.06));
- c.tools={hoe,seed,water:can,rod,sickle:sick};for(const k in c.tools){c.tools[k].visible=false;c.hand.add(c.tools[k]);}
+ const fert=new THREE.Group();const sack=mesh(new THREE.SphereGeometry(.15,10,8),0xd8c493,0,0,.1);sack.scale.set(1,1.15,.85);fert.add(sack);fert.add(mesh(new THREE.CylinderGeometry(.07,.09,.07,8),0x9a7a46,0,.18,.1));fert.add(mesh(new THREE.TorusGeometry(.14,.018,5,12),0x6aa84a,0,0,.1));
+ c.tools={hoe,seed,water:can,rod,sickle:sick,fert};for(const k in c.tools){c.tools[k].visible=false;c.hand.add(c.tools[k]);}
 }
-function setHeld(c,tool){for(const k in c.tools)c.tools[k].visible=(k===tool);c.hold={hoe:-.6,seed:-.35,water:-.7,rod:-.85,sickle:-1.1}[tool]||0;}
+function setHeld(c,tool){for(const k in c.tools)c.tools[k].visible=(k===tool);c.hold={hoe:-.6,seed:-.35,water:-.7,rod:-.85,sickle:-1.1,fert:-.4}[tool]||0;}
 const _rideTarget=new THREE.Vector3(),_rideLocal=new THREE.Vector3(),_rideQuat=new THREE.Quaternion();
 function aimRideArm(arm,grip,pose,rootScale){
  _rideTarget.set(grip[0]/rootScale,(grip[1]-pose.seatY)/rootScale,(grip[2]-pose.seatZ)/rootScale).sub(arm.position);
@@ -480,24 +482,66 @@ function aimRideArm(arm,grip,pose,rootScale){
  _rideLocal.set(0,-.43*stretch,.04).normalize();_rideTarget.normalize();
  _rideQuat.setFromUnitVectors(_rideLocal,_rideTarget);arm.quaternion.copy(_rideQuat);
 }
-function animChar(c,dt,mv,talking){
- c.t+=dt*(mv>.05?9:2);
+// Locomotion cycle: stride phase advances with real ground speed (spd, world units/s) so feet do not skate, and the
+// walk amplitude / hold-pose blend are eased so starting, stopping and switching tools never pop.
+const easeIO=x=>x*x*(3-2*x);
+function animChar(c,dt,mv,talking,spd){
+ if(spd==null)spd=mv*4.2;
+ const ease=Math.min(1,dt*10);
+ const amp=mv>.05?clamp(.4+spd*.15,.4,1):0;
+ c.amp=(c.amp||0)+(amp-(c.amp||0))*ease;
+ c.ti=(c.ti||0)+dt*2;
+ if(mv>.05)c.t+=dt*clamp(spd*2.6,3.5,12);
+ const holdTarget=c.hold||0;
+ c.holdS=(c.holdS==null?holdTarget:c.holdS+(holdTarget-c.holdS)*ease);
+ c.holdW=(c.holdW==null?(c.hold?1:0):c.holdW+((c.hold?1:0)-c.holdW)*ease);
+ c.lean=c.lean||0;
  if(c.ride){const p=c.ridePose||{leg:-.95,arm:-1.2},ped=c.ride==='ontel';
   c.legL.rotation.x=ped?p.leg+Math.sin(c.pedal)*.55:p.leg;c.legR.rotation.x=ped?p.leg+Math.sin(c.pedal+Math.PI)*.55:p.leg;
-  c.g.rotation.y=0;c.g.position.y=0;
+  c.g.rotation.y=0;c.g.rotation.x=0;c.g.position.y=0;
   if(c.ride==='supra'&&p.grips){const rs=c.root.scale.x||1;aimRideArm(c.armL,p.grips[0],p,rs);aimRideArm(c.armR,p.grips[1],p,rs);}
   else{c.armL.scale.set(1,1,1);c.armR.scale.set(1,1,1);c.armL.rotation.set(p.arm,0,0);c.armR.rotation.set(p.arm,0,0);}
  }
- else{const s=Math.sin(c.t)*.8*mv;
+ else{const s=Math.sin(c.t)*.8*c.amp,idle=1-c.amp;
   c.armL.scale.set(1,1,1);c.armR.scale.set(1,1,1);
-  c.legL.rotation.x=s;c.legR.rotation.x=-s;c.armL.rotation.set(-s*.8,0,0);
-  c.armR.rotation.set(c.hold?c.hold+s*.2+c.swing:-s*.8+c.swing,(c.sweep||0),0);
-  c.g.rotation.y=-(c.sweep||0)*.3;
-  c.g.position.y=Math.abs(Math.sin(c.t))*.06*mv+Math.sin(c.t*.9)*.012*(1-mv);}
+  c.legL.rotation.x=s;c.legR.rotation.x=-s;
+  // idle breathing sways the arms very slightly so a standing character is never frozen
+  const br=Math.sin(c.ti*.9)*.04*idle;
+  c.armL.rotation.set(-s*.8+br,0,0);
+  const free=-s*.8+br,held=c.holdS+s*.2;
+  c.armR.rotation.set(free+(held-free)*c.holdW+c.swing,(c.sweep||0),0);
+  c.g.rotation.y=-(c.sweep||0)*.3;c.g.rotation.x=c.lean;
+  c.g.position.y=Math.abs(Math.sin(c.t))*.06*c.amp+Math.sin(c.ti*.9)*.012*idle;}
+ if(c.tools&&c.tools.water)c.tools.water.rotation.z=c.toolRoll||0;
  c.blinkT-=dt;if(c.blinkT<0){c.blink=.12;c.blinkT=rnd(2.5,5);}
  c.blink-=dt;
- const want=c.blink>0?'blink':(talking&&Math.sin(c.t*3.2+c.t*5)>0?'talk':'open');
+ const want=c.blink>0?'blink':(talking&&Math.sin(c.ti*3.2+c.ti*5)>0?'talk':'open');
  if(c.cur!==want){c.cur=want;c.faceMat.map=c.faceTex[want];c.faceMat.needsUpdate=true;}
+}
+// One-shot action poses (anticipation -> strike -> recovery), each with its own timing: arm swing, body lean, can tilt.
+const ACT_DUR={hoe:.6,water:.9,seed:.4,cast:.65,eat:1.3};
+function actPose(kind,u){
+ const sm=easeIO,lerpF=(a,b2,t)=>a+(b2-a)*t;
+ switch(kind){
+  case 'hoe':{ // raise behind the head, chop down hard, ease back
+   if(u<.35){const k=sm(u/.35);return {arm:lerpF(0,.9,k),lean:lerpF(0,-.08,k),roll:0};}
+   if(u<.55){const k=sm((u-.35)/.2);return {arm:lerpF(.9,-1.5,k),lean:lerpF(-.08,.24,k),roll:0};}
+   const k=sm((u-.55)/.45);return {arm:lerpF(-1.5,0,k),lean:lerpF(.24,0,k),roll:0};}
+  case 'water':{ // lift the can, tip it, hold, then level it
+   if(u<.25){const k=sm(u/.25);return {arm:-.55*k,lean:.05*k,roll:0};}
+   if(u<.7){const k=sm((u-.25)/.45);return {arm:-.55,lean:.05,roll:-1.0*k};}
+   const k=sm((u-.7)/.3);return {arm:lerpF(-.55,0,k),lean:lerpF(.05,0,k),roll:lerpF(-1.0,0,k)};}
+  case 'seed':{ // short underhand scatter flick
+   if(u<.3)return {arm:.35*sm(u/.3),lean:.04*sm(u/.3),roll:0};
+   const k=sm((u-.3)/.7);return {arm:lerpF(.35,0,k)-Math.sin(Math.min(1,(u-.3)/.3)*Math.PI)*.9,lean:.04*(1-k),roll:0};}
+  case 'cast':{ // rod back, whip forward, settle
+   if(u<.4){const k=sm(u/.4);return {arm:.8*k,lean:-.1*k,roll:0};}
+   if(u<.6){const k=sm((u-.4)/.2);return {arm:lerpF(.8,-1.6,k),lean:lerpF(-.1,.14,k),roll:0};}
+   const k=sm((u-.6)/.4);return {arm:lerpF(-1.6,0,k),lean:lerpF(.14,0,k),roll:0};}
+  case 'eat':{ // three bites: hand to mouth and back
+   const bite=Math.pow(Math.sin(Math.min(1,u)*Math.PI*3),2);return {arm:-2.1*bite,lean:.05*bite,roll:0};}
+ }
+ return {arm:0,lean:0,roll:0};
 }
 function nameTag(text){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.font='bold 34px Trebuchet MS, sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=8;x.strokeStyle='rgba(60,30,10,.9)';x.strokeText(text,128,34);x.fillStyle='#fff6d8';x.fillText(text,128,34);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false,fog:false}));s.scale.set(2.2,.55,1);s.renderOrder=10;return s;}
@@ -1852,7 +1896,7 @@ function buildFarm(){
  for(let j=0;j<4;j++)for(let i=0;i<5;i++){const x=FARM.x-4+i*2,z=FARM.z-3+j*2,grp=new THREE.Group();grp.position.set(x,0,z);
   const m=new THREE.Mesh(gT,MT.grass);m.position.y=.07;m.receiveShadow=true;grp.add(m);
   const ridges=[];[-.55,0,.55].forEach(k=>{const r=new THREE.Mesh(gR,MT.rdry);r.position.set(0,.16,k);r.receiveShadow=true;r.visible=false;grp.add(r);ridges.push(r);});
-  const crop=new THREE.Group();crop.position.y=.14;grp.add(crop);scene.add(grp);tiles.push({x,z,s:0,c:null,d:0,w:false,m,ridges,crop,ckey:'x',sway:rnd(0,TAU)});}
+  const crop=new THREE.Group();crop.position.y=.14;grp.add(crop);scene.add(grp);tiles.push({x,z,s:0,c:null,d:0,w:false,f:false,m,ridges,crop,ckey:'x',sway:rnd(0,TAU)});}
  const cg=new THREE.PlaneGeometry(1.9,1.9);cg.rotateX(-Math.PI/2);cursor=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:0xffe14a,transparent:true,opacity:.4,depthWrite:false}));cursor.position.y=.22;cursor.visible=false;scene.add(cursor);
 }
 const gStem=new THREE.CylinderGeometry(.04,.06,1,6),gLeafC=new THREE.ConeGeometry(.12,.5,5),gBall=new THREE.SphereGeometry(1,8,6),gCob=new THREE.CylinderGeometry(.09,.07,.4,7),gChili=new THREE.ConeGeometry(.05,.28,5);
@@ -2396,7 +2440,7 @@ function updateNPC(n,dt){
   else{const dd=Math.hypot(player.pos.x-n.pos.x,player.pos.z-n.pos.z);if(dd<5)n.rot=angLerp(n.rot,Math.atan2(player.pos.x-n.pos.x,player.pos.z-n.pos.z),dt*3);}
  }
  const by=bridgeAt(n.pos.x,n.pos.z);root.position.set(n.pos.x,by>=0?by+.08:0,n.pos.z);root.rotation.y=n.rot;
- if(root.visible)animChar(n.char,dt,mv,talking&&dlg.shown<dlg.text.length);
+ if(root.visible)animChar(n.char,dt,mv,talking&&dlg.shown<dlg.text.length,mv*1.1);
 }
 
 /* ---------- environment ---------- */
@@ -2534,6 +2578,7 @@ function updateHUD(){
  $('hMoney').textContent='💰 '+rp(moneyShown);$('hEnergy').style.width=clamp(S.energy,0,100)+'%';$('hEnergyText').textContent=Math.round(clamp(S.energy,0,100))+' / 100';
  const g=CFG().goalMoney,p=Math.min(100,Math.floor(S.money/g*100));$('hGoal').textContent='🏠 Impian buka usaha: '+p+'%';$('hGoalBar').style.width=p+'%';
  const sc=$('tc1');if(sc)sc.textContent=CROPS[SEEDS[S.seedSel]].emoji+' ×'+(S.seeds[SEEDS[S.seedSel]]||0);
+ const fc=$('tc2');if(fc)fc.textContent='×'+(S.fert||0);
 }
 function setTool(i,silent){S.tool=i;document.querySelectorAll('.tool').forEach((el,k)=>el.classList.toggle('sel',k===i));if(player.char&&!riding&&!harv.active)setHeld(player.char,TOOLS[i]);if(fish.active&&TOOLS[i]!=='rod')cancelFish();}
 
@@ -2570,7 +2615,7 @@ function ctx(){
  if(t)return {k:tool,t};
  return {k:'none',msg:'Dekati petak lahan atau air'};
 }
-const ACT={talk:['💬','Ngobrol'],sleep:['🛏️','Tidur'],harvest:['🌾','Panen'],hoe:['⛏️','Cangkul'],seed:['🌱','Tanam'],water:['💧','Siram'],cast:['🎣','Lempar'],bayuShop:['☕','Belanja'],none:['✋','Aksi'],wait:['⏳','Tunggu'],bite:['❗','TARIK!'],reel:['🎯','Tangkap!'],dismount:['⬇️','Turun'],enter:['🚪','Masuk'],exit:['🚪','Keluar'],cook:['🍳','Dapur'],tv:['📺','Santai'],rest:['🛖','Istirahat'],resting:['⬆️','Bangun']};
+const ACT={talk:['💬','Ngobrol'],sleep:['🛏️','Tidur'],harvest:['🌾','Panen'],hoe:['⛏️','Cangkul'],seed:['🌱','Tanam'],water:['💧','Siram'],cast:['🎣','Lempar'],fert:['🧪','Pupuk'],bayuShop:['☕','Belanja'],none:['✋','Aksi'],wait:['⏳','Tunggu'],bite:['❗','TARIK!'],reel:['🎯','Tangkap!'],dismount:['⬇️','Turun'],enter:['🚪','Masuk'],exit:['🚪','Keluar'],cook:['🍳','Dapur'],tv:['📺','Santai'],rest:['🛖','Istirahat'],resting:['⬆️','Bangun']};
 let actKey='';
 function refreshAct(c){
  let k=c.k;if(k==='fish')k=fish.phase;let a=ACT[k]||ACT.none;if(c.k==='mount')a=[c.v.emoji,'Naik'];
@@ -2578,7 +2623,7 @@ function refreshAct(c){
  const key=a[0]+a[1]+hint;if(key===actKey)return;actKey=key;$('actIcon').textContent=a[0];$('actLbl').textContent=a[1];$('hint').textContent=hint;
 }
 function energyOK(c){if(S.energy<c){toast('Kamu kelelahan... makan gorengan\natau tidur dulu 😮‍💨');return false;}return true;}
-function swing(){player.act=.45;}
+function swing(kind){player.actKind=kind||'seed';player.actDur=ACT_DUR[player.actKind]||.45;player.act=player.actDur;}
 function doAction(){
  if(!started||busy||dlg.open||modalOpen||harv.active)return;unlockAudio();
  const c=ctx();
@@ -2596,10 +2641,11 @@ function doAction(){
   case 'fish':return fishTap();
   case 'talk':return openDialog(c.n);
   case 'harvest':return startHarvest();
-  case 'hoe':{const t=c.t;if(t.s===1)return toast('Tanah ini sudah digarap ✔');if(!energyOK(3))return;S.energy-=3;t.s=1;swing();sfx('till');floatText('-3⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x8b5a2b,10);refreshTile(t);saveProgress();return updateHUD();}
-  case 'seed':{const t=c.t;if(t.s!==1)return toast('Cangkul tanahnya dulu ⛏️');if(t.c)return toast('Sudah ada tanaman di sini');const ty=SEEDS[S.seedSel];if(!(S.seeds[ty]>0))return toast('Bibit '+CROPS[ty].name+' habis.\nBeli di warung Bu Sari 🛒');if(!energyOK(1))return;S.energy-=1;S.seeds[ty]--;t.c=ty;t.d=0;t.w=false;swing();sfx('plant');floatText(CROPS[ty].emoji+' -1⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x6cc04a,6);refreshTile(t);saveProgress();return updateHUD();}
-  case 'water':{const t=c.t;if(!t.c)return toast('Belum ada tanaman di sini');if(t.w)return toast('Sudah basah 💧');if(!energyOK(2))return;S.energy-=2;t.w=true;swing();sfx('water');floatText('💧 -2⚡',t.x,1.2,t.z,'#bfe8ff',24);burst(t.x,.9,t.z,0x6ac4ff,10);refreshTile(t);saveProgress();return updateHUD();}
+  case 'hoe':{const t=c.t;if(t.s===1)return toast('Tanah ini sudah digarap ✔');if(!energyOK(3))return;S.energy-=3;t.s=1;swing('hoe');sfx('till');floatText('-3⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x8b5a2b,10);refreshTile(t);saveProgress();return updateHUD();}
+  case 'seed':{const t=c.t;if(t.s!==1)return toast('Cangkul tanahnya dulu ⛏️');if(t.c)return toast('Sudah ada tanaman di sini');const ty=SEEDS[S.seedSel];if(!(S.seeds[ty]>0))return toast('Bibit '+CROPS[ty].name+' habis.\nBeli di warung Bu Sari 🛒');if(!energyOK(1))return;S.energy-=1;S.seeds[ty]--;t.c=ty;t.d=0;t.w=false;t.f=false;swing('seed');sfx('plant');floatText(CROPS[ty].emoji+' -1⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x6cc04a,6);refreshTile(t);saveProgress();return updateHUD();}
+  case 'water':{const t=c.t;if(!t.c)return toast('Belum ada tanaman di sini');if(t.w)return toast('Sudah basah 💧');if(!energyOK(2))return;S.energy-=2;t.w=true;swing('water');sfx('water');floatText('💧 -2⚡',t.x,1.2,t.z,'#bfe8ff',24);burst(t.x,.9,t.z,0x6ac4ff,10);refreshTile(t);saveProgress();return updateHUD();}
   case 'cast':return startCast();
+  case 'fert':{const t=c.t;if(!t.c)return toast('Belum ada tanaman di sini');if(ripe(t))return toast('Tanaman sudah matang, tinggal dipanen 🌾');if(t.f)return toast('Sudah dipupuk 🧪');if(!(S.fert>0))return toast('Pupuk habis.\nBeli di warung Bu Sari 🛒');if(!energyOK(1))return;S.energy-=1;S.fert--;t.f=true;t.d=Math.min(CROPS[t.c].need,t.d+1);swing('seed');sfx('plant');floatText('🧪 +1 hari',t.x,1.2,t.z,'#d9ffb0',26);burst(t.x,.5,t.z,0x9be45a,10);burst(t.x,.8,t.z,0xffe58a,6);refreshTile(t);saveProgress();return updateHUD();}
   default:return toast(c.msg||'Dekati petak lahan atau air');
  }
 }
@@ -2696,10 +2742,10 @@ function startHarvest(){
 }
 function doHarvestHit(){
  const got={};let any=false;
- harv.targets.forEach(t=>{if(!ripe(t))return;any=true;const n=1+(Math.random()<.25?1:0);S.inv[t.c]=(S.inv[t.c]||0)+n;got[t.c]=(got[t.c]||0)+n;S.stats.harvest++;floatText(CROPS[t.c].emoji+' +'+n,t.x,1.4,t.z);
+ harv.targets.forEach(t=>{if(!ripe(t))return;any=true;const n=t.f?2:1+(Math.random()<.25?1:0);S.inv[t.c]=(S.inv[t.c]||0)+n;got[t.c]=(got[t.c]||0)+n;S.stats.harvest++;floatText(CROPS[t.c].emoji+' +'+n,t.x,1.4,t.z);
   const cg=t.crop.children[0];if(cg){scene.attach(cg);cutPieces.push({o:cg,vx:rnd(-1.2,1.2),vy:rnd(2.5,3.8),vz:rnd(-1.2,1.2),sp:rnd(-6,6),life:.8});}
   burst(t.x,.7,t.z,0xffd84a,8);burst(t.x,.5,t.z,0x6cc04a,8);
-  t.c=null;t.d=0;t.w=false;refreshTile(t);});
+  t.c=null;t.d=0;t.w=false;t.f=false;refreshTile(t);});
  if(any){addShake(.1);buzz(25);sfx('harvest');toast('Panen! '+Object.keys(got).map(k=>CROPS[k].emoji+' '+CROPS[k].name+' ×'+got[k]).join('  '));saveProgress();updateHUD();}
 }
 function updateHarvest(dt){
@@ -2735,7 +2781,7 @@ function startCast(){
   fish.target.set(player.pos.x+dx/d*dist,.1,player.pos.z+dz/d*dist);
   if(Math.hypot(fish.target.x-POND.x,fish.target.z-POND.z)>POND.r-.6){fish.target.x=POND.x-dx/d*3;fish.target.z=POND.z-dz/d*3;}}
  else fish.target.set(sp.x-dx/d*.8,.1,sp.z-dz/d*.8);
- player.rot=Math.atan2(dx,dz);swing();sfx('cast');
+ player.rot=Math.atan2(dx,dz);swing('cast');sfx('cast');
  fish.active=true;fish.phase='wait';fish.t=0;fish.biteAt=rnd(2,5.5);fish.bobber.visible=true;fish.line.visible=true;fish.bobber.position.copy(fish.target);burst(fish.target.x,.1,fish.target.z,0xbfe8ff,8);
  $('fishUI').style.display='block';$('fMsg').textContent=(sp.kind==='river'?'Memancing di sungai... ':'Menunggu ikan... ')+'🎣';$('fBar').style.display='none';triggerFishRipple(fish.target.x,fish.target.z,.7);fishSplash(fish.target.x,fish.target.z,6);
 }
@@ -2819,6 +2865,7 @@ function openBayuShop(){
 function openShop(){
  const tot=sellTotal(),b=[];
  SEEDS.forEach(k=>{const c=CROPS[k];b.push({t:c.emoji+' Bibit '+c.name+' — '+rp(c.seed)+' (punya '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});});
+ b.push({t:'🧪 Pupuk — '+rp(FERT_PRICE)+' (punya '+(S.fert||0)+')  +1 hari tumbuh, panen ×2',keep:true,cls:S.money<FERT_PRICE?'ghost dis':'',fn:()=>{S.money-=FERT_PRICE;S.fert=(S.fert||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});
  b.push({t:'🍘 Gorengan — Rp 10 (+20 ⚡)',keep:true,cls:S.money<10?'ghost dis':'',fn:()=>{S.money-=10;S.energy=Math.min(100,S.energy+20);sfx('pop');saveProgress();updateHUD();openShop();}});
  b.push({t:tot>0?'💰 Jual semua hasil ('+rp(tot)+')':'Belum ada yang dijual',keep:true,cls:tot>0?'':'ghost dis',fn:()=>{S.money+=tot;for(const k of Object.keys(S.inv))if(ITEM[k]&&ITEM[k].price>0)delete S.inv[k];sfx('coin');buzz(30);floatText('+'+rp(tot),player.pos.x,2.4,player.pos.z,'#c8ff9a',36);toast('Terjual! +'+rp(tot));saveProgress();updateHUD();openShop();}});
  b.push({t:'Tutup',cls:'ghost'});
@@ -2827,7 +2874,7 @@ function openShop(){
 function openCook(){
  const b=[];
  Object.keys(S.inv).filter(k=>S.inv[k]>0&&ITEM[k]).sort((a,b)=>Number(BAYU_GOODS.some(p=>p.id===b))-Number(BAYU_GOODS.some(p=>p.id===a))).slice(0,8).forEach(k=>{const it=ITEM[k],e=EAT[k]||10;
-  b.push({t:it.emoji+' Masak & makan '+it.name+' (+'+e+'⚡) ×'+S.inv[k],keep:true,fn:()=>{S.inv[k]--;if(S.inv[k]<=0)delete S.inv[k];S.energy=Math.min(100,S.energy+e);S.time=Math.min(1439,S.time+15);sfx('pop');toast('Nyam! '+it.emoji+' +'+e+' energi');saveProgress();updateHUD();openCook();}});});
+  b.push({t:it.emoji+' Masak & makan '+it.name+' (+'+e+'⚡) ×'+S.inv[k],keep:true,fn:()=>{S.inv[k]--;if(S.inv[k]<=0)delete S.inv[k];S.energy=Math.min(100,S.energy+e);S.time=Math.min(1439,S.time+15);swing('eat');sfx('pop');toast('Nyam! '+it.emoji+' +'+e+' energi');saveProgress();updateHUD();openCook();}});});
  b.push({t:'Tutup',cls:'ghost'});
  modal('🍳 Dapur',b.length>1?'Masak hasil panen atau tangkapanmu. Makan butuh sekitar 15 menit.\n⚡ Energi: '+Math.round(S.energy)+'/100':'Belum ada bahan di dapur.\n⚡ Energi: '+Math.round(S.energy)+'/100\nPanen sayur atau mancing ikan dulu ya!',b);
 }
@@ -2838,7 +2885,7 @@ function openTV(){
 }
 function openBag(){
  let items='';for(const k in S.inv)if(S.inv[k]>0)items+=ITEM[k].emoji+' '+ITEM[k].name+' ×'+S.inv[k]+'   ';
- let seeds=SEEDS.map(k=>CROPS[k].emoji+' ×'+(S.seeds[k]||0)).join('   ');
+ let seeds=SEEDS.map(k=>CROPS[k].emoji+' ×'+(S.seeds[k]||0)).join('   ')+'   🧪 ×'+(S.fert||0);
  let fr='';npcs.forEach(n=>{fr+=n.def.name+'  '+hearts(n)+'\n';});
  modal('🎒 Tas & Catatan','💰 '+rp(S.money)+'\n\nHasil: '+(items||'(kosong)')+'\nBibit: '+seeds+'\n\nTeman desa:\n'+fr+'\n🌽 Panen: '+S.stats.harvest+'   🎣 Tangkapan: '+S.stats.fish,[{t:'Tutup',cls:'ghost'}]);
 }
@@ -2862,7 +2909,7 @@ function nextDay(forced){
  updateHUD();saveGame();
  toast(forced?'Kamu ketiduran di jalan... diantar warga pulang, bangun jam 08.00 😪':'Hari ke-'+S.day+(S.weather==='rain'?' · hujan 🌧️ (tanaman otomatis tersiram)':' · cerah ☀️'),3200);
 }
-function serialize(){const restSpot=resting?findSaungExitSpot():null,saveX=restSpot?restSpot.x:player.pos.x,saveZ=restSpot?restSpot.z:player.pos.z;S.px=saveX;S.pz=saveZ;S.loc=loc;S.tiles=tiles.map(t=>[t.s,t.c,t.d,t.w?1:0]);S.veh={};for(const k in vehicles){const v=vehicles[k];S.veh[k]=[v.x,v.z,v.rot];}return S;}
+function serialize(){const restSpot=resting?findSaungExitSpot():null,saveX=restSpot?restSpot.x:player.pos.x,saveZ=restSpot?restSpot.z:player.pos.z;S.px=saveX;S.pz=saveZ;S.loc=loc;S.tiles=tiles.map(t=>[t.s,t.c,t.d,t.w?1:0,t.f?1:0]);S.veh={};for(const k in vehicles){const v=vehicles[k];S.veh[k]=[v.x,v.z,v.rot];}return S;}
 let saveWorker=null,queuedSave=null,saveRevision=0;
 function saveGame(){
  const L=safeLib();if(!L||!L.saveUserGameState)return Promise.resolve(false);
@@ -2877,12 +2924,13 @@ window.addEventListener('pagehide',()=>{if(started)saveGame();});
 document.addEventListener('visibilitychange',()=>{if(started&&document.visibilityState==='hidden')saveGame();});
 function applyState(){
  resting=null;if(riding)dismount();
+ S.fert=S.fert|0;
  harv.active=false;
  const l=S.loc==='in'?'in':'out';setLoc(l);
  if(l==='in'&&(S.px==null||S.px<500)){S.px=IN.x;S.pz=IN.z+5.2;}
  player.pos.set(S.px==null?-11:S.px,0,S.pz==null?-6.6:S.pz);player.rot=l==='in'?Math.PI:0;buildPlayer();
  for(const k in vehicles){const v=vehicles[k],d=S.veh&&S.veh[k];if(d){v.x=d[0];v.z=d[1];v.rot=d[2];const legacy=v.id==='supra'?(Math.hypot(v.x+5.4,v.z+8.8)<.2||Math.hypot(v.x+.7,v.z+13.25)<.2):(Math.hypot(v.x+4.2,v.z+10.4)<.2||Math.hypot(v.x+4.1,v.z+13.25)<.2);if(legacy){v.x=v.dx;v.z=v.dz;v.rot=v.drot;}}else{v.x=v.dx;v.z=v.dz;v.rot=v.drot;}v.vel=0;v.lean=0;}
- tiles.forEach((t,i)=>{const d=S.tiles&&S.tiles[i];if(d){t.s=d[0];t.c=d[1];t.d=d[2];t.w=!!d[3];}else{t.s=0;t.c=null;t.d=0;t.w=false;}refreshTile(t);});
+ tiles.forEach((t,i)=>{const d=S.tiles&&S.tiles[i];if(d){t.s=d[0];t.c=d[1];t.d=d[2];t.w=!!d[3];t.f=!!d[4];}else{t.s=0;t.c=null;t.d=0;t.w=false;t.f=false;}refreshTile(t);});
  setTool(S.tool||0,true);npcSnap();moneyShown=S.money;updateHUD();
 }
 
@@ -2900,12 +2948,12 @@ function bindInput(){
  const dend=e=>{if(dr&&e.pointerId===dr.id)dr=null;};gl.addEventListener('pointerup',dend);gl.addEventListener('pointercancel',dend);
  $('act').addEventListener('pointerdown',e=>{e.preventDefault();buzz(10);doAction();});
  $('hv').addEventListener('pointerdown',e=>{e.preventDefault();startHarvest();});
- const tb=$('tools');TOOLS.forEach((t,i)=>{const d=document.createElement('div');d.className='tool';d.innerHTML='<span class="e">'+TOOL_UI[t][0]+'</span><span>'+TOOL_UI[t][1]+'</span>'+(t==='seed'?'<span id="tc1" style="font-size:20px"></span>':'');
+ const tb=$('tools');TOOLS.forEach((t,i)=>{const d=document.createElement('div');d.className='tool';d.innerHTML='<span class="e">'+TOOL_UI[t][0]+'</span><span>'+TOOL_UI[t][1]+'</span>'+(t==='seed'?'<span id="tc1" style="font-size:20px"></span>':t==='fert'?'<span id="tc2" style="font-size:20px"></span>':'');
   d.addEventListener('pointerdown',e=>{e.preventDefault();if(busy||dlg.open||modalOpen||harv.active||resting)return;if(riding){toast('Turun dulu dari kendaraan ya 🙂');return;}if(t==='seed'&&S.tool===i){S.seedSel=(S.seedSel+1)%3;toast('Bibit: '+CROPS[SEEDS[S.seedSel]].emoji+' '+CROPS[SEEDS[S.seedSel]].name,1400);}setTool(i);updateHUD();});tb.appendChild(d);});tb.appendChild($('hv'));
  $('bBag').addEventListener('click',()=>{if(started&&!busy&&!dlg.open&&!modalOpen)openBag();});
  $('bMute').addEventListener('click',()=>{muted=!muted;$('bMute').textContent=muted?'🔇':'🔊';if(master)master.gain.value=muted?0:.8;});
  $('dText').addEventListener('click',()=>{dlg.shown=dlg.text.length;});
- window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=true;if(k===' '||k==='e'||k==='enter'){e.preventDefault();doAction();}if(k==='h')startHarvest();if(k>='1'&&k<='4'&&started&&!dlg.open&&!modalOpen&&!riding&&!resting)setTool(+k-1);if(k==='b'&&started&&!dlg.open&&!modalOpen&&!resting)openBag();});
+ window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=true;if(k===' '||k==='e'||k==='enter'){e.preventDefault();doAction();}if(k==='h')startHarvest();if(k>='1'&&k<='5'&&started&&!dlg.open&&!modalOpen&&!riding&&!resting)setTool(+k-1);if(k==='b'&&started&&!dlg.open&&!modalOpen&&!resting)openBag();});
  window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
  window.addEventListener('resize',()=>{renderer.setSize(window.innerWidth,window.innerHeight,false);camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();});
 }
@@ -2937,7 +2985,7 @@ function update(dt){
  updateHarvest(dt);updateCropSway();
  const ty=surfaceHeightAt(player.pos.x,player.pos.z);player.pos.y=lerp(player.pos.y,ty,Math.min(1,dt*14));
  if(started&&resting)S.energy=Math.min(100,S.energy+dt*(resting.mode==='lie'?2.4:1.1));
- if(player.act>0){player.act-=dt;player.char.swing=-Math.sin((1-Math.max(0,player.act)/.45)*Math.PI)*1.4;}else player.char.swing=0;
+ if(player.act>0){player.act-=dt;const u=1-Math.max(0,player.act)/(player.actDur||.45),ps=actPose(player.actKind,u);player.char.swing=ps.arm;player.char.lean=ps.lean;player.char.toolRoll=ps.roll;}else{player.char.swing=0;player.char.lean=0;player.char.toolRoll=0;}
  for(const k in vehicles){const v=vehicles[k];if(v===riding)continue;v.m.root.position.set(v.x,Math.max(0,bridgeAt(v.x,v.z)),v.z);v.m.root.rotation.set(0,v.rot,0);}
  if(riding){
   const v=riding;v.x=player.pos.x;v.z=player.pos.z;
@@ -2947,7 +2995,7 @@ function update(dt){
   player.g.position.set(v.x+Math.sin(v.rot)*v.seatZ,player.pos.y+v.seatY,v.z+Math.cos(v.rot)*v.seatZ);player.g.rotation.y=v.rot;
   if(eng){const sv=Math.abs(v.vel);eng.o.frequency.value=48+sv*9;eng.g.gain.value=muted?0:.03+sv*.0035;}
  }else{player.g.position.copy(player.pos);player.g.rotation.y=player.rot;}
- animChar(player.char,dt,riding?0:player.mv,false);applySaungRestPose();
+ animChar(player.char,dt,riding?0:player.mv,false,riding?0:player.mv*4.2);applySaungRestPose();
  npcs.forEach(n=>updateNPC(n,dt));
  updateFishing(dt);
  if(dlg.open&&dlg.shown<dlg.text.length){const p=Math.floor(dlg.shown);dlg.shown=Math.min(dlg.text.length,dlg.shown+dt*48);if(Math.floor(dlg.shown)%3===0&&Math.floor(dlg.shown)!==p)sfx('talk');$('dText').textContent=dlg.text.slice(0,Math.floor(dlg.shown));}
@@ -3047,6 +3095,7 @@ function showStart(){
     '🕹️ Gerakan: Gunakan joystick di kiri bawah untuk berjalan. Geser layar kosong untuk memutar kamera.\n\n' +
     '⛏️ Berkebun: Pilih cangkul untuk membuka petak, pilih bibit lalu tap cangkul untuk menanam, dan siram air setiap hari!\n\n' +
     '🌾 Panen: Bila tanaman sudah matang, tekan tombol Panen untuk mengayunkan celurit.\n\n' +
+    '🧪 Pupuk: Beli di warung, pilih alat Pupuk lalu tap pada tanaman yang belum matang: tumbuh +1 hari dan panennya jadi 2 buah!\n\n' +
     '🎣 Memancing: Berdirilah di tepi kolam atau sungai membawa pancing, lempar umpan, dan tarik saat indikator tepat di zona hijau!\n\n' +
     '🏠 Rumah: Masuk ke dalam rumah untuk memasak, santai, atau tidur di kasur agar hari berganti.\n\n' +
     '🏍️ Kendaraan: Temukan motor Supra & sepeda ontel di samping rumah untuk menjelajahi desa lebih cepat.',
@@ -3095,6 +3144,7 @@ function run(mode){
 
 /* English localization: keep save IDs and village character names unchanged. */
 const EN_PHRASES = {
+'Pupuk habis.\nBeli di warung Bu Sari':'Out of fertilizer.\nBuy more at Bu Sari’s shop','Sudah dipupuk':'Already fertilized','Tanaman sudah matang, tinggal dipanen':'This crop is ripe - just harvest it','+1 hari tumbuh, panen ×2':'+1 growth day, double harvest','+1 hari':'+1 day','Pupuk':'Fertilizer',
 'Menyiapkan petualangan desamu...':'Preparing your village adventure...',
 'Pulang ke desa, bercocok tanam, memancing, dan nikmati waktu santai':'Return to the village, farm, fish, and enjoy the slow life',
 'Pilihan Petualangan':'Your Adventure Awaits',
@@ -3130,6 +3180,7 @@ const EN_PHRASES = {
 'Gerakan: Gunakan joystick di kiri bawah untuk berjalan. Geser layar kosong untuk memutar kamera.':'Movement: Use the lower-left joystick to walk. Drag an empty area to rotate the camera. Keyboard: WASD or arrow keys to move; E or Space to act.',
 'Berkebun: Pilih cangkul untuk membuka petak, pilih bibit lalu tap cangkul untuk menanam, dan siram air setiap hari!':'Gardening: Select Hoe to till a plot, select Seeds and press Action to plant, then water every day!',
 'Panen: Bila tanaman sudah matang, tekan tombol Panen untuk mengayunkan celurit.':'Harvest: When crops are ripe, press Harvest to swing your sickle.',
+'Pupuk: Beli di warung, pilih alat Pupuk lalu tap pada tanaman yang belum matang: tumbuh +1 hari dan panennya jadi 2 buah!':'Fertilizer: Buy it at the shop, select the Fertilizer tool, then tap an unripe crop: it grows +1 day and yields 2 crops!',
 'Memancing: Berdirilah di tepi kolam atau sungai membawa pancing, lempar umpan, dan tarik saat indikator tepat di zona hijau!':'Fishing: Equip your rod at a pond or riverbank, cast, pull when a fish bites, then tap when the marker reaches the green zone!',
 'Rumah: Masuk ke dalam rumah untuk memasak, santai, atau tidur di kasur agar hari berganti.':'Home: Go inside to cook, relax, or sleep in your bed to start a new day.',
 'Kendaraan: Temukan motor Supra & sepeda ontel di samping rumah untuk menjelajahi desa lebih cepat.':'Vehicles: Find the Supra and classic bicycle beside your home to explore faster.',
