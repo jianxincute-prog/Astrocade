@@ -223,6 +223,14 @@
     .friendBox .code { font-size: 36px; letter-spacing: 6px; color: #ffe08a; cursor: pointer; }
     .friendBox .frow { display: flex; gap: 10px; justify-content: center; margin: 8px 0; }
     .friendBox input { font: inherit; font-size: 30px; letter-spacing: 4px; text-transform: uppercase; width: 260px; padding: 6px 12px; border: 4px solid #05070f; border-radius: 10px; background: #0e1430; color: #fff; text-align: center; }
+    .chatChip { cursor: pointer; font: inherit; color: #fff; min-width: 64px !important; justify-content: center; font-size: 30px; padding: 0; }
+    .chatBox { width: 664px; height: 1040px; max-height: 94%; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+    .chatHead { display: flex; align-items: center; gap: 12px; font-size: 32px; } .chatHead b { flex: 1; } .chatHead span { font-size: 22px; color: #9fb0e8; } .chatHead .btn { min-height: 52px; padding: 4px 18px; font-size: 24px; }
+    .chatLog { flex: 1; overflow-y: auto; background: rgba(0,0,0,.35); border-radius: 10px; padding: 10px 12px; font-size: 25px; line-height: 32px; word-break: break-word; }
+    .chatLog .cm b { cursor: pointer; } .chatLog .cm.me { background: rgba(255,207,58,.12); border-radius: 6px; } .chatLog .cm.sys { color: #9fb0e8; font-style: italic; }
+    .chatRow { display: flex; gap: 10px; align-items: center; } .chatRow input { flex: 1; min-width: 0; font: inherit; font-size: 26px; padding: 8px 12px; border: 4px solid #05070f; border-radius: 10px; background: #0e1430; color: #fff; }
+    .chatRow .btn { min-height: 56px; padding: 6px 20px; font-size: 24px; } .chatRow.small { font-size: 22px; color: #cdd6ff; }
+    .chatNote { font-size: 20px; color: #8f9cc8; }
     .friendBox .olRow { display: flex; gap: 10px; justify-content: center; align-items: center; margin: 8px 0 2px; } .friendBox .olRow input { width: 150px; }
     .friendBox .sub { border-top: 3px solid rgba(255,255,255,.12); margin-top: 10px; padding-top: 8px; }
     .friendBox .btn { min-height: 56px; font-size: 24px; padding: 6px 22px; }
@@ -301,6 +309,7 @@
             <div id="mTop">
                 <div class="pbadge"><div class="pface"></div><div class="pname">PLAYER<br><small id="mLv">Lv 1</small></div></div>
                 <div class="chips">
+                    <button type="button" class="chip chatChip" id="chatBtn" aria-label="World chat">&#128172;</button>
                     <div class="chip"><svg viewBox="0 0 64 64"><path d="M20 8h24v16a12 12 0 0 1-24 0z" fill="#ffcf3a" stroke="#05070f" stroke-width="4"/><rect x="26" y="38" width="12" height="10" fill="#ffcf3a"/><rect x="18" y="48" width="28" height="10" rx="2" fill="#e8a317" stroke="#05070f" stroke-width="3"/></svg><b id="mTro">0</b></div>
                     <div class="chip"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="#ffcf3a" stroke="#05070f" stroke-width="5"/><rect x="26" y="18" width="12" height="28" fill="#e8a317"/></svg><b id="mCoin">0</b></div>
                 </div>
@@ -326,6 +335,15 @@
         <div id="toast"></div>
         <div id="searchOv" class="overlay hidden"></div>
         <div id="popOv" class="overlay hidden"></div>
+        <div id="chatOv" class="overlay hidden">
+            <div class="panel chatBox">
+                <div class="chatHead"><b>WORLD CHAT</b><span id="chatCount">connecting...</span><button class="btn red" id="chatClose">CLOSE</button></div>
+                <div class="chatLog" id="chatLog"></div>
+                <div class="chatRow"><input id="chatIn" maxlength="80" placeholder="Say something nice..." autocomplete="off"><button class="btn green" id="chatSend">SEND</button></div>
+                <div class="chatRow small"><span>Name</span><input id="chatNick" maxlength="12" autocomplete="off" spellcheck="false"><button class="btn blue" id="chatSave">SAVE</button></div>
+                <div class="chatNote">Live chat only - messages are not saved. Be kind! Tap a name to mute that player.</div>
+            </div>
+        </div>
         <div id="exitOv" class="overlay hidden">
             <h1 style="font-size:60px">LEAVE DUEL?</h1>
             <p>Leaving counts as a loss.</p>
@@ -486,7 +504,7 @@ async function run(mode) {
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 10;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
-        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0, h2h: {},
+        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0, h2h: {}, nick: '',
         owned: STARTER.slice(), deck: STARTER.slice(),
         settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal', lowQ: false, speed: 1, perfAsked: false }
     };
@@ -2881,6 +2899,7 @@ async function run(mode) {
         profile.tutorialDone = !!profile.tutorialDone;
         if (profile.missions && (typeof profile.missions !== 'object' || !Array.isArray(profile.missions.list))) profile.missions = null;
         profile.lossStreak = Math.max(0, Math.floor(Number(profile.lossStreak) || 0));
+        profile.nick = String(profile.nick || '').replace(/[^A-Za-z0-9 _-]/g, '').trim().slice(0, 12);
         if (!profile.h2h || typeof profile.h2h !== 'object' || Array.isArray(profile.h2h)) profile.h2h = {};
         for (const k of Object.keys(profile.h2h)) { const r = profile.h2h[k]; if (!Array.isArray(r) || r.length < 3) delete profile.h2h[k]; else profile.h2h[k] = [Math.max(0, r[0] | 0), Math.max(0, r[1] | 0), r[2] ? 1 : 0]; }
         { const ks = Object.keys(profile.h2h); while (ks.length > 30) delete profile.h2h[ks.shift()]; }
@@ -3421,7 +3440,7 @@ async function run(mode) {
         let sb;
         try { sb = await connectSupabase(); } catch (e) { if (!tok.cancel) pvFail('Could not reach the online server. Try again later.'); return; }
         if (tok.cancel) return;
-        const id = Math.random().toString(36).slice(2, 8), joined = Date.now(), name = 'PLAYER-' + String(Math.floor(1000 + Math.random() * 9000));
+        const id = Math.random().toString(36).slice(2, 8), joined = Date.now(), name = chatName();
         const ch = sb.channel('cc-' + code, { config: { broadcast: { self: false }, presence: { key: id } } });
         pv = { sb, ch, id, code, name, oppName: 'RIVAL', host: false, seq: 0, last: 0, started: false, starting: false, q: Promise.resolve(), sidN: { p: 0, e: 0 }, replay: false, gateOpen: true, gate: Promise.resolve(), lastHb: Date.now(), wantRe: false, oppRe: false, tok };
         const me = pv;
@@ -3576,6 +3595,92 @@ async function run(mode) {
         if (!pv || !pv.wantRe || !pv.oppRe) return;
         if (pv.host) { const arena = Math.floor(Math.random() * ARENAS.length); pvSend({ t: 'start', a: arena }); pvLaunch(arena); }
     }
+
+    /* ============================ WORLD CHAT (Supabase Realtime) ============================
+       One shared broadcast channel for everybody who has the chat window open. Nothing is stored: new arrivals only see
+       what is said while they are there. Messages are length-capped, rate-limited, masked by a small word filter and always
+       rendered as text. Players can mute a name for the session. */
+    const chat = { ch: null, sb: null, id: Math.random().toString(36).slice(2, 8), open: false, connecting: false, muted: new Set(), sent: [], lastText: '' };
+    const CHAT_MAX = 80, CHAT_LOG_MAX = 60, CHAT_BAD = /(fuck|shit|bitch|cunt|nigg\w*|faggot|kontol|memek|ngentot|jancok|bangsat|anjing|goblok|tolol)/gi;
+    const chatClean = (t, n) => String(t == null ? '' : t).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n).replace(CHAT_BAD, '***');
+    function chatName() {
+        if (!profile.nick) { profile.nick = 'PLAYER-' + String(Math.floor(1000 + Math.random() * 9000)); saveProfile(); }
+        return profile.nick;
+    }
+    const chatColor = (id) => { let h = 0; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) % 360; return 'hsl(' + h + ',80%,70%)'; };
+    function chatLine(cls, html) {
+        const log = $('chatLog'), near = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+        const d = document.createElement('div'); d.className = 'cm ' + cls; d.innerHTML = html; log.appendChild(d);
+        while (log.children.length > CHAT_LOG_MAX) log.removeChild(log.firstChild);
+        if (near) log.scrollTop = log.scrollHeight;
+    }
+    const chatSys = (t) => chatLine('sys', esc(t));
+    function chatShow(who, id, text, me) { chatLine(me ? 'me' : '', '<b data-mute="' + esc(id) + '" data-name="' + esc(who) + '" style="color:' + chatColor(id) + '">' + esc(who) + '</b>: ' + esc(text)); }
+    function chatCount() {
+        if (!chat.ch) { $('chatCount').textContent = chat.connecting ? 'connecting...' : 'offline'; return; }
+        const n = Object.keys(chat.ch.presenceState() || {}).length;
+        $('chatCount').textContent = n + ' online';
+    }
+    async function openChat() {
+        if (mode !== 'play') { toast('Chat works in play mode.'); return; }
+        unlockAudio();
+        chat.open = true; $('chatOv').classList.remove('hidden'); $('chatNick').value = chatName();
+        if (chat.ch || chat.connecting) { chatCount(); return; }
+        chat.connecting = true; chatCount();
+        $('chatLog').innerHTML = ''; chatSys('Connecting to world chat...');
+        let sb;
+        try { sb = await connectSupabase(); } catch (e) { chat.connecting = false; chatSys('Could not reach the chat server. Close and try again later.'); chatCount(); return; }
+        if (!chat.open) { chat.connecting = false; return; }
+        const ch = sb.channel('cc-world', { config: { broadcast: { self: false }, presence: { key: chat.id } } });
+        chat.sb = sb; chat.ch = ch; chat.connecting = false;
+        ch.on('broadcast', { event: 'chat' }, (msg) => {
+            const p = msg && msg.payload; if (!p || p.i === chat.id || chat.muted.has(String(p.i))) return;
+            const text = chatClean(p.x, CHAT_MAX), who = chatClean(p.n, 12) || 'PLAYER';
+            if (text) { chatShow(who, p.i, text, false); sfx('tick'); }
+        });
+        ch.on('presence', { event: 'sync' }, () => { if (chat.ch === ch) chatCount(); });
+        ch.subscribe((status) => {
+            if (chat.ch !== ch) return;
+            if (status === 'SUBSCRIBED') { Promise.resolve(ch.track({ id: chat.id, name: chatName() })).catch(() => {}); chatSys('Connected! Say hi to the world.'); chatCount(); }
+            else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { chatSys('Chat connection lost. Close and reopen to retry.'); closeChat(true); }
+        });
+    }
+    function closeChat(keepOpen) {
+        if (!keepOpen) { chat.open = false; $('chatOv').classList.add('hidden'); }
+        const ch = chat.ch, sb = chat.sb; chat.ch = null; chat.sb = null; chat.connecting = false;
+        if (ch) { try { sb.removeChannel(ch); } catch (e) { /* already closed */ } }
+        chatCount();
+    }
+    function sendChat() {
+        const inp = $('chatIn'), text = chatClean(inp.value, CHAT_MAX);
+        if (!text) return;
+        if (!chat.ch) { toast('Not connected yet.'); return; }
+        const now = Date.now();
+        chat.sent = chat.sent.filter((t) => now - t < 10000);
+        if (chat.sent.length && now - chat.sent[chat.sent.length - 1] < 1500) { toast('Slow down!'); return; }
+        if (chat.sent.length >= 5) { toast('Too many messages - wait a few seconds.'); return; }
+        if (text === chat.lastText) { toast('Do not repeat yourself.'); return; }
+        chat.sent.push(now); chat.lastText = text;
+        try { chat.ch.send({ type: 'broadcast', event: 'chat', payload: { i: chat.id, n: chatName(), x: text } }); } catch (e) { toast('Message failed.'); return; }
+        chatShow(chatName(), chat.id, text, true);
+        inp.value = '';
+    }
+    $('chatBtn').addEventListener('click', openChat);
+    $('chatClose').addEventListener('click', () => closeChat(false));
+    $('chatSend').addEventListener('click', sendChat);
+    $('chatIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
+    $('chatSave').addEventListener('click', () => {
+        const v = String($('chatNick').value || '').replace(/[^A-Za-z0-9 _-]/g, '').trim().slice(0, 12);
+        if (v.length < 2) { toast('Use 2-12 letters or numbers.'); return; }
+        profile.nick = chatClean(v, 12).replace(/\*/g, ''); if (profile.nick.length < 2) profile.nick = 'PLAYER-' + String(Math.floor(1000 + Math.random() * 9000));
+        $('chatNick').value = profile.nick; saveProfile(); toast('Name saved: ' + profile.nick);
+        if (chat.ch) Promise.resolve(chat.ch.track({ id: chat.id, name: profile.nick })).catch(() => {});
+    });
+    $('chatLog').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-mute]');
+        if (!b || b.dataset.mute === chat.id) return;
+        chat.muted.add(b.dataset.mute); toast('Muted ' + b.dataset.name + ' for this session.');
+    });
     let rankList = [];
     function rankRow(en, i) {
         const d = decodeScore(en.score), name = String(en.username || 'Player').slice(0, 16), mine = Number(en.score) === encodeScore();

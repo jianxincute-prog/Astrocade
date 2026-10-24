@@ -72,3 +72,4 @@ Return only the updated connectSupabase() function.
 - Realtime channels only (no tables / SQL). Channel name `cc-<ROOMCODE>`, broadcast event `m`, presence key = random player id.
 - Sync model: both clients simulate the arena; the player whose turn it is is authoritative and publishes a snapshot (HP, monster HP/ATK, trap counts) that the other client snaps to. All cards play at Lv 3, no rewards, round cap 12 (more HP wins).
 - Tested only with an in-page mock of supabase-js (the agent sandbox blocks supabase.co and the jsdelivr CDN). Real connectivity must be verified on a real device.
+- World chat (Card Clash): shared channel `cc-world`, broadcast event `chat`, presence for the online count. Opened only while the chat window is open (saves connections). Length cap 80, rate limit (1.5 s gap, 5 per 10 s), duplicate block, small profanity mask, HTML never rendered, per-session mute, nickname saved in the profile. No history is stored.
