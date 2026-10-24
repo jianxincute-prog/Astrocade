@@ -401,7 +401,7 @@ async function run(mode) {
         });
     }
     const roadMats = [0, 1].map((v) => new THREE.MeshStandardMaterial({ map: drawRoad(v), roughness: 0.85, metalness: 0.05 }));
-    const roadGeo = new THREE.PlaneGeometry(ROAD_W + GRAVEL * 2, SEG_LEN);
+    const roadGeo = new THREE.PlaneGeometry(ROAD_W + GRAVEL * 2, SEG_LEN, 1, 10);
     roadGeo.rotateX(-Math.PI / 2);
 
     const groundTex = canvasTex(128, 128, (g, w, h) => {
@@ -412,9 +412,9 @@ async function run(mode) {
         }
     }, 80);
     const GROUND_TILE = 500 / 80;
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500).rotateX(-Math.PI / 2),
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500, 1, 50).rotateX(-Math.PI / 2),
         new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1 }));
-    ground.position.y = -0.03;
+    ground.position.y = -0.03; ground.frustumCulled = false; ground.userData.base = ground.geometry.attributes.position.array.slice();
     scene.add(ground);
 
     // Shared prop geometry / materials
@@ -475,10 +475,110 @@ async function run(mode) {
     const paddyGeo = new THREE.PlaneGeometry(30, 40).rotateX(-Math.PI / 2);
     const paddyMat = new THREE.MeshStandardMaterial({ map: paddyTex, roughness: 0.8 });
 
+    // ------------------------------------------------------------------
+    // ROAD LAYOUT: the road is always straight in gameplay terms (the bus steers across it, bays and obstacles sit at fixed
+    // x), but the *view* of it bends. A sequence of events along z (curves, sharp bends, zig-zags, hills, a fork, a bridge...)
+    // defines a curvature profile; every object is nudged sideways / up at render time by the double integral of that
+    // curvature measured from the bus. Curves also push the bus outwards (steer against it) and hills change its pace.
+    // ------------------------------------------------------------------
+    const ROAD = (() => {
+        const secs = [];
+        let end = 0, started = false, level = 0;
+        const EVENTS = [                                                    // [type, weight, min deliveries]
+            ['curve', 4, 0], ['sharp', 2, 1], ['zig', 2, 2], ['hill', 3, 0], ['fork', 1.5, 2], ['bridge', 1.2, 3], ['market', 1.2, 2]
+        ];
+        const clampN = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
+        function add(type, len, p) { const s = Object.assign({ type, z0: end, z1: end - len, len }, p || {}); secs.push(s); end -= len; return s; }
+        function pickEvent() {
+            const lvl = level, list = EVENTS.filter((e) => e[2] <= lvl);
+            let r = Math.random() * list.reduce((a, e) => a + e[1], 0);
+            for (const e of list) { r -= e[1]; if (r <= 0) return e[0]; }
+            return list[0][0];
+        }
+        function make(type) {
+            const sg = Math.random() < 0.5 ? -1 : 1;
+            if (type === 'curve') add('curve', rand(260, 340), { k: sg * rand(0.0030, 0.0045) });
+            else if (type === 'sharp') add('sharp', rand(150, 200), { k: sg * rand(0.0075, 0.0100) });
+            else if (type === 'zig') { const n = 3, P = rand(120, 150); add('zig', n * P, { k: sg * rand(0.0045, 0.0060), n }); }
+            else if (type === 'hill') add('hill', rand(380, 460), { g: sg * rand(0.10, 0.145) });
+            else add(type, type === 'fork' ? 330 : (type === 'bridge' ? 270 : 250), {});
+        }
+        function extend(zLimit) {
+            if (!started) return;
+            while (end > zLimit) {
+                add('straight', rand(170, 280));
+                make(pickEvent());
+            }
+        }
+        function reset(zStart) { secs.length = 0; started = true; end = zStart + 60; add('straight', 520); extend(zStart - 800); }
+        function find(z) { for (let i = 0; i < secs.length; i++) { const s = secs[i]; if (z <= s.z0 && z > s.z1) return s; } return null; }
+        function kappa(z) {
+            const s = find(z); if (!s) return 0;
+            const t = (s.z0 - z) / s.len;
+            if (s.type === 'curve' || s.type === 'sharp') return s.k * Math.sin(Math.PI * t);
+            if (s.type === 'zig') { const e = clampN(Math.min(t, 1 - t) * 6, 0, 1); return s.k * Math.sin(2 * Math.PI * s.n * t) * e * e * (3 - 2 * e); }
+            return 0;
+        }
+        function grade(z) {
+            const s = find(z); if (!s || s.type !== 'hill') return 0;
+            return s.g * Math.sin(2 * Math.PI * (s.z0 - z) / s.len);
+        }
+        const BLOCK = { fork: 15, bridge: 45, market: 14 };               // generic props (trees, lamps, stones...) keep this far from the centre line
+        function blockedAt(x, z) { const s = find(z); return !!(s && BLOCK[s.type] && Math.abs(x) < BLOCK[s.type]); }
+        function plain(s) { return s.type === 'straight'; }
+        function flat(zA, zB, margin) {                                      // no non-straight event overlapping [zB, zA] (+margin)?
+            const m = margin === undefined ? 40 : margin, hi = Math.max(zA, zB) + m, lo = Math.min(zA, zB) - m;
+            extend(lo - 300);
+            for (const s of secs) if (!plain(s) && s.z1 < hi && s.z0 > lo) return false;
+            return true;
+        }
+        function snapFlat(z, half) {                                         // slide z further ahead until a stop at z has a straight road around it
+            const h = half || 55; let guard = 0;
+            while (!flat(z + h, z - h, 10) && guard++ < 12) {
+                const s = secs.find((q) => !plain(q) && q.z1 < z + h + 10 && q.z0 > z - h - 10);
+                z = (s ? s.z1 : z) - h - 25;
+            }
+            return z;
+        }
+        function nextEvent(zb, ahead) {                                      // first non-straight event within `ahead` units in front of z
+            for (let i = secs.length - 1; i >= 0; i--) { const s = secs[i]; if (!plain(s) && s.z0 <= zb && s.z0 > zb - ahead) return s; }
+            return null;
+        }
+        function prune(zKeep) { while (secs.length > 2 && secs[0].z1 > zKeep) secs.shift(); }
+        function at(z) { return find(z); }
+        return { secs, setLevel(n) { level = n; }, blockedAt, add, extend, reset, kappa, grade, flat, snapFlat, nextEvent, prune, at, find, get end() { return end; }, set end(v) { end = v; } };
+    })();
+    ROAD.reset(0);
+    let announced = null;
+    const BEND = { on: false, tx: new Float32Array(101), ty: new Float32Array(101), kb: 0, gb: 0 };
+    const BSTEP = 4, BBACK = 80, BN = 101, B0 = BBACK / BSTEP;
+    function bendProfile(zb) {
+        ROAD.extend(zb - 480); ROAD.prune(zb + 160);
+        const tx = BEND.tx, ty = BEND.ty;
+        tx[B0] = 0; ty[B0] = 0;
+        let xp = 0, x = 0, y = 0;
+        for (let s = 1; s <= 320; s++) {
+            xp += ROAD.kappa(zb - s + 0.5); x += xp; y += ROAD.grade(zb - s + 0.5);
+            if (s % BSTEP === 0) { tx[B0 + s / BSTEP] = x; ty[B0 + s / BSTEP] = y; }
+        }
+        xp = 0; x = 0; y = 0;
+        for (let s = 1; s <= BBACK; s++) {
+            xp += ROAD.kappa(zb + s - 0.5); x += xp; y -= ROAD.grade(zb + s - 0.5);
+            if (s % BSTEP === 0) { tx[B0 - s / BSTEP] = x; ty[B0 - s / BSTEP] = y; }
+        }
+        BEND.kb = ROAD.kappa(zb); BEND.gb = ROAD.grade(zb);
+        let m = 0; for (let i = 0; i < BN; i++) m = Math.max(m, Math.abs(tx[i]), Math.abs(ty[i]));
+        BEND.on = m > 0.02;
+    }
+    function bendIdx(dz) { const t = clamp((dz + BBACK) / BSTEP, 0, BN - 1.001), i = Math.floor(t); return [i, t - i]; }
+    function bendX(dz) { const t = clamp((dz + BBACK) / BSTEP, 0, BN - 1.001), i = Math.floor(t), f = t - i; return BEND.tx[i] * (1 - f) + BEND.tx[i + 1] * f; }
+    function bendY(dz) { const t = clamp((dz + BBACK) / BSTEP, 0, BN - 1.001), i = Math.floor(t), f = t - i; return BEND.ty[i] * (1 - f) + BEND.ty[i + 1] * f; }
+
     function makeSegment(i) {
         const seg = new THREE.Group();
         seg.position.z = SEG_LEN - i * SEG_LEN;
-        seg.add(new THREE.Mesh(roadGeo, roadMats[i % 2]));
+        const rg = roadGeo.clone(), rm = new THREE.Mesh(rg, roadMats[i % 2]); rm.frustumCulled = false; rm.userData.base = rg.attributes.position.array.slice();
+        seg.add(rm);
         seg.children[0].position.y = 0.02;
         const p = seg.userData = { trees: [], lamp: null, pumpkin: null, stones: [], puddle: null };
         for (let k = 0; k < 2; k++) { const t = makeTree(); seg.add(t); p.trees.push(t); }
@@ -499,11 +599,13 @@ async function run(mode) {
         seg.add(pole); p.pole = pole;
         const paddy = new THREE.Mesh(paddyGeo, paddyMat); paddy.position.y = 0.01; paddy.visible = false; seg.add(paddy); p.paddy = paddy;
         p.lm = null; p.paddyOn = false;
+        p.bendList = [...p.trees, p.lamp, p.pumpkin, ...p.stones, p.puddle, p.pole, p.paddy];
         return seg;
     }
 
     // World-space clearance so cemetery and house stay free of generic props
     function blocked(x, z) {
+        if (ROAD.blockedAt(x, z)) return true;
         if (x > 9.5 && Math.abs(z - cemetery.position.z) < 16) return true;
         if (x < -9 && Math.abs(z - destination.position.z) < 13) return true;
         return false;
@@ -520,7 +622,7 @@ async function run(mode) {
             o.visible = o.userData.want && !blocked(o.userData.lx, z0 + o.userData.lz) && !covered(o) && !onPaddy(o);
         });
         p.lamp.visible = p.lamp.userData.want && !blocked(p.lamp.userData.lx, z0 + p.lamp.userData.lz);
-        p.pole.visible = !blocked(-12.5, z0 + 20) && !blocked(-12.5, z0);
+        p.pole.visible = !blocked(-12.5, z0 + 20) && !blocked(-12.5, z0) && ROAD.flat(z0 + 20, z0 - 40, 10);
         const span = (x, c, h) => blocked(x, c - h) || blocked(x, c) || blocked(x, c + h);
         if (p.lm) p.lm.group.visible = !span(p.lmSide * 18, z0 + p.lmZ, p.lmHalf);
         p.paddy.visible = p.paddyOn && !span(p.paddySide * 28, z0, 20);
@@ -1519,7 +1621,7 @@ async function run(mode) {
         const p = seg.userData;
         releaseLandmark(seg);
         p.lmSide = Math.random() < 0.5 ? -1 : 1;
-        const type = forced || pickLandmark();
+        const type = forced || (ROAD.flat(seg.position.z + 30, seg.position.z - 30, 30) ? pickLandmark() : null);
         const inst = type ? acquireLandmark(type) : null;
         if (inst) {
             inst.setMode(forced ? true : Math.random() < 0.5);
@@ -2989,7 +3091,7 @@ async function run(mode) {
     const GHOST_TYPES = {
         kuntilanak: { name: 'Kuntilanak', create: createKuntilanak, points: 1, weight: 3, site: 'cemetery', routeMult: 1, dests: ['house', 'bamboo', 'kopdes'], speedMult: 1, accelMult: 1,
             intro: 'The Kuntilanak waits at the cemetery gate', drop: 'The Kuntilanak steps down and drifts toward her destination...' },
-        pocong: { name: 'Pocong', create: createPocong, points: 1.5, weight: 3, site: 'cemetery', routeMult: 1, dests: ['hospital', 'bridge', 'kopdes'], speedMult: 1, accelMult: 1,
+        pocong: { name: 'Pocong', create: createPocong, points: 1.5, weight: 3, site: 'pos', routeMult: 1, dests: ['hospital', 'bridge', 'kopdes'], speedMult: 1, accelMult: 1,
             intro: 'The Pocong is hopping around. Follow the moving stop bay!', drop: 'The Pocong hops off...' },
         tuyul: { name: 'Tuyul', create: createTuyul, points: 2, weight: 3, site: 'cemetery', routeMult: 1, dests: ['school', 'market', 'mbg'], speedMult: 1, accelMult: 1,
             intro: 'The Tuyul keeps darting around. Watch out—it likes to steal points!', drop: 'The Tuyul runs off with a cackle...' },
@@ -3141,12 +3243,18 @@ async function run(mode) {
         paintSign('ROUTE 13 • ' + DESTS[r.dest].name.toUpperCase());
         setDestinationLabel('Pick up ' + GHOST_TYPES[r.type].name + (r.pair ? ' & ' + GHOST_TYPES[r.pair].name : ''));
     }
+    let posSite = null;                                         // a pos ronda (night watch post) as a pickup site, with its own watchmen
+    function ensurePosSite() {
+        if (posSite) return;
+        posSite = buildPos(); posSite.setMode(true); posSite.group.rotation.y = Math.PI; scene.add(posSite.group); sites.pos = posSite.group; bendExtra.push(posSite.group);
+    }
     function setPickup(z) {
         pickup.position.set(PICKUP_X, 0, z);
         cemetery.position.set(PICKUP_X + CEM_DX, 0, z - 3);
         halte.position.set(PICKUP_X + 6.8, 0, z - 0.5);
         banyan.position.set(PICKUP_X + 11, 0, z - 2);
         const site = GHOST_TYPES[route.type].site;
+        if (site === 'pos') { ensurePosSite(); posSite.group.position.set(PICKUP_X + 10.8, 0, z + 0.5); }
         Object.keys(sites).forEach((k) => { sites[k].visible = k === site; });
         pickup.visible = true;
         pickupDone = false; destDone = false; heardCue = false;
@@ -3174,8 +3282,8 @@ async function run(mode) {
         applyRoute(pickRoute());
         // The old destination stays until it is behind the camera, then moves (and changes
         // building) for the next route
-        const nextPickup = bus.position.z - cfg.environment.passengerSpawnDistance;
-        pendingDestZ = nextPickup - cfg.environment.routeLength * GHOST_TYPES[route.type].routeMult;
+        const nextPickup = ROAD.snapFlat(bus.position.z - cfg.environment.passengerSpawnDistance);
+        pendingDestZ = ROAD.snapFlat(nextPickup - cfg.environment.routeLength * GHOST_TYPES[route.type].routeMult);
         setPickup(nextPickup);
         showMessage(GHOST_TYPES[route.type].intro);
     }
@@ -3466,11 +3574,129 @@ async function run(mode) {
             update(dt) { ghostCtx.dt = dt; ghostCtx.near = 0; ghostCtx.yawRel = 0; o.wait(ghostCtx); }
         });
     }
+    // ---- A Pocong that hops across the road from one verge to the other
+    function buildCrosser() {
+        const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+        const shroud = ghostMaterial(0xdad4c0, 0.05, 2.2, false, false, 0xbfe8d0, { grime: 0x3a2e1c, stain: 0x6a4222, stainAmt: 0.9 });
+        const prof = [[0.001, 0], [0.3, 0], [0.34, 0.35], [0.38, 0.9], [0.34, 1.25], [0.25, 1.42], [0.16, 1.5], [0.001, 1.56]].map(([r, y]) => new THREE.Vector2(r, y));
+        body.add(new THREE.Mesh(new THREE.LatheGeometry(new THREE.SplineCurve(prof).getPoints(24), 14), shroud));
+        const tie = std2(0x8f8a78);
+        [[0.35, 0.38], [1.45, 0.3]].forEach(([y, r]) => { const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 14).rotateX(Math.PI / 2), tie); t.position.y = y; body.add(t); });
+        const head = pocongHead((p) => new THREE.MeshStandardMaterial(p), ghostMaterial); head.position.y = 1.95; head.scale.setScalar(0.85); body.add(head);
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x9fffe0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.45 }));
+        glow.scale.setScalar(3.6); glow.position.y = 1.2; body.add(glow);
+        g.scale.setScalar(1.45);
+        let st = 'wait', side = 1, ph = 0, vx = 0;
+        return mkObs(g, 0.9, 1.0, 15, 0.5, 'Hit a crossing Pocong!', 160, {
+            snd: 'sfx_laugh', skipFlat: true,
+            init(z) { st = 'wait'; side = Math.random() < 0.5 ? -1 : 1; ph = 0; g.position.set(side * 10.5, 0, z); g.rotation.y = -side * Math.PI / 2; body.position.y = 0; body.rotation.z = 0; },
+            gone() { return st === 'done' || g.position.z > bus.position.z + 45; },
+            update(dt) {
+                const dist = bus.position.z - g.position.z;
+                if (st === 'wait' && dist < 125 && dist > 0) { st = 'hop'; showMessage('A Pocong is hopping across the road!'); audio.blip(95, 0.18, 'sine', 0.22, 0.5); }
+                if (st === 'hop') {
+                    ph += dt * 5.2;
+                    const hop = Math.abs(Math.sin(ph)), on = hop > 0.12 ? 1 : 0.0;
+                    body.position.y = hop * 0.95; body.rotation.z = Math.sin(ph) * 0.08;
+                    g.position.x += -side * 5.2 * on * dt;
+                    if (Math.cos(ph * 2) > 0.97) audio.blip(70, 0.1, 'sine', 0.1, 0.6);
+                    if (Math.abs(g.position.x) > 11 && Math.sign(g.position.x) === -side) st = 'done';
+                }
+            }
+        });
+    }
+
+    // ---- A thief Tuyul that sprints at the bus to steal your coin pouch; honk (E / button) in time to scare it off
+    let lastHonk = -9;
+    function buildThief() {
+        const ty = GHOST_TYPES.tuyul.create(), root = ty.root;
+        root.scale.setScalar(1.15);
+        const bag = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffd040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9 }));
+        bag.scale.setScalar(0.9); bag.position.set(0.25, 1.5, 0.3); bag.visible = false; root.add(bag);
+        let st = 'lurk', side = 1, t = 0, warned = false;
+        return mkObs(root, 0.8, 1.2, 0, 1, 'Tuyul!', 190, {
+            skipHit: true, skipFlat: true,
+            init(z) { st = 'lurk'; side = Math.random() < 0.5 ? -1 : 1; t = 0; warned = false; root.position.set(side * 9.5, 0.1, z); root.rotation.set(0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0); root.scale.setScalar(1.15); ty.setOpacity(1); bag.visible = false; },
+            gone() { return st === 'done' || root.position.z > bus.position.z + 60; },
+            update(dt) {
+                const dx = bus.position.x - root.position.x, dz = bus.position.z - root.position.z, dist = Math.hypot(dx, dz * 0.5);
+                if (st === 'lurk') {
+                    ty.walk(ghostCtx); ty.root.position.y = 0.1;
+                    if (dz < 110 && dz > 0) { st = 'chase'; if (!warned) { warned = true; showMessage('A thief Tuyul is coming! Honk (E) to scare it away!'); audio.sfx('sfx_laugh', 0.45, 1.5); if (!req.active) { const b = $('act'); b.textContent = 'HONK!'; b.style.display = 'block'; b.dataset.thief = '1'; } } }
+                } else if (st === 'chase') {
+                    const sp = 11;
+                    root.position.x += clamp(dx, -1, 1) * sp * dt;
+                    root.position.z += Math.max(0, Math.min(1, dz / 8)) * (14 * dt);                       // runs toward the bus as it approaches
+                    root.rotation.y = lerp(root.rotation.y, Math.atan2(dx, dz || 0.01), 0.2);
+                    ty.walk(ghostCtx); root.position.y = 0.1 + Math.abs(Math.sin(time * 18)) * 0.25;
+                    if (Math.abs(dz) < 7 && Math.abs(dx) < 3.6) {
+                        t = 0;
+                        if (time - lastHonk < 1.4) { st = 'scared'; showMessage('Scared it off! +25'); score += 25; runCoins += 25; save.coins += 25; audio.sfx('sfx_laugh', 0.5, 1.8); }
+                        else {
+                            st = 'steal'; const lost = Math.min(save.coins, 30), ps = Math.min(score, 20);
+                            save.coins -= lost; runCoins = Math.max(0, runCoins - lost); score -= ps; busFlicker = 0.8; flash = Math.max(flash, 0.35);
+                            showMessage(lost + ps > 0 ? 'The Tuyul stole your coin pouch! -' + lost + ' coins' : 'The Tuyul rummaged through your pouch and found nothing!');
+                            audio.sfx('sfx_laugh', 0.7, 1.4); bag.visible = lost + ps > 0; missionEvent('theft', 1);
+                        }
+                        const b = $('act'); if (b.dataset.thief) { delete b.dataset.thief; if (!req.active) b.style.display = 'none'; }
+                    } else if (dz < -14) { st = 'done'; const b = $('act'); if (b.dataset.thief) { delete b.dataset.thief; if (!req.active) b.style.display = 'none'; } }
+                } else if (st === 'steal' || st === 'scared') {
+                    t += dt;
+                    root.position.x += (side > 0 ? 1 : -1) * 13 * dt; root.position.z += 6 * dt; root.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+                    ty.walk(ghostCtx); root.position.y = 0.1 + Math.abs(Math.sin(time * 20)) * 0.4;
+                    ty.setOpacity(clamp(1 - (t - 0.8) / 0.7, 0, 1)); if (t > 1.6) st = 'done';
+                }
+            }
+        });
+    }
+
+    // ---- A flooded stretch of road: drag, a slippery rear end and splashes (floods are likelier while it rains)
+    function buildFlood() {
+        const g = new THREE.Group();
+        const rip = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#2a4c66'; c.fillRect(0, 0, w, h); for (let i = 0; i < 50; i++) { c.strokeStyle = 'rgba(190,225,245,' + (0.06 + Math.random() * 0.16) + ')'; c.lineWidth = 1 + Math.random() * 2; c.beginPath(); const y = Math.random() * h, x = Math.random() * w; c.moveTo(x, y); c.quadraticCurveTo(x + 12, y - 4, x + 26, y); c.stroke(); } }, 1);
+        rip.wrapS = rip.wrapT = THREE.RepeatWrapping; rip.repeat.set(3, 3);
+        const L = 20, water = new THREE.Mesh(new THREE.PlaneGeometry(17, L).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: rip, color: 0xbcd6e8, roughness: 0.1, metalness: 0.4, transparent: true, opacity: 0.82, polygonOffset: true, polygonOffsetFactor: -3 }));
+        water.position.y = 0.1; g.add(water);
+        const sheen = new THREE.Mesh(new THREE.PlaneGeometry(17, L).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x7fb4d8, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })); sheen.position.y = 0.12; g.add(sheen);
+        [-1, 1].forEach((s) => {                                                              // A-frame warning signs
+            const sg = new THREE.Group(); sg.position.set(s * 7.6, 0, L / 2 + 3);
+            sg.add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.3, 0.08).translate(0, 0.8, 0), new THREE.MeshBasicMaterial({ map: canvasTex(64, 90, (c, w, h) => { c.fillStyle = '#e8c020'; c.fillRect(0, 0, w, h); c.strokeStyle = '#111'; c.lineWidth = 5; c.strokeRect(3, 3, w - 6, h - 6); c.fillStyle = '#111'; c.font = '800 13px Trebuchet MS, Arial'; c.textAlign = 'center'; c.fillText('FLOOD', w / 2, 24); c.beginPath(); c.moveTo(10, 56); c.quadraticCurveTo(22, 44, 32, 56); c.quadraticCurveTo(42, 68, 54, 56); c.stroke(); c.beginPath(); c.moveTo(10, 72); c.quadraticCurveTo(22, 60, 32, 72); c.quadraticCurveTo(42, 84, 54, 72); c.stroke(); }) })));
+            g.add(sg);
+        });
+        const debris = [];
+        for (let i = 0; i < 5; i++) { const d = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.3), std2([0xdcdcdc, 0xb04040, 0x4060a0][i % 3])); d.position.set(rand(-6, 6), 0.14, rand(-L / 2 + 2, L / 2 - 2)); d.userData.ph = rand(0, 6); g.add(d); debris.push(d); }
+        const splashes = [];
+        for (let i = 0; i < 10; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xd8f0ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })); s.scale.setScalar(1.2); g.add(s); splashes.push({ s, t: 9, vx: 0, vy: 0 }); }
+        let inside = false, first = true, splashT = 0, lastX = 0;
+        return mkObs(g, 8.5, L / 2, 0, 1, 'Flood', 150, {
+            skipHit: true, flat: true,
+            init(z) { g.position.set(0, 0, z); inside = false; first = true; splashes.forEach((p) => { p.t = 9; p.s.material.opacity = 0; }); },
+            update(dt) {
+                rip.offset.x += dt * 0.05; rip.offset.y += dt * 0.12;
+                debris.forEach((d) => { d.position.y = 0.13 + Math.sin(time * 2 + d.userData.ph) * 0.03; d.rotation.y += dt * 0.3; });
+                const dz = bus.position.z - g.position.z, now = Math.abs(dz) < L / 2 + 2.5;
+                splashes.forEach((p) => { if (p.t < 1) { p.t += dt * 1.6; p.s.position.x += p.vx * dt; p.s.position.y += p.vy * dt; p.vy -= 9 * dt; p.s.material.opacity = (1 - p.t) * 0.7; } else p.s.material.opacity = 0; });
+                if (now && phase === 'playing') {
+                    if (!inside) { inside = true; if (speed > 0.3 && first) { first = false; shake = Math.max(shake, 0.6); showMessage('Hydroplaning! Slow down in floods'); audio.blip(160, 0.35, 'sawtooth', 0.06, 0.4); } else if (first) { first = false; showMessage('Flooded road - slow and steady'); } }
+                    const f = dt * 60;
+                    speed *= 1 - 0.011 * f * (0.5 + weather.rain * 0.5);
+                    bus.userData.drift = (bus.userData.drift || 0) + (Math.sin(time * 7.3) + Math.sin(time * 4.1)) * 3.2 * clamp(speed / 0.45, 0, 1.3) * dt * 6;
+                    splashT -= dt;
+                    if (splashT <= 0 && speed > 0.06) {
+                        splashT = 0.05; const p = splashes.find((q) => q.t >= 1);
+                        if (p) { p.t = 0; p.s.position.set(bus.position.x - g.position.x + rand(-1.8, 1.8), 0.3, bus.position.z - g.position.z + rand(-2, 2)); p.vx = rand(-2, 2) + (p.s.position.x > 0 ? 2 : -2); p.vy = rand(2.5, 5) * (0.5 + speed); p.s.scale.setScalar(rand(0.8, 1.6)); }
+                    }
+                } else inside = false;
+            }
+        });
+    }
+
     const OBS_TYPES = {
         rock: { min: 0, w: 4, build: buildRock }, pothole: { min: 0, w: 3, build: buildPothole }, log: { min: 1, w: 2, build: buildLog },
         racer: { min: 1, w: 2, build: buildRacer },
         hearse: { min: 2, w: 2, build: buildHearse }, motor: { min: 2, w: 2, build: buildMotor },
-        suster: { min: 3, w: 2, build: buildSuster }, brute: { min: 4, w: 1, build: buildBrute }
+        suster: { min: 3, w: 2, build: buildSuster }, brute: { min: 4, w: 1, build: buildBrute },
+        crosser: { min: 1, w: 2, build: buildCrosser }, thief: { min: 2, w: 1.5, build: buildThief }, flood: { min: 1, w: 2, build: buildFlood }
     };
     function acquireObstacle(type) {
         const pool = obsPool[type] || (obsPool[type] = []);
@@ -3486,12 +3712,14 @@ async function run(mode) {
     }
     function spawnObstacle() {
         const types = Object.keys(OBS_TYPES).filter((k) => OBS_TYPES[k].min <= deliveries);
-        let r = Math.random() * types.reduce((a, k) => a + OBS_TYPES[k].w, 0), type = types[0];
-        for (const k of types) { r -= OBS_TYPES[k].w; if (r <= 0) { type = k; break; } }
+        const wt = (k) => OBS_TYPES[k].w * (k === 'flood' ? 0.4 + weather.rain * 5 : 1);
+        let r = Math.random() * types.reduce((a, k) => a + wt(k), 0), type = types[0];
+        for (const k of types) { r -= wt(k); if (r <= 0) { type = k; break; } }
         if (type === 'racer' && obstacles.some((q) => q.racer)) { spawnCountdown = 20; return; }
         const o = acquireObstacle(type);
         if (!o) return;
         const z = bus.position.z - o.far;
+        if ((OBS_TYPES[type].build === buildFlood || o.skipFlat) && !ROAD.flat(z + 20, z - 20, 20)) { spawnCountdown = 8; return; }       // flood, crossing pocong and thief only on plain road
         const nearBay = (!pickupDone && Math.abs(z - pickup.position.z) < 35) ||
             (onboard && pendingDestZ === null && Math.abs(z - destination.position.z) < 35);
         if (nearBay) { spawnCountdown = 12; return; }
@@ -3511,7 +3739,7 @@ async function run(mode) {
             o.update(dt);
             const p = o.root.position;
             if (o.rearm && o.hit && Math.abs(p.z - bus.position.z) > 14) o.hit = false;     // a weaving racer can strike again after passing
-            if (!o.hit && Math.abs(bus.position.x - p.x) < o.hw + 1.6 && Math.abs(bus.position.z - p.z) < o.hl + 4.3 && invuln <= 0) {
+            if (!o.hit && !o.skipHit && Math.abs(bus.position.x - p.x) < o.hw + 1.6 && Math.abs(bus.position.z - p.z) < o.hl + 4.3 && invuln <= 0) {
                 if (damage(o.dmg, o.label, o.scare, o.snd, o.vol)) {
                     o.hit = true; speed *= o.slow;
                     bus.position.x = clamp(bus.position.x + Math.sign(bus.position.x - p.x || 1) * 0.9, -6.2, 6.2);
@@ -3544,8 +3772,9 @@ async function run(mode) {
         clearObstacles();
         route = { type: 'kuntilanak', dest: 'house' };
         applyRoute(route); endRequest();
+        ROAD.reset(bus.position.z); ROAD.setLevel(0); announced = null;
         const pz = bus.position.z - 120;
-        destination.position.z = pz - cfg.environment.routeLength;
+        destination.position.z = ROAD.snapFlat(pz - cfg.environment.routeLength);
         showBuilding(route.dest); destBay.visible = true; houseGlow = 0;
         setPassenger(null);
         setPickup(pz);
@@ -3655,9 +3884,9 @@ async function run(mode) {
         score -= lost; combo = 0; flash = 0.5; shake = 0.5; busFlicker = 0.6;
         audio.sfx('sfx_laugh', 0.7, 0.8);
         applyRoute(pickRoute());
-        const nextPickup = bus.position.z - cfg.environment.passengerSpawnDistance;
+        const nextPickup = ROAD.snapFlat(bus.position.z - cfg.environment.passengerSpawnDistance);
         setPickup(nextPickup);
-        destination.position.z = nextPickup - cfg.environment.routeLength * GHOST_TYPES[route.type].routeMult;
+        destination.position.z = ROAD.snapFlat(nextPickup - cfg.environment.routeLength * GHOST_TYPES[route.type].routeMult);
         pendingDestZ = null; showBuilding(route.dest); destBay.visible = true; houseGlow = 0;
         segments.forEach(applyClearance);
         showMessage(gt.name + ' was missed!' + (lost ? ' -' + lost + ' points.' : '') + ' A new passenger is waiting ahead.');
@@ -3711,6 +3940,7 @@ async function run(mode) {
     }
     function actPress() {
         if (phase !== 'playing') return;
+        lastHonk = time;
         if (!req.active || req.def.kind === 'stop') { audio.honk(); return; }
         if (req.def.kind === 'mash') { audio.honk(); req.got++; busFlicker = 0.12; if (req.got >= req.def.need) requestResult(true); return; }
         if (req.who === 'Kuntilanak') audio.blip(160, 0.12, 'square', 0.1, 0.5);
@@ -4064,14 +4294,23 @@ async function run(mode) {
         }
         const mod = onboard ? GHOST_TYPES[route.type] : null;   // heavy passengers slow the bus
         const mod2 = onboard && route.pair ? GHOST_TYPES[route.pair] : null;
-        const accelMult = (mod ? mod.accelMult : 1) * (mod2 ? mod2.accelMult : 1), maxSpeed = eff.maxSpeed * (mod ? mod.speedMult : 1) * (mod2 ? mod2.speedMult : 1);
+        const gr = BEND.gb;
+        const accelMult = (mod ? mod.accelMult : 1) * (mod2 ? mod2.accelMult : 1) * clamp(1 - gr * 3, 0.45, 1.4), maxSpeed = eff.maxSpeed * (mod ? mod.speedMult : 1) * (mod2 ? mod2.speedMult : 1) * clamp(1 - gr, 0.82, 1.12);
         if (keys['arrowup'] || keys['w']) speed += eff.accel * accelMult * f; else speed -= 0.006 * f;
         if (keys[' '] || keys['s'] || keys['arrowdown']) speed -= eff.brake * f * (1 - 0.22 * weather.rain);
+        speed -= gr * 0.004 * f;
         speed = clamp(speed, 0, maxSpeed);
 
         const steerTarget = steer * (0.16 + speed * 0.22);
         bus.userData.steer = lerp(bus.userData.steer || 0, steerTarget, 1 - Math.exp(-10 * dt));
-        bus.position.x = clamp(bus.position.x + bus.userData.steer * f, -6.2, 6.2);
+        const vms = speed * 60;                                             // curves push the bus outward, hills change its pace
+        let dr = (bus.userData.drift || 0) - BEND.kb * vms * vms * 0.6 * dt; dr *= Math.exp(-2.6 * dt); bus.userData.drift = dr;
+        const wantX = bus.position.x + bus.userData.steer * f + dr * dt, lim = roadLimits(bus.position.z);
+        if (Math.abs(wantX) > lim.outer && Math.abs(dr) > 0.4 && speed > 0.15) speed *= 1 - 0.012 * f;      // scraping the verge
+        let nx = clamp(wantX, -lim.outer, lim.outer);
+        if (lim.med > 0 && Math.abs(nx) < lim.med + 1.9) { nx = (nx < 0 || (nx === 0 && dr < 0) ? -1 : 1) * (lim.med + 1.9); speed *= 1 - 0.02 * f; }     // the median
+        if (lim.outer < 4.5 && Math.abs(wantX) > lim.outer + 0.05 && speed > 0.22 && invuln <= 0) damage(3, 'Rail scrape!', false, null, 0.3);
+        bus.position.x = nx;
         bus.rotation.z = lerp(bus.rotation.z, -bus.userData.steer * 0.18, 1 - Math.exp(-7 * dt));
         bus.rotation.y = lerp(bus.rotation.y, bus.userData.steer * 0.055, 1 - Math.exp(-7 * dt));
         bus.position.z -= speed * f;
@@ -4110,7 +4349,7 @@ async function run(mode) {
                 const tertib = route.dest === 'mbg' && mbgKids.built && mbgKids.state !== 'queue' && mbgKids.hits === 0;
                 const pts = Math.round(base * (1 + Math.min(combo, 4) * 0.25)) + timeBonus + (perfect ? 50 : 0) + (tertib ? 60 : 0);
                 score += pts; runCoins += pts; save.coins += pts;
-                combo++; deliveries++;
+                combo++; deliveries++; ROAD.setLevel(deliveries);
                 missionEvent('deliver', { type: route.type, dest: route.dest, perfect, orderly: tertib, clean: tripHits === 0, rain: weather.rain > 0.3, pair: !!route.pair });
                 missionEvent('points', pts); missionEvent('combo', combo);
                 audio.sfx('sfx_deliver', 1);
@@ -4160,6 +4399,7 @@ async function run(mode) {
         doorGlows.forEach((d) => { d.material.opacity = clamp(houseGlow * 0.9, 0, 0.9); });
 
         segments.forEach((sg) => { const m = sg.userData.lm; if (m && m.group.visible) m.update(time); });
+        if (posSite && posSite.group.visible) posSite.update(time);
         Object.keys(destLm).forEach((k) => { if (buildings[k].visible) destLm[k].update(time); });
         const mk = buildings.market;
         if (mk.visible) {
@@ -4204,7 +4444,7 @@ async function run(mode) {
         camera.position.x = lerp(camera.position.x, bus.position.x * 0.92 + camFocus * 0.6, blend);
         camera.position.y = lerp(camera.position.y, bus.position.y + 7.6 + Math.sin(time * 31) * 0.012 * sp, blend);
         camera.position.z = lerp(camera.position.z, bus.position.z + 18 + sp * 1.0, blend);
-        camera.lookAt(bus.position.x + (bus.userData.steer || 0) * 3 + camFocus, bus.position.y + 0.9, bus.position.z - 25);
+        camera.lookAt(bus.position.x + (bus.userData.steer || 0) * 3 + camFocus + bendX(25) * 0.5, bus.position.y + 0.9 + bendY(25) * 0.8, bus.position.z - 25);
         const fov = 56 + sp * 6;
         if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = lerp(camera.fov, fov, 0.1); camera.updateProjectionMatrix(); }
         if (shake > 0) {
@@ -4353,6 +4593,317 @@ async function run(mode) {
     }
 
     let last = performance.now();
+    // ---- applying the bend: road meshes are re-shaped each frame; everything else is shifted rigidly just for the render
+    const bendSaved = [], bendExtra = [];                       // bendExtra: extra world objects (modules) shifted like props
+    function bendMeshVertices(mesh, wz0) {                      // per-vertex bend for long surfaces (road, ground, bridge deck...)
+        const base = mesh.userData.base, pos = mesh.geometry.attributes.position, arr = pos.array;
+        for (let i = 0; i < arr.length; i += 3) {
+            const dz = bus.position.z - (wz0 + base[i + 2]);
+            arr[i] = base[i] + bendX(dz); arr[i + 1] = base[i + 1] + bendY(dz); arr[i + 2] = base[i + 2];
+        }
+        pos.needsUpdate = true;
+    }
+    function updateRoadMeshes() {
+        if (!BEND.on && !updateRoadMeshes.was) return;
+        updateRoadMeshes.was = BEND.on;
+        segments.forEach((sg) => bendMeshVertices(sg.children[0], sg.position.z));
+        bendMeshVertices(ground, ground.position.z);
+        bendExtra.forEach((m) => { if (m.userData.bendMeshes && m.visible) m.userData.bendMeshes.forEach((bm) => bendMeshVertices(bm, m.position.z)); });
+    }
+    function bendObj(o, zw) {
+        const dz = bus.position.z - zw, bx = bendX(dz), by = bendY(dz);
+        o.position.x += bx; o.position.y += by; bendSaved.push(o, bx, by);
+    }
+    let bendPitch = 0, bendLift = 0;
+    function bendApply() {
+        bendSaved.length = 0; bendPitch = 0; bendLift = bridgeLift(bus.position.z);
+        if (bendLift) { bus.position.y += bendLift; camera.position.y += bendLift * 0.7; }
+        if (!BEND.on) return;
+        segments.forEach((sg) => {
+            const p = sg.userData, z0 = sg.position.z;
+            p.bendList.forEach((o) => { if (o.visible) bendObj(o, z0 + o.position.z); });
+            if (p.lm && p.lm.group.visible) bendObj(p.lm.group, z0 + p.lm.group.position.z);
+        });
+        [pickup, cemetery, halte, banyan, destination, snackBay, boardSpot].forEach((o) => { if (o.visible) bendObj(o, o.position.z); });
+        bendObj(cur.root, cur.root.position.z); if (cur2) bendObj(cur2.root, cur2.root.position.z);
+        obstacles.forEach((o) => { if (o.root.visible) bendObj(o.root, o.root.position.z); });
+        bendExtra.forEach((m) => { if (m.visible && !m.userData.bendMeshes) bendObj(m, m.position.z); });
+        camera.position.y += bendY(-18); bendSaved.push(camera, 0, bendY(-18));
+        bendPitch = Math.atan(BEND.gb) * 0.9; bus.rotation.x += bendPitch;
+    }
+    function bendRestore() {
+        for (let i = 0; i < bendSaved.length; i += 3) { const o = bendSaved[i]; o.position.x -= bendSaved[i + 1]; o.position.y -= bendSaved[i + 2]; }
+        bendSaved.length = 0; bus.rotation.x -= bendPitch; bendPitch = 0;
+        if (bendLift) { bus.position.y -= bendLift; camera.position.y -= bendLift * 0.7; bendLift = 0; }
+    }
+    const ROAD_NAMES = { curve: ['Curve ahead - ease off', 0.4], sharp: ['SHARP BEND! Slow down', 0.9], zig: ['Zig-zag road ahead!', 0.9], hill: ['Steep hill ahead - the engine will struggle', 0.4],
+        fork: ['Fork ahead! Left: Shortcut (rough) | Right: Main Road', 0.9], bridge: ['Suspension bridge ahead - it is narrow!', 0.9], market: ['Night market street ahead - careful!', 0.9] };
+    function announceRoad() {                                   // one heads-up message per event
+        if (phase !== 'playing') return;
+        const e = ROAD.nextEvent(bus.position.z, 170);
+        if (e && e !== announced) { announced = e; showMessage(ROAD_NAMES[e.type][0]); audio.blip(520, 0.08, 'triangle', 0.1); }
+    }
+
+    // ------------------------------------------------------------------
+    // ROAD MODULES: set pieces that attach to an event of the road layout (fork, suspension bridge, night market).
+    // A module is built once in local coordinates (z = 0 at the start of the event, running to negative z) and is moved onto
+    // the next matching event as the bus approaches. Long surfaces are bent per vertex, small pieces are shifted rigidly.
+    // ------------------------------------------------------------------
+    const roadMods = {};
+    const vcStd = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide });
+    function ribbon(ds, xa, xb, y, color) {                    // flat strip between two x(d) curves, d = distance from the event start
+        const pos = [], idx = [], col = [], c = new THREE.Color(color);
+        ds.forEach((d) => { pos.push(xa(d), y, -d, xb(d), y, -d); col.push(c.r, c.g, c.b, c.r, c.g, c.b); });
+        for (let i = 0; i < ds.length - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+        return g;
+    }
+    function wall(ds, x, y0, y1, color) {                       // vertical strip along x(d)
+        const pos = [], idx = [], col = [], c = new THREE.Color(color);
+        ds.forEach((d) => { pos.push(x(d), y0, -d, x(d), y1, -d); col.push(c.r, c.g, c.b, c.r, c.g, c.b); });
+        for (let i = 0; i < ds.length - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+        return g;
+    }
+    function mergeVC(list) {
+        const pos = [], col = [], idx = []; let off = 0;
+        list.forEach((g) => {
+            pos.push(...g.attributes.position.array); col.push(...g.attributes.color.array);
+            const ix = g.index ? Array.from(g.index.array) : Array.from({ length: g.attributes.position.count }, (_, i) => i);
+            ix.forEach((i) => idx.push(i + off)); off += g.attributes.position.count;
+        });
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+        return g;
+    }
+    const range = (a, b, st) => { const r = []; for (let v = a; v < b + 0.001; v += st) r.push(v); return r; };
+    const bendable = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.userData.base = geo.attributes.position.array.slice(); return m; };
+    function makeModule(type, len, build) {
+        const mod = { type, len, sec: null, surf: new THREE.Group(), pieces: [], update() {}, onBind() {} };
+        mod.surf.visible = false; scene.add(mod.surf); mod.surf.userData.bendMeshes = []; bendExtra.push(mod.surf);
+        mod.addSurf = (mesh) => { mod.surf.add(mesh); mod.surf.userData.bendMeshes.push(mesh); return mesh; };
+        mod.addPiece = (g, lz) => { g.visible = false; scene.add(g); mod.pieces.push({ g, lz }); bendExtra.push(g); return g; };
+        mod.bind = (sec) => {
+            mod.sec = sec; mod.surf.position.z = sec ? sec.z0 : 0;
+            mod.surf.visible = !!sec; mod.pieces.forEach((p) => { p.g.visible = !!sec; if (sec) p.g.position.z = sec.z0 + p.lz; });
+            if (sec) { updateRoadMeshes.was = true; mod.onBind(sec); }
+        };
+        build(mod);
+        roadMods[type] = mod;
+        return mod;
+    }
+    function updateModules(dt) {
+        Object.keys(roadMods).forEach((type) => {
+            const mod = roadMods[type], zb = bus.position.z;
+            if (mod.sec && zb < mod.sec.z1 - 90) mod.bind(null);                               // passed it: free the module
+            if (!mod.sec) {
+                const next = ROAD.secs.find((s) => s.type === type && s.z1 < zb + 60 && s.z0 > zb - 520);
+                if (next) mod.bind(next);
+            }
+            if (mod.sec) mod.update(dt, zb - mod.sec.z0 > 0 ? 0 : mod.sec.z0 - zb);
+        });
+    }
+    // distance into the current event (0 = start), or -1 when the bus is outside every event
+    function roadLimits(z) {                                    // {outer, med}: how far the bus may go from the centre line, and the median it must avoid
+        const e = ROAD.at(z);
+        if (!e) return { outer: 6.2, med: 0 };
+        const d = e.z0 - z;
+        if (e.type === 'fork') { const w = forkW(d); return { outer: 6.2 + 5.2 * w, med: 4 * w }; }
+        if (e.type === 'bridge') { const k = clamp(Math.min(d - 18, e.len - 18 - d) / 14, 0, 1); return { outer: lerp(6.2, 3.4, k), med: 0 }; }
+        if (e.type === 'market') return { outer: 5.4, med: 0 };
+        return { outer: 6.2, med: 0 };
+    }
+    const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+    function forkW(d) { return d < 20 ? 0 : (d < 90 ? sstep(20, 90, d) : (d < 240 ? 1 : (d < 310 ? 1 - sstep(240, 310, d) : 0))); }
+
+    // ---- FORK: the road splits around a grassy median; left is the rough shortcut, right the lit main road
+    const panelTex = (w, h, paint) => canvasTex(w, h, (c) => paint(c, w, h));
+    makeModule('fork', 330, (mod) => {
+        const ds = range(0, 330, 5), ext = (d) => 7 + 4.6 * forkW(d), med = (d) => 4 * forkW(d);
+        const asph = '#25262b', lineW = '#c8c8bc', curb = '#8d9298';
+        const surf = mergeVC([
+            ribbon(ds, (d) => -ext(d), () => -6.9, 0.035, asph), ribbon(ds, () => 6.9, (d) => ext(d), 0.035, asph),
+            ribbon(ds, (d) => -ext(d) - 0.05, (d) => -ext(d) + 0.2, 0.04, lineW), ribbon(ds, (d) => ext(d) - 0.2, (d) => ext(d) + 0.05, 0.04, lineW),
+            ribbon(ds, (d) => -med(d) - 0.9, (d) => -med(d) - 0.55, 0.041, '#d8b030'), ribbon(ds, (d) => med(d) + 0.55, (d) => med(d) + 0.9, 0.041, '#d8b030')
+        ]);
+        mod.addSurf(bendable(surf, vcStd()));
+        const island = mergeVC([
+            ribbon(ds, (d) => -med(d), (d) => med(d), 0.2, '#1f3d27'),
+            ribbon(ds, (d) => -med(d) - 0.35, (d) => -med(d), 0.205, curb), ribbon(ds, (d) => med(d), (d) => med(d) + 0.35, 0.205, curb),
+            wall(ds, (d) => -med(d) - 0.35, 0.03, 0.205, '#6c7177'), wall(ds, (d) => med(d) + 0.35, 0.03, 0.205, '#6c7177')
+        ]);
+        mod.addSurf(bendable(island, vcStd()));
+        // gantry with the two signs, in front of the split
+        const gantry = new THREE.Group();
+        [-12.8, 12.8].forEach((x) => { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 8, 8).translate(0, 4, 0), poleMat); post.position.x = x; gantry.add(post); });
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(26, 0.5, 0.5), poleMat); beam.position.y = 7.9; gantry.add(beam);
+        const left = new THREE.Mesh(new THREE.PlaneGeometry(8, 3.2), new THREE.MeshBasicMaterial({ map: panelTex(256, 104, (c, w, h) => {
+            c.fillStyle = '#d8a820'; c.fillRect(0, 0, w, h); c.strokeStyle = '#161006'; c.lineWidth = 6; c.strokeRect(4, 4, w - 8, h - 8);
+            c.fillStyle = '#161006'; c.beginPath(); c.moveTo(18, 52); c.lineTo(52, 22); c.lineTo(52, 40); c.lineTo(84, 40); c.lineTo(84, 64); c.lineTo(52, 64); c.lineTo(52, 82); c.fill();
+            c.font = '800 30px Trebuchet MS, Arial'; c.textAlign = 'left'; c.fillText('SHORTCUT', 96, 50); c.font = '700 17px Trebuchet MS, Arial'; c.fillText('rough road  -90 m', 98, 78);
+        }), color: 0xcfcfcf }));
+        const right = new THREE.Mesh(new THREE.PlaneGeometry(8, 3.2), new THREE.MeshBasicMaterial({ map: panelTex(256, 104, (c, w, h) => {
+            c.fillStyle = '#1f7a4a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#f0f0e6'; c.lineWidth = 6; c.strokeRect(4, 4, w - 8, h - 8); c.fillStyle = '#f0f0e6';
+            c.font = '800 30px Trebuchet MS, Arial'; c.textAlign = 'left'; c.fillText('MAIN ROAD', 20, 50); c.font = '700 17px Trebuchet MS, Arial'; c.fillText('lit and safe  +40', 22, 78);
+            c.beginPath(); c.moveTo(238, 52); c.lineTo(204, 22); c.lineTo(204, 40); c.lineTo(172, 40); c.lineTo(172, 64); c.lineTo(204, 64); c.lineTo(204, 82); c.fill();
+        }), color: 0xcfcfcf }));
+        left.position.set(-6.4, 5.2, 0.3); right.position.set(6.4, 5.2, 0.3); gantry.add(left, right);
+        [-6.4, 6.4].forEach((x) => { const gl = addGlow(gantry, x, 5.2, 0.6, 9, 0xfff0c0); gl.material.opacity = 0.28; });
+        mod.addPiece(gantry, 14);
+        // median tip: bollards and a chevron board
+        const tip = new THREE.Group();
+        [-0.9, 0, 0.9].forEach((x) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.1, 8).translate(0, 0.6, 0), new THREE.MeshStandardMaterial({ color: 0xe8e8e0, emissive: 0x4a1010 })); b.position.set(x, 0.2, 0); tip.add(b); });
+        const chev = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ map: panelTex(128, 64, (c, w, h) => { c.fillStyle = '#e8e8e0'; c.fillRect(0, 0, w, h); c.fillStyle = '#c8102e'; for (let i = -1; i < 6; i++) { c.beginPath(); c.moveTo(i * 24, h); c.lineTo(i * 24 + 12, 0); c.lineTo(i * 24 + 24, 0); c.lineTo(i * 24 + 12, h); c.fill(); } }), color: 0xbbbbbb }));
+        chev.position.set(0, 1.9, 0.2); tip.add(chev); mod.addPiece(tip, -22);
+        // main road lamps (right) and unlit stumps (left)
+        const lamps = new THREE.Group(); mod.lampGlows = [];
+        [70, 105, 140, 175, 210, 245].forEach((d, i) => {
+            const L = new THREE.Group(); L.add(new THREE.Mesh(poleGeo, poleMat)); const h = new THREE.Mesh(lampHeadGeo, lampHeadMat); h.position.y = 6; L.add(h);
+            const gl = new THREE.Sprite(glowAmber.clone()); gl.scale.setScalar(6); gl.position.y = 6; L.add(gl); mod.lampGlows.push(gl);
+            L.position.set(ext(d) + 0.7, 0, -d); lamps.add(L);
+        });
+        mod.addPiece(lamps, 0);
+        // rough patches on the shortcut lane
+        mod.hazards = [];
+        const rough = new THREE.Group();
+        [[95, -8.4], [120, -6.9], [150, -9.6], [172, -7.4], [198, -9.0], [225, -7.0]].forEach(([d, x]) => {
+            const g = new THREE.Group();
+            const blob = new THREE.Mesh(new THREE.CircleGeometry(1.5, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x050506, polygonOffset: true, polygonOffsetFactor: -3 })); blob.position.y = 0.06; blob.scale.set(1, 1, 1.25); g.add(blob);
+            const rim = new THREE.Mesh(new THREE.RingGeometry(1.5, 2.1, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x6c727a, polygonOffset: true, polygonOffsetFactor: -2 })); rim.position.y = 0.05; rim.scale.set(1, 1, 1.25); g.add(rim);
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.8, 8).translate(0, 0.4, 0), new THREE.MeshStandardMaterial({ color: 0xe86a1c, emissive: 0x3a1400 })); cone.position.set(1.8, 0, 0.3); g.add(cone);
+            g.position.set(x, 0, -d); rough.add(g); mod.hazards.push({ d, x, hit: false });
+        });
+        mod.addPiece(rough, 0);
+        mod.choice = null; mod.onBind = () => { mod.choice = null; mod.hazards.forEach((h) => { h.hit = false; }); };
+        mod.update = (dt) => {
+            const d = mod.sec.z0 - bus.position.z;
+            mod.lampGlows.forEach((g, i) => { g.material.opacity = 0.75 + Math.sin(time * 3 + i) * 0.1; });
+            if (mod.choice === null && d > 150 && d < 170 && phase === 'playing') {
+                mod.choice = bus.position.x < 0 ? 'L' : 'R';
+                if (mod.choice === 'L') {
+                    showMessage('Shortcut! The rough road saves distance');
+                    if (onboard && !delivering && pendingDestZ === null) destination.position.z = ROAD.snapFlat(destination.position.z + 90);
+                    else { score += 25; runCoins += 25; save.coins += 25; }
+                } else { score += 40; runCoins += 40; save.coins += 40; showMessage('Main road: safe and lit. +40'); }
+                missionEvent('fork', mod.choice);
+            }
+            if (phase === 'playing') mod.hazards.forEach((h) => {
+                if (h.hit) return;
+                if (Math.abs(bus.position.z - (mod.sec.z0 - h.d)) < 3.4 && Math.abs(bus.position.x - h.x) < 2.7 && invuln <= 0) {
+                    if (damage(6, 'Rough road!', false, null, 0.35)) { h.hit = true; speed *= 0.7; }
+                }
+            });
+        };
+    });
+    // ---- SUSPENSION BRIDGE: a narrow plank deck over a dark river, towers, sagging cables, loose planks and a swaying deck
+    const BRIDGE = { d0: 22, d1: 248, lift: 0.4 };
+    function bridgeLift(z) {
+        const e = ROAD.at(z); if (!e || e.type !== 'bridge') return 0;
+        const d = e.z0 - z; return BRIDGE.lift * clamp(Math.min(d - BRIDGE.d0 + 12, BRIDGE.d1 + 12 - d) / 12, 0, 1);
+    }
+    function deckGeo(d0, d1, y, hw, rampTo) {                   // planked deck with UVs; ends ramp down to the road
+        const ds = [d0 - 12, d0, d0 + 4].concat(range(d0 + 8, d1 - 8, 8), [d1 - 4, d1, d1 + 12]);
+        const pos = [], uv = [], idx = [];
+        ds.forEach((d) => { const yy = d < d0 ? lerp(0.04, y, (d - (d0 - 12)) / 12) : (d > d1 ? lerp(y, 0.04, (d - d1) / 12) : y); pos.push(-hw, yy, -d, hw, yy, -d); uv.push(0, d / 3, 1, d / 3); });
+        for (let i = 0; i < ds.length - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+        return g;
+    }
+    function boxAt(x, y, z, w, h, d, color) { return paintVC(new THREE.BoxGeometry(w, h, d).translate(x, y, z), color); }
+    function paintVC(g, color) { const c = new THREE.Color(color), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); if (g.index === null) { const ix = []; for (let i = 0; i < n; i++) ix.push(i); g.setIndex(ix); } return g; }
+    makeModule('bridge', 270, (mod) => {
+        const plank = canvasTex(64, 64, (c, w, h) => { for (let i = 0; i < 4; i++) { c.fillStyle = ['#4a3a28', '#554431', '#3f3022', '#4e3d2b'][i]; c.fillRect(0, i * 16, w, 14); c.fillStyle = '#0a0806'; c.fillRect(0, i * 16 + 14, w, 2); for (let k = 0; k < 14; k++) { c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(Math.random() * w, i * 16 + Math.random() * 14, 3 + Math.random() * 10, 1); } } }, 1);
+        plank.wrapS = plank.wrapT = THREE.RepeatWrapping;
+        mod.addSurf(bendable(deckGeo(BRIDGE.d0, BRIDGE.d1, BRIDGE.lift, 4.3), new THREE.MeshStandardMaterial({ map: plank, roughness: 1, side: THREE.DoubleSide })));
+        const waterTex = canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#0b1a26'; c.fillRect(0, 0, w, h); for (let i = 0; i < 60; i++) { c.strokeStyle = 'rgba(120,170,200,' + (0.05 + Math.random() * 0.12) + ')'; c.lineWidth = 1 + Math.random() * 2; c.beginPath(); const y = Math.random() * h, x = Math.random() * w; c.moveTo(x, y); c.quadraticCurveTo(x + 14, y - 3, x + 30, y); c.stroke(); } }, 1);
+        waterTex.wrapS = waterTex.wrapT = THREE.RepeatWrapping; waterTex.repeat.set(10, 12);
+        const wg = new THREE.PlaneGeometry(150, 270, 1, 27).rotateX(-Math.PI / 2).translate(0, 0.075, -135);
+        const water = bendable(wg, new THREE.MeshStandardMaterial({ map: waterTex, color: 0x9ab8cc, roughness: 0.15, metalness: 0.35, transparent: true, opacity: 0.94 }));
+        mod.addSurf(water); mod.water = waterTex;
+        // frame: towers, hand rails, posts, hanger rods, main cables
+        const dk = '#2c2218', rope = '#15110d', parts = [];
+        const cable = (d) => 1.7 + 12.5 * Math.pow((d - (BRIDGE.d0 + BRIDGE.d1) / 2) / ((BRIDGE.d1 - BRIDGE.d0) / 2), 2);
+        [BRIDGE.d0, BRIDGE.d1].forEach((d) => {
+            [-5.3, 5.3].forEach((x) => parts.push(boxAt(x, 7.2, -d, 0.55, 14.4, 0.55, '#3c3226')));
+            [9.6, 14.1].forEach((y) => parts.push(boxAt(0, y, -d, 11.2, 0.45, 0.5, '#3c3226')));
+        });
+        [-5.3, 5.3].forEach((x) => {
+            const dsc = range(BRIDGE.d0, BRIDGE.d1, 4);
+            const top = [], idx = [], col = []; const c = new THREE.Color(rope);
+            dsc.forEach((d) => { const y = cable(d); top.push(x - 0.1, y, -d, x + 0.1, y, -d, x, y + 0.14, -d, x, y - 0.14, -d); for (let k = 0; k < 4; k++) col.push(c.r, c.g, c.b); });
+            for (let i = 0; i < dsc.length - 1; i++) { const a = i * 4; idx.push(a, a + 4, a + 1, a + 1, a + 4, a + 5, a + 2, a + 6, a + 3, a + 3, a + 6, a + 7); }
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(top, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals(); parts.push(g);
+            for (let d = BRIDGE.d0 + 8; d < BRIDGE.d1 - 6; d += 8) { const y = cable(d); parts.push(boxAt(x, (y + 0.4) / 2, -d, 0.07, y - 0.4, 0.07, rope)); }          // hangers
+            parts.push(wall(range(BRIDGE.d0 - 12, BRIDGE.d1 + 12, 6), () => x * 0.84, 1.0, 1.25, '#54442f'), ribbon(range(BRIDGE.d0 - 12, BRIDGE.d1 + 12, 6), () => x * 0.84 - 0.1, () => x * 0.84 + 0.1, 1.27, '#54442f'));   // hand rail
+            for (let d = BRIDGE.d0; d <= BRIDGE.d1; d += 6) parts.push(boxAt(x * 0.84, 0.75, -d, 0.12, 1.0, 0.12, dk));
+            parts.push(wall(range(BRIDGE.d0 - 12, BRIDGE.d1 + 12, 6), () => x * 0.8, 0.05, 0.42, '#2a2118'));      // deck side beam
+        });
+        mod.addSurf(bendable(mergeVC(parts), vcStd()));
+        // loose planks on the deck
+        const holes = new THREE.Group(); mod.hazards = [];
+        [[68, -1.4], [128, 1.2], [188, -0.6]].forEach(([d, x]) => {
+            const h = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 2.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x030303, polygonOffset: true, polygonOffsetFactor: -4 })); h.position.set(x, BRIDGE.lift + 0.03, -d); holes.add(h);
+            [-1.2, 0.6].forEach((o) => { const b = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.06, 0.28), new THREE.MeshStandardMaterial({ color: 0x5a4632 })); b.position.set(x + o * 0.2, BRIDGE.lift + 0.1, -d + o * 1.5); b.rotation.y = o * 0.25; holes.add(b); });
+            mod.hazards.push({ d, x, hit: false });
+        });
+        mod.addPiece(holes, 0);
+        const mist = new THREE.Group();
+        for (let i = 0; i < 7; i++) { const s = addGlow(mist, rand(-14, 14), 1.4, -(30 + i * 32), 34, 0x8fb4cc); s.material.opacity = 0.16; }
+        mod.addPiece(mist, 0);
+        let creak = 2;
+        mod.onBind = () => { mod.hazards.forEach((h) => { h.hit = false; }); };
+        mod.update = (dt) => {
+            mod.water.offset.y += dt * 0.12; mod.water.offset.x = Math.sin(time * 0.3) * 0.05;
+            const d = mod.sec.z0 - bus.position.z;
+            if (d > BRIDGE.d0 && d < BRIDGE.d1 && phase === 'playing') {
+                bus.userData.drift = (bus.userData.drift || 0) + Math.sin(time * 1.1) * 1.6 * dt;                    // the deck sways
+                creak -= dt; if (creak <= 0) { creak = rand(3, 6); audio.blip(rand(90, 130), 0.3, 'sawtooth', 0.035, 0.6); }
+                mod.hazards.forEach((h) => {
+                    if (h.hit) return;
+                    if (Math.abs(bus.position.z - (mod.sec.z0 - h.d)) < 2.6 && Math.abs(bus.position.x - h.x) < 2.7 && invuln <= 0) {
+                        if (damage(8, 'A plank gave way!', false, null, 0.4)) { h.hit = true; speed *= 0.6; }
+                    }
+                });
+            }
+        };
+    });
+
+    // ---- NIGHT MARKET STREET: lit stalls on both sides, crowds, string lights and an entrance arch
+    makeModule('market', 250, (mod) => {
+        const parts = [], people = [], bulbs = [], pal = ['#c8102e', '#e0a020', '#1c8ac8', '#3aa860', '#c85aa0', '#e8e0d0'];
+        const cap = (x, z, col) => { const g = new THREE.CapsuleGeometry(0.22, 0.75, 2, 5); g.translate(x, 0.65, z); parts.push(paintVC(g, col)); parts.push(paintVC(new THREE.SphereGeometry(0.2, 6, 5).translate(x, 1.45, z), '#c89a74')); };
+        for (let side = -1; side <= 1; side += 2) {
+            for (let d = 26; d <= 226; d += 15) {
+                const x = side * 10.3, col = pal[Math.floor(Math.random() * pal.length)];
+                parts.push(boxAt(x, 0.55, -d, 2.0, 1.1, 3.4, '#5a4026'));                                                  // counter
+                [-1.5, 1.5].forEach((dz) => [-1, 1].forEach((dx) => parts.push(boxAt(x + dx * 0.95, 1.5, -d + dz, 0.1, 3.0, 0.1, '#3a2a1a'))));
+                const roof = new THREE.BoxGeometry(2.6, 0.12, 3.8); roof.rotateZ(side * 0.18); roof.translate(x, 3.05, -d); parts.push(paintVC(roof, col));
+                parts.push(boxAt(x, 1.2, -d, 1.6, 0.3, 2.8, pal[(Math.floor(Math.random() * pal.length) + 2) % pal.length]));  // goods
+                parts.push(boxAt(x - side * 0.6, 1.8, -d + 1.0, 0.3, 0.4, 0.3, '#f0d890'));
+                bulbs.push(x - side * 1.1, 2.9, -d + 1.4, x - side * 1.1, 2.9, -d - 1.4);
+                cap(x - side * 2.1, -d - 0.8, pal[Math.floor(Math.random() * pal.length)]); cap(x - side * 2.6, -d + 0.9, pal[Math.floor(Math.random() * pal.length)]);
+                if (Math.random() < 0.6) cap(x - side * 3.4, -d + rand(-1, 1), pal[Math.floor(Math.random() * pal.length)]);
+            }
+        }
+        parts.push(ribbon(range(10, 240, 6), () => -14.5, () => -7, 0.036, '#3a2d22'), ribbon(range(10, 240, 6), () => 7, () => 14.5, 0.036, '#3a2d22'));
+        mod.addSurf(bendable(mergeVC(parts), vcStd()));
+        // string lights across the street (lines + glowing bulbs)
+        const lines = [], dots = [];
+        for (let d = 30; d <= 230; d += 25) {
+            let px = -10.3, py = 5.6;
+            for (let i = 1; i <= 12; i++) { const t = i / 12, x = lerp(-10.3, 10.3, t), y = 5.6 - 1.3 * Math.sin(Math.PI * t); lines.push(px, py, -d, x, y, -d); px = x; py = y; if (i % 2 === 0) dots.push(x, y - 0.12, -d); }
+        }
+        const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
+        const ll = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x201810 })); ll.frustumCulled = false; ll.userData.base = lg.attributes.position.array.slice(); mod.addSurf(ll);
+        const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.Float32BufferAttribute(dots.concat(bulbs), 3));
+        const dp = new THREE.Points(dg, new THREE.PointsMaterial({ map: glowTex, color: 0xffd890, size: 1.5, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9 })); dp.frustumCulled = false; dp.userData.base = dg.attributes.position.array.slice(); mod.addSurf(dp);
+        // entrance arch
+        const arch = new THREE.Group();
+        [-9, 9].forEach((x) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 10.6, 8).translate(0, 5.3, 0), new THREE.MeshStandardMaterial({ color: 0x7a1c1c, roughness: 0.8 })); p.position.x = x; arch.add(p); const l = addGlow(arch, x, 9.4, 0.5, 5, 0xffb060); l.material.opacity = 0.7; });
+        const banner = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.4), new THREE.MeshBasicMaterial({ map: panelTex(512, 88, (c, w, h) => { c.fillStyle = '#7a1c1c'; c.fillRect(0, 0, w, h); c.strokeStyle = '#ffd23c'; c.lineWidth = 6; c.strokeRect(4, 4, w - 8, h - 8); c.fillStyle = '#ffd23c'; c.font = '800 54px Trebuchet MS, Arial'; c.textAlign = 'center'; c.fillText('NIGHT MARKET', w / 2, 62); }), color: 0xe0e0e0 }));
+        banner.position.set(0, 9.9, 0); arch.add(banner); mod.addPiece(arch, -4);
+        mod.update = () => { dp.material.opacity = 0.8 + Math.sin(time * 5) * 0.1; };
+    });
+
     function loop(now) {
         const dt = Math.min((now - last) / 1000, 0.11);
         last = now; time += dt;
@@ -4377,9 +4928,10 @@ async function run(mode) {
         updateWorld(dt);
         updateWeather(dt);
         updateDestinationRelocation();
+        bendProfile(bus.position.z); updateModules(dt); updateRoadMeshes(); announceRoad();
         updateCamera(dt);
         updateHud();
-        renderer.render(scene, camera);
+        bendApply(); renderer.render(scene, camera); bendRestore();
         requestAnimationFrame(loop);
     }
     setTimeout(buildMbgKids, 2400);
