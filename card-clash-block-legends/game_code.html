@@ -223,6 +223,8 @@
     .friendBox .code { font-size: 36px; letter-spacing: 6px; color: #ffe08a; cursor: pointer; }
     .friendBox .frow { display: flex; gap: 10px; justify-content: center; margin: 8px 0; }
     .friendBox input { font: inherit; font-size: 30px; letter-spacing: 4px; text-transform: uppercase; width: 260px; padding: 6px 12px; border: 4px solid #05070f; border-radius: 10px; background: #0e1430; color: #fff; text-align: center; }
+    .friendBox .olRow { display: flex; gap: 10px; justify-content: center; align-items: center; margin: 8px 0 2px; } .friendBox .olRow input { width: 150px; }
+    .friendBox .sub { border-top: 3px solid rgba(255,255,255,.12); margin-top: 10px; padding-top: 8px; }
     .friendBox .btn { min-height: 56px; font-size: 24px; padding: 6px 22px; }
     /* settings */
     .setrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; font-size: 26px; }
@@ -410,6 +412,26 @@ window.__threeReady = new Promise((resolve, reject) => {
 </script>
 
 <script>
+/* ---- ONLINE DUELS: Supabase Realtime (channels only: no tables, no SQL) ------------------------------------------
+ * connectSupabase() lazily loads supabase-js and returns a client. Replace the two values below to point the game at
+ * another Supabase project. The anon key is public by design (never put a service_role key in game code). */
+window.connectSupabase = function () {
+    const SUPABASE_URL = 'https://wbmnwzjknmwjmitjyssn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndibW53emprbm13am1pdGp5c3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MjcyMjcsImV4cCI6MjEwODQwMzIyN30.BNr3RUvDzn8-N-CUuhJ0nqrt44afbtkVe9F48ATXfRU';
+    const make = () => window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { realtime: { params: { eventsPerSecond: 20 } } });
+    if (window.supabase && window.supabase.createClient) return Promise.resolve(make());
+    return new Promise((resolve, reject) => {
+        const tag = document.createElement('script');
+        tag.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+        const to = setTimeout(() => reject(new Error('timeout')), 9000);
+        tag.onload = () => { clearTimeout(to); try { resolve(make()); } catch (e) { reject(e); } };
+        tag.onerror = () => { clearTimeout(to); reject(new Error('load failed')); };
+        document.head.appendChild(tag);
+    });
+};
+</script>
+
+<script>
 /*
  * CARD CLASH: BLOCK LEGENDS
  * A turn-based card duel. You are a blocky duelist; play a card and what is inside it
@@ -547,7 +569,8 @@ async function run(mode) {
     };
     const clampLv = (lv) => Math.min(LV_MAX, Math.max(1, lv || 1));
     const lvVal = (c, lv, k) => LVV[c.key][k][clampLv(lv) - 1];
-    const levelOf = (side, key) => (side === 'p' ? clampLv(profile.lv[key]) : clampLv(S.rivalLv));
+    const PVP_LV = 3, PVP_MAX_ROUNDS = 12;
+    const levelOf = (side, key) => S.pvp ? PVP_LV : (side === 'p' ? clampLv(profile.lv[key]) : clampLv(S.rivalLv));
     function monStats(c, lv) {
         const mul = 1 + 0.2 * (clampLv(lv) - 1);
         return { atk: Math.round(c.atk * mul) + (clampLv(lv) >= LV_MAX && c.l5 ? c.l5.atk : 0), hp: Math.round(c.hp * mul) };
@@ -2224,6 +2247,7 @@ async function run(mode) {
             const to = target.pos.clone().setY(2.4);
             const cm = await flyCard(c, from, to, 0.5);
             const m = spawnMonster(side, target.pos, c, lv);
+            if (S.pvp) m.sid = side + (++S.pvp.sidN[side]);
             emit(to.x, 2.4, to.z, cardColor(c), 14, 3, 5, 0.3, 0.5, 6);
             disposeCard(cm);
             await monsterIn(m);
@@ -2335,9 +2359,11 @@ async function run(mode) {
     async function playPlayerCard(idx, target) {
         const tok = S.token; S.cardsPlayed = (S.cardsPlayed || 0) + 1;
         const pc = S.p.hand[idx]; if (pc) trackMission(pc.type === 'monster' ? 'summon' : 'cast');
+        if (S.pvp && pc) pvSend({ t: 'play', k: pc.key, tg: pvEnc(target) });
         S.phase = 'busy'; S.sel = null; S.valid = []; clearMarkers(); setHint('');
         try { await playCard('p', idx, target, tok); } catch (e) { lib.log('Card failed: ' + e.message); }
         if (!alive(tok)) return;
+        if (S.pvp) pvSend({ t: 'snap', s: pvSnap() });
         S.phase = 'player';
         setHint('Tap a card, or press FIGHT! to attack.');
         refreshUI();
@@ -2763,6 +2789,7 @@ async function run(mode) {
         refreshUI();
     }
     async function startFight() {
+        if (S.pvp) return startFightPvp();
         const tok = S.token; S.fights = (S.fights || 0) + 1;
         deselect();
         S.phase = 'busy'; setHint(''); refreshUI();
@@ -2793,6 +2820,7 @@ async function run(mode) {
     }
     function checkEnd(force) {
         if (S.over) return;
+        if (S.pvp && !force && S.pvp.replay) return;          // the rival's own client decides what its attacks did
         let loser = null, draw = false, note = '';
         if (force) { loser = force.loser || null; draw = !!force.draw; note = force.note || ''; }
         else {
@@ -2805,6 +2833,7 @@ async function run(mode) {
             if (!loser) return;
         }
         S.over = true; S.phase = 'over'; deselect();
+        if (S.pvp) pvOnEnd(loser, draw, note, force && force.net);
         if (S.tutorial) endTutorial();
         const won = !draw && loser === 'e', tok0 = S.token;
         setMusic(null); sfx(won ? 'win' : 'lose'); setTimeout(() => { if (tok0 === S.token) setMusic('music_menu'); }, 4200);
@@ -2825,7 +2854,7 @@ async function run(mode) {
             $('endTitle').textContent = draw ? 'DRAW' : (won ? 'VICTORY!' : 'DEFEAT');
             $('endLine').textContent = (note ? note + '  |  ' : '') + (draw ? 'Streak kept. Wins: ' + profile.wins : (won ? 'Win streak: ' + profile.streak + '  |  Best: ' + profile.best : 'Streak reset. Wins: ' + profile.wins + '  |  Losses: ' + profile.losses));
             $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.streakCoins ? '<br>WIN STREAK x' + reward.streak + ': +' + reward.streakCoins + ' bonus coins' : '') + (reward.streakChest === undefined ? '' : (reward.streakChest >= 0 ? '<br>STREAK x' + reward.streak + ' BONUS: extra FREE CHEST!' : '<br>Streak bonus chest lost - slots full!')) + (reward.chest === undefined ? '' : (reward.chest >= 0 ? '<br>FREE CHEST added to slot ' + (reward.chest + 1) + '!' : '<br>Chest slots are full - open one to get more!'));
-            if (reward.friendly) { $('endLine').textContent = (draw ? 'A draw' : won ? 'You won' : 'You lost') + ' the friendly duel.'; $('endReward').innerHTML = 'Friendly duel - no coins or trophies at stake.'; }
+            if (reward.friendly) { $('endLine').textContent = (draw ? 'A draw' : won ? 'You won' : 'You lost') + (S.pvp ? ' the online duel.' : ' the friendly duel.'); $('endReward').innerHTML = (S.pvp ? 'Online duel - no coins or trophies at stake.' : 'Friendly duel - no coins or trophies at stake.'); }
             else if (reward.revenge) $('endReward').innerHTML += '<br>REVENGE BONUS: +' + reward.revenge + ' coins!';
             $('endscreen').classList.remove('hidden');
         }, 1500);
@@ -2988,7 +3017,7 @@ async function run(mode) {
     function updateClocks(dt) {
         const inMatch = !S.over && S.phase !== 'menu' && S.phase !== 'over' && S.matchT !== undefined;
         const clock = $('clock'), tb = $('turnBar');
-        clock.classList.toggle('hidden', !!S.tutorial); tb.classList.toggle('hidden', !!S.tutorial);
+        clock.classList.toggle('hidden', !!S.tutorial || !!S.pvp); tb.classList.toggle('hidden', !!S.tutorial);
         if (!inMatch || S.tutorial) return;
         const paused = !$('exitOv').classList.contains('hidden');
         if (!paused) {
@@ -3019,7 +3048,7 @@ async function run(mode) {
         $('turnTxt').textContent = S.phase === 'player' ? Math.ceil(tl) + 's' : '';
         tb.classList.toggle('off', S.phase !== 'player'); tb.classList.toggle('low', S.phase === 'player' && tl <= 8);
     }
-    const battleSpeed = () => (S.phase === 'menu' ? 1 : (profile.settings.speed === 2 ? 2 : 1));
+    const battleSpeed = () => (S.phase === 'menu' || S.pvp ? 1 : (profile.settings.speed === 2 ? 2 : 1));
     function updateSpeedBtn() { const b = $('speedBtn'), f = profile.settings.speed === 2; b.textContent = 'SPEED x' + (f ? 2 : 1); b.classList.toggle('fast', f); }
     $('speedBtn').addEventListener('click', () => { profile.settings.speed = profile.settings.speed === 2 ? 1 : 2; saveProfile(); updateSpeedBtn(); sfx('card'); });
     const perf = { t: 0, sum: 0, n: 0 };
@@ -3318,6 +3347,235 @@ async function run(mode) {
         searchTok = null; ov.classList.add('hidden');
         newMatch(name, ghost, friendly);
     }
+
+    /* ============================ ONLINE DUELS (Supabase Realtime) ============================
+       Each client runs the same arena; only the ACTIONS travel over the channel. The side whose turn it is is the authority:
+       it plays its cards (the rival's client replays them mirrored), presses FIGHT (the rival's client replays the attack)
+       and then publishes a snapshot (HP, monster HP, traps) that the other client snaps to, so small animation differences
+       can never decide a match. Turns alternate; the host moves first on odd rounds. Every card plays at Lv 3. */
+    let pv = null;
+    const pvFirst = () => pv.host === (S.round % 2 === 1);
+    const flipSid = (x) => (x[0] === 'p' ? 'e' : 'p') + x.slice(1);
+    const pvNewCode = () => Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
+    function pvEnc(t) {
+        if (!t) return null;
+        if (t.kind === 'ground') return { k: 'g', x: +t.pos.x.toFixed(2), z: +t.pos.z.toFixed(2) };
+        if (t.kind === 'face') return { k: 'f', s: t.side };
+        if (t.kind === 'mon') return { k: 'm', i: t.mon.sid || '' };
+        return null;
+    }
+    function pvDec(e) {
+        if (!e) return null;
+        if (e.k === 'g') return { kind: 'ground', side: 'e', pos: new THREE.Vector3(-e.x, 0.2, -e.z) };
+        if (e.k === 'f') { const sd = other(e.s); return { kind: 'face', side: sd, key: 'f' + sd }; }
+        if (e.k === 'm') { const id = flipSid(String(e.i)), m = liveMons('p').concat(liveMons('e')).find((x) => x.sid === id); return m ? m.target : null; }
+        return null;
+    }
+    function pvSnap() {
+        const mons = (sd) => liveMons(sd).filter((m) => m.sid).map((m) => ({ i: m.sid, h: m.hp, a: m.atk }));
+        return { hp: [S.p.hp, S.e.hp], m: [mons('p'), mons('e')], tr: [S.p.traps.length, S.e.traps.length] };
+    }
+    function pvApply(sn) {                      // sn is written from the sender's view: index 0 = their own side = my 'e'
+        S.e.hp = sn.hp[0]; S.p.hp = sn.hp[1];
+        [['e', sn.m[0]], ['p', sn.m[1]]].forEach(([sd, list]) => {
+            const byId = new Map(list.map((o) => [flipSid(o.i), o]));
+            S[sd].mons.filter((m) => m.sid).slice().forEach((m) => {
+                const o = byId.get(m.sid);
+                if (!o) killMon(m); else { m.hp = Math.min(m.maxHp, o.h); m.atk = o.a; updateLabel(m); }
+            });
+        });
+        [['e', sn.tr[0]], ['p', sn.tr[1]]].forEach(([sd, n]) => { while (S[sd].traps.length > n) removeTrap(sd, S[sd].traps[0]); });
+        refreshUI();
+    }
+    function pvSend(o) {
+        if (!pv || !pv.ch) return;
+        try { pv.ch.send({ type: 'broadcast', event: 'm', payload: Object.assign({ n: ++pv.seq, f: pv.id }, o) }); } catch (e) { lib.log('Online send failed'); }
+    }
+    function pvGateClose() { if (pv.gateOpen) { pv.gateOpen = false; pv.gate = new Promise((r) => { pv.openFn = r; }); } }
+    function pvGateOpen() { pv.gateOpen = true; if (pv.openFn) pv.openFn(); }
+    function pvOverlay(html, onCancel) {
+        const ov = $('searchOv'); ov.classList.remove('hidden');
+        ov.innerHTML = html + (onCancel ? '<button class="btn red" id="cancelSearch">CANCEL</button>' : '');
+        if (onCancel) $('cancelSearch').onclick = onCancel;
+    }
+    function pvFail(msg) {
+        const w = pv; pvClose();
+        if (searchTok) searchTok = null;
+        $('searchOv').classList.add('hidden');
+        toast(msg || 'Online duel unavailable.');
+        return w;
+    }
+    function pvClose() {
+        if (!pv) { S.pvp = null; return; }
+        const p = pv; pv = null; S.pvp = null;
+        clearInterval(p.hbT); clearInterval(p.wdT); clearTimeout(p.leaveT);
+        try { p.sb.removeChannel(p.ch); } catch (e) { /* already gone */ }
+    }
+    async function pvStart(code) {
+        if (mode !== 'play') { toast('Online duels work in play mode.'); return; }
+        if (!profile.tutorialDone) { toast('Finish your training duel first!'); return; }
+        if (searchTok || pv) return;
+        unlockAudio();
+        const tok = { cancel: false }; searchTok = tok;
+        pvOverlay(`<h1 style="font-size:54px">CONNECTING...</h1><div class="spin"></div><p>Room ${code}</p>`, () => { tok.cancel = true; searchTok = null; pvClose(); $('searchOv').classList.add('hidden'); });
+        let sb;
+        try { sb = await connectSupabase(); } catch (e) { if (!tok.cancel) pvFail('Could not reach the online server. Try again later.'); return; }
+        if (tok.cancel) return;
+        const id = Math.random().toString(36).slice(2, 8), joined = Date.now(), name = 'PLAYER-' + String(Math.floor(1000 + Math.random() * 9000));
+        const ch = sb.channel('cc-' + code, { config: { broadcast: { self: false }, presence: { key: id } } });
+        pv = { sb, ch, id, code, name, oppName: 'RIVAL', host: false, seq: 0, last: 0, started: false, starting: false, q: Promise.resolve(), sidN: { p: 0, e: 0 }, replay: false, gateOpen: true, gate: Promise.resolve(), lastHb: Date.now(), wantRe: false, oppRe: false, tok };
+        const me = pv;
+        ch.on('broadcast', { event: 'm' }, (msg) => { if (pv === me && msg && msg.payload) pvRecv(msg.payload); });
+        ch.on('presence', { event: 'sync' }, () => { if (pv === me) pvPresence(); });
+        ch.subscribe((status) => {
+            if (pv !== me) return;
+            if (status === 'SUBSCRIBED') {
+                Promise.resolve(ch.track({ id, t: joined, name })).catch(() => {});
+                pvOverlay(`<h1 style="font-size:54px">WAITING FOR A RIVAL</h1><div class="spin"></div><p>Room code: <b style="font-size:60px;letter-spacing:8px;color:#ffe08a">${code}</b></p><p>Send this code to a friend. They press JOIN and type it.</p>`, () => { tok.cancel = true; searchTok = null; pvClose(); $('searchOv').classList.add('hidden'); });
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { if (!me.started) pvFail('Online connection failed. Try again later.'); else if (!S.over) checkEnd({ loser: 'e', note: 'Connection lost - you win by default', net: true }); }
+        });
+        me.hbT = setInterval(() => { if (pv === me) pvSend({ t: 'hb' }); }, 3000);
+        me.wdT = setInterval(() => { if (pv === me && me.started && !S.over && Date.now() - me.lastHb > 20000) checkEnd({ loser: 'e', note: 'Your rival disconnected - you win!', net: true }); }, 2000);
+    }
+    function pvPresence() {
+        const list = Object.values(pv.ch.presenceState()).flat().filter((x) => x && x.id).sort((a, b) => (a.t - b.t) || (a.id < b.id ? -1 : 1));
+        const idx = list.findIndex((x) => x.id === pv.id);
+        if (!pv.started && list.length >= 3 && idx > 1) { pvFail('That room is full.'); return; }
+        if (list.length >= 2 && idx >= 0 && idx < 2 && !pv.started && !pv.starting) {
+            const opp = list[idx === 0 ? 1 : 0]; pv.oppName = String(opp.name || 'RIVAL').slice(0, 16); pv.host = idx === 0; pv.lastHb = Date.now();
+            if (pv.host) { pv.starting = true; setTimeout(() => { if (pv && pv.starting && !pv.started) { const arena = Math.floor(Math.random() * ARENAS.length); pvSend({ t: 'start', a: arena }); pvLaunch(arena); } }, 700); }
+        }
+        if (pv.started && list.length < 2) {                          // grace period: presence can blink while reconnecting
+            clearTimeout(pv.leaveT); const me = pv;
+            pv.leaveT = setTimeout(() => { if (pv === me && !S.over && Object.values(me.ch.presenceState()).flat().length < 2) checkEnd({ loser: 'e', note: 'Your rival left - you win!', net: true }); }, 5000);
+        }
+    }
+    function pvRecv(m) {
+        if (m.f === pv.id) return;
+        pv.lastHb = Date.now();
+        if (m.n <= pv.last && m.t !== 'hb') return;
+        if (m.n > pv.last + 1 && m.t !== 'hb' && pv.started) pv.gap = true;
+        pv.last = Math.max(pv.last, m.n);
+        switch (m.t) {
+            case 'hb': return;
+            case 'start': if (!pv.host && !pv.started) { pvLaunch(m.a); } else if (!pv.host) pvLaunch(m.a); return;
+            case 'leave': if (!S.over) checkEnd({ loser: 'e', note: 'Your rival left - you win!', net: true }); return;
+            case 'end': if (!S.over) checkEnd(m.d ? { draw: true, note: m.note, net: true } : { loser: m.l === 'p' ? 'e' : 'p', note: m.note, net: true }); return;
+            case 'rematch': pv.oppRe = true; pvRematchCheck(); return;
+            default: {                                                    // play / fight / snap: replayed in order, after the round is ready
+                const me = pv;
+                me.q = me.q.then(async () => { await me.gate; if (pv !== me || S.over) return; await pvHandle(m, S.token); }).catch((e) => lib.log('Online replay failed: ' + (e && e.message)));
+            }
+        }
+    }
+    async function pvHandle(m, tok) {
+        if (m.t === 'play') {
+            const c = CARDS[m.k]; if (!c) return;
+            pv.replay = true;
+            S.e.hand.unshift(c);
+            try { await playCard('e', 0, pvDec(m.tg), tok); } catch (e) { lib.log('Rival card failed: ' + e.message); }
+        } else if (m.t === 'fight') {
+            pv.replay = true; deselect(); banner('RIVAL FIGHT!'); await wait(0.8);
+            try { await attackPhase('e', tok); } catch (e) { lib.log('Rival attack failed: ' + e.message); }
+        } else if (m.t === 'snap') {
+            pv.replay = false;
+            pvApply(m.s);
+            checkEnd();
+            if (m.fin && alive(tok)) pvTurnDone(tok, false);
+        }
+    }
+    function pvLaunch(arena) {
+        if (!pv) return;
+        pv.started = true; pv.starting = false; pv.oppRe = false; pv.wantRe = false; pv.sidN = { p: 0, e: 0 }; pv.replay = false;
+        pvGateClose(); pv.q = Promise.resolve();
+        searchTok = null;
+        pvOverlay(`<h1 style="font-size:54px">RIVAL FOUND!</h1><div class="vs"><div class="panel side"><b>${esc(pv.name)}</b><div>You${pv.host ? ' - you move first' : ''}</div></div><div class="x">VS</div><div class="panel side"><b>${esc(pv.oppName)}</b><div>Live player - all cards Lv ${PVP_LV}</div></div></div><p>Get ready!</p>`);
+        sfx('summon');
+        const me = pv;
+        setTimeout(() => { if (pv !== me) return; $('searchOv').classList.add('hidden'); newPvpMatch(arena); }, 1700);
+    }
+    async function newPvpMatch(arena) {
+        S.token++; const tok = S.token;
+        clearBoard();
+        paintArena(Math.max(0, Math.min(ARENAS.length - 1, Number(arena) || 0)));
+        S.pvp = pv; S.rivalLv = PVP_LV;
+        S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
+        S.ghostDeck = null; S.rivalPool = null; S.friendly = true; S.oppKey = ''; S.last = null;
+        S.tutorial = false; S.tut = { step: 0, t: 0 }; S.cardsPlayed = 0; S.fights = 0; setCoach(null);
+        S.matchT = 99999; S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
+        S.tune = null; S.p.hp = S.e.hp = rule('duelistHealth');
+        updateSpeedBtn();
+        S.p.hand = []; S.e.hand = [];
+        fillHand('p');
+        if (!S.p.hand.some((c) => c.type === 'monster' && c.cost <= rule('startEnergy'))) S.p.hand[0] = starterCard('p');
+        setRival(lookFor(pv.oppName)); $('ename').textContent = pv.oppName;
+        menuRoot.classList.add('hidden'); battleHud.classList.remove('hidden'); $('endscreen').classList.add('hidden');
+        $('againBtn').textContent = 'REMATCH';
+        setMusic('music_battle');
+        await startRoundPvp(tok, true);
+    }
+    async function startRoundPvp(tok, first) {
+        pvGateClose();
+        const maxE = energyCap();
+        S.p.energy = maxE; S.e.energy = maxE;
+        if (!first) fillHand('p');
+        S.phase = 'busy'; refreshUI();
+        banner('ROUND ' + S.round);
+        await wait(1.0);
+        if (!alive(tok)) return;
+        if (!first) { await roundStartEffects(tok); if (!alive(tok)) return; }
+        pvGateOpen();
+        if (pvFirst()) pvMyTurn(); else pvWaitRival();
+    }
+    function pvMyTurn() {
+        S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0;
+        S.phase = 'player'; banner('YOUR TURN'); setHint('Tap a card, or press FIGHT! to attack.'); refreshUI();
+    }
+    function pvWaitRival() {
+        S.phase = 'busy'; banner('RIVAL TURN'); setHint('Your rival is choosing their moves...'); refreshUI();
+    }
+    async function startFightPvp() {
+        const tok = S.token; S.fights = (S.fights || 0) + 1;
+        deselect();
+        S.phase = 'busy'; setHint(''); refreshUI();
+        pvSend({ t: 'fight' });
+        banner('FIGHT!');
+        await wait(0.8);
+        await attackPhase('p', tok); if (!alive(tok)) return;
+        await wait(0.3);
+        pvSend({ t: 'snap', fin: 1, s: pvSnap() });
+        pvTurnDone(tok, true);
+    }
+    function pvTurnDone(tok, mine) {
+        if (!alive(tok) || !pv) return;
+        const first = pvFirst(), roundOver = mine ? !first : first;
+        if (roundOver) pvNextRound(tok);
+        else if (mine) pvWaitRival();
+        else pvMyTurn();
+    }
+    function pvNextRound(tok) {
+        if (S.round >= PVP_MAX_ROUNDS) {
+            const d = S.p.hp - S.e.hp;
+            checkEnd(d === 0 ? { draw: true, note: 'Round limit - nobody broke through', net: true } : { loser: d < 0 ? 'p' : 'e', note: 'Round limit - more HP wins', net: true });
+            return;
+        }
+        S.round++;
+        startRoundPvp(tok, false);
+    }
+    function pvOnEnd(loser, draw, note, net) {
+        if (!net) pvSend({ t: 'end', l: loser, d: draw ? 1 : 0, note: note || '' });
+    }
+    function pvLeave() { if (pv && pv.started && !S.over) pvSend({ t: 'leave' }); }
+    function pvRematch() {
+        if (!pv) { showMenu(); return; }
+        pv.wantRe = true; pvSend({ t: 'rematch' });
+        $('againBtn').textContent = 'WAITING...';
+        pvRematchCheck();
+    }
+    function pvRematchCheck() {
+        if (!pv || !pv.wantRe || !pv.oppRe) return;
+        if (pv.host) { const arena = Math.floor(Math.random() * ARENAS.length); pvSend({ t: 'start', a: arena }); pvLaunch(arena); }
+    }
     let rankList = [];
     function rankRow(en, i) {
         const d = decodeScore(en.score), name = String(en.username || 'Player').slice(0, 16), mine = Number(en.score) === encodeScore();
@@ -3332,9 +3590,12 @@ async function run(mode) {
         box.classList.remove('hidden');
         if (box.dataset.code === code) return;           // keep what the player is typing
         box.dataset.code = code;
-        box.innerHTML = `<b>FRIEND DUEL</b><div>Your deck code: <span class="code" id="myCode">${code}</span></div><div class="frow"><input id="codeIn" maxlength="9" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false"><button class="btn blue" id="codeBtn">DUEL</button></div><div>Swap codes with a friend and fight each other's deck. No rewards.</div>`;
+        box.innerHTML = `<b>ONLINE DUEL</b> <small>live vs a real player</small><div class="olRow"><button class="btn green" id="olCreate">CREATE ROOM</button><input id="olCode" maxlength="4" placeholder="ROOM" autocomplete="off" spellcheck="false"><button class="btn blue" id="olJoin">JOIN</button></div><div>Share the room code. All cards play at Lv ${PVP_LV}. No rewards.</div>
+            <div class="sub"><b>DECK CODE DUEL</b> <small>vs the AI</small><div>Your code: <span class="code" id="myCode">${code}</span></div><div class="frow"><input id="codeIn" maxlength="9" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false"><button class="btn blue" id="codeBtn">DUEL</button></div></div>`;
     }
     $('friendBox').addEventListener('click', (e) => {
+        if (e.target.closest('#olCreate')) { pvStart(pvNewCode()); return; }
+        if (e.target.closest('#olJoin')) { const c = String($('olCode').value || '').toUpperCase().replace(/[^A-Z]/g, ''); if (c.length !== 4) { toast('Enter the 4-letter room code.'); return; } pvStart(c); return; }
         if (e.target.closest('#myCode')) {
             const c = $('friendBox').dataset.code;
             try { navigator.clipboard.writeText(c).then(() => toast('Code copied!'), () => toast('Your code: ' + c)); } catch (er) { toast('Your code: ' + c); }
@@ -3578,6 +3839,8 @@ async function run(mode) {
         ({ battle: renderBattle, deck: renderDeck, shop: renderShop, rank: renderRank, set: renderSettings })[id]();
     }
     function showMenu() {
+        if (S.pvp) pvClose();
+        $('againBtn').textContent = 'REMATCH';
         if (S.tutorial) endTutorial();
         S.token++; S.over = true; S.phase = 'menu'; S.sel = null; S.valid = [];
         clearMarkers(); clearBoard(); setHint('');
@@ -3595,6 +3858,7 @@ async function run(mode) {
     $('exitBtn').addEventListener('click', () => { if (!S.over) $('exitOv').classList.remove('hidden'); });
     $('stayBtn').addEventListener('click', () => $('exitOv').classList.add('hidden'));
     $('leaveBtn').addEventListener('click', () => {
+        if (S.pvp) pvLeave();
         if (!S.over && !S.friendly) {                      // leaving counts as a loss (no coins); friendly duels cost nothing
             if (S.oppKey) recordH2H(S.oppKey, false);
             profile.losses++; profile.streak = 0; profile.lossStreak = (profile.lossStreak || 0) + 1; profile.trophies = Math.max(0, profile.trophies - LOSS_TROPHIES);
@@ -3603,7 +3867,7 @@ async function run(mode) {
         showMenu();
     });
     $('menuBtn').addEventListener('click', () => { unlockAudio(); showMenu(); });
-    $('againBtn').addEventListener('click', () => { unlockAudio(); const L = S.last; if (L) newMatch(L.name, L.ghost, L.friendly); else newMatch(); });
+    $('againBtn').addEventListener('click', () => { unlockAudio(); if (S.pvp) { pvRematch(); return; } const L = S.last; if (L) newMatch(L.name, L.ghost, L.friendly); else newMatch(); });
 
     /* ============================ START ============================ */
     const LD = window.__loader || { set() {}, finish() {} };

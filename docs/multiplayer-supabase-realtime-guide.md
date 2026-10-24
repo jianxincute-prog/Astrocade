@@ -66,3 +66,9 @@ Return only the updated connectSupabase() function.
 - The anon key is meant to be public; never use the service_role key in game code.
 - Not yet tested in the Astrocade sandbox: the iframe/network policy may block loading supabase-js from a CDN or the realtime websocket. Verify with a small test before building on it.
 - Realtime broadcast has no server-side authority, so clients can cheat; keep it for casual/co-op play, not ranked leaderboards.
+
+## Implementation log: Card Clash: Block Legends
+- Supabase project `astrocade-multiplayer` (ref `wbmnwzjknmwjmitjyssn`, region ap-southeast-1) created in the user's org. Only the public anon key is embedded in the game (`connectSupabase()` at the top of the script).
+- Realtime channels only (no tables / SQL). Channel name `cc-<ROOMCODE>`, broadcast event `m`, presence key = random player id.
+- Sync model: both clients simulate the arena; the player whose turn it is is authoritative and publishes a snapshot (HP, monster HP/ATK, trap counts) that the other client snaps to. All cards play at Lv 3, no rewards, round cap 12 (more HP wins).
+- Tested only with an in-page mock of supabase-js (the agent sandbox blocks supabase.co and the jsdelivr CDN). Real connectivity must be verified on a real device.
