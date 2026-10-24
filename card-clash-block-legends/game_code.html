@@ -213,6 +213,17 @@
     .rk { display: flex; align-items: center; gap: 12px; padding: 8px 14px; margin-bottom: 8px; font-size: 26px; }
     .rk .n { width: 56px; font-size: 30px; color: #ffcf3a; } .rk .u { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rk .sc { color: #ffe08a; }
     .rk.me { border-color: #ffcf3a; }
+    .rk.rkc { flex-direction: column; align-items: stretch; gap: 8px; }
+    .rkTop { display: flex; align-items: center; gap: 12px; }
+    .rkTop .n { width: 56px; font-size: 30px; color: #ffcf3a; } .rkTop .u { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rkTop .sc { color: #ffe08a; }
+    .rkDeck { display: flex; gap: 6px; } .rkDeck .mi { width: 52px; height: 58px; background: rgba(10,14,40,.82); border: 3px solid #05070f; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .rkDeck .mi svg, .rkDeck .mi img { width: 44px; height: 44px; object-fit: contain; }
+    .rkAct { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .rkAct .h2h { font-size: 21px; color: #cdd6ff; } .rkAct .btn { font-size: 22px; min-height: 56px; padding: 6px 18px; }
+    .friendBox { margin: 0 0 40px; text-align: center; font-size: 22px; color: #cdd6ff; }
+    .friendBox .code { font-size: 36px; letter-spacing: 6px; color: #ffe08a; cursor: pointer; }
+    .friendBox .frow { display: flex; gap: 10px; justify-content: center; margin: 8px 0; }
+    .friendBox input { font: inherit; font-size: 30px; letter-spacing: 4px; text-transform: uppercase; width: 260px; padding: 6px 12px; border: 4px solid #05070f; border-radius: 10px; background: #0e1430; color: #fff; text-align: center; }
+    .friendBox .btn { min-height: 56px; font-size: 24px; padding: 6px 22px; }
     /* settings */
     .setrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; font-size: 26px; }
     .setrow input[type=range] { width: 300px; height: 44px; touch-action: none; accent-color: #ffb23a; }
@@ -300,6 +311,7 @@
                         <div class="deckRow" id="deckRow"></div>
                         <button class="btn" id="findBtn">FIND OPPONENT</button>
                         <div class="rec" id="rec"></div>
+                        <div class="panel friendBox hidden" id="friendBox"></div>
                     </div>
                 </section>
                 <section class="page" id="pg-deck"></section>
@@ -452,7 +464,7 @@ async function run(mode) {
     const CHEST_COST = 120, GIFT_COINS = 60, GIFT_HOURS = 20, DECK_SIZE = 10;
     const WIN_COINS = 60, LOSS_COINS = 15, WIN_TROPHIES = 30, LOSS_TROPHIES = 20;
     const profile = {
-        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0,
+        wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0, h2h: {},
         owned: STARTER.slice(), deck: STARTER.slice(),
         settings: { music: true, sfx: true, musicVol: 0.7, sfxVol: 0.8, difficulty: 'normal', lowQ: false, speed: 1, perfAsked: false }
     };
@@ -2691,7 +2703,7 @@ async function run(mode) {
         fxlayer.innerHTML = '';
     }
     const lookFor = (name) => NAMES[[...String(name)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % NAMES.length];
-    async function newMatch(rivalName, ghost) {
+    async function newMatch(rivalName, ghost, friendly) {
         S.token++; const tok = S.token;
         clearBoard();
         const ai = arenaIndex(profile.trophies);
@@ -2699,6 +2711,8 @@ async function run(mode) {
         S.over = false; S.round = 1; S.sel = null; S.valid = []; clearMarkers();
         S.ghostDeck = !profile.tutorialDone ? null : (ghost && ghost.deck) || null;
         S.rivalPool = buildRivalPool(S.ghostDeck);
+        S.friendly = !!friendly && !!S.ghostDeck; S.oppKey = S.ghostDeck && !S.friendly ? oppKey(rivalName) : '';
+        S.last = S.ghostDeck ? { name: rivalName, ghost, friendly: S.friendly } : null;
         S.tutorial = !profile.tutorialDone; S.tut = { step: 0, t: 0 }; S.cardsPlayed = 0; S.fights = 0; setCoach(null);
         S.matchT = S.tutorial ? 99999 : rule('matchTime'); S.overtime = false; S.timeUp = false; S.ot = null; S.afk = 0; S.dblShown = false; S.turnT = rule('turnTime'); S.touched = false; S.lastTick = 0; S.endNote = '';
         S.p.hp = S.e.hp = rule('duelistHealth');
@@ -2800,12 +2814,19 @@ async function run(mode) {
             tween(0.8, (k) => { av.group.rotation.x = -Math.PI / 2 * k; av.group.position.y = 1.2 * k; }, easeIn);
             emit(av.group.position.x, 3, av.group.position.z, won ? 0xffcf3a : 0xff5a4a, 40, 6, 9, 0.5, 1.2);
         }
-        const reward = applyResult(won, draw);
+        const reward = S.friendly ? { coins: 0, trophies: 0, friendly: true } : applyResult(won, draw);
+        if (!S.friendly && S.oppKey && !draw) {
+            const hh = h2hOf(S.oppKey);
+            if (won && hh && hh.lastLoss) { reward.revenge = REVENGE_COINS; reward.coins += REVENGE_COINS; profile.coins += REVENGE_COINS; }
+            recordH2H(S.oppKey, won); saveProfile();
+        }
         setTimeout(() => {
             if (tok !== S.token) return;
             $('endTitle').textContent = draw ? 'DRAW' : (won ? 'VICTORY!' : 'DEFEAT');
             $('endLine').textContent = (note ? note + '  |  ' : '') + (draw ? 'Streak kept. Wins: ' + profile.wins : (won ? 'Win streak: ' + profile.streak + '  |  Best: ' + profile.best : 'Streak reset. Wins: ' + profile.wins + '  |  Losses: ' + profile.losses));
             $('endReward').innerHTML = '+' + reward.coins + ' coins &nbsp; ' + (reward.trophies >= 0 ? '+' : '') + reward.trophies + ' trophies' + (reward.streakCoins ? '<br>WIN STREAK x' + reward.streak + ': +' + reward.streakCoins + ' bonus coins' : '') + (reward.streakChest === undefined ? '' : (reward.streakChest >= 0 ? '<br>STREAK x' + reward.streak + ' BONUS: extra FREE CHEST!' : '<br>Streak bonus chest lost - slots full!')) + (reward.chest === undefined ? '' : (reward.chest >= 0 ? '<br>FREE CHEST added to slot ' + (reward.chest + 1) + '!' : '<br>Chest slots are full - open one to get more!'));
+            if (reward.friendly) { $('endLine').textContent = (draw ? 'A draw' : won ? 'You won' : 'You lost') + ' the friendly duel.'; $('endReward').innerHTML = 'Friendly duel - no coins or trophies at stake.'; }
+            else if (reward.revenge) $('endReward').innerHTML += '<br>REVENGE BONUS: +' + reward.revenge + ' coins!';
             $('endscreen').classList.remove('hidden');
         }, 1500);
         setHint(''); refreshUI();
@@ -2831,6 +2852,9 @@ async function run(mode) {
         profile.tutorialDone = !!profile.tutorialDone;
         if (profile.missions && (typeof profile.missions !== 'object' || !Array.isArray(profile.missions.list))) profile.missions = null;
         profile.lossStreak = Math.max(0, Math.floor(Number(profile.lossStreak) || 0));
+        if (!profile.h2h || typeof profile.h2h !== 'object' || Array.isArray(profile.h2h)) profile.h2h = {};
+        for (const k of Object.keys(profile.h2h)) { const r = profile.h2h[k]; if (!Array.isArray(r) || r.length < 3) delete profile.h2h[k]; else profile.h2h[k] = [Math.max(0, r[0] | 0), Math.max(0, r[1] | 0), r[2] ? 1 : 0]; }
+        { const ks = Object.keys(profile.h2h); while (ks.length > 30) delete profile.h2h[ks.shift()]; }
         const rawCh = Array.isArray(profile.chests) ? profile.chests : [];
         profile.chests = [0, 1, 2].map((i) => { const c = rawCh[i]; return c && typeof c === 'object' ? { readyAt: c.readyAt ? Number(c.readyAt) || 0 : 0 } : null; });
         if (!profile.offers || typeof profile.offers !== 'object' || !Array.isArray(profile.offers.bought)) profile.offers = { day: 0, bought: [] };
@@ -3245,8 +3269,89 @@ async function run(mode) {
         $('deckRow').innerHTML = profile.deck.map((k) => `<div class="mi">${iconSVG(CARDS[k])}</div>`).join('');
         renderChests();
         $('findBtn').textContent = profile.tutorialDone ? 'FIND OPPONENT' : 'START TRAINING';
+        renderFriendBox();
         $('rec').textContent = 'Wins ' + profile.wins + '   Losses ' + profile.losses + '   Streak ' + profile.streak + ' (best ' + profile.best + ')';
     }
+
+    /* ============================ PvP: CHALLENGES, HEAD-TO-HEAD, FRIEND CODES ============================
+       Astrocade games cannot open sockets or share live state, so duels stay asynchronous: you fight the saved DECK of
+       another player (played by the AI). The only shared data is the leaderboard score (trophies + deck); the head-to-head
+       record and the friend code are derived locally from it, so nothing new is sent anywhere. */
+    const H2H_MAX = 30, REVENGE_COINS = 30;
+    const oppKey = (n) => String(n || '').toLowerCase().slice(0, 16);
+    function h2hOf(name) { const r = profile.h2h && profile.h2h[oppKey(name)]; return r ? { w: r[0], l: r[1], lastLoss: !!r[2] } : null; }
+    function recordH2H(name, won) {
+        const k = oppKey(name); if (!k) return;
+        const h = profile.h2h || (profile.h2h = {}), r = h[k] || [0, 0, 0];
+        if (won) r[0]++; else r[1]++;
+        r[2] = won ? 0 : 1;
+        delete h[k]; h[k] = r;
+        const ks = Object.keys(h); while (ks.length > H2H_MAX) delete h[ks.shift()];
+    }
+    const monCount = (deck) => deck.filter((k) => CARDS[k].type === 'monster').length;
+    const codeSum = (body) => [...body].reduce((a, ch) => (a * 7 + parseInt(ch, 36)) % 36, 0).toString(36).toUpperCase();
+    function friendCode() {                       // 4 characters for the 6-card ghost deck + 1 check character
+        if (binom(CARD_KEYS.length, GHOST_SIZE) >= SCORE_MUL) return '';
+        const c = encodeDeck(ghostCards(profile.deck));
+        if (c < 0) return '';
+        const body = c.toString(36).toUpperCase().padStart(4, '0');
+        return body + codeSum(body);
+    }
+    function parseFriendCode(text) {
+        const t = String(text || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+        if (t.length !== 5 || codeSum(t.slice(0, 4)) !== t[4]) return null;
+        const n = parseInt(t.slice(0, 4), 36), deck = decodeDeck(n);
+        return deck && encodeDeck(deck) === n && monCount(deck) >= 2 ? deck : null;
+    }
+    async function startDuel(name, ghost, friendly) {
+        if (searchTok) return;
+        if (!profile.tutorialDone) { toast('Finish your training duel first!'); return; }
+        unlockAudio();
+        const tok = { cancel: false }; searchTok = tok;
+        const ov = $('searchOv'), h = friendly ? null : h2hOf(name);
+        const note = friendly ? 'Friendly duel - no coins or trophies' : (h ? 'Your record: ' + h.w + 'W - ' + h.l + 'L' + (h.lastLoss ? ' | REVENGE BONUS +' + REVENGE_COINS + ' coins!' : '') : 'First time you meet!');
+        ov.classList.remove('hidden');
+        ov.innerHTML = `<h1 style="font-size:54px">${friendly ? 'FRIEND DUEL' : 'CHALLENGE!'}</h1><div class="vs"><div class="panel side"><b>YOU</b><div>${profile.trophies} trophies</div></div><div class="x">VS</div><div class="panel side"><b>${esc(String(name).toUpperCase())}</b><div>Plays their saved deck (AI) - Lv ${rivalLevelNow()} cards</div></div></div><p>${esc(note)}</p>`;
+        sfx('summon');
+        await wait(1.7);
+        if (tok.cancel) return;
+        searchTok = null; ov.classList.add('hidden');
+        newMatch(name, ghost, friendly);
+    }
+    let rankList = [];
+    function rankRow(en, i) {
+        const d = decodeScore(en.score), name = String(en.username || 'Player').slice(0, 16), mine = Number(en.score) === encodeScore();
+        const h = h2hOf(name), can = !!d.deck && !mine && monCount(d.deck) >= 2;
+        const deck = d.deck ? '<div class="rkDeck">' + d.deck.map((k) => `<span class="mi">${iconSVG(CARDS[k])}</span>`).join('') + '</div>' : '';
+        return `<div class="panel rk rkc"><div class="rkTop"><span class="n">${i + 1}</span><span class="u">${esc(en.username || 'Player')}${mine ? ' (you)' : ''}</span><span class="sc">${d.trophies}</span></div>${deck}` +
+            (can ? `<div class="rkAct"><span class="h2h">${h ? 'Record ' + h.w + 'W - ' + h.l + 'L' + (h.lastLoss ? ' | REVENGE +' + REVENGE_COINS : '') : 'Never fought'}</span><button class="btn" data-ch="${i}">CHALLENGE</button></div>` : '') + '</div>';
+    }
+    function renderFriendBox() {
+        const box = $('friendBox'), code = profile.tutorialDone ? friendCode() : '';
+        if (!code) { box.classList.add('hidden'); box.dataset.code = ''; return; }
+        box.classList.remove('hidden');
+        if (box.dataset.code === code) return;           // keep what the player is typing
+        box.dataset.code = code;
+        box.innerHTML = `<b>FRIEND DUEL</b><div>Your deck code: <span class="code" id="myCode">${code}</span></div><div class="frow"><input id="codeIn" maxlength="9" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false"><button class="btn blue" id="codeBtn">DUEL</button></div><div>Swap codes with a friend and fight each other's deck. No rewards.</div>`;
+    }
+    $('friendBox').addEventListener('click', (e) => {
+        if (e.target.closest('#myCode')) {
+            const c = $('friendBox').dataset.code;
+            try { navigator.clipboard.writeText(c).then(() => toast('Code copied!'), () => toast('Your code: ' + c)); } catch (er) { toast('Your code: ' + c); }
+        } else if (e.target.closest('#codeBtn')) {
+            const deck = parseFriendCode($('codeIn').value);
+            if (!deck) { toast('That code is not valid.'); return; }
+            startDuel('FRIEND DUEL', { name: 'FRIEND DUEL', deck, trophies: 0 }, true);
+        }
+    });
+    $('pg-rank').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-ch]');
+        if (!b) return;
+        const en = rankList[Number(b.dataset.ch)], d = en && decodeScore(en.score);
+        if (!d || !d.deck) return;
+        const name = String(en.username || 'Player').slice(0, 16);
+        startDuel(name, { name, deck: d.deck, trophies: d.trophies }, false);
+    });
     async function findOpponent() {
         if (searchTok) return;
         unlockAudio();
@@ -3421,10 +3526,11 @@ async function run(mode) {
         let res = null;
         try { res = await lib.getTopNEntriesFromLeaderboard(20); } catch (e) { lib.log('Leaderboard fetch failed'); }
         if (curTab !== 'rank') return;
+        rankList = (res && res.entries) || [];
         const me = `<div class="panel rk me"><span class="n">${res && res.userRank ? '#' + res.userRank : '-'}</span><span class="u">YOU${res && res.userRank ? '' : ' (win a duel to get ranked)'}</span><span class="sc">${profile.trophies}</span></div>`;
         if (!res || !res.entries) { pg.innerHTML = '<div class="sect">TOP DUELISTS</div>' + me + '<div class="panel">The leaderboard is unavailable right now. Try again later.</div>'; return; }
-        pg.innerHTML = '<div class="sect">TOP DUELISTS <small>trophies</small></div>' + me +
-            (res.entries.length ? res.entries.map((en, i) => `<div class="panel rk"><span class="n">${i + 1}</span><span class="u">${esc(en.username || 'Player')}</span><span class="sc">${decodeScore(en.score).trophies}</span></div>`).join('') : '<div class="panel">No scores yet - be the first!</div>');
+        pg.innerHTML = '<div class="sect">TOP DUELISTS <small>trophies - tap CHALLENGE to fight a deck</small></div>' + me +
+            (res.entries.length ? res.entries.map(rankRow).join('') : '<div class="panel">No scores yet - be the first!</div>');
     }
 
     /* ---- SETTINGS tab ---- */
@@ -3446,7 +3552,7 @@ async function run(mode) {
         else if (r) {
             if (!resetArmed) { resetArmed = true; renderSettings(); setTimeout(() => { resetArmed = false; if (curTab === 'set') renderSettings(); }, 3000); return; }
             resetArmed = false;
-            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
+            Object.assign(profile, { wins: 0, losses: 0, streak: 0, best: 0, trophies: 0, coins: 150, lastGift: 0, lv: {}, copies: {}, arenaBest: 0, offers: { day: 0, bought: [] }, chests: [null, null, null], tutorialDone: false, missions: null, lossStreak: 0, h2h: {}, owned: STARTER.slice(), deck: STARTER.slice() }); sanitizeProfile();
             saveProfile(); renderTop(); renderSettings(); toast('Progress reset.');
         }
     });
@@ -3489,14 +3595,15 @@ async function run(mode) {
     $('exitBtn').addEventListener('click', () => { if (!S.over) $('exitOv').classList.remove('hidden'); });
     $('stayBtn').addEventListener('click', () => $('exitOv').classList.add('hidden'));
     $('leaveBtn').addEventListener('click', () => {
-        if (!S.over) {                                     // leaving counts as a loss (no coins)
+        if (!S.over && !S.friendly) {                      // leaving counts as a loss (no coins); friendly duels cost nothing
+            if (S.oppKey) recordH2H(S.oppKey, false);
             profile.losses++; profile.streak = 0; profile.lossStreak = (profile.lossStreak || 0) + 1; profile.trophies = Math.max(0, profile.trophies - LOSS_TROPHIES);
             saveProfile(); submitScore();
         }
         showMenu();
     });
     $('menuBtn').addEventListener('click', () => { unlockAudio(); showMenu(); });
-    $('againBtn').addEventListener('click', () => { unlockAudio(); newMatch(); });
+    $('againBtn').addEventListener('click', () => { unlockAudio(); const L = S.last; if (L) newMatch(L.name, L.ghost, L.friendly); else newMatch(); });
 
     /* ============================ START ============================ */
     const LD = window.__loader || { set() {}, finish() {} };
@@ -3519,7 +3626,7 @@ async function run(mode) {
     refreshUI();
     updateSpeedBtn();
     showMenu();
-    window.__bcd = { buildRivalPool, rivalPowerLimit, rivalLevelNow, ghostCards, encodeScore, decodeScore, encodeDeck, decodeDeck, findGhost, trackMission, S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t) };   // handy for debugging in the console
+    window.__bcd = { buildRivalPool, rivalPowerLimit, rivalLevelNow, ghostCards, encodeScore, decodeScore, encodeDeck, decodeDeck, findGhost, trackMission, S, CARDS, profile, THREE, setRival, avatarHit, select, playPlayerCard, startFight, damageMon, refreshUI, showTab: (t) => showTab(t), checkEnd, h2hOf, recordH2H, friendCode, parseFriendCode };   // handy for debugging in the console
     requestAnimationFrame(loop);
     LD.finish();
 }
