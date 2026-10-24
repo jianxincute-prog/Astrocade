@@ -69,7 +69,8 @@
           'NAMO MUYU: tok-tok-tok, then BASS DROP, and the demons start dancing!',
           'Follow the roads to the demon camps; they are free of obstacles.',
           'The monastery is a safe zone. Retreat there to recover.',
-          'Purify every camp as fast as you can and reach the top 10!'
+          'Purify every camp as fast as you can and reach the top 10!',
+          'Demon camps reshuffle every day, and the leaderboard resets with them \u2013 come back daily!'
         ];
         var L = { p: 0, ready: false, tipI: 0 };
         var fill = document.getElementById('ld-fill'), pct = document.getElementById('ld-pct'), tip = document.getElementById('ld-tip');
@@ -689,6 +690,13 @@
           return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
       }
+
+      // ---- daily reset: a fresh demon layout AND a fresh leaderboard bucket every UTC day ----
+      // Camp locations stay fixed (so roads/terrain never change), but every demon's exact spot,
+      // facing and timing reshuffle once per day, and the leaderboard only ever shows today's times.
+      const DAY_MS = 86400000;
+      const DAY_ID = Math.floor(Date.now() / DAY_MS);
+      const dailySeed = (salt) => (Math.imul(DAY_ID ^ salt, 2654435761) ^ ((DAY_ID + salt * 97) | 0)) >>> 0;
 
       // Deterministic layout so saved progress (demon ids) always matches the world.
       // Camps are hand-placed (never random) so every one is large, reachable and well separated.
@@ -1504,7 +1512,7 @@
           <button class="skip-btn" id="u-skip" type="button">SKIP \u25B8\u25B8</button>
           <div class="overlay" id="u-over">
             <div class="card" id="u-card"><h2 id="u-ot"></h2><p id="u-ol"></p><button id="u-ob" type="button"></button><button class="ghost" id="u-ob2" type="button" style="display:none"></button></div>
-            <div class="card lbcard" id="u-lbcard"><h2>FASTEST PURIFIERS</h2><div class="lbsub">Top 10 \u2022 time to purify all demons</div><div id="u-lbl"></div><button class="ghost" id="u-lbback" type="button">BACK</button></div>
+            <div class="card lbcard" id="u-lbcard"><h2>TODAY\u2019S FASTEST PURIFIERS</h2><div class="lbsub">Top 10 \u2022 new demon layout + fresh board every day</div><div id="u-lbl"></div><button class="ghost" id="u-lbback" type="button">BACK</button></div>
           </div>`;
         const style = document.createElement('style');
         style.textContent = `
@@ -1706,7 +1714,7 @@
             if (rows === 'loading' || rows === 'error' || !rows.length) {
               const m = document.createElement('div');
               m.className = 'lbmsg';
-              m.textContent = rows === 'loading' ? 'Loading leaderboard...' : rows === 'error' ? 'Leaderboard could not be loaded.' : 'Nobody has purified all the demons yet. Be the first!';
+              m.textContent = rows === 'loading' ? 'Loading leaderboard...' : rows === 'error' ? 'Leaderboard could not be loaded.' : 'Nobody has purified all the demons today yet. Be the first!';
               box.appendChild(m);
             } else {
               for (const r of rows) {
@@ -1859,7 +1867,7 @@
       }
 
       function createGameplay({ scene, camera, tang, S, world, layout, ui, getYaw, sfx }) {
-        const rng = mulberry32(4242);
+        const rng = mulberry32(dailySeed(4242)); // reshuffles demon spots/timing once per UTC day
         const tp = tang.position;
         const SKILL = { cd: 14, dur: 5, rate: 24, range: 44, dmg: 1.4 };
         const BASIC = { range: 28, rate: 0.45, dmg: 1.5 };
@@ -2292,20 +2300,30 @@
             if (typeof lib === 'undefined' || !lib.saveUserGameState || game.victory) return;
             const done = [];
             for (const d of demons) if (d.state === 'dead' || d.state === 'purify') done.push(d.id);
-            const pr = lib.saveUserGameState({ v: 1, done, points: game.points, time: Math.round(game.time) });
+            const pr = lib.saveUserGameState({ v: 1, done, points: game.points, time: Math.round(game.time), day: DAY_ID });
             if (pr && pr.catch) pr.catch(() => {});
           } catch (e) {}
         }
-        // Leaderboard ranks the fastest full purification (lower = better, stored as milliseconds).
+        // Leaderboard ranks the fastest full purification (lower = better), but it is a DAILY board:
+        // every score is stored as dayBase(today) + time-in-ms, where dayBase keeps shrinking as the
+        // calendar moves forward. That makes today's times always sort ahead of every earlier day's,
+        // so the normal ascending leaderboard IS today's leaderboard - no server-side query needed.
         const fmtTime = (ms) => {
           const t = Math.max(0, Math.round(ms / 10)), m = Math.floor(t / 6000), s2 = Math.floor((t % 6000) / 100), cs = t % 100;
           return m + ':' + String(s2).padStart(2, '0') + '.' + String(cs).padStart(2, '0');
         };
-        const MIN_MS = 60000; // ignore legacy point-based entries (always far below one minute)
+        const MIN_MS = 60000; // floor for a legitimate completion time
+        const DAY_MULT = 100000000; // ~27.7h of headroom per day bucket, far above any real completion time
+        const FAR_DAY = 100000; // > any real DAY_ID until roughly the year 2244
+        const SCORE_FLOOR = 1e12; // anything below this is a pre-daily-board score (raw ms, or older raw points); ignore it
+        const dayBase = (day) => (FAR_DAY - day) * DAY_MULT;
+        const encodeScore = (ms) => dayBase(DAY_ID) + Math.min(DAY_MULT - 1, Math.max(0, Math.round(ms)));
+        const scoreDay = (score) => FAR_DAY - Math.floor(score / DAY_MULT);
+        const scoreMs = (score) => score % DAY_MULT;
         async function submitTime(ms) {
           try {
             if (typeof lib === 'undefined' || !lib.addPlayerScoreToLeaderboard) return null;
-            const res = await lib.addPlayerScoreToLeaderboard(ms, 60);
+            const res = await lib.addPlayerScoreToLeaderboard(encodeScore(ms), 60);
             return res || null;
           } catch (e) { return null; }
         }
@@ -2314,8 +2332,8 @@
             if (typeof lib === 'undefined' || !lib.getTopNEntriesFromLeaderboard) return 'error';
             const res = await lib.getTopNEntriesFromLeaderboard(60);
             if (!res || !Array.isArray(res.entries)) return 'error';
-            const rows = res.entries.filter((e) => e && e.score >= MIN_MS).slice(0, 10);
-            return rows.map((e, i) => ({ rank: i + 1, name: e.username || 'Player', text: fmtTime(e.score), score: e.score }));
+            const rows = res.entries.filter((e) => e && e.score >= SCORE_FLOOR && scoreDay(e.score) === DAY_ID).slice(0, 10);
+            return rows.map((e, i) => ({ rank: i + 1, name: e.username || 'Player', text: fmtTime(scoreMs(e.score)), score: e.score }));
           } catch (e) { return 'error'; }
         }
         const onHide = () => {
@@ -2324,7 +2342,7 @@
         document.addEventListener('visibilitychange', onHide);
         window.addEventListener('pagehide', onHide);
         function applyState(st) {
-          if (!st || !Array.isArray(st.done) || st.done.length >= TOTAL) return;
+          if (!st || !Array.isArray(st.done) || st.done.length >= TOTAL || st.day !== DAY_ID) return; // a save from a previous day belonged to yesterday's layout
           let n = 0;
           for (const id of st.done) {
             const d = demons[id];
@@ -2529,7 +2547,7 @@
           if (!w) return;
           ui.showOverlay({
             title: 'THE WORLD IS PURIFIED!',
-            lines: ['All ' + TOTAL + ' demons have been purified.', 'Time: ' + fmtTime(w.ms), 'Score: ' + w.total, w.rank ? 'World rank: #' + w.rank : '', 'Namo Buddhaya!'],
+            lines: ['All ' + TOTAL + ' demons have been purified.', 'Time: ' + fmtTime(w.ms), 'Score: ' + w.total, w.rank ? "Today's rank: #" + w.rank : '', 'Namo Buddhaya!'],
             button: 'PLAY AGAIN',
             onClick: resetWorld,
             button2: 'LEADERBOARD',
@@ -2539,7 +2557,7 @@
         async function openBoard() {
           ui.showLeaderboard('loading');
           const rows = await loadBoard();
-          if (rows !== 'error' && lastWin && lastWin.rank) for (const r of rows) if (r.rank === lastWin.rank && Math.abs(r.score - lastWin.ms) < 15) r.me = true;
+          if (rows !== 'error' && lastWin && lastWin.encoded != null) for (const r of rows) if (r.score === lastWin.encoded) r.me = true;
           ui.showLeaderboard(rows);
         }
         function winGame() {
@@ -2549,12 +2567,13 @@
           const bonus = 1000 + Math.max(0, 1800 - Math.round(game.time));
           const total = game.points + bonus;
           const ms = Math.max(MIN_MS, Math.round(game.time * 1000));
-          lastWin = { ms, total, rank: null };
+          const encoded = encodeScore(ms);
+          lastWin = { ms, total, rank: null, encoded };
           submitTime(ms).then((res) => {
             if (res) {
-              const ent = Array.isArray(res.entries) ? res.entries.filter((e) => e && e.score >= MIN_MS) : [];
-              const rank = ent.length ? ent.filter((e) => e.score < ms).length + 1 : res.userRank;
-              if (rank) { lastWin.rank = rank; if (over_visible()) ui.setOverlayLines(['All ' + TOTAL + ' demons have been purified.', 'Time: ' + fmtTime(ms), 'Score: ' + total, 'World rank: #' + rank, 'Namo Buddhaya!']); }
+              const ent = Array.isArray(res.entries) ? res.entries.filter((e) => e && e.score >= SCORE_FLOOR) : [];
+              const rank = ent.length ? ent.filter((e) => e.score < encoded).length + 1 : res.userRank;
+              if (rank) { lastWin.rank = rank; if (over_visible()) ui.setOverlayLines(['All ' + TOTAL + ' demons have been purified.', 'Time: ' + fmtTime(ms), 'Score: ' + total, "Today's rank: #" + rank, 'Namo Buddhaya!']); }
             }
           });
           try { if (typeof lib !== 'undefined' && lib.deleteUserGameState) { const pr = lib.deleteUserGameState(); if (pr && pr.catch) pr.catch(() => {}); } } catch (e) {}
