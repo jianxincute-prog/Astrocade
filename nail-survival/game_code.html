@@ -514,7 +514,7 @@
         #fence-hud .chip.down { background: rgba(160,20,30,.9); color: #fff; animation: fencePulse .6s infinite alternate; }
         #fence-hud .chip.power { background: rgba(10,100,130,.85); color: #bff6ff; }
         @keyframes fencePulse { from { opacity: 1; } to { opacity: .55; } }
-        #bench-panel {
+        #bench-panel, #team-panel, #box-panel {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: none; flex-direction: column; gap: 12px; width: min(620px, 94vw); max-height: 88vh;
             box-sizing: border-box; overflow-y: auto; padding: 20px;
@@ -523,15 +523,51 @@
             box-shadow: 0 18px 55px #000b, inset 0 0 24px rgba(255,190,60,.08);
             color: #fff6e0; pointer-events: auto; z-index: 146; font-family: Arial, sans-serif;
         }
-        #bench-panel.open { display: flex; }
-        #bench-panel h2 { margin: 0; color: #ffd45c; font: 900 22px Arial, sans-serif; letter-spacing: 2px; }
-        #bench-panel .bench-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        #bench-panel .bench-res { margin-top: 4px; color: #d9cfae; font: 800 13px Arial, sans-serif; letter-spacing: .6px; }
+        #bench-panel.open, #team-panel.open, #box-panel.open { display: flex; }
+        #bench-panel h2, #team-panel h2, #box-panel h2 { margin: 0; color: #ffd45c; font: 900 22px Arial, sans-serif; letter-spacing: 2px; }
+        #bench-panel .bench-head, #team-panel .bench-head, #box-panel .bench-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        #bench-panel .bench-res, #team-panel .bench-res, #box-panel .bench-res { margin-top: 4px; color: #d9cfae; font: 800 13px Arial, sans-serif; letter-spacing: .6px; }
         #bench-close {
             flex: 0 0 48px; width: 48px; height: 48px; border: 1px solid #d8b86a; border-radius: 12px;
             color: #fff; background: #3b3220; font: 700 26px Arial, sans-serif; cursor: pointer; touch-action: manipulation;
         }
-        #bench-panel h3 { margin: 4px 0 0; color: #bcd; font: 800 12px Arial, sans-serif; letter-spacing: 1.5px; }
+        #bench-panel h3, #team-panel h3, #box-panel h3 { margin: 4px 0 0; color: #bcd; font: 800 12px Arial, sans-serif; letter-spacing: 1.5px; }
+        .panel-close {
+            flex: 0 0 48px; width: 48px; height: 48px; border: 1px solid #d8b86a; border-radius: 12px;
+            color: #fff; background: #3b3220; font: 700 26px Arial, sans-serif; cursor: pointer; touch-action: manipulation;
+        }
+        .npc-obs { color: #cfc8b0; font: italic 600 13px Arial, sans-serif; line-height: 1.35; }
+        .npc-line { padding: 8px 10px; border-left: 3px solid #ffd45c; border-radius: 6px; background: rgba(255,255,255,.05); color: #f2ecd6; font: 600 13px Arial, sans-serif; line-height: 1.4; }
+        .npc-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .box-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+        .box-slot {
+            position: relative; aspect-ratio: 1 / 1; min-height: 58px; box-sizing: border-box; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 2px; padding: 4px; overflow: hidden; border-radius: 10px;
+            border: 1px solid rgba(190,200,200,.25); background: rgba(0,0,0,.28); color: #fff; font: 700 11px Arial, sans-serif;
+        }
+        .box-slot.filled { border-color: rgba(120,230,150,.6); background: linear-gradient(150deg, rgba(36,70,50,.85), rgba(10,22,18,.95)); cursor: pointer; touch-action: manipulation; }
+        .box-slot.filled span { font-size: 22px; }
+        .box-slot.filled small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; color: #cfe; }
+        .box-slot.filled b { position: absolute; right: 4px; bottom: 2px; font-size: 10px; color: #ffe08a; }
+        .box-slot.locked { opacity: .35; font-size: 16px; }
+        #team-button {
+            position: absolute; left: 50%; bottom: 380px; transform: translateX(-50%);
+            min-width: 156px; min-height: 84px; padding: 8px 16px; box-sizing: border-box;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            border: 4px solid #8de8c4; border-radius: 14px; color: #f2fff8;
+            background: rgba(18,86,64,.94); font: 900 17px 'Orbitron', Arial, sans-serif; letter-spacing: 1px;
+            text-shadow: 0 2px 4px #0009; box-shadow: 0 4px 16px #0007; pointer-events: auto;
+            touch-action: manipulation; user-select: none; -webkit-user-select: none; z-index: 112;
+        }
+        #team-button small { margin-top: 4px; color: #c9ffdf; font: 800 10px Arial, sans-serif; letter-spacing: .6px; }
+        #team-button:active { transform: translateX(-50%) scale(.95); }
+        #team-hud {
+            position: absolute; top: 236px; left: 50%; transform: translateX(-50%); display: none; flex-wrap: wrap; justify-content: center; gap: 5px;
+            max-width: 92%; pointer-events: none; z-index: 104; font: 800 11px Arial, sans-serif; letter-spacing: .4px;
+        }
+        #team-hud.visible { display: flex; }
+        #team-hud .chip { padding: 3px 8px; border-radius: 9px; background: rgba(14,58,46,.82); color: #d6fff0; white-space: nowrap; }
+        #team-hud .chip.warn { background: rgba(120,84,10,.88); color: #ffe9a8; }
         .bench-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
         .bench-side { padding: 8px 10px; border: 1px solid rgba(190,200,200,.25); border-radius: 12px; background: rgba(255,255,255,.04); }
         .bench-side .row { display: flex; justify-content: space-between; font: 800 12px Arial, sans-serif; letter-spacing: .5px; }
@@ -1063,6 +1099,8 @@
         <button id="bench-button" type="button" aria-label="Open the fence workbench">WORKBENCH<small>REPAIR &amp; UPGRADE FENCE</small></button>
         <div id="fence-hud" aria-live="polite"></div>
         <div id="env-vignette" aria-hidden="true"></div>
+        <button id="team-button" type="button" aria-label="Talk or open the team box">TALK<small>E</small></button>
+        <div id="team-hud" aria-live="polite"></div>
         <div id="door-scare" aria-hidden="true"><span>🧟</span><strong>ZOMBIE BEHIND THE DOOR!</strong></div>
         
         <div id="wave-notification">WAVE COMPLETE!</div>
@@ -4488,7 +4526,7 @@
                 return Math.abs(x) >= Math.abs(z) ? (x > 0 ? 'east' : 'west') : (z > 0 ? 'north' : 'south');
             }
             function countInventoryItem(id) {
-                let total = 0;
+                let total = teamBoxCount(id);
                 for (const entry of gameState.inventory) if (entry.id === id) total += entry.count;
                 return total;
             }
@@ -4503,6 +4541,7 @@
                     remaining -= take;
                     if (entry.count <= 0) gameState.inventory.splice(i, 1);
                 }
+                if (remaining > 0) teamBoxTake(id, remaining);
                 updateInventoryUI();
                 return true;
             }
@@ -4800,7 +4839,7 @@
                     if (fenceState.sides[side].breached) continue;
                     touching[side].push(z);
                     if (z.state === 'attacking' && z.type !== 'bloater' && !(z.stunTimer > 0)) {
-                        chewDps[side] += FENCE_CHEW_DPS[z.type] || FENCE_CHEW_DPS.normal;
+                        chewDps[side] += (FENCE_CHEW_DPS[z.type] || FENCE_CHEW_DPS.normal) * teamChewMult();
                     }
                 }
                 const thorns = fenceThornsDps();
@@ -4958,7 +4997,7 @@
             }
             placeWorkbench();
             function isWorkbenchSolidAt(x, z, radius = 0.42) {
-                return Math.hypot(x - workbench.x, z - workbench.z) < 1.3 + radius;
+                return Math.hypot(x - workbench.x, z - workbench.z) < 1.3 + radius || isTeamBoxSolidAt(x, z, radius);
             }
             function nearWorkbench(maxDistance = 3.6) {
                 if (mode !== 'play' || gameState.gameOver) return false;
@@ -5012,7 +5051,7 @@
                     ? `<div class="bench-card"><div class="ico">🔋</div><div class="txt"><b>GRID CHARGE ${Math.round(fenceState.charge)}%</b><span>Each Power Cell adds ${FENCE_CELL_RECHARGE}% charge. The grid drains slightly with every shock pulse.</span></div>
                         <button class="bench-btn" data-act="recharge" ${cells <= 0 || fenceState.charge >= 100 ? 'disabled' : ''}>RECHARGE · 1 🔋</button></div>`
                     : '';
-                benchPanel.innerHTML = `<div class="bench-head"><div><h2>FENCE WORKBENCH</h2><div class="bench-res">🔩 METAL SCRAP: ${scrap} &nbsp;·&nbsp; 🔋 POWER CELLS: ${cells}</div></div><button id="bench-close" type="button" aria-label="Close workbench" data-act="close">×</button></div>
+                benchPanel.innerHTML = `<div class="bench-head"><div><h2>FENCE WORKBENCH</h2><div class="bench-res">🔩 METAL SCRAP: ${scrap} &nbsp;·&nbsp; 🔋 POWER CELLS: ${cells} <span style="opacity:.65">(PACK + TEAM BOX)</span></div></div><button id="bench-close" type="button" aria-label="Close workbench" data-act="close">×</button></div>
                     <h3>REPAIR (1 🔩 = ${FENCE_REPAIR_HP_PER_SCRAP} HP)</h3><div class="bench-sides">${sideRows}</div>
                     <button class="bench-btn wide" data-act="repairAll" ${totalMissing <= 0 || scrap <= 0 ? 'disabled' : ''}>REPAIR ALL SIDES</button>
                     <h3>UPGRADES</h3>${cards}${gridCard}`;
@@ -5068,6 +5107,1197 @@
                 setBenchOpen(false);
                 refreshFenceVisuals();
                 updateFenceHud(0, true);
+            }
+
+            // ===== TEAM SYSTEM: survivor encounters, teammates (good & bad), team storage box =====
+            const TEAM_MAX = 3;
+            const BOX_BASE_SLOTS = 10, BOX_STEP = 5, BOX_MAX_SLOTS = 50;
+            const NPC_ROLES = {
+                mechanic: { icon: '🔧', label: 'Mechanic', shirt: 0xd9822b, pants: 0x3a3f46, claim: 'I fix things. Give me scrap and I will keep that fence standing.',
+                            perk: 'Repairs the fence with team scrap.', tool: 'a heavy wrench', talk: ['Welds hold better when you are not shouting at them.', 'That east post is loose. I am on it.'] },
+                hunter: { icon: '🏹', label: 'Hunter', shirt: 0x4d5a3a, pants: 0x2d3326, claim: 'I can shoot. Put me on the wall and the dead stay on the other side.',
+                          perk: 'Shoots zombies at the fence at night.', tool: 'a box of rifle rounds', talk: ['Breathe, aim, squeeze. Works on everything.', 'They are slow. Patience is a weapon.'] },
+                doctor: { icon: '🩺', label: 'Doctor', shirt: 0xd8d8d0, pants: 0x4a5560, claim: 'I was a nurse. I can patch you up.',
+                          perk: 'Treats your wounds at dawn.', tool: 'a roll of bandages', talk: ['Drink water. You look worse than you think.', 'Rest is medicine too.'] },
+                scavenger: { icon: '🎒', label: 'Scavenger', shirt: 0x6b5a3e, pants: 0x3b3b34, claim: 'I know every alley. I find things.',
+                             perk: 'Loots buildings with double yield.', tool: 'empty salvage sacks', talk: ['The hardware stores still have good scrap.', 'I always leave one shelf untouched. Luck.'] },
+                guard: { icon: '🛡️', label: 'Guard', shirt: 0x2f4f7a, pants: 0x23282f, claim: 'I used to keep doors closed for a living. Let me watch yours.',
+                         perk: 'Reduces damage zombies deal to the fence.', tool: 'a steel baton', talk: ['Nothing gets past the line while I am awake.', 'Check your corners.'] }
+            };
+            const NPC_NAMES = ['Mara', 'Eli', 'Jonas', 'Rina', 'Kofi', 'Tess', 'Dmitri', 'Lena', 'Omar', 'Wren', 'Bastian', 'Noor', 'Sami', 'Ines'];
+            const NPC_SKINS = [0xf1c5a4, 0xd9a47c, 0xb67f55, 0x8a5a3c, 0x634029];
+            const NPC_HAIRS = [0x16120f, 0x3b2a1c, 0x6b4a2a, 0x8c8c86, 0xa2542a, 0x23324a];
+            const BAD_TYPES = ['thief', 'saboteur', 'raider'];
+            const BAD_ITEMS = { thief: 'a set of lockpicks', saboteur: 'a pair of wire cutters', raider: 'a crowbar wrapped in cloth' };
+            const BAD_TELLS = ['keeps glancing past you at the supply box', 'smiles a little too long', 'studies the fence for weak spots', 'has suspiciously clean hands for someone on the road', 'laughs at the wrong moments'];
+            const GOOD_TELLS = ['hands are shaking, but meets your eyes', 'looks half-starved and exhausted', 'flinches at every groan from the dark', 'clutches a faded photograph'];
+            const NEUTRAL_TELLS = ['looks around nervously', 'is breathing hard', 'carries a battered pack'];
+            const SIDE_NORMALS = { north: [0, 1], south: [0, -1], east: [1, 0], west: [-1, 0] };
+            const pickOf = arr => arr[Math.floor(Math.random() * arr.length)];
+            const team = { members: [], petitioner: null, day: 0, eventTimer: 22, nameIndex: Math.floor(Math.random() * 14), hudSignature: '', panelNpc: null, panelMode: null, panelSignature: '' };
+            const teamBox = { level: 0, slots: [], x: 0, z: 0, group: new THREE.Group(), marker: null, crates: [], open: false, signature: '' };
+
+            // ---------- Storage box: data ----------
+            function teamBoxCapacity() { return Math.min(BOX_MAX_SLOTS, BOX_BASE_SLOTS + teamBox.level * BOX_STEP); }
+            function teamBoxCount(id) {
+                let total = 0;
+                for (const slot of teamBox.slots) if (slot.id === id) total += slot.count;
+                return total;
+            }
+            function teamBoxAdd(item, quantity) {
+                let added = 0;
+                for (let n = 0; n < quantity; n++) {
+                    let stack = teamBox.slots.find(s => s.id === item.id && s.count < INVENTORY_STACK_LIMIT);
+                    if (stack) stack.count++;
+                    else {
+                        if (teamBox.slots.length >= teamBoxCapacity()) break;
+                        stack = { ...item, count: 1 };
+                        teamBox.slots.push(stack);
+                    }
+                    added++;
+                }
+                return added;
+            }
+            function teamBoxTake(id, quantity) {
+                let remaining = quantity;
+                for (let i = teamBox.slots.length - 1; i >= 0 && remaining > 0; i--) {
+                    const slot = teamBox.slots[i];
+                    if (slot.id !== id) continue;
+                    const take = Math.min(slot.count, remaining);
+                    slot.count -= take;
+                    remaining -= take;
+                    if (slot.count <= 0) teamBox.slots.splice(i, 1);
+                }
+                return quantity - remaining;
+            }
+            function addInventoryItem(item, quantity) {
+                let added = 0;
+                for (let n = 0; n < quantity; n++) {
+                    let stack = gameState.inventory.find(e => e.id === item.id && e.count < INVENTORY_STACK_LIMIT);
+                    if (stack) stack.count++;
+                    else {
+                        if (gameState.inventory.length >= INVENTORY_SLOT_LIMIT) break;
+                        const copy = { ...item, count: 1 };
+                        gameState.inventory.push(copy);
+                    }
+                    added++;
+                }
+                if (added) updateInventoryUI();
+                return added;
+            }
+            function teamBoxUpgradeCost() { return 4 + teamBox.level * 2; }
+            function upgradeTeamBox() {
+                if (teamBox.level >= (BOX_MAX_SLOTS - BOX_BASE_SLOTS) / BOX_STEP) return false;
+                const cost = teamBoxUpgradeCost();
+                if (countInventoryItem('mat:scrap') < cost) { showBanner('NEED ' + cost + ' 🔩 TO EXPAND THE BOX', '#ffd86b', 1600); return false; }
+                consumeInventoryItem('mat:scrap', cost);
+                teamBox.level++;
+                playRepairClank();
+                showBanner('TEAM BOX EXPANDED — ' + teamBoxCapacity() + ' SLOTS', '#8de8c4', 1900);
+                refreshTeamBoxVisual();
+                return true;
+            }
+
+            // ---------- Storage box: model ----------
+            (function buildTeamBox() {
+                const g = teamBox.group;
+                const olive = stdMat({ color: 0x4d5a3c, roughness: 0.7, metalness: 0.35 });
+                const oliveDark = stdMat({ color: 0x2f3827, roughness: 0.75, metalness: 0.3 });
+                const steel = stdMat({ color: 0x66707a, roughness: 0.5, metalness: 0.6 });
+                const wood = stdMat({ color: 0x7b5a39, roughness: 0.88 });
+                const woodDark = stdMat({ color: 0x4d3825, roughness: 0.92 });
+                const yellow = stdMat({ color: 0xe8b21a, roughness: 0.55 });
+                const black = stdMat({ color: 0x15181a, roughness: 0.7 });
+                const green = new THREE.MeshBasicMaterial({ color: 0x5dff9a });
+                const add = (w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0, list = null) => {
+                    const m = new THREE.Mesh(boxGeo(w, h, d), mat);
+                    m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true;
+                    g.add(m);
+                    if (list) list.push(m);
+                    return m;
+                };
+                add(2.1, 0.14, 1.3, woodDark, 0, 0.07, 0);                        // pallet
+                for (const px of [-0.8, 0, 0.8]) add(0.14, 0.1, 1.3, wood, px, 0.19, 0);
+                add(1.6, 1.5, 0.9, olive, 0, 1.0, 0);                              // locker body
+                add(1.64, 0.1, 0.94, oliveDark, 0, 1.78, 0);                       // lid
+                add(0.04, 1.4, 0.04, black, 0, 1.0, 0.46);                         // door seam
+                add(0.1, 0.4, 0.07, steel, 0.12, 1.0, 0.5);                        // handle
+                add(0.18, 0.14, 0.08, yellow, -0.14, 1.12, 0.5);                   // padlock
+                for (let i = 0; i < 8; i++) add(0.18, 0.14, 0.03, i % 2 ? black : yellow, -0.7 + i * 0.2, 1.55, 0.47);
+                add(0.5, 0.22, 0.03, black, 0, 1.28, 0.47);
+                add(0.34, 0.1, 0.02, green, 0, 1.28, 0.49);                        // status light bar
+                add(1.5, 0.05, 0.6, oliveDark, 0, 1.84, 0);
+                // Extra crates appear around the locker with every upgrade level.
+                const spots = [[-1.35, 0.35, 0.3], [-1.35, 0.35, -0.3], [1.35, 0.35, 0.35], [1.35, 0.35, -0.3], [-1.35, 0.95, 0.3], [1.35, 0.95, 0.35], [0, 0.35, -0.95], [0.7, 0.35, -0.95]];
+                spots.forEach(([x, y, z], i) => {
+                    const crate = add(0.8, 0.62, 0.7, i % 2 ? wood : woodDark, x, y, z, 0, (i % 3) * 0.12, 0, teamBox.crates);
+                    crate.visible = false;
+                });
+                teamBox.marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), new THREE.MeshBasicMaterial({ color: 0x5dff9a }));
+                teamBox.marker.position.set(0, 2.7, 0);
+                g.add(teamBox.marker);
+                scene.add(g);
+            })();
+            function refreshTeamBoxVisual() {
+                teamBox.crates.forEach((c, i) => { c.visible = i < teamBox.level; });
+            }
+            function placeTeamBox() {
+                const half = window.gameConfig.settings.arenaSize / 2;
+                teamBox.x = half * 0.64;
+                teamBox.z = -half * 0.66;
+                teamBox.group.position.set(teamBox.x, 0, teamBox.z);
+                teamBox.group.rotation.y = Math.atan2(-teamBox.x, -teamBox.z);
+            }
+            placeTeamBox();
+            function isTeamBoxSolidAt(x, z, radius = 0.42) {
+                return Math.hypot(x - teamBox.x, z - teamBox.z) < 1.25 + radius;
+            }
+
+            // ---------- NPC model ----------
+            function buildSurvivorModel(npc) {
+                const role = NPC_ROLES[npc.role];
+                const root = new THREE.Group();
+                const skin = stdMat({ color: npc.skin, roughness: 0.85 });
+                const hair = stdMat({ color: npc.hair, roughness: 0.9 });
+                const shirt = stdMat({ color: role.shirt, roughness: 0.88 });
+                const pants = stdMat({ color: role.pants, roughness: 0.9 });
+                const boot = stdMat({ color: 0x1a1613, roughness: 0.92 });
+                const dark = stdMat({ color: 0x15171a, roughness: 0.7 });
+                const metal = stdMat({ color: 0x6a737a, roughness: 0.5, metalness: 0.6 });
+                const white = stdMat({ color: 0xe6e3da, roughness: 0.85 });
+                const red = stdMat({ color: 0xb53b32, roughness: 0.75 });
+                const yellow = stdMat({ color: 0xe8b21a, roughness: 0.55 });
+                const mk = (parent, w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
+                    const m = new THREE.Mesh(boxGeo(w, h, d), mat);
+                    m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true;
+                    parent.add(m);
+                    return m;
+                };
+                const legs = [], arms = [];
+                for (const s of [-1, 1]) {
+                    const leg = new THREE.Group();
+                    leg.position.set(s * 0.17, 0.92, 0);
+                    mk(leg, 0.28, 0.86, 0.3, pants, 0, -0.43, 0);
+                    mk(leg, 0.3, 0.16, 0.4, boot, 0, -0.84, 0.05);
+                    root.add(leg); legs.push(leg);
+                    const arm = new THREE.Group();
+                    arm.position.set(s * 0.47, 1.62, 0);
+                    mk(arm, 0.22, 0.7, 0.24, shirt, 0, -0.35, 0);
+                    mk(arm, 0.2, 0.17, 0.22, skin, 0, -0.78, 0);
+                    root.add(arm); arms.push(arm);
+                }
+                const torso = new THREE.Group();
+                torso.position.set(0, 1.28, 0);
+                mk(torso, 0.74, 0.8, 0.42, shirt, 0, 0, 0);
+                mk(torso, 0.76, 0.1, 0.44, dark, 0, -0.4, 0);                // belt
+                root.add(torso);
+                const head = new THREE.Group();
+                head.position.set(0, 1.7, 0);
+                mk(head, 0.2, 0.14, 0.2, skin, 0, 0.0, 0);                    // neck
+                mk(head, 0.52, 0.52, 0.48, skin, 0, 0.36, 0);
+                mk(head, 0.54, 0.16, 0.5, hair, 0, 0.66, -0.01);
+                mk(head, 0.54, 0.4, 0.1, hair, 0, 0.5, -0.22);
+                mk(head, 0.08, 0.08, 0.04, dark, -0.12, 0.38, 0.245);
+                mk(head, 0.08, 0.08, 0.04, dark, 0.12, 0.38, 0.245);
+                mk(head, 0.16, 0.04, 0.03, stdMat({ color: 0x8a4a42, roughness: 0.9 }), 0, 0.2, 0.245);
+                root.add(head);
+                // ---- role gear ----
+                if (npc.role === 'mechanic') {
+                    mk(torso, 0.5, 0.5, 0.06, shirt, 0, 0.1, 0.23);
+                    mk(torso, 0.74, 0.12, 0.46, metal, 0, -0.38, 0);
+                    mk(head, 0.6, 0.12, 0.62, yellow, 0, 0.72, 0.02);       // hard hat
+                    mk(head, 0.56, 0.05, 0.3, yellow, 0, 0.66, 0.34);
+                    mk(arms[1], 0.1, 0.1, 0.5, metal, 0, -0.78, 0.3);         // wrench
+                    mk(arms[1], 0.18, 0.18, 0.08, metal, 0, -0.78, 0.6);
+                } else if (npc.role === 'hunter') {
+                    mk(head, 0.62, 0.1, 0.62, shirt, 0, 0.72, 0.02);        // hat
+                    mk(head, 0.4, 0.14, 0.46, shirt, 0, 0.82, 0);
+                    mk(torso, 0.1, 0.9, 0.46, dark, -0.15, 0, 0, 0, 0, 0.4);  // bandolier
+                    mk(arms[1], 0.1, 0.12, 1.1, dark, 0, -0.7, 0.45);        // rifle
+                    mk(arms[1], 0.12, 0.2, 0.3, stdMat({ color: 0x5a3a24, roughness: 0.85 }), 0, -0.7, 0.05);
+                } else if (npc.role === 'doctor') {
+                    mk(torso, 0.78, 0.5, 0.46, white, 0, -0.36, 0);          // coat skirt
+                    mk(torso, 0.2, 0.06, 0.04, red, 0, 0.15, 0.23);          // cross
+                    mk(torso, 0.06, 0.2, 0.04, red, 0, 0.15, 0.23);
+                    mk(torso, 0.5, 0.06, 0.06, dark, 0, 0.3, 0.2);           // stethoscope
+                    mk(head, 0.54, 0.08, 0.5, white, 0, 0.74, 0);
+                } else if (npc.role === 'scavenger') {
+                    mk(torso, 0.62, 0.7, 0.3, stdMat({ color: 0x4a3f2c, roughness: 0.9 }), 0, 0.05, -0.34);   // big pack
+                    mk(torso, 0.5, 0.18, 0.34, stdMat({ color: 0x352d20, roughness: 0.9 }), 0, 0.46, -0.34);
+                    mk(torso, 0.1, 0.7, 0.04, dark, -0.25, 0.05, 0.22);
+                    mk(torso, 0.1, 0.7, 0.04, dark, 0.25, 0.05, 0.22);
+                    mk(head, 0.56, 0.14, 0.1, dark, 0, 0.5, 0.26);           // goggles
+                } else {
+                    mk(torso, 0.78, 0.6, 0.46, stdMat({ color: 0x1f2f4a, roughness: 0.8 }), 0, 0.05, 0);   // vest
+                    mk(torso, 0.2, 0.12, 0.04, yellow, -0.2, 0.28, 0.25);
+                    mk(head, 0.6, 0.2, 0.58, stdMat({ color: 0x1f2f4a, roughness: 0.7 }), 0, 0.72, 0.01);  // helmet
+                    mk(arms[1], 0.08, 0.7, 0.08, dark, 0, -0.8, 0.2);        // baton
+                }
+                [legs[0], legs[1], arms[0], arms[1], torso, head].forEach(mergeGroupByMaterial);
+                root.userData = { legs, arms, torso, head };
+                // Floating name tag
+                const c = document.createElement('canvas');
+                c.width = 256; c.height = 64;
+                const g2 = c.getContext('2d');
+                g2.fillStyle = 'rgba(10,16,22,0.72)';
+                g2.fillRect(0, 8, 256, 48);
+                g2.font = 'bold 26px Arial'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+                g2.fillStyle = '#e8fff6';
+                g2.fillText(role.icon + ' ' + npc.name.toUpperCase(), 128, 33);
+                const tagTexture = new THREE.CanvasTexture(c);
+                const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTexture, transparent: true, depthWrite: false }));
+                tag.scale.set(1.7, 0.42, 1);
+                tag.position.set(0, 2.75, 0);
+                root.add(tag);
+                // Suspicion mark (shown later)
+                const mc = document.createElement('canvas');
+                mc.width = mc.height = 64;
+                const g3 = mc.getContext('2d');
+                g3.font = 'bold 54px Arial'; g3.textAlign = 'center'; g3.textBaseline = 'middle';
+                g3.fillStyle = '#ffcf4d'; g3.strokeStyle = '#3a2400'; g3.lineWidth = 6;
+                g3.strokeText('?', 32, 34); g3.fillText('?', 32, 34);
+                const mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(mc), transparent: true, depthWrite: false }));
+                mark.scale.set(0.5, 0.5, 1);
+                mark.position.set(0, 3.2, 0);
+                mark.visible = false;
+                root.add(mark);
+                root.userData.tag = tag;
+                root.userData.mark = mark;
+                return root;
+            }
+
+            // ---------- NPC creation ----------
+            function createNpcProfile(arrivalSide) {
+                const role = pickOf(Object.keys(NPC_ROLES));
+                const bad = Math.random() < Math.min(0.55, 0.38 + team.day * 0.02);
+                const name = NPC_NAMES[team.nameIndex++ % NPC_NAMES.length];
+                const sides = Object.keys(SIDE_NORMALS);
+                const statedSide = bad && Math.random() < 0.65 ? pickOf(sides.filter(s => s !== arrivalSide)) : arrivalSide;
+                const betrayType = bad ? pickOf(BAD_TYPES) : null;
+                const npc = {
+                    name, role, bad, betrayType, skin: pickOf(NPC_SKINS), hair: pickOf(NPC_HAIRS),
+                    arrivalSide, statedSide, state: 'petition', task: 'idle', hp: 8, loyalty: 3, hunger: 0,
+                    walkPhase: Math.random() * 6, path: [], carry: [], stolen: [], timer: 0, idleTimer: 2 + Math.random() * 3,
+                    healCooldown: 20, fireTimer: 0, repairTimer: 0, repairScrap: 0, attackTimer: 0, hits: 0, trip: null,
+                    betrayDay: 0, warned: false, betrayed: false, hostile: false, suspicionMark: false, log: [], asked: {}, inspected: false,
+                    observation: '', pose: 'idle', actionTimer: 0, leaving: false
+                };
+                // Observations (mostly informative, never certain)
+                const badTell = pickOf(BAD_TELLS);
+                npc.observation = (bad ? Math.random() < 0.6 : Math.random() < 0.2)
+                    ? badTell
+                    : (Math.random() < 0.7 ? pickOf(GOOD_TELLS) : pickOf(NEUTRAL_TELLS));
+                return npc;
+            }
+
+            // ---------- Path planning around buildings ----------
+            let teamRects = null;
+            function getBuildingRects() {
+                if (teamRects) return teamRects;
+                const list = [supermarket, pharmacy, ...hardwareStores];
+                teamRects = list.map(b => {
+                    const turned = Math.abs(Math.sin(b.rotation || 0)) > 0.7;
+                    const hw = (turned ? b.depth : b.width) / 2, hd = (turned ? b.width : b.depth) / 2;
+                    return { minX: b.x - hw, maxX: b.x + hw, minZ: b.z - hd, maxZ: b.z + hd };
+                });
+                return teamRects;
+            }
+            function segmentHitsRect(ax, az, bx, bz, r, pad) {
+                let t0 = 0, t1 = 1;
+                const dx = bx - ax, dz = bz - az;
+                const clip = (p, q) => {
+                    if (Math.abs(p) < 1e-9) return q >= 0;
+                    const t = q / p;
+                    if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+                    else { if (t < t0) return false; if (t < t1) t1 = t; }
+                    return true;
+                };
+                return clip(-dx, ax - (r.minX - pad)) && clip(dx, (r.maxX + pad) - ax) &&
+                       clip(-dz, az - (r.minZ - pad)) && clip(dz, (r.maxZ + pad) - az) && t0 <= t1;
+            }
+            const pointInRect = (x, z, r, pad) => x > r.minX - pad && x < r.maxX + pad && z > r.minZ - pad && z < r.maxZ + pad;
+            function planPath(from, to) {
+                const rects = getBuildingRects();
+                const path = [];
+                let cur = { x: from.x, z: from.z };
+                for (let iter = 0; iter < 4; iter++) {
+                    const blocker = rects.find(r => !pointInRect(cur.x, cur.z, r, 0.4) && !pointInRect(to.x, to.z, r, 0.4) && segmentHitsRect(cur.x, cur.z, to.x, to.z, r, 0.4));
+                    if (!blocker) break;
+                    const pad = 2.4;
+                    const corners = [[blocker.minX - pad, blocker.minZ - pad], [blocker.maxX + pad, blocker.minZ - pad], [blocker.minX - pad, blocker.maxZ + pad], [blocker.maxX + pad, blocker.maxZ + pad]];
+                    corners.sort((a, b) => (Math.hypot(a[0] - cur.x, a[1] - cur.z) + Math.hypot(a[0] - to.x, a[1] - to.z)) - (Math.hypot(b[0] - cur.x, b[1] - cur.z) + Math.hypot(b[0] - to.x, b[1] - to.z)));
+                    cur = { x: corners[0][0], z: corners[0][1] };
+                    path.push(cur);
+                }
+                path.push({ x: to.x, z: to.z });
+                return path;
+            }
+
+            // ---------- Movement & animation ----------
+            function npcMove(npc, tx, tz, speed, dt) {
+                const m = npc.model.position;
+                const dx = tx - m.x, dz = tz - m.z;
+                const d = Math.hypot(dx, dz);
+                if (d < 0.14) return true;
+                const step = Math.min(d, speed * dt);
+                m.x += dx / d * step;
+                m.z += dz / d * step;
+                npc.model.rotation.y = lerpAngle(npc.model.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 10));
+                npc.walkPhase += dt * speed * 1.9;
+                npc.pose = 'walk';
+                // Hop over the fence when crossing it
+                const half = window.gameConfig.settings.arenaSize / 2;
+                const reach = Math.max(Math.abs(m.x), Math.abs(m.z));
+                const dd = Math.abs(reach - half);
+                m.y = dd < 1.1 ? 1.5 * (1 - dd / 1.1) : 0;
+                // Slide around the workbench and team box
+                for (const [sx, sz] of [[workbench.x, workbench.z], [teamBox.x, teamBox.z]]) {
+                    const ox = m.x - sx, oz = m.z - sz, od = Math.hypot(ox, oz);
+                    if (od < 1.7 && od > 0.001) { m.x = sx + ox / od * 1.7; m.z = sz + oz / od * 1.7; }
+                }
+                return false;
+            }
+            function npcFollowPath(npc, speed, dt) {
+                while (npc.path.length) {
+                    const wp = npc.path[0];
+                    if (wp.door) wp.door.open = true;
+                    if (npcMove(npc, wp.x, wp.z, speed, dt)) { npc.path.shift(); continue; }
+                    return false;
+                }
+                return true;
+            }
+            function animateNpc(npc, dt, t) {
+                const u = npc.model.userData;
+                const mode = npc.pose;
+                const swing = Math.sin(npc.walkPhase);
+                let legAmp = 0, armAmp = 0;
+                if (mode === 'walk') { legAmp = 0.7; armAmp = 0.55; }
+                u.legs[0].rotation.x = swing * legAmp;
+                u.legs[1].rotation.x = -swing * legAmp;
+                u.arms[0].rotation.x = -swing * armAmp;
+                u.arms[1].rotation.x = swing * armAmp;
+                u.arms[0].rotation.z = 0.05; u.arms[1].rotation.z = -0.05;
+                u.torso.rotation.x = 0;
+                u.head.rotation.x = 0; u.head.rotation.z = 0;
+                if (mode === 'wave') {
+                    u.arms[1].rotation.x = -2.5; u.arms[1].rotation.z = -0.4 + Math.sin(t * 0.012) * 0.45;
+                } else if (mode === 'shoot') {
+                    u.arms[0].rotation.x = -1.3; u.arms[1].rotation.x = -1.45;
+                } else if (mode === 'hammer') {
+                    u.arms[1].rotation.x = -1.2 + Math.sin(t * 0.02) * 0.7;
+                    u.torso.rotation.x = 0.2;
+                } else if (mode === 'search') {
+                    u.torso.rotation.x = 0.25; u.head.rotation.x = 0.35;
+                    u.arms[0].rotation.x = -0.9 + Math.sin(t * 0.01) * 0.25; u.arms[1].rotation.x = -0.9 - Math.sin(t * 0.01) * 0.25;
+                } else if (mode === 'idle') {
+                    u.torso.rotation.x = Math.sin(t * 0.002 + npc.walkPhase) * 0.02;
+                    u.head.rotation.z = Math.sin(t * 0.0013 + npc.walkPhase) * 0.05;
+                } else if (mode === 'guard') {
+                    u.arms[1].rotation.x = -0.9 + Math.sin(t * 0.004) * 0.08;
+                }
+                npc.model.position.y = Math.max(npc.model.position.y, 0);
+                if (mode === 'walk') npc.model.position.y += Math.abs(swing) * 0.05;
+            }
+
+            // ---------- Loot ----------
+            function npcLoot(npc, station) {
+                if (!station || !station.stock.length) return null;
+                if (station.hardware) {
+                    station.stock.length = 0;
+                    if (station.searchMarker) station.searchMarker.visible = false;
+                    if (Math.random() >= station.chance) return null;
+                    const roll = Math.random();
+                    let supply, qty = 1;
+                    if (roll < 0.52) { supply = { type: 'scrap' }; qty = 2 + Math.floor(Math.random() * 3); }
+                    else if (roll < 0.78) supply = { type: supplyTypes[Math.floor(Math.random() * supplyTypes.length)] };
+                    else supply = { type: 'cell' };
+                    if (npc.role === 'scavenger') qty *= 2;
+                    return { item: getPickupItem(supply), qty };
+                }
+                const idx = Math.floor(Math.random() * station.stock.length);
+                const picked = station.stock.splice(idx, 1)[0];
+                picked.visual.visible = false;
+                return { item: getPickupItem(picked.supply), qty: npc.role === 'scavenger' ? 2 : 1 };
+            }
+            function npcDeposit(npc) {
+                if (!npc.carry.length) return;
+                const stored = [];
+                const left = [];
+                for (const c of npc.carry) {
+                    const added = teamBoxAdd(c.item, c.qty);
+                    if (added > 0) stored.push(`${c.item.icon}x${added}`);
+                    if (added < c.qty) left.push({ item: c.item, qty: c.qty - added });
+                }
+                npc.carry = left;
+                if (stored.length) showBanner(`${npc.name.toUpperCase()} STORED ${stored.join(' ')}`, '#8de8c4', 1700);
+                if (left.length) showBanner('TEAM BOX FULL — EXPAND IT AT THE BOX', '#ffd86b', 2000);
+            }
+            function startNpcTrip(npc) {
+                const free = storeSearchTargets.filter(s => s.stock.length && !team.members.some(m => m !== npc && m.trip && m.trip.station === s));
+                if (!free.length) return false;
+                const p = npc.model.position;
+                free.sort((a, b) => Math.hypot(a.position.x - p.x, a.position.z - p.z) - Math.hypot(b.position.x - p.x, b.position.z - p.z));
+                const station = free[Math.floor(Math.random() * Math.min(3, free.length))];
+                const door = interactiveShopDoors.find(d => d.buildingId === station.buildingId);
+                if (!door) return false;
+                const approach = localToWorldXZ(door.building, door.approachX, door.approachZ);
+                const line = localToWorldXZ(door.building, door.lineX, door.lineZ);
+                const out = planPath(p, approach);
+                out[out.length - 1].door = door;
+                out.push({ x: line.x, z: line.z, door });
+                out.push({ x: station.position.x, z: station.position.z, door });
+                npc.trip = { station, door, approach, line, stage: 'out' };
+                npc.path = out;
+                npc.task = 'trip';
+                return true;
+            }
+
+            // ---------- Day / night behavior of teammates ----------
+            function weakestFenceSide() {
+                let best = null, ratio = 2;
+                const maxHp = fenceMaxHp();
+                for (const side of FENCE_SIDES) {
+                    const st = fenceState.sides[side];
+                    const r = st.breached ? -1 : st.hp / maxHp;
+                    if (r < ratio) { ratio = r; best = side; }
+                }
+                return { side: best, ratio };
+            }
+            function fenceStandPoint(side, along) {
+                const half = window.gameConfig.settings.arenaSize / 2 - 1.7;
+                const a = THREE.MathUtils.clamp(along, -half, half);
+                if (side === 'north') return { x: a, z: half };
+                if (side === 'south') return { x: a, z: -half };
+                if (side === 'east') return { x: half, z: a };
+                return { x: -half, z: a };
+            }
+            function nearestFenceZombie(from, range) {
+                let best = null, bd = range;
+                for (const z of gameState.zombies) {
+                    if (z.state === 'dead' || z.dayWanderer) continue;
+                    const d = Math.hypot(z.model.position.x - from.x, z.model.position.z - from.z);
+                    if (d < bd) { bd = d; best = z; }
+                }
+                return best;
+            }
+            function npcFire(npc, zombie) {
+                const origin = new THREE.Vector3(npc.model.position.x, 1.45, npc.model.position.z);
+                const target = new THREE.Vector3(zombie.model.position.x, 1.3 * (zombie.model.scale.y || 1), zombie.model.position.z);
+                const dir = target.sub(origin).normalize();
+                const mesh = createFlyingNailMesh(dir, null);
+                mesh.position.copy(origin).addScaledVector(dir, 0.5);
+                scene.add(mesh);
+                gameState.nails.push({ mesh, velocity: dir.clone().multiplyScalar(window.gameConfig.settings.nailSpeed), life: 1.6, specialType: null, hitTargets: new Set(), piercesLeft: 0, fromNpc: true });
+                playSound('nailShot', 0.22);
+            }
+            function npcStandAt(npc, p, dt, facePos) {
+                const arrived = npcMove(npc, p.x, p.z, 4.6, dt);
+                if (arrived && facePos) {
+                    npc.model.rotation.y = lerpAngle(npc.model.rotation.y, Math.atan2(facePos.x - npc.model.position.x, facePos.z - npc.model.position.z), Math.min(1, dt * 8));
+                    npc.pose = 'idle';
+                }
+                return arrived;
+            }
+            function updateMember(npc, dt, t) {
+                const p = npc.model.position;
+                const phase = gameState.phase;
+                const player = gameState.player.position;
+                npc.pose = 'idle';
+                // ---------- hostile / fleeing states ----------
+                if (npc.state === 'flee' || npc.state === 'leave') {
+                    const half = window.gameConfig.settings.arenaSize / 2;
+                    if (!npc.path.length) {
+                        const dirx = p.x === 0 && p.z === 0 ? 1 : p.x, dirz = p.z;
+                        const len = Math.hypot(dirx, dirz) || 1;
+                        npc.path = [{ x: dirx / len * (half + 48), z: dirz / len * (half + 48) }];
+                    }
+                    npcFollowPath(npc, npc.state === 'flee' ? 6.2 : 4.2, dt);
+                    if (Math.max(Math.abs(p.x), Math.abs(p.z)) > half + 40) {
+                        if (npc.state === 'flee' && npc.stolen.length) showBanner(`${npc.name.toUpperCase()} ESCAPED WITH THE LOOT`, '#ff9b75', 2200);
+                        removeNpc(npc);
+                    }
+                    return;
+                }
+                if (npc.state === 'raid') {
+                    npcMove(npc, player.x, player.z, 5.0, dt);
+                    npc.attackTimer -= dt;
+                    const d = Math.hypot(p.x - player.x, p.z - player.z);
+                    if (d < 1.5) {
+                        npc.pose = 'shoot';
+                        if (npc.attackTimer <= 0) {
+                            npc.attackTimer = 1.4;
+                            damagePlayerFromZombie({ type: 'raider' });
+                            npc.hits++;
+                            showHitText('STRUCK BY ' + npc.name.toUpperCase() + '!', '#ff8a6a');
+                            if (npc.hits >= 3) { npc.state = 'flee'; npc.path = []; npc.hostile = true; showBanner(`${npc.name.toUpperCase()} RUNS OFF`, '#ffd86b', 1800); }
+                        }
+                    }
+                    return;
+                }
+                // ---------- betrayal timing ----------
+                if (npc.bad && !npc.betrayed && team.day >= npc.betrayDay) {
+                    if ((npc.betrayType === 'saboteur' && phase === 'night' && gameState.phaseTimer < 52 - 6) ||
+                        (npc.betrayType !== 'saboteur' && phase === 'day' && gameState.phaseTimer < 75 - 16 && npc.task === 'idle')) {
+                        executeBetrayal(npc, false);
+                        return;
+                    }
+                }
+                // ---------- carrying loot home ----------
+                if (npc.task === 'trip') {
+                    const trip = npc.trip;
+                    const timeLeft = phase === 'day' ? gameState.phaseTimer : 0;
+                    if (phase !== 'day' || (timeLeft < 12 && trip.stage === 'out')) {
+                        if (trip.stage === 'out') { trip.stage = 'back'; npc.path = planPath(p, { x: teamBox.x + 2.4, z: teamBox.z + 0.2 }); }
+                    }
+                    if (trip.stage === 'out') {
+                        npc.pose = 'walk';
+                        if (npcFollowPath(npc, 5.4, dt)) { trip.stage = 'search'; npc.actionTimer = 1.6; }
+                    } else if (trip.stage === 'search') {
+                        npc.pose = 'search';
+                        npc.actionTimer -= dt;
+                        if (npc.actionTimer <= 0) {
+                            const loot = npcLoot(npc, trip.station);
+                            if (loot) { npc.carry.push(loot); showBanner(`${npc.name.toUpperCase()} FOUND ${loot.item.icon} ${loot.item.name.toUpperCase()}${loot.qty > 1 ? ' x' + loot.qty : ''}`, '#b8f0d2', 1500); }
+                            trip.stage = 'back';
+                            const exit = [{ x: trip.line.x, z: trip.line.z, door: trip.door }, { x: trip.approach.x, z: trip.approach.z }];
+                            npc.path = exit.concat(planPath(trip.approach, { x: teamBox.x + 2.4, z: teamBox.z + 0.2 }));
+                        }
+                    } else if (trip.stage === 'back') {
+                        npc.pose = 'walk';
+                        if (npcFollowPath(npc, 5.8, dt)) { npcDeposit(npc); npc.task = 'idle'; npc.trip = null; npc.idleTimer = 4 + Math.random() * 6; }
+                    }
+                    return;
+                }
+                if (npc.task === 'heal') {
+                    const arrived = npcMove(npc, player.x - 1.2, player.z, 5.2, dt);
+                    if (arrived || Math.hypot(p.x - player.x, p.z - player.z) < 1.8) {
+                        if (gameState.player.health < gameState.player.maxHealth) {
+                            gameState.player.health = Math.min(gameState.player.maxHealth, gameState.player.health + 1);
+                            updateUI();
+                            showBanner(`${npc.name.toUpperCase()} TREATED YOUR WOUNDS (+1 ❤)`, '#8de8c4', 1800);
+                        }
+                        npc.healCooldown = 70;
+                        npc.task = 'idle';
+                    }
+                    return;
+                }
+                // ---------- night duties ----------
+                if (phase === 'night') {
+                    const maxHp = fenceMaxHp();
+                    if (npc.role === 'hunter') {
+                        const target = nearestFenceZombie(p, 20);
+                        if (target) {
+                            const side = fenceSideAt(target.model.position.x, target.model.position.z);
+                            const along = (side === 'north' || side === 'south') ? target.model.position.x : target.model.position.z;
+                            const stand = fenceStandPoint(side, along);
+                            const arrived = npcStandAt(npc, stand, dt, target.model.position);
+                            npc.fireTimer -= dt;
+                            if (arrived || Math.hypot(p.x - target.model.position.x, p.z - target.model.position.z) < 15) {
+                                npc.pose = 'shoot';
+                                npc.model.rotation.y = lerpAngle(npc.model.rotation.y, Math.atan2(target.model.position.x - p.x, target.model.position.z - p.z), Math.min(1, dt * 10));
+                                if (npc.fireTimer <= 0) { npcFire(npc, target); npc.fireTimer = 1.05; }
+                            }
+                            return;
+                        }
+                    } else if (npc.role === 'mechanic') {
+                        const weak = weakestFenceSide();
+                        if (weak.side && weak.ratio < 0.93 && teamBoxCount('mat:scrap') > 0) {
+                            const stand = fenceStandPoint(weak.side, 0);
+                            if (npcStandAt(npc, stand, dt, { x: stand.x * 3, z: stand.z * 3 })) {
+                                npc.pose = 'hammer';
+                                npc.repairTimer -= dt;
+                                if (npc.repairTimer <= 0) {
+                                    npc.repairTimer = 0.55;
+                                    const st = fenceState.sides[weak.side];
+                                    const gain = 12;
+                                    st.hp = Math.min(maxHp, st.hp + gain);
+                                    if (st.breached && st.hp >= 45) { st.breached = false; showBanner(`${npc.name.toUpperCase()} CLOSED THE ${weak.side.toUpperCase()} BREACH`, '#8de8c4', 1800); }
+                                    npc.repairScrap += gain / FENCE_REPAIR_HP_PER_SCRAP;
+                                    if (npc.repairScrap >= 1) { teamBoxTake('mat:scrap', 1); npc.repairScrap -= 1; }
+                                    playRepairClank();
+                                }
+                            }
+                            return;
+                        }
+                    } else if (npc.role === 'guard') {
+                        let bestSide = null, bestCount = 0;
+                        for (const side of FENCE_SIDES) {
+                            let c = 0;
+                            for (const z of gameState.zombies) if (z.state !== 'dead' && !z.dayWanderer && fenceSideAt(z.model.position.x, z.model.position.z) === side && Math.max(Math.abs(z.model.position.x), Math.abs(z.model.position.z)) < window.gameConfig.settings.arenaSize / 2 + 6) c++;
+                            if (c > bestCount) { bestCount = c; bestSide = side; }
+                        }
+                        const side = bestSide || weakestFenceSide().side || 'north';
+                        const stand = fenceStandPoint(side, 0);
+                        if (npcStandAt(npc, stand, dt, { x: stand.x * 3, z: stand.z * 3 })) npc.pose = bestSide ? 'shoot' : 'guard';
+                        return;
+                    }
+                } else {
+                    // ---------- day duties ----------
+                    npc.healCooldown -= dt;
+                    if (npc.role === 'doctor' && npc.healCooldown <= 0 && gameState.player.health < gameState.player.maxHealth) { npc.task = 'heal'; return; }
+                    if (npc.role === 'mechanic' && teamBoxCount('mat:scrap') > 0) {
+                        const weak = weakestFenceSide();
+                        if (weak.side && weak.ratio < 0.8) {
+                            const stand = fenceStandPoint(weak.side, 0);
+                            if (npcStandAt(npc, stand, dt, { x: stand.x * 3, z: stand.z * 3 })) {
+                                npc.pose = 'hammer';
+                                npc.repairTimer -= dt;
+                                if (npc.repairTimer <= 0) {
+                                    npc.repairTimer = 0.7;
+                                    const st = fenceState.sides[weak.side];
+                                    st.hp = Math.min(fenceMaxHp(), st.hp + 10);
+                                    if (st.breached && st.hp >= 45) st.breached = false;
+                                    npc.repairScrap += 10 / FENCE_REPAIR_HP_PER_SCRAP;
+                                    if (npc.repairScrap >= 1) { teamBoxTake('mat:scrap', 1); npc.repairScrap -= 1; }
+                                    playRepairClank();
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    npc.idleTimer -= dt;
+                    if (npc.idleTimer <= 0 && npc.carry.length === 0) {
+                        const weight = { scavenger: 1, mechanic: 0.55, doctor: 0.5, guard: 0.5, hunter: 0.45 }[npc.role] || 0.5;
+                        npc.idleTimer = 3 + Math.random() * 5;
+                        if (gameState.phaseTimer > 26 && teamBox.slots.length < teamBoxCapacity() && Math.random() < weight) { if (startNpcTrip(npc)) return; }
+                    }
+                    if (npc.carry.length) {
+                        npc.pose = 'walk';
+                        if (npcMove(npc, teamBox.x + 2.4, teamBox.z + 0.2, 4.2, dt)) npcDeposit(npc);
+                        return;
+                    }
+                }
+                // ---------- loiter near the team box ----------
+                if (!npc.loiter || npc.loiterTimer <= 0 || Math.random() < 0.002) {
+                    const a = Math.random() * Math.PI * 2, r = 2.4 + Math.random() * 2.2;
+                    npc.loiter = { x: teamBox.x + Math.cos(a) * r, z: teamBox.z + Math.sin(a) * r };
+                    npc.loiterTimer = 4 + Math.random() * 6;
+                }
+                npc.loiterTimer -= dt;
+                const lim = window.gameConfig.settings.arenaSize / 2 - 1.4;
+                npc.loiter.x = THREE.MathUtils.clamp(npc.loiter.x, -lim, lim);
+                npc.loiter.z = THREE.MathUtils.clamp(npc.loiter.z, -lim, lim);
+                npcMove(npc, npc.loiter.x, npc.loiter.z, 2.2, dt);
+                if (Math.hypot(p.x - npc.loiter.x, p.z - npc.loiter.z) < 0.3) npc.pose = 'idle'; else npc.pose = 'walk';
+                // Bad teammates linger near the box at night (a subtle tell)
+                if (npc.bad && npc.warned && npc.betrayType === 'thief' && phase === 'night') npc.loiter = { x: teamBox.x + 1.6, z: teamBox.z + 1.4 };
+            }
+
+            // ---------- Betrayal ----------
+            function executeBetrayal(npc, caught) {
+                npc.betrayed = true;
+                npc.hostile = true;
+                npc.hp = 8;
+                npc.path = [];
+                if (npc.betrayType === 'raider') {
+                    npc.state = 'raid';
+                    showBanner(`${npc.name.toUpperCase()} TURNS ON YOU — FIGHT BACK!`, '#ff6a5c', 2600);
+                    gameState.shake = Math.max(gameState.shake, 0.2);
+                    return;
+                }
+                if (npc.betrayType === 'thief') {
+                    if (!caught) {
+                        const stacks = teamBox.slots.slice().sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.min(5, Math.ceil(teamBox.slots.length * 0.5))));
+                        for (const s of stacks) {
+                            const take = Math.max(1, Math.ceil(s.count * 0.7));
+                            const got = teamBoxTake(s.id, take);
+                            if (got > 0) npc.stolen.push({ item: { id: s.id, name: s.name, icon: s.icon, specialType: s.specialType }, qty: got });
+                        }
+                        showBanner(npc.stolen.length ? `${npc.name.toUpperCase()} STOLE FROM THE TEAM BOX — SHOOT THEM!` : `${npc.name.toUpperCase()} FOUND THE BOX EMPTY AND LEFT`, '#ff6a5c', 2800);
+                    }
+                } else if (npc.betrayType === 'saboteur') {
+                    if (!caught) {
+                        let target = null, best = -1;
+                        for (const side of FENCE_SIDES) { const st = fenceState.sides[side]; if (!st.breached && st.hp > best) { best = st.hp; target = side; } }
+                        if (target) damageFence(target, fenceMaxHp() * 0.6);
+                        fenceState.charge = Math.max(0, fenceState.charge - 35);
+                        showBanner(`${npc.name.toUpperCase()} SABOTAGED THE ${String(target).toUpperCase()} FENCE!`, '#ff6a5c', 2800);
+                    }
+                }
+                npc.state = 'flee';
+            }
+            function removeNpc(npc) {
+                scene.remove(npc.model);
+                const i = team.members.indexOf(npc);
+                if (i >= 0) team.members.splice(i, 1);
+                if (team.petitioner === npc) team.petitioner = null;
+                if (team.panelNpc === npc) closeTeamPanel();
+                team.hudSignature = '';
+            }
+            // Returns stolen goods, drops carried loot when a hostile NPC is shot down.
+            function killHostileNpc(npc) {
+                if (npc.stolen.length) {
+                    let back = 0;
+                    for (const s of npc.stolen) back += teamBoxAdd(s.item, s.qty);
+                    showBanner(`${npc.name.toUpperCase()} DOWN — LOOT RETURNED TO THE BOX`, '#8de8c4', 2400);
+                    npc.stolen = [];
+                } else showBanner(`${npc.name.toUpperCase()} IS DOWN`, '#ffd86b', 2000);
+                playSound('zombieDeath', 0.35);
+                removeNpc(npc);
+            }
+            function updateNpcNailHits() {
+                for (const npc of team.members) {
+                    if (!npc.hostile || npc.hp <= 0) continue;
+                    for (const nail of gameState.nails) {
+                        if (nail.fromNpc || nail.life <= 0) continue;
+                        const nx = nail.mesh.position.x - npc.model.position.x, nz = nail.mesh.position.z - npc.model.position.z;
+                        const ny = nail.mesh.position.y - (npc.model.position.y + 1.1);
+                        if (Math.hypot(nx, nz) < 0.55 && Math.abs(ny) < 1.0) {
+                            npc.hp -= window.gameConfig.settings.nailDamage * (ny > 0.5 ? 2.5 : 1);
+                            nail.life = 0;
+                            triggerHitmarker(npc.hp <= 0);
+                            if (npc.hp <= 0) { killHostileNpc(npc); return; }
+                        }
+                    }
+                }
+            }
+
+            // ---------- Survivor encounter ----------
+            function spawnPetitioner() {
+                if (team.petitioner || team.members.length >= TEAM_MAX) return false;
+                const half = window.gameConfig.settings.arenaSize / 2;
+                const side = pickOf(Object.keys(SIDE_NORMALS));
+                const npc = createNpcProfile(side);
+                npc.model = buildSurvivorModel(npc);
+                const [nx, nz] = SIDE_NORMALS[side];
+                const along = (Math.random() - 0.5) * 8;
+                const alongX = nx === 0 ? along : 0, alongZ = nz === 0 ? along : 0;
+                const wait = { x: nx * (half + 2.6) + alongX, z: nz * (half + 2.6) + alongZ };
+                npc.model.position.set(nx * (half + 36) + alongX * 2, 0, nz * (half + 36) + alongZ * 2);
+                npc.path = [{ x: wait.x, z: wait.z }];
+                npc.waitPoint = wait;
+                npc.timer = 70;
+                npc.state = 'petition';
+                npc.model.userData.tag.visible = false;
+                scene.add(npc.model);
+                team.petitioner = npc;
+                showBanner(`🧍 A SURVIVOR CALLS OUT FROM THE ${side.toUpperCase()} FENCE`, '#9df4e4', 2800);
+                playFenceTone('triangle', 520, 380, 0.25, 0.12);
+                return true;
+            }
+            function updatePetitioner(npc, dt, t) {
+                if (npc.leaving) {
+                    npc.pose = 'walk';
+                    const half = window.gameConfig.settings.arenaSize / 2;
+                    const [nx, nz] = SIDE_NORMALS[npc.arrivalSide];
+                    npcMove(npc, nx * (half + 50), nz * (half + 50), 3.8, dt);
+                    if (Math.max(Math.abs(npc.model.position.x), Math.abs(npc.model.position.z)) > half + 40) removeNpc(npc);
+                    return;
+                }
+                if (npc.path.length) { npc.pose = 'walk'; npcFollowPath(npc, 3.6, dt); if (!npc.path.length) npc.model.rotation.y = lerpAngle(npc.model.rotation.y, Math.atan2(-npc.waitPoint.x, -npc.waitPoint.z), 1); return; }
+                npc.pose = 'wave';
+                if (team.panelNpc !== npc) npc.timer -= dt;
+                if (npc.timer <= 0) {
+                    npc.leaving = true;
+                    showBanner(`${npc.name.toUpperCase()} GAVE UP AND WALKED AWAY`, '#ffd86b', 1800);
+                }
+            }
+            function acceptPetitioner(npc) {
+                if (team.members.length >= TEAM_MAX) { showBanner('TEAM IS FULL (' + TEAM_MAX + ')', '#ffd86b', 1500); return; }
+                team.petitioner = null;
+                npc.state = 'member';
+                npc.task = 'idle';
+                npc.path = [];
+                const half = window.gameConfig.settings.arenaSize / 2;
+                const [nx, nz] = SIDE_NORMALS[npc.arrivalSide];
+                npc.path = [{ x: nx * (half - 2.4) + (nz !== 0 ? npc.waitPoint.x * 0.4 : 0), z: nz * (half - 2.4) + (nx !== 0 ? npc.waitPoint.z * 0.4 : 0) }];
+                npc.model.userData.tag.visible = true;
+                npc.model.userData.tag.position.y = 2.75;
+                if (npc.bad) { npc.betrayDay = team.day + 2 + Math.floor(Math.random() * 2); npc.warnDay = npc.betrayDay - 1; }
+                else npc.suspicionMark = team.day >= 1 && Math.random() < 0.25;
+                npc.model.userData.mark.visible = npc.suspicionMark;
+                npc.joinDay = team.day;
+                npc.entering = true;
+                team.members.push(npc);
+                showBanner(`${NPC_ROLES[npc.role].icon} ${npc.name.toUpperCase()} JOINED — ${NPC_ROLES[npc.role].perk.toUpperCase()}`, '#8de8c4', 3000);
+                playFenceTone('triangle', 400, 640, 0.3, 0.14);
+                team.hudSignature = '';
+            }
+
+            // ---------- Dawn / night hooks ----------
+            function teamOnDawn() {
+                team.day++;
+                team.eventTimer = Math.random() < 0.5 ? 6 + Math.random() * 8 : 28 + Math.random() * 30;
+                const notes = [];
+                for (const npc of team.members.slice()) {
+                    // Daily ration from the team box
+                    const hasFood = teamBox.slots.find(s => s.id.startsWith('food:'));
+                    const hasDrink = teamBox.slots.find(s => s.id.startsWith('drink:'));
+                    const ration = hasFood || hasDrink;
+                    if (ration) { teamBoxTake(ration.id, 1); npc.hunger = 0; }
+                    else {
+                        npc.hunger++;
+                        notes.push(`${npc.name} IS HUNGRY`);
+                        if (npc.hunger >= 2) {
+                            npc.state = 'leave'; npc.path = [];
+                            showBanner(`${npc.name.toUpperCase()} LEFT THE TEAM — NO FOOD`, '#ff9b75', 2400);
+                            continue;
+                        }
+                    }
+                    if (npc.role === 'doctor' && gameState.player.health < gameState.player.maxHealth) {
+                        gameState.player.health = Math.min(gameState.player.maxHealth, gameState.player.health + 1);
+                        updateUI();
+                        notes.push(`${npc.name} TREATED YOU +1❤`);
+                    }
+                    if (npc.bad && !npc.warned && team.day >= npc.warnDay) {
+                        npc.warned = true;
+                        npc.suspicionMark = true;
+                        npc.model.userData.mark.visible = true;
+                        if (npc.betrayType === 'thief') notes.push(`${npc.name} KEEPS HOVERING AROUND THE BOX`);
+                        else if (npc.betrayType === 'saboteur') notes.push(`${npc.name} WAS SEEN STUDYING THE FENCE`);
+                        else notes.push(`${npc.name} WON'T MEET YOUR EYES`);
+                    }
+                }
+                if (notes.length) showBanner(notes.slice(0, 2).join('  ·  '), '#ffe08a', 3200);
+                team.hudSignature = '';
+            }
+            function teamOnNight() {
+                for (const npc of team.members) {
+                    if (npc.task === 'trip' && npc.trip && npc.trip.stage !== 'back') {
+                        npc.trip.stage = 'back';
+                        npc.path = planPath(npc.model.position, { x: teamBox.x + 2.4, z: teamBox.z + 0.2 });
+                    }
+                }
+                if (team.petitioner) team.petitioner.leaving = true;
+            }
+            function resetTeam() {
+                for (const npc of team.members.slice()) scene.remove(npc.model);
+                if (team.petitioner) scene.remove(team.petitioner.model);
+                team.members.length = 0;
+                team.petitioner = null;
+                team.day = 0;
+                team.eventTimer = 22;
+                teamBox.level = 0;
+                teamBox.slots.length = 0;
+                refreshTeamBoxVisual();
+                closeTeamPanel();
+                closeBoxPanel();
+                team.hudSignature = '';
+            }
+            const teamChewMult = () => 1 - 0.18 * Math.min(2, team.members.filter(m => m.role === 'guard' && !m.betrayed && m.state === 'member').length);
+
+            // ---------- Panels ----------
+            const teamPanel = document.createElement('section');
+            teamPanel.id = 'team-panel';
+            teamPanel.setAttribute('aria-hidden', 'true');
+            document.getElementById('ui-overlay').appendChild(teamPanel);
+            const boxPanel = document.createElement('section');
+            boxPanel.id = 'box-panel';
+            boxPanel.setAttribute('aria-hidden', 'true');
+            document.getElementById('ui-overlay').appendChild(boxPanel);
+            const teamButton = document.getElementById('team-button');
+            const teamHud = document.getElementById('team-hud');
+            let teamPointerDown = false;
+            const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+            function closeTeamPanel() {
+                teamPanel.classList.remove('open');
+                teamPanel.setAttribute('aria-hidden', 'true');
+                team.panelNpc = null; team.panelMode = null; team.panelSignature = '';
+            }
+            function closeBoxPanel() {
+                boxPanel.classList.remove('open');
+                boxPanel.setAttribute('aria-hidden', 'true');
+                teamBox.open = false; teamBox.signature = '';
+            }
+            function unlockPointer() { if (document.pointerLockElement) document.exitPointerLock(); }
+            function openTeamPanel(npc, mode) {
+                unlockPointer();
+                if (typeof setInventoryOpen === 'function') setInventoryOpen(false);
+                if (workbench.open) setBenchOpen(false);
+                closeBoxPanel();
+                team.panelNpc = npc; team.panelMode = mode;
+                teamPanel.classList.add('open');
+                teamPanel.setAttribute('aria-hidden', 'false');
+                renderTeamPanel(true);
+            }
+            function openBoxPanel() {
+                unlockPointer();
+                if (typeof setInventoryOpen === 'function') setInventoryOpen(false);
+                if (workbench.open) setBenchOpen(false);
+                closeTeamPanel();
+                teamBox.open = true;
+                boxPanel.classList.add('open');
+                boxPanel.setAttribute('aria-hidden', 'false');
+                renderBoxPanel(true);
+            }
+            function npcStatus(npc) {
+                if (npc.state === 'raid') return 'Hostile';
+                if (npc.task === 'trip') return npc.trip && npc.trip.stage === 'search' ? 'Searching' : 'On a loot run';
+                if (npc.task === 'heal') return 'Treating you';
+                if (npc.pose === 'hammer') return 'Repairing fence';
+                if (npc.pose === 'shoot') return 'Defending';
+                if (npc.carry.length) return 'Carrying loot';
+                return gameState.phase === 'night' ? 'On watch' : 'Resting';
+            }
+            function renderTeamPanel(force) {
+                const npc = team.panelNpc;
+                if (!npc) return;
+                const role = NPC_ROLES[npc.role];
+                let sig = team.panelMode + '|' + npc.log.length + '|' + npc.inspected + '|' + npc.loyalty + '|' + team.members.length + '|' + npc.state;
+                if (!force && sig === team.panelSignature) return;
+                team.panelSignature = sig;
+                if (team.panelMode === 'petition') {
+                    const asked = npc.asked;
+                    const log = npc.log.map(l => `<div class="npc-line">${l}</div>`).join('');
+                    teamPanel.innerHTML = `<div class="bench-head"><div><h2>🧍 ${asked.q2 ? esc(npc.name.toUpperCase()) + ' · ' + role.icon + ' ' + role.label.toUpperCase() : 'STRANGER AT THE ' + npc.arrivalSide.toUpperCase() + ' FENCE'}</h2>
+                        <div class="bench-res">Team ${team.members.length}/${TEAM_MAX} · They are standing at the <b>${npc.arrivalSide.toUpperCase()}</b> fence</div></div>
+                        <button class="panel-close" type="button" data-act="close" aria-label="Close">×</button></div>
+                        <div class="npc-obs">${esc(npc.name)} ${esc(npc.observation)}.</div>
+                        ${log}
+                        <h3>QUESTIONS</h3>
+                        <div class="npc-buttons">
+                          <button class="bench-btn" data-act="q1" ${asked.q1 ? 'disabled' : ''}>Where did you come from?</button>
+                          <button class="bench-btn" data-act="q2" ${asked.q2 ? 'disabled' : ''}>What can you do?</button>
+                          <button class="bench-btn" data-act="q3" ${asked.q3 ? 'disabled' : ''}>Where are your people?</button>
+                          <button class="bench-btn" data-act="inspect" ${npc.inspected ? 'disabled' : ''}>Check their bag (they may resent it)</button>
+                        </div>
+                        <div class="npc-buttons">
+                          <button class="bench-btn" data-act="accept" ${team.members.length >= TEAM_MAX ? 'disabled' : ''}>LET THEM IN</button>
+                          <button class="bench-btn" data-act="send">SEND AWAY</button>
+                        </div>`;
+                } else {
+                    teamPanel.innerHTML = `<div class="bench-head"><div><h2>${role.icon} ${esc(npc.name.toUpperCase())} · ${role.label.toUpperCase()}</h2>
+                        <div class="bench-res">${esc(role.perk)} · ${esc(npcStatus(npc))}</div></div>
+                        <button class="panel-close" type="button" data-act="close" aria-label="Close">×</button></div>
+                        <div class="npc-obs">Trust: ${'●'.repeat(Math.max(0, npc.loyalty))}${'○'.repeat(Math.max(0, 5 - npc.loyalty))}</div>
+                        ${npc.log.slice(-3).map(l => `<div class="npc-line">${l}</div>`).join('')}
+                        <div class="npc-buttons">
+                          <button class="bench-btn" data-act="talk">TALK</button>
+                          <button class="bench-btn" data-act="confront">CONFRONT</button>
+                          <button class="bench-btn" data-act="dismiss">SEND AWAY</button>
+                        </div>`;
+                }
+            }
+            function npcSays(npc, text) { npc.log.push(text); if (npc.log.length > 6) npc.log.shift(); }
+            teamPanel.addEventListener('pointerdown', e => { e.stopPropagation(); teamPointerDown = true; });
+            teamPanel.addEventListener('click', e => {
+                e.stopPropagation();
+                const btn = e.target.closest('[data-act]');
+                const npc = team.panelNpc;
+                if (!btn || btn.disabled || !npc) return;
+                const act = btn.dataset.act;
+                const role = NPC_ROLES[npc.role];
+                if (act === 'close') { closeTeamPanel(); return; }
+                if (team.panelMode === 'petition') {
+                    if (act === 'q1') {
+                        npc.asked.q1 = true;
+                        npcSays(npc, `<b>${esc(npc.name)}:</b> “I came down from the <b>${npc.statedSide.toUpperCase()}</b>. Walked most of the night.”`);
+                    } else if (act === 'q2') {
+                        npc.asked.q2 = true;
+                        npcSays(npc, `<b>${esc(npc.name)}:</b> “${esc(role.claim)}”`);
+                    } else if (act === 'q3') {
+                        npc.asked.q3 = true;
+                        const evasive = npc.bad ? Math.random() < 0.55 : Math.random() < 0.15;
+                        npcSays(npc, `<b>${esc(npc.name)}:</b> “${evasive ? 'Does it matter? I am alone now.' : 'We were six at the bridge. I was the only one who made it.'}”`);
+                    } else if (act === 'inspect') {
+                        npc.inspected = true;
+                        npc.loyalty = Math.max(1, npc.loyalty - 1);
+                        const items = [];
+                        const hasTool = npc.bad ? Math.random() < 0.5 : Math.random() < 0.9;
+                        if (hasTool) items.push(role.tool);
+                        else items.push('nothing a ' + role.label.toLowerCase() + ' would carry');
+                        items.push(pickOf(['half a canteen of water', 'a dented can of beans', 'a torn map', 'a dead flashlight']));
+                        if (npc.bad ? Math.random() < 0.65 : Math.random() < 0.15) items.push(npc.bad ? BAD_ITEMS[npc.betrayType] : pickOf(Object.values(BAD_ITEMS)));
+                        npcSays(npc, `<b>You search the bag:</b> ${esc(items.join(', '))}.`);
+                    } else if (act === 'accept') {
+                        closeTeamPanel();
+                        acceptPetitioner(npc);
+                        return;
+                    } else if (act === 'send') {
+                        closeTeamPanel();
+                        npc.leaving = true;
+                        showBanner(`YOU SENT ${npc.name.toUpperCase()} AWAY`, '#ffd86b', 1600);
+                        return;
+                    }
+                } else {
+                    if (act === 'talk') {
+                        let line;
+                        if (npc.bad && npc.warned && Math.random() < 0.5) {
+                            line = { thief: 'Funny how much you keep stashed in that box...', saboteur: 'That fence will not hold forever, you know.', raider: 'You trust too easily.' }[npc.betrayType];
+                        } else line = pickOf(role.talk);
+                        npcSays(npc, `<b>${esc(npc.name)}:</b> “${esc(line)}”`);
+                    } else if (act === 'confront') {
+                        if (npc.bad && !npc.betrayed) {
+                            npcSays(npc, `<b>${esc(npc.name)}:</b> “...fine. You figured it out.”`);
+                            closeTeamPanel();
+                            showBanner(`YOU CAUGHT ${npc.name.toUpperCase()}!`, '#8de8c4', 1800);
+                            executeBetrayal(npc, true);
+                            return;
+                        }
+                        npc.loyalty -= 2;
+                        npcSays(npc, `<b>${esc(npc.name)}:</b> “After everything I did here? Unbelievable.”`);
+                        if (npc.loyalty <= 0) {
+                            closeTeamPanel();
+                            npc.state = 'leave'; npc.path = [];
+                            showBanner(`${npc.name.toUpperCase()} WALKED OUT — YOU WRONGED AN HONEST SURVIVOR`, '#ff9b75', 2800);
+                            return;
+                        }
+                    } else if (act === 'dismiss') {
+                        closeTeamPanel();
+                        npc.state = 'leave'; npc.path = [];
+                        showBanner(`${npc.name.toUpperCase()} LEFT THE TEAM`, '#ffd86b', 1800);
+                        return;
+                    }
+                }
+                renderTeamPanel(true);
+            });
+
+            function renderBoxPanel(force) {
+                const sig = JSON.stringify([teamBox.slots.map(s => s.id + s.count), gameState.inventory.map(i => i.id + i.count), teamBox.level, countInventoryItem('mat:scrap')]);
+                if (!force && sig === teamBox.signature) return;
+                teamBox.signature = sig;
+                const cap = teamBoxCapacity();
+                const maxLevel = (BOX_MAX_SLOTS - BOX_BASE_SLOTS) / BOX_STEP;
+                let grid = '';
+                const shown = Math.min(BOX_MAX_SLOTS, cap + BOX_STEP);
+                for (let i = 0; i < shown; i++) {
+                    if (i >= cap) { grid += `<div class="box-slot locked" title="Next upgrade">🔒</div>`; continue; }
+                    const s = teamBox.slots[i];
+                    grid += s
+                        ? `<button class="box-slot filled" data-act="take:${i}" aria-label="Take ${esc(s.name)}"><span>${s.icon}</span><small>${esc(s.name)}</small><b>${s.count}</b></button>`
+                        : `<div class="box-slot empty"></div>`;
+                }
+                const inv = gameState.inventory.map((it, i) => `<div class="bench-card"><div class="ico">${it.icon}</div><div class="txt"><b>${esc(it.name)}</b><span>${it.count} in your pack</span></div>
+                    <button class="bench-btn" data-act="store1:${i}">+1</button><button class="bench-btn" data-act="storeAll:${i}">ALL</button></div>`).join('');
+                const upgradeCost = teamBoxUpgradeCost();
+                const upgradeBtn = teamBox.level >= maxLevel
+                    ? `<button class="bench-btn wide" disabled>BOX AT MAXIMUM (50 SLOTS)</button>`
+                    : `<button class="bench-btn wide" data-act="upgrade" ${countInventoryItem('mat:scrap') < upgradeCost ? 'disabled' : ''}>EXPAND +${BOX_STEP} SLOTS · ${upgradeCost} 🔩</button>`;
+                boxPanel.innerHTML = `<div class="bench-head"><div><h2>📦 TEAM BOX</h2>
+                    <div class="bench-res">${teamBox.slots.length} / ${cap} SLOTS USED · TEAM ${team.members.length}/${TEAM_MAX}</div></div>
+                    <button class="panel-close" type="button" data-act="close" aria-label="Close">×</button></div>
+                    <div class="box-grid">${grid}</div>
+                    ${cap < BOX_MAX_SLOTS ? `<div class="npc-obs">${BOX_MAX_SLOTS - cap} more slots can be unlocked (+${BOX_STEP} per upgrade).</div>` : ''}
+                    ${upgradeBtn}
+                    <h3>YOUR PACK — TAP TO STORE</h3>
+                    ${gameState.inventory.length ? `<button class="bench-btn wide" data-act="storeEverything">STORE EVERYTHING</button>` : ''}
+                    ${inv || '<div class="npc-obs">Your pack is empty.</div>'}
+                    ${team.members.length ? '<h3>TEAM</h3>' + team.members.map((m, i) => `<div class="bench-card"><div class="ico">${NPC_ROLES[m.role].icon}</div><div class="txt"><b>${esc(m.name)} · ${NPC_ROLES[m.role].label}</b><span>${esc(NPC_ROLES[m.role].perk)}</span><em>${esc(npcStatus(m))}</em></div><button class="bench-btn" data-act="talkto:${i}">TALK</button></div>`).join('') : ''}`;
+            }
+            boxPanel.addEventListener('pointerdown', e => { e.stopPropagation(); teamPointerDown = true; });
+            window.addEventListener('pointerup', () => { teamPointerDown = false; });
+            boxPanel.addEventListener('click', e => {
+                e.stopPropagation();
+                const btn = e.target.closest('[data-act]');
+                if (!btn || btn.disabled) return;
+                const [act, arg] = btn.dataset.act.split(':');
+                const idx = Number(arg);
+                if (act === 'close') { closeBoxPanel(); return; }
+                if (act === 'talkto') { const m = team.members[idx]; if (m) { closeBoxPanel(); openTeamPanel(m, 'member'); } return; }
+                if (act === 'upgrade') upgradeTeamBox();
+                else if (act === 'take') {
+                    const s = teamBox.slots[idx];
+                    if (s) {
+                        const added = addInventoryItem(s, s.count);
+                        if (!added) showBanner('YOUR PACK IS FULL', '#ff9b75', 1400);
+                        s.count -= added;
+                        if (s.count <= 0) teamBox.slots.splice(idx, 1);
+                    }
+                } else if (act === 'store1' || act === 'storeAll') {
+                    const it = gameState.inventory[idx];
+                    if (it) {
+                        const added = teamBoxAdd(it, act === 'storeAll' ? it.count : 1);
+                        if (!added) showBanner('TEAM BOX IS FULL', '#ffd86b', 1400);
+                        it.count -= added;
+                        if (it.count <= 0) gameState.inventory.splice(idx, 1);
+                        updateInventoryUI();
+                    }
+                } else if (act === 'storeEverything') {
+                    let stored = 0;
+                    for (let i = gameState.inventory.length - 1; i >= 0; i--) {
+                        const it = gameState.inventory[i];
+                        const added = teamBoxAdd(it, it.count);
+                        stored += added;
+                        it.count -= added;
+                        if (it.count <= 0) gameState.inventory.splice(i, 1);
+                    }
+                    updateInventoryUI();
+                    showBanner(stored ? `STORED ${stored} ITEMS` : 'TEAM BOX IS FULL', stored ? '#8de8c4' : '#ffd86b', 1500);
+                }
+                playFenceTone('square', 300, 220, 0.06, 0.1);
+                renderBoxPanel(true);
+            });
+
+            // ---------- Prompt button, HUD, per-frame update ----------
+            function getTeamContext() {
+                if (mode !== 'play' || gameState.gameOver) return null;
+                const p = gameState.player.position;
+                let best = null, bd = 99;
+                const consider = (kind, ref, x, z, range) => { const d = Math.hypot(p.x - x, p.z - z); if (d < range && d < bd) { bd = d; best = { kind, ref }; } };
+                if (team.petitioner && !team.petitioner.leaving && !team.petitioner.path.length) consider('petition', team.petitioner, team.petitioner.model.position.x, team.petitioner.model.position.z, 5.2);
+                for (const m of team.members) if (m.state === 'member' || m.state === 'raid') { if (m.state === 'member') consider('member', m, m.model.position.x, m.model.position.z, 2.3); }
+                consider('box', null, teamBox.x, teamBox.z, 3.4);
+                return best;
+            }
+            function openTeamInteract() {
+                const ctx = getTeamContext();
+                if (!ctx) return false;
+                if (ctx.kind === 'box') { teamBox.open ? closeBoxPanel() : openBoxPanel(); return true; }
+                if (ctx.kind === 'petition') { openTeamPanel(ctx.ref, 'petition'); return true; }
+                openTeamPanel(ctx.ref, 'member');
+                return true;
+            }
+            if (teamButton) {
+                teamButton.addEventListener('pointerdown', e => e.stopPropagation());
+                teamButton.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openTeamInteract(); });
+            }
+            function updateTeamHud() {
+                if (!teamHud) return;
+                const html = team.members.map(m => {
+                    const cls = m.suspicionMark && m.bad && m.warned ? 'chip warn' : 'chip';
+                    return `<span class="${cls}">${NPC_ROLES[m.role].icon} ${esc(m.name)} · ${esc(npcStatus(m))}</span>`;
+                }).join('');
+                if (html !== team.hudSignature) { teamHud.innerHTML = html; team.hudSignature = html; }
+                teamHud.classList.toggle('visible', mode === 'play' && !gameState.gameOver && team.members.length > 0);
+            }
+            function updateTeam(dt, t) {
+                if (mode !== 'play') return;
+                teamBox.marker.position.y = 2.7 + Math.sin(t * 0.004) * 0.1;
+                teamBox.marker.rotation.y += dt * 2;
+                // Survivor events happen in the daytime.
+                if (gameState.phase === 'day' && !team.petitioner && team.members.length < TEAM_MAX && !gameState.gameOver) {
+                    team.eventTimer -= dt;
+                    if (team.eventTimer <= 0) {
+                        team.eventTimer = 40 + Math.random() * 40;
+                        if (Math.random() < 0.7 && gameState.phaseTimer > 25) spawnPetitioner();
+                    }
+                }
+                if (team.petitioner) { updatePetitioner(team.petitioner, dt, t); animateNpc(team.petitioner, dt, t); }
+                for (const m of team.members.slice()) {
+                    if (m.state === 'petition') continue;
+                    if (m.entering) {
+                        m.pose = 'walk';
+                        if (npcFollowPath(m, 3.8, dt)) m.entering = false;   // hop in after being let in
+                    } else updateMember(m, dt, t);
+                    animateNpc(m, dt, t);
+                    const d = Math.hypot(m.model.position.x - gameState.player.position.x, m.model.position.z - gameState.player.position.z);
+                    m.model.userData.tag.visible = d < 22;
+                }
+                updateNpcNailHits();
+                // Prompt button
+                const ctx = getTeamContext();
+                if (teamButton) {
+                    const show = !!ctx && !teamBox.open && !team.panelNpc;
+                    teamButton.style.display = show ? 'flex' : 'none';
+                    if (show) {
+                        if (ctx.kind === 'box') teamButton.innerHTML = 'TEAM BOX<small>STORE LOOT · E</small>';
+                        else if (ctx.kind === 'petition') teamButton.innerHTML = 'TALK<small>SURVIVOR AT THE FENCE · E</small>';
+                        else teamButton.innerHTML = 'TALK<small>' + esc(ctx.ref.name.toUpperCase()) + ' · E</small>';
+                    }
+                }
+                if (team.panelNpc) {
+                    const near = team.panelMode === 'petition'
+                        ? Math.hypot(team.panelNpc.model.position.x - gameState.player.position.x, team.panelNpc.model.position.z - gameState.player.position.z) < 7
+                        : true;
+                    if (!near || gameState.gameOver) closeTeamPanel();
+                    else if (!teamPointerDown) renderTeamPanel(false);
+                }
+                if (teamBox.open) {
+                    if (Math.hypot(teamBox.x - gameState.player.position.x, teamBox.z - gameState.player.position.z) > 5 || gameState.gameOver) closeBoxPanel();
+                    else if (!teamPointerDown) renderBoxPanel(false);
+                }
+                updateTeamHud();
             }
 
             // Create fence
@@ -6137,11 +7367,13 @@
             // Desktop controls
             window.addEventListener('keydown', (e) => {
                 input.keys[e.key.toLowerCase()] = true;
-                if (e.key === 'Escape' && workbench.open) setBenchOpen(false);
+                if (e.key === 'Escape') { if (workbench.open) setBenchOpen(false); if (team.panelNpc) closeTeamPanel(); if (teamBox.open) closeBoxPanel(); }
                 if (e.key.toLowerCase() === 'e' && !e.repeat) {
                     e.preventDefault();
                     if (workbench.open) setBenchOpen(false);
-                    else if (!toggleNearbyShopDoor() && !searchNearbyStore() && !openWorkbench()) attemptPlayerClimb();
+                    else if (team.panelNpc) closeTeamPanel();
+                    else if (teamBox.open) closeBoxPanel();
+                    else if (!toggleNearbyShopDoor() && !searchNearbyStore() && !openWorkbench() && !openTeamInteract()) attemptPlayerClimb();
                 }
                 if (['w', 'a', 's', 'd', 'r', 'e', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
                     e.preventDefault();
@@ -6172,7 +7404,7 @@
             let mouseDown = false;
             let touchFire = false;
             document.addEventListener('mousedown', (event) => {
-                if (event.target && event.target.closest('#ui-overlay button, #inventory-panel, #item-use-overlay, #bench-panel')) {
+                if (event.target && event.target.closest('#ui-overlay button, #inventory-panel, #item-use-overlay, #bench-panel, #team-panel, #box-panel')) {
                     mouseDown = false;
                     return;
                 }
@@ -7605,6 +8837,7 @@
                 }
                 restockSupermarket();
                 gameState.wandererSpawnTimer = 9;
+                teamOnDawn();
                 updateSurvivalHUD();
             }
 
@@ -7623,6 +8856,7 @@
                 }
                 showBanner('NIGHTFALL — THE HORDE IS COMING', '#ff746f', 2400);
                 startWave();
+                teamOnNight();
                 updateSurvivalHUD();
             }
 
@@ -8017,6 +9251,7 @@
                 gameState.inventory.length = 0;
                 gameState.inventory.push({ id: 'mat:scrap', name: 'Metal Scrap', icon: '🔩', count: 4 });
                 resetFenceSystem();
+                resetTeam();
                 updateInventoryUI();
                 setInventoryOpen(false);
                 supplyPoints.forEach(point => { point.userData.supply.active = true; point.visible = true; });
@@ -8952,6 +10187,7 @@
                     updateFence(deltaTime, timestamp);
                     updateWorkbench(deltaTime, timestamp);
                     updateFenceHud(deltaTime);
+                    updateTeam(deltaTime, timestamp);
                     updateBlasts(deltaTime);
 
                     // Wave management
