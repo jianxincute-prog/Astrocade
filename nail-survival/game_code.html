@@ -2657,6 +2657,104 @@
                 character.add(rightLegGroup);
                 character.rightLeg = rightLegGroup;
 
+                // ==================== 7. PREMIUM HORROR POLISH ====================
+                // Back-of-body detail (third-person camera sees the horde's backs), infection veins and per-variant gear.
+                const veinMat = stdMat({ color: 0x2f8f45, emissive: 0x1fa844, emissiveIntensity: 0.9, roughness: 0.5 });
+                const matHairMat = stdMat({ color: 0x131612, roughness: 0.96 });
+                const bandageMat = stdMat({ color: 0xbdb299, roughness: 0.95 });
+                const dryBloodMat = stdMat({ color: 0x4a0808, roughness: 0.45 });
+                const slashMat = stdMat({ color: 0x5c0b0b, roughness: 0.3 });
+                const rotMat = stdMat({ color: 0x2a3326, roughness: 0.95 });
+                const addTo = (g, w, h, d, mat, pos, rot) => { const m = makeBox(w, h, d, mat, pos, rot); g.add(m); return m; };
+
+                // Back of the skull: matted hair, cracked scalp with a bone plate, hanging strands, bloody nape.
+                addTo(headGroup, 0.76, 0.30, 0.09, matHairMat, [0, 0.30, -0.37]);
+                addTo(headGroup, 0.30, 0.34, 0.07, matHairMat, [0.22, -0.02, -0.37], [0, 0, 0.1]);
+                addTo(headGroup, 0.22, 0.26, 0.07, matHairMat, [-0.26, -0.08, -0.37], [0, 0, -0.12]);
+                addTo(headGroup, 0.56, 0.16, 0.10, matHairMat, [0, -0.28, -0.35]);
+                addTo(headGroup, 0.24, 0.20, 0.06, boneMat, [-0.17, 0.20, -0.44], [0, 0, 0.2]);
+                addTo(headGroup, 0.15, 0.10, 0.05, brainMat, [-0.17, 0.20, -0.47]);
+                addTo(headGroup, 0.04, 0.26, 0.05, slashMat, [0.14, -0.04, -0.43], [0, 0, 0.05]);
+                for (let i = 0; i < 5; i++) {
+                    const hl = 0.22 + ((i * 37 + variant * 11) % 5) * 0.045;
+                    addTo(headGroup, 0.05, hl, 0.04, matHairMat, [-0.30 + i * 0.15, -0.20 - hl * 0.4, -0.43], [0.15, 0, (i - 2) * 0.05]);
+                }
+                addTo(torsoGroup, 0.34, 0.20, 0.04, dryBloodMat, [0, 0.56, -0.31]);
+
+                // Crawling infection veins: temples, neck and forearms glow faintly sickly green.
+                addTo(headGroup, 0.03, 0.34, 0.03, veinMat, [-0.38, 0.12, 0.14], [0, 0, 0.18]);
+                addTo(headGroup, 0.03, 0.24, 0.03, veinMat, [-0.37, -0.12, 0.22], [0, 0, -0.25]);
+                addTo(headGroup, 0.03, 0.30, 0.03, veinMat, [0.37, 0.10, 0.2], [0, 0, -0.15]);
+                addTo(headGroup, 0.03, 0.18, 0.03, veinMat, [0.12, 0.20, 0.37], [0.2, 0, 0.5]);
+                addTo(character, 0.03, 0.2, 0.03, veinMat, [0.12, 1.56, 0.19], [0, 0, 0.3]);
+                addTo(character, 0.03, 0.2, 0.03, veinMat, [-0.10, 1.52, 0.19], [0, 0, -0.4]);
+                addTo(leftArmGroup, 0.03, 0.36, 0.03, veinMat, [0.08, -0.52, 0.15], [0.1, 0, 0.1]);
+                addTo(rightArmGroup, 0.03, 0.32, 0.03, veinMat, [-0.08, -0.50, 0.15], [0.1, 0, -0.1]);
+
+                // Torso back: ripped flesh around the exposed spine, claw slashes, dangling hem strips, scapulae.
+                addTo(torsoGroup, 0.24, 0.84, 0.05, darkGoreMat, [0, 0.0, -0.305]);
+                for (let i = -1; i <= 1; i++) {
+                    addTo(torsoGroup, 0.05, 0.62, 0.03, slashMat, [-0.27 + i * 0.09, 0.14, -0.31], [0, 0, 0.55]);
+                }
+                addTo(torsoGroup, 0.26, 0.22, 0.04, rotMat, [0.28, -0.12, -0.31]);
+                addTo(torsoGroup, 0.18, 0.40, 0.04, goreMat, [-0.30, -0.18, -0.31], [0, 0, 0.12]);
+                addTo(torsoGroup, 0.20, 0.07, 0.10, boneMat, [-0.32, 0.30, -0.33], [0, 0, 0.35]);
+                addTo(torsoGroup, 0.20, 0.07, 0.10, boneMat, [0.32, 0.30, -0.33], [0, 0, -0.35]);
+                for (let h = -0.38; h <= 0.38; h += 0.19) {
+                    const fh = 0.16 + (Math.sin(h * 9 + variant) + 1) * 0.07;
+                    addTo(torsoGroup, 0.15, fh, 0.05, clothMat, [h, -0.58 - fh * 0.4, -0.29], [0.18, 0, (h > 0 ? 0.06 : -0.06)]);
+                }
+
+                // Gore-stained forearms and wrists
+                addTo(leftArmGroup, 0.30, 0.14, 0.30, dryBloodMat, [0, -0.50, 0]);
+                addTo(rightArmGroup, 0.16, 0.30, 0.30, dryBloodMat, [0.06, -0.55, 0]);
+
+                // ---- Per-variant gear (breaks up the horde silhouette) ----
+                if (variant % 4 === 0) {
+                    // Torn hoodie: bunched hood, front pocket, dangling drawstrings
+                    addTo(torsoGroup, 0.72, 0.30, 0.34, clothMat, [0, 0.58, -0.28], [0.3, 0, 0]);
+                    addTo(torsoGroup, 0.56, 0.20, 0.07, clothMat, [0, -0.30, 0.32]);
+                    addTo(torsoGroup, 0.03, 0.30, 0.03, boneMat, [-0.10, 0.40, 0.32]);
+                    addTo(torsoGroup, 0.03, 0.24, 0.03, boneMat, [0.10, 0.42, 0.32]);
+                } else if (variant % 4 === 1) {
+                    // Bloody bandages: head wrap, bound forearm, one eye patch
+                    addTo(headGroup, 0.80, 0.12, 0.78, bandageMat, [0, 0.28, 0]);
+                    addTo(headGroup, 0.82, 0.07, 0.78, bandageMat, [0, 0.12, -0.02], [0.06, 0, 0.04]);
+                    addTo(headGroup, 0.20, 0.10, 0.06, dryBloodMat, [0.14, 0.28, 0.40]);
+                    addTo(leftArmGroup, 0.34, 0.26, 0.34, bandageMat, [0, -0.62, 0]);
+                    addTo(leftArmGroup, 0.35, 0.07, 0.35, bandageMat, [0, -0.50, 0], [0, 0.3, 0]);
+                    addTo(leftArmGroup, 0.20, 0.12, 0.05, dryBloodMat, [0.05, -0.62, 0.18]);
+                    addTo(torsoGroup, 0.9, 0.14, 0.62, bandageMat, [0, -0.08, 0], [0.06, 0, 0.12]);
+                } else if (variant % 4 === 2) {
+                    // Construction worker: cracked hard hat and hi-vis vest stripes
+                    const hatMat = stdMat({ color: 0xe0a21a, roughness: 0.5, metalness: 0.1 });
+                    const vestMat = stdMat({ color: 0xff7a1a, emissive: 0x802a00, emissiveIntensity: 0.55, roughness: 0.7 });
+                    const reflectMat = stdMat({ color: 0xa9a99a, emissive: 0x303028, emissiveIntensity: 0.5, roughness: 0.45 });
+                    addTo(headGroup, 0.84, 0.20, 0.82, hatMat, [0, 0.46, 0], [0, 0, -0.1]);
+                    addTo(headGroup, 0.86, 0.05, 0.36, hatMat, [0, 0.38, 0.52], [0.1, 0, -0.1]);
+                    addTo(headGroup, 0.08, 0.2, 0.60, dryBloodMat, [0.20, 0.50, 0.0], [0, 0, -0.1]);
+                    addTo(headGroup, 0.26, 0.05, 0.06, darkGoreMat, [-0.12, 0.50, 0.42], [0, 0, 0.5]);
+                    addTo(torsoGroup, 0.20, 1.02, 0.64, vestMat, [-0.30, 0.0, 0]);
+                    addTo(torsoGroup, 0.20, 1.02, 0.64, vestMat, [0.30, 0.0, 0]);
+                    addTo(torsoGroup, 0.97, 0.07, 0.63, reflectMat, [0, 0.12, 0]);
+                    addTo(torsoGroup, 0.97, 0.07, 0.63, reflectMat, [0, -0.22, 0]);
+                    addTo(headGroup, 0.62, 0.12, 0.62, hatMat, [0, 0.58, 0]);
+                    addTo(headGroup, 0.10, 0.10, 0.70, stdMat({ color: 0xb98410, roughness: 0.5 }), [0, 0.66, 0]);
+                } else {
+                    // Office casualty: shirt collar, wilted tie, ID badge, missing right sleeve
+                    const shirtMat = stdMat({ color: 0xb9b6a4, roughness: 0.9 });
+                    const tieMat = stdMat({ color: 0x7a1020, roughness: 0.6 });
+                    addTo(torsoGroup, 0.60, 0.12, 0.30, shirtMat, [0, 0.56, 0.16]);
+                    addTo(torsoGroup, 0.20, 0.90, 0.05, shirtMat, [-0.36, -0.04, 0.31]);
+                    addTo(torsoGroup, 0.14, 0.10, 0.07, tieMat, [0, 0.46, 0.32]);
+                    addTo(torsoGroup, 0.14, 0.62, 0.05, tieMat, [0.01, 0.10, 0.33], [0, 0, 0.08]);
+                    addTo(torsoGroup, 0.20, 0.10, 0.05, tieMat, [0.02, -0.26, 0.33], [0, 0, 0.1]);
+                    addTo(torsoGroup, 0.16, 0.22, 0.03, boneMat, [-0.30, 0.18, 0.34]);
+                    addTo(torsoGroup, 0.08, 0.06, 0.04, goreMat, [-0.30, 0.20, 0.36]);
+                    addTo(rightArmGroup, 0.34, 0.12, 0.34, dryBloodMat, [0, -0.28, 0]);
+                    addTo(rightArmGroup, 0.34, 0.07, 0.34, shirtMat, [0, -0.12, 0], [0, 0.2, 0.05]);
+                }
+
                 // Name bones so clones can re-link animation references
                 headGroup.name = 'zHead';
                 torsoGroup.name = 'zTorso';
@@ -2694,6 +2792,138 @@
                 c.leftLeg = c.getObjectByName('zLLeg');
                 c.rightLeg = c.getObjectByName('zRLeg');
                 return c;
+            }
+
+
+            // ===== BLOATER: swollen toxic walker that detonates at the fence =====
+            const BLOATER_BLAST_RADIUS = 4.4;
+            const BLOATER_FUSE_TIME = 1.2;
+            const _bloaterGeo = {
+                belly: new THREE.IcosahedronGeometry(0.62, 1),
+                pustule: new THREE.IcosahedronGeometry(0.085, 0),
+                blast: new THREE.SphereGeometry(1, 14, 10)
+            };
+            const _bloaterMat = {
+                belly: new THREE.MeshStandardMaterial({ color: 0x56692c, emissive: 0x2f7a0e, emissiveIntensity: 0.3, roughness: 0.55, flatShading: true }),
+                pustule: new THREE.MeshStandardMaterial({ color: 0xa6c22f, emissive: 0x8fd10e, emissiveIntensity: 0.5, roughness: 0.35, flatShading: true }),
+                vein: new THREE.MeshStandardMaterial({ color: 0x29401c, roughness: 0.8 }),
+                stitch: new THREE.MeshStandardMaterial({ color: 0x0d0d0b, roughness: 0.8 }),
+                goo: new THREE.MeshBasicMaterial({ color: 0x9cff3a }),
+                dark: new THREE.MeshStandardMaterial({ color: 0x2c3a17, roughness: 0.9 })
+            };
+            function createBloater() {
+                if (zombiePrototypes.length === 0) createDetailedZombie();
+                const c = zombiePrototypes[0].clone();
+                c.head = c.getObjectByName('zHead');
+                c.torso = c.getObjectByName('zTorso');
+                c.leftArm = c.getObjectByName('zLArm');
+                c.rightArm = c.getObjectByName('zRArm');
+                c.leftLeg = c.getObjectByName('zLLeg');
+                c.rightLeg = c.getObjectByName('zRLeg');
+                // Swollen torso, arms pushed outward, small head perched on top.
+                c.torso.scale.set(1.45, 1.1, 1.5);
+                c.leftArm.position.x -= 0.34;
+                c.rightArm.position.x += 0.34;
+                c.leftArm.position.y -= 0.08;
+                c.rightArm.position.y -= 0.08;
+                c.head.position.y -= 0.10;
+                c.head.scale.setScalar(0.92);
+                const belly = new THREE.Mesh(_bloaterGeo.belly, _bloaterMat.belly);
+                belly.scale.set(1.0, 0.92, 0.80);
+                belly.position.set(0, -0.10, 0.34);
+                c.torso.add(belly);
+                const addBit = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1, rz = 0) => {
+                    const m = new THREE.Mesh(geo, mat);
+                    m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.z = rz;
+                    belly.add(m);
+                    return m;
+                };
+                // Glowing pustules on the belly surface
+                const pust = [[-0.30, 0.22, 0.52], [0.26, 0.30, 0.50], [0.0, -0.18, 0.60], [-0.38, -0.20, 0.44], [0.40, -0.12, 0.46], [0.08, 0.40, 0.46], [-0.12, 0.02, 0.62]];
+                pust.forEach(([x, y, z], i) => addBit(_bloaterGeo.pustule, _bloaterMat.pustule, x, y, z, 1 + (i % 3) * 0.35, 1 + (i % 3) * 0.35, 1 + (i % 3) * 0.35));
+                // Straining veins and a crude stitched seam
+                addBit(boxGeo(0.04, 0.9, 0.03), _bloaterMat.vein, 0.18, 0.02, 0.60, 1, 1, 1, 0.2);
+                addBit(boxGeo(0.04, 0.7, 0.03), _bloaterMat.vein, -0.24, 0.10, 0.58, 1, 1, 1, -0.3);
+                addBit(boxGeo(0.04, 1.0, 0.03), _bloaterMat.stitch, 0.0, 0.0, 0.62);
+                for (let i = 0; i < 6; i++) addBit(boxGeo(0.20, 0.025, 0.03), _bloaterMat.stitch, 0.0, 0.36 - i * 0.14, 0.62, 1, 1, 1, (i % 2 ? 0.25 : -0.25));
+                // Dripping toxic ooze under the belly
+                addBit(boxGeo(0.05, 0.28, 0.05), _bloaterMat.goo, -0.22, -0.62, 0.40);
+                addBit(boxGeo(0.05, 0.20, 0.05), _bloaterMat.goo, 0.20, -0.58, 0.44);
+                // Toxic sacs on the back of the shoulders (visible from behind)
+                for (const side of [-1, 1]) {
+                    const sac = new THREE.Mesh(_bloaterGeo.pustule, _bloaterMat.pustule);
+                    sac.scale.set(1.5, 1.5, 1.5);
+                    sac.position.set(side * 0.30, 0.22 - (side > 0 ? 0.12 : 0), -0.34);
+                    c.torso.add(sac);
+                    const sac2 = new THREE.Mesh(_bloaterGeo.pustule, _bloaterMat.pustule);
+                    sac2.scale.set(1.0, 1.0, 1.0);
+                    sac2.position.set(side * 0.18, -0.20, -0.34);
+                    c.torso.add(sac2);
+                }
+                const backVein = new THREE.Mesh(boxGeo(0.05, 0.9, 0.04), _bloaterMat.vein);
+                backVein.position.set(0.0, 0.0, -0.36);
+                c.torso.add(backVein);
+                c.userData.belly = belly;
+                return c;
+            }
+
+            const blasts = [];
+            function detonateBloater(zombie, selfDestruct) {
+                if (zombie.detonated) return;
+                zombie.detonated = true;
+                const pos = zombie.model.position;
+                const ring = new THREE.Mesh(_bloaterGeo.blast, new THREE.MeshBasicMaterial({
+                    color: 0x9cff3a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending
+                }));
+                ring.position.set(pos.x, 0.9, pos.z);
+                scene.add(ring);
+                blasts.push({ mesh: ring, life: 0.6, maxLife: 0.6 });
+                if (gameState.impactParticles.length < 200) {
+                    for (let i = 0; i < 22; i++) {
+                        const part = new THREE.Mesh(boxGeo(0.12, 0.12, 0.12), _bloaterMat.goo);
+                        part.position.set(pos.x, 1.0, pos.z);
+                        const ang = Math.random() * Math.PI * 2;
+                        const sp = 3 + Math.random() * 4;
+                        scene.add(part);
+                        gameState.impactParticles.push({
+                            mesh: part,
+                            velocity: new THREE.Vector3(Math.cos(ang) * sp, 2 + Math.random() * 4, Math.sin(ang) * sp),
+                            life: 0.8, maxLife: 0.8, gravity: -12
+                        });
+                    }
+                }
+                playSound('zombieDeath', 0.9);
+                gameState.shake = Math.max(gameState.shake, 0.3);
+                const dist = Math.hypot(gameState.player.position.x - pos.x, gameState.player.position.z - pos.z);
+                if (dist < BLOATER_BLAST_RADIUS) {
+                    showHitText('TOXIC BLAST! 🤢', '#b6ff3d');
+                    damagePlayerFromZombie(zombie);
+                }
+                if (selfDestruct) {
+                    zombie.state = 'dead';
+                    zombie.deadTimer = 1.8;
+                    zombie.model.visible = false;
+                }
+            }
+
+            function updateBlasts(deltaTime) {
+                for (let i = blasts.length - 1; i >= 0; i--) {
+                    const b = blasts[i];
+                    b.life -= deltaTime;
+                    const t = 1 - Math.max(0, b.life) / b.maxLife;
+                    b.mesh.scale.setScalar(0.4 + t * (BLOATER_BLAST_RADIUS - 0.4));
+                    b.mesh.material.opacity = 0.55 * (1 - t);
+                    if (b.life <= 0) {
+                        scene.remove(b.mesh);
+                        b.mesh.material.dispose();
+                        blasts.splice(i, 1);
+                    }
+                }
+                // Shared belly glow pulses faster the closer any bloater is to detonating.
+                let urgency = 0;
+                for (const z of gameState.zombies) if (z.type === 'bloater' && z.state !== 'dead') urgency = Math.max(urgency, z.fuse || 0);
+                const rate = urgency > 0 ? 0.02 : 0.006;
+                _bloaterMat.belly.emissiveIntensity = 0.55 + Math.sin(performance.now() * rate) * (urgency > 0 ? 0.55 : 0.2);
             }
 
             // Create blocky character
@@ -3388,6 +3618,74 @@
                     rightArm.rotation.z = THREE.MathUtils.lerp(relaxedArmZ, aimArmZ, aimBlend);
                 };
                 
+
+                // ==================== PREMIUM POLISH: hair back, backpack, bandana, trims ====================
+                // The third-person camera looks at the survivor's back, so the rear gets the richest detail.
+                const packMat = stdMat({ color: 0x3b4a3a, roughness: 0.85 });
+                const packDarkMat = stdMat({ color: 0x27322a, roughness: 0.9 });
+                const strapMat = stdMat({ color: 0x15181c, roughness: 0.8 });
+                const leatherMat = stdMat({ color: 0x5a3f27, roughness: 0.82 });
+                const rollMat = stdMat({ color: 0x7a6840, roughness: 0.9 });
+                const hazardMat = stdMat({ color: 0xf2b418, roughness: 0.5, metalness: 0.1 });
+                const ledMat = new THREE.MeshBasicMaterial({ color: 0x3fe8ff });
+                const scarfMat = stdMat({ color: 0xb5342c, roughness: 0.85 });
+                const polishPart = (parent, w, h, d, mat, pos, rot = [0, 0, 0]) => {
+                    const m = makeMesh(new THREE.BoxGeometry(w, h, d), mat, pos, rot);
+                    parent.add(m);
+                    return m;
+                };
+
+                // Hair wraps the whole back of the head (previously bare skin) with highlight streaks and a nape tuft.
+                polishPart(headGroup, 0.74, 0.66, 0.12, hairMaterial, [0, 0.05, -0.30]);
+                polishPart(headGroup, 0.62, 0.20, 0.16, hairMaterial, [0, -0.24, -0.27]);
+                polishPart(headGroup, 0.12, 0.52, 0.04, hairHighlight, [-0.20, 0.08, -0.37], [0, 0, 0.06]);
+                polishPart(headGroup, 0.09, 0.44, 0.04, hairHighlight, [0.16, 0.10, -0.37], [0, 0, -0.05]);
+                polishPart(headGroup, 0.08, 0.30, 0.04, hairHighlight, [0.30, 0.0, -0.30]);
+                polishPart(headGroup, 0.14, 0.18, 0.10, hairMaterial, [-0.10, -0.40, -0.30], [0.3, 0, 0.2]);
+                polishPart(headGroup, 0.12, 0.16, 0.10, hairMaterial, [0.12, -0.38, -0.30], [0.3, 0, -0.2]);
+                polishPart(headGroup, 0.72, 0.10, 0.12, hairMaterial, [0, 0.46, -0.20]);
+
+                // Survival backpack with bedroll, side pouches, hazard stripe, LED strip.
+                const pack = new THREE.Group();
+                pack.position.set(0, 0.50, -0.43);
+                spineGroup.add(pack);
+                polishPart(pack, 0.66, 0.66, 0.30, packMat, [0, 0, 0]);
+                polishPart(pack, 0.70, 0.14, 0.34, packDarkMat, [0, 0.38, 0]);
+                polishPart(pack, 0.50, 0.32, 0.08, packDarkMat, [0, -0.04, -0.17]);
+                polishPart(pack, 0.14, 0.34, 0.20, packDarkMat, [-0.40, -0.12, 0.0]);
+                polishPart(pack, 0.14, 0.34, 0.20, packDarkMat, [0.40, -0.12, 0.0]);
+                polishPart(pack, 0.52, 0.06, 0.03, hazardMat, [0, 0.12, -0.17]);
+                polishPart(pack, 0.52, 0.06, 0.03, hazardMat, [0, -0.28, -0.15]);
+                polishPart(pack, 0.34, 0.03, 0.03, ledMat, [0, 0.27, -0.17]);
+                polishPart(pack, 0.06, 0.10, 0.04, strapMat, [0, -0.04, -0.22]);
+                const bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.72, 10), rollMat);
+                bedroll.rotation.z = Math.PI / 2;
+                bedroll.position.set(0, -0.40, 0.0);
+                bedroll.castShadow = true;
+                pack.add(bedroll);
+                polishPart(pack, 0.06, 0.26, 0.28, strapMat, [-0.20, -0.40, 0]);
+                polishPart(pack, 0.06, 0.26, 0.28, strapMat, [0.20, -0.40, 0]);
+
+                // Shoulder straps over the jacket front with brass buckles.
+                for (const side of [-1, 1]) {
+                    polishPart(spineGroup, 0.09, 0.62, 0.05, strapMat, [side * 0.30, 0.57, 0.335]);
+                    polishPart(spineGroup, 0.10, 0.08, 0.06, hazardMat, [side * 0.30, 0.34, 0.345]);
+                    polishPart(spineGroup, 0.09, 0.05, 0.62, strapMat, [side * 0.30, 0.89, 0.0]);
+                    // Hazard trim on the shoulder pads
+                    polishPart(spineGroup, 0.32, 0.03, 0.50, hazardMat, [side * 0.49, 0.935, 0]);
+                    // Utility pouches on the hips
+                    polishPart(spineGroup, 0.16, 0.20, 0.14, leatherMat, [side * 0.43, 0.08, 0.10]);
+                    polishPart(spineGroup, 0.17, 0.05, 0.15, strapMat, [side * 0.43, 0.19, 0.10]);
+                }
+
+                // Red bandana around the neck for a color accent against the navy jacket.
+                polishPart(spineGroup, 0.46, 0.13, 0.36, scarfMat, [0, 0.86, 0.02]);
+                polishPart(spineGroup, 0.12, 0.28, 0.05, scarfMat, [0.12, 0.70, -0.30], [0, 0, 0.12]);
+
+                // Back yoke seam + reflective stripe across the jacket
+                polishPart(spineGroup, 0.88, 0.04, 0.02, strapMat, [0, 0.84, -0.275]);
+                polishPart(spineGroup, 0.89, 0.05, 0.56, hazardMat, [0, 0.20, 0.0]);
+
                 return character;
             }
             
@@ -4868,6 +5166,40 @@
                 makePart(0.12, 0.12, 0.42, woundMat, tongue, [0, -0.02, 0.20], [-0.10, 0, 0]);
                 makePart(0.10, 0.09, 0.26, woundMat, tongue, [0, -0.04, 0.50], [0.12, 0, 0]);
                 makePart(0.14, 0.08, 0.18, paleMat, tongue, [0, -0.07, 0.69], [0.10, 0, 0]);
+                // ---- Premium polish: dorsal spikes, glowing cracks, horns, ribbed armor plates, drool ----
+                const lavaMat = stdMat({ color: 0xd64a12, emissive: 0xff3a08, emissiveIntensity: 1.1, roughness: 0.45 });
+                const plateMat = stdMat({ color: 0x2a2523, roughness: 0.55, metalness: 0.25 });
+                for (let i = 0; i < 6; i++) {
+                    const z = 0.62 - i * 0.28;
+                    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.10 - i * 0.008, 0.40 - (i % 2) * 0.08, 5), boneMat);
+                    spike.position.set((i % 2 ? 0.06 : -0.06), 1.46, z);
+                    spike.rotation.x = -0.25;
+                    spike.castShadow = true;
+                    boss.add(spike);
+                    makePart(0.46 - i * 0.02, 0.10, 0.22, plateMat, boss, [0, 1.31, z], [0.05, 0, 0]);
+                }
+                for (const side of [-1, 1]) {
+                    makePart(0.06, 0.34, 0.9, plateMat, boss, [side * 0.63, 1.05, -0.2], [0, 0, side * -0.12]);
+                    for (let r = 0; r < 3; r++) makePart(0.05, 0.05, 0.5, boneMat, boss, [side * 0.65, 0.92 - r * 0.12, -0.15 - r * 0.18], [0, 0, side * 0.2]);
+                }
+                makePart(0.04, 0.05, 1.0, lavaMat, boss, [0.18, 1.30, -0.35], [0, 0.18, 0]);
+                makePart(0.04, 0.05, 0.7, lavaMat, boss, [-0.22, 1.30, -0.1], [0, -0.22, 0]);
+                makePart(0.05, 0.04, 0.5, lavaMat, boss, [0.30, 1.29, 0.35], [0, 0.4, 0]);
+                makePart(0.62, 0.40, 0.04, woundMat, boss, [0.0, 0.92, -0.97]);
+                makePart(0.05, 0.30, 0.03, lavaMat, boss, [-0.10, 0.94, -0.995], [0, 0, 0.5]);
+                makePart(0.05, 0.24, 0.03, lavaMat, boss, [0.06, 0.88, -0.995], [0, 0, -0.4]);
+                makePart(0.04, 0.20, 0.03, lavaMat, boss, [0.16, 0.98, -0.995], [0, 0, 0.7]);
+                for (const side of [-1, 1]) {
+                    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.46, 5), boneMat);
+                    horn.position.set(side * 0.34, 0.50, 0.04);
+                    horn.rotation.set(-0.5, 0, side * -0.55);
+                    horn.castShadow = true;
+                    head.add(horn);
+                    makePart(0.14, 0.05, 0.08, lavaMat, head, [side * 0.24, 0.12, 0.52]);
+                    makePart(0.03, 0.34, 0.03, woundMat, head, [side * 0.11, -0.46, 0.60]);
+                }
+                makePart(0.88, 0.16, 0.70, plateMat, head, [0, 0.33, 0.0], [-0.06, 0, 0]);
+                makePart(0.03, 0.40, 0.03, boneMat, head, [-0.05, 0.12, 0.60], [0, 0, 0.1]);
                 boss.head = head;
                 boss.tongue = tongue;
 
@@ -4920,6 +5252,7 @@
             function getWaveZombieType(wave) {
                 // Wave 10 is a dedicated solo boss encounter, never mixed with a horde.
                 if (wave % 10 === 0) return 'boss';
+                if (wave % 10 === 5) return 'bloater';
                 if (wave % 3 !== 0) return 'normal';
                 const specialTypes = ['runner', 'tank', 'climber'];
                 return specialTypes[(Math.floor(wave / 3) - 1) % specialTypes.length];
@@ -4946,11 +5279,12 @@
                     runner:  { health: 0.75, speed: 1.85, scale: 0.88 },
                     tank:    { health: 3.2,  speed: 0.55, scale: 1.35 },
                     climber: { health: 1.25, speed: 1.05, scale: 1.00 },
+                    bloater: { health: 1.6,  speed: 0.6,  scale: 1.12 },
                     boss:    { health: 1,    speed: 0.72, scale: 1.24 }
                 };
                 const profile = profiles[type];
                 const boss = type === 'boss';
-                const model = boss ? buildCrawlerBoss() : createBlockyCharacter(false);
+                const model = boss ? buildCrawlerBoss() : (type === 'bloater' ? createBloater() : createBlockyCharacter(false));
                 const health = boss
                     ? Math.round((55 + (gameState.wave / 10 - 1) * 25) * window.gameConfig.settings.zombieHealthMultiplier)
                     : Math.max(1, Math.ceil(gameState.wave * 0.5) * window.gameConfig.settings.zombieHealthMultiplier * profile.health);
@@ -4970,6 +5304,7 @@
                     zombie.hitTorsoLocal = new THREE.Vector3(0, 0.82, -0.08);
                 }
                 zombie.model.scale.setScalar(profile.scale);
+                zombie.baseScale = profile.scale;
                 zombie.model.userData.zombieType = type;
                 
                 // Spawn outside arena across expanded perimeter
@@ -5847,7 +6182,7 @@
                 for (const zombie of gameState.zombies) {
                     if (zombie.state === 'dead') continue;
                     const zx = mapX(zombie.model.position.x), zy = mapY(zombie.model.position.z);
-                    const markerColor = zombie.type === 'boss' ? '#ff37df' : (zombie.dayWanderer ? '#ffbd59' : '#ff514c');
+                    const markerColor = zombie.type === 'boss' ? '#ff37df' : (zombie.type === 'bloater' ? '#b6ff3d' : zombie.dayWanderer ? '#ffbd59' : '#ff514c');
                     ctx.fillStyle = markerColor; ctx.globalAlpha = .22;
                     ctx.beginPath(); ctx.arc(zx, zy, zombie.type === 'boss' ? 11 : 7, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
                     ctx.beginPath(); ctx.arc(zx, zy, zombie.type === 'boss' ? 5 : 3.4, 0, Math.PI*2); ctx.fill();
@@ -6144,6 +6479,8 @@
                 const type = getWaveZombieType(gameState.wave);
                 gameState.waveZombiesTotal = type === 'boss'
                     ? 1
+                    : type === 'bloater'
+                    ? Math.max(3, Math.ceil(Math.min(45, window.gameConfig.settings.zombiesPerWave + (gameState.wave - 1) * window.gameConfig.settings.waveIncrement) * 0.4))
                     : Math.min(45, window.gameConfig.settings.zombiesPerWave +
                       (gameState.wave - 1) * window.gameConfig.settings.waveIncrement);
                 gameState.waveSpawnTimer = 0;
@@ -6151,9 +6488,10 @@
                     runner: 'RUNNER HORDE ONLY',
                     tank: 'TANK HORDE ONLY',
                     climber: 'FENCE CLIMBERS ONLY',
+                    bloater: 'BLOATERS — SHOOT THEM FROM A DISTANCE',
                     boss: 'THE CRAWLER — SOLO BOSS'
                 };
-                const colors = { runner: '#ffb52e', tank: '#ff626b', climber: '#69e6b5', boss: '#ff493d' };
+                const colors = { runner: '#ffb52e', tank: '#ff626b', climber: '#69e6b5', bloater: '#b6ff3d', boss: '#ff493d' };
                 if (gameState.wave === 1 && !controlsHintShown) {
                     controlsHintShown = true;
                     showBanner(isMobile ? 'WAVE 1 — STICK MOVE, DRAG TO AIM, HOLD FIRE BUTTON' : 'WAVE 1 — WASD MOVE, CLICK SHOOT, R RELOAD, E INTERACT', '#ffcc33', 3500);
@@ -6297,6 +6635,8 @@
                 gameState.impactParticles.length = 0;
                 powerUps.forEach(pu => scene.remove(pu.mesh));
                 powerUps.length = 0;
+                blasts.forEach(b => { scene.remove(b.mesh); b.mesh.material.dispose(); });
+                blasts.length = 0;
                 gameState.frenzyTimer = 0;
                 const s = window.gameConfig.settings;
                 Object.assign(gameState.player, {
@@ -6736,7 +7076,7 @@
                             _headClosest.copy(_prevPos).addScaledVector(_segment, headT);
                             _torsoClosest.copy(_prevPos).addScaledVector(_segment, torsoT);
                             const isHeadHit = _headClosest.distanceTo(_headPt) < 0.52 * targetScale;
-                            const isTorsoHit = _torsoClosest.distanceTo(_torsoPt) < 0.72 * targetScale;
+                            const isTorsoHit = _torsoClosest.distanceTo(_torsoPt) < (zombie.type === 'bloater' ? 1.05 : 0.72) * targetScale;
                             if (nail.hitTargets && nail.hitTargets.has(zombie)) continue;
                             
                             if (isHeadHit || isTorsoHit) {
@@ -6869,6 +7209,7 @@
 
                         // Dead zombies collapse and are removed after a short linger.
                         if (zombie.state === 'dead') {
+                            if (zombie.type === 'bloater') detonateBloater(zombie, false);
                             maybeDropPowerUp(zombie);
                             zombie.deadTimer += deltaTime;
                             zombie.model.rotation.x = lerpAngle(zombie.model.rotation.x, -Math.PI / 2 + 0.12, Math.min(1, deltaTime * 7));
@@ -7010,7 +7351,12 @@
                                 }
                                 if (zombie.model.torso) zombie.model.torso.rotation.x = 0.12 + Math.sin(timestamp * 0.012) * 0.05;
                             }
-                            if (distToPlayer < 1.65 && (zombie.frozenTimer || 0) <= 0) damagePlayerFromZombie(zombie);
+                            if (zombie.type === 'bloater') {
+                                if ((zombie.frozenTimer || 0) <= 0) zombie.fuse = (zombie.fuse || 0) + deltaTime;
+                                const swell = Math.min(1, (zombie.fuse || 0) / BLOATER_FUSE_TIME);
+                                zombie.model.scale.setScalar(zombie.baseScale * (1 + 0.14 * swell));
+                                if (zombie.fuse >= BLOATER_FUSE_TIME) { detonateBloater(zombie, true); continue; }
+                            } else if (distToPlayer < 1.65 && (zombie.frozenTimer || 0) <= 0) damagePlayerFromZombie(zombie);
                         } else if (zombie.state === 'climbing') {
                             zombie.climbTimer += deltaTime;
                             const progress = THREE.MathUtils.clamp(zombie.climbTimer / zombie.climbDuration, 0, 1);
@@ -7229,6 +7575,7 @@
                     directionalLight.target.position.set(gameState.player.position.x, 0, gameState.player.position.z);
                     
                     updatePowerUps(deltaTime, timestamp);
+                    updateBlasts(deltaTime);
 
                     // Wave management
                     const livingZombies = gameState.zombies.filter(z => z.state !== 'dead');

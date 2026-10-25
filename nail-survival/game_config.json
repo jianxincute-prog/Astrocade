@@ -1,0 +1,27 @@
+{
+  "settings": {
+    "playerHealth": 3,
+    "playerMoveSpeed": 1,
+    "nailDamage": 1,
+    "magazineSize": 30,
+    "reloadTime": 1.5,
+    "fireRate": 3,
+    "nailSpeed": 30,
+    "zombieHealthMultiplier": 1,
+    "zombieSpeedMultiplier": 1,
+    "zombiesPerWave": 5,
+    "waveIncrement": 3,
+    "arenaSize": 13,
+    "fenceHeight": 4,
+    "zombieClimbTime": 2
+  },
+  "buildings": {
+    "supermarket": { "x": 45, "z": 49, "rotation": 0 },
+    "hardware-east": { "x": 78, "z": -30, "rotation": 0 },
+    "hardware-west": { "x": -78.5, "z": 24, "rotation": 0 },
+    "city-building-1": {}, "city-building-2": {}, "city-building-3": {}, "city-building-4": {},
+    "city-building-5": {}, "city-building-6": {}, "city-building-7": {}, "city-building-8": {},
+    "city-building-9": {}, "city-building-10": {}, "city-building-11": {}, "city-building-12": {},
+    "pharmacy": { "x": -20, "z": 54, "rotation": 0 }
+  }
+}
