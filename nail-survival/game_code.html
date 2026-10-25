@@ -777,34 +777,54 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 400;
             display: none;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
+            padding: 36px 20px 40px;
+            box-sizing: border-box;
+            overflow-y: auto;
             pointer-events: auto;
         }
+        #run-summary {
+            width: min(640px, 100%); margin: 0 0 28px; padding: 14px 16px; box-sizing: border-box;
+            border: 1px solid rgba(160, 200, 210, .35); border-radius: 14px; background: rgba(10, 18, 26, .8);
+            color: #e8f2ee; font: 600 14px Arial, sans-serif;
+        }
+        #run-summary h3 { margin: 12px 0 6px; color: #9df4e4; font: 900 13px Arial, sans-serif; letter-spacing: 2px; }
+        #run-summary .sum-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+        #run-summary .sum-row span { font-weight: 800; }
+        #run-summary .sum-row em { color: #ffd86b; font-style: normal; text-align: right; }
+        #run-summary .sum-empty { color: #aab; font-style: italic; }
+        #run-summary .sum-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+        #run-summary .sum-chip { padding: 8px 4px; border-radius: 10px; background: rgba(255,255,255,.06); text-align: center; }
+        #run-summary .sum-chip b { display: block; color: #ffe08a; font: 900 18px Arial, sans-serif; }
+        #run-summary .sum-chip span { display: block; margin-top: 2px; color: #b9c7c4; font: 700 10px Arial, sans-serif; }
+        #run-summary ul { margin: 0; padding-left: 18px; }
+        #run-summary li { margin: 4px 0; color: #cfd8d4; }
 
         #game-over-screen.visible {
             display: flex;
         }
 
         .game-over-title {
-            font-size: 64px;
+            font-size: 52px;
             color: #ff0000;
-            margin-bottom: 32px;
+            margin-bottom: 18px;
             text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
         }
 
         .game-over-stats {
-            font-size: 32px;
+            font-size: 24px;
             color: #00ffff;
-            margin-bottom: 48px;
+            margin-bottom: 20px;
             text-align: center;
         }
 
         .game-over-stat {
-            margin: 16px 0;
+            margin: 8px 0;
         }
 
         #restart-button {
@@ -1115,6 +1135,7 @@
                 <div class="game-over-stat">BEST SCORE: <span id="final-best">0</span></div>
                 <div class="game-over-stat">RANK: <span id="final-rank">-</span></div>
             </div>
+            <div id="run-summary"></div>
             <button id="restart-button">RESTART</button>
         </div>
     </div>
@@ -5128,14 +5149,20 @@
             const NPC_NAMES = ['Mara', 'Eli', 'Jonas', 'Rina', 'Kofi', 'Tess', 'Dmitri', 'Lena', 'Omar', 'Wren', 'Bastian', 'Noor', 'Sami', 'Ines'];
             const NPC_SKINS = [0xf1c5a4, 0xd9a47c, 0xb67f55, 0x8a5a3c, 0x634029];
             const NPC_HAIRS = [0x16120f, 0x3b2a1c, 0x6b4a2a, 0x8c8c86, 0xa2542a, 0x23324a];
-            const BAD_TYPES = ['thief', 'saboteur', 'raider'];
-            const BAD_ITEMS = { thief: 'a set of lockpicks', saboteur: 'a pair of wire cutters', raider: 'a crowbar wrapped in cloth' };
-            const BAD_TELLS = ['keeps glancing past you at the supply box', 'smiles a little too long', 'studies the fence for weak spots', 'has suspiciously clean hands for someone on the road', 'laughs at the wrong moments'];
+            const BAD_TYPES = ['thief', 'thief', 'saboteur', 'raider', 'raider', 'defector'];
+            const BAD_ITEMS = { thief: 'a set of lockpicks', saboteur: 'a pair of wire cutters', raider: 'a crowbar wrapped in cloth', defector: 'a whistle and a strip of torn red cloth' };
+            const BAD_TELLS = ['keeps glancing past you at the supply box', 'smiles a little too long', 'studies the fence for weak spots', 'has suspiciously clean hands for someone on the road', 'laughs at the wrong moments', 'tilts their head at the night noises as if counting them'];
+            const INFECTED_TELLS = ['is sweating and shivering despite the cold', 'coughs and wipes something dark from their lip', 'keeps one sleeve pulled down over a forearm'];
             const GOOD_TELLS = ['hands are shaking, but meets your eyes', 'looks half-starved and exhausted', 'flinches at every groan from the dark', 'clutches a faded photograph'];
             const NEUTRAL_TELLS = ['looks around nervously', 'is breathing hard', 'carries a battered pack'];
             const SIDE_NORMALS = { north: [0, 1], south: [0, -1], east: [1, 0], west: [-1, 0] };
             const pickOf = arr => arr[Math.floor(Math.random() * arr.length)];
-            const team = { members: [], petitioner: null, day: 0, eventTimer: 22, nameIndex: Math.floor(Math.random() * 14), hudSignature: '', panelNpc: null, panelMode: null, panelSignature: '' };
+            const team = { members: [], petitioner: null, trader: null, traderTimer: 70, day: 0, eventTimer: 22, nameIndex: Math.floor(Math.random() * 14), hudSignature: '', panelNpc: null, panelMode: null, panelSignature: '',
+                chain: [], roster: [], history: [],
+                stats: { recruited: 0, refused: 0, caught: 0, betrayals: 0, redeemed: 0, turned: 0, lootRuns: 0, itemsStored: 0, trades: 0, bitesChecked: 0, chainEvents: 0 } };
+            // Loyalty (0-10) scales every teammate perk between 70% and 130%.
+            const loyMult = n => 0.7 + 0.06 * Math.max(0, Math.min(10, n.loyalty));
+            function teamLog(text) { team.history.push({ day: team.day, text }); if (team.history.length > 60) team.history.shift(); }
             const teamBox = { level: 0, slots: [], x: 0, z: 0, group: new THREE.Group(), marker: null, crates: [], open: false, signature: '' };
 
             // ---------- Storage box: data ----------
@@ -5368,26 +5395,28 @@
             }
 
             // ---------- NPC creation ----------
-            function createNpcProfile(arrivalSide) {
-                const role = pickOf(Object.keys(NPC_ROLES));
-                const bad = Math.random() < Math.min(0.5, 0.35 + team.day * 0.015);
-                const name = NPC_NAMES[team.nameIndex++ % NPC_NAMES.length];
+            function createNpcProfile(arrivalSide, opts = {}) {
+                const role = opts.role || pickOf(Object.keys(NPC_ROLES));
+                const bad = opts.bad !== undefined ? opts.bad : Math.random() < Math.min(0.5, 0.35 + team.day * 0.015);
+                const infected = opts.infected !== undefined ? opts.infected : Math.random() < 0.12;
+                const name = opts.name || NPC_NAMES[team.nameIndex++ % NPC_NAMES.length];
                 const sides = Object.keys(SIDE_NORMALS);
                 const statedSide = bad && Math.random() < 0.65 ? pickOf(sides.filter(s => s !== arrivalSide)) : arrivalSide;
                 const betrayType = bad ? pickOf(BAD_TYPES) : null;
                 const npc = {
-                    name, role, bad, betrayType, skin: pickOf(NPC_SKINS), hair: pickOf(NPC_HAIRS),
-                    arrivalSide, statedSide, state: 'petition', task: 'idle', hp: 8, loyalty: 3, hunger: 0,
+                    name, role, bad, betrayType, infected, turned: false, skin: pickOf(NPC_SKINS), hair: pickOf(NPC_HAIRS),
+                    arrivalSide, statedSide, state: 'petition', task: 'idle', hp: 8, loyalty: opts.loyalty !== undefined ? opts.loyalty : 4, hunger: 0,
                     walkPhase: Math.random() * 6, path: [], carry: [], stolen: [], timer: 0, idleTimer: 2 + Math.random() * 3,
                     healCooldown: 20, fireTimer: 0, repairTimer: 0, repairScrap: 0, attackTimer: 0, hits: 0, trip: null,
-                    betrayDay: 0, warned: false, betrayed: false, hostile: false, suspicionMark: false, log: [], asked: {}, inspected: false,
-                    observation: '', pose: 'idle', actionTimer: 0, leaving: false
+                    betrayDay: 0, warned: false, betrayed: false, hostile: false, suspicionMark: false, log: [], asked: {}, inspected: false, searched: false, bitten: false,
+                    observation: '', pose: 'idle', actionTimer: 0, leaving: false, fate: '', giftDay: -1, fromChain: !!opts.fromChain, intro: opts.intro || '', relativeOf: opts.relativeOf || null
                 };
                 // Observations (mostly informative, never certain)
                 const badTell = pickOf(BAD_TELLS);
                 npc.observation = (bad ? Math.random() < 0.6 : Math.random() < 0.2)
                     ? badTell
                     : (Math.random() < 0.7 ? pickOf(GOOD_TELLS) : pickOf(NEUTRAL_TELLS));
+                if (infected && Math.random() < 0.65) npc.observation = pickOf(INFECTED_TELLS);
                 return npc;
             }
 
@@ -5512,13 +5541,13 @@
                     if (roll < 0.48) { supply = { type: 'scrap' }; qty = 2 + Math.floor(Math.random() * 3); }
                     else if (roll < 0.75) supply = { type: supplyTypes[Math.floor(Math.random() * supplyTypes.length)] };
                     else supply = { type: 'cell' };
-                    if (npc.role === 'scavenger') qty *= 2;
+                    qty = Math.round(qty * (npc.role === 'scavenger' ? 2 : 1) * (npc.loyalty >= 7 ? 1.25 : 1));
                     return { item: getPickupItem(supply), qty };
                 }
                 const idx = Math.floor(Math.random() * station.stock.length);
                 const picked = station.stock.splice(idx, 1)[0];
                 picked.visual.visible = false;
-                return { item: getPickupItem(picked.supply), qty: npc.role === 'scavenger' ? 2 : 1 };
+                return { item: getPickupItem(picked.supply), qty: (npc.role === 'scavenger' ? 2 : 1) + (npc.loyalty >= 9 ? 1 : 0) };
             }
             function npcDeposit(npc) {
                 if (!npc.carry.length) return;
@@ -5526,7 +5555,7 @@
                 const left = [];
                 for (const c of npc.carry) {
                     const added = teamBoxAdd(c.item, c.qty);
-                    if (added > 0) stored.push(`${c.item.icon}x${added}`);
+                    if (added > 0) { stored.push(`${c.item.icon}x${added}`); team.stats.itemsStored += added; }
                     if (added < c.qty) left.push({ item: c.item, qty: c.qty - added });
                 }
                 npc.carry = left;
@@ -5637,10 +5666,13 @@
                     }
                     return;
                 }
+                // ---------- infection: a bitten survivor turns during the first night ----------
+                if (npc.infected && !npc.turned && phase === 'night' && gameState.phaseTimer < 52 - 10) { turnNpc(npc); return; }
                 // ---------- betrayal timing ----------
                 if (npc.bad && !npc.betrayed && team.day >= npc.betrayDay) {
                     if ((npc.betrayType === 'saboteur' && phase === 'night' && gameState.phaseTimer < 52 - 6) ||
-                        (npc.betrayType !== 'saboteur' && phase === 'day' && gameState.phaseTimer < 75 - 16 && npc.task === 'idle')) {
+                        (npc.betrayType === 'defector' && phase === 'night' && gameState.phaseTimer < 52 - 22) ||
+                        ((npc.betrayType === 'thief' || npc.betrayType === 'raider') && phase === 'day' && gameState.phaseTimer < 75 - 16 && npc.task === 'idle')) {
                         executeBetrayal(npc, false);
                         return;
                     }
@@ -5660,6 +5692,7 @@
                         npc.actionTimer -= dt;
                         if (npc.actionTimer <= 0) {
                             const loot = npcLoot(npc, trip.station);
+                            team.stats.lootRuns++;
                             if (loot) { npc.carry.push(loot); showBanner(`${npc.name.toUpperCase()} FOUND ${loot.item.icon} ${loot.item.name.toUpperCase()}${loot.qty > 1 ? ' x' + loot.qty : ''}`, '#b8f0d2', 1500); }
                             trip.stage = 'back';
                             const exit = [{ x: trip.line.x, z: trip.line.z, door: trip.door }, { x: trip.approach.x, z: trip.approach.z }];
@@ -5679,7 +5712,7 @@
                             updateUI();
                             showBanner(`${npc.name.toUpperCase()} TREATED YOUR WOUNDS (+1 ❤)`, '#8de8c4', 1800);
                         }
-                        npc.healCooldown = 70;
+                        npc.healCooldown = 70 / loyMult(npc);
                         npc.task = 'idle';
                     }
                     return;
@@ -5698,7 +5731,7 @@
                             if (arrived || Math.hypot(p.x - target.model.position.x, p.z - target.model.position.z) < 15) {
                                 npc.pose = 'shoot';
                                 npc.model.rotation.y = lerpAngle(npc.model.rotation.y, Math.atan2(target.model.position.x - p.x, target.model.position.z - p.z), Math.min(1, dt * 10));
-                                if (npc.fireTimer <= 0) { npcFire(npc, target); npc.fireTimer = 1.05; }
+                                if (npc.fireTimer <= 0) { npcFire(npc, target); npc.fireTimer = 1.05 / loyMult(npc); }
                             }
                             return;
                         }
@@ -5712,7 +5745,7 @@
                                 if (npc.repairTimer <= 0) {
                                     npc.repairTimer = 0.55;
                                     const st = fenceState.sides[weak.side];
-                                    const gain = 12;
+                                    const gain = 12 * loyMult(npc);
                                     st.hp = Math.min(maxHp, st.hp + gain);
                                     if (st.breached && st.hp >= 45) { st.breached = false; showBanner(`${npc.name.toUpperCase()} CLOSED THE ${weak.side.toUpperCase()} BREACH`, '#8de8c4', 1800); }
                                     npc.repairScrap += gain / FENCE_REPAIR_HP_PER_SCRAP;
@@ -5748,7 +5781,7 @@
                                 if (npc.repairTimer <= 0) {
                                     npc.repairTimer = 0.7;
                                     const st = fenceState.sides[weak.side];
-                                    st.hp = Math.min(fenceMaxHp(), st.hp + 10);
+                                    st.hp = Math.min(fenceMaxHp(), st.hp + 10 * loyMult(npc));
                                     if (st.breached && st.hp >= 45) st.breached = false;
                                     npc.repairScrap += 10 / FENCE_REPAIR_HP_PER_SCRAP;
                                     if (npc.repairScrap >= 1) { teamBoxTake('mat:scrap', 1); npc.repairScrap -= 1; }
@@ -5788,10 +5821,23 @@
 
             // ---------- Betrayal ----------
             function executeBetrayal(npc, caught) {
+                // A well-treated betrayer may change their mind at the last second.
+                if (!caught && npc.loyalty >= 8 && Math.random() < 0.5) {
+                    npc.bad = false; npc.betrayType = null; npc.suspicionMark = false; npc.warned = false;
+                    npc.model.userData.mark.visible = false;
+                    npc.redeemed = true;
+                    npc.loyalty = Math.min(10, npc.loyalty + 1);
+                    team.stats.redeemed++;
+                    teamLog(`${npc.name} planned to betray the team but changed their mind.`);
+                    showBanner(`${npc.name.toUpperCase()} HAD PLANNED TO BETRAY YOU — BUT CHANGED THEIR MIND`, '#8de8c4', 3600);
+                    return;
+                }
                 npc.betrayed = true;
                 npc.hostile = true;
                 npc.hp = 8;
                 npc.path = [];
+                if (caught) { team.stats.caught++; npc.fate = `caught as a ${npc.betrayType}`; teamLog(`You caught ${npc.name} before they could act (${npc.betrayType}).`); }
+                else { team.stats.betrayals++; npc.fate = `betrayed you (${npc.betrayType}) and got away`; teamLog(`${npc.name} betrayed the team (${npc.betrayType}).`); }
                 if (npc.betrayType === 'raider') {
                     npc.state = 'raid';
                     showBanner(`${npc.name.toUpperCase()} TURNS ON YOU — FIGHT BACK!`, '#ff6a5c', 2600);
@@ -5820,6 +5866,20 @@
                         fenceState.charge = Math.max(0, fenceState.charge - 35);
                         showBanner(`${npc.name.toUpperCase()} SABOTAGED THE ${String(target).toUpperCase()} FENCE!`, '#ff6a5c', 2800);
                     }
+                } else if (npc.betrayType === 'defector') {
+                    if (!caught) {
+                        // Opens the side where the horde is thickest, then slips out to join them.
+                        let target = null, best = -1;
+                        for (const side of FENCE_SIDES) {
+                            if (fenceState.sides[side].breached) continue;
+                            let c = 0;
+                            for (const z of gameState.zombies) if (z.state !== 'dead' && !z.dayWanderer && fenceSideAt(z.model.position.x, z.model.position.z) === side) c++;
+                            if (c + Math.random() * 0.5 > best) { best = c + Math.random() * 0.5; target = side; }
+                        }
+                        if (target) { const st = fenceState.sides[target]; st.hp = 0; st.breached = true; }
+                        gameState.shake = Math.max(gameState.shake, 0.35);
+                        showBanner(`${npc.name.toUpperCase()} OPENED THE ${String(target).toUpperCase()} FENCE FOR THE HORDE!`, '#ff6a5c', 3400);
+                    }
                 }
                 npc.state = 'flee';
             }
@@ -5833,6 +5893,8 @@
             }
             // Returns stolen goods, drops carried loot when a hostile NPC is shot down.
             function killHostileNpc(npc) {
+                npc.fate = 'shot down after betraying you';
+                teamLog(`${npc.name} was shot down.`);
                 if (npc.stolen.length) {
                     let back = 0;
                     for (const s of npc.stolen) back += teamBoxAdd(s.item, s.qty);
@@ -5860,11 +5922,11 @@
             }
 
             // ---------- Survivor encounter ----------
-            function spawnPetitioner() {
+            function spawnPetitioner(opts = {}) {
                 if (team.petitioner || team.members.length >= TEAM_MAX) return false;
                 const half = window.gameConfig.settings.arenaSize / 2;
                 const side = pickOf(Object.keys(SIDE_NORMALS));
-                const npc = createNpcProfile(side);
+                const npc = createNpcProfile(side, opts);
                 npc.model = buildSurvivorModel(npc);
                 const [nx, nz] = SIDE_NORMALS[side];
                 const along = (Math.random() - 0.5) * 8;
@@ -5878,9 +5940,20 @@
                 npc.model.userData.tag.visible = false;
                 scene.add(npc.model);
                 team.petitioner = npc;
-                showBanner(`🧍 A SURVIVOR CALLS OUT FROM THE ${side.toUpperCase()} FENCE`, '#9df4e4', 2800);
+                showBanner(opts.banner || `🧍 A SURVIVOR CALLS OUT FROM THE ${side.toUpperCase()} FENCE`, '#9df4e4', 2800);
                 playFenceTone('triangle', 520, 380, 0.25, 0.12);
                 return true;
+            }
+            // Turning someone away has consequences: honest survivors may return, spurned liars may retaliate.
+            function refusePetitioner(npc) {
+                if (npc.refusedHandled) return;
+                npc.refusedHandled = true;
+                team.stats.refused++;
+                npc.fate = 'turned away at the fence';
+                teamLog(`You turned ${npc.name} away${npc.infected ? ' (they were infected)' : ''}.`);
+                if (npc.infected || npc.fromChain) return;
+                if (npc.bad && Math.random() < 0.55) team.chain.push({ day: team.day + 1, type: 'retaliate', name: npc.name });
+                else if (!npc.bad && Math.random() < 0.4) team.chain.push({ day: team.day + 1 + Math.floor(Math.random() * 2), type: 'returnGood', name: npc.name, role: npc.role });
             }
             function updatePetitioner(npc, dt, t) {
                 if (npc.leaving) {
@@ -5896,6 +5969,7 @@
                 if (team.panelNpc !== npc) npc.timer -= dt;
                 if (npc.timer <= 0) {
                     npc.leaving = true;
+                    refusePetitioner(npc);
                     showBanner(`${npc.name.toUpperCase()} GAVE UP AND WALKED AWAY`, '#ffd86b', 1800);
                 }
             }
@@ -5916,30 +5990,157 @@
                 npc.joinDay = team.day;
                 npc.entering = true;
                 team.members.push(npc);
+                team.roster.push(npc);
+                team.stats.recruited++;
+                teamLog(`${npc.name} (${NPC_ROLES[npc.role].label}) joined the team.`);
+                // Honest newcomers sometimes bring family later.
+                if (!npc.bad && !npc.infected && !npc.fromChain && Math.random() < 0.3) team.chain.push({ day: team.day + 2 + Math.floor(Math.random() * 2), type: 'relative', of: npc.name });
                 showBanner(`${NPC_ROLES[npc.role].icon} ${npc.name.toUpperCase()} JOINED — ${NPC_ROLES[npc.role].perk.toUpperCase()}`, '#8de8c4', 3000);
                 playFenceTone('triangle', 400, 640, 0.3, 0.14);
                 team.hudSignature = '';
+            }
+
+            // ---------- Traveling trader ----------
+            const TRADER_OFFERS = [
+                { make: () => getPickupItem({ type: 'cell' }), qty: 1, price: 5 },
+                { make: () => getPickupItem({ type: 'med' }), qty: 1, price: 4 },
+                { make: () => getPickupItem({ type: 'piercing' }), qty: 1, price: 4 },
+                { make: () => getPickupItem({ type: 'burn' }), qty: 1, price: 4 },
+                { make: () => getPickupItem({ type: 'freeze' }), qty: 1, price: 4 },
+                { make: () => getPickupItem({ type: 'food', foodVariant: 'ham' }), qty: 3, price: 3 },
+                { make: () => getPickupItem({ type: 'water', drinkVariant: 'cola' }), qty: 3, price: 3 }
+            ];
+            function spawnTrader() {
+                if (team.trader || team.petitioner) return false;
+                const half = window.gameConfig.settings.arenaSize / 2;
+                const side = pickOf(Object.keys(SIDE_NORMALS));
+                const npc = {
+                    name: 'Trader ' + pickOf(['Gus', 'Marta', 'Vik', 'Sunny', 'Odd']), role: 'scavenger', skin: pickOf(NPC_SKINS), hair: pickOf(NPC_HAIRS),
+                    arrivalSide: side, state: 'trader', path: [], walkPhase: Math.random() * 6, pose: 'idle', log: [], asked: {}, timer: 110, leaving: false, loyalty: 5,
+                    offers: TRADER_OFFERS.slice().sort(() => Math.random() - 0.5).slice(0, 4).map(o => ({ item: o.make(), qty: o.qty, price: o.price, stock: 1 + (Math.random() < 0.4 ? 1 : 0) })),
+                    newsBought: false, carry: [], stolen: []
+                };
+                npc.model = buildSurvivorModel(npc);
+                // Hand cart parked behind the trader
+                const cart = new THREE.Group();
+                const wood = stdMat({ color: 0x7b5a39, roughness: 0.88 }), woodDark = stdMat({ color: 0x4d3825, roughness: 0.92 }), tarp = stdMat({ color: 0x5d6a4a, roughness: 0.95 }), tire = stdMat({ color: 0x15181a, roughness: 0.8 });
+                const bx = (w, h, d, m, x, y, z) => { const mesh = new THREE.Mesh(boxGeo(w, h, d), m); mesh.position.set(x, y, z); mesh.castShadow = true; cart.add(mesh); return mesh; };
+                bx(1.3, 0.12, 1.7, woodDark, 0, 0.55, -1.7);
+                bx(1.3, 0.5, 0.1, wood, 0, 0.85, -2.5); bx(1.3, 0.5, 0.1, wood, 0, 0.85, -0.9);
+                bx(0.1, 0.5, 1.7, wood, -0.65, 0.85, -1.7); bx(0.1, 0.5, 1.7, wood, 0.65, 0.85, -1.7);
+                bx(1.0, 0.45, 0.7, wood, -0.2, 1.1, -1.9); bx(0.6, 0.35, 0.6, woodDark, 0.3, 1.05, -1.4);
+                bx(1.4, 0.06, 1.2, tarp, 0, 1.55, -1.9);
+                bx(0.06, 1.0, 0.06, woodDark, -0.6, 1.05, -1.3); bx(0.06, 1.0, 0.06, woodDark, 0.6, 1.05, -1.3);
+                for (const wx of [-0.7, 0.7]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.1, 10), tire); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.4, -1.7); cart.add(w); }
+                bx(0.08, 0.08, 1.1, woodDark, 0, 0.55, -0.5);
+                npc.model.add(cart);
+                const [nx, nz] = SIDE_NORMALS[side];
+                const along = (Math.random() - 0.5) * 8;
+                const alongX = nx === 0 ? along : 0, alongZ = nz === 0 ? along : 0;
+                npc.waitPoint = { x: nx * (half + 3.6) + alongX, z: nz * (half + 3.6) + alongZ };
+                npc.model.position.set(nx * (half + 38) + alongX * 2, 0, nz * (half + 38) + alongZ * 2);
+                npc.path = [{ x: npc.waitPoint.x, z: npc.waitPoint.z }];
+                scene.add(npc.model);
+                team.trader = npc;
+                showBanner(`🧺 A TRAVELING TRADER APPROACHES THE ${side.toUpperCase()} FENCE`, '#ffe08a', 3000);
+                playFenceTone('triangle', 330, 500, 0.3, 0.12);
+                return true;
+            }
+            function updateTrader(npc, dt, t) {
+                if (npc.leaving) {
+                    npc.pose = 'walk';
+                    const half = window.gameConfig.settings.arenaSize / 2;
+                    const [nx, nz] = SIDE_NORMALS[npc.arrivalSide];
+                    npcMove(npc, nx * (half + 55), nz * (half + 55), 3.4, dt);
+                    if (Math.max(Math.abs(npc.model.position.x), Math.abs(npc.model.position.z)) > half + 44) { scene.remove(npc.model); if (team.panelNpc === npc) closeTeamPanel(); team.trader = null; }
+                    return;
+                }
+                if (npc.path.length) { npc.pose = 'walk'; npcFollowPath(npc, 3.4, dt); if (!npc.path.length) npc.model.rotation.y = lerpAngle(npc.model.rotation.y, Math.atan2(-npc.waitPoint.x, -npc.waitPoint.z), 1); return; }
+                npc.pose = 'wave';
+                if (team.panelNpc !== npc) npc.timer -= dt;
+                if (npc.timer <= 0) { npc.leaving = true; showBanner('THE TRADER PACKS UP AND LEAVES', '#ffd86b', 1800); }
+            }
+
+            // ---------- Chain events & infection ----------
+            function processChains() {
+                for (const c of team.chain.slice()) {
+                    if (c.type === 'retaliate' || team.day < c.day) continue;
+                    if (team.petitioner || team.members.length >= TEAM_MAX) { c.day = team.day + 1; continue; }
+                    team.chain.splice(team.chain.indexOf(c), 1);
+                    team.stats.chainEvents++;
+                    if (c.type === 'returnGood') {
+                        spawnPetitioner({ name: c.name, role: c.role, bad: false, infected: false, loyalty: 6, fromChain: true,
+                            intro: 'Please. I should not have gone. You were the only ones who had a fence.',
+                            banner: `🧍 ${c.name.toUpperCase()} IS BACK AT THE FENCE — BEGGING TO COME IN` });
+                        teamLog(`${c.name} came back after you turned them away.`);
+                    } else if (c.type === 'relative') {
+                        spawnPetitioner({ bad: false, infected: false, loyalty: 6, fromChain: true, relativeOf: c.of,
+                            intro: `I am looking for ${c.of}. They said this was the place that takes people in.`,
+                            banner: `🧍 A STRANGER ASKS FOR ${c.of.toUpperCase()} AT THE FENCE` });
+                        teamLog(`A relative of ${c.of} showed up at the fence.`);
+                    }
+                }
+            }
+            function fireRetaliations() {
+                for (const c of team.chain.slice()) {
+                    if (c.type !== 'retaliate' || team.day < c.day) continue;
+                    team.chain.splice(team.chain.indexOf(c), 1);
+                    team.stats.chainEvents++;
+                    let target = null, best = -1;
+                    for (const side of FENCE_SIDES) { const st = fenceState.sides[side]; if (!st.breached && st.hp > best) { best = st.hp; target = side; } }
+                    if (target) damageFence(target, fenceMaxHp() * 0.4);
+                    fenceState.charge = Math.max(0, fenceState.charge - 20);
+                    teamLog(`${c.name}, whom you turned away, sneaked back and cut the ${target} fence.`);
+                    showBanner(`${c.name.toUpperCase()} SNUCK BACK AND CUT THE ${String(target).toUpperCase()} FENCE`, '#ff6a5c', 3000);
+                }
+            }
+            function spawnZombieAt(x, z) {
+                const model = createBlockyCharacter(false);
+                model.position.set(x, 0, z);
+                const health = Math.max(2, Math.ceil(gameState.wave * 0.5) * 2 * window.gameConfig.settings.zombieHealthMultiplier);
+                scene.add(model);
+                gameState.zombies.push({ type: 'normal', model, health, maxHealth: health, speed: 2.4 * window.gameConfig.settings.zombieSpeedMultiplier, state: 'approaching', attackTimer: 0, walkCycle: 0, breached: true });
+            }
+            function turnNpc(npc) {
+                npc.turned = true;
+                npc.fate = 'was infected and turned into a zombie';
+                const pos = npc.model.position.clone();
+                team.stats.turned++;
+                teamLog(`${npc.name} turned into a zombie in the middle of the night.`);
+                showBanner(`${npc.name.toUpperCase()} WAS INFECTED — THEY TURNED!`, '#ff6a5c', 3400);
+                gameState.shake = Math.max(gameState.shake, 0.35);
+                removeNpc(npc);
+                spawnZombieAt(pos.x, pos.z);
             }
 
             // ---------- Dawn / night hooks ----------
             function teamOnDawn() {
                 team.day++;
                 team.eventTimer = Math.random() < 0.5 ? 6 + Math.random() * 8 : 28 + Math.random() * 30;
+                team.traderTimer = team.day >= 2 && Math.random() < 0.35 ? 12 + Math.random() * 28 : 9999;
                 const notes = [];
                 for (const npc of team.members.slice()) {
-                    // Daily ration from the team box
+                    // Daily ration from the team box (trust grows when you feed people, shrinks when you do not)
                     const hasFood = teamBox.slots.find(s => s.id.startsWith('food:'));
                     const hasDrink = teamBox.slots.find(s => s.id.startsWith('drink:'));
                     const ration = hasFood || hasDrink;
-                    if (ration) { teamBoxTake(ration.id, 1); npc.hunger = 0; }
+                    if (ration) { teamBoxTake(ration.id, 1); npc.hunger = 0; npc.loyalty = Math.min(10, npc.loyalty + 1); }
                     else {
                         npc.hunger++;
+                        npc.loyalty = Math.max(0, npc.loyalty - 1);
                         notes.push(`${npc.name} IS HUNGRY`);
                         if (npc.hunger >= 2) {
-                            npc.state = 'leave'; npc.path = [];
+                            npc.state = 'leave'; npc.path = []; npc.fate = 'left the team — no food';
+                            teamLog(`${npc.name} left because the team ran out of food.`);
                             showBanner(`${npc.name.toUpperCase()} LEFT THE TEAM — NO FOOD`, '#ff9b75', 2400);
                             continue;
                         }
+                    }
+                    if (npc.loyalty <= 0 && !npc.bad) {
+                        npc.state = 'leave'; npc.path = []; npc.fate = 'left — lost faith in you';
+                        teamLog(`${npc.name} lost faith in you and left.`);
+                        showBanner(`${npc.name.toUpperCase()} LOST FAITH IN YOU AND LEFT`, '#ff9b75', 2600);
+                        continue;
                     }
                     if (npc.role === 'doctor' && gameState.player.health < gameState.player.maxHealth) {
                         gameState.player.health = Math.min(gameState.player.maxHealth, gameState.player.health + 1);
@@ -5952,10 +6153,18 @@
                         npc.model.userData.mark.visible = true;
                         if (npc.betrayType === 'thief') notes.push(`${npc.name} KEEPS HOVERING AROUND THE BOX`);
                         else if (npc.betrayType === 'saboteur') notes.push(`${npc.name} WAS SEEN STUDYING THE FENCE`);
+                        else if (npc.betrayType === 'defector') notes.push(`${npc.name} KEEPS LISTENING TO THE NIGHT`);
                         else notes.push(`${npc.name} WON'T MEET YOUR EYES`);
                     }
                 }
-                if (notes.length) showBanner(notes.slice(0, 2).join('  ·  '), '#ffe08a', 3200);
+                // Loyal teammates quietly warn you about the rotten apple.
+                for (const m of team.members) {
+                    if (m.loyalty < 7 || m.bad || m.state !== 'member') continue;
+                    const culprit = team.members.find(o => o !== m && o.bad && o.warned && !o.whispered && !o.betrayed);
+                    if (culprit) { culprit.whispered = true; notes.push(`${m.name} WHISPERS: WATCH ${culprit.name.toUpperCase()}`); break; }
+                }
+                processChains();
+                if (notes.length) showBanner(notes.slice(0, 3).join('  ·  '), '#ffe08a', 3600);
                 team.hudSignature = '';
             }
             function teamOnNight() {
@@ -5965,15 +6174,24 @@
                         npc.path = planPath(npc.model.position, { x: teamBox.x + 2.4, z: teamBox.z + 0.2 });
                     }
                 }
-                if (team.petitioner) team.petitioner.leaving = true;
+                if (team.petitioner) { refusePetitioner(team.petitioner); team.petitioner.leaving = true; }
+                if (team.trader) team.trader.leaving = true;
+                fireRetaliations();
             }
             function resetTeam() {
                 for (const npc of team.members.slice()) scene.remove(npc.model);
                 if (team.petitioner) scene.remove(team.petitioner.model);
+                if (team.trader) scene.remove(team.trader.model);
                 team.members.length = 0;
                 team.petitioner = null;
+                team.trader = null;
+                team.traderTimer = 70;
                 team.day = 0;
                 team.eventTimer = 22;
+                team.chain.length = 0;
+                team.roster.length = 0;
+                team.history.length = 0;
+                for (const k in team.stats) team.stats[k] = 0;
                 teamBox.level = 0;
                 teamBox.slots.length = 0;
                 refreshTeamBoxVisual();
@@ -5981,7 +6199,23 @@
                 closeBoxPanel();
                 team.hudSignature = '';
             }
-            const teamChewMult = () => 1 - 0.18 * Math.min(2, team.members.filter(m => m.role === 'guard' && !m.betrayed && m.state === 'member').length);
+            const teamChewMult = () => 1 - Math.min(0.4, team.members.filter(m => m.role === 'guard' && !m.betrayed && m.state === 'member').reduce((s, g) => s + 0.18 * loyMult(g), 0));
+
+            // ---------- End-of-run summary ----------
+            function buildRunSummary() {
+                const fateOf = n => n.fate || (team.members.includes(n) ? (n.state === 'member' ? 'still with you' : 'leaving') : 'gone');
+                const rows = team.roster.map(n => `<div class="sum-row"><span>${NPC_ROLES[n.role].icon} ${esc(n.name)}</span><em>${NPC_ROLES[n.role].label} · ${esc(fateOf(n))}</em></div>`).join('');
+                const st = team.stats;
+                const chips = [
+                    ['Days survived', team.day], ['Survivors recruited', st.recruited], ['Turned away', st.refused], ['Betrayals suffered', st.betrayals],
+                    ['Traitors caught', st.caught], ['Redeemed', st.redeemed], ['Turned zombies', st.turned], ['Trades made', st.trades],
+                    ['Loot runs by the team', st.lootRuns], ['Items stored', st.itemsStored], ['Team box slots', teamBoxCapacity()],
+                    ['Fence upgrades', ['barbed', 'plated', 'electric'].filter(k => fenceState.tiers[k]).length + '/3']
+                ].map(([k, v]) => `<div class="sum-chip"><b>${v}</b><span>${k}</span></div>`).join('');
+                const story = team.history.slice(-6).map(h => `<li><b>Day ${h.day}</b> — ${esc(h.text)}</li>`).join('');
+                return `<h3>THE TEAM</h3>${rows || '<div class="sum-empty">No survivor ever crossed your fence.</div>'}
+                    <div class="sum-chips">${chips}</div>${story ? `<h3>HOW IT WENT</h3><ul>${story}</ul>` : ''}`;
+            }
 
             // ---------- Panels ----------
             const teamPanel = document.createElement('section');
@@ -6041,15 +6275,37 @@
                 const npc = team.panelNpc;
                 if (!npc) return;
                 const role = NPC_ROLES[npc.role];
-                let sig = team.panelMode + '|' + npc.log.length + '|' + npc.inspected + '|' + npc.loyalty + '|' + team.members.length + '|' + npc.state;
+                let sig = team.panelMode + '|' + npc.log.length + '|' + npc.inspected + '|' + npc.searched + '|' + npc.bitten + '|' + npc.loyalty + '|' + team.members.length + '|' + npc.state + '|' + countInventoryItem('mat:scrap') + '|' + gameState.inventory.map(i => i.id + i.count).join(',');
+                if (npc.offers) sig += npc.offers.map(o => o.stock).join('');
                 if (!force && sig === team.panelSignature) return;
                 team.panelSignature = sig;
-                if (team.panelMode === 'petition') {
+                const log = npc.log.map(l => `<div class="npc-line">${l}</div>`).join('');
+                if (team.panelMode === 'trader') {
+                    const scrap = countInventoryItem('mat:scrap');
+                    const offers = npc.offers.map((o, i) => `<div class="bench-card"><div class="ico">${o.item.icon}</div><div class="txt"><b>${esc(o.item.name)}${o.qty > 1 ? ' x' + o.qty : ''}</b><span>${o.stock > 0 ? o.stock + ' in stock' : 'Sold out'}</span></div>
+                        <button class="bench-btn" data-act="tbuy:${i}" ${o.stock <= 0 || scrap < o.price ? 'disabled' : ''}>${o.price} 🔩</button></div>`).join('');
+                    const sellable = gameState.inventory.map((it, i) => {
+                        const food = it.id.startsWith('food:') || it.id.startsWith('drink:');
+                        const goods = it.id.startsWith('special:') || it.id === 'med:medkit';
+                        if (!food && !goods) return '';
+                        const need = food ? 2 : 1, pay = food ? 1 : 2;
+                        return `<div class="bench-card"><div class="ico">${it.icon}</div><div class="txt"><b>${esc(it.name)}</b><span>${it.count} in your pack</span></div>
+                            <button class="bench-btn" data-act="tsell:${i}" ${it.count < need ? 'disabled' : ''}>SELL ${need} → ${pay} 🔩</button></div>`;
+                    }).join('');
+                    teamPanel.innerHTML = `<div class="bench-head"><div><h2>🧺 ${esc(npc.name.toUpperCase())}</h2>
+                        <div class="bench-res">🔩 ${scrap} SCRAP (PACK + BOX) · Leaves at nightfall</div></div>
+                        <button class="panel-close" type="button" data-act="close" aria-label="Close">×</button></div>
+                        ${log}
+                        <h3>FOR SALE</h3>${offers}
+                        <h3>NEWS FROM THE ROAD</h3>
+                        <button class="bench-btn wide" data-act="tnews" ${npc.newsBought || scrap < 1 ? 'disabled' : ''}>${npc.newsBought ? 'ALREADY ASKED' : 'ASK ABOUT YOUR PEOPLE · 1 🔩'}</button>
+                        <h3>SELL</h3>${sellable || '<div class="npc-obs">You have nothing the trader wants (food, drinks, nail packs, medkits).</div>'}`;
+                } else if (team.panelMode === 'petition') {
                     const asked = npc.asked;
-                    const log = npc.log.map(l => `<div class="npc-line">${l}</div>`).join('');
-                    teamPanel.innerHTML = `<div class="bench-head"><div><h2>🧍 ${asked.q2 ? esc(npc.name.toUpperCase()) + ' · ' + role.icon + ' ' + role.label.toUpperCase() : 'STRANGER AT THE ' + npc.arrivalSide.toUpperCase() + ' FENCE'}</h2>
+                    teamPanel.innerHTML = `<div class="bench-head"><div><h2>🧍 ${asked.q2 ? esc(npc.name.toUpperCase()) + ' · ' + role.icon + ' ' + role.label.toUpperCase() : (npc.fromChain ? esc(npc.name.toUpperCase()) : 'STRANGER AT THE ' + npc.arrivalSide.toUpperCase() + ' FENCE')}</h2>
                         <div class="bench-res">Team ${team.members.length}/${TEAM_MAX} · They are standing at the <b>${npc.arrivalSide.toUpperCase()}</b> fence</div></div>
                         <button class="panel-close" type="button" data-act="close" aria-label="Close">×</button></div>
+                        ${npc.intro ? `<div class="npc-line"><b>${esc(npc.name)}:</b> “${esc(npc.intro)}”</div>` : ''}
                         <div class="npc-obs">${esc(npc.name)} ${esc(npc.observation)}.</div>
                         ${log}
                         <h3>QUESTIONS</h3>
@@ -6057,36 +6313,91 @@
                           <button class="bench-btn" data-act="q1" ${asked.q1 ? 'disabled' : ''}>Where did you come from?</button>
                           <button class="bench-btn" data-act="q2" ${asked.q2 ? 'disabled' : ''}>What can you do?</button>
                           <button class="bench-btn" data-act="q3" ${asked.q3 ? 'disabled' : ''}>Where are your people?</button>
-                          <button class="bench-btn" data-act="inspect" ${npc.inspected ? 'disabled' : ''}>Check their bag (they may resent it)</button>
+                          <button class="bench-btn" data-act="inspect" ${npc.inspected ? 'disabled' : ''}>Glance at the bag (−1 trust)</button>
+                          <button class="bench-btn" data-act="search" ${npc.searched ? 'disabled' : ''}>Full search (−2 trust)</button>
+                          <button class="bench-btn" data-act="bite" ${npc.bitten ? 'disabled' : ''}>Check for bites (risky)</button>
                         </div>
                         <div class="npc-buttons">
                           <button class="bench-btn" data-act="accept" ${team.members.length >= TEAM_MAX ? 'disabled' : ''}>LET THEM IN</button>
                           <button class="bench-btn" data-act="send">SEND AWAY</button>
                         </div>`;
                 } else {
+                    const l = Math.max(0, Math.min(10, npc.loyalty));
                     teamPanel.innerHTML = `<div class="bench-head"><div><h2>${role.icon} ${esc(npc.name.toUpperCase())} · ${role.label.toUpperCase()}</h2>
                         <div class="bench-res">${esc(role.perk)} · ${esc(npcStatus(npc))}</div></div>
                         <button class="panel-close" type="button" data-act="close" aria-label="Close">×</button></div>
-                        <div class="npc-obs">Trust: ${'●'.repeat(Math.max(0, npc.loyalty))}${'○'.repeat(Math.max(0, 5 - npc.loyalty))}</div>
-                        ${npc.log.slice(-3).map(l => `<div class="npc-line">${l}</div>`).join('')}
+                        <div class="npc-obs">Trust: ${'●'.repeat(l)}${'○'.repeat(10 - l)} · Efficiency ${Math.round(loyMult(npc) * 100)}%${l >= 8 ? ' · Devoted' : (l <= 2 ? ' · Restless' : '')}</div>
+                        ${npc.log.slice(-3).map(x => `<div class="npc-line">${x}</div>`).join('')}
                         <div class="npc-buttons">
                           <button class="bench-btn" data-act="talk">TALK</button>
+                          <button class="bench-btn" data-act="minspect">INSPECT BAG (−1 trust)</button>
+                          <button class="bench-btn" data-act="gift" ${npc.giftDay === team.day ? 'disabled' : ''}>GIVE A RATION (+2 trust)</button>
                           <button class="bench-btn" data-act="confront">CONFRONT</button>
                           <button class="bench-btn" data-act="dismiss">SEND AWAY</button>
                         </div>`;
                 }
             }
             function npcSays(npc, text) { npc.log.push(text); if (npc.log.length > 6) npc.log.shift(); }
+            function bagContents(npc, thorough) {
+                const role = NPC_ROLES[npc.role];
+                const items = [];
+                const hasTool = npc.bad ? Math.random() < (thorough ? 0.4 : 0.5) : Math.random() < (thorough ? 0.95 : 0.9);
+                items.push(hasTool ? role.tool : 'nothing a ' + role.label.toLowerCase() + ' would carry');
+                items.push(pickOf(['half a canteen of water', 'a dented can of beans', 'a torn map', 'a dead flashlight']));
+                const sus = npc.bad ? Math.random() < (thorough ? 0.9 : 0.65) : Math.random() < (thorough ? 0.06 : 0.15);
+                if (sus) items.push(npc.bad ? BAD_ITEMS[npc.betrayType] : pickOf(Object.values(BAD_ITEMS)));
+                if (thorough && npc.infected && Math.random() < 0.6) items.push('blood-soaked bandages');
+                if (thorough && npc.bad && Math.random() < 0.3) items.push('a pouch of rings that do not look like theirs');
+                return items;
+            }
             teamPanel.addEventListener('pointerdown', e => { e.stopPropagation(); teamPointerDown = true; });
             teamPanel.addEventListener('click', e => {
                 e.stopPropagation();
                 const btn = e.target.closest('[data-act]');
                 const npc = team.panelNpc;
                 if (!btn || btn.disabled || !npc) return;
-                const act = btn.dataset.act;
+                const [act, arg] = btn.dataset.act.split(':');
+                const idx = Number(arg);
                 const role = NPC_ROLES[npc.role];
                 if (act === 'close') { closeTeamPanel(); return; }
-                if (team.panelMode === 'petition') {
+                if (team.panelMode === 'trader') {
+                    if (act === 'tbuy') {
+                        const o = npc.offers[idx];
+                        if (o && o.stock > 0 && countInventoryItem('mat:scrap') >= o.price) {
+                            const added = addInventoryItem(o.item, o.qty);
+                            if (added < o.qty) { showBanner('YOUR PACK IS FULL', '#ff9b75', 1500); if (added > 0) { /* partial purchase keeps the items already added */ } }
+                            if (added > 0) { consumeInventoryItem('mat:scrap', o.price); o.stock--; team.stats.trades++; showBanner(`BOUGHT ${o.item.icon} ${o.item.name.toUpperCase()}`, '#8de8c4', 1400); playFenceTone('square', 420, 300, 0.08, 0.1); }
+                        }
+                    } else if (act === 'tsell') {
+                        const it = gameState.inventory[idx];
+                        if (it) {
+                            const food = it.id.startsWith('food:') || it.id.startsWith('drink:');
+                            const need = food ? 2 : 1, pay = food ? 1 : 2;
+                            if (it.count >= need) {
+                                it.count -= need;
+                                if (it.count <= 0) gameState.inventory.splice(idx, 1);
+                                addInventoryPickup({ type: 'scrap' }, pay);
+                                updateInventoryUI();
+                                team.stats.trades++;
+                                showBanner(`SOLD FOR ${pay} 🔩`, '#8de8c4', 1200);
+                                playFenceTone('square', 300, 420, 0.08, 0.1);
+                            }
+                        }
+                    } else if (act === 'tnews' && !npc.newsBought && countInventoryItem('mat:scrap') >= 1) {
+                        consumeInventoryItem('mat:scrap', 1);
+                        npc.newsBought = true;
+                        team.stats.trades++;
+                        const bads = team.members.filter(m => m.bad && !m.betrayed);
+                        let line;
+                        if (!bads.length) line = Math.random() < 0.85 ? 'Word on the road: your people are clean. Nobody is selling you out.' : 'Word on the road: someone is watching your camp from the shadows.';
+                        else {
+                            const truth = Math.random() < 0.8;
+                            const pickRole = truth ? pickOf(bads).role : pickOf(team.members).role;
+                            line = `Word on the road: a ${NPC_ROLES[pickRole].label.toLowerCase()} in your camp has a bad reputation.`;
+                        }
+                        npcSays(npc, `<b>${esc(npc.name)}:</b> “${esc(line)}”`);
+                    }
+                } else if (team.panelMode === 'petition') {
                     if (act === 'q1') {
                         npc.asked.q1 = true;
                         npcSays(npc, `<b>${esc(npc.name)}:</b> “I came down from the <b>${npc.statedSide.toUpperCase()}</b>. Walked most of the night.”`);
@@ -6100,13 +6411,24 @@
                     } else if (act === 'inspect') {
                         npc.inspected = true;
                         npc.loyalty = Math.max(1, npc.loyalty - 1);
-                        const items = [];
-                        const hasTool = npc.bad ? Math.random() < 0.5 : Math.random() < 0.9;
-                        if (hasTool) items.push(role.tool);
-                        else items.push('nothing a ' + role.label.toLowerCase() + ' would carry');
-                        items.push(pickOf(['half a canteen of water', 'a dented can of beans', 'a torn map', 'a dead flashlight']));
-                        if (npc.bad ? Math.random() < 0.65 : Math.random() < 0.15) items.push(npc.bad ? BAD_ITEMS[npc.betrayType] : pickOf(Object.values(BAD_ITEMS)));
-                        npcSays(npc, `<b>You search the bag:</b> ${esc(items.join(', '))}.`);
+                        npcSays(npc, `<b>You glance in the bag:</b> ${esc(bagContents(npc, false).join(', '))}.`);
+                    } else if (act === 'search') {
+                        npc.searched = true;
+                        npc.loyalty = Math.max(1, npc.loyalty - 2);
+                        npcSays(npc, `<b>You go through everything:</b> ${esc(bagContents(npc, true).join(', '))}.`);
+                    } else if (act === 'bite') {
+                        npc.bitten = true;
+                        npc.loyalty = Math.max(1, npc.loyalty - 1);
+                        team.stats.bitesChecked++;
+                        let text;
+                        if (npc.infected) {
+                            text = 'You make them roll up a sleeve: a fresh <b>BITE</b>, swollen and black at the edges.';
+                            if (Math.random() < 0.3) {
+                                if (gameState.player.health > 1) { damagePlayerFromZombie({ type: 'infected' }); text += ' They LUNGE at you through the wire!'; }
+                                else text += ' They snap at you through the wire!';
+                            }
+                        } else text = Math.random() < 0.12 ? 'You check their arms: an old scratch, scabbed over. Not a bite.' : 'You check their arms and neck: no bites. Clean skin.';
+                        npcSays(npc, text);
                     } else if (act === 'accept') {
                         closeTeamPanel();
                         acceptPetitioner(npc);
@@ -6114,6 +6436,7 @@
                     } else if (act === 'send') {
                         closeTeamPanel();
                         npc.leaving = true;
+                        refusePetitioner(npc);
                         showBanner(`YOU SENT ${npc.name.toUpperCase()} AWAY`, '#ffd86b', 1600);
                         return;
                     }
@@ -6121,9 +6444,30 @@
                     if (act === 'talk') {
                         let line;
                         if (npc.bad && npc.warned && Math.random() < 0.5) {
-                            line = { thief: 'Funny how much you keep stashed in that box...', saboteur: 'That fence will not hold forever, you know.', raider: 'You trust too easily.' }[npc.betrayType];
-                        } else line = pickOf(role.talk);
+                            line = { thief: 'Funny how much you keep stashed in that box...', saboteur: 'That fence will not hold forever, you know.', raider: 'You trust too easily.', defector: 'Listen... do you hear them? They sound so patient.' }[npc.betrayType];
+                        } else if (npc.loyalty >= 8) line = pickOf(['I would not trade this place for anything.', 'You are the reason I am still alive. Thanks.']);
+                        else if (npc.loyalty <= 2) line = pickOf(['I am not sure this is working out.', 'People are getting hungry. I am getting restless.']);
+                        else line = pickOf(role.talk);
                         npcSays(npc, `<b>${esc(npc.name)}:</b> “${esc(line)}”`);
+                    } else if (act === 'minspect') {
+                        npc.loyalty = Math.max(0, npc.loyalty - 1);
+                        const items = [];
+                        for (const c of npc.carry) items.push(`${c.item.icon} ${c.item.name}${c.qty > 1 ? ' x' + c.qty : ''}`);
+                        items.push(role.tool);
+                        const sus = npc.bad ? Math.random() < (npc.warned ? 0.8 : 0.35) : Math.random() < 0.05;
+                        if (sus) items.push(npc.bad ? BAD_ITEMS[npc.betrayType] : pickOf(Object.values(BAD_ITEMS)));
+                        npcSays(npc, `<b>You go through ${esc(npc.name)}'s bag:</b> ${esc(items.join(', '))}.`);
+                    } else if (act === 'gift') {
+                        const food = gameState.inventory.find(i => i.id.startsWith('food:') || i.id.startsWith('drink:'));
+                        if (!food) { showBanner('YOU HAVE NO FOOD OR WATER IN YOUR PACK', '#ffd86b', 1600); }
+                        else {
+                            food.count--;
+                            if (food.count <= 0) gameState.inventory.splice(gameState.inventory.indexOf(food), 1);
+                            updateInventoryUI();
+                            npc.loyalty = Math.min(10, npc.loyalty + 2);
+                            npc.giftDay = team.day;
+                            npcSays(npc, `<b>${esc(npc.name)}:</b> “${esc(pickOf(['I will not forget this.', 'You did not have to do that. Thank you.', 'Best meal in days.']))}”`);
+                        }
                     } else if (act === 'confront') {
                         if (npc.bad && !npc.betrayed) {
                             npcSays(npc, `<b>${esc(npc.name)}:</b> “...fine. You figured it out.”`);
@@ -6136,13 +6480,15 @@
                         npcSays(npc, `<b>${esc(npc.name)}:</b> “After everything I did here? Unbelievable.”`);
                         if (npc.loyalty <= 0) {
                             closeTeamPanel();
-                            npc.state = 'leave'; npc.path = [];
+                            npc.state = 'leave'; npc.path = []; npc.fate = 'walked out after you accused them';
+                            teamLog(`${npc.name} walked out after you accused them unfairly.`);
                             showBanner(`${npc.name.toUpperCase()} WALKED OUT — YOU WRONGED AN HONEST SURVIVOR`, '#ff9b75', 2800);
                             return;
                         }
                     } else if (act === 'dismiss') {
                         closeTeamPanel();
-                        npc.state = 'leave'; npc.path = [];
+                        npc.state = 'leave'; npc.path = []; npc.fate = 'sent away by you';
+                        teamLog(`You sent ${npc.name} away.`);
                         showBanner(`${npc.name.toUpperCase()} LEFT THE TEAM`, '#ffd86b', 1800);
                         return;
                     }
@@ -6231,9 +6577,11 @@
                 if (mode !== 'play' || gameState.gameOver) return null;
                 const p = gameState.player.position;
                 let best = null, bd = 99;
-                const consider = (kind, ref, x, z, range) => { const d = Math.hypot(p.x - x, p.z - z); if (d < range && d < bd) { bd = d; best = { kind, ref }; } };
-                if (team.petitioner && !team.petitioner.leaving && !team.petitioner.path.length) consider('petition', team.petitioner, team.petitioner.model.position.x, team.petitioner.model.position.z, 5.2);
+                // Visitors at the fence (time-limited) win over the box when both are in reach.
+                const consider = (kind, ref, x, z, range, bias = 0) => { const d = Math.hypot(p.x - x, p.z - z); if (d < range && d - bias < bd) { bd = d - bias; best = { kind, ref }; } };
+                if (team.petitioner && !team.petitioner.leaving && !team.petitioner.path.length) consider('petition', team.petitioner, team.petitioner.model.position.x, team.petitioner.model.position.z, 5.2, 2.5);
                 for (const m of team.members) if (m.state === 'member' || m.state === 'raid') { if (m.state === 'member') consider('member', m, m.model.position.x, m.model.position.z, 2.3); }
+                if (team.trader && !team.trader.leaving && !team.trader.path.length) consider('trader', team.trader, team.trader.model.position.x, team.trader.model.position.z, 5.4, 2.5);
                 consider('box', null, teamBox.x, teamBox.z, 3.4);
                 return best;
             }
@@ -6242,6 +6590,7 @@
                 if (!ctx) return false;
                 if (ctx.kind === 'box') { teamBox.open ? closeBoxPanel() : openBoxPanel(); return true; }
                 if (ctx.kind === 'petition') { openTeamPanel(ctx.ref, 'petition'); return true; }
+                if (ctx.kind === 'trader') { openTeamPanel(ctx.ref, 'trader'); return true; }
                 openTeamPanel(ctx.ref, 'member');
                 return true;
             }
@@ -6270,7 +6619,12 @@
                         if (Math.random() < 0.7 && gameState.phaseTimer > 25) spawnPetitioner();
                     }
                 }
+                if (gameState.phase === 'day' && !team.trader && !team.petitioner && !gameState.gameOver) {
+                    team.traderTimer -= dt;
+                    if (team.traderTimer <= 0) { team.traderTimer = 9999; if (gameState.phaseTimer > 30) spawnTrader(); }
+                }
                 if (team.petitioner) { updatePetitioner(team.petitioner, dt, t); animateNpc(team.petitioner, dt, t); }
+                if (team.trader) { updateTrader(team.trader, dt, t); if (team.trader) animateNpc(team.trader, dt, t); }
                 for (const m of team.members.slice()) {
                     if (m.state === 'petition') continue;
                     if (m.entering) {
@@ -6290,11 +6644,12 @@
                     if (show) {
                         if (ctx.kind === 'box') teamButton.innerHTML = 'TEAM BOX<small>STORE LOOT · E</small>';
                         else if (ctx.kind === 'petition') teamButton.innerHTML = 'TALK<small>SURVIVOR AT THE FENCE · E</small>';
+                        else if (ctx.kind === 'trader') teamButton.innerHTML = 'TRADE<small>TRAVELING TRADER · E</small>';
                         else teamButton.innerHTML = 'TALK<small>' + esc(ctx.ref.name.toUpperCase()) + ' · E</small>';
                     }
                 }
                 if (team.panelNpc) {
-                    const near = team.panelMode === 'petition'
+                    const near = (team.panelMode === 'petition' || team.panelMode === 'trader')
                         ? Math.hypot(team.panelNpc.model.position.x - gameState.player.position.x, team.panelNpc.model.position.z - gameState.player.position.z) < 7
                         : true;
                     if (!near || gameState.gameOver) closeTeamPanel();
@@ -9202,6 +9557,8 @@
                 document.getElementById('final-kills').textContent = gameState.zombiesKilled;
                 const finalComboEl = document.getElementById('final-combo');
                 if (finalComboEl) finalComboEl.textContent = gameState.highestCombo;
+                const runSummary = document.getElementById('run-summary');
+                if (runSummary) runSummary.innerHTML = buildRunSummary();
                 document.getElementById('game-over-screen').classList.add('visible');
                 if (comboContainer) comboContainer.classList.remove('active');
                 
