@@ -486,6 +486,70 @@
             color: #efffff; pointer-events: auto; z-index: 145;
         }
         #inventory-panel.open { display: flex; }
+        /* ===== Fence workbench, prompt button and fence HUD ===== */
+        #bench-button {
+            position: absolute; left: 50%; bottom: 270px; transform: translateX(-50%);
+            min-width: 156px; min-height: 96px; padding: 10px 16px; box-sizing: border-box;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            border: 4px solid #ffd45c; border-radius: 14px; color: #fff8df;
+            background: rgba(92,66,16,.94); font: 900 17px 'Orbitron', Arial, sans-serif; letter-spacing: 1px;
+            text-shadow: 0 2px 4px #0009; box-shadow: 0 4px 16px #0007; pointer-events: auto;
+            touch-action: manipulation; user-select: none; -webkit-user-select: none; z-index: 112;
+        }
+        #bench-button small { margin-top: 4px; color: #ffe8a5; font: 800 10px Arial, sans-serif; letter-spacing: .6px; }
+        #bench-button:active { transform: translateX(-50%) scale(.95); }
+        #fence-hud {
+            position: absolute; top: 200px; left: 50%; transform: translateX(-50%); display: none; gap: 6px;
+            padding: 6px 10px; border: 1px solid rgba(160,200,210,.45); border-radius: 12px;
+            background: rgba(10,18,26,.72); font: 800 12px Arial, sans-serif; letter-spacing: .6px;
+            color: #dff; pointer-events: none; z-index: 104; white-space: nowrap;
+        }
+        #fence-hud.visible { display: flex; }
+        #fence-hud .chip { padding: 2px 7px; border-radius: 8px; background: rgba(40,60,70,.8); }
+        #fence-hud .chip.warn { background: rgba(150,90,10,.85); color: #ffe8b0; }
+        #fence-hud .chip.down { background: rgba(160,20,30,.9); color: #fff; animation: fencePulse .6s infinite alternate; }
+        #fence-hud .chip.power { background: rgba(10,100,130,.85); color: #bff6ff; }
+        @keyframes fencePulse { from { opacity: 1; } to { opacity: .55; } }
+        #bench-panel {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: none; flex-direction: column; gap: 12px; width: min(620px, 94vw); max-height: 88vh;
+            box-sizing: border-box; overflow-y: auto; padding: 20px;
+            border: 2px solid rgba(255,206,92,.85); border-radius: 20px;
+            background: linear-gradient(145deg, rgba(34,28,18,.98), rgba(12,12,16,.98));
+            box-shadow: 0 18px 55px #000b, inset 0 0 24px rgba(255,190,60,.08);
+            color: #fff6e0; pointer-events: auto; z-index: 146; font-family: Arial, sans-serif;
+        }
+        #bench-panel.open { display: flex; }
+        #bench-panel h2 { margin: 0; color: #ffd45c; font: 900 22px Arial, sans-serif; letter-spacing: 2px; }
+        #bench-panel .bench-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        #bench-panel .bench-res { margin-top: 4px; color: #d9cfae; font: 800 13px Arial, sans-serif; letter-spacing: .6px; }
+        #bench-close {
+            flex: 0 0 48px; width: 48px; height: 48px; border: 1px solid #d8b86a; border-radius: 12px;
+            color: #fff; background: #3b3220; font: 700 26px Arial, sans-serif; cursor: pointer; touch-action: manipulation;
+        }
+        #bench-panel h3 { margin: 4px 0 0; color: #bcd; font: 800 12px Arial, sans-serif; letter-spacing: 1.5px; }
+        .bench-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .bench-side { padding: 8px 10px; border: 1px solid rgba(190,200,200,.25); border-radius: 12px; background: rgba(255,255,255,.04); }
+        .bench-side .row { display: flex; justify-content: space-between; font: 800 12px Arial, sans-serif; letter-spacing: .5px; }
+        .bench-bar { height: 8px; margin: 6px 0; border-radius: 5px; background: #2a2f33; overflow: hidden; }
+        .bench-bar i { display: block; height: 100%; background: linear-gradient(90deg, #66d98a, #b9f06a); }
+        .bench-bar i.mid { background: linear-gradient(90deg, #e0a030, #f0d060); }
+        .bench-bar i.low { background: linear-gradient(90deg, #d03040, #f06050); }
+        .bench-btn {
+            min-height: 44px; padding: 8px 12px; border: 2px solid #ffd45c; border-radius: 10px; color: #fff8df;
+            background: rgba(120,84,20,.95); font: 900 13px Arial, sans-serif; letter-spacing: .8px; cursor: pointer; touch-action: manipulation;
+        }
+        .bench-btn:disabled { border-color: #5d5a50; color: #8e8a7c; background: rgba(48,46,40,.9); cursor: default; }
+        .bench-btn:not(:disabled):active { transform: scale(.97); }
+        .bench-btn.wide { width: 100%; }
+        .bench-card { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid rgba(190,200,200,.25); border-radius: 12px; background: rgba(255,255,255,.04); }
+        .bench-card.owned { border-color: rgba(120,230,150,.6); background: rgba(40,110,60,.18); }
+        .bench-card .ico { flex: 0 0 44px; font-size: 30px; text-align: center; }
+        .bench-card .txt { flex: 1 1 auto; min-width: 0; }
+        .bench-card .txt b { display: block; font: 900 14px Arial, sans-serif; letter-spacing: 1px; color: #ffe9a8; }
+        .bench-card .txt span { display: block; margin-top: 3px; font: 600 12px Arial, sans-serif; color: #c9c3ad; line-height: 1.3; }
+        .bench-card .txt em { display: block; margin-top: 4px; font: 800 12px Arial, sans-serif; font-style: normal; color: #9fe8ff; }
+        .bench-card .bench-btn { flex: 0 0 104px; }
         .inventory-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .inventory-title { margin: 0; color: #9df4e4; font: 900 22px Arial, sans-serif; letter-spacing: 2px; }
         #inventory-summary { margin-top: 5px; color: #a9bdc5; font: 700 12px Arial, sans-serif; letter-spacing: .7px; }
@@ -992,6 +1056,8 @@
         <button id="climb-button" aria-label="Climb over the fence">CLIMB<small>OVER FENCE</small></button>
         <button id="search-button" type="button" aria-label="Search supermarket stock">SEARCH<small>STORE SHELF</small></button>
         <button id="open-door-button" type="button" aria-label="Open nearby shop door">OPEN<small>SHOP DOOR</small></button>
+        <button id="bench-button" type="button" aria-label="Open the fence workbench">WORKBENCH<small>REPAIR &amp; UPGRADE FENCE</small></button>
+        <div id="fence-hud" aria-live="polite"></div>
         <div id="door-scare" aria-hidden="true"><span>🧟</span><strong>ZOMBIE BEHIND THE DOOR!</strong></div>
         
         <div id="wave-notification">WAVE COMPLETE!</div>
@@ -2241,16 +2307,19 @@
                 }
 
                 const walls = [
-                    { position: [0, 0, half], rotation: Math.PI * 0 },
-                    { position: [0, 0, -half], rotation: Math.PI * 0 },
-                    { position: [half, 0, 0], rotation: Math.PI / 2 },
-                    { position: [-half, 0, 0], rotation: Math.PI / 2 }
+                    { side: 'north', position: [0, 0, half], rotation: Math.PI * 0 },
+                    { side: 'south', position: [0, 0, -half], rotation: Math.PI * 0 },
+                    { side: 'east', position: [half, 0, 0], rotation: Math.PI / 2 },
+                    { side: 'west', position: [-half, 0, 0], rotation: Math.PI / 2 }
                 ];
+                fenceGroup.userData.walls = {};
                 walls.forEach(wall => {
                     const wallGroup = new THREE.Group();
                     wallGroup.position.set(...wall.position);
                     wallGroup.rotation.y = wall.rotation;
-                    const lattice = new THREE.Mesh(makeLatticeGeometry(size, height), wireMaterial);
+                    // Each side owns its wire material so damage can rust/tint it independently.
+                    const lattice = new THREE.Mesh(makeLatticeGeometry(size, height), wireMaterial.clone());
+                    fenceGroup.userData.walls[wall.side] = { group: wallGroup, lattice, rails: [] };
                     lattice.position.y = 0;
                     lattice.castShadow = true;
                     wallGroup.add(lattice);
@@ -2261,6 +2330,7 @@
                         rail.position.set(0, y, 0);
                         rail.castShadow = true;
                         wallGroup.add(rail);
+                        fenceGroup.userData.walls[wall.side].rails.push(rail);
                     }
                     // Light support posts keep each panel rigid without filling its openings.
                     for (let x = -half + 2.5; x < half; x += 2.5) {
@@ -2281,6 +2351,7 @@
                         fenceGroup.add(post);
                     }
                 }
+                attachFenceUpgrades(fenceGroup, size, height);
                 return fenceGroup;
             }
             
@@ -2894,6 +2965,9 @@
                 }
                 playSound('zombieDeath', 0.9);
                 gameState.shake = Math.max(gameState.shake, 0.3);
+                if (Math.max(Math.abs(pos.x), Math.abs(pos.z)) < window.gameConfig.settings.arenaSize / 2 + 2.2) {
+                    damageFence(fenceSideAt(pos.x, pos.z), 55);
+                }
                 const dist = Math.hypot(gameState.player.position.x - pos.x, gameState.player.position.z - pos.z);
                 if (dist < BLOATER_BLAST_RADIUS) {
                     showHitText('TOXIC BLAST! 🤢', '#b6ff3d');
@@ -3720,7 +3794,7 @@
                 survivalHudTimer: 0,
                 visualNight: 0,
                 resources: { food: 0, water: 0, med: 0, piercing: 0, burn: 0, freeze: 0 },
-                inventory: [],
+                inventory: [{ id: 'mat:scrap', name: 'Metal Scrap', icon: '🔩', count: 4 }],
                 score: 0,
                 zombiesKilled: 0,
                 combo: 0,
@@ -3754,6 +3828,629 @@
                 frameEditorMap();
             }
             
+            // ===== FENCE SYSTEM: per-side HP, breaches, repair, tiered upgrades, electric grid, workbench =====
+            const FENCE_BASE_HP = 260;
+            const FENCE_SIDES = ['north', 'east', 'south', 'west'];
+            const FENCE_REPAIR_HP_PER_SCRAP = 30;
+            const FENCE_CHEW_DPS = { normal: 1.8, runner: 1.6, tank: 7 };
+            const FENCE_TIERS = [
+                { id: 'barbed', name: 'BARBED WIRE', icon: '⛓️', cost: { scrap: 8 }, hp: 100,
+                  desc: 'Razor coils and barbs along the whole fence. +100 HP. Zombies clawing the fence take 0.9 damage/sec.' },
+                { id: 'plated', name: 'STEEL PLATING', icon: '🛡️', cost: { scrap: 12 }, hp: 180, requires: 'barbed',
+                  desc: 'Bolted steel plates on every side. +180 HP and +0.6 thorn damage/sec.' },
+                { id: 'electric', name: 'ELECTRIC GRID', icon: '⚡', cost: { scrap: 10, cell: 2 }, requires: 'plated',
+                  desc: 'Live current shocks and stuns zombies at the fence (1.8 dmg per pulse). Drains charge; recharge with Power Cells.' }
+            ];
+            const FENCE_CELL_RECHARGE = 40;
+            const fenceState = {
+                sides: {},
+                tiers: { barbed: false, plated: false, electric: false },
+                charge: 0,
+                zapTimers: {},
+                clankTimer: 0
+            };
+            const fenceVisual = { walls: null };
+            function resetFenceState() {
+                for (const side of FENCE_SIDES) {
+                    fenceState.sides[side] = { hp: FENCE_BASE_HP, breached: false };
+                    fenceState.zapTimers[side] = 0;
+                }
+                fenceState.tiers.barbed = fenceState.tiers.plated = fenceState.tiers.electric = false;
+                fenceState.charge = 0;
+                fenceState.clankTimer = 0;
+            }
+            resetFenceState();
+            function fenceMaxHp() {
+                return FENCE_BASE_HP + (fenceState.tiers.barbed ? 100 : 0) + (fenceState.tiers.plated ? 180 : 0);
+            }
+            function fenceThornsDps() {
+                return (fenceState.tiers.barbed ? 0.9 : 0) + (fenceState.tiers.plated ? 0.6 : 0);
+            }
+            function fenceSideAt(x, z) {
+                return Math.abs(x) >= Math.abs(z) ? (x > 0 ? 'east' : 'west') : (z > 0 ? 'north' : 'south');
+            }
+            function countInventoryItem(id) {
+                let total = 0;
+                for (const entry of gameState.inventory) if (entry.id === id) total += entry.count;
+                return total;
+            }
+            function consumeInventoryItem(id, amount) {
+                if (countInventoryItem(id) < amount) return false;
+                let remaining = amount;
+                for (let i = gameState.inventory.length - 1; i >= 0 && remaining > 0; i--) {
+                    const entry = gameState.inventory[i];
+                    if (entry.id !== id) continue;
+                    const take = Math.min(entry.count, remaining);
+                    entry.count -= take;
+                    remaining -= take;
+                    if (entry.count <= 0) gameState.inventory.splice(i, 1);
+                }
+                updateInventoryUI();
+                return true;
+            }
+
+            // ---- Short synthesized sounds (no extra assets) ----
+            function playFenceTone(type, f0, f1, duration, volume) {
+                try {
+                    ensureAudioContext();
+                    const now = audioContext.currentTime;
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(f0, now);
+                    osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), now + duration);
+                    gain.gain.setValueAtTime(volume, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc.connect(gain);
+                    gain.connect(sfxFilter);
+                    osc.start(now);
+                    osc.stop(now + duration + 0.02);
+                } catch (e) { /* audio is optional */ }
+            }
+            const playRepairClank = () => { playFenceTone('square', 420, 150, 0.09, 0.16); playFenceTone('triangle', 200, 90, 0.14, 0.2); };
+            const playFenceZap = () => { playFenceTone('sawtooth', 1400, 180, 0.22, 0.14); playFenceTone('square', 90, 60, 0.18, 0.12); };
+            const playFenceRattle = () => playFenceTone('square', 150, 95, 0.07, 0.07);
+
+            // ---- Upgrade visuals (built once per fence, toggled by tier) ----
+            const fenceMats = {
+                barb: stdMat({ color: 0x2b3033, metalness: 0.8, roughness: 0.4 }),
+                plate: stdMat({ color: 0x3b444a, metalness: 0.65, roughness: 0.5 }),
+                plateRib: stdMat({ color: 0x242a2f, metalness: 0.6, roughness: 0.55 }),
+                rivet: stdMat({ color: 0x9aa4a8, metalness: 0.7, roughness: 0.35 }),
+                hazardY: stdMat({ color: 0xe8b21a, roughness: 0.55 }),
+                hazardK: stdMat({ color: 0x15181a, roughness: 0.7 }),
+                insulator: stdMat({ color: 0xd8d4c4, roughness: 0.5 }),
+                energizer: stdMat({ color: 0x2a3a46, metalness: 0.6, roughness: 0.45 })
+            };
+            const electricWireMat = new THREE.MeshStandardMaterial({ color: 0x7fe9ff, emissive: 0x19c8ff, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.4 });
+            const _fenceM4 = new THREE.Matrix4();
+            const _fenceQ = new THREE.Quaternion();
+            const _fenceE = new THREE.Euler();
+            const _fenceV = new THREE.Vector3();
+            const _fenceS = new THREE.Vector3(1, 1, 1);
+            function fenceItem(geo, x, y, z, rx = 0, ry = 0, rz = 0) {
+                _fenceE.set(rx, ry, rz);
+                _fenceQ.setFromEuler(_fenceE);
+                _fenceV.set(x, y, z);
+                return { geo, matrix: new THREE.Matrix4().compose(_fenceV, _fenceQ, _fenceS) };
+            }
+            function fenceMergedMesh(items, mat, cast = true) {
+                const mesh = new THREE.Mesh(mergeMeshList(items), mat);
+                mesh.castShadow = cast;
+                return mesh;
+            }
+            function buildBarbedOverlay(size, height) {
+                const group = new THREE.Group();
+                const wire = [];
+                const rows = [height * 0.30, height * 0.52, height * 0.74, height - 0.10];
+                const barbGeo = boxGeo(0.14, 0.022, 0.022);
+                const knotGeo = boxGeo(0.045, 0.045, 0.045);
+                for (const z of [-0.075, 0.075]) {
+                    for (const y of rows) {
+                        wire.push(fenceItem(boxGeo(size, 0.022, 0.022), 0, y, z));
+                        for (let x = -size / 2 + 0.2; x < size / 2 - 0.1; x += 0.32) {
+                            wire.push(fenceItem(knotGeo, x, y, z));
+                            wire.push(fenceItem(barbGeo, x, y, z, 0, 0, 0.75));
+                            wire.push(fenceItem(barbGeo, x, y, z, 0, 0, -0.75));
+                        }
+                    }
+                }
+                group.add(fenceMergedMesh(wire, fenceMats.barb, false));
+                // Concertina coil along the top edge
+                const coil = [];
+                const ringGeo = new THREE.TorusGeometry(0.2, 0.014, 5, 10);
+                for (let x = -size / 2 + 0.15; x < size / 2; x += 0.24) {
+                    coil.push(fenceItem(ringGeo, x, height + 0.16, 0, 0, Math.PI / 2, 0));
+                }
+                coil.push(fenceItem(boxGeo(size, 0.03, 0.03), 0, height + 0.02, 0));
+                group.add(fenceMergedMesh(coil, fenceMats.barb, false));
+                return group;
+            }
+            function buildPlatingOverlay(size, height) {
+                const group = new THREE.Group();
+                const plates = [], ribs = [], rivets = [], yellow = [], black = [];
+                const count = Math.max(2, Math.round(size / 2.5));
+                const w = size / count - 0.08;
+                const plateH = Math.min(1.6, height * 0.42);
+                const rivetGeo = boxGeo(0.07, 0.07, 0.05);
+                for (let i = 0; i < count; i++) {
+                    const cx = -size / 2 + (i + 0.5) * (size / count);
+                    for (const z of [-0.085, 0.085]) {
+                        plates.push(fenceItem(boxGeo(w, plateH, 0.05), cx, plateH / 2 + 0.05, z));
+                        ribs.push(fenceItem(boxGeo(w, 0.07, 0.07), cx, plateH * 0.33, z + Math.sign(z) * 0.03));
+                        ribs.push(fenceItem(boxGeo(w, 0.07, 0.07), cx, plateH * 0.66, z + Math.sign(z) * 0.03));
+                        ribs.push(fenceItem(boxGeo(0.07, plateH, 0.07), cx, plateH / 2 + 0.05, z + Math.sign(z) * 0.03));
+                        for (const dx of [-w / 2 + 0.1, w / 2 - 0.1]) {
+                            for (const dy of [0.12, plateH - 0.04]) rivets.push(fenceItem(rivetGeo, cx + dx, dy, z + Math.sign(z) * 0.04));
+                        }
+                        const stripes = Math.floor(w / 0.2);
+                        for (let k = 0; k < stripes; k++) {
+                            const sx = cx - w / 2 + 0.1 + k * 0.2;
+                            (k % 2 ? black : yellow).push(fenceItem(boxGeo(0.18, 0.10, 0.06), sx, plateH + 0.07, z + Math.sign(z) * 0.005));
+                        }
+                    }
+                }
+                group.add(fenceMergedMesh(plates, fenceMats.plate));
+                group.add(fenceMergedMesh(ribs, fenceMats.plateRib, false));
+                group.add(fenceMergedMesh(rivets, fenceMats.rivet, false));
+                group.add(fenceMergedMesh(yellow, fenceMats.hazardY, false));
+                group.add(fenceMergedMesh(black, fenceMats.hazardK, false));
+                return group;
+            }
+            function buildElectricOverlay(size, height) {
+                const group = new THREE.Group();
+                const wires = [], insul = [];
+                const rows = [0.20, 0.38, 0.56, 0.74, 0.92].map(f => f * height);
+                const insGeo = boxGeo(0.07, 0.07, 0.10);
+                for (const z of [-0.12, 0.12]) {
+                    for (const y of rows) {
+                        wires.push(fenceItem(boxGeo(size, 0.03, 0.03), 0, y, z));
+                        for (let x = -size / 2 + 0.6; x < size / 2; x += 1.25) insul.push(fenceItem(insGeo, x, y, z * 0.55));
+                    }
+                }
+                group.add(fenceMergedMesh(wires, electricWireMat, false));
+                group.add(fenceMergedMesh(insul, fenceMats.insulator, false));
+                // Energizer cabinet bolted to the wall
+                const box = new THREE.Mesh(boxGeo(0.46, 0.62, 0.26), fenceMats.energizer);
+                box.position.set(size / 2 - 1.1, 1.0, 0.2);
+                box.castShadow = true;
+                group.add(box);
+                const lamp = new THREE.Mesh(boxGeo(0.12, 0.08, 0.04), electricWireMat);
+                lamp.position.set(size / 2 - 1.1, 1.2, 0.34);
+                group.add(lamp);
+                return group;
+            }
+            function attachFenceUpgrades(group, size, height) {
+                const walls = group.userData.walls;
+                for (const key in walls) {
+                    const w = walls[key];
+                    w.barbed = buildBarbedOverlay(size, height);
+                    w.plating = buildPlatingOverlay(size, height);
+                    w.electric = buildElectricOverlay(size, height);
+                    w.group.add(w.barbed, w.plating, w.electric);
+                }
+                fenceVisual.walls = walls;
+                refreshFenceVisuals();
+            }
+            const _rustColor = new THREE.Color(0x8a5c3a);
+            const _wireColor = new THREE.Color(0xb8c7cb);
+            function refreshFenceVisuals() {
+                if (!fenceVisual.walls) return;
+                const maxHp = fenceMaxHp();
+                for (const side of FENCE_SIDES) {
+                    const w = fenceVisual.walls[side];
+                    if (!w) continue;
+                    const st = fenceState.sides[side];
+                    const ratio = Math.max(0, Math.min(1, st.hp / maxHp));
+                    w.lattice.material.color.copy(_wireColor).lerp(_rustColor, (1 - ratio) * 0.85);
+                    w.lattice.scale.y = st.breached ? 0.25 : 0.55 + 0.45 * Math.min(1, ratio * 1.6);
+                    w.lattice.visible = !st.breached;
+                    w.barbed.visible = fenceState.tiers.barbed && !st.breached;
+                    w.plating.visible = fenceState.tiers.plated && !st.breached;
+                    w.electric.visible = fenceState.tiers.electric && !st.breached;
+                    w.rails.forEach((rail, idx) => { rail.rotation.z = st.breached ? (idx - 1) * 0.22 : 0; });
+                }
+            }
+
+            // ---- Damage, repair, upgrades ----
+            function damageFence(side, amount) {
+                const st = fenceState.sides[side];
+                if (!st || st.breached) return;
+                st.hp = Math.max(0, st.hp - amount);
+                if (st.hp <= 0) {
+                    st.breached = true;
+                    showBanner(`⚠ FENCE BREACHED — ${side.toUpperCase()} SIDE`, '#ff6a5c', 2400);
+                    gameState.shake = Math.max(gameState.shake, 0.3);
+                    playFenceTone('sawtooth', 220, 50, 0.4, 0.22);
+                }
+            }
+            function missingFenceHp() {
+                const maxHp = fenceMaxHp();
+                return FENCE_SIDES.reduce((sum, side) => sum + (maxHp - fenceState.sides[side].hp), 0);
+            }
+            function repairFenceSide(side) {
+                const maxHp = fenceMaxHp();
+                const st = fenceState.sides[side];
+                const missing = maxHp - st.hp;
+                if (missing <= 0) return false;
+                const scrap = countInventoryItem('mat:scrap');
+                const needed = Math.ceil(missing / FENCE_REPAIR_HP_PER_SCRAP);
+                const spend = Math.min(needed, scrap);
+                if (spend <= 0) { showBanner('NEED METAL SCRAP TO REPAIR', '#ffd86b', 1500); return false; }
+                consumeInventoryItem('mat:scrap', spend);
+                st.hp = Math.min(maxHp, st.hp + spend * FENCE_REPAIR_HP_PER_SCRAP);
+                if (st.breached) st.breached = false;
+                playRepairClank();
+                showBanner(`${side.toUpperCase()} FENCE ${st.hp >= maxHp ? 'FULLY REPAIRED' : 'PATCHED'} (-${spend} 🔩)`, '#8de8c4', 1500);
+                refreshFenceVisuals();
+                return true;
+            }
+            function canAffordCost(cost) {
+                return (cost.scrap || 0) <= countInventoryItem('mat:scrap') && (cost.cell || 0) <= countInventoryItem('mat:cell');
+            }
+            function purchaseFenceTier(tierId) {
+                const tier = FENCE_TIERS.find(t => t.id === tierId);
+                if (!tier || fenceState.tiers[tierId]) return false;
+                if (tier.requires && !fenceState.tiers[tier.requires]) return false;
+                if (!canAffordCost(tier.cost)) { showBanner('NOT ENOUGH MATERIALS', '#ffd86b', 1500); return false; }
+                if (tier.cost.scrap) consumeInventoryItem('mat:scrap', tier.cost.scrap);
+                if (tier.cost.cell) consumeInventoryItem('mat:cell', tier.cost.cell);
+                fenceState.tiers[tierId] = true;
+                if (tier.hp) {
+                    for (const side of FENCE_SIDES) {
+                        const st = fenceState.sides[side];
+                        if (!st.breached) st.hp = Math.min(fenceMaxHp(), st.hp + tier.hp);
+                    }
+                }
+                if (tierId === 'electric') fenceState.charge = 100;
+                playRepairClank();
+                if (tierId === 'electric') playFenceZap();
+                showBanner(`${tier.name} INSTALLED!`, '#ffe08a', 2000);
+                refreshFenceVisuals();
+                return true;
+            }
+            function rechargeFenceGrid() {
+                if (!fenceState.tiers.electric || fenceState.charge >= 100) return false;
+                if (!consumeInventoryItem('mat:cell', 1)) { showBanner('NEED A POWER CELL', '#ffd86b', 1500); return false; }
+                fenceState.charge = Math.min(100, fenceState.charge + FENCE_CELL_RECHARGE);
+                playFenceZap();
+                showBanner(`GRID RECHARGED ${Math.round(fenceState.charge)}%`, '#9fe8ff', 1500);
+                return true;
+            }
+
+            // ---- Zap arcs ----
+            const fenceArcs = [];
+            const arcMat = new THREE.LineBasicMaterial({ color: 0xbff6ff, transparent: true, opacity: 0.95 });
+            function spawnFenceArc(from, to) {
+                const pts = [];
+                const segments = 6;
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const jitter = (i === 0 || i === segments) ? 0 : 0.28;
+                    pts.push(new THREE.Vector3(
+                        from.x + (to.x - from.x) * t + (Math.random() - 0.5) * jitter,
+                        from.y + (to.y - from.y) * t + (Math.random() - 0.5) * jitter,
+                        from.z + (to.z - from.z) * t + (Math.random() - 0.5) * jitter));
+                }
+                const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), arcMat);
+                scene.add(line);
+                fenceArcs.push({ line, life: 0.16 });
+            }
+            function updateFenceArcs(deltaTime) {
+                for (let i = fenceArcs.length - 1; i >= 0; i--) {
+                    fenceArcs[i].life -= deltaTime;
+                    if (fenceArcs[i].life <= 0) {
+                        scene.remove(fenceArcs[i].line);
+                        fenceArcs[i].line.geometry.dispose();
+                        fenceArcs.splice(i, 1);
+                    }
+                }
+            }
+            function clearFenceArcs() {
+                fenceArcs.forEach(a => { scene.remove(a.line); a.line.geometry.dispose(); });
+                fenceArcs.length = 0;
+            }
+
+            // Zombies that die on the wire still count for score and the boss bar.
+            function killZombieOnFence(zombie) {
+                if (zombie.state === 'dead') return;
+                zombie.state = 'dead';
+                zombie.deadTimer = 0;
+                gameState.score += 8;
+                gameState.zombiesKilled++;
+                playSound('zombieDeath', 0.35);
+                if (zombie.type === 'boss') {
+                    updateBossHealthUI(null);
+                    showBanner('THE CRAWLER IS DOWN!', '#65ff9b', 2600);
+                }
+                updateUI();
+            }
+
+            // Runs every frame during play: zombies chew the fence, barbs/plates bite back, the grid zaps.
+            function updateFence(deltaTime, timestamp) {
+                const half = window.gameConfig.settings.arenaSize / 2;
+                const band = half + 0.62 + 0.9;
+                const touching = { north: [], east: [], south: [], west: [] };
+                const chewDps = { north: 0, east: 0, south: 0, west: 0 };
+                for (const z of gameState.zombies) {
+                    if (z.stunTimer > 0) z.stunTimer = Math.max(0, z.stunTimer - deltaTime);
+                    if (z.state === 'dead' || z.dayWanderer || z.breached) continue;
+                    const px = z.model.position.x, pz = z.model.position.z;
+                    const reach = Math.max(Math.abs(px), Math.abs(pz));
+                    if (reach > band || reach < half - 0.3) continue;
+                    const side = fenceSideAt(px, pz);
+                    if (fenceState.sides[side].breached) continue;
+                    touching[side].push(z);
+                    if (z.state === 'attacking' && z.type !== 'bloater' && !(z.stunTimer > 0)) {
+                        chewDps[side] += FENCE_CHEW_DPS[z.type] || FENCE_CHEW_DPS.normal;
+                    }
+                }
+                const thorns = fenceThornsDps();
+                let anyChewing = false;
+                for (const side of FENCE_SIDES) {
+                    if (chewDps[side] > 0) { damageFence(side, chewDps[side] * deltaTime); anyChewing = true; }
+                    const list = touching[side];
+                    if (!list.length) { fenceState.zapTimers[side] = Math.min(fenceState.zapTimers[side], 0.5); continue; }
+                    if (thorns > 0) {
+                        for (const z of list) {
+                            if (z.state !== 'attacking' && z.state !== 'climbing') continue;
+                            z.health -= thorns * deltaTime;
+                            if (z.type === 'boss') updateBossHealthUI(z);
+                            if (z.health <= 0) killZombieOnFence(z);
+                        }
+                    }
+                    if (fenceState.tiers.electric && fenceState.charge > 0) {
+                        fenceState.zapTimers[side] += deltaTime;
+                        if (fenceState.zapTimers[side] >= 0.9) {
+                            fenceState.zapTimers[side] = 0;
+                            let zapped = 0;
+                            for (const z of list) {
+                                if (z.state === 'dead' || zapped >= 6) continue;
+                                zapped++;
+                                z.health -= 1.8;
+                                z.stunTimer = 0.7;
+                                const zp = z.model.position;
+                                const wire = { x: zp.x * (half / Math.max(0.01, Math.max(Math.abs(zp.x), Math.abs(zp.z)))), z: zp.z * (half / Math.max(0.01, Math.max(Math.abs(zp.x), Math.abs(zp.z)))) };
+                                if (fenceArcs.length < 24) {
+                                    spawnFenceArc({ x: wire.x, y: 1.0 + Math.random() * 1.6, z: wire.z }, { x: zp.x, y: 1.1 + Math.random() * 0.7, z: zp.z });
+                                }
+                                if (z.type === 'boss') updateBossHealthUI(z);
+                                if (z.health <= 0) killZombieOnFence(z);
+                            }
+                            if (zapped > 0) {
+                                fenceState.charge = Math.max(0, fenceState.charge - 1.3);
+                                playFenceZap();
+                                gameState.shake = Math.max(gameState.shake, 0.05);
+                                if (fenceState.charge <= 0) showBanner('⚡ GRID OUT OF POWER — USE A POWER CELL', '#ff9b75', 2200);
+                            }
+                        }
+                    }
+                }
+                fenceState.clankTimer -= deltaTime;
+                if (anyChewing && fenceState.clankTimer <= 0) { playFenceRattle(); fenceState.clankTimer = 0.55; }
+                updateFenceArcs(deltaTime);
+                // Electric wires glow and flicker while the grid has charge.
+                if (fenceState.tiers.electric) {
+                    const live = fenceState.charge > 0;
+                    electricWireMat.emissiveIntensity = live ? 0.9 + Math.abs(Math.sin(timestamp * 0.02)) * 0.9 + (fenceArcs.length ? 0.8 : 0) : 0.05;
+                    electricWireMat.color.setHex(live ? 0x7fe9ff : 0x5b6468);
+                }
+                refreshFenceVisuals();
+            }
+
+            // ---- Fence HUD ----
+            let fenceHudTimer = 0;
+            let fenceHudSignature = '';
+            function updateFenceHud(deltaTime, force = false) {
+                const hud = document.getElementById('fence-hud');
+                if (!hud) return;
+                fenceHudTimer -= deltaTime;
+                if (!force && fenceHudTimer > 0) return;
+                fenceHudTimer = 0.25;
+                const maxHp = fenceMaxHp();
+                const chips = FENCE_SIDES.map(side => {
+                    const st = fenceState.sides[side];
+                    const pct = Math.round(st.hp / maxHp * 100);
+                    const cls = st.breached ? 'down' : (pct < 40 ? 'warn' : '');
+                    return `<span class="chip ${cls}">${side[0].toUpperCase()} ${st.breached ? 'DOWN' : pct + '%'}</span>`;
+                });
+                if (fenceState.tiers.electric) chips.push(`<span class="chip power">⚡ ${Math.round(fenceState.charge)}%</span>`);
+                const html = '<span style="opacity:.75">FENCE</span>' + chips.join('');
+                if (html !== fenceHudSignature) { hud.innerHTML = html; fenceHudSignature = html; }
+                hud.classList.toggle('visible', mode === 'play' && !gameState.gameOver);
+            }
+
+            // ---- Workbench model, collision and prompt ----
+            const workbench = { group: new THREE.Group(), x: 0, z: 0, marker: null, open: false };
+            (function buildWorkbench() {
+                const g = workbench.group;
+                const wood = stdMat({ color: 0x7b5a39, roughness: 0.85 });
+                const woodDark = stdMat({ color: 0x4d3825, roughness: 0.9 });
+                const steel = stdMat({ color: 0x59636a, metalness: 0.65, roughness: 0.45 });
+                const steelDark = stdMat({ color: 0x2b3238, metalness: 0.6, roughness: 0.5 });
+                const yellow = stdMat({ color: 0xe8b21a, roughness: 0.55 });
+                const black = stdMat({ color: 0x15181a, roughness: 0.7 });
+                const screenMat = new THREE.MeshBasicMaterial({ color: 0x38e8ff });
+                const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff1b8 });
+                const add = (w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
+                    const m = new THREE.Mesh(boxGeo(w, h, d), mat);
+                    m.position.set(x, y, z);
+                    m.rotation.set(rx, ry, rz);
+                    m.castShadow = true;
+                    g.add(m);
+                    return m;
+                };
+                // Table top, frame, legs and lower shelf
+                add(2.7, 0.14, 1.15, wood, 0, 0.98, 0);
+                add(2.74, 0.06, 1.19, steel, 0, 0.90, 0);
+                for (const sx of [-1.2, 1.2]) for (const sz of [-0.48, 0.48]) add(0.12, 0.92, 0.12, steelDark, sx, 0.46, sz);
+                add(2.4, 0.08, 1.0, woodDark, 0, 0.30, 0);
+                add(2.4, 0.07, 0.07, steelDark, 0, 0.62, 0.50);
+                // Hazard stripe on the front edge
+                for (let i = 0; i < 12; i++) add(0.2, 0.08, 0.04, i % 2 ? black : yellow, -1.2 + i * 0.218, 0.93, 0.6);
+                // Pegboard with hanging tools (back is local -Z)
+                add(2.7, 1.5, 0.08, woodDark, 0, 1.85, -0.58);
+                add(2.7, 0.08, 0.12, steel, 0, 2.62, -0.58);
+                add(0.55, 0.09, 0.09, steel, -0.9, 2.1, -0.5, 0, 0, 0.5);        // wrench
+                add(0.14, 0.14, 0.09, steel, -1.12, 1.95, -0.5);
+                add(0.09, 0.52, 0.09, wood, -0.35, 2.05, -0.5);                  // hammer
+                add(0.34, 0.14, 0.11, steelDark, -0.35, 2.34, -0.5);
+                add(0.08, 0.5, 0.08, yellow, 0.1, 2.05, -0.5);                   // screwdriver
+                add(0.06, 0.2, 0.08, black, 0.1, 1.78, -0.5);
+                add(0.5, 0.08, 0.06, steelDark, 0.62, 2.28, -0.5, 0, 0, -0.3);  // saw blade
+                add(0.4, 0.3, 0.06, steel, 0.62, 2.1, -0.5);
+                // Status screen
+                add(0.78, 0.5, 0.06, black, 1.02, 1.75, -0.5);
+                const screen = new THREE.Mesh(boxGeo(0.68, 0.4, 0.02), screenMat);
+                screen.position.set(1.02, 1.75, -0.47);
+                g.add(screen);
+                for (let i = 0; i < 4; i++) add(0.1 + i * 0.1, 0.05, 0.03, black, 0.82 + (0.1 + i * 0.1) / 2 - 0.05, 1.89 - i * 0.09, -0.455);
+                // Vise on the left, anvil on the right
+                add(0.34, 0.2, 0.3, steelDark, -1.0, 1.13, 0.1);
+                add(0.1, 0.22, 0.32, steel, -0.86, 1.15, 0.1);
+                add(0.22, 0.22, 0.12, yellow, -1.0, 1.26, 0.28);
+                add(0.7, 0.14, 0.34, steelDark, 0.9, 1.12, 0.12);
+                add(0.4, 0.18, 0.26, steelDark, 0.9, 1.24, 0.12);
+                add(0.3, 0.1, 0.2, steelDark, 1.2, 1.18, 0.12);
+                // Scrap pile and power cells on the lower shelf
+                for (let i = 0; i < 7; i++) add(0.35 + (i % 3) * 0.1, 0.05, 0.25, i % 2 ? steel : steelDark, -0.7 + (i % 4) * 0.08, 0.38 + i * 0.05, 0.1 + (i % 2) * 0.1, 0, i * 0.7, 0.08 * i);
+                for (let i = 0; i < 3; i++) {
+                    const cell = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.34, 8), i % 2 ? yellow : stdMat({ color: 0x3fd07a, roughness: 0.5 }));
+                    cell.position.set(0.55 + i * 0.26, 0.55, 0.15);
+                    cell.castShadow = true;
+                    g.add(cell);
+                }
+                // Overhead work lamp
+                add(0.08, 0.9, 0.08, steelDark, 1.2, 2.2, 0.35);
+                add(0.7, 0.07, 0.07, steelDark, 0.9, 2.62, 0.35);
+                add(0.34, 0.1, 0.34, steel, 0.55, 2.58, 0.35);
+                add(0.26, 0.04, 0.26, lampMat, 0.55, 2.52, 0.35);
+                // Floating marker so the bench is easy to spot
+                workbench.marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), new THREE.MeshBasicMaterial({ color: 0xffd45c }));
+                workbench.marker.position.set(0, 3.1, 0);
+                g.add(workbench.marker);
+                scene.add(g);
+            })();
+            function placeWorkbench() {
+                const half = window.gameConfig.settings.arenaSize / 2;
+                workbench.x = -half * 0.64;
+                workbench.z = -half * 0.68;
+                workbench.group.position.set(workbench.x, 0, workbench.z);
+                workbench.group.rotation.y = Math.atan2(-workbench.x, -workbench.z);
+            }
+            placeWorkbench();
+            function isWorkbenchSolidAt(x, z, radius = 0.42) {
+                return Math.hypot(x - workbench.x, z - workbench.z) < 1.3 + radius;
+            }
+            function nearWorkbench(maxDistance = 3.6) {
+                if (mode !== 'play' || gameState.gameOver) return false;
+                const p = gameState.player.position;
+                return Math.hypot(p.x - workbench.x, p.z - workbench.z) < maxDistance;
+            }
+
+            // ---- Workbench panel ----
+            const benchPanel = document.createElement('section');
+            benchPanel.id = 'bench-panel';
+            benchPanel.setAttribute('aria-hidden', 'true');
+            benchPanel.setAttribute('aria-label', 'Fence workbench');
+            document.getElementById('ui-overlay').appendChild(benchPanel);
+            const benchButton = document.getElementById('bench-button');
+            let benchSignature = '';
+            let benchPointerDown = false;
+            function benchStateSignature() {
+                const sides = FENCE_SIDES.map(s => `${Math.round(fenceState.sides[s].hp / 5)}${fenceState.sides[s].breached ? 'x' : ''}`).join(',');
+                return [sides, countInventoryItem('mat:scrap'), countInventoryItem('mat:cell'), Object.values(fenceState.tiers).join(''), Math.round(fenceState.charge / 2)].join('|');
+            }
+            function renderBenchPanel(force = false) {
+                const signature = benchStateSignature();
+                if (!force && signature === benchSignature) return;
+                benchSignature = signature;
+                const scrap = countInventoryItem('mat:scrap');
+                const cells = countInventoryItem('mat:cell');
+                const maxHp = fenceMaxHp();
+                const sideRows = FENCE_SIDES.map(side => {
+                    const st = fenceState.sides[side];
+                    const pct = Math.round(st.hp / maxHp * 100);
+                    const missing = maxHp - st.hp;
+                    const cost = Math.ceil(missing / FENCE_REPAIR_HP_PER_SCRAP);
+                    const cls = st.breached ? 'low' : (pct < 40 ? 'low' : (pct < 70 ? 'mid' : ''));
+                    return `<div class="bench-side"><div class="row"><span>${side.toUpperCase()}</span><span>${st.breached ? 'BREACHED' : Math.round(st.hp) + ' / ' + maxHp}</span></div>
+                        <div class="bench-bar"><i class="${cls}" style="width:${pct}%"></i></div>
+                        <button class="bench-btn wide" data-act="repair:${side}" ${missing <= 0 || scrap <= 0 ? 'disabled' : ''}>${missing <= 0 ? 'INTACT' : 'REPAIR · ' + Math.min(cost, Math.max(1, scrap)) + ' 🔩' + (scrap < cost ? ' (PARTIAL)' : '')}</button></div>`;
+                }).join('');
+                const totalMissing = missingFenceHp();
+                const cards = FENCE_TIERS.map(tier => {
+                    const owned = fenceState.tiers[tier.id];
+                    const locked = tier.requires && !fenceState.tiers[tier.requires];
+                    const costText = [tier.cost.scrap ? tier.cost.scrap + ' 🔩' : '', tier.cost.cell ? tier.cost.cell + ' 🔋' : ''].filter(Boolean).join(' + ');
+                    const afford = canAffordCost(tier.cost);
+                    const requiresName = tier.requires ? FENCE_TIERS.find(t => t.id === tier.requires).name : '';
+                    return `<div class="bench-card ${owned ? 'owned' : ''}"><div class="ico">${tier.icon}</div>
+                        <div class="txt"><b>${tier.name}</b><span>${tier.desc}</span><em>${owned ? 'INSTALLED' : (locked ? 'REQUIRES ' + requiresName : 'COST: ' + costText)}</em></div>
+                        <button class="bench-btn" data-act="buy:${tier.id}" ${owned || locked || !afford ? 'disabled' : ''}>${owned ? 'DONE' : 'UPGRADE'}</button></div>`;
+                }).join('');
+                const gridCard = fenceState.tiers.electric
+                    ? `<div class="bench-card"><div class="ico">🔋</div><div class="txt"><b>GRID CHARGE ${Math.round(fenceState.charge)}%</b><span>Each Power Cell adds ${FENCE_CELL_RECHARGE}% charge. The grid drains slightly with every shock pulse.</span></div>
+                        <button class="bench-btn" data-act="recharge" ${cells <= 0 || fenceState.charge >= 100 ? 'disabled' : ''}>RECHARGE · 1 🔋</button></div>`
+                    : '';
+                benchPanel.innerHTML = `<div class="bench-head"><div><h2>FENCE WORKBENCH</h2><div class="bench-res">🔩 METAL SCRAP: ${scrap} &nbsp;·&nbsp; 🔋 POWER CELLS: ${cells}</div></div><button id="bench-close" type="button" aria-label="Close workbench" data-act="close">×</button></div>
+                    <h3>REPAIR (1 🔩 = ${FENCE_REPAIR_HP_PER_SCRAP} HP)</h3><div class="bench-sides">${sideRows}</div>
+                    <button class="bench-btn wide" data-act="repairAll" ${totalMissing <= 0 || scrap <= 0 ? 'disabled' : ''}>REPAIR ALL SIDES</button>
+                    <h3>UPGRADES</h3>${cards}${gridCard}`;
+            }
+            function setBenchOpen(open) {
+                workbench.open = open;
+                benchPanel.classList.toggle('open', open);
+                benchPanel.setAttribute('aria-hidden', String(!open));
+                if (open) {
+                    if (document.pointerLockElement) document.exitPointerLock();
+                    if (typeof setInventoryOpen === 'function') setInventoryOpen(false);
+                    renderBenchPanel(true);
+                }
+            }
+            function openWorkbench() {
+                if (!nearWorkbench(3.6)) return false;
+                setBenchOpen(!workbench.open);
+                return true;
+            }
+            benchPanel.addEventListener('pointerdown', e => { e.stopPropagation(); benchPointerDown = true; });
+            window.addEventListener('pointerup', () => { benchPointerDown = false; });
+            benchPanel.addEventListener('click', e => {
+                e.stopPropagation();
+                const btn = e.target.closest('[data-act]');
+                if (!btn || btn.disabled) return;
+                const [act, arg] = btn.dataset.act.split(':');
+                if (act === 'close') setBenchOpen(false);
+                else if (act === 'repair') repairFenceSide(arg);
+                else if (act === 'repairAll') { for (const side of FENCE_SIDES) repairFenceSide(side); }
+                else if (act === 'buy') purchaseFenceTier(arg);
+                else if (act === 'recharge') rechargeFenceGrid();
+                updateFenceHud(0, true);
+                renderBenchPanel(true);
+            });
+            if (benchButton) {
+                benchButton.addEventListener('pointerdown', e => e.stopPropagation());
+                benchButton.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openWorkbench(); });
+            }
+            function updateWorkbench(deltaTime, timestamp) {
+                workbench.marker.position.y = 3.1 + Math.sin(timestamp * 0.004) * 0.12;
+                workbench.marker.rotation.y += deltaTime * 2;
+                const near = nearWorkbench(3.6);
+                if (benchButton) benchButton.style.display = near && !workbench.open ? 'flex' : 'none';
+                if (workbench.open) {
+                    if (!near || gameState.gameOver) setBenchOpen(false);
+                    else if (!benchPointerDown) renderBenchPanel(false);
+                }
+            }
+            function resetFenceSystem() {
+                resetFenceState();
+                clearFenceArcs();
+                electricWireMat.emissiveIntensity = 0.05;
+                setBenchOpen(false);
+                refreshFenceVisuals();
+                updateFenceHud(0, true);
+            }
+
             // Create fence
             let fenceGroup = createFence(
                 window.gameConfig.settings.arenaSize,
@@ -4340,7 +5037,7 @@
                     localPosition: new THREE.Vector3(localX, 0, localZ),
                     position: new THREE.Vector3(worldPosition.x, 0, worldPosition.z),
                     hardware: true,
-                    chance: 0.35,
+                    chance: 0.7,
                     searchMarker: marker,
                     allStock: [true],
                     stock: [true]
@@ -4669,6 +5366,7 @@
                     if (hardwareStoreCollisionBoxes.some(box => box.buildingId === shop.id &&
                         Math.abs(local.x - box.x) < box.hx + radius && Math.abs(local.z - box.z) < box.hz + radius)) return true;
                 }
+                if (isWorkbenchSolidAt(x, z, radius)) return true;
                 // Closed shop leaves block the doorway; once swung open they no longer obstruct entry.
                 for (const door of interactiveShopDoors) {
                     if (door.progress >= 0.88) continue;
@@ -4807,9 +5505,11 @@
             // Desktop controls
             window.addEventListener('keydown', (e) => {
                 input.keys[e.key.toLowerCase()] = true;
+                if (e.key === 'Escape' && workbench.open) setBenchOpen(false);
                 if (e.key.toLowerCase() === 'e' && !e.repeat) {
                     e.preventDefault();
-                    if (!toggleNearbyShopDoor() && !searchNearbyStore()) attemptPlayerClimb();
+                    if (workbench.open) setBenchOpen(false);
+                    else if (!toggleNearbyShopDoor() && !searchNearbyStore() && !openWorkbench()) attemptPlayerClimb();
                 }
                 if (['w', 'a', 's', 'd', 'r', 'e', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
                     e.preventDefault();
@@ -4840,7 +5540,7 @@
             let mouseDown = false;
             let touchFire = false;
             document.addEventListener('mousedown', (event) => {
-                if (event.target && event.target.closest('#ui-overlay button, #inventory-panel, #item-use-overlay')) {
+                if (event.target && event.target.closest('#ui-overlay button, #inventory-panel, #item-use-overlay, #bench-panel')) {
                     mouseDown = false;
                     return;
                 }
@@ -5089,6 +5789,7 @@
                             scene.remove(fenceGroup);
                             fenceGroup = createFence(value, window.gameConfig.settings.fenceHeight);
                             scene.add(fenceGroup);
+                            placeWorkbench();
                         }
                     },
                     'Fence Height': {
@@ -5825,21 +6526,28 @@
                 if (supply.type === 'piercing') return { id: 'special:piercing', name: 'Piercing Nail Pack', icon: '🛡️', specialType: 'piercing' };
                 if (supply.type === 'burn') return { id: 'special:burn', name: 'Burn Nail Pack', icon: '🔥', specialType: 'burn' };
                 if (supply.type === 'freeze') return { id: 'special:freeze', name: 'Freeze Nail Pack', icon: '❄️', specialType: 'freeze' };
+                if (supply.type === 'scrap') return { id: 'mat:scrap', name: 'Metal Scrap', icon: '🔩' };
+                if (supply.type === 'cell') return { id: 'mat:cell', name: 'Power Cell', icon: '🔋' };
                 return { id: 'med:medkit', name: 'Medkit', icon: '🩹' };
             }
 
-            function addInventoryPickup(supply) {
+            // Returns how many units were actually stored (0 when the pack is full).
+            function addInventoryPickup(supply, quantity = 1) {
                 const item = getPickupItem(supply);
-                let stack = gameState.inventory.find(entry => entry.id === item.id && entry.count < INVENTORY_STACK_LIMIT);
-                if (stack) {
-                    stack.count++;
-                } else {
-                    if (gameState.inventory.length >= INVENTORY_SLOT_LIMIT) return false;
-                    stack = { ...item, count: 1 };
-                    gameState.inventory.push(stack);
+                let added = 0;
+                for (let n = 0; n < quantity; n++) {
+                    let stack = gameState.inventory.find(entry => entry.id === item.id && entry.count < INVENTORY_STACK_LIMIT);
+                    if (stack) {
+                        stack.count++;
+                    } else {
+                        if (gameState.inventory.length >= INVENTORY_SLOT_LIMIT) break;
+                        stack = { ...item, count: 1 };
+                        gameState.inventory.push(stack);
+                    }
+                    added++;
                 }
-                updateInventoryUI();
-                return true;
+                if (added) updateInventoryUI();
+                return added;
             }
 
             function updateInventoryUI() {
@@ -5906,6 +6614,11 @@
                 if (index < 0) { setItemUsePrompt(false); return; }
                 const item = gameState.inventory[index];
                 let used = false;
+                if (item.id.startsWith('mat:')) {
+                    setItemUsePrompt(false);
+                    showBanner(item.id === 'mat:cell' ? 'POWER CELLS CHARGE THE FENCE GRID — USE THE WORKBENCH' : 'METAL SCRAP REPAIRS THE FENCE — USE THE WORKBENCH', '#ffe08a', 2200);
+                    return;
+                }
                 if (item.id.startsWith('food:') && gameState.player.hunger < 100) {
                     gameState.player.hunger = Math.min(100, gameState.player.hunger + 38);
                     used = true;
@@ -6328,21 +7041,27 @@
                     return true;
                 }
                 if (station.hardware) {
-                    const specialType = supplyTypes[Math.floor(Math.random() * supplyTypes.length)];
                     if (Math.random() >= station.chance) {
                         station.stock.length = 0;
                         if (station.searchMarker) station.searchMarker.visible = false;
-                        showBanner('NO SPECIAL NAIL PACK — 35% FIND CHANCE', '#ffd86b', 1900);
+                        showBanner('NOTHING USEFUL — ONLY RUST AND DUST', '#ffd86b', 1900);
                         return true;
                     }
-                    if (!addInventoryPickup({ type: specialType })) {
+                    // Hardware loot: mostly Metal Scrap (fence repair/upgrades), then special nails, rarely Power Cells.
+                    const roll = Math.random();
+                    let supply, quantity = 1;
+                    if (roll < 0.52) { supply = { type: 'scrap' }; quantity = 2 + Math.floor(Math.random() * 3); }
+                    else if (roll < 0.78) supply = { type: supplyTypes[Math.floor(Math.random() * supplyTypes.length)] };
+                    else supply = { type: 'cell' };
+                    const stored = addInventoryPickup(supply, quantity);
+                    if (!stored) {
                         showBanner('INVENTORY FULL — 25 ITEM STACKS', '#ff9b75', 1800);
                         return true;
                     }
                     station.stock.length = 0;
                     if (station.searchMarker) station.searchMarker.visible = false;
-                    const item = getPickupItem({ type: specialType });
-                    showBanner(`${item.name.toUpperCase()} FOUND!`, '#8de8c4', 1900);
+                    const item = getPickupItem(supply);
+                    showBanner(`${item.name.toUpperCase()}${stored > 1 ? ' x' + stored : ''} FOUND!`, '#8de8c4', 1900);
                     return true;
                 }
                 const pickIndex = Math.floor(Math.random() * station.stock.length);
@@ -6366,7 +7085,7 @@
                 if (canSearch) {
                     const station = nearby.station;
                     searchButton.disabled = station.stock.length === 0;
-                    const detail = station.hardware ? station.label + ' · 35% CHANCE · E' : station.label + ' · E';
+                    const detail = station.hardware ? station.label + ' · SCRAP · CELLS · NAILS · E' : station.label + ' · E';
                     searchButton.innerHTML = station.stock.length ? 'SEARCH<small>' + detail + '</small>' : 'EMPTY<small>RESTOCK AT DAWN</small>';
                 }
             }
@@ -6664,6 +7383,8 @@
                 gameState.visualNight = 0;
                 gameState.resources = { food: 0, water: 0, med: 0, piercing: 0, burn: 0, freeze: 0 };
                 gameState.inventory.length = 0;
+                gameState.inventory.push({ id: 'mat:scrap', name: 'Metal Scrap', icon: '🔩', count: 4 });
+                resetFenceSystem();
                 updateInventoryUI();
                 setInventoryOpen(false);
                 supplyPoints.forEach(point => { point.userData.supply.active = true; point.visible = true; });
@@ -7270,7 +7991,7 @@
 
                         if (zombie.state === 'approaching') {
                             if (distToPlayer > 0.1) {
-                                const statusSpeed = zombie.frozenTimer > 0 ? 0.38 : 1;
+                                const statusSpeed = (zombie.stunTimer > 0) ? 0 : (zombie.frozenTimer > 0 ? 0.38 : 1);
                                 zombie.model.position.x += (dx / distToPlayer) * zombie.speed * statusSpeed * deltaTime;
                                 zombie.model.position.z += (dz / distToPlayer) * zombie.speed * statusSpeed * deltaTime;
                                 zombie.model.rotation.y = Math.atan2(dx, dz);
@@ -7304,7 +8025,15 @@
 
                             // Climbers and the boss cross the fence; ordinary types attack from outside.
                             if (!zombie.dayWanderer && Math.abs(zombie.model.position.x) <= fenceBound && Math.abs(zombie.model.position.z) <= fenceBound) {
-                                if (zombie.type === 'climber' || zombie.type === 'boss') {
+                                if (!zombie.breached && fenceState.sides[fenceSideAt(zombie.model.position.x, zombie.model.position.z)].breached) {
+                                    zombie.breached = true; // walked through a destroyed fence side
+                                }
+                                if (zombie.breached) {
+                                    if (distToPlayer < 1.65) {
+                                        zombie.state = 'attacking';
+                                        zombie.attackTimer = 0;
+                                    }
+                                } else if (zombie.type === 'climber' || zombie.type === 'boss') {
                                     if (!zombie.hasClimbed) {
                                         clampZombieOutsideFence(zombie, fenceBound);
                                         beginZombieClimb(zombie, halfArena, fenceBound);
@@ -7323,6 +8052,18 @@
                                 zombie.attackTimer = 0;
                             }
                         } else if (zombie.state === 'attacking') {
+                            // A side that fell while zombies were chewing it lets them stream through.
+                            if (!zombie.dayWanderer && !zombie.breached && fenceState.sides[fenceSideAt(zombie.model.position.x, zombie.model.position.z)].breached) {
+                                zombie.breached = true;
+                                zombie.state = 'approaching';
+                                continue;
+                            }
+                            if (zombie.breached && distToPlayer > 2.4) {
+                                zombie.state = 'approaching';
+                                zombie.attackTimer = 0;
+                                continue;
+                            }
+                            zombie.model.rotation.z = zombie.stunTimer > 0 ? Math.sin(timestamp * 0.08) * 0.12 : 0;
                             // Daytime stragglers resume pursuit if the player escapes their reach.
                             if (zombie.dayWanderer && (playerInsideFence || distToPlayer > 2.4)) {
                                 zombie.state = 'approaching';
@@ -7331,11 +8072,11 @@
                                 continue;
                             }
                             // Ordinary night zombies are held at the fence; daylight stragglers can pursue the player freely.
-                            if (!zombie.dayWanderer && Math.max(Math.abs(zombie.model.position.x), Math.abs(zombie.model.position.z)) > fenceBound + 0.35) {
+                            if (!zombie.dayWanderer && !zombie.breached && Math.max(Math.abs(zombie.model.position.x), Math.abs(zombie.model.position.z)) > fenceBound + 0.35) {
                                 zombie.state = 'approaching';
                                 continue;
                             }
-                            clampZombieOutsideFence(zombie, fenceBound);
+                            if (!zombie.breached) clampZombieOutsideFence(zombie, fenceBound);
                             zombie.model.rotation.y = Math.atan2(dx, dz);
                             zombie.attackTimer += deltaTime;
                             if (zombie.type === 'boss') {
@@ -7352,11 +8093,11 @@
                                 if (zombie.model.torso) zombie.model.torso.rotation.x = 0.12 + Math.sin(timestamp * 0.012) * 0.05;
                             }
                             if (zombie.type === 'bloater') {
-                                if ((zombie.frozenTimer || 0) <= 0) zombie.fuse = (zombie.fuse || 0) + deltaTime;
+                                if ((zombie.frozenTimer || 0) <= 0 && !(zombie.stunTimer > 0)) zombie.fuse = (zombie.fuse || 0) + deltaTime;
                                 const swell = Math.min(1, (zombie.fuse || 0) / BLOATER_FUSE_TIME);
                                 zombie.model.scale.setScalar(zombie.baseScale * (1 + 0.14 * swell));
                                 if (zombie.fuse >= BLOATER_FUSE_TIME) { detonateBloater(zombie, true); continue; }
-                            } else if (distToPlayer < 1.65 && (zombie.frozenTimer || 0) <= 0) damagePlayerFromZombie(zombie);
+                            } else if (distToPlayer < 1.65 && (zombie.frozenTimer || 0) <= 0 && !(zombie.stunTimer > 0)) damagePlayerFromZombie(zombie);
                         } else if (zombie.state === 'climbing') {
                             zombie.climbTimer += deltaTime;
                             const progress = THREE.MathUtils.clamp(zombie.climbTimer / zombie.climbDuration, 0, 1);
@@ -7575,6 +8316,9 @@
                     directionalLight.target.position.set(gameState.player.position.x, 0, gameState.player.position.z);
                     
                     updatePowerUps(deltaTime, timestamp);
+                    updateFence(deltaTime, timestamp);
+                    updateWorkbench(deltaTime, timestamp);
+                    updateFenceHud(deltaTime);
                     updateBlasts(deltaTime);
 
                     // Wave management
