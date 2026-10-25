@@ -3809,10 +3809,17 @@ const ICONS=[
  {id:'salad_fresh',name:'Fresh Salad',e:'🥗'},{id:'fritters',name:'Crispy Fritters',e:'🧆'},{id:'grilled_fish',name:'Grilled Fish',e:'🍢'},{id:'fried_fish',name:'Fried Fish',e:'🍤'},
  {id:'steamed_leaf',name:'Leaf-steamed Parcel',e:'🍱'},{id:'fish_curry',name:'Fish Curry',e:'🍛'},{id:'sambal_bowl',name:'Sambal Bowl',e:'🥫'},{id:'rice_plate',name:'Rice Plate',e:'🍚'},
  {id:'skewers',name:'Grilled Skewers',e:'🍢'},{id:'noodle_bowl',name:'Noodle Bowl',e:'🍜'},{id:'dumplings',name:'Village Dumplings',e:'🥟'},{id:'corn_dish',name:'Roasted Corn',e:'🌽'},
- {id:'carrot_dish',name:'Glazed Carrots',e:'🥕'},{id:'royal_platter',name:'Royal Platter',e:'🥘'},{id:'mystery_mush',name:'Mystery Mush',e:'🍲'},{id:'burnt_plate',name:'Charcoal Surprise',e:'🍘'}
+ {id:'carrot_dish',name:'Glazed Carrots',e:'🥕'},{id:'royal_platter',name:'Royal Platter',e:'🥘'},{id:'mystery_mush',name:'Mystery Mush',e:'🍲'},{id:'burnt_plate',name:'Charcoal Surprise',e:'🍘'},
+ /* premium tier: shown for Great (75+) and Masterpiece dishes */
+ {id:'prem_fish_curry',name:'Gourmet Fish Curry',e:'🍛',prem:1},{id:'prem_grilled_fish',name:'Lemon-Butter Grilled Fish',e:'🍢',prem:1},{id:'prem_fried_fish',name:'Golden Fried Fish',e:'🍤',prem:1},{id:'prem_steamed_fish',name:'Aromatic Steamed Fish',e:'🍱',prem:1},
+ {id:'prem_tomato_stew',name:'Tomato Bisque',e:'🍲',prem:1},{id:'prem_yellow_soup',name:'Golden Turmeric Soup',e:'🍛',prem:1},{id:'prem_green_soup',name:'Emerald Veloute',e:'🥣',prem:1},{id:'prem_stirfry',name:'Wok-fried Greens',e:'🥗',prem:1},
+ {id:'prem_salad',name:'Artisan Salad',e:'🥗',prem:1},{id:'prem_fritters',name:'Golden Fritter Tower',e:'🧆',prem:1},{id:'prem_corn',name:'Charred Butter Corn',e:'🌽',prem:1},{id:'prem_carrot',name:'Honey-glazed Carrots',e:'🥕',prem:1},
+ {id:'prem_sambal',name:'Sambal Trio',e:'🥫',prem:1},{id:'prem_rice_plate',name:'Golden Rice Feast',e:'🍚',prem:1},{id:'prem_skewers',name:'Glazed Skewers',e:'🍢',prem:1},{id:'prem_noodle',name:'Rich Broth Noodles',e:'🍜',prem:1},{id:'prem_dumplings',name:'Steamer Dumplings',e:'🥟',prem:1},
+ {id:'imperial_feast',name:'Imperial Feast',e:'🥘',prem:1},{id:'legend_golden',name:'Legendary Golden Dish',e:'✨',prem:1},{id:'legend_dragon',name:'Dragon Fish Legend',e:'🐉',prem:1}
 ];
+const PREM={stew_red:'prem_tomato_stew',stew_yellow:'prem_yellow_soup',soup_green:'prem_green_soup',stirfry_green:'prem_stirfry',salad_fresh:'prem_salad',fritters:'prem_fritters',grilled_fish:'prem_grilled_fish',fried_fish:'prem_fried_fish',steamed_leaf:'prem_steamed_fish',fish_curry:'prem_fish_curry',sambal_bowl:'prem_sambal',rice_plate:'prem_rice_plate',skewers:'prem_skewers',noodle_bowl:'prem_noodle',dumplings:'prem_dumplings',corn_dish:'prem_corn',carrot_dish:'prem_carrot'};
 const ICON_BY={};ICONS.forEach((c,i)=>{c.i=i;ICON_BY[c.id]=c;});
-const RECIPE_ICON={bakwan:'fritters',sambal:'sambal_bowl',tumis:'stirfry_green',bening:'soup_green',pepes:'steamed_leaf',lele:'fried_fish',bakar:'grilled_fish',kuning:'stew_yellow',gulai:'fish_curry',arwana:'royal_platter'};
+const RECIPE_ICON={bakwan:'fritters',sambal:'sambal_bowl',tumis:'stirfry_green',bening:'soup_green',pepes:'steamed_leaf',lele:'fried_fish',bakar:'prem_grilled_fish',kuning:'prem_yellow_soup',gulai:'prem_fish_curry',arwana:'imperial_feast'};
 RECIPES.forEach(r=>{DISH[r.dish].iconId=RECIPE_ICON[r.id];});
 const iconImgs={};
 function iconUrl(id){try{const L=safeLib();const a=L&&L.getAsset&&L.getAsset('dish_icon_'+id);return a&&a.url||null;}catch(e){return null;}}
@@ -3844,7 +3851,8 @@ function gradeOf(sc){return sc>=90?['Masterpiece',5]:sc>=75?['Great',4]:sc>=55?[
 function chooseIcon(ings,score,name,ai){
  const has=k=>ings.indexOf(k)>=0,nf=ings.filter(k=>FISH[k]).length,price=ings.reduce((t,k)=>t+ITEM[k].price,0),h=hsh(name+ings.join(','));
  if(score<25)return h%2?'mystery_mush':'burnt_plate';
- if(score>=88&&price>=330)return 'royal_platter';
+ if(score>=95)return (nf&&price>=300)||has('arwana')?'legend_dragon':'legend_golden';
+ if(score>=88&&price>=330)return score>=92?'imperial_feast':'royal_platter';
  let alt;
  if(nf){if(has('chili')&&!has('tomato'))alt=['fried_fish','skewers','grilled_fish'];else if(has('wortel')||(has('tomato')&&has('chili')))alt=['fish_curry','stew_red','grilled_fish'];else if(has('kangkung')||has('bayam'))alt=['steamed_leaf','grilled_fish','noodle_bowl'];else alt=['grilled_fish','fried_fish','steamed_leaf','skewers'];}
  else if(has('tomato')&&has('chili'))alt=['sambal_bowl','stew_red'];
@@ -3854,8 +3862,9 @@ function chooseIcon(ings,score,name,ai){
  else if(has('kangkung')&&has('chili'))alt=['stirfry_green','noodle_bowl'];
  else if(has('bayam'))alt=['soup_green','dumplings','salad_fresh'];
  else alt=['salad_fresh','rice_plate','dumplings','noodle_bowl'];
- if(ai&&ICON_BY[ai]&&['mystery_mush','burnt_plate','royal_platter'].indexOf(ai)<0&&h%2)return ai;
- return alt[h%alt.length];}
+ let pick=alt[h%alt.length];
+ if(ai&&ICON_BY[ai]&&!ICON_BY[ai].prem&&['mystery_mush','burnt_plate','royal_platter'].indexOf(ai)<0&&h%2)pick=ai;
+ return score>=75&&PREM[pick]?PREM[pick]:pick;}
 function localName(ings,icon,name){
  if(name)return name;const main=ings.slice().sort((a,b)=>ITEM[b].price-ITEM[a].price)[0],adj=ings.indexOf('chili')>=0?'Spicy':['Village','Golden','Sunrise','Rustic','Smoky','Grandma\'s'][hsh(ings.join(''))%6];
  return (adj+' '+ITEM[main].name+' '+ICON_BY[icon].name).slice(0,28);}
@@ -3864,7 +3873,7 @@ function localVerdict(sc){return sc>=90?'Pure magic! The whole village will talk
 /* ----- AI critic (text only; every number is computed by the game) ----- */
 async function labJudge(ings,userName){
  const L=safeLib();if(!L||!L.llm)throw new Error('no llm');
- const ids=ICONS.map(c=>c.id).join(', ');
+ const ids=ICONS.filter(c=>!c.prem).map(c=>c.id).join(', ');
  const sys='You are a witty, kind food critic in a cozy Indonesian village farming game. Reply with ONLY compact JSON, no markdown: {"name":string max 28 chars,"desc":string max 100 chars appetizing description,"harmony":integer 0-100 for how well these ingredients actually go together in real cooking (weird combos must score low),"verdict":string max 80 chars,"icon":one of ['+ids+'],"safe":boolean}. "name": if the player gave a dish name keep it (fix only typos); otherwise invent a creative one. Set "safe" to false if the player name is offensive, hateful or sexual. English only.';
  const msg='Ingredients: '+ings.map(k=>ITEM[k].name).join(', ')+'\nPlayer dish name: '+(userName?'"'+userName+'"':'(none)');
  const r=await Promise.race([L.llm({messages:[{role:'user',content:msg}],systemPrompt:sys,config:{temperature:.8,maxOutputTokens:220}}),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000))]);
