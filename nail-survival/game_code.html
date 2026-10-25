@@ -5524,7 +5524,7 @@
             }
 
             // Concrete floor and tall, broken-in perimeter walls leave an open roof and a clear front entrance.
-            const storeHalfW = supermarket.width / 2, storeHalfD = supermarket.depth / 2, wallHeight = 5.0, wallDepth = 0.42;
+            const storeHalfW = supermarket.width / 2, storeHalfD = supermarket.depth / 2, wallHeight = 7.6, wallDepth = 0.42;
             const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(supermarket.width, supermarket.depth), storeMaterials.floor);
             floorMesh.rotation.x = -Math.PI / 2;
             floorMesh.position.y = 0.018;
@@ -5550,6 +5550,9 @@
                 z: storeHalfD - 0.08, span: 6.35, height: 2.82, normal: 1,
                 approachX: 0, approachZ: storeHalfD + 1.05, openAngles: [1.18, -1.18]
             });
+            // Solid lintel wall above the entrance: no open gap between the doors and the roofline.
+            addStoreBox(6.5, wallHeight - 2.78, wallDepth, storeMaterials.wall, 0, 2.78 + (wallHeight - 2.78) / 2, storeHalfD, false);
+            addStoreBox(6.9, 0.24, wallDepth + 0.14, storeMaterials.wallDark, 0, 2.9, storeHalfD);
             addStoreBox(13.8, 0.82, 0.32, storeMaterials.signDark, 0, 3.48, storeHalfD + 0.24);
             addStoreBox(12.9, 0.12, 0.34, storeMaterials.sign, 0, 3.50, storeHalfD + 0.43);
             // Bold, simple sign lettering built from bright block marks (no external font/image dependency).
@@ -5713,7 +5716,7 @@
                 shop.group.rotation.y = shop.rotation;
                 scene.add(shop.group);
                 const halfW = shop.width * 0.5, halfD = shop.depth * 0.5;
-                const wallH = 4.55, wallT = 0.40;
+                const wallH = 7.0, wallT = 0.40;
                 const floor = new THREE.Mesh(new THREE.PlaneGeometry(shop.width, shop.depth), hardwareMaterials.floor);
                 floor.rotation.x = -Math.PI / 2;
                 floor.position.y = 0.025;
@@ -5738,6 +5741,10 @@
                     normal: shop.facing, approachX: shop.facing * (halfW + 1.1), approachZ: 0,
                     openAngles: [shop.facing === -1 ? 1.18 : -1.18, shop.facing === -1 ? -1.18 : 1.18]
                 });
+                // Solid lintel above the doorway plus side jambs: the opening is fully enclosed around the doors.
+                addHardwareBox(shop, wallT, wallH - 2.66, 6.1, hardwareMaterials.wall, shop.facing * (halfW - wallT * 0.5), 2.66 + (wallH - 2.66) / 2, 0, false);
+                addHardwareBox(shop, wallT + 0.12, 0.24, 6.1, hardwareMaterials.wallTrim, shop.facing * (halfW - wallT * 0.5), 2.78, 0, false);
+                for (const jz of [-2.92, 2.92]) addHardwareBox(shop, wallT + 0.06, 2.7, 0.16, hardwareMaterials.wallTrim, shop.facing * (halfW - wallT * 0.5), 1.35, jz, false);
 
                 buildHardwareRack(shop, -2.15);
                 buildHardwareRack(shop, 2.15);
@@ -5800,7 +5807,7 @@
             }
 
             const pharmacyHalfW = pharmacy.width / 2, pharmacyHalfD = pharmacy.depth / 2;
-            const pharmacyWallH = 4.4, pharmacyWallT = 0.38;
+            const pharmacyWallH = 6.8, pharmacyWallT = 0.38;
             const pharmacyFloor = new THREE.Mesh(new THREE.PlaneGeometry(pharmacy.width, pharmacy.depth), pharmacyMaterials.floor);
             pharmacyFloor.rotation.x = -Math.PI / 2;
             pharmacyFloor.position.y = 0.02;
@@ -5825,6 +5832,9 @@
                 z: pharmacyHalfD - 0.08, span: 4.75, height: 2.78, normal: 1,
                 approachX: 0, approachZ: pharmacyHalfD + 1.0, openAngles: [1.18, -1.18]
             });
+            // Solid lintel wall above the entrance: no open gap above the doors.
+            addPharmacyBox(5.2, pharmacyWallH - 2.74, pharmacyWallT, pharmacyMaterials.wall, 0, 2.74 + (pharmacyWallH - 2.74) / 2, pharmacyHalfD, false);
+            addPharmacyBox(5.5, 0.22, pharmacyWallT + 0.12, pharmacyMaterials.wallDark, 0, 2.86, pharmacyHalfD, false);
             // Weathered fascia and a medical cross identify the shop from the street.
             addPharmacyBox(8.8, 0.78, 0.30, pharmacyMaterials.wallDark, 0, 3.45, pharmacyHalfD + 0.20);
             addPharmacyBox(8.1, 0.12, 0.34, pharmacyMaterials.medical, 0, 3.48, pharmacyHalfD + 0.39);
