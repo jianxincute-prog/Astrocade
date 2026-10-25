@@ -4919,7 +4919,7 @@
             // Wave 10 is a dedicated solo boss encounter; regular special waves keep their existing cycle.
             function getWaveZombieType(wave) {
                 // Wave 10 is a dedicated solo boss encounter, never mixed with a horde.
-                if (wave === 10) return 'boss';
+                if (wave % 10 === 0) return 'boss';
                 if (wave % 3 !== 0) return 'normal';
                 const specialTypes = ['runner', 'tank', 'climber'];
                 return specialTypes[(Math.floor(wave / 3) - 1) % specialTypes.length];
@@ -4952,14 +4952,14 @@
                 const boss = type === 'boss';
                 const model = boss ? buildCrawlerBoss() : createBlockyCharacter(false);
                 const health = boss
-                    ? Math.round(55 * window.gameConfig.settings.zombieHealthMultiplier)
+                    ? Math.round((55 + (gameState.wave / 10 - 1) * 25) * window.gameConfig.settings.zombieHealthMultiplier)
                     : Math.max(1, Math.ceil(gameState.wave * 0.5) * window.gameConfig.settings.zombieHealthMultiplier * profile.health);
                 const zombie = {
                     type,
                     model,
                     health,
                     maxHealth: health,
-                    speed: (2 + gameState.wave * 0.2) * window.gameConfig.settings.zombieSpeedMultiplier * profile.speed,
+                    speed: Math.min(2 + gameState.wave * 0.2, 6) * window.gameConfig.settings.zombieSpeedMultiplier * profile.speed,
                     state: 'approaching', // approaching, climbing, attacking
                     climbTimer: 0,
                     attackTimer: 0,
@@ -6144,8 +6144,8 @@
                 const type = getWaveZombieType(gameState.wave);
                 gameState.waveZombiesTotal = type === 'boss'
                     ? 1
-                    : window.gameConfig.settings.zombiesPerWave +
-                      (gameState.wave - 1) * window.gameConfig.settings.waveIncrement;
+                    : Math.min(45, window.gameConfig.settings.zombiesPerWave +
+                      (gameState.wave - 1) * window.gameConfig.settings.waveIncrement);
                 gameState.waveSpawnTimer = 0;
                 const labels = {
                     runner: 'RUNNER HORDE ONLY',
@@ -6203,6 +6203,67 @@
                 } catch (e) { lib.log('score submit failed: ' + e); }
             }
 
+            // ===== POWER-UP DROPS: medkit (+1 HP), ammo crate (full mag), nail frenzy (2x fire rate) =====
+            const POWERUP_TYPES = {
+                medkit: { color: 0x39e07a, label: 'MEDKIT +1 HP', text: '#6dffa6' },
+                ammo:   { color: 0xffc83a, label: 'AMMO REFILLED', text: '#ffd86b' },
+                frenzy: { color: 0xff4fd8, label: 'NAIL FRENZY! 2x FIRE RATE', text: '#ff8be8' }
+            };
+            const POWERUP_DROP_CHANCE = 0.1;
+            const FRENZY_DURATION = 8;
+            const powerUps = [];
+            const _powerUpGeo = new THREE.OctahedronGeometry(0.34, 0);
+            const _powerUpMats = {};
+            for (const k in POWERUP_TYPES) {
+                _powerUpMats[k] = new THREE.MeshBasicMaterial({ color: POWERUP_TYPES[k].color });
+            }
+            gameState.frenzyTimer = 0;
+
+            function spawnPowerUp(position, forcedType = null) {
+                const keys = Object.keys(POWERUP_TYPES);
+                const type = forcedType || keys[Math.floor(Math.random() * keys.length)];
+                const mesh = new THREE.Mesh(_powerUpGeo, _powerUpMats[type]);
+                mesh.position.set(position.x, 0.9, position.z);
+                scene.add(mesh);
+                powerUps.push({ type, mesh, life: 14, phase: Math.random() * Math.PI * 2 });
+            }
+
+            function maybeDropPowerUp(zombie) {
+                if (zombie.dropRolled || zombie.dayWanderer) return;
+                zombie.dropRolled = true;
+                if (zombie.type === 'boss') spawnPowerUp(zombie.model.position, 'medkit');
+                else if (Math.random() < POWERUP_DROP_CHANCE) spawnPowerUp(zombie.model.position);
+            }
+
+            function applyPowerUp(type) {
+                const player = gameState.player;
+                if (type === 'medkit') player.health = Math.min(player.maxHealth, player.health + 1);
+                else if (type === 'ammo') { player.ammo = player.maxAmmo; player.isReloading = false; player.reloadTimer = 0; }
+                else if (type === 'frenzy') gameState.frenzyTimer = FRENZY_DURATION;
+                showHitText(POWERUP_TYPES[type].label, POWERUP_TYPES[type].text);
+                playSound('waveComplete', 0.35);
+                updateUI();
+            }
+
+            function updatePowerUps(deltaTime, timestamp) {
+                const pp = gameState.player.position;
+                for (let i = powerUps.length - 1; i >= 0; i--) {
+                    const pu = powerUps[i];
+                    pu.life -= deltaTime;
+                    pu.mesh.rotation.y += deltaTime * 2.4;
+                    pu.mesh.position.y = 0.9 + Math.sin(timestamp * 0.004 + pu.phase) * 0.15;
+                    // Blink in the last 3 seconds before despawning.
+                    pu.mesh.visible = pu.life > 3 || Math.floor(pu.life * 6) % 2 === 0;
+                    const near = Math.hypot(pu.mesh.position.x - pp.x, pu.mesh.position.z - pp.z) < 1.7;
+                    if (near) applyPowerUp(pu.type);
+                    if (near || pu.life <= 0) {
+                        scene.remove(pu.mesh);
+                        powerUps.splice(i, 1);
+                    }
+                }
+                if (gameState.frenzyTimer > 0) gameState.frenzyTimer = Math.max(0, gameState.frenzyTimer - deltaTime);
+            }
+
             function endGame() {
                 gameState.gameOver = true;
                 
@@ -6234,6 +6295,9 @@
                 gameState.nails.length = 0;
                 gameState.impactParticles.forEach(p => scene.remove(p.mesh));
                 gameState.impactParticles.length = 0;
+                powerUps.forEach(pu => scene.remove(pu.mesh));
+                powerUps.length = 0;
+                gameState.frenzyTimer = 0;
                 const s = window.gameConfig.settings;
                 Object.assign(gameState.player, {
                     health: s.playerHealth, maxHealth: s.playerHealth,
@@ -6483,7 +6547,7 @@
                     const wantFire = !playerClimb && (isMobile ? touchFire : mouseDown);
                     if (wantFire && gameState.player.fireTimer <= 0 && !gameState.player.isReloading) {
                         shoot();
-                        gameState.player.fireTimer = Math.max(0, gameState.player.fireTimer) + 1 / window.gameConfig.settings.fireRate;
+                        gameState.player.fireTimer = Math.max(0, gameState.player.fireTimer) + 1 / (window.gameConfig.settings.fireRate * (gameState.frenzyTimer > 0 ? 2 : 1));
                     }
                     
                     // Update fire timer
@@ -6805,6 +6869,7 @@
 
                         // Dead zombies collapse and are removed after a short linger.
                         if (zombie.state === 'dead') {
+                            maybeDropPowerUp(zombie);
                             zombie.deadTimer += deltaTime;
                             zombie.model.rotation.x = lerpAngle(zombie.model.rotation.x, -Math.PI / 2 + 0.12, Math.min(1, deltaTime * 7));
                             zombie.model.position.y = Math.max(-0.4, -zombie.deadTimer * 0.12);
@@ -7163,6 +7228,8 @@
                     directionalLight.position.set(gameState.player.position.x + 30, 60, gameState.player.position.z + 30);
                     directionalLight.target.position.set(gameState.player.position.x, 0, gameState.player.position.z);
                     
+                    updatePowerUps(deltaTime, timestamp);
+
                     // Wave management
                     const livingZombies = gameState.zombies.filter(z => z.state !== 'dead');
                     if (gameState.waveActive) {
