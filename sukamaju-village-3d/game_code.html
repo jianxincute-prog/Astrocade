@@ -448,7 +448,7 @@ const NPCS=[
 ];
 
 function newState(o){return {v:1,name:o.gender==='m'?'Raka':'Rani',gender:o.gender,hairStyle:o.hairStyle,hairColor:o.hairColor,
- money:CFG().startMoney,day:1,time:360,energy:100,seeds:{corn:4,tomato:0,chili:3,kangkung:5,bayam:0,wortel:0},fert:2,sprinkler:0,stall:null,water:WATER_MAX,recipes:{},rod:0,baits:{},bait:null,wh:null,inv:{},fp:{},reqIdx:{},reqDone:{},talked:{},tiles:[],weather:'sun',tool:0,seedSel:0,stats:{fish:0,harvest:0},goalDone:false,px:-11,pz:-6.6,loc:'out'};}
+ money:CFG().startMoney,day:1,time:360,energy:100,seeds:{corn:4,tomato:0,chili:3,kangkung:5,bayam:0,wortel:0},fert:2,sprinkler:0,stall:null,water:WATER_MAX,recipes:{},rod:0,baits:{},bait:null,wh:null,inv:{},fp:{},reqIdx:{},reqDone:{},talked:{},tiles:[],weather:'sun',tool:0,seedSel:0,stats:{fish:0,harvest:0},goalDone:false,px:-11,pz:-3.6,loc:'out'};}
 let S=newState({gender:'m',hairStyle:'short',hairColor:1});
 const opt={gender:'m',hairStyle:'short',hairColor:1};
 let saved=null,started=false,busy=false,modalOpen=false,T=0,hudT=0,warnedNight=false,loc='out',hvKey=-1;
@@ -2660,7 +2660,7 @@ function setLoc(l){loc=l;if(outGroup)outGroup.visible=(l==='out');if(inGroup)inG
 function snapCam(){const cp=Math.cos(cam.pitch),sp2=Math.sin(cam.pitch);camPos.set(player.pos.x+Math.sin(cam.yaw)*cp*cam.dist,player.pos.y+1.2+sp2*cam.dist,player.pos.z+Math.cos(cam.yaw)*cp*cam.dist);}
 function transition(fn){busy=true;const f=$('fade');f.style.transition='opacity .3s';f.style.opacity=1;setTimeout(()=>{fn();f.style.opacity=0;setTimeout(()=>{busy=false;f.style.transition='';},330);},330);}
 function goIn(){transition(()=>{setLoc('in');player.pos.set(IN.x,0,IN.z+5.2);player.rot=Math.PI;cam.yaw=0;cam.pitch=.85;cam.dist=9;snapCam();saveProgress();sfx('pop');toast('🏠 Rumahmu\nKasur di kiri · dapur di kanan · pintu keluar di depan',3200);});}
-function goOut(){transition(()=>{setLoc('out');player.pos.set(DOOR.x,0,-6.8);player.rot=0;cam.yaw=Math.PI*.85;cam.pitch=.74;cam.dist=9.5;snapCam();saveProgress();sfx('pop');});}
+function goOut(){transition(()=>{setLoc('out');player.pos.set(DOOR.x,0,-4.6);player.rot=Math.PI;cam.yaw=0;cam.pitch=.82;cam.dist=10;snapCam();saveProgress();sfx('pop');});}
 
 /* ---------- npcs ---------- */
 function buildNPCs(){
@@ -3921,7 +3921,7 @@ function showStart(){
 }
 function beginGame(fromSave){
  $('start').style.display='none';S._playing=true;applyState();if(!fromSave)saveProgress();
- if(loc==='in'){cam.yaw=0;cam.pitch=.85;cam.dist=9;}else{cam.yaw=Math.PI*.85;cam.pitch=.74;cam.dist=9.5;}
+ if(loc==='in'){cam.yaw=0;cam.pitch=.85;cam.dist=9;}else{cam.yaw=0;cam.pitch=.82;cam.dist=10;if(!fromSave)player.rot=Math.PI;}
  snapCam();started=true;warnedNight=false;
  $('hud').style.display='block';$('topBtns').style.display='flex';$('mm').style.display='block';$('ctrl').style.display='block';updateHUD();
  if(!fromSave){modal('Selamat Datang di Sukamaju','Setelah lulus, kamu belum juga dapat kerja. Daripada bengong di kota, kamu pulang ke desa.\n\nRumah peninggalan nenek masih berdiri, lahan kosong menanti di belakang rumah, dan kolam serta sungai desa selalu menunggu. Tidak ada yang buru-buru di sini.\n\n🕹️ Joystick = jalan · geser layar = putar kamera\n🌾 Tombol Panen = ayunkan celurit ke tanaman yang sudah matang\n🚪 Dekati pintu rumahmu untuk masuk. Kasur ada di dalam!\n🗺️ Peta kecil di kanan atas menunjukkan rumah warga, sungai & jembatan.\n🏍️🚲 Motor Supra & sepeda ontel diparkir di samping rumahmu.\n⛏️🌱💧🎣 Pilih alat, lalu tekan tombol aksi.\n🏠 Impian: kumpulkan '+rp(CFG().goalMoney)+' untuk modal usaha sendiri.',[{t:'🌾 Mulai pelan-pelan'}]);}
