@@ -3622,7 +3622,7 @@
                 playSound('zombieDeath', 0.9);
                 gameState.shake = Math.max(gameState.shake, 0.3);
                 if (Math.max(Math.abs(pos.x), Math.abs(pos.z)) < window.gameConfig.settings.arenaSize / 2 + 2.2) {
-                    damageFence(fenceSideAt(pos.x, pos.z), 55);
+                    damageFence(fenceSideAt(pos.x, pos.z), 70);
                 }
                 const dist = Math.hypot(gameState.player.position.x - pos.x, gameState.player.position.z - pos.z);
                 if (dist < BLOATER_BLAST_RADIUS) {
@@ -4485,16 +4485,17 @@
             }
             
             // ===== FENCE SYSTEM: per-side HP, breaches, repair, tiered upgrades, electric grid, workbench =====
-            const FENCE_BASE_HP = 260;
+            // Balance pass (Monte-Carlo tuned): early waves are safe, pressure starts around wave 6, upgrades pace the defense.
+            const FENCE_BASE_HP = 220;
             const FENCE_SIDES = ['north', 'east', 'south', 'west'];
-            const FENCE_REPAIR_HP_PER_SCRAP = 30;
-            const FENCE_CHEW_DPS = { normal: 1.8, runner: 1.6, tank: 7 };
+            const FENCE_REPAIR_HP_PER_SCRAP = 25;
+            const FENCE_CHEW_DPS = { normal: 3.2, runner: 2.9, tank: 10 };
             const FENCE_TIERS = [
-                { id: 'barbed', name: 'BARBED WIRE', icon: '⛓️', cost: { scrap: 8 }, hp: 100,
+                { id: 'barbed', name: 'BARBED WIRE', icon: '⛓️', cost: { scrap: 9 }, hp: 100,
                   desc: 'Razor coils and barbs along the whole fence. +100 HP. Zombies clawing the fence take 0.9 damage/sec.' },
-                { id: 'plated', name: 'STEEL PLATING', icon: '🛡️', cost: { scrap: 12 }, hp: 180, requires: 'barbed',
+                { id: 'plated', name: 'STEEL PLATING', icon: '🛡️', cost: { scrap: 14 }, hp: 180, requires: 'barbed',
                   desc: 'Bolted steel plates on every side. +180 HP and +0.6 thorn damage/sec.' },
-                { id: 'electric', name: 'ELECTRIC GRID', icon: '⚡', cost: { scrap: 10, cell: 2 }, requires: 'plated',
+                { id: 'electric', name: 'ELECTRIC GRID', icon: '⚡', cost: { scrap: 12, cell: 2 }, requires: 'plated',
                   desc: 'Live current shocks and stuns zombies at the fence (1.8 dmg per pulse). Drains charge; recharge with Power Cells.' }
             ];
             const FENCE_CELL_RECHARGE = 40;
@@ -5185,7 +5186,7 @@
                 if (added) updateInventoryUI();
                 return added;
             }
-            function teamBoxUpgradeCost() { return 4 + teamBox.level * 2; }
+            function teamBoxUpgradeCost() { return 3 + teamBox.level * 2; }
             function upgradeTeamBox() {
                 if (teamBox.level >= (BOX_MAX_SLOTS - BOX_BASE_SLOTS) / BOX_STEP) return false;
                 const cost = teamBoxUpgradeCost();
@@ -5369,7 +5370,7 @@
             // ---------- NPC creation ----------
             function createNpcProfile(arrivalSide) {
                 const role = pickOf(Object.keys(NPC_ROLES));
-                const bad = Math.random() < Math.min(0.55, 0.38 + team.day * 0.02);
+                const bad = Math.random() < Math.min(0.5, 0.35 + team.day * 0.015);
                 const name = NPC_NAMES[team.nameIndex++ % NPC_NAMES.length];
                 const sides = Object.keys(SIDE_NORMALS);
                 const statedSide = bad && Math.random() < 0.65 ? pickOf(sides.filter(s => s !== arrivalSide)) : arrivalSide;
@@ -5508,8 +5509,8 @@
                     if (Math.random() >= station.chance) return null;
                     const roll = Math.random();
                     let supply, qty = 1;
-                    if (roll < 0.52) { supply = { type: 'scrap' }; qty = 2 + Math.floor(Math.random() * 3); }
-                    else if (roll < 0.78) supply = { type: supplyTypes[Math.floor(Math.random() * supplyTypes.length)] };
+                    if (roll < 0.48) { supply = { type: 'scrap' }; qty = 2 + Math.floor(Math.random() * 3); }
+                    else if (roll < 0.75) supply = { type: supplyTypes[Math.floor(Math.random() * supplyTypes.length)] };
                     else supply = { type: 'cell' };
                     if (npc.role === 'scavenger') qty *= 2;
                     return { item: getPickupItem(supply), qty };
@@ -5626,7 +5627,9 @@
                         npc.pose = 'shoot';
                         if (npc.attackTimer <= 0) {
                             npc.attackTimer = 1.4;
-                            damagePlayerFromZombie({ type: 'raider' });
+                            // Raiders wound but never kill: at 1 HP they back off instead of striking.
+                            if (gameState.player.health > 1) damagePlayerFromZombie({ type: 'raider' });
+                            else npc.hits = 3;
                             npc.hits++;
                             showHitText('STRUCK BY ' + npc.name.toUpperCase() + '!', '#ff8a6a');
                             if (npc.hits >= 3) { npc.state = 'flee'; npc.path = []; npc.hostile = true; showBanner(`${npc.name.toUpperCase()} RUNS OFF`, '#ffd86b', 1800); }
@@ -5797,10 +5800,14 @@
                 }
                 if (npc.betrayType === 'thief') {
                     if (!caught) {
-                        const stacks = teamBox.slots.slice().sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.min(5, Math.ceil(teamBox.slots.length * 0.5))));
+                        // The theft is capped (at most 3 stacks, a third of each, 12 items total) so one betrayal never wipes the team out.
+                        const stacks = teamBox.slots.slice().sort(() => Math.random() - 0.5).slice(0, Math.max(1, Math.min(3, Math.ceil(teamBox.slots.length * 0.4))));
+                        let totalTaken = 0;
                         for (const s of stacks) {
-                            const take = Math.max(1, Math.ceil(s.count * 0.7));
+                            if (totalTaken >= 12) break;
+                            const take = Math.min(12 - totalTaken, Math.max(1, Math.ceil(s.count * 0.35)));
                             const got = teamBoxTake(s.id, take);
+                            totalTaken += got;
                             if (got > 0) npc.stolen.push({ item: { id: s.id, name: s.name, icon: s.icon, specialType: s.specialType }, qty: got });
                         }
                         showBanner(npc.stolen.length ? `${npc.name.toUpperCase()} STOLE FROM THE TEAM BOX — SHOOT THEM!` : `${npc.name.toUpperCase()} FOUND THE BOX EMPTY AND LEFT`, '#ff6a5c', 2800);
@@ -5809,7 +5816,7 @@
                     if (!caught) {
                         let target = null, best = -1;
                         for (const side of FENCE_SIDES) { const st = fenceState.sides[side]; if (!st.breached && st.hp > best) { best = st.hp; target = side; } }
-                        if (target) damageFence(target, fenceMaxHp() * 0.6);
+                        if (target) damageFence(target, fenceMaxHp() * 0.45);
                         fenceState.charge = Math.max(0, fenceState.charge - 35);
                         showBanner(`${npc.name.toUpperCase()} SABOTAGED THE ${String(target).toUpperCase()} FENCE!`, '#ff6a5c', 2800);
                     }
@@ -6891,7 +6898,7 @@
                     localPosition: new THREE.Vector3(localX, 0, localZ),
                     position: new THREE.Vector3(worldPosition.x, 0, worldPosition.z),
                     hardware: true,
-                    chance: 0.7,
+                    chance: 0.6,
                     searchMarker: marker,
                     allStock: [true],
                     stock: [true]
@@ -8916,8 +8923,8 @@
                     // Hardware loot: mostly Metal Scrap (fence repair/upgrades), then special nails, rarely Power Cells.
                     const roll = Math.random();
                     let supply, quantity = 1;
-                    if (roll < 0.52) { supply = { type: 'scrap' }; quantity = 2 + Math.floor(Math.random() * 3); }
-                    else if (roll < 0.78) supply = { type: supplyTypes[Math.floor(Math.random() * supplyTypes.length)] };
+                    if (roll < 0.48) { supply = { type: 'scrap' }; quantity = 2 + Math.floor(Math.random() * 3); }
+                    else if (roll < 0.75) supply = { type: supplyTypes[Math.floor(Math.random() * supplyTypes.length)] };
                     else supply = { type: 'cell' };
                     const stored = addInventoryPickup(supply, quantity);
                     if (!stored) {
