@@ -1003,6 +1003,8 @@
                 <div class="game-over-stat">WAVES SURVIVED: <span id="final-wave">0</span></div>
                 <div class="game-over-stat">ZOMBIES KILLED: <span id="final-kills">0</span></div>
                 <div class="game-over-stat">HIGHEST COMBO: <span id="final-combo">0</span></div>
+                <div class="game-over-stat">BEST SCORE: <span id="final-best">0</span></div>
+                <div class="game-over-stat">RANK: <span id="final-rank">-</span></div>
             </div>
             <button id="restart-button">RESTART</button>
         </div>
@@ -6158,6 +6160,29 @@
             }
             
             // Game over
+            let bestScore = 0;
+            (async () => {
+                try {
+                    const r = await lib.getUserGameState();
+                    bestScore = (r && r.state && r.state.bestScore) || 0;
+                } catch (e) { lib.log('load failed: ' + e); }
+            })();
+
+            async function submitRunResult() {
+                const score = gameState.score;
+                const isNewBest = score > bestScore;
+                if (isNewBest) bestScore = score;
+                const bestEl = document.getElementById('final-best');
+                if (bestEl) bestEl.textContent = bestScore + (isNewBest ? ' NEW!' : '');
+                const rankEl = document.getElementById('final-rank');
+                if (rankEl) rankEl.textContent = '-';
+                try {
+                    await lib.saveUserGameState({ bestScore, bestWave: gameState.wave });
+                    const res = await lib.addPlayerScoreToLeaderboard(score, 5);
+                    if (rankEl && res && res.userRank) rankEl.textContent = '#' + res.userRank;
+                } catch (e) { lib.log('score submit failed: ' + e); }
+            }
+
             function endGame() {
                 gameState.gameOver = true;
                 
@@ -6170,6 +6195,7 @@
                 if (comboContainer) comboContainer.classList.remove('active');
                 
                 playSound('gameOver', 0.8);
+                submitRunResult();
                 
                 if (!isMobile && input.pointerLocked) {
                     document.exitPointerLock();
