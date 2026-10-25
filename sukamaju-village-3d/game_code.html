@@ -236,7 +236,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
 <canvas id="gl"></canvas>
 <div id="hud" class="abs card">
  <div id="hTime"></div><div id="hMoney"></div>
- <div class="energy-row"><span class="energy-icon" aria-hidden="true">⚡</span><span>ENERGI</span><span id="hEnergyText">100 / 100</span></div><div class="bar energy-bar"><i id="hEnergy"></i></div>
+ <div class="energy-row"><span class="energy-icon" aria-hidden="true">⚡</span><span>ENERGY</span><span id="hEnergyText">100 / 100</span></div><div class="bar energy-bar"><i id="hEnergy"></i></div>
  <div id="hGoal"></div><div class="bar g"><i id="hGoalBar"></i></div>
 </div>
 <div id="topBtns" class="abs"><div class="rbtn card" id="bProf">👤</div><div class="rbtn card" id="bBag">🎒</div><div class="rbtn card" id="bMute">🔊</div></div>
@@ -246,8 +246,8 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
 <div id="ctrl">
  <div id="joy"><div id="knob"></div></div>
  <div id="hint"></div>
- <div id="act"><span id="actIcon">✋</span><b id="actLbl">Aksi</b></div>
- <div id="tools"><div id="hv" class="tool harvest"><span class="e">🌾</span><span>Panen</span><i id="hvn"></i></div></div>
+ <div id="act"><span id="actIcon">✋</span><b id="actLbl">Action</b></div>
+ <div id="tools"><div id="hv" class="tool harvest"><span class="e">🌾</span><span>Harvest</span><i id="hvn"></i></div></div>
 </div>
 <div id="dlg" class="abs card"><div id="dName"></div><div id="dText"></div><div id="dBtns"></div></div>
 <div id="bag"><div id="bagBox"><div id="bagHead"><div id="bagTitle">🎒 Backpack</div><div id="bagCap"></div><div id="bagX">✕</div></div><div id="bagMoney"></div><div id="bagTabs"><div class="btab on" data-t="items">Items</div><div class="btab" data-t="notes">Notes</div></div><div id="bagGrid"></div><div id="bagDetail"><div id="bdIcon"></div><div id="bdInfo"><div id="bdName"></div><div id="bdRar"></div><div id="bdDesc"></div></div><div id="bdBtns"></div></div><div id="bagNotes"></div></div></div>
@@ -260,26 +260,26 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
 <div id="catchCard"><div id="ccTop">NEW CATCH!</div><div id="ccArt"></div><div id="ccName"></div><div id="ccMeta"></div></div>
 <div id="modal"><div id="mBox" class="card"><div id="mTitle"></div><div id="mBody"></div><div id="mBtns"></div></div></div>
 <div id="fade"></div>
-<div id="loading" role="status" aria-label="Loading Sukamaju Village 3D"><div class="loading-card"><div class="loading-icon">🌾</div><div class="loading-title">Sukamaju Village 3D</div><div class="loading-sub">Menyiapkan petualangan desamu...</div><div class="loading-track"><div class="loading-fill"></div></div></div></div>
+<div id="loading" role="status" aria-label="Loading Sukamaju Village 3D"><div class="loading-card"><div class="loading-icon">🌾</div><div class="loading-title">Sukamaju Village 3D</div><div class="loading-sub">Preparing your village adventure...</div><div class="loading-track"><div class="loading-fill"></div></div></div></div>
 <div id="start" style="visibility:hidden">
  <div id="menuTop">
   <div class="menu-badge">🌾 SLOW LIVING SIMULATOR</div>
   <div id="t1">Sukamaju Village 3D</div>
-  <div id="t2">Pulang ke desa, bercocok tanam, memancing, dan nikmati waktu santai</div>
+  <div id="t2">Return to the village, farm, fish, and enjoy the slow life</div>
  </div>
 
  <!-- Halaman Menu Utama -->
  <div id="menuHome" class="menu-box">
   <div class="card menu-card">
    <div class="menu-intro">
-    <div class="intro-tag">✨ Pilihan Petualangan</div>
-    <div class="intro-desc">Nganggur di kota bukan akhir segalanya. Rawat rumah nenek dan nikmati sejuknya alam pedesaan!</div>
+    <div class="intro-tag">✨ Your Adventure Awaits</div>
+    <div class="intro-desc">A fresh start awaits. Care for Grandma’s home and enjoy the peaceful countryside!</div>
    </div>
-   <div class="btn menu-btn" id="bStartNew">🌱 Mulai Hidup Baru</div>
-   <div class="btn ghost menu-btn" id="bCont" style="display:none">📖 Lanjutkan Petualangan</div>
-   <div class="btn ghost menu-btn" id="bGuide">📜 Panduan & Kontrol</div>
+   <div class="btn menu-btn" id="bStartNew">🌱 Start a New Life</div>
+   <div class="btn ghost menu-btn" id="bCont" style="display:none">📖 Continue Adventure</div>
+   <div class="btn ghost menu-btn" id="bGuide">📜 Guide & Controls</div>
    <div class="menu-features">
-    <span>🌾 Panen Celurit</span> • <span>🐟 Mancing Kolam/Sungai</span> • <span>🏍️ Naik Supra</span>
+    <span>🌾 Sickle Harvest</span> • <span>🐟 Pond & River Fishing</span> • <span>🏍️ Ride a Supra</span>
    </div>
   </div>
  </div>
@@ -288,43 +288,44 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
  <div id="menuCustom" class="menu-box" style="display:none">
   <div class="card menu-card">
    <div class="custom-header">
-    <div class="custom-title">👤 Buat Karaktermu</div>
-    <div class="custom-name">Panggilan: <span id="charNameBadge">Raka</span></div>
+    <div class="custom-title">👤 Create Your Character</div>
+    <div class="custom-name">Name: <span id="charNameBadge">Raka</span></div>
    </div>
-   <div class="row"><b>Gaya</b><span class="chip" data-g="m">👦 Cowok</span><span class="chip" data-g="f">👧 Cewek</span></div>
-   <div class="row"><b>Rambut</b><span class="chip" data-h="short">Pendek</span><span class="chip" data-h="long">Panjang</span><span class="chip" data-h="twin">Kuncir</span></div>
-   <div class="row"><b>Warna</b><span id="sw"></span></div>
-   <div class="btn menu-btn" id="bNew">🌾 Masuk ke Desa & Mulai</div>
-   <div class="btn ghost menu-btn" id="bBackMenu">↩️ Kembali ke Menu</div>
+   <div class="row"><b>Style</b><span class="chip" data-g="m">👦 Boy</span><span class="chip" data-g="f">👧 Girl</span></div>
+   <div class="row"><b>Hair</b><span class="chip" data-h="short">Short</span><span class="chip" data-h="long">Long</span><span class="chip" data-h="twin">Pigtails</span></div>
+   <div class="row"><b>Color</b><span id="sw"></span></div>
+   <div class="btn menu-btn" id="bNew">🌾 Enter the Village</div>
+   <div class="btn ghost menu-btn" id="bBackMenu">↩️ Back to Menu</div>
   </div>
  </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-/* DESA SUKAMAJU 3D — slow living sim.
-   Remaja pengangguran pulang ke desa: bertani (panen pakai celurit), ngobrol dengan warga, memancing.
-   Karakter chibi anime 3D (cel-shaded, outline) dibuat prosedural dengan Three.js.
-   Map luas: rumah NPC, jalan setapak, sungai + jembatan, motor Supra & sepeda ontel.
-   Interior rumah = map terpisah (koordinat, kolisi, & pencahayaan sendiri), masuk lewat pintu rumah. */
+/* SUKAMAJU VILLAGE 3D - a slow-living village sim.
+   A jobless graduate returns to the village: farm (harvest with a sickle), chat with villagers, fish,
+   run a recipe-based food business at the city market, and keep the village life going.
+   Procedural chibi-anime 3D characters (cel-shaded with outlines) built with Three.js.
+   Maps: the village (NPC homes, footpaths, river + bridges, Supra motorbike and classic bicycle),
+   the player's home interior (own coordinates, collision and lighting) and the city market district. */
 const $=id=>document.getElementById(id);
 const TAU=Math.PI*2;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp=(a,b,t)=>a+(b-a)*t;
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const angLerp=(a,b,t)=>{const d=((b-a+Math.PI)%TAU+TAU)%TAU-Math.PI;return a+d*t;};
-const rp=n=>'Rp '+String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+const rp=n=>'Rp '+String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const CFG=()=>Object.assign({timeSpeed:2,goalMoney:5000,rainChance:0.25,startMoney:100},(window.gameConfig&&window.gameConfig.settings)||{});
 const safeLib=()=>window.lib||null;
 
-const CROPS={corn:{name:'Jagung',emoji:'🌽',need:3,seed:20,price:60},tomato:{name:'Tomat',emoji:'🍅',need:4,seed:30,price:100},chili:{name:'Cabai',emoji:'🌶️',need:2,seed:15,price:45},
- kangkung:{name:'Kangkung',emoji:'🥬',need:1,seed:6,price:14},bayam:{name:'Bayam',emoji:'🌿',need:1,seed:7,price:17},wortel:{name:'Wortel',emoji:'🥕',need:1,seed:9,price:22}};
-const FISH={lele:{name:'Ikan Lele',emoji:'🐟',price:25,w:30,z:.30,where:'both'},nila:{name:'Ikan Nila',emoji:'🐟',price:35,w:25,z:.27,where:'both'},mujair:{name:'Ikan Mujair',emoji:'🐠',price:30,w:25,z:.27,where:'pond'},gurame:{name:'Ikan Gurame',emoji:'🐡',price:70,w:10,z:.2,where:'pond'},mas:{name:'Ikan Mas',emoji:'🐠',price:90,w:8,z:.17,where:'both'},arwana:{name:'Arwana Emas',emoji:'🐉',price:300,w:2,z:.12,where:'pond'},wader:{name:'Ikan Wader',emoji:'🐟',price:15,w:30,z:.33,where:'river'},baung:{name:'Ikan Baung',emoji:'🐠',price:110,w:8,z:.17,where:'river'}};
+const CROPS={corn:{name:"Corn",emoji:'🌽',need:3,seed:20,price:60},tomato:{name:"Tomato",emoji:'🍅',need:4,seed:30,price:100},chili:{name:"Chili",emoji:'🌶️',need:2,seed:15,price:45},
+ kangkung:{name:"Water Spinach",emoji:'🥬',need:1,seed:6,price:14},bayam:{name:"Spinach",emoji:'🌿',need:1,seed:7,price:17},wortel:{name:"Carrot",emoji:'🥕',need:1,seed:9,price:22}};
+const FISH={lele:{name:"Catfish",emoji:'🐟',price:25,w:30,z:.30,where:'both'},nila:{name:"Nile Tilapia",emoji:'🐟',price:35,w:25,z:.27,where:'both'},mujair:{name:"Mozambique Tilapia",emoji:'🐠',price:30,w:25,z:.27,where:'pond'},gurame:{name:"Gourami",emoji:'🐡',price:70,w:10,z:.2,where:'pond'},mas:{name:"Carp",emoji:'🐠',price:90,w:8,z:.17,where:'both'},arwana:{name:"Golden Arowana",emoji:'🐉',price:300,w:2,z:.12,where:'pond'},wader:{name:"Silver Barb",emoji:'🐟',price:15,w:30,z:.33,where:'river'},baung:{name:"River Catfish",emoji:'🐠',price:110,w:8,z:.17,where:'river'}};
 const ITEM=Object.assign({},CROPS,FISH);
 const EAT={corn:20,tomato:15,chili:8,kangkung:10,bayam:11,wortel:13,wader:12,lele:22,nila:24,mujair:22,gurame:30,mas:32,baung:34,arwana:40};
 // Bayu's absurd luxury instant-coffee idea is a real, purchasable energy snack.
 const BAYU_GOODS=[
- {id:'sultanCoffee',name:'Kopi Sachet Sultan',emoji:'☕',price:0,buyPrice:55,energy:28},
- {id:'sultanCoffeeGold',name:'Kopi Sultan Emas',emoji:'✨',price:0,buyPrice:95,energy:50}
+ {id:'sultanCoffee',name:"Sultan Instant Coffee",emoji:'☕',price:0,buyPrice:55,energy:28},
+ {id:'sultanCoffeeGold',name:"Golden Sultan Coffee",emoji:'✨',price:0,buyPrice:95,energy:50}
 ];
 BAYU_GOODS.forEach(p=>{ITEM[p.id]=p;EAT[p.id]=p.energy;});
 
@@ -333,9 +334,9 @@ const WATER_MAX=10;
 const RECIPES=[
  {id:'bakwan',name:'Corn Fritters',emoji:'🧆',cost:100,e:38,ing:{corn:2,chili:1}},
  {id:'sambal',name:'Tomato Sambal',emoji:'🥫',cost:120,e:30,ing:{tomato:2,chili:2}},
- {id:'tumis',name:'Garlicky Stir-fried Kangkung',emoji:'🥗',cost:150,e:32,ing:{kangkung:2,chili:1}},
+ {id:'tumis',name:'Garlicky Stir-fried Water Spinach',emoji:'🥗',cost:150,e:32,ing:{kangkung:2,chili:1}},
  {id:'bening',name:'Clear Spinach Soup',emoji:'🥣',cost:180,e:40,ing:{bayam:2,corn:1,wortel:1}},
- {id:'pepes',name:'Pepes Tilapia',emoji:'🍱',cost:300,e:55,ing:{nila:1,chili:1,tomato:1}},
+ {id:'pepes',name:'Banana-Leaf Tilapia',emoji:'🍱',cost:300,e:55,ing:{nila:1,chili:1,tomato:1}},
  {id:'lele',name:'Fried Catfish with Sambal',emoji:'🍤',cost:350,e:52,ing:{lele:1,chili:2,tomato:1}},
  {id:'bakar',name:'Grilled Gourami',emoji:'🍢',cost:450,e:65,ing:{gurame:1,tomato:1,chili:1}},
  {id:'kuning',name:'Yellow Carp Curry',emoji:'🍲',cost:600,e:68,ing:{mas:1,wortel:1,tomato:1}},
@@ -377,7 +378,7 @@ const WH_COLS=10,WH_ROWS=5,WH_SLOTS=50;
 const WH_ROW_COST=[0,400,800,1400,2200];
 const WH_TAB_COST=[0,15000,25000,35000,50000];
 const WH_TAB_NAME=['Main','Shed 2','Shed 3','Shed 4','Shed 5'];
-const TOOL_UI={hoe:['⛏️','Cangkul'],seed:['🌱','Bibit'],water:['💧','Siram'],rod:['🎣','Pancing'],fert:['🧪','Pupuk']};
+const TOOL_UI={hoe:['⛏️','Hoe'],seed:['🌱','Seeds'],water:['💧','Water'],rod:['🎣','Rod'],fert:['🧪','Fertilizer']};
 // Bu Sari's backyard pond: several meters behind the warung, with a clear gap from nearby houses.
 const POND={x:13,z:-25.5,r:6};
 // The well sits in a clear space east of the plaza, outside its pale circular paving.
@@ -395,10 +396,10 @@ const SAUNG={x:38,z:40};
 // Mas Bayu's coffee-sachet side stall is placed beside his house, with a clear customer approach.
 const BAYU_STAND={x:-3.75,z:25.8};
 const IN={x:1200,z:0};
-const INT_SPOTS=[{k:'exit',x:0,z:6.0,r:2.2,icon:'🚪',hint:'Pintu'},{k:'sleep',x:-4.5,z:-3.3,r:3.0,icon:'🛏️',hint:'Kasur'},{k:'cook',x:7.6,z:2.4,r:2.8,icon:'🍳',hint:'Dapur'},{k:'tv',x:5,z:-1.2,r:2.7,icon:'📺',hint:'TV & Sofa'}];
+const INT_SPOTS=[{k:'exit',x:0,z:6.0,r:2.2,icon:'🚪',hint:'Door'},{k:'sleep',x:-4.5,z:-3.3,r:3.0,icon:'🛏️',hint:'Bed'},{k:'cook',x:7.6,z:2.4,r:2.8,icon:'🍳',hint:'Kitchen'},{k:'tv',x:5,z:-1.2,r:2.7,icon:'📺',hint:'TV & Sofa'}];
 const HAIRC=[0x2b1d16,0x6b3f22,0xd9a441,0xe0709a,0x4a7bd0,0xe8e8ee];
-const RAINL=['Hujan gini enaknya diem di rumah, tapi tanaman pasti seneng.','Hujan itu berkah. Nggak usah nyiram hari ini ya!','Hati-hati licin, jangan sampe kepleset di pematang.'];
-const TVPROG=['Sinetron favorit ibu-ibu 📺','Berita: harga cabai naik lagi 🌶️','Kuis tebak kata, kamu jawab benar semua 😂','Film silat jadul 🥋','Dangdut koplo, goyang dikit 💃','Acara memancing — jadi pengin mancing 🎣'];
+const RAINL=["Rainy days are perfect for staying in, but the crops love it.","Rain is a blessing. No need to water the crops today!","Watch your step on those slippery paths."];
+const TVPROG=["The village’s favorite soap opera 📺","News: chili prices are rising again 🌶️","A word quiz — you get every answer right 😂","A classic martial arts film 🥋","An upbeat music show 💃","A fishing show — now you want to go fishing 🎣"];
 
 /* ---------- sungai & jembatan ---------- */
 const RIVER_HW=3.2;
@@ -427,11 +428,11 @@ function surfaceHeightAt(x,z){const by=bridgeAt(x,z);if(by>=0)return by+.08;if(o
 
 /* ---------- rumah NPC, jalan setapak, rute harian ---------- */
 const HOUSES=[
- {id:'sari',name:'RUMAH BU SARI',short:'Bu Sari',x:17,z:-15,rot:0,w:6.4,d:5,wall:0xf3dfb4,roof:0xc0623a},
- {id:'joko',name:'RUMAH PAK JOKO',short:'Pak Joko',x:-32,z:10,rot:Math.PI/2,w:7,d:5.4,wall:0xe7dcc0,roof:0x6e7f4a},
- {id:'dina',name:'RUMAH DINA',short:'Dina',x:26,z:-26,rot:0,w:6,d:5,wall:0xf2d6dd,roof:0xc45872},
- {id:'ujang',name:'RUMAH MANG UJANG',short:'Mang Ujang',x:31,z:17,rot:-Math.PI/2,w:6,d:5,wall:0xcfe3e8,roof:0x3d7a8a},
- {id:'bayu',name:'RUMAH MAS BAYU',short:'Mas Bayu',x:-8,z:26,rot:Math.PI,w:6,d:5,wall:0xdcdcf0,roof:0x4a5a9a}
+ {id:'sari',name:'SARI HOME',short:'Bu Sari',x:17,z:-15,rot:0,w:6.4,d:5,wall:0xf3dfb4,roof:0xc0623a},
+ {id:'joko',name:'JOKO HOME',short:'Pak Joko',x:-32,z:10,rot:Math.PI/2,w:7,d:5.4,wall:0xe7dcc0,roof:0x6e7f4a},
+ {id:'dina',name:'DINA HOME',short:'Dina',x:26,z:-26,rot:0,w:6,d:5,wall:0xf2d6dd,roof:0xc45872},
+ {id:'ujang',name:'UJANG HOME',short:'Mang Ujang',x:31,z:17,rot:-Math.PI/2,w:6,d:5,wall:0xcfe3e8,roof:0x3d7a8a},
+ {id:'bayu',name:'BAYU HOME',short:'Mas Bayu',x:-8,z:26,rot:Math.PI,w:6,d:5,wall:0xdcdcf0,roof:0x4a5a9a}
 ];
 HOUSES.forEach(h=>{h.dx=Math.sin(h.rot);h.dz=Math.cos(h.rot);h.door=[h.x+h.dx*(h.d/2+1),h.z+h.dz*(h.d/2+1)];const sw=Math.abs(h.dx)>.5;h.sx=sw?h.d:h.w;h.sz=sw?h.w:h.d;});
 const D=id=>HOUSES.find(h=>h.id===id).door;
@@ -464,30 +465,30 @@ function segDist(px,pz,ax,az,bx,bz){const dx=bx-ax,dz=bz-az,l2=dx*dx+dz*dz;let t
 function nearPath(x,z){let m=1e9;for(const p of PATHS)for(let i=0;i<p.length-1;i++){const d=segDist(x,z,p[i][0],p[i][1],p[i+1][0],p[i+1][1]);if(d<m)m=d;}return m;}
 
 const NPCS=[
-{id:'sari',name:'Bu Sari',x:6,z:-11.65,shop:true,wander:0,persona:'ibu pemilik warung desa yang hangat, cerewet, suka menasihati dan menawarkan gorengan',
+{id:'sari',name:'Bu Sari',x:6,z:-11.65,shop:true,wander:0,persona:"a warm village shopkeeper who offers kind advice and fresh fritters",
  look:{skin:0xf0c9a2,hair:0x3b2a25,hairStyle:'bun',top:0xe8833a,bottom:0x7a4b8a,eye:'#5a3a2a',female:true,apron:0xfff3d6},
- lines:['Nak, jangan kelamaan nganggur ya. Tapi bertani itu kerjaan juga kok, ibu bangga.','Gorengan ibu masih hangat lho. Murah, cuma sepuluh perak!','Dulu nenekmu langganan setia warung ini. Rumahnya jangan lupa dirawat ya.','Kalau panenmu bagus, jual ke ibu aja. Harganya adil, ibu janji.','Pak Joko itu galak, tapi hatinya emas. Rumahnya di barat desa, mampir sana.','Dina nanyain kamu terus lho kemarin. Rumahnya di timur laut, dekat rumah ibu.'],
- friend:['Ibu udah anggap kamu kayak anak sendiri, tau. Makan yang banyak ya!','Kalau capek, mampir aja ke warung. Ibu siapin teh hangat.'],
- reqs:[{item:'corn',qty:3,reward:120,text:'Ibu pengin bikin bakwan jagung. Bisa carikan 3 jagung?'},{item:'tomato',qty:2,reward:130,text:'Stok tomat ibu habis buat sambal. Minta 2 tomat ya, Nak.'},{item:'chili',qty:4,reward:110,text:'Pelanggan nyari sambal pedas. Ibu butuh 4 cabai!'}]},
-{id:'joko',name:'Pak Joko',x:-27.2,z:12,wander:1.2,persona:'petani tua yang bijak, agak galak tapi baik hati, suka kasih tips bertani',
+ lines:["Farming is honest work, dear. I am proud of you!","My fritters are still warm. Just ten rupiah!","Your grandma was a loyal customer. Take good care of her home.","Bring your harvest to me. I promise fair prices.","Pak Joko can seem stern, but he has a heart of gold.","Dina was asking about you. Visit her flower garden sometime."],
+ friend:["You are like family to me. Make sure you eat well!","Stop by whenever you need a break. I will make some warm tea."],
+ reqs:[{item:'corn',qty:3,reward:120,text:"Could you bring me 3 corn for my fritters?"},{item:'tomato',qty:2,reward:130,text:"I need 2 tomatoes for my sauce, dear."},{item:'chili',qty:4,reward:110,text:"My customers love spicy food. Could you bring 4 chilies?"}]},
+{id:'joko',name:'Pak Joko',x:-27.2,z:12,wander:1.2,persona:"a wise elderly farmer, a little stern but kindhearted",
  look:{skin:0xd8a577,hair:0xdddddd,hairStyle:'short',top:0x6b8e4e,bottom:0x4a4036,eye:'#2a1a1a',hat:'caping'},
- lines:['Tanah itu jujur, Nak. Dirawat, dia balas dengan panen.','Bapak buka gudang penyimpanan di halaman belakang. Titip barangmu di sana, aman.','Siram pagi atau sore. Jangan siang bolong, tanamannya kaget.','Cabai cepat panennya tapi harganya murah. Tomat butuh sabar, cuannya lebih besar.','Zaman Bapak muda, belum ada ojek online. Jalan kaki ke kota tiga jam!','Panen jagung itu paling enak pakai celurit. Sekali ayun, beberapa batang langsung rebah.','Sawah Bapak di sebelah rumah itu lumayan luas. Mampir kalau senggang.'],
- friend:['Kamu mirip Bapak waktu muda: rajin, tapi suka bengong.','Bapak lagi cari orang telaten buat nerusin lahan. Kamu mungkin?'],
- reqs:[{item:'tomato',qty:3,reward:180,text:'Bapak penasaran sama tomatmu. Antar 3 tomat, nanti Bapak kasih upah.'},{item:'corn',qty:5,reward:200,text:'Bapak mau bikin jagung bakar buat arisan. Perlu 5 jagung.'}]},
-{id:'dina',name:'Dina',recipeShop:true,x:26,z:-21.4,wander:1.4,persona:'siswi SMA ceria dan kepo, suka bercita-cita jadi YouTuber',
+ lines:["Treat the soil well, and it will reward you with a harvest.","I run a storage shed out back. Leave your things with me, they will be safe.","Water in the morning or evening, not under the midday sun.","Chilies grow quickly. Tomatoes take patience but sell for more.","When I was young, we walked three hours to the city!","A sickle makes quick work of several ripe crops.","My rice field is beside the house. Visit when you have time."],
+ friend:["You remind me of myself: hardworking, but a bit of a daydreamer.","I need someone patient to carry on farming. Perhaps you?"],
+ reqs:[{item:'tomato',qty:3,reward:180,text:"Bring me 3 tomatoes and I will pay you for them."},{item:'corn',qty:5,reward:200,text:"I need 5 corn for a village barbecue."}]},
+{id:'dina',name:'Dina',recipeShop:true,x:26,z:-21.4,wander:1.4,persona:"a cheerful, curious high-school student who dreams of becoming a video creator",
  look:{skin:0xf6d2b5,hair:0x4a2f2a,hairStyle:'twin',top:0xffffff,bottom:0x2b3a6b,eye:'#3a7bd5',female:true,ribbon:0xd9333f},
- lines:['Kak, katanya cari kerja di kota susah banget ya?','Aku nyatet resep rahasia dari mana-mana. Kakak nggak bakal nemu di tempat lain, lho!','Aku mau jadi YouTuber! Tapi sinyal di desa timbul tenggelam...','Katanya di kolam ada ikan gede banget lho, kayak naga!','Kak, jangan lupa istirahat. Kakak keliatan capek.','Kapan-kapan main ke rumahku ya, Kak. Taman bunganya baru mekar!','Naik motor Supra tuh keren, Kak. Tapi hati-hati ya, jangan ngebut!'],
- friend:['Kakak keren deh, nganggur tapi produktif!','Kalau aku jadi YouTuber, Kakak jadi bintang tamu pertama ya!'],
- reqs:[{item:'tomato',qty:1,reward:70,text:'Kak, aku pengin jus tomat. Ada satu tomat nggak?'},{item:'corn',qty:2,reward:90,text:'Temenku ulang tahun, mau bikin jagung manis. Minta 2 jagung dong, Kak!'}]},
-{id:'ujang',name:'Mang Ujang',rodShop:true,x:18,z:-18,wander:0,persona:'bapak-bapak tukang mancing yang sabar dan filosofis',
+ lines:["Is it really that hard to find a job in the city?","I collect secret recipes from everywhere. You will not find them anywhere else!","I want to make videos, but the village signal keeps disappearing!","They say there is a huge fish in the pond. Like a dragon!","Remember to rest. You look tired.","Come see my garden! The flowers just bloomed.","That Supra looks cool. Ride safely, though!"],
+ friend:["You make village life look so productive!","When my channel takes off, you will be my first guest!"],
+ reqs:[{item:'tomato',qty:1,reward:70,text:"Could I have 1 tomato for some fresh juice?"},{item:'corn',qty:2,reward:90,text:"Could you bring 2 corn for my friend’s birthday?"}]},
+{id:'ujang',name:'Mang Ujang',rodShop:true,x:18,z:-18,wander:0,persona:"a patient fisherman who enjoys quiet philosophical advice",
  look:{skin:0xc98f63,hair:0x2a2a2a,hairStyle:'short',top:0x3d7a8a,bottom:0x6b5b45,eye:'#2a1a1a',hat:'cap'},
- lines:['Mancing itu bukan soal ikan, tapi soal sabar.','Mang jual pancing dan umpan sekarang. Pilih umpan sesuai ikan yang diincar!','Kalau pelampungnya goyang, tunggu sebentar... lalu tarik!','Konon di kolam ini ada arwana emas. Mang belum pernah lihat sih.','Ikan besar itu zona hijaunya kecil. Jangan buru-buru nariknya.','Di sungai ikannya beda lagi, ada wader sama baung. Coba aja dari tepinya.','Dari dermaga sana lemparan umpannya paling pas. Rumah Mang di timur kolam.'],
- friend:['Kamu sabar juga ya. Cocok jadi pemancing sejati.','Besok pagi kita adu, siapa dapet ikan paling gede!'],
- reqs:[{item:'nila',qty:2,reward:150,text:'Mang pengin ikan nila bakar. Bisa carikan 2 ikan nila?'},{item:'mujair',qty:2,reward:140,text:'Istri Mang minta ikan mujair. Tolong 2 ekor ya!'},{item:'gurame',qty:1,reward:220,text:'Mang ngidam gurame goreng. Kalau dapet satu, Mang beli mahal!'}]},
-{id:'bayu',name:'Mas Bayu',x:-8,z:21.5,wander:1.2,persona:'sahabat sesama pengangguran yang santai, kocak, suka ide bisnis nyeleneh dan rebahan',
+ lines:["Fishing is not just about fish. It is about patience.","I sell rods and bait now. Pick the bait that matches the fish you want!","When the float moves, wait for the bite... then pull!","They say a golden arowana lives in the pond. I have never seen it.","Big fish have smaller green zones. Take your time.","Try the river for silver barb and river catfish.","The dock is a great place to cast your line."],
+ friend:["You have patience. A true angler in the making.","Tomorrow morning, let us see who catches the biggest fish!"],
+ reqs:[{item:'nila',qty:2,reward:150,text:"Could you catch 2 Nile Tilapia for me?"},{item:'mujair',qty:2,reward:140,text:"My wife asked for 2 Mozambique Tilapia. Can you help?"},{item:'gurame',qty:1,reward:220,text:"I would love a Gourami. Bring 1 and I will pay well!"}]},
+{id:'bayu',name:'Mas Bayu',x:-8,z:21.5,wander:1.2,persona:"a laid-back, funny unemployed friend with wild business ideas and a love of naps",
  look:{skin:0xe9bf98,hair:0x1f1f2a,hairStyle:'short',top:0x5a5a8a,bottom:0x2a2a35,eye:'#2a1a1a'},
- lines:['Bro, nganggur bareng lo itu enak juga ya. Santai.','Gue lagi mikirin bisnis. Kopi sachet kemasan mewah. Genius nggak?','Katanya lowongan di kota banyak, tapi syaratnya pengalaman 5 tahun. Fresh graduate, bro!','Gue butuh duit, tapi lebih butuh rebahan.','Rumah gue di seberang sungai. Lewat jembatan kayu aja, bro.','Sepeda ontel itu santai banget buat keliling. Supra buat yang lagi buru-buru.'],
- friend:['Lo satu-satunya temen gue yang masih bangun pagi. Respect.','Kalo lo sukses, inget gue ya. Gue siap jadi karyawan pertama... part time.']}
+ lines:["Hanging out in the village with you is pretty great, bro.","Instant coffee in luxury packaging. Genius business idea, right?","City jobs ask new graduates for five years of experience. Seriously?","I need money, but I need a nap even more.","My home is across the river. Take the wooden bridge.","The bicycle is perfect for a slow ride. The Supra is for busy days."],
+ friend:["You are the only friend I know who still gets up early. Respect.","When you make it big, remember me. I can be your first employee... part-time."]}
 ];
 
 function newState(o){return {v:1,name:o.gender==='m'?'Raka':'Rani',gender:o.gender,hairStyle:o.hairStyle,hairColor:o.hairColor,
@@ -722,7 +723,7 @@ function actPose(kind,u){
 }
 function nameTag(text){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.font='bold 34px Trebuchet MS, sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=8;x.strokeStyle='rgba(60,30,10,.9)';x.strokeText(text,128,34);x.fillStyle='#fff6d8';x.fillText(text,128,34);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false,fog:false}));s.scale.set(2.2,.55,1);s.renderOrder=10;return s;}
-function signTex(text,w,h,bg,fg,fs){text=englishText(text);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,w,h);x.strokeStyle='#5a3a1a';x.lineWidth=10;x.strokeRect(5,5,w-10,h-10);x.fillStyle=fg;x.font='bold '+fs+'px Trebuchet MS, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(text,w/2,h/2+4);return new THREE.CanvasTexture(c);}
+function signTex(text,w,h,bg,fg,fs){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,w,h);x.strokeStyle='#5a3a1a';x.lineWidth=10;x.strokeRect(5,5,w-10,h-10);x.fillStyle=fg;x.font='bold '+fs+'px Trebuchet MS, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(text,w/2,h/2+4);return new THREE.CanvasTexture(c);}
 function lookFor(o){const f=o.gender==='f';return {skin:0xf3cba5,hair:HAIRC[o.hairColor],hairStyle:o.hairStyle,top:f?0xf7f3ea:0xf0efe6,bottom:f?0x4c6ea8:0x5d6b52,shoe:0xffffff,eye:f?'#d9528a':'#3a8a5a',female:f,ahoge:true,vest:f?0xf2c14e:0x4a78a6,ribbon:f?0xd9333f:null,bag:true};}
 function buildPlayer(){
  if(player.char){scene.remove(player.char.root);const i=faceMats.indexOf(player.char.faceMat);if(i>=0)faceMats.splice(i,1);}
@@ -854,7 +855,7 @@ function makeOntel(){
 }
 const vehicles={
  supra:{id:'supra',name:'Honda Supra',emoji:'🏍️',dx:PARKING.slots.supra.x,dz:PARKING.slots.supra.z,drot:PARKING.slots.supra.rot,x:PARKING.slots.supra.x,z:PARKING.slots.supra.z,rot:PARKING.slots.supra.rot,vel:0,vmax:12,turn:4.6,seatY:.30,seatZ:.02,rad:.36,lean:0,pose:{leg:-1.02,arm:-1.05,seatY:.30,seatZ:.02,grips:[[-.31,1.0,.6],[.31,1.0,.6]]}},
- ontel:{id:'ontel',name:'Sepeda Ontel',emoji:'🚲',dx:PARKING.slots.ontel.x,dz:PARKING.slots.ontel.z,drot:PARKING.slots.ontel.rot,x:PARKING.slots.ontel.x,z:PARKING.slots.ontel.z,rot:PARKING.slots.ontel.rot,vel:0,vmax:6.6,turn:3.8,seatY:.55,seatZ:-.3,rad:.5,lean:0,pose:{leg:-.9,arm:-1.2}}
+ ontel:{id:'ontel',name:'Classic Bicycle',emoji:'🚲',dx:PARKING.slots.ontel.x,dz:PARKING.slots.ontel.z,drot:PARKING.slots.ontel.rot,x:PARKING.slots.ontel.x,z:PARKING.slots.ontel.z,rot:PARKING.slots.ontel.rot,vel:0,vmax:6.6,turn:3.8,seatY:.55,seatZ:-.3,rad:.5,lean:0,pose:{leg:-.9,arm:-1.2}}
 };
 let riding=null,eng=null,resting=null;
 function buildVehicles(){const s=makeSupra(),o=makeOntel();vehicles.supra.m=s;vehicles.ontel.m=o;[s,o].forEach(m=>{m.root.rotation.order='YXZ';scene.add(m.root);});}
@@ -864,7 +865,7 @@ function stopEngine(){if(eng){try{eng.g.gain.value=0;eng.o.stop();}catch(e){}eng
 function mount(v){
  if(fish.active)cancelFish();
  riding=v;v.vel=0;player.pos.set(v.x,0,v.z);player.rot=v.rot;player.char.ride=v.id;player.char.ridePose=v.pose;player.char.pedal=0;setHeld(player.char,'none');startEngine(v);saveProgress();
- tone(v.id==='ontel'?2200:300,.16,'sine',.1);toast(v.emoji+' '+v.name+' — geser joystick untuk melaju!',2200);
+ tone(v.id==='ontel'?2200:300,.16,'sine',.1);toast(v.emoji+' '+v.name+' — move the joystick to ride!',2200);
 }
 function dismount(){
  const v=riding;if(!v)return;const px=player.pos.x,pz=player.pos.z,rx=Math.cos(v.rot),rz=-Math.sin(v.rot);
@@ -1186,7 +1187,7 @@ function buildSaung(){
  // Front-facing carved name plaque and a warm hanging bamboo lantern.
  g.add(mesh(new THREE.BoxGeometry(2.65,.7,.12),woodD,0,3.18,2.23));
  g.add(mesh(new THREE.BoxGeometry(2.48,.55,.035),brass,0,3.18,2.30,false));
- const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.36,.43),new THREE.MeshBasicMaterial({map:signTex('SAUNG ISTIRAHAT',512,100,'#55321d','#f2d79a',44)}));sign.position.set(0,3.18,2.325);g.add(sign);
+ const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.36,.43),new THREE.MeshBasicMaterial({map:signTex('REST PAVILION',512,100,'#55321d','#f2d79a',44)}));sign.position.set(0,3.18,2.325);g.add(sign);
  const lantern=new THREE.Group();lantern.position.set(0,2.72,0);
  lantern.add(mesh(new THREE.CylinderGeometry(.018,.018,.38,6),woodD,0,.2,0,false));
  lantern.add(mesh(new THREE.CylinderGeometry(.23,.23,.32,8,1,true),brass,0,-.04,0,false));
@@ -1872,7 +1873,7 @@ function decorHouse(h,g){
   });
   const porchRoof=roofOf(5.35,2.12,3.25,blue,3.25,.55);porchRoof.position.z=3.34;g.add(porchRoof);
   g.add(mesh(new THREE.BoxGeometry(5.42,.12,.14),woodD,0,2.98,4.35,false));
-  const houseSign=new THREE.Mesh(new THREE.PlaneGeometry(2.5,.42),new THREE.MeshBasicMaterial({map:signTex('RUMAH MAS BAYU',512,100,'#49301e','#f1d99a',42)}));houseSign.position.set(0,3.02,front+.2);g.add(houseSign);
+  const houseSign=new THREE.Mesh(new THREE.PlaneGeometry(2.5,.42),new THREE.MeshBasicMaterial({map:signTex('BAYU HOME',512,100,'#49301e','#f1d99a',42)}));houseSign.position.set(0,3.02,front+.2);g.add(houseSign);
   // Brass-and-glass lanterns, little flower pots, and a deliberately relaxed porch bench.
   [-1,1].forEach(s=>{const x=s*1.05,z=front+.22;g.add(mesh(new THREE.BoxGeometry(.16,.23,.1),woodD,x,2.48,z,false));g.add(mesh(new THREE.CylinderGeometry(.065,.08,.18,8,1,true),brass,x,2.42,z+.04,false));g.add(mesh(new THREE.SphereGeometry(.052,8,6),0xffdf9a,x,2.42,z+.04,false));g.add(mesh(new THREE.ConeGeometry(.13,.09,8),woodD,x,2.55,z+.04,false));});
   const bench=new THREE.Group();bench.position.set(1.48,0,3.48);bench.rotation.y=.08;
@@ -1905,7 +1906,7 @@ function decorHouse(h,g){
   });
   stall.add(mesh(new THREE.BoxGeometry(2.42,.12,.1),stallWood,0,2.28,.67));
   stall.add(mesh(new THREE.BoxGeometry(2.48,.66,.11),gold,0,2.68,.69));
-  const shopSign=new THREE.Mesh(new THREE.PlaneGeometry(2.3,.5),new THREE.MeshBasicMaterial({map:signTex('KOPI SULTAN',512,120,'#32190d','#f4d994',48)}));shopSign.position.set(0,2.68,.755);stall.add(shopSign);
+  const shopSign=new THREE.Mesh(new THREE.PlaneGeometry(2.3,.5),new THREE.MeshBasicMaterial({map:signTex('SULTAN COFFEE',512,120,'#32190d','#f4d994',48)}));shopSign.position.set(0,2.68,.755);stall.add(shopSign);
   // Four readable foil sachet packs on a raised shelf, with the two product grades colour-coded.
   stall.add(mesh(new THREE.BoxGeometry(1.62,.07,.42),stallWood,0,1.25,.08));
   const packLabel=new THREE.MeshBasicMaterial({map:signTex('SULTAN',256,96,'#38200f','#ffe9a5',32)});
@@ -2017,7 +2018,7 @@ function decorHouse(h,g){
   const signGroup=new THREE.Group();signGroup.position.set(6.12,0,-2.5);
   [-.55,.55].forEach(x=>signGroup.add(mesh(new THREE.CylinderGeometry(.045,.055,1.35,6),woodD,x,.67,0)));
   signGroup.add(mesh(new THREE.BoxGeometry(1.55,.62,.12),woodD,0,1.24,0));
-  const farmSign=new THREE.Mesh(new THREE.PlaneGeometry(1.43,.48),new THREE.MeshBasicMaterial({map:signTex('SAWAH PAK JOKO',512,120,'#e2bd7e','#4a2a10',40)}));farmSign.position.set(0,1.24,.07);signGroup.add(farmSign);field.add(signGroup);
+  const farmSign=new THREE.Mesh(new THREE.PlaneGeometry(1.43,.48),new THREE.MeshBasicMaterial({map:signTex('JOKO RICE FIELD',512,120,'#e2bd7e','#4a2a10',40)}));farmSign.position.set(0,1.24,.07);signGroup.add(farmSign);field.add(signGroup);
   scene.add(field);
 
   // The former unexplained yellow cones are now visibly tied bundles of harvested rice on a bamboo drying rack.
@@ -2049,7 +2050,7 @@ function decorHouse(h,g){
   const rackSign=new THREE.Group();rackSign.position.set(1.92,0,.68);
   [-.48,.48].forEach(x=>rackSign.add(mesh(new THREE.CylinderGeometry(.035,.045,.98,6),woodD,x,.49,0)));
   rackSign.add(mesh(new THREE.BoxGeometry(1.38,.44,.1),woodD,0,1.0,0));
-  const riceLabel=new THREE.Mesh(new THREE.PlaneGeometry(1.25,.32),new THREE.MeshBasicMaterial({map:signTex('IKATAN PADI',384,100,'#e2bd7e','#4a2a10',40)}));riceLabel.position.set(0,1.0,.06);rackSign.add(riceLabel);rack.add(rackSign);
+  const riceLabel=new THREE.Mesh(new THREE.PlaneGeometry(1.25,.32),new THREE.MeshBasicMaterial({map:signTex('RICE SHEAVES',384,100,'#e2bd7e','#4a2a10',40)}));riceLabel.position.set(0,1.0,.06);rackSign.add(riceLabel);rack.add(rackSign);
   batchBuilding(rack);scene.add(rack);addObst(-26.5,16,1.55);
  }
  if(h.id==='ujang'){
@@ -2151,7 +2152,7 @@ function decorHouse(h,g){
   const sgn=new THREE.Group();sgn.position.set(1.55,0,-1.15);
   [-.5,.5].forEach(x=>sgn.add(mesh(new THREE.CylinderGeometry(.035,.045,1.2,6),woodD,x,.6,0)));
   sgn.add(mesh(new THREE.BoxGeometry(1.32,.42,.08),woodD,0,1.1,0));
-  {const sl=new THREE.Mesh(new THREE.PlaneGeometry(1.22,.34),new THREE.MeshBasicMaterial({map:signTex('IKAN MANG UJANG',512,140,'#e2bd7e','#4a2a10',52)}));sl.position.set(0,1.1,-.045);sl.rotation.y=Math.PI;sgn.add(sl);}
+  {const sl=new THREE.Mesh(new THREE.PlaneGeometry(1.22,.34),new THREE.MeshBasicMaterial({map:signTex('UJANG FISH',512,140,'#e2bd7e','#4a2a10',52)}));sl.position.set(0,1.1,-.045);sl.rotation.y=Math.PI;sgn.add(sl);}
   rack.add(sgn);
   batchBuilding(rack,m=>{let p=m;while(p&&p!==rack){if(p.userData&&p.userData.hangFish)return true;p=p.parent;}return false;});
   scene.add(rack);addBox(29.4,9.0,31.75,13.0);
@@ -2294,7 +2295,7 @@ function buildHouse(){
  });
  // Centered family plaque and warm wall lanterns at the entrance.
  g.add(mesh(new THREE.BoxGeometry(2.2,.48,.12),woodD,0,3.02,3.17,false));
- const homeSign=new THREE.Mesh(new THREE.PlaneGeometry(2.02,.34),new THREE.MeshBasicMaterial({map:signTex('RUMAH KELUARGA',512,100,'#55351f','#f4d89d',38)}));homeSign.position.set(0,3.02,3.24);g.add(homeSign);
+ const homeSign=new THREE.Mesh(new THREE.PlaneGeometry(2.02,.34),new THREE.MeshBasicMaterial({map:signTex('FAMILY HOME',512,100,'#55351f','#f4d89d',38)}));homeSign.position.set(0,3.02,3.24);g.add(homeSign);
  [-1,1].forEach(s=>{
   const x=s*1.12;g.add(mesh(new THREE.BoxGeometry(.18,.24,.12),woodD,x,2.78,3.2,false));
   g.add(mesh(new THREE.CylinderGeometry(.075,.09,.2,8,1,true),brass,x,2.68,3.25,false));
@@ -2378,12 +2379,12 @@ function warungSignTex(){
  [[22,22],[1002,22],[22,234],[1002,234]].forEach(p=>{x.fillStyle='#d4af37';x.beginPath();x.arc(p[0],p[1],10,0,TAU);x.fill();});
  x.textAlign='center';x.textBaseline='middle';
  x.font='bold 26px "Trebuchet MS",sans-serif';x.fillStyle='#e8c878';
- x.fillText('★   SERBA ADA & GORENGAN HANGAT   ★',512,62);
+ x.fillText('★   GROCERIES & FRESH FRITTERS   ★',512,62);
  x.font='900 68px "Trebuchet MS",sans-serif';
- x.fillStyle='rgba(0,0,0,0.6)';x.fillText('WARUNG BU SARI',514,136);
- x.fillStyle='#fff3ce';x.fillText('WARUNG BU SARI',512,132);
+ x.fillStyle='rgba(0,0,0,0.6)';x.fillText('BU SARI SHOP',514,136);
+ x.fillStyle='#fff3ce';x.fillText('BU SARI SHOP',512,132);
  x.font='italic 600 28px "Trebuchet MS",sans-serif';x.fillStyle='#f1d28d';
- x.fillText('Kopi Tubruk · Aneka Gorengan · Hasil Tani',512,198);
+ x.fillText('Fresh Coffee · Fritters · Farm Produce',512,198);
  const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t;
 }
 function chalkboardTex(){
@@ -2391,10 +2392,10 @@ function chalkboardTex(){
  x.fillStyle='#1e2720';x.fillRect(0,0,256,384);
  x.strokeStyle='#7a4b26';x.lineWidth=12;x.strokeRect(6,6,244,372);
  x.textAlign='center';x.fillStyle='#fff9d6';x.font='bold 26px "Trebuchet MS",sans-serif';
- x.fillText('☕ MENU WARUNG',128,48);
+ x.fillText('☕ SHOP MENU',128,48);
  x.strokeStyle='#7aa874';x.lineWidth=2;x.beginPath();x.moveTo(30,66);x.lineTo(226,66);x.stroke();
  x.textAlign='left';x.font='bold 20px "Trebuchet MS",sans-serif';
- const items=[['Gorengan','Rp 10'],['Kopi Panas','Rp 15'],['Teh Manis','Rp 10'],['Beli Panen','Harga Adil!']];
+ const items=[['Fritters','Rp 10'],['Hot Coffee','Rp 15'],['Sweet Tea','Rp 10'],['We Buy Crops','Fair Prices!']];
  items.forEach((it,i)=>{
   const y=112+i*62;
   x.fillStyle='#ffe599';x.fillText(it[0],28,y);
@@ -2667,7 +2668,7 @@ function buildInterior(){
  kid(fw,0,-.9,-.17,2.2,2.5,.08,0x4a3018);kid(fw,0,-.9,-.2,1.9,2.4,.08,0x6b4426);kid(fw,.7,-.9,-.26,.12,.12,.08,0xd8b04a);
  // lantai: tikar & rug
  B(0,.03,5.4,2.4,.05,1.2,0x7a3a3a,false);
- {const s=new THREE.Mesh(new THREE.PlaneGeometry(2.6,.6),new THREE.MeshBasicMaterial({map:signTex('KELUAR ▼',512,120,'#e2bd7e','#4a2a10',56)}));s.rotation.x=-Math.PI/2;s.position.set(0,.05,6.15);ig.add(s);}
+ {const s=new THREE.Mesh(new THREE.PlaneGeometry(2.6,.6),new THREE.MeshBasicMaterial({map:signTex('EXIT ▼',512,120,'#e2bd7e','#4a2a10',56)}));s.rotation.x=-Math.PI/2;s.position.set(0,.05,6.15);ig.add(s);}
  ig.add(mesh(new THREE.CylinderGeometry(3.3,3.3,.03,32),0xc0623a,-.5,.02,.5,false));ig.add(mesh(new THREE.CylinderGeometry(2.5,2.5,.03,32),0xf3dfb4,-.5,.035,.5,false));ig.add(mesh(new THREE.CylinderGeometry(1.4,1.4,.03,32),0x4a7bd0,-.5,.05,.5,false));
  // kamar tidur
  B(-7.2,.3,-4.6,3.3,.5,4.4,0x8a5c33);B(-7.2,.68,-4.6,3.1,.28,4.2,0xe9eef7);B(-7.2,.95,-3.9,3.1,.2,2.6,0x5b8bd0);B(-7.9,.95,-6.3,1.2,.22,.7,0xfff3df);B(-6.5,.95,-6.3,1.2,.22,.7,0xfff3df);B(-7.2,1.2,-6.85,3.5,1.7,.2,0x6b4426);cb(-7.2,-4.6,3.3,4.4);
@@ -2678,7 +2679,7 @@ function buildInterior(){
  B(-.5,.35,.5,1.8,.1,1.0,0x8a5c33);[[-1.3,0],[.3,0],[-1.3,1],[.3,1]].forEach(p=>B(p[0]-.1+.1,.17,.5-.4+p[1]*.8,.1,.35,.1,0x6b4426,false));ig.add(mesh(new THREE.CylinderGeometry(.12,.1,.18,10),0xfafafa,-.9,.5,.4,false));ig.add(mesh(new THREE.CylinderGeometry(.12,.1,.18,10),0xfafafa,-.1,.5,.7,false));cb(-.5,.5,1.8,1.0);
  B(5,.4,-2.9,3.2,.5,1.1,0xb5503c);B(5,.95,-2.3,3.2,.9,.3,0xa04630);B(3.5,.65,-2.9,.3,.8,1.1,0xa04630);B(6.5,.65,-2.9,.3,.8,1.1,0xa04630);B(4.2,.72,-2.9,.9,.2,.9,0xd9805f,false);B(5.8,.72,-2.9,.9,.2,.9,0xd9805f,false);cb(5,-2.8,3.4,1.5);
  B(5,.35,-6.5,3,.7,.8,0x6b4426);B(5,1.55,-6.55,2.3,1.3,.12,0x111111);cb(5,-6.5,3,.8);
- {const c=document.createElement('canvas');c.width=128;c.height=72;const x=c.getContext('2d');const g=x.createLinearGradient(0,0,128,72);g.addColorStop(0,'#3a7bd5');g.addColorStop(1,'#00d2ff');x.fillStyle=g;x.fillRect(0,0,128,72);x.fillStyle='#ffe066';x.beginPath();x.arc(96,22,10,0,TAU);x.fill();x.fillStyle='#4cae4f';x.fillRect(0,54,128,18);x.fillStyle='#fff';x.font='bold 12px sans-serif';x.fillText('TV DESA',8,16);
+ {const c=document.createElement('canvas');c.width=128;c.height=72;const x=c.getContext('2d');const g=x.createLinearGradient(0,0,128,72);g.addColorStop(0,'#3a7bd5');g.addColorStop(1,'#00d2ff');x.fillStyle=g;x.fillRect(0,0,128,72);x.fillStyle='#ffe066';x.beginPath();x.arc(96,22,10,0,TAU);x.fill();x.fillStyle='#4cae4f';x.fillRect(0,54,128,18);x.fillStyle='#fff';x.font='bold 12px sans-serif';x.fillText('VILLAGE TV',8,16);
   const sc=new THREE.Mesh(new THREE.PlaneGeometry(2.1,1.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c)}));sc.position.set(5,1.55,-6.48);ig.add(sc);}
  // dapur
  B(9.3,.5,2.7,1.2,1.0,5.0,0xe9d5a8);B(9.3,1.05,2.7,1.3,.1,5.1,0x6b4a2a);
@@ -2702,7 +2703,7 @@ function wallCut(){for(const w of wallsIn){const dx=camera.position.x-(IN.x+w.x)
 function setLoc(l){loc=l;if(outGroup)outGroup.visible=(l==='out');if(inGroup)inGroup.visible=(l==='in');if(cityGroup)cityGroup.visible=(l==='city');if(l!=='city')cityClear();}
 function snapCam(){const cp=Math.cos(cam.pitch),sp2=Math.sin(cam.pitch);camPos.set(player.pos.x+Math.sin(cam.yaw)*cp*cam.dist,player.pos.y+1.2+sp2*cam.dist,player.pos.z+Math.cos(cam.yaw)*cp*cam.dist);}
 function transition(fn){busy=true;const f=$('fade');f.style.transition='opacity .3s';f.style.opacity=1;setTimeout(()=>{fn();f.style.opacity=0;setTimeout(()=>{busy=false;f.style.transition='';},330);},330);}
-function goIn(){transition(()=>{setLoc('in');player.pos.set(IN.x,0,IN.z+5.2);player.rot=Math.PI;cam.yaw=0;cam.pitch=.85;cam.dist=9;snapCam();saveProgress();sfx('pop');toast('🏠 Rumahmu\nKasur di kiri · dapur di kanan · pintu keluar di depan',3200);});}
+function goIn(){transition(()=>{setLoc('in');player.pos.set(IN.x,0,IN.z+5.2);player.rot=Math.PI;cam.yaw=0;cam.pitch=.85;cam.dist=9;snapCam();saveProgress();sfx('pop');toast('🏠 Your Home\nBed on the left · kitchen on the right · exit ahead',3200);});}
 function goOut(){transition(()=>{setLoc('out');player.pos.set(DOOR.x,0,-4.6);player.rot=Math.PI;cam.yaw=0;cam.pitch=.82;cam.dist=10;snapCam();saveProgress();sfx('pop');});}
 
 /* ---------- npcs ---------- */
@@ -2821,7 +2822,7 @@ function drawIndoor(c){
  c.font='20px sans-serif';c.textAlign='center';INT_SPOTS.forEach(sp=>{const m=P(sp.x,sp.z);c.fillText(sp.icon,m[0],m[1]+7);});
  const lx=player.pos.x-IN.x,lz=player.pos.z-IN.z,m=P(lx,lz),ang=Math.atan2(Math.cos(player.rot),Math.sin(player.rot));
  c.save();c.translate(m[0],m[1]);c.rotate(ang);c.fillStyle='#fff';c.strokeStyle='#d33';c.lineWidth=3;c.beginPath();c.moveTo(11,0);c.lineTo(-8,-7);c.lineTo(-4,0);c.lineTo(-8,7);c.closePath();c.fill();c.stroke();c.restore();
- c.font='bold 15px Trebuchet MS, sans-serif';c.lineWidth=4;c.strokeStyle='rgba(255,255,255,.9)';c.strokeText('Rumahmu',R,24);c.fillStyle='#3b2a1a';c.fillText('Rumahmu',R,24);
+ c.font='bold 15px Trebuchet MS, sans-serif';c.lineWidth=4;c.strokeStyle='rgba(255,255,255,.9)';c.strokeText('Your Home',R,24);c.fillStyle='#3b2a1a';c.fillText('Your Home',R,24);
 }
 function drawCityMap(c){
  const R=110,s=2,P=(x,z)=>[R+x*s,R+z*s],Z=(x1,z1,x2,z2,col)=>{c.fillStyle=col;c.fillRect(R+x1*s,R+z1*s,(x2-x1)*s,(z2-z1)*s);};
@@ -2847,7 +2848,7 @@ function drawMinimap(dt){
  c.fillStyle='#a98558';c.beginPath();[[FARM.x-FARM.w/2,FARM.z-FARM.d/2],[FARM.x+FARM.w/2,FARM.z-FARM.d/2],[FARM.x+FARM.w/2,FARM.z+FARM.d/2],[FARM.x-FARM.w/2,FARM.z+FARM.d/2]].forEach((q,i)=>{const m=P(q[0],q[1]);i?c.lineTo(m[0],m[1]):c.moveTo(m[0],m[1]);});c.closePath();c.fill();
  c.strokeStyle='#d9b87e';c.lineWidth=5;PATHS.forEach(pt=>trace(pt));
  BRIDGES.forEach(b=>{const hl=b.len/2,seg=[[b.x-b.ax*hl,b.z-b.az*hl],[b.x+b.ax*hl,b.z+b.az*hl]];c.strokeStyle='#8a5a2b';c.lineWidth=10;trace(seg);c.strokeStyle='#d9b87e';c.lineWidth=5;trace(seg);});
- const bld=[[-11,-12,'#b5503c','Rumahmu'],[PARKING.x,PARKING.z,'#9b6b3d','Parking'],[6,-13,'#d94a3a','Warung'],[WELL.x,WELL.z,'#a39d91','Well'],[SAUNG.x,SAUNG.z,'#c9a45c','Saung'],[21,48,'#9e382b','Gate']].concat(HOUSES.map(h=>[h.x,h.z,'#'+h.roof.toString(16).padStart(6,'0'),h.short]));
+ const bld=[[-11,-12,'#b5503c','Your Home'],[PARKING.x,PARKING.z,'#9b6b3d','Parking'],[6,-13,'#d94a3a','Shop'],[WELL.x,WELL.z,'#a39d91','Well'],[SAUNG.x,SAUNG.z,'#c9a45c','Pavilion'],[21,48,'#9e382b','Gate']].concat(HOUSES.map(h=>[h.x,h.z,'#'+h.roof.toString(16).padStart(6,'0'),h.short]));
  c.font='bold 15px Trebuchet MS, sans-serif';c.textAlign='center';c.lineJoin='round';
  bld.forEach(b=>{const m=P(b[0],b[1]);c.fillStyle=b[2];c.fillRect(m[0]-7,m[1]-7,14,14);c.strokeStyle='#4a2a10';c.lineWidth=2;c.strokeRect(m[0]-7,m[1]-7,14,14);c.lineWidth=4;c.strokeStyle='rgba(255,255,255,.9)';c.strokeText(b[3],m[0],m[1]-11);c.fillStyle='#3b2a1a';c.fillText(b[3],m[0],m[1]-11);});
  for(const k in vehicles){const v=vehicles[k];if(v===riding)continue;const m=P(v.x,v.z);c.font='18px sans-serif';c.fillText(v.emoji,m[0],m[1]+6);}
@@ -2870,14 +2871,14 @@ const sfx=k=>{try{SFX[k]&&SFX[k]();}catch(e){}};
 
 /* ---------- UI helpers ---------- */
 let toastT=0;
-function energyText(el,text){text=englishText(text);
+function energyText(el,text){
  el.replaceChildren();String(text).split('⚡').forEach((part,i)=>{if(i){const mark=document.createElement('span');mark.className='energy-mark';mark.textContent='⚡';mark.setAttribute('aria-label','energy');el.appendChild(mark);}el.appendChild(document.createTextNode(part));});
 }
 const _fv=new THREE.Vector3();let shakeA=0,moneyShown=0;
 function addShake(a){shakeA=Math.max(shakeA,a);}
 function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
 function floatText(txt,x,y,z,col,size){if(!camera)return;_fv.set(x,y,z).project(camera);if(_fv.z>1||document.querySelectorAll('.floater').length>12)return;const el=document.createElement('div');el.className='floater';el.textContent=txt;if(col)el.style.color=col;if(size)el.style.fontSize=size+'px';el.style.left=((_fv.x+1)/2*window.innerWidth)+'px';el.style.top=((1-_fv.y)/2*window.innerHeight)+'px';document.body.appendChild(el);setTimeout(()=>el.remove(),1150);}
-function toast(m,ms){m=englishText(m);const t=$('toast');t.textContent=m;t.style.opacity=1;t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop');clearTimeout(toastT);toastT=setTimeout(()=>{t.style.opacity=0;},ms||2200);}
+function toast(m,ms){const t=$('toast');t.textContent=m;t.style.opacity=1;t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop');clearTimeout(toastT);toastT=setTimeout(()=>{t.style.opacity=0;},ms||2200);}
 function mkBtn(label,fn,cls){const b=document.createElement('div');b.className='btn'+(cls?' '+cls:'');energyText(b,label);if(!cls||cls.indexOf('dis')<0)b.addEventListener('click',e=>{e.stopPropagation();fn();});return b;}
 function modal(title,body,btns){
  modalOpen=true;$('mBody').style.fontSize='';$('mBtns').classList.remove('cmp');$('mTitle').textContent=title;energyText($('mBody'),body||'');const bx=$('mBtns');bx.innerHTML='';
@@ -2888,9 +2889,9 @@ function closeModal(){modalOpen=false;$('modal').style.display='none';}
 function fmtTime(m){const h=Math.floor(m/60)%24,mm=Math.floor(m%60/10)*10;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
 function updateHUD(){
  const h=S.time/60;
- $('hTime').textContent='Hari '+S.day+' · '+fmtTime(S.time)+' '+(S.weather==='rain'?'🌧️':h<6||h>=19.5?'🌙':h>=17?'🌇':'☀️');
+ $('hTime').textContent='Day '+S.day+' · '+fmtTime(S.time)+' '+(S.weather==='rain'?'🌧️':h<6||h>=19.5?'🌙':h>=17?'🌇':'☀️');
  $('hMoney').textContent='💰 '+rp(moneyShown);$('hEnergy').style.width=clamp(S.energy,0,100)+'%';$('hEnergyText').textContent=Math.round(clamp(S.energy,0,100))+' / 100';
- const g=CFG().goalMoney,p=Math.min(100,Math.floor(S.money/g*100));$('hGoal').textContent='🏠 Impian buka usaha: '+p+'%';$('hGoalBar').style.width=p+'%';
+ const g=CFG().goalMoney,p=Math.min(100,Math.floor(S.money/g*100));$('hGoal').textContent='🏠 Business dream: '+p+'%';$('hGoalBar').style.width=p+'%';
  const sc=$('tc1');if(sc)sc.textContent=CROPS[SEEDS[S.seedSel]].emoji+' ×'+(S.seeds[SEEDS[S.seedSel]]||0);
  const fc=$('tc2');if(fc)fc.textContent='×'+(S.fert||0);
  const wc=$('tc4');if(wc){wc.textContent=S.water+'/'+WATER_MAX;wc.style.color=S.water<=0?'#c8472f':'';}
@@ -2912,7 +2913,7 @@ function targetTile(){const fx=player.pos.x+Math.sin(player.rot)*1.1,fz=player.p
 function inCtx(){
  const lx=player.pos.x-IN.x,lz=player.pos.z-IN.z;let best=null,bs=1e9;
  for(const s of INT_SPOTS){const d=Math.hypot(lx-s.x,lz-s.z);if(d<s.r&&d/s.r<bs){bs=d/s.r;best=s;}}
- return best?{k:best.k,hint:best.hint}:{k:'none',msg:'Santai di rumah... kasur di kiri, dapur di kanan 🏠'};
+ return best?{k:best.k,hint:best.hint}:{k:'none',msg:'Relax at home... bed on the left, kitchen on the right 🏠'};
 }
 function ctx(){
  if(!started)return {k:'none'};
@@ -2921,29 +2922,29 @@ function ctx(){
  if(riding)return {k:'dismount'};
  if(resting)return {k:'resting'};
  if(fish.active)return {k:'fish'};
- if(Math.hypot(player.pos.x-BAYU_STAND.x,player.pos.z-BAYU_STAND.z)<2.6)return {k:'bayuShop',hint:'Stand kopi Mas Bayu'};
+ if(Math.hypot(player.pos.x-BAYU_STAND.x,player.pos.z-BAYU_STAND.z)<2.6)return {k:'bayuShop',hint:'Bayu’s Coffee Stand'};
  const n=nearNPC();if(n)return {k:'talk',n};
  if(Math.hypot(player.pos.x-WELL.x,player.pos.z-WELL.z)<3.4)return {k:'well',hint:'Well · 💧 '+S.water+'/'+WATER_MAX};
  if(HOF_POS.fx!=null&&Math.hypot(player.pos.x-HOF_POS.fx,player.pos.z-HOF_POS.fz)<3)return {k:'board',hint:'Hall of Flavor'};
  if(Math.hypot(player.pos.x-VBUS.x,player.pos.z-VBUS.z)<VBUS.r)return {k:'city',spot:VBUS,hint:VBUS.hint};
  if(Math.hypot(player.pos.x-WH.door[0],player.pos.z-WH.door[1])<2.6)return {k:'warehouse',hint:"Pak Joko's Storage"};
  const vv=nearVehicle();if(vv)return {k:'mount',v:vv};
- if(Math.hypot(player.pos.x-DOOR.x,player.pos.z-DOOR.z)<2.6)return {k:'enter',hint:'Rumahmu'};
- if(Math.hypot(player.pos.x-SAUNG.x,player.pos.z-SAUNG.z)<5.2)return {k:'rest',hint:'Duduk atau rebahan'};
+ if(Math.hypot(player.pos.x-DOOR.x,player.pos.z-DOOR.z)<2.6)return {k:'enter',hint:'Your Home'};
+ if(Math.hypot(player.pos.x-SAUNG.x,player.pos.z-SAUNG.z)<5.2)return {k:'rest',hint:'Sit or lie down'};
  const t=targetTile();if(t&&ripe(t))return {k:'harvest',t};
  const tool=TOOLS[S.tool];
- if(tool==='rod'){return waterSpot()?{k:'cast'}:{k:'none',msg:'Cari tepi kolam atau sungai dulu 🎣'};}
+ if(tool==='rod'){return waterSpot()?{k:'cast'}:{k:'none',msg:'Find a pond or riverbank first 🎣'};}
  if(t)return {k:tool,t};
- return {k:'none',msg:'Dekati petak lahan atau air'};
+ return {k:'none',msg:'Approach a garden plot or the water'};
 }
-const ACT={talk:['💬','Ngobrol'],sleep:['🛏️','Tidur'],harvest:['🌾','Panen'],hoe:['⛏️','Cangkul'],seed:['🌱','Tanam'],water:['💧','Siram'],cast:['🎣','Lempar'],fert:['🧪','Pupuk'],bayuShop:['☕','Belanja'],warehouse:['📦','Storage'],well:['🪣','Refill'],board:['🏆','Board'],none:['✋','Aksi'],wait:['⏳','Tunggu'],bite:['❗','TARIK!'],reel:['🎯','Tangkap!'],dismount:['⬇️','Turun'],enter:['🚪','Masuk'],exit:['🚪','Keluar'],cook:['🍳','Dapur'],tv:['📺','Santai'],rest:['🛖','Istirahat'],resting:['⬆️','Bangun']};
+const ACT={talk:['💬','Chat'],sleep:['🛏️','Sleep'],harvest:['🌾','Harvest'],hoe:['⛏️','Hoe'],seed:['🌱','Plant'],water:['💧','Water'],cast:['🎣','Cast'],fert:['🧪','Fertilizer'],bayuShop:['☕','Shop'],warehouse:['📦','Storage'],well:['🪣','Refill'],board:['🏆','Board'],none:['✋','Action'],wait:['⏳','Wait'],bite:['❗','PULL!'],reel:['🎯','Catch!'],dismount:['⬇️','Get Off'],enter:['🚪','Enter'],exit:['🚪','Exit'],cook:['🍳','Kitchen'],tv:['📺','Relax'],rest:['🛖','Rest'],resting:['⬆️','Get Up']};
 let actKey='';
 function refreshAct(c){
- let k=c.k;if(k==='fish')k=fish.phase;let a=ACT[k]||ACT.none;if(c.k==='mount')a=[c.v.emoji,'Naik'];if(c.k==='city')a=[c.spot.icon,c.spot.label];
- const hint=c.k==='talk'?c.n.def.name:c.k==='dismount'?Math.round(Math.abs(riding.vel)*3.6)+' km/j':c.k==='mount'?c.v.name:(c.hint||'');
+ let k=c.k;if(k==='fish')k=fish.phase;let a=ACT[k]||ACT.none;if(c.k==='mount')a=[c.v.emoji,'Ride'];if(c.k==='city')a=[c.spot.icon,c.spot.label];
+ const hint=c.k==='talk'?c.n.def.name:c.k==='dismount'?Math.round(Math.abs(riding.vel)*3.6)+' km/h':c.k==='mount'?c.v.name:(c.hint||'');
  const key=a[0]+a[1]+hint;if(key===actKey)return;actKey=key;$('actIcon').textContent=a[0];$('actLbl').textContent=a[1];$('hint').textContent=hint;
 }
-function energyOK(c){if(S.energy<c){toast('Kamu kelelahan... makan gorengan\natau tidur dulu 😮‍💨');return false;}return true;}
+function energyOK(c){if(S.energy<c){toast('You are exhausted... eat some fritters\nor get some sleep 😮‍💨');return false;}return true;}
 function swing(kind){if(S&&S.stat){if(kind==='hoe')stat('fit',.6);else if(kind==='water'||kind==='seed')stat('fit',.35);else if(kind==='cast'){stat('fit',.2);stat('joy',.25);}}player.actKind=kind||'seed';player.actDur=ACT_DUR[player.actKind]||.45;player.act=player.actDur;}
 function doAction(){
  if(!started||busy||dlg.open||modalOpen||harv.active)return;unlockAudio();
@@ -2960,27 +2961,27 @@ function doAction(){
   case 'mount':return mount(c.v);
   case 'enter':return goIn();
   case 'exit':return goOut();
-  case 'sleep':return modal('Tidur 😴','Tidur sekarang dan lanjut ke hari berikutnya? Tanaman yang sudah disiram akan tumbuh.',[{t:'🛏️ Tidur',fn:()=>sleep(false)},{t:'Belum dulu',cls:'ghost'}]);
+  case 'sleep':return modal('Sleep 😴','Sleep now and start the next day? Watered crops will grow.',[{t:'🛏️ Sleep',fn:()=>sleep(false)},{t:'Not Yet',cls:'ghost'}]);
   case 'cook':return openCook();
   case 'tv':return openTV();
   case 'fish':return fishTap();
   case 'talk':return openDialog(c.n);
   case 'harvest':return startHarvest();
-  case 'hoe':{const t=c.t;if(t.s===1)return toast('Tanah ini sudah digarap ✔');if(!energyOK(3))return;S.energy-=3;t.s=1;swing('hoe');sfx('till');floatText('-3⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x8b5a2b,10);refreshTile(t);saveProgress();return updateHUD();}
-  case 'seed':{const t=c.t;if(t.s!==1)return toast('Cangkul tanahnya dulu ⛏️');if(t.c)return toast('Sudah ada tanaman di sini');const ty=SEEDS[S.seedSel];if(!(S.seeds[ty]>0))return toast('Bibit '+CROPS[ty].name+' habis.\nBeli di warung Bu Sari 🛒');if(!energyOK(1))return;S.energy-=1;S.seeds[ty]--;t.c=ty;t.d=0;t.w=false;t.f=false;swing('seed');sfx('plant');floatText(CROPS[ty].emoji+' -1⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x6cc04a,6);refreshTile(t);saveProgress();return updateHUD();}
-  case 'water':{const t=c.t;if(!t.c)return toast('Belum ada tanaman di sini');if(t.w)return toast('Sudah basah 💧');if(S.water<=0)return toast('Your watering can is empty!\nRefill it at the village well 🪣');if(!energyOK(2))return;S.energy-=2;S.water--;t.w=true;swing('water');sfx('water');floatText('💧 -2⚡',t.x,1.2,t.z,'#bfe8ff',24);burst(t.x,.9,t.z,0x6ac4ff,10);refreshTile(t);saveProgress();return updateHUD();}
+  case 'hoe':{const t=c.t;if(t.s===1)return toast('This soil is already tilled ✔');if(!energyOK(3))return;S.energy-=3;t.s=1;swing('hoe');sfx('till');floatText('-3⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x8b5a2b,10);refreshTile(t);saveProgress();return updateHUD();}
+  case 'seed':{const t=c.t;if(t.s!==1)return toast('Till the soil first ⛏️');if(t.c)return toast('There is already a crop here');const ty=SEEDS[S.seedSel];if(!(S.seeds[ty]>0))return toast('Seeds '+CROPS[ty].name+' are sold out.\nBuy more at Bu Sari’s shop 🛒');if(!energyOK(1))return;S.energy-=1;S.seeds[ty]--;t.c=ty;t.d=0;t.w=false;t.f=false;swing('seed');sfx('plant');floatText(CROPS[ty].emoji+' -1⚡',t.x,1,t.z,'#ffd27a',24);burst(t.x,.3,t.z,0x6cc04a,6);refreshTile(t);saveProgress();return updateHUD();}
+  case 'water':{const t=c.t;if(!t.c)return toast('There is no crop here yet');if(t.w)return toast('Already watered 💧');if(S.water<=0)return toast('Your watering can is empty!\nRefill it at the village well 🪣');if(!energyOK(2))return;S.energy-=2;S.water--;t.w=true;swing('water');sfx('water');floatText('💧 -2⚡',t.x,1.2,t.z,'#bfe8ff',24);burst(t.x,.9,t.z,0x6ac4ff,10);refreshTile(t);saveProgress();return updateHUD();}
   case 'cast':return startCast();
-  case 'fert':{const t=c.t;if(!t.c)return toast('Belum ada tanaman di sini');if(ripe(t))return toast('Tanaman sudah matang, tinggal dipanen 🌾');if(t.f)return toast('Sudah dipupuk 🧪');if(!(S.fert>0))return toast('Pupuk habis.\nBeli di warung Bu Sari 🛒');if(!energyOK(1))return;S.energy-=1;S.fert--;t.f=true;t.d=Math.min(CROPS[t.c].need,t.d+1);swing('seed');sfx('plant');floatText('🧪 +1 hari',t.x,1.2,t.z,'#d9ffb0',26);burst(t.x,.5,t.z,0x9be45a,10);burst(t.x,.8,t.z,0xffe58a,6);refreshTile(t);saveProgress();return updateHUD();}
-  default:return toast(c.msg||'Dekati petak lahan atau air');
+  case 'fert':{const t=c.t;if(!t.c)return toast('There is no crop here yet');if(ripe(t))return toast('This crop is ripe - just harvest it 🌾');if(t.f)return toast('Already fertilized 🧪');if(!(S.fert>0))return toast('Out of fertilizer.\nBuy more at Bu Sari’s shop 🛒');if(!energyOK(1))return;S.energy-=1;S.fert--;t.f=true;t.d=Math.min(CROPS[t.c].need,t.d+1);swing('seed');sfx('plant');floatText('🧪 +1 day',t.x,1.2,t.z,'#d9ffb0',26);burst(t.x,.5,t.z,0x9be45a,10);burst(t.x,.8,t.z,0xffe58a,6);refreshTile(t);saveProgress();return updateHUD();}
+  default:return toast(c.msg||'Approach a garden plot or the water');
  }
 }
 
 function openSaungRest(){
  if(loc!=='out'||Math.hypot(player.pos.x-SAUNG.x,player.pos.z-SAUNG.z)>5.2)return;
- modal('🛖 Saung Istirahat','Pilih cara santai sejenak. Rebahan memulihkan energi lebih cepat.',[
-  {t:'🪑 Duduk di bangku (+energi perlahan)',fn:()=>startSaungRest('sit')},
-  {t:'🧺 Rebahan di tikar (+energi lebih cepat)',fn:()=>startSaungRest('lie')},
-  {t:'Nanti saja',cls:'ghost'}
+ modal('🛖 Rest Pavilion','Take a break. Lying down restores energy faster.',[
+  {t:'🪑 Sit on the bench (slow energy recovery)',fn:()=>startSaungRest('sit')},
+  {t:'🧺 Lie on the mat (faster energy recovery)',fn:()=>startSaungRest('lie')},
+  {t:'Maybe Later',cls:'ghost'}
  ]);
 }
 function startSaungRest(mode){
@@ -2993,7 +2994,7 @@ function startSaungRest(mode){
  const z=sit?SAUNG.z:SAUNG.z+1.12;
  resting={mode,rot:sit?-Math.PI/2:-Math.PI/2};
  player.pos.set(x,surfaceHeightAt(x,z),z);player.rot=resting.rot;
- saveProgress();toast(sit?'Duduk santai di bangku. Tekan Aksi untuk bangun.':'Rebahan telentang di tikar. Energi pulih; tekan Aksi untuk bangun.',2600);
+ saveProgress();toast(sit?'Resting on the bench. Press Action to stand up.':'Lying on the mat. Energy is recovering; press Action to get up.',2600);
 }
 function findSaungExitSpot(){
  // Leave through the front stair landing, beyond the support posts and deck collision bounds.
@@ -3017,7 +3018,7 @@ function endSaungRest(){
  player.pos.set(spot.x,surfaceHeightAt(spot.x,spot.z),spot.z);
  player.rot=Math.atan2(SAUNG.x-spot.x,SAUNG.z-spot.z);
  if(player.char){player.char.g.position.set(0,0,0);player.char.g.rotation.set(0,0,0);player.char.legL.rotation.set(0,0,0);player.char.legR.rotation.set(0,0,0);player.char.legL.knee.rotation.set(0,0,0);player.char.legR.knee.rotation.set(0,0,0);player.char.head.position.z=0;}
- saveProgress();sfx('pop');toast('Kamu bangun dari istirahat.');
+ saveProgress();sfx('pop');toast('You feel refreshed after your rest.');
 }
 function applySaungRestPose(){
  if(!resting||!player.char)return;
@@ -3053,13 +3054,13 @@ function harvestTargets(){
 }
 function startHarvest(){
  if(!started||busy||dlg.open||modalOpen||harv.active)return;unlockAudio();
- if(resting)return toast('Bangun dulu sebelum mulai bekerja.');
- if(resting)return toast('Tekan Aksi untuk bangun dulu ya.');
- if(riding)return toast('Turun dulu dari kendaraan ya 🙂');
- if(loc==='in')return toast('Panen itu di ladang, bukan di dalam rumah 😄');
+ if(resting)return toast('Get up before starting work.');
+ if(resting)return toast('Press Action to get up first.');
+ if(riding)return toast('Get off your vehicle first 🙂');
+ if(loc==='in')return toast('Harvest crops outside, not inside the house 😄');
  let tg=harvestTargets();
  if(!tg.length){const near=tiles.filter(t=>ripe(t)&&Math.hypot(t.x-player.pos.x,t.z-player.pos.z)<4.2).sort((a,b)=>Math.hypot(a.x-player.pos.x,a.z-player.pos.z)-Math.hypot(b.x-player.pos.x,b.z-player.pos.z));if(near.length){player.rot=Math.atan2(near[0].x-player.pos.x,near[0].z-player.pos.z);tg=harvestTargets();}}
- if(!tg.length)return toast('Tidak ada tanaman siap panen di dekatmu 🌾\nDekati petak yang sudah berbuah.');
+ if(!tg.length)return toast('No ripe crops nearby 🌾\nMove closer to a mature crop.');
  if(fish.active)cancelFish();
  harv.active=true;harv.t=0;harv.hit=false;harv.targets=tg;
  player.rot=Math.atan2(tg[0].x-player.pos.x,tg[0].z-player.pos.z);
@@ -3071,7 +3072,7 @@ function doHarvestHit(){
   const cg=t.crop.children[0];if(cg){scene.attach(cg);cutPieces.push({o:cg,vx:rnd(-1.2,1.2),vy:rnd(2.5,3.8),vz:rnd(-1.2,1.2),sp:rnd(-6,6),life:.8});}
   burst(t.x,.7,t.z,0xffd84a,8);burst(t.x,.5,t.z,0x6cc04a,8);
   t.c=null;t.d=0;t.w=false;t.f=false;refreshTile(t);});
- if(any){stat('fit',1);stat('joy',.6);addShake(.1);buzz(25);sfx('harvest');toast('Panen! '+Object.keys(got).map(k=>CROPS[k].emoji+' '+CROPS[k].name+' ×'+got[k]).join('  '));saveProgress();updateHUD();}
+ if(any){stat('fit',1);stat('joy',.6);addShake(.1);buzz(25);sfx('harvest');toast('Harvest! '+Object.keys(got).map(k=>CROPS[k].emoji+' '+CROPS[k].name+' ×'+got[k]).join('  '));saveProgress();updateHUD();}
 }
 function updateHarvest(dt){
  if(!harv.active){slashMesh.material.opacity=0;return;}
@@ -3108,18 +3109,18 @@ function startCast(){
  else fish.target.set(sp.x-dx/d*.8,.1,sp.z-dz/d*.8);
  player.rot=Math.atan2(dx,dz);swing('cast');sfx('cast');
  fish.active=true;fish.phase='wait';fish.t=0;fish.biteAt=rnd(2,5.5)*RODS[S.rod|0].bite;fish.bobber.visible=true;fish.line.visible=true;fish.bobber.position.copy(fish.target);burst(fish.target.x,.1,fish.target.z,0xbfe8ff,8);
- $('fishUI').style.display='block';$('fMsg').textContent=(sp.kind==='river'?'Memancing di sungai... ':'Menunggu ikan... ')+'🎣';$('fBar').style.display='none';triggerFishRipple(fish.target.x,fish.target.z,.7);fishSplash(fish.target.x,fish.target.z,6);
+ $('fishUI').style.display='block';$('fMsg').textContent=(sp.kind==='river'?'Fishing in the river... ':'Waiting for a fish... ')+'🎣';$('fBar').style.display='none';triggerFishRipple(fish.target.x,fish.target.z,.7);fishSplash(fish.target.x,fish.target.z,6);
 }
 function cancelFish(msg){fish.active=false;fish.phase='';fish.bobber.visible=false;fish.line.visible=false;$('fishUI').style.display='none';if(msg)toast(msg);}
 function pickFish(){const rod=RODS[S.rod|0];const ks=Object.keys(FISH).filter(k=>(FISH[k].where==='both'||FISH[k].where===fish.kind)&&(k!=='arwana'||(S.rod|0)>=ARWANA_ROD));const wt=ks.map(k=>{let w=FISH[k].w;if(FISH[k].price>=70)w*=rod.rare;if(fish.bait)w*=baitMult(fish.bait,k);return w;});let tot=0;wt.forEach(w=>tot+=w);let r=Math.random()*tot;for(let i=0;i<ks.length;i++){r-=wt[i];if(r<=0)return ks[i];}return ks[0];}
 function fishTap(){
- if(fish.phase==='wait'){sfx('fail');return cancelFish('Terlalu cepat! Umpannya ditarik 😅');}
- if(fish.phase==='bite'){fish.type=pickFish();fish.phase='reel';fish.w=Math.min(.42,FISH[fish.type].z*RODS[S.rod|0].zone);fish.zone=rnd(.1,.9-fish.w);fish.cur=0;fish.dir=1;fish.sp=.9+(.3-fish.w)*3;$('fMsg').textContent='Tap saat merah di zona hijau!';$('fBar').style.display='block';$('fZone').style.left=fish.zone*100+'%';$('fZone').style.width=fish.w*100+'%';triggerFishRipple(fish.target.x,fish.target.z,1.2);fishSplash(fish.target.x,fish.target.z,9);swing();return;}
+ if(fish.phase==='wait'){sfx('fail');return cancelFish('Too early! You pulled the bait out 😅');}
+ if(fish.phase==='bite'){fish.type=pickFish();fish.phase='reel';fish.w=Math.min(.42,FISH[fish.type].z*RODS[S.rod|0].zone);fish.zone=rnd(.1,.9-fish.w);fish.cur=0;fish.dir=1;fish.sp=.9+(.3-fish.w)*3;$('fMsg').textContent='Tap when the red marker is in the green zone!';$('fBar').style.display='block';$('fZone').style.left=fish.zone*100+'%';$('fZone').style.width=fish.w*100+'%';triggerFishRipple(fish.target.x,fish.target.z,1.2);fishSplash(fish.target.x,fish.target.z,9);swing();return;}
  if(fish.phase==='reel'){
   const ok=fish.cur>=fish.zone&&fish.cur<=fish.zone+fish.w,ty=fish.type,f=FISH[ty];
   if(ok&&!bagRoomFor('inv',ty,1)){sfx('fail');cancelFish('Backpack is full - the fish got away! 🎒');return;}
-  if(ok){stat('joy',rarityByPrice(f.price)>=3?5:1.5);stat('fit',.3);bagAdd('inv',ty,1);S.stats.fish++;sfx('catch');floatText(f.emoji+' +1',player.pos.x,2.3,player.pos.z);addShake(.13);buzz(40);triggerFishRipple(fish.target.x,fish.target.z,1.5);fishSplash(fish.target.x,fish.target.z,15);setJumpFish(ty);showCatchCard(ty);fish.jumpActive=true;fish.jumpT=0;fish.jump.position.set(fish.target.x,.12,fish.target.z);fish.jump.rotation.set(0,rnd(0,TAU),0);fish.jump.visible=true;cancelFish(ty==='arwana'?'🐉 WOW! Arwana Emas legendaris!!':'Dapat '+f.emoji+' '+f.name+'!');saveProgress();updateHUD();}
-  else{sfx('fail');cancelFish('Yah, ikannya lepas... 🐟💨');}
+  if(ok){stat('joy',rarityByPrice(f.price)>=3?5:1.5);stat('fit',.3);bagAdd('inv',ty,1);S.stats.fish++;sfx('catch');floatText(f.emoji+' +1',player.pos.x,2.3,player.pos.z);addShake(.13);buzz(40);triggerFishRipple(fish.target.x,fish.target.z,1.5);fishSplash(fish.target.x,fish.target.z,15);setJumpFish(ty);showCatchCard(ty);fish.jumpActive=true;fish.jumpT=0;fish.jump.position.set(fish.target.x,.12,fish.target.z);fish.jump.rotation.set(0,rnd(0,TAU),0);fish.jump.visible=true;cancelFish(ty==='arwana'?'🐉 WOW! A legendary Golden Arowana!!':'Caught '+f.emoji+' '+f.name+'!');saveProgress();updateHUD();}
+  else{sfx('fail');cancelFish('Oh no, the fish got away... 🐟💨');}
  }
 }
 function updateFishing(dt){
@@ -3132,46 +3133,46 @@ function updateFishing(dt){
  if(!fish.active)return;
  const tip=_v;player.char.rodTip.getWorldPosition(tip);const lp=fish.line.geometry.attributes.position;lp.setXYZ(0,tip.x,tip.y,tip.z);lp.setXYZ(1,fish.bobber.position.x,fish.bobber.position.y+.1,fish.bobber.position.z);lp.needsUpdate=true;
  fish.t+=dt;
- if(fish.phase==='wait'){fish.bobber.position.y=.1+Math.sin(T*3)*.035;fish.bobber.rotation.z=Math.sin(T*2.2)*.08;if(fish.t>fish.biteAt){fish.phase='bite';fish.t=0;sfx('bite');$('fMsg').textContent='❗ TARIK SEKARANG!';triggerFishRipple(fish.target.x,fish.target.z,1.15);fishSplash(fish.target.x,fish.target.z,10);}}
- else if(fish.phase==='bite'){fish.bobber.position.y=.08-Math.max(0,Math.sin(T*22))*.14;fish.bobber.rotation.z=Math.sin(T*18)*.3;if(fish.t>fish.win){sfx('fail');cancelFish('Ikannya kabur... 🐟');}}
+ if(fish.phase==='wait'){fish.bobber.position.y=.1+Math.sin(T*3)*.035;fish.bobber.rotation.z=Math.sin(T*2.2)*.08;if(fish.t>fish.biteAt){fish.phase='bite';fish.t=0;sfx('bite');$('fMsg').textContent='❗ PULL NOW!';triggerFishRipple(fish.target.x,fish.target.z,1.15);fishSplash(fish.target.x,fish.target.z,10);}}
+ else if(fish.phase==='bite'){fish.bobber.position.y=.08-Math.max(0,Math.sin(T*22))*.14;fish.bobber.rotation.z=Math.sin(T*18)*.3;if(fish.t>fish.win){sfx('fail');cancelFish('The fish escaped... 🐟');}}
  else if(fish.phase==='reel'){fish.cur+=fish.dir*fish.sp*dt;if(fish.cur>1){fish.cur=1;fish.dir=-1;}if(fish.cur<0){fish.cur=0;fish.dir=1;}$('fCur').style.left=(fish.cur*100)+'%';fish.bobber.position.y=.09+Math.sin(T*16)*.07;fish.bobber.rotation.z=Math.sin(T*13)*.2;}
 }
 
 /* ---------- dialogue / shop / bag / rumah ---------- */
 const dlg={open:false,npc:null,text:'',shown:0,hist:[],busy:false};
 function hearts(n){const l=Math.min(5,Math.floor((S.fp[n.def.id]||0)/2));return '❤'.repeat(l)+'🤍'.repeat(5-l);}
-function greet(){const h=S.time/60,nm=S.name;return h<11?'Pagi, '+nm+'!':h<15?'Siang, '+nm+'!':h<18?'Sore, '+nm+'!':'Malam, '+nm+'.';}
+function greet(){const h=S.time/60,nm=S.name;return h<11?'Good morning, '+nm+'!':h<15?'Good afternoon, '+nm+'!':h<18?'Good evening, '+nm+'!':'Good night, '+nm+'.';}
 function pickLine(n){const d=n.def,fl=Math.floor((S.fp[d.id]||0)/2);let pool=d.lines;if(fl>=2&&Math.random()<.5)pool=d.friend;if(S.weather==='rain'&&Math.random()<.3)pool=RAINL;let l,tr=0;do{l=pool[Math.floor(Math.random()*pool.length)];}while(dlg.hist.includes(l)&&tr++<6);return l;}
 function curReq(n){const r=n.def.reqs;if(!r)return null;return r[(S.reqIdx[n.def.id]||0)%r.length];}
-function say(t){dlg.text=englishText(t);dlg.shown=0;}
+function say(t){dlg.text=String(t);dlg.shown=0;}
 function openDialog(n){
  dlg.open=true;dlg.npc=n;dlg.hist=[];dlg.busy=false;$('dlg').style.display='block';$('ctrl').style.display='none';
  player.rot=Math.atan2(n.pos.x-player.pos.x,n.pos.z-player.pos.z);
- const id=n.def.id;if(!S.talked[id]){S.talked[id]=1;stat('joy',2);S.fp[id]=Math.min(10,(S.fp[id]||0)+1);toast('❤ Kedekatan dengan '+n.def.name+' +1');saveProgress();}
+ const id=n.def.id;if(!S.talked[id]){S.talked[id]=1;stat('joy',2);S.fp[id]=Math.min(10,(S.fp[id]||0)+1);toast('❤ Friendship with '+n.def.name+' +1');saveProgress();}
  const l=pickLine(n);dlg.hist.push(l);let txt=greet()+' '+l;
  const rq=curReq(n);if(rq&&S.reqDone[id]!==S.day)txt+='\n\n📦 '+rq.text;
  say(txt);buildDlgBtns();
 }
 function buildDlgBtns(){
  const n=dlg.npc,box=$('dBtns');box.innerHTML='';$('dName').innerHTML=n.def.name+' <small>'+hearts(n)+'</small>';
- if(n.def.shop)box.appendChild(mkBtn('🛒 Belanja',()=>{closeDialog();openShop();}));
+ if(n.def.shop)box.appendChild(mkBtn('🛒 Shop',()=>{closeDialog();openShop();}));
  if(n.def.recipeShop)box.appendChild(mkBtn('📖 Secret Recipes',()=>{closeDialog();openRecipeShop();}));
  if(n.def.rodShop)box.appendChild(mkBtn('🎣 Rods & Bait',()=>{closeDialog();openRodShop();}));
- if(n.def.id==='bayu')box.appendChild(mkBtn('☕ Lihat stand kopi absurd',()=>{closeDialog();openBayuShop();}));
+ if(n.def.id==='bayu')box.appendChild(mkBtn('☕ Visit the quirky coffee stall',()=>{closeDialog();openBayuShop();}));
  const rq=curReq(n);
- if(rq&&S.reqDone[n.def.id]!==S.day){const have=S.inv[rq.item]||0,ok=have>=rq.qty,it=ITEM[rq.item];box.appendChild(mkBtn(ok?'📦 Serahkan '+rq.qty+' '+it.name:'Butuh '+rq.qty+' '+it.name+' ('+have+')',()=>giveReq(n),ok?'':'ghost dis'));}
- box.appendChild(mkBtn('💬 Ngobrol lagi',chatMore));
- box.appendChild(mkBtn('👋 Pergi',closeDialog,'ghost'));
+ if(rq&&S.reqDone[n.def.id]!==S.day){const have=S.inv[rq.item]||0,ok=have>=rq.qty,it=ITEM[rq.item];box.appendChild(mkBtn(ok?'📦 Deliver '+rq.qty+' '+it.name:'Need '+rq.qty+' '+it.name+' ('+have+')',()=>giveReq(n),ok?'':'ghost dis'));}
+ box.appendChild(mkBtn('💬 Chat Again',chatMore));
+ box.appendChild(mkBtn('👋 Leave',closeDialog,'ghost'));
 }
 function giveReq(n){
  const q=curReq(n),id=n.def.id;if((S.inv[q.item]||0)<q.qty)return;
  S.inv[q.item]-=q.qty;stat('rep',3);stat('joy',3);S.money+=q.reward;S.fp[id]=Math.min(10,(S.fp[id]||0)+2);S.reqIdx[id]=(S.reqIdx[id]||0)+1;S.reqDone[id]=S.day;saveProgress();sfx('coin');buzz(30);floatText('+'+rp(q.reward),player.pos.x,2.4,player.pos.z,'#c8ff9a',36);
- say('Terima kasih banyak, '+S.name+'! Ini upahnya '+rp(q.reward)+'. Kamu bisa diandalkan 😊');buildDlgBtns();updateHUD();
+ say('Thank you so much, '+S.name+'! Here is your reward: '+rp(q.reward)+'. I can always count on you 😊');buildDlgBtns();updateHUD();
 }
 async function llmLine(n){
  const d=n.def,L=safeLib();if(!L||!L.llm)throw new Error('no llm');
- const sys='Always respond in English only. You are '+d.name+', '+d.persona+', tinggal di desa Sukamaju. Lawan bicaramu bernama '+S.name+', remaja '+(S.gender==='m'?'cowok':'cewek')+' pengangguran yang baru pulang ke desa dan sedang belajar bertani dan memancing. Sekarang hari ke-'+S.day+', jam '+fmtTime(S.time)+', cuaca '+(S.weather==='rain'?'hujan':'cerah')+'. Reply with 1-2 short sentences in casual English only, sesuai karakter. Jangan keluar dari peran dan jangan pakai tanda kutip.';
- const r=await Promise.race([L.llm({messages:[{role:'user',content:'Ngobrol santai yuk. Obrolan sebelumnya: '+(dlg.hist.slice(-2).join(' | ')||'(belum ada)')+'. Lanjutkan dengan topik lain.'}],systemPrompt:sys,config:{temperature:.9,maxOutputTokens:90}}),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),7000))]);
+ const sys='Always respond in English only. You are '+d.name+', '+d.persona+', living in the village of Sukamaju. You are talking to '+S.name+', a young '+(S.gender==='m'?'man':'woman')+' who recently returned to the village after graduating without a job, and is learning to farm and fish. It is day '+S.day+', '+fmtTime(S.time)+', and the weather is '+(S.weather==='rain'?'rainy':'sunny')+'. Reply with 1-2 short sentences in casual English, in character. Never break character and do not use quotation marks.';
+ const r=await Promise.race([L.llm({messages:[{role:'user',content:'Let us have a relaxed chat. Previous conversation: '+(dlg.hist.slice(-2).join(' | ')||'(none yet)')+'. Continue with a different topic.'}],systemPrompt:sys,config:{temperature:.9,maxOutputTokens:90}}),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),7000))]);
  const t=((r&&r.text)||'').trim();if(!t)throw new Error('empty');return t;
 }
 async function chatMore(){
@@ -3183,37 +3184,37 @@ function closeDialog(){dlg.open=false;dlg.npc=null;$('dlg').style.display='none'
 function sellTotal(){let t=0;for(const k in S.inv)t+=(S.inv[k]||0)*(ITEM[k]?ITEM[k].price:0);return t;}
 function openBayuShop(){
  const buttons=BAYU_GOODS.map(p=>({
-  t:p.emoji+' '+p.name+' — '+rp(p.buyPrice)+'  (+'+p.energy+' ⚡) · Tas: '+(S.inv[p.id]||0),
+  t:p.emoji+' '+p.name+' — '+rp(p.buyPrice)+'  (+'+p.energy+' ⚡) · Bag: '+(S.inv[p.id]||0),
   keep:true,cls:S.money<p.buyPrice?'ghost dis':'',
-  fn:()=>{if(S.money<p.buyPrice)return toast('Uangmu belum cukup untuk '+p.name+'.');if(!bagRoomFor('inv',p.id,1))return toast('Backpack is full! 🎒');S.money-=p.buyPrice;S.inv[p.id]=(S.inv[p.id]||0)+1;sfx('coin');buzz(25);floatText(p.emoji+' +1',player.pos.x,2.2,player.pos.z,'#ffe4a1',30);toast('Mas Bayu: "Kemasan sultan, rasanya juga sultan!"');saveProgress();updateHUD();openBayuShop();}
+  fn:()=>{if(S.money<p.buyPrice)return toast('You do not have enough money for '+p.name+'.');if(!bagRoomFor('inv',p.id,1))return toast('Backpack is full! 🎒');S.money-=p.buyPrice;S.inv[p.id]=(S.inv[p.id]||0)+1;sfx('coin');buzz(25);floatText(p.emoji+' +1',player.pos.x,2.2,player.pos.z,'#ffe4a1',30);toast('Mas Bayu: "Royal packaging, royal flavor!"');saveProgress();updateHUD();openBayuShop();}
  }));
- buttons.push({t:'Tutup',cls:'ghost'});
- modal('☕ Stand Kopi Sultan','Ide absurd Mas Bayu akhirnya jadi usaha sungguhan! Pilih kopi sachet premium. Bawa ke dapur untuk meminumnya dan memulihkan energi.\n\nUangmu: '+rp(S.money)+' · Energi: '+Math.round(S.energy)+'/100',buttons);
+ buttons.push({t:'Close',cls:'ghost'});
+ modal('☕ Sultan Coffee Stall','Mas Bayu’s wild idea is now a real business! Choose a premium instant coffee. Enjoy it in your kitchen to recover energy.\n\nYour money: '+rp(S.money)+' · Energy: '+Math.round(S.energy)+'/100',buttons);
 }
 function openShop(){
  const tot=sellTotal(),b=[];
- SEEDS.filter(k=>!FAST_SEEDS.includes(k)).forEach(k=>{const c=CROPS[k];b.push({t:c.emoji+' Bibit '+c.name+' — '+rp(c.seed)+' (punya '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{if(!bagRoomFor('seed',k,1))return toast('Backpack is full! 🎒');S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});});
- b.push({t:'🌱 Bibit Cepat Panen (1 hari) ▸',keep:true,fn:()=>openFastSeeds()});
+ SEEDS.filter(k=>!FAST_SEEDS.includes(k)).forEach(k=>{const c=CROPS[k];b.push({t:c.emoji+' Seeds '+c.name+' — '+rp(c.seed)+' (owned '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{if(!bagRoomFor('seed',k,1))return toast('Backpack is full! 🎒');S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});});
+ b.push({t:'🌱 Fast-Growing Seeds (1 day) ▸',keep:true,fn:()=>openFastSeeds()});
  const spr=S.sprinkler|0;
- b.push(spr>=2?{t:'💦 Sprinkler kebun: lengkap ✔',keep:true,cls:'ghost dis'}:{t:'💦 '+(spr===0?'Sprinkler baris belakang':'Sprinkler baris depan')+' — '+rp(SPRINKLER_COST[spr])+'  (siram otomatis tiap pagi)',keep:true,cls:S.money<SPRINKLER_COST[spr]?'ghost dis':'',fn:()=>{const cost=SPRINKLER_COST[S.sprinkler|0];if(S.money<cost)return;S.money-=cost;S.sprinkler=(S.sprinkler|0)+1;refreshSprinklers();sfx('coin');buzz(30);toast('Sprinkler terpasang! Petak '+(S.sprinkler>=2?'seluruh kebun':'baris belakang')+' disiram otomatis tiap pagi 💦');saveProgress();updateHUD();openShop();}});
+ b.push(spr>=2?{t:'💦 Garden sprinkler: complete ✔',keep:true,cls:'ghost dis'}:{t:'💦 '+(spr===0?'Back-row sprinkler':'Front-row sprinkler')+' — '+rp(SPRINKLER_COST[spr])+'  (waters automatically each morning)',keep:true,cls:S.money<SPRINKLER_COST[spr]?'ghost dis':'',fn:()=>{const cost=SPRINKLER_COST[S.sprinkler|0];if(S.money<cost)return;S.money-=cost;S.sprinkler=(S.sprinkler|0)+1;refreshSprinklers();sfx('coin');buzz(30);toast('Sprinkler installed! '+(S.sprinkler>=2?'The whole garden':'The back rows')+' is watered automatically every morning 💦');saveProgress();updateHUD();openShop();}});
 
- b.push({t:'🧪 Pupuk — '+rp(FERT_PRICE)+' (punya '+(S.fert||0)+')  +1 hari tumbuh, panen ×2',keep:true,cls:S.money<FERT_PRICE?'ghost dis':'',fn:()=>{if(!bagRoomFor('fert','fert',1))return toast('Backpack is full! 🎒');S.money-=FERT_PRICE;S.fert=(S.fert||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});
- b.push({t:'🍘 Gorengan — Rp 10 (+20 ⚡)',keep:true,cls:S.money<10?'ghost dis':'',fn:()=>{S.money-=10;S.energy=Math.min(100,S.energy+20);sfx('pop');saveProgress();updateHUD();openShop();}});
- b.push({t:tot>0?'💰 Jual semua hasil ('+rp(tot)+')':'Belum ada yang dijual',keep:true,cls:tot>0?'':'ghost dis',fn:()=>{S.money+=tot;for(const k of Object.keys(S.inv))if(ITEM[k]&&ITEM[k].price>0)delete S.inv[k];sfx('coin');buzz(30);floatText('+'+rp(tot),player.pos.x,2.4,player.pos.z,'#c8ff9a',36);toast('Terjual! +'+rp(tot));saveProgress();updateHUD();openShop();}});
- b.push({t:'Tutup',cls:'ghost'});
- modal('🛒 Warung Bu Sari','Uangmu: '+rp(S.money)+'   ·   ⚡ Energi: '+Math.round(S.energy)+'/100',b);
+ b.push({t:'🧪 Fertilizer — '+rp(FERT_PRICE)+' (owned '+(S.fert||0)+')  +1 growth day, double harvest',keep:true,cls:S.money<FERT_PRICE?'ghost dis':'',fn:()=>{if(!bagRoomFor('fert','fert',1))return toast('Backpack is full! 🎒');S.money-=FERT_PRICE;S.fert=(S.fert||0)+1;sfx('coin');saveProgress();updateHUD();openShop();}});
+ b.push({t:'🍘 Fritters — Rp 10 (+20 ⚡)',keep:true,cls:S.money<10?'ghost dis':'',fn:()=>{S.money-=10;S.energy=Math.min(100,S.energy+20);sfx('pop');saveProgress();updateHUD();openShop();}});
+ b.push({t:tot>0?'💰 Sell all produce ('+rp(tot)+')':'Nothing to sell yet',keep:true,cls:tot>0?'':'ghost dis',fn:()=>{S.money+=tot;for(const k of Object.keys(S.inv))if(ITEM[k]&&ITEM[k].price>0)delete S.inv[k];sfx('coin');buzz(30);floatText('+'+rp(tot),player.pos.x,2.4,player.pos.z,'#c8ff9a',36);toast('Sold! +'+rp(tot));saveProgress();updateHUD();openShop();}});
+ b.push({t:'Close',cls:'ghost'});
+ modal('🛒 Bu Sari’s Shop','Your money: '+rp(S.money)+'   ·   ⚡ Energy: '+Math.round(S.energy)+'/100',b);
 }
 function openFastSeeds(){
- const b=FAST_SEEDS.map(k=>{const c=CROPS[k];return {t:c.emoji+' Bibit '+c.name+' — '+rp(c.seed)+' → jual '+rp(c.price)+' (punya '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{if(S.money<c.seed)return;if(!bagRoomFor('seed',k,1))return toast('Backpack is full! 🎒');S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openFastSeeds();}};});
- b.push({t:'◂ Kembali',keep:true,cls:'ghost',fn:()=>openShop()});
- modal('🌱 Bibit Cepat Panen','Sayuran sehari panen! Tanam, siram, tidur — besoknya langsung matang. Untungnya kecil, cocok untuk pemula yang belum punya banyak modal.\n\nUangmu: '+rp(S.money),b);
+ const b=FAST_SEEDS.map(k=>{const c=CROPS[k];return {t:c.emoji+' Seeds '+c.name+' — '+rp(c.seed)+' → sells for '+rp(c.price)+' (owned '+(S.seeds[k]||0)+')',keep:true,cls:S.money<c.seed?'ghost dis':'',fn:()=>{if(S.money<c.seed)return;if(!bagRoomFor('seed',k,1))return toast('Backpack is full! 🎒');S.money-=c.seed;S.seeds[k]=(S.seeds[k]||0)+1;sfx('coin');saveProgress();updateHUD();openFastSeeds();}};});
+ b.push({t:'◂ Back',keep:true,cls:'ghost',fn:()=>openShop()});
+ modal('🌱 Fast-Growing Seeds','One-day veggies! Plant, water, sleep - ripe the next morning. Small profit, perfect for beginners with little capital.\n\nYour money: '+rp(S.money),b);
 }
 function openCookRaw(){
  const b=[];
  Object.keys(S.inv).filter(k=>S.inv[k]>0&&ITEM[k]).sort((a,b)=>Number(BAYU_GOODS.some(p=>p.id===b))-Number(BAYU_GOODS.some(p=>p.id===a))).slice(0,8).forEach(k=>{const it=ITEM[k],e=EAT[k]||10;
-  b.push({t:it.emoji+' Masak & makan '+it.name+' (+'+e+'⚡) ×'+S.inv[k],keep:true,fn:()=>{S.inv[k]--;if(S.inv[k]<=0)delete S.inv[k];stat('health',1);S.energy=Math.min(100,S.energy+e);S.time=Math.min(1439,S.time+15);swing('eat');sfx('pop');toast('Nyam! '+it.emoji+' +'+e+' energi');saveProgress();updateHUD();openCookRaw();}});});
+  b.push({t:it.emoji+' Prepare & eat '+it.name+' (+'+e+'⚡) ×'+S.inv[k],keep:true,fn:()=>{S.inv[k]--;if(S.inv[k]<=0)delete S.inv[k];stat('health',1);S.energy=Math.min(100,S.energy+e);S.time=Math.min(1439,S.time+15);swing('eat');sfx('pop');toast('Yum! '+it.emoji+' +'+e+' energy');saveProgress();updateHUD();openCookRaw();}});});
  b.push({t:'◂ Back',keep:true,cls:'ghost',fn:()=>openCook()});
- modal('🍳 Dapur',b.length>1?'Masak hasil panen atau tangkapanmu. Makan butuh sekitar 15 menit.\n⚡ Energi: '+Math.round(S.energy)+'/100':'Belum ada bahan di dapur.\n⚡ Energi: '+Math.round(S.energy)+'/100\nPanen sayur atau mancing ikan dulu ya!',b);
+ modal('🍳 Kitchen',b.length>1?'Prepare your crops or fish. Eating takes about 15 minutes.\n⚡ Energy: '+Math.round(S.energy)+'/100':'You have no ingredients yet.\n⚡ Energy: '+Math.round(S.energy)+'/100\nHarvest vegetables or catch some fish first!',b);
 }
 function refillWell(){
  if(S.water>=WATER_MAX)return toast('Your watering can is already full 💧');
@@ -3228,7 +3229,7 @@ function openRecipeShop(){
   b.push(have?{t:'✔ '+r.emoji+' '+r.name,keep:true,cls:'ghost dis'}:{t:r.emoji+' '+r.name+' — '+rp(r.cost)+'  ·  '+ingText(r),keep:true,cls:S.money<r.cost?'ghost dis':'',fn:()=>{if(S.money<r.cost)return toast('Not enough money for this recipe.');S.money-=r.cost;S.recipes[r.id]=1;sfx('coin');toast('📖 Learned: '+r.emoji+' '+r.name+'!\nCook it in your kitchen.');saveProgress();updateHUD();openRecipeShop();}});});
  b.push({t:'Close',cls:'ghost'});
  const n=Object.keys(S.recipes).length;
- modal('📖 Dina\'s Secret Recipes','"These are from my grandma\'s notebook. You will not find them anywhere else, Kak!"\nLearned: '+n+' / '+RECIPES.length+'   ·   Cook them in your home kitchen.',b);
+ modal('📖 Dina\'s Secret Recipes','"These are from my grandma\'s notebook. You will not find them anywhere else!"\nLearned: '+n+' / '+RECIPES.length+'   ·   Cook them in your home kitchen.',b);
  $('mBody').style.fontSize='22px';$('mBtns').classList.add('cmp');
 }
 function openCook(){
@@ -3251,9 +3252,9 @@ function cookDish(r){
  bagAdd('inv',r.dish,1);stat('joy',1.5);S.time=Math.min(1439,S.time+20);swing('eat');sfx('coin');
  toast('Cooked! '+r.emoji+' '+r.name+' ('+rp(DISH[r.dish].price)+')');saveProgress();updateHUD();openCook();}
 function openTV(){
- modal('📺 Santai di Sofa','Tidak ada yang buru-buru di desa. Nonton TV satu jam, energi pulih sedikit.',[
-  {t:'🛋️ Nonton 1 jam (+8⚡)',fn:()=>{S.time=Math.min(1439,S.time+60);S.energy=Math.min(100,S.energy+8);stat('joy',4);toast(TVPROG[Math.floor(Math.random()*TVPROG.length)]);sfx('pop');saveProgress();updateHUD();}},
-  {t:'Tidak jadi',cls:'ghost'}]);
+ modal('📺 Relax on the Sofa','There is no rush in the village. Watch TV for an hour to recover a little energy.',[
+  {t:'🛋️ Watch for 1 hour (+8⚡)',fn:()=>{S.time=Math.min(1439,S.time+60);S.energy=Math.min(100,S.energy+8);stat('joy',4);toast(TVPROG[Math.floor(Math.random()*TVPROG.length)]);sfx('pop');saveProgress();updateHUD();}},
+  {t:'Cancel',cls:'ghost'}]);
 }
 
 /* ---------- backpack: 5x5 slots, 99 per stack, Use / Drop on consumables ---------- */
@@ -3432,21 +3433,21 @@ const VBUS={x:27,z:44,r:3.2,id:'vbus',icon:'🚌',label:'Bus',hint:'Bus to the C
 const CITY_SPOTS=[
  {id:'bus',x:0,z:30.5,r:4.2,icon:'🚌',label:'Bus',hint:'Bus back to Sukamaju'},
  {id:'stall',x:-20,z:4.6,r:2.8,icon:'🏪',label:'My Stall',hint:'Your market stall'},
- {id:'grosir',x:-34,z:-17.2,r:3.4,icon:'🛒',label:'Wholesale',hint:'Grosir Segar · fresh ingredients'},
- {id:'kopi',x:-18,z:-16.9,r:3,icon:'☕',label:'Café',hint:'Kopi Kota café'},
- {id:'cinema',x:22,z:-19.6,r:3.6,icon:'🎬',label:'Cinema',hint:'Cinema Kota'},
+ {id:'grosir',x:-34,z:-17.2,r:3.4,icon:'🛒',label:'Wholesale',hint:'Fresh Wholesale · ingredients'},
+ {id:'kopi',x:-18,z:-16.9,r:3,icon:'☕',label:'Café',hint:'City Coffee café'},
+ {id:'cinema',x:22,z:-19.6,r:3.6,icon:'🎬',label:'Cinema',hint:'City Cinema'},
  {id:'arcade',x:40,z:-20.4,r:3,icon:'🕹️',label:'Arcade',hint:'Arcade · Rp 20 a play'},
  {id:'bench1',x:16,z:13,r:2.2,icon:'🪑',label:'Sit',hint:'Park bench'},
  {id:'bench2',x:44,z:30,r:2.2,icon:'🪑',label:'Sit',hint:'Park bench'}
 ];
 const STALLS=[
  {x:-44,row:-1,name:"MAK ERNI'S SNACKS",col:0xe0533d,goods:['🍘','🍌','🥟']},
- {x:-36,row:-1,name:'SATE PAK DARTO',col:0x3d7a8a,goods:['🍢','🍢','🍗']},
- {x:-28,row:-1,name:'ES CENDOL SEGAR',col:0x57b36a,goods:['🥤','🍧','🥤']},
- {x:-20,row:-1,name:'BAKSO MAS TOTO',col:0xe8b43a,goods:['🍜','🍲','🍜']},
- {x:-44,row:1,name:'KUE BU LASMI',col:0xf08fa8,goods:['🧁','🍰','🍩']},
- {x:-36,row:1,name:'NASI UDUK IBU',col:0x9b6bd1,goods:['🍚','🍛','🍳']},
- {x:-28,row:1,name:'MARTABAK 77',col:0xd9533f,goods:['🥞','🥞','🍫']},
+ {x:-36,row:-1,name:"DARTO'S SATAY",col:0x3d7a8a,goods:['🍢','🍢','🍗']},
+ {x:-28,row:-1,name:'ICED CENDOL',col:0x57b36a,goods:['🥤','🍧','🥤']},
+ {x:-20,row:-1,name:"TOTO'S MEATBALLS",col:0xe8b43a,goods:['🍜','🍲','🍜']},
+ {x:-44,row:1,name:"LASMI'S CAKES",col:0xf08fa8,goods:['🧁','🍰','🍩']},
+ {x:-36,row:1,name:"MAMA'S COCONUT RICE",col:0x9b6bd1,goods:['🍚','🍛','🍳']},
+ {x:-28,row:1,name:'STUFFED PANCAKES',col:0xd9533f,goods:['🥞','🥞','🍫']},
  {x:-20,row:1,name:'YOUR STALL',col:0xf2b24a,player:true,goods:[]}
 ];
 const PSTALL=STALLS.findIndex(s=>s.player);
@@ -3527,13 +3528,13 @@ function buildCity(){
  const og=new THREE.Mesh(new THREE.PlaneGeometry(500,500),toon(0x6f747a));og.rotation.x=-Math.PI/2;og.position.y=-.03;g.add(og);
  const cs=new THREE.Group();g.add(cs);
  // shops & buildings
- cityBldg(cs,{x:-34,z:-23,w:12,d:8,h:6,wall:0x86b873,roof:0x3d6b36,awn:0x4fa04a,sign:'GROSIR SEGAR',sbg:'#2f5a2b',sfg:'#fff2b0',face:'S'});
- cityBldg(cs,{x:-18,z:-22,w:9,d:7,h:5.5,wall:0xd09a68,roof:0x6b3d1f,awn:0xb5503c,sign:'KOPI KOTA',sbg:'#4a2a14',sfg:'#ffe2a8',face:'S'});
- cityBldg(cs,{x:-46,z:-22,w:7,d:8,h:9,wall:0xd7cfb5,roof:0x6b5b45,awn:0x3d7a8a,sign:'TOKO BUKU',face:'S'});
- cityBldg(cs,{x:-46,z:23,w:7,d:8,h:9,wall:0xcfd9e0,roof:0x4a5a6a,awn:0x6a8bd0,sign:'APOTEK SEHAT',sbg:'#1f4a3a',sfg:'#c8ffd8',face:'N'});
- cityBldg(cs,{x:-34,z:23,w:11,d:8,h:6.5,wall:0xf0d29a,roof:0x8a5a2b,awn:0xe8a43a,sign:'TOKO ROTI MANIS',face:'N'});
- cityBldg(cs,{x:-19,z:23,w:11,d:8,h:8,wall:0xe3b8c8,roof:0x7a4a6a,awn:0xc45872,sign:'BUTIK KOTA',sbg:'#4a1f3a',sfg:'#ffd0e8',face:'N'});
- cityBldg(cs,{x:22,z:-26,w:16,d:10,h:10,wall:0x474c7a,roof:0x22254a,awn:0xd9333f,sign:'CINEMA KOTA',sbg:'#16183a',sfg:'#ff9bd0',neon:0xff4fa0,face:'S'});
+ cityBldg(cs,{x:-34,z:-23,w:12,d:8,h:6,wall:0x86b873,roof:0x3d6b36,awn:0x4fa04a,sign:'FRESH WHOLESALE',sbg:'#2f5a2b',sfg:'#fff2b0',face:'S'});
+ cityBldg(cs,{x:-18,z:-22,w:9,d:7,h:5.5,wall:0xd09a68,roof:0x6b3d1f,awn:0xb5503c,sign:'CITY COFFEE',sbg:'#4a2a14',sfg:'#ffe2a8',face:'S'});
+ cityBldg(cs,{x:-46,z:-22,w:7,d:8,h:9,wall:0xd7cfb5,roof:0x6b5b45,awn:0x3d7a8a,sign:'BOOKSTORE',face:'S'});
+ cityBldg(cs,{x:-46,z:23,w:7,d:8,h:9,wall:0xcfd9e0,roof:0x4a5a6a,awn:0x6a8bd0,sign:'HEALTH PHARMACY',sbg:'#1f4a3a',sfg:'#c8ffd8',face:'N'});
+ cityBldg(cs,{x:-34,z:23,w:11,d:8,h:6.5,wall:0xf0d29a,roof:0x8a5a2b,awn:0xe8a43a,sign:'SWEET BAKERY',face:'N'});
+ cityBldg(cs,{x:-19,z:23,w:11,d:8,h:8,wall:0xe3b8c8,roof:0x7a4a6a,awn:0xc45872,sign:'CITY BOUTIQUE',sbg:'#4a1f3a',sfg:'#ffd0e8',face:'N'});
+ cityBldg(cs,{x:22,z:-26,w:16,d:10,h:10,wall:0x474c7a,roof:0x22254a,awn:0xd9333f,sign:'CITY CINEMA',sbg:'#16183a',sfg:'#ff9bd0',neon:0xff4fa0,face:'S'});
  cityBldg(cs,{x:40,z:-26,w:10,d:8,h:8,wall:0x7a4a8a,roof:0x3a1f4a,awn:0x35c8d8,sign:'ARCADE',sbg:'#1a0f2a',sfg:'#6ff2ff',neon:0x6ff2ff,face:'S'});
  cityBldg(cs,{x:15,z:-12.5,w:9,d:6,h:7,wall:0x4f7a8a,roof:0x2a3f4a,awn:0xf2b24a,sign:'KARAOKE',sbg:'#1a2a30',sfg:'#ffe36b',neon:0xffe36b,face:'S'});
  cityBldg(cs,{x:46,z:-12.5,w:7,d:6,h:6,wall:0xb88a5a,roof:0x5a3a1c,awn:0x57b36a,sign:'GAME ZONE',face:'S'});
@@ -3577,7 +3578,7 @@ function buildCity(){
 function stallRefreshDisplay(){
  if(!stallSprites.length||!S||!S.stall)return;
  const rented=S.day<(S.stall.rentEnd|0),pd=STALLS[PSTALL];
- if(pd.sg&&pd.sgState!==rented){pd.sgState=rented;pd.sg.material.map=rented?signTex('YOUR STALL',512,80,'#f2c04a','#3a2a1a',44):signTex('FOR RENT · Rp 1.500 / WEEK',512,80,'#7a2a2a','#ffe9b0',34);pd.sg.material.needsUpdate=true;}
+ if(pd.sg&&pd.sgState!==rented){pd.sgState=rented;pd.sg.material.map=rented?signTex('YOUR STALL',512,80,'#f2c04a','#3a2a1a',44):signTex('FOR RENT · Rp 1,500 / WEEK',512,80,'#7a2a2a','#ffe9b0',34);pd.sg.material.needsUpdate=true;}
  if(cityDyn&&cityDyn.star)cityDyn.star.visible=rented;
  stallSprites.forEach((sp,i)=>{const sl=S.stall.s[i];if(rented&&i<S.stall.open&&sl&&sl.n>0){sp.material.map=dishSpriteTex(sl.d);sp.material.needsUpdate=true;sp.visible=true;}else sp.visible=false;});
 }
@@ -3665,15 +3666,15 @@ function openWholesale(){
  WHOLESALE.forEach(k=>{const it=ITEM[k],each=Math.ceil(it.price*1.25),cost=each*5;
   b.push({t:it.emoji+' '+it.name+' ×5 — '+rp(cost)+' ('+rp(each)+' ea)  ·  have '+(S.inv[k]|0),keep:true,cls:S.money<cost?'ghost dis':'',fn:()=>{if(S.money<cost)return toast('Not enough money.');if(!bagRoomFor('inv',k,5))return toast('Backpack is full! 🎒');S.money-=cost;bagAdd('inv',k,5);sfx('coin');saveProgress();updateHUD();openWholesale();}});});
  b.push({t:'Close',cls:'ghost'});
- modal('🛒 Grosir Segar','Fresh produce and fish, sold in packs of 5. Cook them with Dina\'s recipes and sell the dishes at your stall!',b);
+ modal('🛒 Fresh Wholesale','Fresh produce and fish, sold in packs of 5. Cook them with Dina\'s recipes and sell the dishes at your stall!',b);
  $('mBody').style.fontSize='21px';$('mBtns').classList.add('cmp');
 }
 function openCafe(){
- const items=[{n:'Kopi Susu',e:'☕',c:25,en:15,min:10},{n:'Roti Bakar',e:'🍞',c:40,en:25,min:15},{n:'Nasi Goreng Spesial',e:'🍳',c:70,en:45,min:25}],b=[];
+ const items=[{n:'Milk Coffee',e:'☕',c:25,en:15,min:10},{n:'Toasted Bread',e:'🍞',c:40,en:25,min:15},{n:'Special Fried Rice',e:'🍳',c:70,en:45,min:25}],b=[];
  items.forEach(i=>b.push({t:i.e+' '+i.n+' — '+rp(i.c)+' (+'+i.en+'⚡)',keep:true,cls:S.money<i.c?'ghost dis':'',fn:()=>{if(S.money<i.c)return toast('Not enough money.');S.money-=i.c;S.energy=Math.min(100,S.energy+i.en);stat('joy',3);stat('health',.8);S.time=Math.min(1439,S.time+i.min);sfx('pop');toast(i.e+' Yum! +'+i.en+' energy');saveProgress();updateHUD();openCafe();}}));
- b.push({t:'Close',cls:'ghost'});modal('☕ Kopi Kota','A cozy city café. ⚡ Energy: '+Math.round(S.energy)+'/100',b);
+ b.push({t:'Close',cls:'ghost'});modal('☕ City Coffee','A cozy city café. ⚡ Energy: '+Math.round(S.energy)+'/100',b);
 }
-function openCinema(){modal('🎬 Cinema Kota','Tonight\'s feature: "The Farmer Who Became a Chef". A 2-hour movie, ticket Rp 40. (+25 energy)',[{t:'🍿 Watch (Rp 40)',cls:S.money<40?'ghost dis':'',fn:()=>{if(S.money<40)return;S.money-=40;S.time=Math.min(1439,S.time+120);S.energy=Math.min(100,S.energy+25);stat('joy',15);sfx('coin');toast('🎬 What a movie! +25 energy');saveProgress();updateHUD();}},{t:'Not now',cls:'ghost'}]);}
+function openCinema(){modal('🎬 City Cinema','Tonight\'s feature: "The Farmer Who Became a Chef". A 2-hour movie, ticket Rp 40. (+25 energy)',[{t:'🍿 Watch (Rp 40)',cls:S.money<40?'ghost dis':'',fn:()=>{if(S.money<40)return;S.money-=40;S.time=Math.min(1439,S.time+120);S.energy=Math.min(100,S.energy+25);stat('joy',15);sfx('coin');toast('🎬 What a movie! +25 energy');saveProgress();updateHUD();}},{t:'Not now',cls:'ghost'}]);}
 function openArcade(){modal('🕹️ Arcade','Insert a coin for Rp 20 and try your luck for a prize!',[{t:'🪙 Play (Rp 20)',keep:true,cls:S.money<20?'ghost dis':'',fn:()=>{if(S.money<20)return;S.money-=20;const r=Math.random(),p=r<.4?0:r<.7?20:r<.88?40:r<.97?80:250;S.money+=p;stat('joy',p?6:-.5);sfx(p?'coin':'fail');toast(p?'🎉 You won '+rp(p)+'!':'😅 No prize this time');saveProgress();updateHUD();openArcade();}},{t:'Leave',cls:'ghost'}]);}
 function sitBench(){if(busy)return;S.time=Math.min(1439,S.time+30);S.energy=Math.min(100,S.energy+8);stat('joy',3);stat('health',2);sfx('pop');toast('🪑 You rest on the bench. +8 energy');saveProgress();updateHUD();}
 
@@ -3747,7 +3748,7 @@ function stBind(){$('stX').addEventListener('click',closeStall);$('st').addEvent
 
 /* ---------- character profile: Health / Joy / Fitness / Reputation, plus autosave ---------- */
 const STAT_DEF=[
- {k:'health',icon:'❤️',name:'Health',col:'#e0524a',lv:['Sick','Weak','Okay','Healthy','Thriving'],tip:'Raise: eat cooked meals, sleep well, rest at the saung. Drops when you collapse from exhaustion.'},
+ {k:'health',icon:'❤️',name:'Health',col:'#e0524a',lv:['Sick','Weak','Okay','Healthy','Thriving'],tip:'Raise: eat cooked meals, sleep well, rest at the pavilion. Drops when you collapse from exhaustion.'},
  {k:'joy',icon:'😊',name:'Joy',col:'#f2b24a',lv:['Miserable','Gloomy','Content','Cheerful','Delighted'],tip:'Raise: chat with friends, fish, watch movies, play the arcade, relax in the park, sell dishes. Fades a little each day.'},
  {k:'fit',icon:'💪',name:'Fitness',col:'#4fa86a',lv:['Couch potato','Out of shape','Average','Fit','Athletic'],tip:'Raise: hoe, plant, water, harvest, fish and walk around. Fades slowly when idle.'},
  {k:'rep',icon:'⭐',name:'Reputation',col:'#8a6ad0',lv:['Unknown','Newcomer','Known','Well-known','Famous'],tip:'Raise: sell dishes at your market stall, finish villagers\' requests. Unhappy customers hurt it.'}
@@ -3904,7 +3905,7 @@ function labRender(){
  const info=$('labInfo'),ing=labIngredients(),g=$('labPick');
  info.textContent='Pick 2-4 ingredients, name your dish (optional) and cook! Every experiment uses 1 of each ingredient and about 25 minutes.   ⚡ '+Math.round(S.energy)+'/100   ·   Creations: '+Object.keys(S.custom).length+'/'+CUSTOM_CAP;
  g.innerHTML='';
- if(!ing.length){g.className='';g.textContent='Your backpack has no raw ingredients. Harvest crops, catch fish, or buy them at Grosir Segar in the city.';g.style.cssText='font-size:20px;padding:12px';}
+ if(!ing.length){g.className='';g.textContent='Your backpack has no raw ingredients. Harvest crops, catch fish, or buy them at Fresh Wholesale in the city.';g.style.cssText='font-size:20px;padding:12px';}
  else{g.className='sgrid';g.style.cssText='';ing.forEach(k=>{const el=document.createElement('div'),it=ITEM[k],on=lab.sel.indexOf(k);el.className='bslot r'+rarityByPrice(it.price)+(on>=0?' sel':'');
    if(FISH[k])el.appendChild(copyCanvas(fishIcon(k)));else{const sp=document.createElement('span');sp.className='em';sp.textContent=it.emoji;el.appendChild(sp);}
    const c=document.createElement('span');c.className='cnt';c.textContent='×'+S.inv[k];el.appendChild(c);if(on>=0){const t=document.createElement('span');t.className='pr';t.textContent='#'+(on+1);el.appendChild(t);}
@@ -4002,7 +4003,7 @@ function hofBind(){$('hofX').addEventListener('click',closeHof);$('hof').addEven
 
 function checkGoal(){
  if(S.goalDone||S.money<CFG().goalMoney||dlg.open||modalOpen||busy)return;S.goalDone=true;saveProgress();
- modal('🎉 Impian Tercapai!','Tabunganmu sudah '+rp(S.money)+'!\nKamu cukup modal untuk membuka warung kecil di depan rumah nenek. Teman-teman desa bangga padamu.\n\nTapi hidup di desa tidak buru-buru... lanjut santai?',[{t:'🌾 Lanjut hidup santai'}]);
+ modal('🎉 Dream Achieved!','You have saved '+rp(S.money)+'!\nYou can now open a small shop outside Grandma’s home. Your village friends are proud of you.\n\nThere is no rush here... keep enjoying village life?',[{t:'🌾 Keep Enjoying Village Life'}]);
 }
 
 /* ---------- day cycle / save ---------- */
@@ -4021,7 +4022,7 @@ function nextDay(forced){
  setLoc('in');player.pos.set(IN.x-4.3,0,IN.z-3.3);player.rot=Math.PI/2;cam.yaw=0;cam.pitch=.85;cam.dist=9;snapCam();npcSnap();
  updateHUD();saveGame();
  if(S.stat.health<40)setTimeout(()=>toast('You wake up feeling weak 🤒 Eat well and rest.',2600),3500);
- toast(forced?'Kamu ketiduran di jalan... diantar warga pulang, bangun jam 08.00 😪':'Hari ke-'+S.day+(S.weather==='rain'?' · hujan 🌧️ (tanaman otomatis tersiram)':' · cerah ☀️')+(sprayed?'\n💦 Sprinkler menyiram '+sprayed+' petak':''),3200);
+ toast(forced?'You fell asleep outside... the villagers brought you home. You wake at 08:00 😪':'Day '+S.day+(S.weather==='rain'?' · rain 🌧️ (crops watered automatically)':' · sunny ☀️')+(sprayed?'\n💦 Sprinklers watered '+sprayed+' plots':''),3200);
 }
 function serialize(){const restSpot=resting?findSaungExitSpot():null,saveX=restSpot?restSpot.x:player.pos.x,saveZ=restSpot?restSpot.z:player.pos.z;S.px=saveX;S.pz=saveZ;S.loc=loc;S.tiles=tiles.map(t=>[t.s,t.c,t.d,t.w?1:0,t.f?1:0]);S.veh={};for(const k in vehicles){const v=vehicles[k];S.veh[k]=[v.x,v.z,v.rot];}return S;}
 let saveWorker=null,queuedSave=null,saveRevision=0;
@@ -4064,7 +4065,7 @@ function bindInput(){
  $('act').addEventListener('pointerdown',e=>{e.preventDefault();buzz(10);doAction();});
  $('hv').addEventListener('pointerdown',e=>{e.preventDefault();startHarvest();});
  const tb=$('tools');TOOLS.forEach((t,i)=>{const d=document.createElement('div');d.className='tool';d.innerHTML='<span class="e">'+TOOL_UI[t][0]+'</span><span>'+TOOL_UI[t][1]+'</span>'+(t==='seed'?'<span id="tc1" style="font-size:20px"></span>':t==='fert'?'<span id="tc2" style="font-size:20px"></span>':t==='rod'?'<span id="tc3" style="font-size:20px"></span>':t==='water'?'<span id="tc4" style="font-size:18px"></span>':'');
-  d.addEventListener('pointerdown',e=>{e.preventDefault();if(busy||dlg.open||modalOpen||harv.active||resting)return;if(riding){toast('Turun dulu dari kendaraan ya 🙂');return;}if(t==='rod'&&S.tool===i)cycleBait();if(t==='seed'&&S.tool===i){S.seedSel=(S.seedSel+1)%SEEDS.length;toast('Bibit: '+CROPS[SEEDS[S.seedSel]].emoji+' '+CROPS[SEEDS[S.seedSel]].name,1400);}setTool(i);updateHUD();});tb.appendChild(d);});tb.appendChild($('hv'));
+  d.addEventListener('pointerdown',e=>{e.preventDefault();if(busy||dlg.open||modalOpen||harv.active||resting)return;if(riding){toast('Get off your vehicle first 🙂');return;}if(t==='rod'&&S.tool===i)cycleBait();if(t==='seed'&&S.tool===i){S.seedSel=(S.seedSel+1)%SEEDS.length;toast('Seeds: '+CROPS[SEEDS[S.seedSel]].emoji+' '+CROPS[SEEDS[S.seedSel]].name,1400);}setTool(i);updateHUD();});tb.appendChild(d);});tb.appendChild($('hv'));
  bagBind();whBind();stBind();profBind();labBind();hofBind();
  $('bBag').addEventListener('click',()=>{if(started&&!busy&&!dlg.open&&!modalOpen)openBag();});
  $('bMute').addEventListener('click',()=>{muted=!muted;$('bMute').textContent=muted?'🔇':'🔊';if(master)master.gain.value=muted?0:.8;});
@@ -4081,15 +4082,15 @@ function update(dt){
  T+=dt;const blk=uiBlocked();
  if(started&&!blk){
   S.time+=dt*CFG().timeSpeed;
-  if(S.time>=1320&&!warnedNight){warnedNight=true;toast('Sudah malam... waktunya pulang & tidur 🌙',3000);}
-  if(S.time>=1440){toast('Kamu kelelahan dan pingsan 😵',2500);sleep(true);}
+  if(S.time>=1320&&!warnedNight){warnedNight=true;toast('It is late... time to head home and sleep 🌙',3000);}
+  if(S.time>=1440){toast('You are exhausted and pass out 😵',2500);sleep(true);}
  }
  player.mv=0;
  if(started&&!blk&&!harv.active&&!resting){
   const m=readMove();
   if(riding)rideMove(dt,m);
   else if(m.m>.12){
-   if(fish.active&&m.m>.3)cancelFish('Batal memancing');
+   if(fish.active&&m.m>.3)cancelFish('Fishing canceled');
    const fx=-Math.sin(cam.yaw),fz=-Math.cos(cam.yaw),rx=Math.cos(cam.yaw),rz=-Math.sin(cam.yaw);
    let dx=fx*m.y+rx*m.x,dz=fz*m.y+rz*m.x;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
    const sp=4.2*m.m*walkBonus(),nx=player.pos.x+dx*sp*dt,nz=player.pos.z+dz*sp*dt;
@@ -4188,7 +4189,7 @@ function showStart(){
   const bc=$('bCont');
   if(bc){
    bc.style.display='flex';
-   bc.textContent='📖 Lanjutkan (Hari '+saved.day+' · '+rp(saved.money)+')';
+   bc.textContent='📖 Continue (Day '+saved.day+' · '+rp(saved.money)+')';
   }
  }
  const bsn=$('bStartNew');
@@ -4212,16 +4213,16 @@ function showStart(){
  if(bg){
   bg.addEventListener('click',()=>{
    unlockAudio();sfx('pop');
-   modal('📜 Panduan Desa Sukamaju',
-    'Selamat datang di Desa Sukamaju 🌾\n\n' +
-    '🕹️ Gerakan: Gunakan joystick di kiri bawah untuk berjalan. Geser layar kosong untuk memutar kamera.\n\n' +
-    '⛏️ Berkebun: Pilih cangkul untuk membuka petak, pilih bibit lalu tap cangkul untuk menanam, dan siram air setiap hari!\n\n' +
-    '🌾 Panen: Bila tanaman sudah matang, tekan tombol Panen untuk mengayunkan celurit.\n\n' +
-    '🧪 Pupuk: Beli di warung, pilih alat Pupuk lalu tap pada tanaman yang belum matang: tumbuh +1 hari dan panennya jadi 2 buah!\n\n' +
-    '🎣 Memancing: Berdirilah di tepi kolam atau sungai membawa pancing, lempar umpan, dan tarik saat indikator tepat di zona hijau!\n\n' +
-    '🏠 Rumah: Masuk ke dalam rumah untuk memasak, santai, atau tidur di kasur agar hari berganti.\n\n' +
-    '🏍️ Kendaraan: Temukan motor Supra & sepeda ontel di samping rumah untuk menjelajahi desa lebih cepat.',
-    [{t:'Paham, Ayo Main!'}]
+   modal('📜 Sukamaju Village Guide',
+    'Welcome to Sukamaju Village 🌾\n\n' +
+    '🕹️ Movement: Use the lower-left joystick to walk. Drag an empty area to rotate the camera. Keyboard: WASD or arrow keys to move; E or Space to act.\n\n' +
+    '⛏️ Gardening: Select Hoe to till a plot, select Seeds and press Action to plant, then water every day!\n\n' +
+    '🌾 Harvest: When crops are ripe, press Harvest to swing your sickle.\n\n' +
+    '🧪 Fertilizer: Buy it at the shop, select the Fertilizer tool, then tap an unripe crop: it grows +1 day and yields 2 crops!\n\n' +
+    '🎣 Fishing: Equip your rod at a pond or riverbank, cast, pull when a fish bites, then tap when the marker reaches the green zone!\n\n' +
+    '🏠 Home: Go inside to cook, relax, or sleep in your bed to start a new day.\n\n' +
+    '🏍️ Vehicles: Find the Supra and classic bicycle beside your home to explore faster.',
+    [{t:'Got It!'}]
    );
   });
  }
@@ -4234,8 +4235,8 @@ function beginGame(fromSave){
  if(loc==='in'){cam.yaw=0;cam.pitch=.85;cam.dist=9;}else{cam.yaw=0;cam.pitch=.82;cam.dist=10;if(!fromSave)player.rot=Math.PI;}
  snapCam();started=true;warnedNight=false;
  $('hud').style.display='block';$('topBtns').style.display='flex';$('mm').style.display='block';$('ctrl').style.display='block';updateHUD();
- if(!fromSave){modal('Selamat Datang di Sukamaju','Setelah lulus, kamu belum juga dapat kerja. Daripada bengong di kota, kamu pulang ke desa.\n\nRumah peninggalan nenek masih berdiri, lahan kosong menanti di belakang rumah, dan kolam serta sungai desa selalu menunggu. Tidak ada yang buru-buru di sini.\n\n🕹️ Joystick = jalan · geser layar = putar kamera\n🌾 Tombol Panen = ayunkan celurit ke tanaman yang sudah matang\n🚪 Dekati pintu rumahmu untuk masuk. Kasur ada di dalam!\n🗺️ Peta kecil di kanan atas menunjukkan rumah warga, sungai & jembatan.\n🏍️🚲 Motor Supra & sepeda ontel diparkir di samping rumahmu.\n⛏️🌱💧🎣 Pilih alat, lalu tekan tombol aksi.\n🏠 Impian: kumpulkan '+rp(CFG().goalMoney)+' untuk modal usaha sendiri.',[{t:'🌾 Mulai pelan-pelan'}]);}
- else toast('Selamat datang kembali, '+S.name+'! 🌾',2500);
+ if(!fromSave){modal('Welcome to Sukamaju','After graduation, you have not found a job. Instead of waiting around in the city, you return to the village.\n\nGrandma’s home is still standing, an empty garden awaits behind it, and the village pond and river are ready to explore. There is no rush here.\n\n🕹️ Joystick = walk · drag screen = rotate camera\n🌾 Harvest button = swing your sickle at ripe crops\n🚪 Approach your front door to enter. Your bed is inside!\n🗺️ The upper-right minimap shows homes, the river, and bridges.\n🏍️🚲 Your Supra and bicycle are parked beside your home.\n⛏️🌱💧🎣 Select a tool, then press Action.\n🏠 Dream: save '+rp(CFG().goalMoney)+' to start your own business.',[{t:'🌾 Take It Slow'}]);}
+ else toast('Welcome back, '+S.name+'! 🌾',2500);
 }
 
 /* compile every light/shader variant once during loading so toggling lamps or entering a building never stalls a frame */
@@ -4259,7 +4260,7 @@ function init(){
  freezeStatic();buildDust();
 }
 function run(mode){
- translateGameToEnglish();
+ 
  window.__mode=mode;init();
  try{const L=safeLib();if(L&&L.showGameParameters)L.showGameParameters({name:'Village Settings',params:{'Time Speed':{key:'settings.timeSpeed',type:'slider',min:.5,max:6,step:.5},'Savings Goal (Rp)':{key:'settings.goalMoney',type:'number'},'Rain Chance':{key:'settings.rainChance',type:'slider',min:0,max:1,step:.05}}});}catch(e){}
  requestAnimationFrame(frame);
@@ -4269,90 +4270,11 @@ function run(mode){
 }
 
 /* English localization: keep save IDs and village character names unchanged. */
-const EN_PHRASES = {
-'Bibit Cepat Panen (1 hari)':'Fast-Growing Seeds (1 day)','Bibit Cepat Panen':'Fast-Growing Seeds','Kembali':'Back','→ jual':'→ sells for','Sayuran sehari panen! Tanam, siram, tidur — besoknya langsung matang. Untungnya kecil, cocok untuk pemula yang belum punya banyak modal.':'One-day veggies! Plant, water, sleep - ripe the next morning. Small profit, perfect for beginners with little capital.',
-'Sprinkler kebun: lengkap':'Garden sprinkler: complete','Sprinkler baris belakang':'Back-row sprinkler','Sprinkler baris depan':'Front-row sprinkler','(siram otomatis tiap pagi)':'(waters automatically each morning)','Sprinkler terpasang! Petak ':'Sprinkler installed! ','seluruh kebun':'The whole garden','baris belakang':'The back rows',' disiram otomatis tiap pagi':' is watered automatically every morning','Sprinkler menyiram ':'Sprinklers watered ',' petak':' plots',
-'Pupuk habis.\nBeli di warung Bu Sari':'Out of fertilizer.\nBuy more at Bu Sari’s shop','Sudah dipupuk':'Already fertilized','Tanaman sudah matang, tinggal dipanen':'This crop is ripe - just harvest it','+1 hari tumbuh, panen ×2':'+1 growth day, double harvest','+1 hari':'+1 day','Pupuk':'Fertilizer',
-'Menyiapkan petualangan desamu...':'Preparing your village adventure...',
-'Pulang ke desa, bercocok tanam, memancing, dan nikmati waktu santai':'Return to the village, farm, fish, and enjoy the slow life',
-'Pilihan Petualangan':'Your Adventure Awaits',
-'Nganggur di kota bukan akhir segalanya. Rawat rumah nenek dan nikmati sejuknya alam pedesaan!':'A fresh start awaits. Care for Grandma’s home and enjoy the peaceful countryside!',
-'Mulai Hidup Baru':'Start a New Life','Lanjutkan Petualangan':'Continue Adventure','Panduan & Kontrol':'Guide & Controls','Panen Celurit':'Sickle Harvest','Mancing Kolam/Sungai':'Pond & River Fishing','Naik Supra':'Ride a Supra','Buat Karaktermu':'Create Your Character','Panggilan:':'Name:','Gaya':'Style','Rambut':'Hair','Warna':'Color','Cowok':'Boy','Cewek':'Girl','Pendek':'Short','Panjang':'Long','Kuncir':'Pigtails','Masuk ke Desa & Mulai':'Enter the Village','Kembali ke Menu':'Back to Menu',
-'ENERGI':'ENERGY','Aksi':'Action','Panen':'Harvest',
-'RUMAH BU SARI':'SARI HOME','RUMAH PAK JOKO':'JOKO HOME','RUMAH DINA':'DINA HOME','RUMAH MANG UJANG':'UJANG HOME','RUMAH MAS BAYU':'BAYU HOME','RUMAH KELUARGA':'FAMILY HOME','SAUNG ISTIRAHAT':'REST PAVILION','SAWAH PAK JOKO':'JOKO RICE FIELD','IKATAN PADI':'RICE SHEAVES','IKAN MANG UJANG':'UJANG FISH','KELUAR ▼':'EXIT ▼','TV DESA':'VILLAGE TV','WARUNG BU SARI':'BU SARI SHOP','KOPI SULTAN':'SULTAN COFFEE',
-'SERBA ADA & GORENGAN HANGAT':'GROCERIES & FRESH FRITTERS','Kopi Tubruk · Aneka Gorengan · Hasil Tani':'Fresh Coffee · Fritters · Farm Produce','MENU WARUNG':'SHOP MENU','Gorengan':'Fritters','Kopi Panas':'Hot Coffee','Teh Manis':'Sweet Tea','Beli Panen':'We Buy Crops','Harga Adil!':'Fair Prices!',
-'Rumahmu':'Your Home','Warung':'Shop','Saung':'Pavilion','Sepeda Ontel':'Classic Bicycle',
-'geser joystick untuk melaju!':'move the joystick to ride!',
-'Rumahmu\nKasur di kiri · dapur di kanan · pintu keluar di depan':'Your Home\nBed on the left · kitchen on the right · exit ahead',
-'Impian buka usaha:':'Business dream:','Hari ':'Day ','Hari ke-':'Day ',
-'Santai di rumah... kasur di kiri, dapur di kanan':'Relax at home... bed on the left, kitchen on the right',
-'Stand kopi Mas Bayu':'Bayu’s Coffee Stand','Duduk atau rebahan':'Sit or lie down','Cari tepi kolam atau sungai dulu':'Find a pond or riverbank first','Dekati petak lahan atau air':'Approach a garden plot or the water',
-'Ngobrol':'Chat','Tidur':'Sleep','Cangkul':'Hoe','Bibit':'Seeds','Siram':'Water','Pancing':'Rod','Tanam':'Plant','Lempar':'Cast','Belanja':'Shop','Tunggu':'Wait','TARIK!':'PULL!','Tangkap!':'Catch!','Turun':'Get Off','Masuk':'Enter','Keluar':'Exit','Dapur':'Kitchen','Santai':'Relax','Istirahat':'Rest','Bangun':'Get Up','Naik':'Ride','Pintu':'Door','Kasur':'Bed','TV & Sofa':'TV & Sofa',' km/j':' km/h',
-'Kamu kelelahan... makan gorengan\natau tidur dulu':'You are exhausted... eat some fritters\nor get some sleep',
-'Tidur sekarang dan lanjut ke hari berikutnya? Tanaman yang sudah disiram akan tumbuh.':'Sleep now and start the next day? Watered crops will grow.',
-'Belum dulu':'Not Yet','Tanah ini sudah digarap':'This soil is already tilled','Cangkul tanahnya dulu':'Till the soil first','Sudah ada tanaman di sini':'There is already a crop here',' habis.\nBeli di warung Bu Sari':' are sold out.\nBuy more at Bu Sari’s shop','Belum ada tanaman di sini':'There is no crop here yet','Sudah basah':'Already watered',
-'Saung Istirahat':'Rest Pavilion','Pilih cara santai sejenak. Rebahan memulihkan energi lebih cepat.':'Take a break. Lying down restores energy faster.','Duduk di bangku (+energi perlahan)':'Sit on the bench (slow energy recovery)','Rebahan di tikar (+energi lebih cepat)':'Lie on the mat (faster energy recovery)','Nanti saja':'Maybe Later',
-'Duduk santai di bangku. Tekan Aksi untuk bangun.':'Resting on the bench. Press Action to stand up.','Rebahan telentang di tikar. Energi pulih; tekan Aksi untuk bangun.':'Lying on the mat. Energy is recovering; press Action to get up.','Kamu bangun dari istirahat.':'You feel refreshed after your rest.',
-'Bangun dulu sebelum mulai bekerja.':'Get up before starting work.','Tekan Aksi untuk bangun dulu ya.':'Press Action to get up first.','Turun dulu dari kendaraan ya':'Get off your vehicle first','Panen itu di ladang, bukan di dalam rumah':'Harvest crops outside, not inside the house','Tidak ada tanaman siap panen di dekatmu':'No ripe crops nearby','Dekati petak yang sudah berbuah.':'Move closer to a mature crop.',
-'Memancing di sungai... ':'Fishing in the river... ','Menunggu ikan... ':'Waiting for a fish... ','Terlalu cepat! Umpannya ditarik':'Too early! You pulled the bait out','Tap saat merah di zona hijau!':'Tap when the red marker is in the green zone!','WOW! Arwana Emas legendaris!!':'WOW! A legendary Golden Arowana!!','Dapat ':'Caught ','Yah, ikannya lepas...':'Oh no, the fish got away...','TARIK SEKARANG!':'PULL NOW!','Ikannya kabur...':'The fish escaped...','Batal memancing':'Fishing canceled',
-'Kedekatan dengan ':'Friendship with ','Lihat stand kopi absurd':'Visit the quirky coffee stall','Serahkan ':'Deliver ','Butuh ':'Need ','Ngobrol lagi':'Chat Again','Pergi':'Leave','Terima kasih banyak, ':'Thank you so much, ','! Ini upahnya ':'! Here is your reward: ','. Kamu bisa diandalkan':'. I can always count on you',
-'Tas: ':'Bag: ','Uangmu belum cukup untuk ':'You do not have enough money for ','Mas Bayu: "Kemasan sultan, rasanya juga sultan!"':'Mas Bayu: "Royal packaging, royal flavor!"','Stand Kopi Sultan':'Sultan Coffee Stall',
-'Ide absurd Mas Bayu akhirnya jadi usaha sungguhan! Pilih kopi sachet premium. Bawa ke dapur untuk meminumnya dan memulihkan energi.':'Mas Bayu’s wild idea is now a real business! Choose a premium instant coffee. Enjoy it in your kitchen to recover energy.',
-'Uangmu: ':'Your money: ','Energi: ':'Energy: ','Bibit ':'Seeds ',' (punya ':' (owned ','Gorengan — Rp 10':'Fritters — Rp 10','Jual semua hasil (':'Sell all produce (','Belum ada yang dijual':'Nothing to sell yet','Terjual!':'Sold!','Warung Bu Sari':'Bu Sari’s Shop','Tutup':'Close',
-'Masak & makan ':'Prepare & eat ','Nyam! ':'Yum! ',' energi':' energy','Masak hasil panen atau tangkapanmu. Makan butuh sekitar 15 menit.':'Prepare your crops or fish. Eating takes about 15 minutes.','Belum ada bahan di dapur.':'You have no ingredients yet.','Panen sayur atau mancing ikan dulu ya!':'Harvest vegetables or catch some fish first!',
-'Santai di Sofa':'Relax on the Sofa','Tidak ada yang buru-buru di desa. Nonton TV satu jam, energi pulih sedikit.':'There is no rush in the village. Watch TV for an hour to recover a little energy.','Nonton 1 jam':'Watch for 1 hour','Tidak jadi':'Cancel','Tas & Catatan':'Bag & Journal','Hasil: ':'Produce: ','(kosong)':'(empty)','Bibit: ':'Seeds: ','Teman desa:':'Village friends:','Tangkapan: ':'Fish caught: ',
-'Impian Tercapai!':'Dream Achieved!','Tabunganmu sudah ':'You have saved ',
-'!\nKamu cukup modal untuk membuka warung kecil di depan rumah nenek. Teman-teman desa bangga padamu.\n\nTapi hidup di desa tidak buru-buru... lanjut santai?':'!\nYou can now open a small shop outside Grandma’s home. Your village friends are proud of you.\n\nThere is no rush here... keep enjoying village life?',
-'Lanjut hidup santai':'Keep Enjoying Village Life','Kamu ketiduran di jalan... diantar warga pulang, bangun jam 08.00':'You fell asleep outside... the villagers brought you home. You wake at 08:00',' · hujan 🌧️ (tanaman otomatis tersiram)':' · rain 🌧️ (crops watered automatically)',' · cerah ☀️':' · sunny ☀️','Sudah malam... waktunya pulang & tidur':'It is late... time to head home and sleep','Kamu kelelahan dan pingsan':'You are exhausted and pass out',
-'Lanjutkan (Hari ':'Continue (Day ','Panduan Desa Sukamaju':'Sukamaju Village Guide','Selamat datang di Desa Sukamaju':'Welcome to Sukamaju Village',
-'Gerakan: Gunakan joystick di kiri bawah untuk berjalan. Geser layar kosong untuk memutar kamera.':'Movement: Use the lower-left joystick to walk. Drag an empty area to rotate the camera. Keyboard: WASD or arrow keys to move; E or Space to act.',
-'Berkebun: Pilih cangkul untuk membuka petak, pilih bibit lalu tap cangkul untuk menanam, dan siram air setiap hari!':'Gardening: Select Hoe to till a plot, select Seeds and press Action to plant, then water every day!',
-'Panen: Bila tanaman sudah matang, tekan tombol Panen untuk mengayunkan celurit.':'Harvest: When crops are ripe, press Harvest to swing your sickle.',
-'Pupuk: Beli di warung, pilih alat Pupuk lalu tap pada tanaman yang belum matang: tumbuh +1 hari dan panennya jadi 2 buah!':'Fertilizer: Buy it at the shop, select the Fertilizer tool, then tap an unripe crop: it grows +1 day and yields 2 crops!',
-'Memancing: Berdirilah di tepi kolam atau sungai membawa pancing, lempar umpan, dan tarik saat indikator tepat di zona hijau!':'Fishing: Equip your rod at a pond or riverbank, cast, pull when a fish bites, then tap when the marker reaches the green zone!',
-'Rumah: Masuk ke dalam rumah untuk memasak, santai, atau tidur di kasur agar hari berganti.':'Home: Go inside to cook, relax, or sleep in your bed to start a new day.',
-'Kendaraan: Temukan motor Supra & sepeda ontel di samping rumah untuk menjelajahi desa lebih cepat.':'Vehicles: Find the Supra and classic bicycle beside your home to explore faster.',
-'Paham, Ayo Main!':'Got It!',
-'Selamat Datang di Sukamaju':'Welcome to Sukamaju',
-'Setelah lulus, kamu belum juga dapat kerja. Daripada bengong di kota, kamu pulang ke desa.':'After graduation, you have not found a job. Instead of waiting around in the city, you return to the village.',
-'Rumah peninggalan nenek masih berdiri, lahan kosong menanti di belakang rumah, dan kolam serta sungai desa selalu menunggu. Tidak ada yang buru-buru di sini.':'Grandma’s home is still standing, an empty garden awaits behind it, and the village pond and river are ready to explore. There is no rush here.',
-'Joystick = jalan · geser layar = putar kamera':'Joystick = walk · drag screen = rotate camera',
-'Tombol Panen = ayunkan celurit ke tanaman yang sudah matang':'Harvest button = swing your sickle at ripe crops',
-'Dekati pintu rumahmu untuk masuk. Kasur ada di dalam!':'Approach your front door to enter. Your bed is inside!',
-'Peta kecil di kanan atas menunjukkan rumah warga, sungai & jembatan.':'The upper-right minimap shows homes, the river, and bridges.',
-'Motor Supra & sepeda ontel diparkir di samping rumahmu.':'Your Supra and bicycle are parked beside your home.',
-'Pilih alat, lalu tekan tombol aksi.':'Select a tool, then press Action.',
-'Impian: kumpulkan ':'Dream: save ',' untuk modal usaha sendiri.':' to start your own business.',
-'Mulai pelan-pelan':'Take It Slow','Selamat datang kembali, ':'Welcome back, ',
-'Pengaturan Desa':'Village Settings','Kecepatan waktu':'Time Speed','Target impian (Rp)':'Savings Goal (Rp)','Peluang hujan':'Rain Chance',
-'Pagi, ':'Good morning, ','Siang, ':'Good afternoon, ','Sore, ':'Good evening, ','Malam, ':'Good night, '
-};
-const EN_KEYS=Object.keys(EN_PHRASES).sort((a,b)=>b.length-a.length);
-const EN_PATTERN=new RegExp(EN_KEYS.map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'g');
-function englishText(text){return String(text).replace(EN_PATTERN,s=>EN_PHRASES[s]);}
-function translateGameToEnglish(){
- document.documentElement.lang='en';
- const translateNodes=root=>{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){if(n.parentElement&&/^(SCRIPT|STYLE)$/.test(n.parentElement.tagName))continue;const next=englishText(n.nodeValue);if(next!==n.nodeValue)n.nodeValue=next;}};
- translateNodes(document.body);
- // Covers time, fishing prompts, context labels, and buttons updated directly by gameplay.
- new MutationObserver(records=>{for(const r of records){if(r.type==='characterData'){const t=englishText(r.target.nodeValue);if(t!==r.target.nodeValue)r.target.nodeValue=t;}else for(const n of r.addedNodes){if(n.nodeType===3){const t=englishText(n.nodeValue);if(t!==n.nodeValue)n.nodeValue=t;}else if(n.nodeType===1&&!/^(SCRIPT|STYLE)$/.test(n.tagName))translateNodes(n);}}}).observe(document.body,{childList:true,subtree:true,characterData:true});
- const originalFill=CanvasRenderingContext2D.prototype.fillText,originalStroke=CanvasRenderingContext2D.prototype.strokeText;
- CanvasRenderingContext2D.prototype.fillText=function(text,...args){return originalFill.call(this,englishText(text),...args);};
- CanvasRenderingContext2D.prototype.strokeText=function(text,...args){return originalStroke.call(this,englishText(text),...args);};
- const cropNames=['Corn','Tomato','Chili','Water Spinach','Spinach','Carrot'];SEEDS.forEach((k,i)=>CROPS[k].name=cropNames[i]);
- const fishNames={lele:'Catfish',nila:'Nile Tilapia',mujair:'Mozambique Tilapia',gurame:'Gourami',mas:'Carp',arwana:'Golden Arowana',wader:'Silver Barb',baung:'River Catfish'};for(const k in fishNames)FISH[k].name=fishNames[k];
- BAYU_GOODS[0].name='Sultan Instant Coffee';BAYU_GOODS[1].name='Golden Sultan Coffee';
- const dialogs={
- sari:{persona:'a warm village shopkeeper who offers kind advice and fresh fritters',lines:['Farming is honest work, dear. I am proud of you!','My fritters are still warm. Just ten rupiah!','Your grandma was a loyal customer. Take good care of her home.','Bring your harvest to me. I promise fair prices.','Pak Joko can seem stern, but he has a heart of gold.','Dina was asking about you. Visit her flower garden sometime.'],friend:['You are like family to me. Make sure you eat well!','Stop by whenever you need a break. I will make some warm tea.'],reqs:['Could you bring me 3 corn for my fritters?','I need 2 tomatoes for my sauce, dear.','My customers love spicy food. Could you bring 4 chilies?']},
- joko:{persona:'a wise elderly farmer, a little stern but kindhearted',lines:['Treat the soil well, and it will reward you with a harvest.','I run a storage shed out back. Leave your things with me, they will be safe.','Water in the morning or evening, not under the midday sun.','Chilies grow quickly. Tomatoes take patience but sell for more.','When I was young, we walked three hours to the city!','A sickle makes quick work of several ripe crops.','My rice field is beside the house. Visit when you have time.'],friend:['You remind me of myself: hardworking, but a bit of a daydreamer.','I need someone patient to carry on farming. Perhaps you?'],reqs:['Bring me 3 tomatoes and I will pay you for them.','I need 5 corn for a village barbecue.']},
- dina:{persona:'a cheerful, curious high-school student who dreams of becoming a video creator',lines:['Is it really that hard to find a job in the city?','I collect secret recipes from everywhere. You will not find them anywhere else!','I want to make videos, but the village signal keeps disappearing!','They say there is a huge fish in the pond. Like a dragon!','Remember to rest. You look tired.','Come see my garden! The flowers just bloomed.','That Supra looks cool. Ride safely, though!'],friend:['You make village life look so productive!','When my channel takes off, you will be my first guest!'],reqs:['Could I have 1 tomato for some fresh juice?','Could you bring 2 corn for my friend’s birthday?']},
- ujang:{persona:'a patient fisherman who enjoys quiet philosophical advice',lines:['Fishing is not just about fish. It is about patience.','I sell rods and bait now. Pick the bait that matches the fish you want!','When the float moves, wait for the bite... then pull!','They say a golden arowana lives in the pond. I have never seen it.','Big fish have smaller green zones. Take your time.','Try the river for silver barb and river catfish.','The dock is a great place to cast your line.'],friend:['You have patience. A true angler in the making.','Tomorrow morning, let us see who catches the biggest fish!'],reqs:['Could you catch 2 Nile Tilapia for me?','My wife asked for 2 Mozambique Tilapia. Can you help?','I would love a Gourami. Bring 1 and I will pay well!']},
- bayu:{persona:'a laid-back, funny unemployed friend with wild business ideas and a love of naps',lines:['Hanging out in the village with you is pretty great, bro.','Instant coffee in luxury packaging. Genius business idea, right?','City jobs ask new graduates for five years of experience. Seriously?','I need money, but I need a nap even more.','My home is across the river. Take the wooden bridge.','The bicycle is perfect for a slow ride. The Supra is for busy days.'],friend:['You are the only friend I know who still gets up early. Respect.','When you make it big, remember me. I can be your first employee... part-time.']}
- };
- NPCS.forEach(n=>{const d=dialogs[n.id];n.persona=d.persona;n.lines=d.lines;n.friend=d.friend;if(n.reqs)n.reqs.forEach((r,i)=>r.text=d.reqs[i]);});
- RAINL.splice(0,RAINL.length,'Rainy days are perfect for staying in, but the crops love it.','Rain is a blessing. No need to water the crops today!','Watch your step on those slippery paths.');
- TVPROG.splice(0,TVPROG.length,'The village’s favorite soap opera 📺','News: chili prices are rising again 🌶️','A word quiz — you get every answer right 😂','A classic martial arts film 🥋','An upbeat music show 💃','A fishing show — now you want to go fishing 🎣');
-}
+
+
+
+
+
 </script>
 </body>
 </html>
