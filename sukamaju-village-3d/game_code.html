@@ -193,6 +193,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
 .hrk{width:56px;font-size:30px;font-weight:900;text-align:center;flex:0 0 56px}.hic{width:68px;height:68px;flex:0 0 68px;display:flex;align-items:center;justify-content:center}.hic .em{font-size:44px}
 .htx{flex:1;min-width:0}.htx b{display:block;font-size:24px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.htx i{display:block;font-style:normal;font-size:17px;color:#6b5030;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hsc{font-size:34px;font-weight:900;color:#c98a1c;flex:0 0 76px;text-align:right}
 .hofEmpty{white-space:pre-line;font-size:22px;text-align:center;padding:40px 16px;color:#6b5030}
+#bagX,#whX,#stX,#labX,#hofX,#profX{position:relative}#bagX::after,#whX::after,#stX::after,#labX::after,#hofX::after,#profX::after{content:'';position:absolute;inset:-26px}
 #catchCard{position:absolute;left:50%;top:210px;transform:translate(-50%,-24px) scale(.9);opacity:0;pointer-events:none;z-index:46;width:430px;padding:14px 20px 16px;text-align:center;border-radius:26px;background:linear-gradient(#fff9e8,#f1e0b4);border:5px solid var(--rb,#8a5a2b);box-shadow:0 10px 0 rgba(60,35,10,.35),0 0 22px rgba(255,255,255,.4);transition:opacity .25s,transform .4s cubic-bezier(.2,1.4,.4,1)}
 #catchCard.show{opacity:1;transform:translate(-50%,0) scale(1)}
 #ccTop{font-size:19px;font-weight:900;letter-spacing:3px;color:var(--rb)}#ccArt{height:150px;display:flex;align-items:center;justify-content:center}#ccArt canvas{width:150px;height:150px;filter:drop-shadow(0 5px 3px rgba(0,0,0,.3))}#ccName{font-size:34px;font-weight:900;color:#3d2a14}#ccMeta{font-size:22px;color:#5a4328;font-weight:800}
@@ -2761,7 +2762,7 @@ function updateEnv(dt){
   sun.color.set(0xffe2b0);sun.intensity=.4+.3*(1-nightF);
   _v.set(-5,22,9);sun.position.copy(player.pos).add(_v);sun.target.position.copy(player.pos);
   inLamps[0].intensity=.55+nightF*.8;inLamps[1].intensity=.35+nightF*.6;inLamps[2].intensity=.25+nightF*.5;
-  lampA.intensity=0;lampB.intensity=0;
+  lampA.intensity=0;lampB.intensity=0;lampA.visible=lampB.visible=false;
   faceMats.forEach(m=>m.color.setRGB(.95,.95,.95));
   wallCut();
   return;
@@ -2785,7 +2786,7 @@ function updateEnv(dt){
  stars.material.opacity=nightF*(1-rainF);stars.position.copy(camera.position);
  cloudMat.color.setRGB(Lf*(1-.25*rainF),Lf*(1-.25*rainF),Lf*(1-.2*rainF));
  clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>150)c.position.x=-150;});
- lampA.intensity=nightF*1.6;lampB.intensity=nightF*1.6;
+ {const on=nightF>.03;if(lampA.visible!==on)lampA.visible=lampB.visible=on;lampA.intensity=nightF*1.6;lampB.intensity=nightF*1.6;}
  faceMats.forEach(m=>m.color.setRGB(Lf,Lf,Lf));
  if(flowTex)flowTex.offset.y-=dt*.22;
  ripples.forEach(r=>{r.userData.ph=(r.userData.ph+dt*.35)%1;const s=.4+r.userData.ph*2.6;r.scale.set(s,s,s);r.material.opacity=.45*(1-r.userData.ph);});
@@ -3824,7 +3825,7 @@ RECIPES.forEach(r=>{DISH[r.dish].iconId=RECIPE_ICON[r.id];});
 const iconImgs={};
 function iconUrl(id){try{const L=safeLib();const a=L&&L.getAsset&&L.getAsset('dish_icon_'+id);return a&&a.url||null;}catch(e){return null;}}
 function iconNode(it){const sp=document.createElement('span'),u=it&&it.iconId?iconUrl(it.iconId):null;
- if(u){sp.className='em img';const im=document.createElement('img');im.src=u;im.className='dimg';im.draggable=false;im.alt=it.name||'';sp.appendChild(im);}else{sp.className='em';sp.textContent=(it&&it.emoji)||'🍲';}return sp;}
+ if(u){sp.className='em img';const im=document.createElement('img');im.className='dimg';im.draggable=false;im.alt='';im.onerror=()=>{sp.className='em';sp.textContent=(it&&it.emoji)||'🍲';};im.src=u;sp.appendChild(im);}else{sp.className='em';sp.textContent=(it&&it.emoji)||'🍲';}return sp;}
 function iconCanvasImg(id,cb){ // CORS-safe image for canvas / WebGL use; null if unavailable
  if(iconImgs[id]){if(iconImgs[id].ok)return iconImgs[id].img;return null;}
  const u=iconUrl(id);if(!u){return null;}
@@ -4148,17 +4149,20 @@ function freezeStatic(){
  const dyn=new Set([].concat(clouds,ripples,fishSh,butter,fish.rings,hangFish,[sunMesh,moonMesh,stars,cursor,slashMesh,fish.bobber,fish.line,fish.jump,rainLines,water,sun.target]));
  npcs.forEach(n=>dyn.add(n.char.root));for(const k in vehicles)dyn.add(vehicles[k].m.root);tiles.forEach(t=>dyn.add(t.crop));
  const walk=o=>{if(dyn.has(o))return;if(o!==outGroup&&o!==inGroup){o.updateMatrix();o.matrixAutoUpdate=false;}
-  if(o.isMesh&&!o.isInstancedMesh&&o.castShadow&&o.geometry){if(!o.geometry.boundingSphere)o.geometry.computeBoundingSphere();const r=o.geometry.boundingSphere.radius*Math.max(o.scale.x,o.scale.y,o.scale.z);if(r<.2)o.castShadow=false;}
+  if(o.isMesh&&!o.isInstancedMesh&&o.castShadow&&o.geometry){if(!o.geometry.boundingSphere)o.geometry.computeBoundingSphere();const r=o.geometry.boundingSphere.radius*Math.max(o.scale.x,o.scale.y,o.scale.z);if(r<.28)o.castShadow=false;}
   o.children.forEach(walk);};
  walk(outGroup);walk(inGroup);
 }
 /* ---------- kualitas adaptif: jaga 60fps di HP lemah ---------- */
-const perf={t:0,n:0,pr:1.5,low:false};
+const perf={t:0,n:0,pr:1.5,low:false,half:false,off:false,warm:0,fc:0};
 function perfTick(raw){if(raw>.25||!renderer)return;perf.t+=raw;perf.n++;if(perf.t<2)return;const fps=perf.n/perf.t;perf.t=0;perf.n=0;
+ if(!started||perf.warm<3){perf.warm+=started?1:0;return;}
  if(fps<50&&perf.pr>1){perf.pr=Math.max(1,perf.pr-.25);renderer.setPixelRatio(perf.pr);renderer.setSize(window.innerWidth,window.innerHeight,false);}
- else if(fps<45&&perf.pr<=1&&!perf.low){perf.low=true;sun.shadow.mapSize.set(512,512);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}}
+ else if(fps<45&&perf.pr<=1&&!perf.low){perf.low=true;sun.shadow.mapSize.set(512,512);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
+ else if(fps<38&&perf.low&&!perf.half){perf.half=true;renderer.shadowMap.autoUpdate=false;}
+ else if(fps<26&&perf.half&&!perf.off){perf.off=true;sun.castShadow=false;}}
 let last=0;
-function frame(ts){requestAnimationFrame(frame);const raw=(ts-last)/1000;perfTick(raw);const dt=Math.min(.11,Math.max(.001,raw||.016));last=ts;try{update(dt);renderer.render(scene,camera);}catch(e){const L=safeLib();if(L&&L.log)L.log('err '+e.message);}}
+function frame(ts){requestAnimationFrame(frame);const raw=(ts-last)/1000;perfTick(raw);const dt=Math.min(.11,Math.max(.001,raw||.016));last=ts;try{update(dt);if(perf.half&&!perf.off){perf.fc++;renderer.shadowMap.needsUpdate=(perf.fc&1)===0;}renderer.render(scene,camera);}catch(e){const L=safeLib();if(L&&L.log)L.log('err '+e.message);}}
 
 /* ---------- start screen ---------- */
 function syncStart(){
@@ -4234,6 +4238,10 @@ function beginGame(fromSave){
  else toast('Selamat datang kembali, '+S.name+'! 🌾',2500);
 }
 
+/* compile every light/shader variant once during loading so toggling lamps or entering a building never stalls a frame */
+function prewarmShaders(){
+ try{const keep=loc;lampA.visible=lampB.visible=true;setLoc('out');renderer.compile(scene,camera);lampA.visible=lampB.visible=false;renderer.compile(scene,camera);
+  setLoc('city');renderer.compile(scene,camera);setLoc('in');renderer.compile(scene,camera);setLoc(keep);}catch(e){}}
 /* ---------- boot ---------- */
 function init(){
  renderer=new THREE.WebGLRenderer({canvas:$('gl'),antialias:true,powerPreference:'high-performance'});
@@ -4247,7 +4255,7 @@ function init(){
  buildWorld();buildNPCs();buildPlayer();buildVehicles();buildFx();initFishObjs();bindInput();setTool(0,true);
  // bungkus seluruh dunia luar agar bisa disembunyikan saat di dalam rumah
  outGroup=new THREE.Group();scene.children.slice().forEach(ch=>{if(ch.isLight||ch===player.g)return;outGroup.add(ch);});scene.add(outGroup);
- buildInterior();scene.add(inGroup);buildCity();scene.add(cityGroup);setLoc('out');
+ buildInterior();scene.add(inGroup);buildCity();scene.add(cityGroup);setLoc('out');prewarmShaders();
  freezeStatic();buildDust();
 }
 function run(mode){
