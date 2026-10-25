@@ -6321,6 +6321,55 @@
             // Game loop
             let lastTime = performance.now();
             
+            // Clamp zombie outside the wire fence perimeter
+            function clampZombieOutsideFence(zombie, bound) {
+                const ax = Math.abs(zombie.model.position.x);
+                const az = Math.abs(zombie.model.position.z);
+                if (ax < bound && az < bound) {
+                    if (bound - ax < bound - az) {
+                        zombie.model.position.x = Math.sign(zombie.model.position.x || 1) * bound;
+                    } else {
+                        zombie.model.position.z = Math.sign(zombie.model.position.z || 1) * bound;
+                    }
+                }
+            }
+
+
+            function beginZombieClimb(zombie, arenaHalf, bound) {
+                const p = zombie.model.position;
+                const useXSide = Math.abs(Math.abs(p.x) - bound) <= Math.abs(Math.abs(p.z) - bound);
+                zombie.climbAxis = useXSide ? 'x' : 'z';
+                zombie.climbSign = Math.sign(useXSide ? p.x : p.z) || 1;
+                zombie.climbStartX = p.x;
+                zombie.climbStartZ = p.z;
+                const inside = Math.max(0.25, arenaHalf - 0.85);
+                zombie.climbTargetX = useXSide ? zombie.climbSign * inside : p.x;
+                zombie.climbTargetZ = useXSide ? p.z : zombie.climbSign * inside;
+                zombie.climbTimer = 0;
+                zombie.climbDuration = Math.max(0.8, Number(window.gameConfig.settings.zombieClimbTime) || 2);
+                zombie.state = 'climbing';
+            }
+
+            function damagePlayerFromZombie(zombie) {
+                if (gameState.player.invulnerable || gameState.gameOver) return;
+                const damage = (zombie.type === 'tank' || zombie.type === 'boss') ? 2 : 1;
+                gameState.player.health = Math.max(0, gameState.player.health - damage);
+                gameState.player.invulnerable = true;
+                gameState.player.invulnerableTimer = 1.0;
+                playSound('playerHurt', 0.6);
+                gameState.shake = Math.max(gameState.shake, 0.32);
+                flashDamage();
+                if (gameState.combo >= 2) {
+                    showHitText('COMBO BROKEN! 💔', '#ff4444');
+                    playComboBreakSound();
+                }
+                gameState.combo = 0;
+                gameState.comboTimer = 0;
+                updateComboUI();
+                updateUI();
+                if (gameState.player.health <= 0) endGame();
+            }
+
             function gameLoop(timestamp) {
                 let deltaTime = Math.min((timestamp - lastTime) / 1000, 0.11);
                 lastTime = timestamp;
@@ -6715,81 +6764,11 @@
                         }
                     }
                     
-                    // Clamp zombie outside the wire fence perimeter
-                    function clampZombieOutsideFence(zombie, bound) {
-                        const ax = Math.abs(zombie.model.position.x);
-                        const az = Math.abs(zombie.model.position.z);
-                        if (ax < bound && az < bound) {
-                            if (bound - ax < bound - az) {
-                                zombie.model.position.x = Math.sign(zombie.model.position.x || 1) * bound;
-                            } else {
-                                zombie.model.position.z = Math.sign(zombie.model.position.z || 1) * bound;
-                            }
-                        }
-                    }
-
                     // Update zombies: advance toward the fence, climb through it, or attack from outside.
                     const halfArena = window.gameConfig.settings.arenaSize / 2;
                     const fenceBound = halfArena + 0.62;
                     const playerInsideFence = Math.abs(gameState.player.position.x) < halfArena &&
                         Math.abs(gameState.player.position.z) < halfArena;
-
-                    function beginZombieClimb(zombie, arenaHalf, bound) {
-                        const p = zombie.model.position;
-                        const useXSide = Math.abs(Math.abs(p.x) - bound) <= Math.abs(Math.abs(p.z) - bound);
-                        zombie.climbAxis = useXSide ? 'x' : 'z';
-                        zombie.climbSign = Math.sign(useXSide ? p.x : p.z) || 1;
-                        zombie.climbStartX = p.x;
-                        zombie.climbStartZ = p.z;
-                        const inside = Math.max(0.25, arenaHalf - 0.85);
-                        zombie.climbTargetX = useXSide ? zombie.climbSign * inside : p.x;
-                        zombie.climbTargetZ = useXSide ? p.z : zombie.climbSign * inside;
-                        zombie.climbTimer = 0;
-                        zombie.climbDuration = Math.max(0.8, Number(window.gameConfig.settings.zombieClimbTime) || 2);
-                        zombie.state = 'climbing';
-                    }
-
-                    function applySpecialNailEffect(zombie, type) {
-                        if (type === 'burn') {
-                            zombie.burnTimer = 3.2;
-                            zombie.burnTickTimer = 0.65;
-                        } else if (type === 'freeze') {
-                            zombie.frozenTimer = 2.8;
-                        }
-                        if (type !== 'burn' && type !== 'freeze') return;
-                        if (zombie.statusVisual && zombie.statusVisual.parent) zombie.statusVisual.parent.remove(zombie.statusVisual);
-                        const visual = new THREE.Group();
-                        const color = type === 'burn' ? 0xff6a22 : 0x7bdcff;
-                        const glowMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
-                        for (let i = 0; i < 3; i++) {
-                            const marker = new THREE.Mesh(type === 'burn' ? new THREE.ConeGeometry(0.13, 0.34, 5) : new THREE.OctahedronGeometry(0.16, 0), glowMat);
-                            marker.position.set((i - 1) * 0.25, 2.15 + (i % 2) * 0.14, 0);
-                            visual.add(marker);
-                        }
-                        zombie.model.add(visual);
-                        zombie.statusVisual = visual;
-                        zombie.statusVisualType = type;
-                    }
-
-                    function damagePlayerFromZombie(zombie) {
-                        if (gameState.player.invulnerable || gameState.gameOver) return;
-                        const damage = (zombie.type === 'tank' || zombie.type === 'boss') ? 2 : 1;
-                        gameState.player.health = Math.max(0, gameState.player.health - damage);
-                        gameState.player.invulnerable = true;
-                        gameState.player.invulnerableTimer = 1.0;
-                        playSound('playerHurt', 0.6);
-                        gameState.shake = Math.max(gameState.shake, 0.32);
-                        flashDamage();
-                        if (gameState.combo >= 2) {
-                            showHitText('COMBO BROKEN! 💔', '#ff4444');
-                            playComboBreakSound();
-                        }
-                        gameState.combo = 0;
-                        gameState.comboTimer = 0;
-                        updateComboUI();
-                        updateUI();
-                        if (gameState.player.health <= 0) endGame();
-                    }
 
                     for (let i = gameState.zombies.length - 1; i >= 0; i--) {
                         const zombie = gameState.zombies[i];
