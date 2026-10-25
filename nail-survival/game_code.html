@@ -505,6 +505,10 @@
             color: #dff; pointer-events: none; z-index: 104; white-space: nowrap;
         }
         #fence-hud.visible { display: flex; }
+        #env-vignette {
+            position: absolute; inset: 0; pointer-events: none; z-index: 2;
+            background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 52%, rgba(14,8,2,.42) 100%), linear-gradient(180deg, rgba(120,70,20,.08), rgba(20,10,0,.10));
+        }
         #fence-hud .chip { padding: 2px 7px; border-radius: 8px; background: rgba(40,60,70,.8); }
         #fence-hud .chip.warn { background: rgba(150,90,10,.85); color: #ffe8b0; }
         #fence-hud .chip.down { background: rgba(160,20,30,.9); color: #fff; animation: fencePulse .6s infinite alternate; }
@@ -1058,6 +1062,7 @@
         <button id="open-door-button" type="button" aria-label="Open nearby shop door">OPEN<small>SHOP DOOR</small></button>
         <button id="bench-button" type="button" aria-label="Open the fence workbench">WORKBENCH<small>REPAIR &amp; UPGRADE FENCE</small></button>
         <div id="fence-hud" aria-live="polite"></div>
+        <div id="env-vignette" aria-hidden="true"></div>
         <div id="door-scare" aria-hidden="true"><span>🧟</span><strong>ZOMBIE BEHIND THE DOOR!</strong></div>
         
         <div id="wave-notification">WAVE COMPLETE!</div>
@@ -1103,9 +1108,9 @@
             // Three.js setup
             const scene = new THREE.Scene();
             // Keep the survival atmosphere in Play mode, but give the full-map editor a bright, haze-free survey view.
-            scene.background = new THREE.Color(mode === 'play' ? 0x9fc6d8 : 0x91a9b8);
+            scene.background = new THREE.Color(mode === 'play' ? 0xc2a98a : 0x91a9b8);
             // A light, sky-matched distance haze blends the terrain into the horizon instead of a black map edge.
-            scene.fog = mode === 'play' ? new THREE.Fog(0x9fc6d8, 110, 420) : null;
+            scene.fog = mode === 'play' ? new THREE.Fog(0xc2a98a, 60, 300) : null;
             
             const camera = new THREE.PerspectiveCamera(
                 60,
@@ -1146,10 +1151,10 @@
             window.addEventListener('resize', onResize);
             
             // Lighting
-            const ambientLight = new THREE.AmbientLight(mode === 'play' ? 0xc5c9c4 : 0xffffff, mode === 'play' ? 0.62 : 1.15);
+            const ambientLight = new THREE.AmbientLight(mode === 'play' ? 0xb9b6ac : 0xffffff, mode === 'play' ? 0.62 : 1.15);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(mode === 'play' ? 0xe8e6dc : 0xffffff, mode === 'play' ? 0.72 : 1.25);
+            const directionalLight = new THREE.DirectionalLight(mode === 'play' ? 0xffd9a6 : 0xffffff, mode === 'play' ? 0.72 : 1.25);
             directionalLight.position.set(50, 100, 50);
             directionalLight.castShadow = true;
             // Tight shadow frustum that follows the player = sharper shadows at a fraction of the cost
@@ -1165,10 +1170,10 @@
             scene.add(directionalLight);
             scene.add(directionalLight.target);
 
-            const hemiLight = new THREE.HemisphereLight(mode === 'play' ? 0xaebfca : 0xe8f5ff, mode === 'play' ? 0x625f54 : 0x747b72, mode === 'play' ? 0.38 : 0.72);
+            const hemiLight = new THREE.HemisphereLight(mode === 'play' ? 0xa9b0ae : 0xe8f5ff, mode === 'play' ? 0x5a4e42 : 0x747b72, mode === 'play' ? 0.38 : 0.72);
             scene.add(hemiLight);
-            const daySkyColor = new THREE.Color(0x9fc6d8);
-            const nightSkyColor = new THREE.Color(0x202b42);
+            const daySkyColor = new THREE.Color(0xc2a98a);
+            const nightSkyColor = new THREE.Color(0x2a2230);
             
             // Asset loading and robust audio system
             const textureLoader = new THREE.TextureLoader();
@@ -1627,15 +1632,383 @@
             
             // Create expanded survival wasteland ground (300x300)
             const groundGeometry = new THREE.PlaneGeometry(400, 400);
-            const groundMaterial = stdMat({
-                map: groundTexture,
-                roughness: 0.85
-            });
+            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x5c5d58, roughness: 0.95 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
 
+            // ===== APOCALYPSE ENVIRONMENT: procedural world-space surface shaders, sky, smoke, ash, fires =====
+            const envState = { fires: [], smoke: [], litWindowMat: null, time: 0 };
+            const WD_GLSL = `
+                varying vec3 vWPos;
+                varying vec3 vWNor;
+                float wdWet = 0.0;
+                float wdHash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+                float wdNoise(vec2 p) {
+                    vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+                    float a = wdHash(i), b = wdHash(i + vec2(1.0, 0.0)), c = wdHash(i + vec2(0.0, 1.0)), d = wdHash(i + vec2(1.0, 1.0));
+                    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+                }
+                float wdFbm(vec2 p) {
+                    float v = 0.0, a = 0.5;
+                    for (int i = 0; i < WD_OCT; i++) { v += a * wdNoise(p); p = p * 2.03 + vec2(17.1, 9.7); a *= 0.5; }
+                    return v;
+                }
+                vec2 wdVor(vec2 p) {
+                    vec2 ip = floor(p), fp = fract(p); float d1 = 8.0, d2 = 8.0;
+                    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+                        vec2 g = vec2(float(x), float(y));
+                        vec2 o = vec2(wdHash(ip + g), wdHash(ip + g + vec2(31.7, 17.3)));
+                        vec2 r = g + o - fp; float d = dot(r, r);
+                        if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
+                    }
+                    return sqrt(vec2(d1, d2));
+                }
+                float wdCrack(vec2 p, float w) { p += 0.45 * vec2(wdNoise(p * 2.3), wdNoise(p * 2.3 + 5.3)) - 0.22; vec2 v = wdVor(p); return 1.0 - smoothstep(0.0, w, v.y - v.x); }
+            `;
+            const WD_KINDS = {
+                ground: `
+                    vec2 p = vWPos.xz; vec3 col = diffuseColor.rgb;
+                    float wdDist = length(vWPos - cameraPosition);
+                    float big = wdFbm(p * 0.045);
+                    float mid = wdNoise(p * 0.35 + 3.1);
+                    col *= 0.55 + 0.85 * big;
+                    col = mix(col, col * 0.6, smoothstep(0.55, 0.8, wdNoise(p * 0.02 + 33.0)) * 0.6);
+                    col = mix(col, col * vec3(1.08, 1.0, 0.88), smoothstep(0.45, 0.8, mid) * 0.6);
+                    float wn = wdNoise(p * 0.1 + 21.0) * 0.65 + wdNoise(p * 0.23 + 5.0) * 0.35;
+                    float weedMask = smoothstep(0.52, 0.74, wn);
+                    vec3 weed = mix(vec3(0.20, 0.23, 0.09), vec3(0.40, 0.34, 0.14), mid);
+                    col = mix(col, weed * 0.85, weedMask * 0.7);
+                    float nearF = 1.0 - smoothstep(26.0, 40.0, wdDist);
+                    if (nearF > 0.0) {
+                        float fine = wdNoise(p * 7.0), grain = wdNoise(p * 28.0);
+                        float crackA = wdCrack(p * 0.16, 0.03) * smoothstep(0.48, 0.62, wdNoise(p * 0.07 + 13.0));
+                        col = mix(col, vec3(0.035), crackA * 0.75 * nearF);
+                        #ifndef WD_LOW
+                        float crackB = wdCrack(p * 0.55 + 7.0, 0.05) * smoothstep(0.5, 0.66, wdNoise(p * 0.2 + 5.0));
+                        col = mix(col, mix(vec3(0.05), weed, 0.55 * weedMask + 0.15), crackB * 0.45 * nearF);
+                        float oil = smoothstep(0.62, 0.7, wdNoise(p * 0.5 + 41.0) * 0.7 + wdNoise(p * 1.3) * 0.3);
+                        col = mix(col, vec3(0.06, 0.052, 0.045), oil * 0.55 * nearF);
+                        float blood = smoothstep(0.82, 0.86, wdNoise(p * 0.42 + 9.0) * 0.7 + wdNoise(p * 1.1 + 4.0) * 0.3);
+                        col = mix(col, vec3(0.13, 0.02, 0.017), blood * 0.7 * nearF);
+                        float pud = smoothstep(0.64, 0.7, wdNoise(p * 0.22 + 77.0)) * (1.0 - weedMask);
+                        col *= mix(1.0, 0.5, pud * nearF); wdWet = pud * nearF;
+                        #endif
+                        col *= mix(1.0, (0.88 + 0.24 * grain) * (0.96 + 0.08 * fine), nearF);
+                    }
+                    float yard = 1.0 - smoothstep(8.2, 9.8, max(abs(p.x), abs(p.y)));
+                    vec2 jg = abs(fract(p / 3.25 + 0.5) - 0.5) * 3.25;
+                    float joint = 1.0 - smoothstep(0.02, 0.07, min(jg.x, jg.y));
+                    col = mix(col, col * 0.42, joint * yard);
+                    col = mix(col, col * vec3(1.12, 1.08, 1.0), yard * 0.18);
+                    diffuseColor.rgb = col;
+                `,
+                asphalt: `
+                    vec2 p = vWPos.xz; vec3 col = diffuseColor.rgb;
+                    float n1 = wdFbm(p * 0.12), g2 = wdNoise(p * 9.0), grain = wdNoise(p * 30.0);
+                    col *= 0.72 + 0.55 * n1; col *= 0.88 + 0.24 * g2; col *= 0.9 + 0.2 * grain;
+                    float repair = step(0.88, wdHash(floor(p / vec2(6.0, 3.0))));
+                    col *= mix(1.0, 0.68, repair);
+                    if (length(vWPos - cameraPosition) < 65.0) {
+                    float cr = wdCrack(p * 0.7, 0.05) * smoothstep(0.5, 0.7, wdFbm(p * 0.15 + 8.0)), cr2 = wdCrack(p * 0.24 + 3.0, 0.03) * smoothstep(0.45, 0.62, wdFbm(p * 0.1 + 2.0));
+                    col = mix(col, vec3(0.02), cr * 0.45 + cr2 * 0.8);
+                    #ifndef WD_LOW
+                    float hole = smoothstep(0.80, 0.83, wdFbm(p * 0.4 + 13.0)); col = mix(col, vec3(0.03, 0.028, 0.026), hole);
+                    float oil = smoothstep(0.68, 0.71, wdFbm(p * 0.5 + 5.0)); col = mix(col, vec3(0.03), oil * 0.55);
+                    float blood = smoothstep(0.76, 0.79, wdFbm(p * 0.45 + 29.0)); col = mix(col, vec3(0.22, 0.025, 0.02), blood * 0.85);
+                    float pud = smoothstep(0.58, 0.62, wdFbm(p * 0.2 + 51.0)); col *= mix(1.0, 0.5, pud); wdWet = pud;
+                    float grit = smoothstep(0.55, 0.9, wdNoise(p * 60.0)); col += grit * 0.04;
+                    #endif
+                    }
+                    diffuseColor.rgb = col;
+                `,
+                paint: `
+                    vec2 p = vWPos.xz; vec3 col = diffuseColor.rgb;
+                    if (wdFbm(p * 3.0 + 2.0) > 0.70) discard;
+                    float e = wdFbm(p * 2.5); col *= 0.45 + 0.75 * e;
+                    col = mix(col, col * vec3(0.82, 0.74, 0.58), 0.5 * wdNoise(p * 9.0));
+                    diffuseColor.rgb = col;
+                `,
+                slab: `
+                    vec2 p = vWPos.xz; vec3 col = diffuseColor.rgb;
+                    float n1 = wdFbm(p * 0.2), grain = wdNoise(p * 24.0);
+                    col *= 0.7 + 0.55 * n1; col *= 0.9 + 0.2 * grain;
+                    vec2 jg = abs(fract(p / 1.8 + 0.5) - 0.5) * 1.8;
+                    float joint = 1.0 - smoothstep(0.015, 0.06, min(jg.x, jg.y));
+                    float weed = smoothstep(0.45, 0.7, wdFbm(p * 0.7 + 3.0));
+                    col = mix(col, col * 0.4, joint);
+                    col = mix(col, vec3(0.2, 0.24, 0.1), joint * weed * 0.8);
+                    col = mix(col, vec3(0.03), wdCrack(p * 0.4, 0.035) * smoothstep(0.45, 0.62, wdFbm(p * 0.15 + 4.0)) * 0.7);
+                    diffuseColor.rgb = col;
+                `,
+                facade: `
+                    vec3 n = normalize(vWNor); vec3 col = diffuseColor.rgb; float y = vWPos.y;
+                    if (n.y > 0.6) {
+                        vec2 p = vWPos.xz;
+                        col *= 0.55 + 0.6 * wdFbm(p * 0.4);
+                        col = mix(col, vec3(0.05), smoothstep(0.55, 0.75, wdFbm(p * 0.25 + 7.0)) * 0.7);
+                        col *= 0.85 + 0.3 * wdNoise(p * 26.0);
+                        float pud = smoothstep(0.58, 0.64, wdFbm(p * 0.3 + 31.0)); col *= mix(1.0, 0.55, pud); wdWet = pud;
+                    } else {
+                        vec2 uv = abs(n.x) > abs(n.z) ? vec2(vWPos.z, y) : vec2(vWPos.x, y);
+                        vec2 pc = floor(uv / vec2(2.4, 3.05));
+                        col *= 0.86 + 0.26 * wdHash(pc);
+                        vec2 fr = fract(uv / vec2(2.4, 3.05));
+                        float dEdge = min(min(fr.x, 1.0 - fr.x) * 2.4, min(fr.y, 1.0 - fr.y) * 3.05);
+                        col *= 1.0 - 0.38 * (1.0 - smoothstep(0.012, 0.05, dEdge));
+                        col *= mix(0.5, 1.0, smoothstep(0.2, 3.5, y));
+                        float wdDistF = length(vWPos - cameraPosition);
+                        if (wdDistF < 70.0) {
+                        float moss = (1.0 - smoothstep(0.3, 2.4, y)) * smoothstep(0.5, 0.8, wdFbm(uv * 0.8));
+                        col = mix(col, vec3(0.15, 0.22, 0.09), moss * 0.8);
+                        }
+                        float streak = wdNoise(vec2(uv.x * 9.0, uv.y * 0.22));
+                        col *= 0.8 + 0.32 * streak;
+                        col *= 1.0 - 0.3 * smoothstep(8.0, 20.0, y) * streak;
+                        float soot = smoothstep(0.62, 0.8, wdFbm(uv * 0.16 + vec2(floor(vWPos.x * 0.07 + vWPos.z * 0.05) * 13.7, 4.0)));
+                        col = mix(col, col * 0.2, soot * 0.88);
+                        if (wdDistF < 70.0) {
+                        float peel = smoothstep(0.62, 0.72, wdFbm(uv * 0.7 + 5.0));
+                        col = mix(col, col * vec3(1.22, 1.1, 0.95) + 0.03, peel * 0.5);
+                        float brick = smoothstep(0.70, 0.76, wdFbm(uv * 0.55 + 11.0));
+                        vec2 bg = fract(uv * vec2(3.2, 7.0) + vec2(step(0.5, fract(uv.y * 3.5)) * 0.5, 0.0));
+                        float mortar = step(0.9, bg.x) + step(0.88, bg.y);
+                        col = mix(col, mix(vec3(0.43, 0.25, 0.19), vec3(0.2, 0.15, 0.12), clamp(mortar, 0.0, 1.0)) * (0.8 + 0.4 * wdNoise(uv * 14.0)), brick * 0.85);
+                        col = mix(col, vec3(0.02), wdCrack(uv * 0.35, 0.03) * smoothstep(0.5, 0.66, wdFbm(uv * 0.22 + 3.0)) * 0.5);
+                        col *= 1.0 - 0.4 * step(0.996, wdHash(floor(uv * 18.0)));
+                        }
+                    }
+                    diffuseColor.rgb = col;
+                `,
+                concrete: `
+                    vec3 n = normalize(vWNor); vec3 col = diffuseColor.rgb;
+                    vec2 uv = n.y > 0.6 ? vWPos.xz : (abs(n.x) > abs(n.z) ? vec2(vWPos.z, vWPos.y) : vec2(vWPos.x, vWPos.y));
+                    col *= 0.7 + 0.6 * wdFbm(uv * 0.9); col *= 0.88 + 0.24 * wdNoise(uv * 20.0);
+                    col = mix(col, col * 0.3, smoothstep(0.6, 0.78, wdFbm(uv * 0.5 + 9.0)) * 0.8);
+                    col *= mix(0.55, 1.0, smoothstep(0.0, 1.4, vWPos.y));
+                    if (length(vWPos - cameraPosition) < 60.0) {
+                        col = mix(col, vec3(0.03), wdCrack(uv * 0.6, 0.035) * smoothstep(0.5, 0.66, wdFbm(uv * 0.3 + 6.0)) * 0.5);
+                        col *= 1.0 - 0.35 * step(0.994, wdHash(floor(uv * 16.0)));
+                    }
+                    diffuseColor.rgb = col;
+                `,
+                rust: `
+                    vec3 n = normalize(vWNor); vec3 col = diffuseColor.rgb;
+                    vec2 uv = n.y > 0.6 ? vWPos.xz : (abs(n.x) > abs(n.z) ? vec2(vWPos.z, vWPos.y) : vec2(vWPos.x, vWPos.y));
+                    float r = wdFbm(uv * 2.6 + 3.0);
+                    col *= 0.7 + 0.5 * wdNoise(uv * 14.0);
+                    col = mix(col, vec3(0.5, 0.22, 0.08) * (0.55 + 0.7 * r), smoothstep(0.38, 0.7, r) * 0.75);
+                    col *= 1.0 - 0.3 * wdNoise(vec2(uv.x * 11.0, uv.y * 0.6));
+                    diffuseColor.rgb = col;
+                `,
+                carpaint: `
+                    vec3 n = normalize(vWNor); vec3 col = diffuseColor.rgb; float y = vWPos.y;
+                    vec2 uv = n.y > 0.6 ? vWPos.xz : (abs(n.x) > abs(n.z) ? vec2(vWPos.z, y) : vec2(vWPos.x, y));
+                    col *= 0.75 + 0.35 * wdFbm(uv * 2.0);
+                    col = mix(col, vec3(0.30, 0.21, 0.13), (1.0 - smoothstep(0.2, 1.0, y)) * 0.55);
+                    float r = wdFbm(uv * 3.5 + 9.0);
+                    col = mix(col, vec3(0.45, 0.2, 0.08) * (0.6 + 0.6 * r), smoothstep(0.5, 0.75, r) * 0.7);
+                    col *= 1.0 - 0.35 * smoothstep(0.88, 0.95, wdNoise(uv * 24.0));
+                    diffuseColor.rgb = col;
+                `,
+                tile: `
+                    vec2 p = vWPos.xz; vec3 col = diffuseColor.rgb;
+                    vec2 g = floor(p / 0.9);
+                    col *= 0.86 + 0.16 * mod(g.x + g.y, 2.0) + 0.1 * wdHash(g);
+                    vec2 jg = abs(fract(p / 0.9 + 0.5) - 0.5) * 0.9;
+                    col *= 1.0 - 0.55 * (1.0 - smoothstep(0.01, 0.04, min(jg.x, jg.y)));
+                    col *= 0.55 + 0.7 * wdFbm(p * 0.8);
+                    col = mix(col, vec3(0.04), smoothstep(0.62, 0.78, wdFbm(p * 0.35 + 5.0)) * 0.7);
+                    col = mix(col, vec3(0.2, 0.03, 0.025), smoothstep(0.76, 0.8, wdFbm(p * 0.5 + 19.0)) * 0.85);
+                    col = mix(col, vec3(0.02), wdCrack(p * 0.6, 0.04) * smoothstep(0.5, 0.66, wdFbm(p * 0.3 + 6.0)) * 0.6);
+                    diffuseColor.rgb = col;
+                `
+            };
+            // Patches a MeshStandardMaterial so its color is modulated by procedural, world-space grime/crack/stain detail.
+            function patchWorldDetail(material, kind) {
+                const body = WD_KINDS[kind];
+                if (!body || !material || material.userData.wdKind) return material;
+                material.userData.wdKind = kind;
+                material.customProgramCacheKey = () => 'wd_' + kind + (isMobile ? '_m' : '');
+                material.onBeforeCompile = (shader) => {
+                    const defs = '#define WD_OCT ' + (isMobile ? 2 : 3) + '\n' + (isMobile ? '#define WD_LOW 1\n' : '');
+                    shader.vertexShader = shader.vertexShader
+                        .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNor;')
+                        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWNor = normalize(mat3(modelMatrix) * objectNormal);');
+                    shader.fragmentShader = shader.fragmentShader
+                        .replace('#include <common>', defs + '#include <common>\n' + WD_GLSL)
+                        .replace('#include <color_fragment>', '#include <color_fragment>\n{\n' + body + '\n}')
+                        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.14, wdWet * 0.85);');
+                };
+                material.needsUpdate = true;
+                return material;
+            }
+
+            // ---- Sky dome: smoggy haze, sun glow, drifting cloud banks, night fire-glow and stars ----
+            const skyUniforms = {
+                uTop: { value: new THREE.Color(0x56707c) },
+                uHorizon: { value: new THREE.Color(0xc2a98a) },
+                uNight: { value: 0 },
+                uTime: { value: 0 },
+                uSunDir: { value: new THREE.Vector3(0.62, 0.20, 0.55).normalize() }
+            };
+            const SKY_DAY_TOP = new THREE.Color(0x56707c), SKY_NIGHT_TOP = new THREE.Color(0x050914);
+            const SKY_DAY_HORIZON = new THREE.Color(0xc2a98a), SKY_NIGHT_HORIZON = new THREE.Color(0x2a2230);
+            let skyDome = null;
+            if (mode === 'play') {
+                skyDome = new THREE.Mesh(
+                    new THREE.SphereGeometry(900, 24, 14),
+                    new THREE.ShaderMaterial({
+                        uniforms: skyUniforms, side: THREE.BackSide, depthWrite: false, fog: false,
+                        vertexShader: 'varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+                        fragmentShader: `
+                            varying vec3 vDir;
+                            uniform vec3 uTop; uniform vec3 uHorizon; uniform float uNight; uniform float uTime; uniform vec3 uSunDir;
+                            float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+                            float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+                                return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }
+                            float fb(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * n2(p); p = p * 2.07 + 11.3; a *= 0.5; } return v; }
+                            void main() {
+                                vec3 d = normalize(vDir);
+                                float h = clamp(d.y, 0.0, 1.0);
+                                vec3 col = mix(uHorizon, uTop, pow(h, 0.5));
+                                vec2 cp = d.xz / (d.y + 0.28) * 1.5 + vec2(uTime * 0.012, uTime * 0.004);
+                                float cloud = smoothstep(0.42, 0.85, fb(cp));
+                                col = mix(col, col * 0.55 + vec3(0.03, 0.02, 0.015), cloud * 0.65 * smoothstep(0.02, 0.4, h));
+                                float sd = max(dot(d, uSunDir), 0.0);
+                                vec3 sunCol = vec3(1.0, 0.6, 0.28);
+                                col += sunCol * (pow(sd, 120.0) * 1.1 + pow(sd, 9.0) * 0.16) * (1.0 - uNight);
+                                col += vec3(0.38, 0.09, 0.02) * pow(1.0 - h, 7.0) * uNight * (0.55 + 0.6 * n2(d.xz * 7.0 + uTime * 0.2));
+                                float stars = step(0.9988, h21(floor(d.xz / (d.y + 0.12) * 150.0))) * smoothstep(0.15, 0.5, h);
+                                col += vec3(stars) * uNight * 0.8;
+                                col *= 1.0 - 0.35 * pow(1.0 - h, 3.0) * uNight;
+                                gl_FragColor = vec4(col, 1.0);
+                            }`
+                    })
+                );
+                skyDome.renderOrder = -1000;
+                skyDome.frustumCulled = false;
+                scene.add(skyDome);
+            }
+
+            // ---- Distant smoke columns with night fire glow ----
+            function makeSoftTexture(kind) {
+                const c = document.createElement('canvas');
+                c.width = c.height = 128;
+                const g = c.getContext('2d');
+                const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+                if (kind === 'smoke') {
+                    grad.addColorStop(0, 'rgba(70,64,58,0.85)');
+                    grad.addColorStop(0.55, 'rgba(48,44,40,0.45)');
+                    grad.addColorStop(1, 'rgba(30,28,26,0)');
+                } else {
+                    grad.addColorStop(0, 'rgba(255,200,110,1)');
+                    grad.addColorStop(0.35, 'rgba(255,120,30,0.55)');
+                    grad.addColorStop(1, 'rgba(255,60,0,0)');
+                }
+                g.fillStyle = grad;
+                g.fillRect(0, 0, 128, 128);
+                const tex = new THREE.CanvasTexture(c);
+                return tex;
+            }
+            const smokeTexture = makeSoftTexture('smoke');
+            const glowTexture = makeSoftTexture('glow');
+            if (mode === 'play') {
+                const sources = [[-88, -118], [102, -64], [116, 84], [-108, 100], [26, -132], [-130, -26], [60, 128], [-40, 130]];
+                sources.forEach(([x, z], si) => {
+                    const puffs = [];
+                    for (let i = 0; i < 12; i++) {
+                        const mat = new THREE.SpriteMaterial({ map: smokeTexture, transparent: true, opacity: 0, depthWrite: false, fog: false, color: 0xb0a89c });
+                        const sprite = new THREE.Sprite(mat);
+                        sprite.renderOrder = -900;
+                        scene.add(sprite);
+                        puffs.push(sprite);
+                    }
+                    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+                        map: glowTexture, transparent: true, opacity: 0, depthWrite: false, fog: false, blending: THREE.AdditiveBlending
+                    }));
+                    glow.position.set(x, 6, z);
+                    glow.scale.set(34, 22, 1);
+                    scene.add(glow);
+                    envState.smoke.push({ x, z, puffs, glow, offset: si * 0.37 });
+                });
+            }
+            // ---- Floating ash and rising embers around the player ----
+            const ASH_COUNT = isMobile ? 140 : 260;
+            const ashGeometry = new THREE.BufferGeometry();
+            const ashPositions = new Float32Array(ASH_COUNT * 3);
+            const ashSeeds = new Float32Array(ASH_COUNT);
+            for (let i = 0; i < ASH_COUNT; i++) {
+                ashPositions[i * 3] = (Math.random() - 0.5) * 46;
+                ashPositions[i * 3 + 1] = Math.random() * 14;
+                ashPositions[i * 3 + 2] = (Math.random() - 0.5) * 46;
+                ashSeeds[i] = Math.random();
+            }
+            ashGeometry.setAttribute('position', new THREE.BufferAttribute(ashPositions, 3));
+            const dotCanvas = document.createElement('canvas');
+            dotCanvas.width = dotCanvas.height = 32;
+            { const g = dotCanvas.getContext('2d'); const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); }
+            const ashMaterial = new THREE.PointsMaterial({ color: 0xd8cfbd, size: 0.14, map: new THREE.CanvasTexture(dotCanvas), alphaTest: 0.04, transparent: true, opacity: 0.6, depthWrite: false, sizeAttenuation: true });
+            const ashPoints = new THREE.Points(ashGeometry, ashMaterial);
+            ashPoints.frustumCulled = false;
+            if (mode === 'play') scene.add(ashPoints);
+
+            // Called every frame during play.
+            const _hazeColor = new THREE.Color();
+            function updateAtmosphere(deltaTime, timestamp, nightMix) {
+                envState.time += deltaTime;
+                const px = gameState.player.position.x, pz = gameState.player.position.z;
+                if (skyDome) {
+                    skyDome.position.copy(camera.position);
+                    skyUniforms.uNight.value = nightMix;
+                    skyUniforms.uTime.value = envState.time;
+                    skyUniforms.uTop.value.lerpColors(SKY_DAY_TOP, SKY_NIGHT_TOP, nightMix);
+                    skyUniforms.uHorizon.value.lerpColors(SKY_DAY_HORIZON, SKY_NIGHT_HORIZON, nightMix);
+                }
+                // Smoke puffs rise, expand and fade; night adds a flickering orange glow at the base.
+                for (const col of envState.smoke) {
+                    const n = col.puffs.length;
+                    for (let i = 0; i < n; i++) {
+                        const t = ((envState.time * 0.035 + i / n + col.offset) % 1 + 1) % 1;
+                        const s = col.puffs[i];
+                        s.position.set(col.x + t * 26 + Math.sin(i * 2.1 + envState.time * 0.2) * 3, 6 + t * 110, col.z + t * 8);
+                        const size = 12 + t * 52;
+                        s.scale.set(size, size, 1);
+                        s.material.opacity = Math.sin(t * Math.PI) * (0.30 - nightMix * 0.12);
+                    }
+                    col.glow.material.opacity = (0.12 + nightMix * 0.55) * (0.75 + 0.25 * Math.sin(envState.time * 7 + col.offset * 20));
+                }
+                // Ash drifts down and sideways; wrap around the player so it is always nearby.
+                const pos = ashGeometry.attributes.position.array;
+                for (let i = 0; i < ASH_COUNT; i++) {
+                    const k = i * 3, sd = ashSeeds[i];
+                    pos[k] += (0.55 + sd * 0.5) * deltaTime;
+                    pos[k + 1] -= (0.25 + sd * 0.35) * deltaTime;
+                    pos[k + 2] += Math.sin(envState.time * 0.6 + sd * 20) * 0.25 * deltaTime;
+                    const wx = pos[k] - px, wz = pos[k + 2] - pz;
+                    if (pos[k + 1] < 0) pos[k + 1] = 12 + sd * 4;
+                    if (wx > 23) pos[k] -= 46; else if (wx < -23) pos[k] += 46;
+                    if (wz > 23) pos[k + 2] -= 46; else if (wz < -23) pos[k + 2] += 46;
+                    if (!ashPoints.userData.init) { pos[k] += px; pos[k + 2] += pz; }
+                }
+                ashPoints.userData.init = true;
+                ashGeometry.attributes.position.needsUpdate = true;
+                ashMaterial.color.setHex(nightMix > 0.5 ? 0xffa86a : 0xd8cfbd);
+                ashMaterial.opacity = 0.5 + nightMix * 0.25;
+                // Fires: flicker flames and ground glow
+                for (const f of envState.fires) {
+                    const fl = 0.8 + 0.25 * Math.sin(envState.time * 11 + f.phase) + 0.12 * Math.sin(envState.time * 23 + f.phase * 2);
+                    f.flames.forEach((m, i) => {
+                        m.scale.set(1 + 0.12 * Math.sin(envState.time * 9 + i), fl * (0.8 + i * 0.25), 1 + 0.12 * Math.cos(envState.time * 8 + i));
+                        m.rotation.y += deltaTime * (2 + i);
+                    });
+                    f.glow.material.opacity = (0.35 + nightMix * 0.45) * fl;
+                }
+                if (envState.litWindowMat) envState.litWindowMat.emissiveIntensity = 0.12 + nightMix * 0.75;
+            }
+
+            patchWorldDetail(groundMaterial, 'ground');
             // Wasteland environment outside the fence: abandoned debris, concrete barriers, rusted drums, and light poles
             function buildLegacyWastelandProps() {
                 const envGroup = new THREE.Group();
@@ -1781,6 +2154,49 @@
                 const boneMat = stdMat({ color: 0xb8ad91, roughness: 0.86 });
                 const skullSocketMat = stdMat({ color: 0x37342e, roughness: 0.95 });
                 const fixedAmberMat = stdMat({ color: 0x77552c, roughness: 0.6, metalness: 0.2 });
+                [[asphaltMat, 'asphalt'], [asphaltPatchMat, 'asphalt'], [laneMat, 'paint'], [sidewalkMat, 'slab'], [concreteMat, 'concrete'],
+                 [concreteLightMat, 'concrete'], [rustMat, 'rust'], [rustDarkMat, 'rust']].forEach(([m, k]) => patchWorldDetail(m, k));
+                // Sun-bleached, desaturated facade palette (ash, sage, dusty rose, ochre); grime/cracks come from the shader.
+                const facadeMats = [0x7d786b, 0x727971, 0x80736a, 0x796e66, 0x6f747a].map(c =>
+                    patchWorldDetail(new THREE.MeshStandardMaterial({ color: c, roughness: 0.95 }), 'facade'));
+                const litWindowMat = new THREE.MeshStandardMaterial({ color: 0x2a1c0c, emissive: 0xe0862a, emissiveIntensity: 0.12, roughness: 0.4 });
+                envState.litWindowMat = litWindowMat;
+                const darkInteriorMat = stdMat({ color: 0x0a0c0d, roughness: 1 });
+                const curtainMats = [stdMat({ color: 0x6e2a2a, roughness: 0.95 }), stdMat({ color: 0x2f4a63, roughness: 0.95 }), stdMat({ color: 0x5e5a3a, roughness: 0.95 })];
+                const acMat = stdMat({ color: 0x8c8f8a, roughness: 0.6, metalness: 0.4 });
+                const shutterMat = patchWorldDetail(new THREE.MeshStandardMaterial({ color: 0x6a7378, roughness: 0.6, metalness: 0.45 }), 'rust');
+                const awningMats = [stdMat({ color: 0x9c3b32, roughness: 0.92 }), stdMat({ color: 0xcfc3a3, roughness: 0.92 })];
+                const tankMat = patchWorldDetail(new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.85, metalness: 0.3 }), 'rust');
+                const rebarMat = stdMat({ color: 0x5a3a26, roughness: 0.8, metalness: 0.35 });
+                const decalMaterials = ['X', 'HELP', 'DEAD', 'ARROW', 'NO'].map(kind => {
+                    const c = document.createElement('canvas');
+                    c.width = 256; c.height = 168;
+                    const g = c.getContext('2d');
+                    g.lineCap = 'round'; g.lineJoin = 'round';
+                    const red = 'rgba(176,34,28,0.92)', white = 'rgba(224,220,205,0.9)';
+                    if (kind === 'X') {
+                        g.strokeStyle = red; g.lineWidth = 16;
+                        g.beginPath(); g.moveTo(30, 20); g.lineTo(130, 148); g.moveTo(130, 20); g.lineTo(30, 148); g.stroke();
+                        g.strokeStyle = white; g.lineWidth = 7; g.font = 'bold 40px Arial'; g.fillStyle = white;
+                        g.fillText('4', 170, 62); g.fillText('0', 205, 62); g.fillText('DEAD', 150, 120);
+                    } else if (kind === 'HELP') {
+                        g.fillStyle = white; g.font = 'bold 84px Arial'; g.fillText('HELP', 20, 100);
+                        g.strokeStyle = white; g.lineWidth = 8; g.beginPath(); g.moveTo(30, 130); g.lineTo(220, 118); g.stroke();
+                    } else if (kind === 'DEAD') {
+                        g.fillStyle = red; g.font = 'bold 66px Arial'; g.fillText('NO', 28, 78); g.fillText('ENTRY', 28, 142);
+                    } else if (kind === 'ARROW') {
+                        g.strokeStyle = white; g.lineWidth = 14;
+                        g.beginPath(); g.moveTo(20, 84); g.lineTo(200, 84); g.moveTo(150, 36); g.lineTo(206, 84); g.lineTo(150, 132); g.stroke();
+                        g.fillStyle = white; g.font = 'bold 30px Arial'; g.fillText('SAFE?', 60, 40);
+                    } else {
+                        g.fillStyle = red; g.font = 'bold 56px Arial'; g.fillText('INFECTED', 14, 70); g.fillText('INSIDE', 40, 138);
+                    }
+                    // Dripping paint
+                    g.fillStyle = kind === 'HELP' || kind === 'ARROW' ? white : red;
+                    for (let i = 0; i < 7; i++) g.fillRect(20 + i * 34 + (i % 3) * 5, 100 + (i * 17) % 40, 4, 16 + (i * 11) % 36);
+                    const tex = new THREE.CanvasTexture(c);
+                    return new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.25, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+                });
 
                 // All city dressing stays outside a 50m stand-off from the 13m fence.
                 // The nearest road edge is 57m from the fence; buildings sit farther out.
@@ -1834,7 +2250,7 @@
                         stdMat({ color: 0x5d625d, roughness: 0.95 }),
                         stdMat({ color: 0x6c6258, roughness: 0.93 })
                     ];
-                    const facadeMat = wallMats[variant % wallMats.length];
+                    const facadeMat = facadeMats[variant % facadeMats.length];
                     const height = floors * 3.05;
                     addBox(building, width, height, depth, facadeMat, [0, height / 2, 0], [0, 0, 0], true);
                     // Concrete floor bands and a slightly damaged parapet define the mid-rise silhouette.
@@ -1846,18 +2262,97 @@
                     addBox(building, 0.22, 0.42, 0.30, concreteLightMat, [-width * 0.28, height + 0.30, -depth * 0.14], [0, -0.12, 0], false);
 
                     const columns = width > 13 ? 4 : 3;
+                    const rnd = (a1, b1, c1) => { const v = Math.sin(a1 * 127.1 + b1 * 311.7 + c1 * 74.7 + variant * 19.3) * 43758.5453; return v - Math.floor(v); };
+                    // Places a box on a facade: face 'f' = front (+Z), 'l' = left (-X), 'r' = right (+X). 'along' runs left-to-right on that face.
+                    const faceBox = (f, along, y, out, sa, sh, st, mat, tilt = 0) => {
+                        if (f === 'f') return addBox(building, sa, sh, st, mat, [along, y, depth / 2 + out], [0, 0, tilt], false);
+                        const sign = f === 'r' ? 1 : -1;
+                        return addBox(building, st, sh, sa, mat, [sign * (width / 2 + out), y, along * sign * -1 * -1], [tilt, 0, 0], false);
+                    };
+                    const placeWindow = (f, along, floor, key) => {
+                        const wy = 1.65 + floor * 3.05;
+                        const r = rnd(floor, key, f.charCodeAt(0));
+                        const pane = r < 0.12 ? darkInteriorMat : (r < 0.19 ? litWindowMat : windowMat);
+                        faceBox(f, along, wy, 0.045, 1.18, 1.28, 0.075, pane);
+                        faceBox(f, along, wy - 0.70, 0.08, 1.32, 0.075, 0.12, concreteLightMat);
+                        faceBox(f, along, wy + 0.68, 0.07, 1.30, 0.07, 0.10, concreteMat);
+                        if (r < 0.12) {
+                            faceBox(f, along, wy - 0.14, 0.095, 0.82, 0.10, 0.10, boardedMat, -0.22);
+                            faceBox(f, along, wy + 0.12, 0.10, 0.78, 0.09, 0.09, boardedMat, 0.3);
+                            for (let k = 0; k < 3; k++) faceBox(f, along - 0.4 + k * 0.4, wy - 0.58, 0.05, 0.16, 0.16, 0.05, windowMat, 0.6 + k);
+                        } else if (r >= 0.19 && r < 0.30 && f === 'f') {
+                            faceBox(f, along, wy + 0.30, 0.09, 1.0, 0.55, 0.05, curtainMats[Math.floor(r * 100) % 3]);
+                            faceBox(f, along + 0.25, wy - 0.05, 0.095, 0.2, 0.5, 0.04, curtainMats[Math.floor(r * 100) % 3]);
+                        } else if (r >= 0.30 && r < 0.37 && f === 'f') {
+                            faceBox(f, along, wy - 1.0, 0.36, 0.82, 0.52, 0.52, acMat);
+                            faceBox(f, along, wy - 1.0, 0.63, 0.6, 0.34, 0.03, darkInteriorMat);
+                        }
+                    };
                     for (let floor = 0; floor < floors; floor++) {
-                        const windowY = 1.65 + floor * 3.05;
-                        for (let col = 0; col < columns; col++) {
-                            const wx = -width / 2 + (col + 1) * width / (columns + 1);
-                            const broken = ((floor * 3 + col + variant) % 7 === 0);
-                            addBox(building, 1.18, 1.28, 0.075, windowMat, [wx, windowY, depth / 2 + 0.045], [0, 0, 0], false);
-                            addBox(building, 1.32, 0.075, 0.12, concreteLightMat, [wx, windowY - 0.70, depth / 2 + 0.08], [0, 0, 0], false);
-                            if (broken) {
-                                addBox(building, 0.78, 0.10, 0.10, boardedMat, [wx, windowY - 0.14, depth / 2 + 0.095], [0, 0, -0.22], false);
-                            }
+                        for (let col = 0; col < columns; col++) placeWindow('f', -width / 2 + (col + 1) * width / (columns + 1), floor, col);
+                        const sideCols = depth > 11 ? 3 : 2;
+                        for (let col = 0; col < sideCols; col++) {
+                            const along = -depth / 2 + (col + 1) * depth / (sideCols + 1);
+                            placeWindow('l', along, floor, col + 10);
+                            placeWindow('r', along, floor, col + 20);
                         }
                     }
+
+                    // Shuttered, awning-covered storefront on every other block.
+                    if (variant % 2 === 0) {
+                        for (let rib = 0; rib < 9; rib++) faceBox('f', 0, 0.28 + rib * 0.13, 0.07, width * 0.52, 0.09, 0.07, shutterMat);
+                        faceBox('f', 0, 1.55, 0.12, width * 0.54, 0.22, 0.2, shutterMat);
+                        const stripes = 6, sw = width * 0.6 / stripes;
+                        for (let i = 0; i < stripes; i++) {
+                            const slab = addBox(building, sw * 0.98, 0.06, 1.15, awningMats[i % 2], [-width * 0.3 + sw * (i + 0.5), 2.62 - (i === 4 ? 0.12 : 0), depth / 2 + 0.62], [0.3 + (i === 4 ? 0.28 : 0), 0, 0], false);
+                            if (i === 5) slab.rotation.z = 0.35;
+                        }
+                    }
+                    // Rusted fire escape zig-zagging up the front facade.
+                    if (variant % 3 === 1) {
+                        const fx = width * 0.34;
+                        for (let fl = 1; fl < floors; fl++) {
+                            const px = fx + (fl % 2 ? 1.2 : -1.2);
+                            const y = fl * 3.05 + 0.05;
+                            addBox(building, 1.3, 0.06, 0.95, rustDarkMat, [px, y, depth / 2 + 0.5], [0, 0, 0], false);
+                            addBox(building, 1.3, 0.55, 0.04, rustMat, [px, y + 0.3, depth / 2 + 0.96], [0, 0, 0], false);
+                            if (fl < floors - 1) addBox(building, 3.9, 0.06, 0.5, rustMat, [fx, y + 1.52, depth / 2 + 0.5], [0, 0, (fl % 2 ? 1 : -1) * 0.905], false);
+                        }
+                    }
+                    // Rooftop clutter: water tank, AC units, antenna mast, dish.
+                    {
+                        const tx = (rnd(1, 2, 3) - 0.5) * width * 0.5, tz = (rnd(4, 5, 6) - 0.5) * depth * 0.4;
+                        if (variant % 2 === 0) {
+                            const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.6, 10), tankMat);
+                            tank.position.set(tx, height + 1.9, tz);
+                            building.add(tank);
+                            for (const lx of [-0.6, 0.6]) for (const lz of [-0.6, 0.6]) addBox(building, 0.08, 1.1, 0.08, rustDarkMat, [tx + lx, height + 0.55, tz + lz], [0, 0, 0], false);
+                        }
+                        addBox(building, 1.4, 0.8, 1.0, acMat, [-tx * 0.8 - 1.5, height + 0.4, -tz + 0.5], [0, 0.3, 0], true);
+                        addBox(building, 0.9, 0.6, 0.9, acMat, [width * 0.3, height + 0.3, depth * 0.25], [0, -0.2, 0], true);
+                        addBox(building, 0.06, 3.0, 0.06, rustDarkMat, [-width * 0.33, height + 1.5, depth * 0.1], [0, 0, 0.04], false);
+                        addBox(building, 0.8, 0.05, 0.05, rustDarkMat, [-width * 0.33, height + 2.5, depth * 0.1], [0, 0.3, 0.04], false);
+                        addBox(building, 0.55, 0.05, 0.05, rustDarkMat, [-width * 0.33, height + 2.1, depth * 0.1], [0, -0.2, -0.05], false);
+                        for (let k = 0; k < 3; k++) addBox(building, 0.5 + rnd(k, 1, 1) * 0.6, 0.3 + rnd(k, 2, 1) * 0.4, 0.5 + rnd(k, 3, 1) * 0.5, concreteMat,
+                            [(rnd(k, 4, 1) - 0.5) * width * 0.7, height + 0.2, (rnd(k, 5, 1) - 0.5) * depth * 0.6], [rnd(k, 6, 1) * 0.5, rnd(k, 7, 1) * 3, rnd(k, 8, 1) * 0.5], false);
+                    }
+                    // Blast crater with exposed rebar on some blocks.
+                    if (variant % 4 === 2) {
+                        const hy = 2.4 + 3.05 * Math.min(floors - 2, 2);
+                        faceBox('r', -depth * 0.12, hy, 0.03, 3.2, 2.6, 0.2, darkInteriorMat);
+                        for (let k = 0; k < 7; k++) {
+                            faceBox('r', -depth * 0.12 + (k - 3) * 0.48, hy + 1.3 + rnd(k, 1, 9) * 0.25, 0.18, 0.5 + rnd(k, 2, 9) * 0.3, 0.3, 0.3, concreteMat, rnd(k, 3, 9) - 0.5);
+                        }
+                        for (let k = 0; k < 6; k++) faceBox('r', -depth * 0.12 + (k - 2.5) * 0.5, hy + 1.0, 0.45, 0.03, 1.1 + rnd(k, 4, 9) * 0.6, 0.03, rebarMat, (rnd(k, 5, 9) - 0.5) * 0.9);
+                    }
+                    // Rubble and rebar at the base of the facade.
+                    for (let k = 0; k < 6; k++) {
+                        const sz = 0.25 + rnd(k, 1, 4) * 0.7;
+                        addBox(building, sz * 1.3, sz * 0.7, sz, concreteMat, [(rnd(k, 2, 4) - 0.5) * (width + 3), sz * 0.3, depth / 2 + 0.4 + rnd(k, 3, 4) * 1.6],
+                            [rnd(k, 4, 4) * 0.6, rnd(k, 5, 4) * 3.1, rnd(k, 6, 4) * 0.5], false);
+                    }
+                    addBox(building, 0.03, 1.3, 0.03, rebarMat, [width * 0.18, 0.7, depth / 2 + 1.1], [0.2, 0, 0.35], false);
+                    addBox(building, 0.03, 1.0, 0.03, rebarMat, [width * 0.18 + 0.25, 0.55, depth / 2 + 1.0], [-0.25, 0, -0.3], false);
 
                     // A few static, irregular vine runs climb the arena-facing facade.
                     for (let vine = 0; vine < 2; vine++) {
@@ -1871,6 +2366,15 @@
                         }
                     }
                     mergeGroupByMaterial(building);
+                    // Spray-painted survivor markings (kept as separate textured quads; not merged).
+                    {
+                        const decal = decalMaterials[variant % decalMaterials.length];
+                        const side = variant % 2 ? 1 : -1;
+                        const quad = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.7), decal);
+                        quad.position.set(side * (width / 2 + 0.09), 1.95, -depth * 0.2);
+                        quad.rotation.y = side * Math.PI / 2;
+                        building.add(quad);
+                    }
                     envGroup.add(building);
                     cityBuildingEntries.push({
                         id: buildingId, label: `City Block ${cityBuildingEntries.length + 1}`,
@@ -1923,7 +2427,7 @@
                     const car = new THREE.Group();
                     car.position.set(x, 0, z);
                     car.rotation.y = rotation;
-                    const paint = stdMat({ color: paintColor, roughness: 0.84, metalness: 0.12 });
+                    const paint = patchWorldDetail(stdMat({ color: paintColor, roughness: 0.84, metalness: 0.12 }), 'carpaint');
                     const tireMat = stdMat({ color: 0x17191a, roughness: 0.96 });
                     const hubMat = stdMat({ color: 0x51483b, metalness: 0.42, roughness: 0.7 });
                     addBox(car, 2.15, 0.68, 4.25, paint, [0, 0.72, 0], [0, 0, 0], true);
@@ -1981,6 +2485,119 @@
                 addSkullAndBones(0, 60, 0.7);
                 addSkullAndBones(0, -60, -0.5);
 
+                // ===== Street dressing: burning barrels, trash, tires, cones, manholes, signs, sagging power cables =====
+                {
+                    let sd = 1357;
+                    const r = () => { sd = (sd * 9301 + 49297) % 233280; return sd / 233280; };
+                    const barrelMat = patchWorldDetail(new THREE.MeshStandardMaterial({ color: 0x4d5a62, roughness: 0.6, metalness: 0.5 }), 'rust');
+                    const flameMats = [0xff6a14, 0xffa828, 0xffe27a].map(c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, depthWrite: false }));
+                    [[-58, -69], [61, 66], [-69, 58], [69, -55], [-27, 64], [30, -70]].forEach(([x, z], i) => {
+                        const fire = new THREE.Group();
+                        fire.position.set(x, 0, z);
+                        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.38, 0.95, 10), barrelMat);
+                        barrel.position.y = 0.48; barrel.castShadow = true;
+                        fire.add(barrel);
+                        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.03, 4, 12), rustDarkMat);
+                        rim.rotation.x = Math.PI / 2; rim.position.y = 0.95;
+                        fire.add(rim);
+                        const flames = [0, 1, 2].map(k => {
+                            const f = new THREE.Mesh(new THREE.ConeGeometry(0.30 - k * 0.07, 0.9 - k * 0.1, 6), flameMats[k]);
+                            f.position.set((k - 1) * 0.06, 1.28 + k * 0.04, (k - 1) * 0.05);
+                            fire.add(f);
+                            return f;
+                        });
+                        const glow = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({
+                            map: glowTexture, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, fog: false
+                        }));
+                        glow.rotation.x = -Math.PI / 2; glow.position.y = 0.1;
+                        fire.add(glow);
+                        envState.fires.push({ flames, glow, phase: i * 1.7 });
+                        envGroup.add(fire);
+                    });
+                    const trashColors = [0x1c1d1f, 0x2a2a2d, 0x8c8266, 0x6b4f33, 0x2d4d6b, 0x4a5a3a, 0x7a2b25];
+                    const trashMats = trashColors.map(c => stdMat({ color: c, roughness: 0.96 }));
+                    for (let i = 0; i < 22; i++) {
+                        const along = (r() - 0.5) * 130, onX = i % 2 === 0, edge = (r() < 0.5 ? -1 : 1) * (66 + r() * 10);
+                        const cx = onX ? along : edge, cz = onX ? edge : along;
+                        if (Math.abs(cx) < 56 && Math.abs(cz) < 56) continue;
+                        for (let k = 0; k < 7; k++) {
+                            const sz = 0.15 + r() * 0.5;
+                            addBox(envGroup, sz * (1 + r()), sz * 0.6, sz, trashMats[Math.floor(r() * trashMats.length)],
+                                [cx + (r() - 0.5) * 1.8, sz * 0.3, cz + (r() - 0.5) * 1.8], [r() * 0.5, r() * 6, r() * 0.5], false);
+                        }
+                    }
+                    const tireMat = stdMat({ color: 0x151616, roughness: 0.98 });
+                    const tireGeo = new THREE.TorusGeometry(0.34, 0.14, 6, 12);
+                    [[-45, -66], [48, 69], [-66, 44], [66, -47], [-12, 69], [13, -68]].forEach(([x, z]) => {
+                        for (let k = 0; k < 3; k++) {
+                            const t = new THREE.Mesh(tireGeo, tireMat);
+                            t.rotation.x = Math.PI / 2; t.rotation.z = r() * 3;
+                            t.position.set(x + (k === 2 ? 0.1 : 0), 0.15 + k * 0.28, z + (k === 2 ? 0.05 : 0));
+                            envGroup.add(t);
+                        }
+                    });
+                    const coneMat = stdMat({ color: 0xd9611c, roughness: 0.7 });
+                    const coneBandMat = stdMat({ color: 0xe8e4d0, roughness: 0.7 });
+                    const coneGeo = new THREE.ConeGeometry(0.2, 0.62, 8);
+                    const bandGeo = new THREE.CylinderGeometry(0.1, 0.14, 0.12, 8);
+                    for (let i = 0; i < 12; i++) {
+                        const along = (r() - 0.5) * 120, onX = i % 2 === 0, edge = (r() < 0.5 ? -1 : 1) * (64 + r() * 5);
+                        const cx = onX ? along : edge, cz = onX ? edge : along;
+                        if (Math.abs(cx) < 56 && Math.abs(cz) < 56) continue;
+                        const fallen = r() < 0.5, ry = r() * 6;
+                        const c1 = new THREE.Mesh(coneGeo, coneMat), c2 = new THREE.Mesh(bandGeo, coneBandMat);
+                        c1.position.set(cx, fallen ? 0.2 : 0.31, cz); c2.position.set(cx, fallen ? 0.22 : 0.36, cz);
+                        c1.rotation.set(fallen ? 1.35 : 0, ry, 0); c2.rotation.set(fallen ? 1.35 : 0, ry, 0);
+                        envGroup.add(c1, c2);
+                    }
+                    for (let i = 0; i < 8; i++) {
+                        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.03, 12), rustDarkMat);
+                        const onX = i % 2 === 0;
+                        m.position.set(onX ? -52 + i * 14 : (i % 4 === 1 ? -67.5 : 67.5) + 1.2, 0.08, onX ? (i % 4 === 0 ? -67.5 : 67.5) - 1.1 : -50 + i * 12);
+                        envGroup.add(m);
+                    }
+                    const signMat = stdMat({ color: 0xa8302a, roughness: 0.6, metalness: 0.2 });
+                    const signBack = stdMat({ color: 0x8a8d8a, roughness: 0.5, metalness: 0.5 });
+                    [[-47, 72, 0.12, 0.25], [47, -72, -0.2, 0.1], [72, 47, 0.3, -0.12], [-72, -47, -0.15, 0.2]].forEach(([x, z, lean, spin]) => {
+                        const sg = new THREE.Group();
+                        sg.position.set(x, 0, z); sg.rotation.set(0, spin * 4, lean);
+                        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 2.7, 6), signBack);
+                        pole.position.y = 1.35; sg.add(pole);
+                        const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.04, 8), signMat);
+                        plate.rotation.x = Math.PI / 2; plate.rotation.z = Math.PI / 8; plate.position.set(0, 2.5, 0.05); sg.add(plate);
+                        const bar = new THREE.Mesh(boxGeo(0.5, 0.09, 0.02), coneBandMat);
+                        bar.position.set(0, 2.5, 0.075); sg.add(bar);
+                        envGroup.add(sg);
+                    });
+                    // Sagging power cables between streetlamps, plus a few snapped, dangling ends.
+                    const cablePts = [];
+                    const lampTop = (x, z) => ({ x: x + 0.95, y: 6.95, z });
+                    const addSpan = (a, b, sag) => {
+                        const N = 10;
+                        for (let k = 0; k < N; k++) {
+                            const t0 = k / N, t1 = (k + 1) / N;
+                            const pt = t => [a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t - sag * 4 * t * (1 - t), a.z + (b.z - a.z) * t];
+                            cablePts.push(...pt(t0), ...pt(t1));
+                        }
+                    };
+                    for (const side of [-1, 1]) {
+                        const spans = [-42, 0, 42];
+                        for (let i = 0; i < 2; i++) {
+                            addSpan(lampTop(spans[i], side * 76), lampTop(spans[i + 1], side * 76), 1.4);
+                            addSpan(lampTop(side * 76, spans[i]), lampTop(side * 76, spans[i + 1]), 1.4);
+                            addSpan({ ...lampTop(spans[i], side * 76), y: 6.4 }, { ...lampTop(spans[i + 1], side * 76), y: 6.4 }, 1.9);
+                        }
+                        const e = lampTop(42, side * 76);
+                        cablePts.push(e.x, e.y, e.z, e.x + 0.6, 0.15, e.z + 0.9);
+                        const e2 = lampTop(side * 76, -42);
+                        cablePts.push(e2.x, e2.y, e2.z, e2.x - 0.5, 0.15, e2.z - 0.8);
+                    }
+                    const cableGeo = new THREE.BufferGeometry();
+                    cableGeo.setAttribute('position', new THREE.Float32BufferAttribute(cablePts, 3));
+                    const cables = new THREE.LineSegments(cableGeo, new THREE.LineBasicMaterial({ color: 0x111111 }));
+                    envGroup.add(cables);
+                }
+
                 // Merge static road markings, cracks, and slabs by material for a light render cost.
                 mergeGroupByMaterial(envGroup);
                 return envGroup;
@@ -2009,6 +2626,7 @@
                     stdMat({ color: 0x343b37, roughness: 0.98 }),
                     stdMat({ color: 0x655b46, roughness: 0.96 })
                 ];
+                [[concrete, 'concrete'], [concreteDark, 'concrete'], [concreteLight, 'concrete'], [rubbleMat, 'concrete'], [rust, 'rust'], [rustLight, 'rust']].forEach(([m, k]) => patchWorldDetail(m, k));
                 let seed = 8431;
                 const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
                 const sideCoord = (side, t, offset) => side.axis === 'x'
@@ -4355,6 +4973,7 @@
             benchPanel.setAttribute('aria-label', 'Fence workbench');
             document.getElementById('ui-overlay').appendChild(benchPanel);
             const benchButton = document.getElementById('bench-button');
+            if (mode !== 'play') { const vig = document.getElementById('env-vignette'); if (vig) vig.style.display = 'none'; }
             let benchSignature = '';
             let benchPointerDown = false;
             function benchStateSignature() {
@@ -4812,6 +5431,7 @@
                 doorGlass: new THREE.MeshStandardMaterial({ color: 0x35494a, transparent: true, opacity: 0.56, roughness: 0.24, metalness: 0.12, depthWrite: false, side: THREE.DoubleSide }),
                 doorHandle: stdMat({ color: 0xb9a46b, roughness: 0.34, metalness: 0.72 })
             };
+            patchWorldDetail(storeMaterials.floor, 'tile'); patchWorldDetail(storeMaterials.wall, 'facade'); patchWorldDetail(storeMaterials.wallDark, 'concrete');
             function createInteractiveDoubleDoor(parent, building, options) {
                 const axis = options.axis;
                 const span = options.span;
@@ -5009,6 +5629,7 @@
                 toolAccent: stdMat({ color: 0xd48c37, roughness: 0.55, metalness: 0.18 }),
                 search: stdMat({ color: 0xffcf62, emissive: 0xff9f22, emissiveIntensity: 0.7, roughness: 0.35 })
             };
+            patchWorldDetail(hardwareMaterials.floor, 'tile'); patchWorldDetail(hardwareMaterials.wall, 'facade');
             function addHardwareBox(shop, w, h, d, material, localX, y, localZ, solid = false) {
                 const mesh = new THREE.Mesh(boxGeo(w, h, d), material);
                 mesh.position.set(localX, y, localZ);
@@ -5149,6 +5770,7 @@
                 dusty: stdMat({ color: 0x777365, roughness: 0.97 }),
                 paper: stdMat({ color: 0xb4a985, roughness: 0.96 })
             };
+            patchWorldDetail(pharmacyMaterials.floor, 'tile'); patchWorldDetail(pharmacyMaterials.wall, 'facade'); patchWorldDetail(pharmacyMaterials.wallDark, 'concrete');
             function addPharmacyBox(w, h, d, material, x, y, z, solid = false, rotation = [0, 0, 0]) {
                 const mesh = new THREE.Mesh(boxGeo(w, h, d), material);
                 mesh.position.set(x, y, z);
@@ -7560,8 +8182,9 @@
                     const nightMix = gameState.visualNight;
                     scene.background.lerpColors(daySkyColor, nightSkyColor, nightMix);
                     scene.fog.color.copy(scene.background);
-                    ambientLight.intensity = 0.62 - nightMix * 0.34;
-                    directionalLight.intensity = 0.72 - nightMix * 0.54;
+                    ambientLight.intensity = 0.56 - nightMix * 0.30;
+                    directionalLight.intensity = 0.95 - nightMix * 0.74;
+                    updateAtmosphere(deltaTime, timestamp, nightMix);
                     hemiLight.intensity = 0.38 - nightMix * 0.24;
 
                     // Handle input
