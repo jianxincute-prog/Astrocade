@@ -1,0 +1,655 @@
+{
+  "bgm_village": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M4TMHSTTZ7GWKZDNZVHQ1MK6_27f92d3d-32b6-4f5f-b301-e161a516f09c_a9973da9-d802-4fa3-8e83-37cd86073dc5.mp3",
+    "type": "audio",
+    "prompt": "Relaxing slow-living village theme, warm acoustic guitar and soft marimba with gentle flute, peaceful countryside morning, cozy farming game, light Indonesian gamelan-inspired touches, mellow and calm, seamless loop",
+    "description": "Background music desa",
+    "subtype": "music",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 30,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M4TMHSTTZ7GWKZDNZVHQ1MK6_27f92d3d-32b6-4f5f-b301-e161a516f09c_a9973da9-d802-4fa3-8e83-37cd86073dc5.ogg",
+    "animation": null
+  },
+  "dish_icon_stew_red": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKN3NX0R0AGWMAD938TRP_699a8a3c-6ccb-4056-9605-a9bf9c3ca7b1_ebbe6c4a-a001-415a-86e2-7ee65ae8d454.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      959,
+      899
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: stew red",
+    "prompt": "Cute stylized game icon of stew red, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_stew_yellow": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKNYZDH1R0HRGV24PJQ6F_9ed3a67c-aad0-4781-9416-f6917d08f6ff_ffff4f55-40f6-4c20-8e14-ab4e36be19c4.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      891,
+      847
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: stew yellow",
+    "prompt": "Cute stylized game icon of stew yellow, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_soup_green": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKPWA5ZC565MH6D3YEQ3J_72bdded3-6e37-4e1a-ae90-6819a4c7b27d_0c7b20dd-011f-49e1-b785-12e342f17950.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      881,
+      834
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: soup green",
+    "prompt": "Cute stylized game icon of soup green, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_stirfry_green": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKQTFH4RHV62G3JN0RCX8_3a015811-b79e-47d8-bdf7-00c4ef181498_3e477cec-a1dc-47fa-ba65-a737d0f9e83e.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      963,
+      888
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: stirfry green",
+    "prompt": "Cute stylized game icon of stirfry green, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_salad_fresh": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKRVKPT14860CKTZZAEV0_c49694e9-14c6-40ad-9b87-b0e37852999b_d983e9de-8b21-4dda-a42c-32b5bf760ce7.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      982,
+      876
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: salad fresh",
+    "prompt": "Cute stylized game icon of salad fresh, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_fritters": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKSQRFZ6BBRC9JGM6945J_3ecc07a5-2f17-45bb-b666-b1723604fa27_92f879df-cc76-49eb-a950-68c760b8d80f.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1091,
+      911
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: fritters",
+    "prompt": "Cute stylized game icon of fritters, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_grilled_fish": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKV0VG0KR231MD0SVC2PD_16606de7-ba0b-478f-ad00-9975eb0d6404_3827dddc-fa44-4f6e-8232-3df748576c66.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      963,
+      863
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: grilled fish",
+    "prompt": "Cute stylized game icon of grilled fish, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_fried_fish": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAKVNRXP9CG802V8C6K5F0_ddc41948-9465-4023-b939-ff520e9d7ddd_d07e5917-1c9f-48e8-9bb8-7c32af1988d7.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      914,
+      809
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: fried fish",
+    "prompt": "Cute stylized game icon of fried fish, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_steamed_leaf": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAQZY4PANSJHZ75MZAZV4F_37576ea9-f160-45f9-bb8b-7c457ce2a043_d07d7819-67e5-4ea4-8688-7b8d7ae9bfc2.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      939,
+      845
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: steamed leaf",
+    "prompt": "Cute stylized game icon of steamed leaf, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_fish_curry": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAR0JRPQYMWJJCB7F9B8G9_9abfee46-b252-4a36-92ec-f6ce003d9aca_9aab585f-fa27-4c5e-ac42-121dda3556a0.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      843,
+      817
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: fish curry",
+    "prompt": "Cute stylized game icon of fish curry, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_sambal_bowl": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAR18G7QNV9D8PM3A3SQ55_054f3efc-3ae2-472a-9b3c-4260f404ed4d_dacbf4bd-5ec0-44f9-9499-ec9da1493578.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      883,
+      865
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: sambal bowl",
+    "prompt": "Cute stylized game icon of sambal bowl, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_rice_plate": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAR1WGGR09Q7QWRD1G6RHV_1419823e-1a87-4b8c-8d77-73276160c2b3_ac071570-6c2f-4054-9702-621e3f2987e9.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      951,
+      874
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: rice plate",
+    "prompt": "Cute stylized game icon of rice plate, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_skewers": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAR2F9T8BXBZ8B9BPQTY4Y_ad5cb343-bd9a-44d9-a7de-217b834bb8ec_03921442-744f-404b-ab49-6d4fef63e1c7.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      960,
+      830
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: skewers",
+    "prompt": "Cute stylized game icon of skewers, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_noodle_bowl": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAR338P4WSGCQJC1SQF7NJ_4ca61f1f-e435-4fa9-a4c3-0f67267de194_756b2c2a-9a87-42ce-aba5-d1351f4210af.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      843,
+      885
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: noodle bowl",
+    "prompt": "Cute stylized game icon of noodle bowl, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_dumplings": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAR3XG4CBPTCN0MKK5XZAT_ca21abbb-c958-4881-bc08-7cf26b82131a_9a2034e8-90b9-477b-9b3b-4169251d96e0.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      950,
+      799
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: dumplings",
+    "prompt": "Cute stylized game icon of dumplings, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_corn_dish": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAR4HHWATRW67474D9ZWVT_c9612085-0769-4857-8f19-ef31c783d19d_1b38ec9b-31bd-472d-a016-e54973ef176d.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      986,
+      843
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: corn dish",
+    "prompt": "Cute stylized game icon of corn dish, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_royal_platter": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAZCX70EC5CTBMMCB11T90_21c2a730-fbef-4e42-b202-b38cd8e16feb_31476a3e-f82a-4da4-b4af-fab03b1af74f.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      932,
+      855
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: royal platter",
+    "prompt": "Cute stylized game icon of royal platter, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_mystery_mush": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAZE4M2KZHXBH4EXQTE1DK_acc4a9e3-87a4-4029-90bf-8a375d90824e_38b8f3c5-87a0-4fb1-9328-1a6d2f422c9a.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      898,
+      964
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: mystery mush",
+    "prompt": "Cute stylized game icon of mystery mush, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_carrot_dish": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAZBRV1DPAEPN7EDJRQN7E_585e2b25-2da2-474e-b73f-501fa3aa64f2_928e4881-ecb0-40a9-8485-fceb13375a29.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      947,
+      922
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: carrot dish",
+    "prompt": "Cute stylized game icon of carrot dish, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_burnt_plate": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RAZEYAT4VK9VYAMT5Q97JK_16a588b9-985f-48ce-a5ec-3f9b466d9489_fedd1c82-9c39-4ea7-8b5d-559bd30d7bfe.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      927,
+      879
+    ],
+    "compression_suggestion": "original",
+    "description": "Dish icon: burnt plate",
+    "prompt": "Cute stylized game icon of burnt plate, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_fish_curry": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBF4PJFYJE5VSRS9GPH019_ce7de5d9-7657-44e1-b4c5-0b43c2d62813_1bca949a-c0ae-4d8c-913c-5bfbd28a0f91.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1018,
+      857
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem fish curry",
+    "prompt": "Premium AAA game item icon of prem fish curry, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_grilled_fish": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBF5T86679PHWRY0N0DD2Z_3f5d113a-d868-454e-a1ec-e949a0576323_6b86f2cd-39f7-44ac-871d-5e4fb4bcb734.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      997,
+      892
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem grilled fish",
+    "prompt": "Premium AAA game item icon of prem grilled fish, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_steamed_fish": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBF889PQR57GGVTK748KX0_319bf1d0-7e60-4551-827c-5ddc784ea723_258aeceb-a532-4470-a483-8d76f33c05a2.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      985,
+      705
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem steamed fish",
+    "prompt": "Premium AAA game item icon of prem steamed fish, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_tomato_stew": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBF9G9G0BSFD4QM2QXSN07_23e951ec-e8fd-42a4-b31f-872c48ea017e_15ed7e5c-7ec5-4ecc-9e46-99eee7a0ce0e.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      962,
+      856
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem tomato stew",
+    "prompt": "Premium AAA game item icon of prem tomato stew, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_yellow_soup": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBFARAQC0CN4B748VS9BT0_0fc825c7-896f-44c9-9503-a653374f7883_e38c2e98-4231-4925-97b1-645d5f520806.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      985,
+      927
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem yellow soup",
+    "prompt": "Premium AAA game item icon of prem yellow soup, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_green_soup": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBFBRV1ZXR0XDEA1WMWMX9_5660f3df-e85f-4d52-8ef0-6f9e29563767_154aa036-39ed-48cf-b0c8-731451b0d93e.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1011,
+      838
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem green soup",
+    "prompt": "Premium AAA game item icon of prem green soup, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_stirfry": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBFD0MHG30X15PYDQ9TVP5_22d3d48a-131c-45fa-be82-7b85243d34a9_af4c489c-1b6b-4e3e-9e8c-f0113094dc08.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      990,
+      731
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem stirfry",
+    "prompt": "Premium AAA game item icon of prem stirfry, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_fried_fish": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBF6YZ58XEWRBPE8PJ2YC4_7379f04b-6d3c-4736-a8f4-040f3e8147f7_63eaea40-eb99-4c9e-9b64-5b250082c34a.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1416,
+      914
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem fried fish",
+    "prompt": "Premium AAA game item icon of prem fried fish, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_fritters": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHQ8Z4R4N7FPDB9A5MBR9_4fa53c32-173b-48d5-b31b-167dc8679137_54f28b15-f4bc-4c3d-9c24-106e9e04d7bf.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1018,
+      1173
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem fritters",
+    "prompt": "Premium AAA game item icon of prem fritters, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_corn": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHQVQATJZ8H84RZQSQKVR_fefbb6c7-8d0d-41a1-85cc-f3b2a6bca2d7_80e7671f-f517-4479-b001-0bf2e9f95395.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1018,
+      945
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem corn",
+    "prompt": "Premium AAA game item icon of prem corn, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_sambal": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHS1TEA4T2XQH33Y7G841_6004e99d-31c9-4baa-b6ec-b50278409a22_e25c0bb9-9f35-41f1-b769-6f3c5dd6a912.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1018,
+      981
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem sambal",
+    "prompt": "Premium AAA game item icon of prem sambal, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_skewers": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHT964SFR64Q542GWP0F7_6aaec032-742b-4482-8f01-a02e6b32df7d_125cea7e-3907-4842-b40a-06153868d763.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1018,
+      924
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem skewers",
+    "prompt": "Premium AAA game item icon of prem skewers, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_noodle": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHTWHJG47DHF0ZDEQ2EG6_9fc02680-0bba-495d-af6b-2c77129fe507_a8ec0632-97bf-4fbd-b040-4e5632f65321.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      966,
+      913
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem noodle",
+    "prompt": "Premium AAA game item icon of prem noodle, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_salad": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHPKMH032FF4420GMXYV8_d784d80a-afed-41db-9d1d-52b5a3cf27ff_c63709bf-33b5-440d-a2b6-9d1344df8746.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1284,
+      889
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem salad",
+    "prompt": "Premium AAA game item icon of prem salad, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_carrot": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHREJYCY1V5PFXZSYA2V8_95f899c6-3eaa-492f-971f-5968ae220636_65a881dd-b57b-48be-a8c0-e37f87c6a36a.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1018,
+      952
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem carrot",
+    "prompt": "Premium AAA game item icon of prem carrot, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_rice_plate": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBHSMJ2MFXTWAQCDTT463Y_7b612806-56dc-44e5-a37c-049fec3a341e_0972c611-0c9f-4db9-97ab-6b535be70894.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      1207,
+      908
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem rice plate",
+    "prompt": "Premium AAA game item icon of prem rice plate, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_imperial_feast": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBKKHY1BY11TCJG4RP5N6K_e513a1a6-e26d-47d3-8242-d435d88d4063_a5bf498c-0f4f-40b2-8d61-527fa8e3bd31.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      939,
+      833
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: imperial feast",
+    "prompt": "Premium AAA game item icon of imperial feast, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_legend_dragon": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBKMVTX67CG7Z8YZT3ASF4_340c12f7-7656-41ab-896a-854f10265397_a26cbd99-e521-4c23-a26f-b9386783a6f0.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      892,
+      901
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: legend dragon",
+    "prompt": "Premium AAA game item icon of legend dragon, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_prem_dumplings": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBM0GTBR69HWB9EXCR05W7_95b52677-02f1-4bee-9b1b-06241c7083c9_f87aac2f-7b6d-465a-9b9e-807e1e9fc577.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      894,
+      791
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: prem dumplings",
+    "prompt": "Premium AAA game item icon of prem dumplings, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  },
+  "dish_icon_legend_golden": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M5RBKM8AS1WKRTJZZ2VQGXY8_faab1c4c-d6bb-44a8-b2c4-f343fd6b8a7e_b2f384dd-7d3a-4442-a833-7724b205b10c.webp",
+    "type": "image",
+    "subtype": "object",
+    "aspect_ratio": [
+      904,
+      1388
+    ],
+    "compression_suggestion": "original",
+    "description": "Premium dish icon: legend golden",
+    "prompt": "Premium AAA game item icon of legend golden, transparent background",
+    "animation": null,
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null
+  }
+}
