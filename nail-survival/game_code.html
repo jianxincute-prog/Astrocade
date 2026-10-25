@@ -5174,20 +5174,29 @@
 
             let flyingNailProto = null;
             const _upAxis = new THREE.Vector3(0, 1, 0);
-            function createFlyingNailMesh(direction, specialType = null) {
+            // Glow variants are built once per type; clones share geometry/materials, so firing allocates nothing.
+            const specialNailProtos = {};
+            function getFlyingNailProto(specialType) {
                 if (!flyingNailProto) flyingNailProto = buildFlyingNailProto();
-                const n = flyingNailProto.clone();
-                n.quaternion.setFromUnitVectors(_upAxis, direction);
                 const glow = { piercing: 0x42eaff, burn: 0xff5a22, freeze: 0x8ccfff }[specialType];
-                if (glow) {
-                    n.traverse(part => {
+                if (!glow) return flyingNailProto;
+                if (!specialNailProtos[specialType]) {
+                    const proto = flyingNailProto.clone();
+                    proto.traverse(part => {
                         if (!part.isMesh) return;
                         part.material = part.material.clone();
                         if (part.material.color) part.material.color.setHex(glow);
                         if (part.material.emissive) { part.material.emissive.setHex(glow); part.material.emissiveIntensity = 0.9; }
                         if (part.material.opacity !== undefined && part.material.opacity > 0) part.material.opacity = Math.min(0.9, part.material.opacity + 0.12);
                     });
+                    specialNailProtos[specialType] = proto;
                 }
+                return specialNailProtos[specialType];
+            }
+
+            function createFlyingNailMesh(direction, specialType = null) {
+                const n = getFlyingNailProto(specialType).clone();
+                n.quaternion.setFromUnitVectors(_upAxis, direction);
                 return n;
             }
 
@@ -5280,6 +5289,21 @@
                 }
             }
 
+            // Burn/freeze markers share one geometry and material per type (no per-hit allocation).
+            const _statusMarkerGeo = {};
+            const _statusGlowMat = {};
+            function getStatusMarkerGeo(type) {
+                return _statusMarkerGeo[type] || (_statusMarkerGeo[type] = type === 'burn'
+                    ? new THREE.ConeGeometry(0.13, 0.34, 5)
+                    : new THREE.OctahedronGeometry(0.16, 0));
+            }
+            function getStatusGlowMat(type) {
+                return _statusGlowMat[type] || (_statusGlowMat[type] = new THREE.MeshBasicMaterial({
+                    color: type === 'burn' ? 0xff6a22 : 0x7bdcff, transparent: true, opacity: 0.92,
+                    blending: THREE.AdditiveBlending, depthWrite: false
+                }));
+            }
+
             function applySpecialNailEffect(zombie, type) {
                 if (type === 'burn') {
                     zombie.burnTimer = 3.2;
@@ -5290,20 +5314,12 @@
                 if (type !== 'burn' && type !== 'freeze') return;
                 if (zombie.statusVisual && zombie.statusVisual.parent) zombie.statusVisual.parent.remove(zombie.statusVisual);
                 const group = new THREE.Group();
-                const color = type === 'burn' ? 0xff6a22 : 0x7bdcff;
-                const glowMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false });
-                if (type === 'burn') {
-                    for (let i = 0; i < 3; i++) {
-                        const flame = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.34, 5), glowMat);
-                        flame.position.set((i - 1) * 0.24, 2.2 + (i % 2) * 0.15, 0);
-                        group.add(flame);
-                    }
-                } else {
-                    for (let i = 0; i < 3; i++) {
-                        const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), glowMat);
-                        shard.position.set((i - 1) * 0.25, 2.2 + (i % 2) * 0.12, 0);
-                        group.add(shard);
-                    }
+                const glowMat = getStatusGlowMat(type);
+                const markerGeo = getStatusMarkerGeo(type);
+                for (let i = 0; i < 3; i++) {
+                    const marker = new THREE.Mesh(markerGeo, glowMat);
+                    marker.position.set((i - 1) * (type === 'burn' ? 0.24 : 0.25), 2.2 + (i % 2) * (type === 'burn' ? 0.15 : 0.12), 0);
+                    group.add(marker);
                 }
                 zombie.model.add(group);
                 zombie.statusVisual = group;
@@ -6121,6 +6137,7 @@
             }
 
             // Start wave
+            let controlsHintShown = false;
             function startWave() {
                 gameState.waveActive = true;
                 gameState.waveZombiesSpawned = 0;
@@ -6137,7 +6154,10 @@
                     boss: 'THE CRAWLER — SOLO BOSS'
                 };
                 const colors = { runner: '#ffb52e', tank: '#ff626b', climber: '#69e6b5', boss: '#ff493d' };
-                if (type === 'normal') showBanner(`WAVE ${gameState.wave}`, '#ffcc33', 1500);
+                if (gameState.wave === 1 && !controlsHintShown) {
+                    controlsHintShown = true;
+                    showBanner(isMobile ? 'WAVE 1 — STICK MOVE, DRAG TO AIM, HOLD FIRE BUTTON' : 'WAVE 1 — WASD MOVE, CLICK SHOOT, R RELOAD, E INTERACT', '#ffcc33', 3500);
+                } else if (type === 'normal') showBanner(`WAVE ${gameState.wave}`, '#ffcc33', 1500);
                 else showBanner(`WAVE ${gameState.wave} — ${labels[type]}`, colors[type], type === 'boss' ? 3000 : 2200);
             }
 
