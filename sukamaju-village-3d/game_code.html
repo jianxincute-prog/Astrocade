@@ -153,6 +153,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8ec9e6;fon
 #stdIcon{width:84px;height:84px;flex:0 0 84px;border-radius:16px;border:4px solid var(--rb);background:radial-gradient(circle at 35% 26%,var(--rl),var(--rd));display:flex;align-items:center;justify-content:center}#stdIcon .em{font-size:48px}
 #stdInfo{flex:1;min-width:0}#stdName{font-size:25px;font-weight:900;line-height:1.05}#stdRar{font-size:16px;font-weight:900;letter-spacing:.5px;color:var(--rb)}#stdDesc{font-size:17px;line-height:1.2;color:#5a4328;margin-top:2px}
 #stdBtns{display:flex;flex-wrap:wrap;gap:6px;width:236px;justify-content:flex-end}#stdBtns .bbtn{min-width:104px;font-size:19px;padding:6px 6px}
+#stdBtns .prow{display:flex;gap:6px;width:100%;align-items:center}#stdBtns .prow .bbtn{min-width:48px;font-size:26px;padding:2px 0;flex:0 0 48px}#stPrice{flex:1;min-width:0;font-size:24px;font-weight:900;text-align:center;border:4px solid #8a5a2b;border-radius:14px;padding:4px;background:#fffdf3;color:#3d2a14;width:100%}
 #stLbl{font-size:20px;font-weight:900;margin:8px 2px 4px;color:#6b4423}
 #catchCard{position:absolute;left:50%;top:210px;transform:translate(-50%,-24px) scale(.9);opacity:0;pointer-events:none;z-index:46;width:430px;padding:14px 20px 16px;text-align:center;border-radius:26px;background:linear-gradient(#fff9e8,#f1e0b4);border:5px solid var(--rb,#8a5a2b);box-shadow:0 10px 0 rgba(60,35,10,.35),0 0 22px rgba(255,255,255,.4);transition:opacity .25s,transform .4s cubic-bezier(.2,1.4,.4,1)}
 #catchCard.show{opacity:1;transform:translate(-50%,0) scale(1)}
@@ -3465,7 +3466,7 @@ function cityStall(g,d,idx){
  A(5.4,.15,3.2,0x8a6a45,0,.08,0,false);A(5,1.0,1.1,0xb08350,0,.65,1.0);A(5.3,.12,1.3,0xe0c890,0,1.2,1.0);A(5,2.0,.2,0x8a6a45,0,1.15,-1.4);
  [-2.45,2.45].forEach(px=>[1.45,-1.4].forEach(pz=>A(.14,2.7,.14,0x5a3a1c,px,1.4,pz,false)));
  for(let i=0;i<10;i++){const c=A(.56,.1,3.7,i%2?0xffffff:d.col,-2.52+i*.56,2.75,.05,false);c.rotation.x=.14;}
- const sg=new THREE.Mesh(new THREE.PlaneGeometry(3.6,.55),new THREE.MeshBasicMaterial({map:signTex(d.name,512,80,d.player?'#f2c04a':'#3a2a1a',d.player?'#3a2a1a':'#ffe9b0',44)}));sg.position.set(0,2.35,1.52);s.add(sg);
+ const sg=new THREE.Mesh(new THREE.PlaneGeometry(3.6,.55),new THREE.MeshBasicMaterial({map:signTex(d.name,512,80,d.player?'#f2c04a':'#3a2a1a',d.player?'#3a2a1a':'#ffe9b0',44)}));sg.position.set(0,2.35,1.52);s.add(sg);if(d.player)d.sg=sg;
  g.add(s);cbox.push([d.x-2.75,rz-1.7,d.x+2.75,rz+1.7]);
 }
 function stallWorld(d,lx,lz){const rz=d.row*7;return d.row<0?[d.x+lx,rz+lz]:[d.x-lx,rz-lz];}
@@ -3527,7 +3528,10 @@ function buildCity(){
 }
 function stallRefreshDisplay(){
  if(!stallSprites.length||!S||!S.stall)return;
- stallSprites.forEach((sp,i)=>{const sl=S.stall.s[i];if(i<S.stall.open&&sl&&sl.n>0){const e=DISH[sl.d].emoji;sp.material.map=emojiSpriteTex(e);sp.material.needsUpdate=true;sp.visible=true;}else sp.visible=false;});
+ const rented=S.day<(S.stall.rentEnd|0),pd=STALLS[PSTALL];
+ if(pd.sg&&pd.sgState!==rented){pd.sgState=rented;pd.sg.material.map=rented?signTex('YOUR STALL',512,80,'#f2c04a','#3a2a1a',44):signTex('FOR RENT · Rp 1.500 / WEEK',512,80,'#7a2a2a','#ffe9b0',34);pd.sg.material.needsUpdate=true;}
+ if(cityDyn&&cityDyn.star)cityDyn.star.visible=rented;
+ stallSprites.forEach((sp,i)=>{const sl=S.stall.s[i];if(rented&&i<S.stall.open&&sl&&sl.n>0){const e=DISH[sl.d].emoji;sp.material.map=emojiSpriteTex(e);sp.material.needsUpdate=true;sp.visible=true;}else sp.visible=false;});
 }
 
 /* ----- customers ----- */
@@ -3537,7 +3541,7 @@ function spawnCust(){
  if(cust.length>=8)return;const slot=custPool.find(c=>!c.used);if(!slot)return;
  const ty=custType(),idx=STALLS.map((s,i)=>i).sort(()=>Math.random()-.5);
  let plan=idx.filter(i=>i!==PSTALL).slice(0,2+Math.floor(Math.random()*2));
- if(Math.random()<.88)plan.splice(Math.floor(Math.random()*(plan.length+1)),0,PSTALL);
+ if(stRented()&&Math.random()<.88)plan.splice(Math.floor(Math.random()*(plan.length+1)),0,PSTALL);
  const wp=[];plan.forEach(i=>{const d=STALLS[i];wp.push({x:d.x,z:0});wp.push({x:d.x,z:d.row*4.5,act:i,face:d.row<0?Math.PI:0});});
  slot.used=true;const c={slot,ch:slot.ch,ty,budget:ty.budget*rnd(.8,1.15),taste:ty.taste,thrift:ty.thrift*rnd(.95,1.08),pos:new THREE.Vector3(-10,0,rnd(-1,1)),rot:Math.PI/2,wp,state:'go',t:0,spd:rnd(1.4,1.9),bought:false,cur:-1};
  c.ch.root.visible=true;c.ch.root.position.copy(c.pos);cust.push(c);
@@ -3558,7 +3562,8 @@ function stallSell(c,i){
  sfx('coin');floatText('+'+rp(p),CITY.x+c.pos.x,2.2,CITY.z+c.pos.z,'#c8ff9a',34);custBubble(c,'😋');stallRefreshDisplay();saveProgress();updateHUD();if(st&&stOpen)stRender();}
 function finishBrowse(c){
  const d=STALLS[c.cur];let got=false;
- if(d.player){ensureStall();const i=custDecide(c);if(i>=0){stallSell(c,i);got=true;}else custBubble(c,'😕');}
+ if(d.player&&!stRented()){custBubble(c,'🚫');}
+ else if(d.player){ensureStall();const i=custDecide(c);if(i>=0){stallSell(c,i);got=true;}else custBubble(c,'😕');}
  else if(Math.random()<.5){custBubble(c,'😋');got=true;}
  if(got){c.bought=true;c.wp=[{x:d.x,z:0},{x:-10,z:0,end:true}];}else if(!c.wp.length)c.wp=[{x:d.x,z:0},{x:-10,z:0,end:true}];
  c.state='go';
@@ -3588,7 +3593,7 @@ function goCity(){
  if(S.time>=1260)return toast('The last bus to the city left at 21:00 🌙');
  if(S.money<20)return toast('The fare is Rp 20.');
  S.money-=20;transition(()=>{setLoc('city');player.pos.set(CITY.x,0,CITY.z+28);player.rot=Math.PI;cam.yaw=0;cam.pitch=.74;cam.dist=9.5;snapCam();S.time=Math.min(1439,S.time+30);ensureStall();stallRefreshDisplay();sfx('pop');updateHUD();saveProgress();
-  toast(S.stats.city?'🏙️ Back in the city':'🏙️ Welcome to the city!\nYour stall is in the Market (west) · Cinema & Arcade (north-east) · Park (south-east)',S.stats.city?1800:4200);S.stats.city=1;});
+  toast(S.stats.city?'🏙️ Back in the city':'🏙️ Welcome to the city!\nYour stall is in the Market (west) · Cinema & Arcade (north-east) · Park (south-east)',S.stats.city?1800:4200);S.stats.city=1;if(S.stall&&S.stall.rentEnd>0&&S.day>=S.stall.rentEnd)setTimeout(()=>toast('🏪 Your stall rental has expired. Renew it to keep selling.',3200),1900);});
 }
 function goVillage(){transition(()=>{setLoc('out');player.pos.set(VBUS.x-2.2,0,VBUS.z);player.rot=-Math.PI/2;cam.yaw=Math.PI*.85;cam.pitch=.74;cam.dist=9.5;snapCam();S.time=Math.min(1439,S.time+30);sfx('pop');updateHUD();saveProgress();toast('🌾 Back in Sukamaju',1800);});}
 
@@ -3626,11 +3631,16 @@ function sitBench(){if(busy)return;S.time=Math.min(1439,S.time+30);S.energy=Math
 
 /* ----- stall (your market business) ----- */
 function ensureStall(){
- if(!S.stall||!Array.isArray(S.stall.s))S.stall={open:3,s:[],day:S.day,sold:0,rev:0,total:0};
- const st=S.stall;while(st.s.length<STALL_SLOTS)st.s.push(0);st.open=Math.max(3,Math.min(STALL_SLOTS,st.open|0||3));
+ if(!S.stall||!Array.isArray(S.stall.s))S.stall={open:3,s:[],day:S.day,sold:0,rev:0,total:0,rentEnd:0};
+ const st=S.stall;while(st.s.length<STALL_SLOTS)st.s.push(0);st.open=Math.max(3,Math.min(STALL_SLOTS,st.open|0||3));st.rentEnd=st.rentEnd|0;
  if(st.day!==S.day){st.day=S.day;st.sold=0;st.rev=0;}}
+const STALL_RENT=1500,RENT_DAYS=7;
+function stRented(){ensureStall();return S.day<S.stall.rentEnd;}
+function stRent(){const st=S.stall;if(S.money<STALL_RENT)return toast('Not enough money. Rent is '+rp(STALL_RENT)+' per week.');
+ S.money-=STALL_RENT;st.rentEnd=Math.max(st.rentEnd,S.day)+RENT_DAYS;sfx('coin');toast('🏪 Stall rented for '+RENT_DAYS+' days! ('+(st.rentEnd-S.day)+' days left)');stallRefreshDisplay();saveProgress();updateHUD();if(stOpen)stRender();}
 let stOpen=false;const stUI={sel:-1,bag:-1};
 function stockInto(dish,qty){
+ if(!stRented())return toast('Rent the stall first to put goods on sale.');
  const st=S.stall;let left=Math.min(qty,S.inv[dish]|0),put=0;
  for(let i=0;i<st.open&&left>0;i++){const sl=st.s[i];if(sl&&sl.d===dish&&sl.n<STALL_STACK){const a=Math.min(STALL_STACK-sl.n,left);sl.n+=a;left-=a;put+=a;}}
  for(let i=0;i<st.open&&left>0;i++){if(!st.s[i]){const a=Math.min(STALL_STACK,left);st.s[i]={d:dish,n:a,p:DISH[dish].price};left-=a;put+=a;}}
@@ -3638,14 +3648,19 @@ function stockInto(dish,qty){
  bagTake('inv',dish,put);sfx('pop');saveProgress();updateHUD();stRender();}
 function stTake(i,qty){const st=S.stall,sl=st.s[i];if(!sl)return;let q=Math.min(qty,sl.n),a=0;while(a<q&&bagRoomFor('inv',sl.d,a+1))a++;if(a<=0)return toast('Backpack is full! 🎒');
  bagAdd('inv',sl.d,a);sl.n-=a;if(sl.n<=0)st.s[i]=0;sfx('pop');saveProgress();updateHUD();stRender();}
-function stPrice(i,steps){const sl=S.stall.s[i];if(!sl)return;const base=DISH[sl.d].price,step=Math.max(5,Math.round(base*.05/5)*5),lo=Math.round(base*.6/5)*5,hi=Math.round(base*1.6/5)*5;sl.p=Math.max(lo,Math.min(hi,sl.p+steps*step));sfx('pop');saveProgress();stRender();}
+function stPrice(i,steps){const sl=S.stall.s[i];if(!sl)return;const base=DISH[sl.d].price,step=Math.max(5,Math.round(base*.05/5)*5),lo=Math.round(base*.6/5)*5,hi=Math.round(base*1.6/5)*5;sl.p=Math.max(1,Math.min(99999,sl.p+steps*step));sfx('pop');saveProgress();stRender();}
 function stUnlock(){const st=S.stall,cost=STALL_UNLOCK[st.open];if(st.open>=STALL_SLOTS)return;if(S.money<cost)return toast('Not enough money. Needs '+rp(cost)+'.');S.money-=cost;st.open++;sfx('coin');toast('🔓 Stall slot '+st.open+' unlocked!');stUI.sel=st.open-1;saveProgress();updateHUD();stRender();}
-function openStall(){ensureStall();stOpen=true;modalOpen=true;stUI.sel=-1;stUI.bag=-1;$('st').style.display='flex';stRender();}
+function openStall(){ensureStall();
+ if(!stRented()){const has=S.stall.s.some(x=>x),b=[{t:'🏪 Rent for a week — '+rp(STALL_RENT),cls:S.money<STALL_RENT?'ghost dis':'',fn:()=>{stRent();if(stRented())openStallUI();}}];
+  if(has)b.push({t:'📦 Take back my goods',fn:()=>openStallUI()});b.push({t:'Not now',cls:'ghost'});
+  return modal('🏪 Market Stall for Rent',(S.stall.rentEnd>0?'Your rental has expired.':'This stall is free to rent.')+' Rent is '+rp(STALL_RENT)+' per week ('+RENT_DAYS+' days). Without a rental you cannot sell here, and goods already on the shelf are kept safe for you.\n💰 You have '+rp(S.money),b);}
+ openStallUI();}
+function openStallUI(){ensureStall();stOpen=true;modalOpen=true;stUI.sel=-1;stUI.bag=-1;$('st').style.display='flex';stRender();}
 function closeStall(){stOpen=false;modalOpen=false;$('st').style.display='none';saveProgress();}
 function stRender(){
  ensureStall();const st=S.stall;stallRefreshDisplay();
- $('stCap').textContent=st.open+' / '+STALL_SLOTS+' slots';
- $('stInfo').textContent='💰 '+rp(S.money)+'   ·   Today: '+(st.sold|0)+' sold · '+rp(st.rev|0)+'   ·   Total '+rp(st.total|0);
+ const rl=st.rentEnd-S.day;$('stCap').textContent=rl>0?'Rent: '+rl+' day'+(rl>1?'s':'')+' left':'NOT RENTED';
+ $('stInfo').textContent='💰 '+rp(S.money)+'  ·  '+st.open+'/'+STALL_SLOTS+' slots  ·  Today: '+(st.sold|0)+' sold · '+rp(st.rev|0)+'   ·   Total '+rp(st.total|0);
  const g=$('stGrid');g.innerHTML='';
  for(let i=0;i<STALL_SLOTS;i++){const sl=st.s[i];let el=document.createElement('div');
   if(i>=st.open){el.className='bslot locked'+(i===st.open?' next':'');el.textContent='🔒';if(i===st.open){const pr=document.createElement('span');pr.className='pr';pr.textContent=rp(STALL_UNLOCK[i]);el.appendChild(pr);}el.addEventListener('click',()=>{stUI.sel=i;stUI.bag=-1;sfx('pop');stRender();});}
@@ -3669,8 +3684,16 @@ function stRender(){
  if(sel>=st.open){em('🔒',4);nm.textContent='Locked slot';ds.textContent=sel===st.open?'Open slot '+(sel+1)+' for '+rp(STALL_UNLOCK[sel])+'.':'Unlock the highlighted slot first.';if(sel===st.open)mk('🔓 Unlock '+rp(STALL_UNLOCK[sel]),'unl'+(S.money<STALL_UNLOCK[sel]?' dis':''),stUnlock);return;}
  if(sel>=0&&st.s[sel]){const sl=st.s[sel],dd=DISH[sl.d],pct=Math.round(sl.p/dd.price*100);em(dd.emoji,rarityByPrice(dd.price));nm.textContent=dd.name+'  ×'+sl.n;rr.textContent='PRICE '+rp(sl.p)+'  ('+pct+'% of fair '+rp(dd.price)+')';
   ds.textContent=pct>120?'Pricey: only wealthy customers will bite.':pct<90?'Bargain! Everyone will want it.':'A fair price.';
-  mk('− Price','take',()=>stPrice(sel,-1));mk('+ Price','store',()=>stPrice(sel,1));mk('⬆ Take 1','dall',()=>stTake(sel,1));mk('⬆ Take all','dall',()=>stTake(sel,99));return;}
- em('🏪',0);nm.textContent='Your Market Stall';ds.textContent=sel>=0?'Empty slot. Tap a dish in your backpack to stock it.':'Tap a dish in your backpack below to put it on sale. Customers browse stalls, buy what fits their taste and budget, and move on to other stalls if nothing suits them. Tune your prices!';
+  const row=document.createElement('div');row.className='prow';
+  const mb=document.createElement('div');mb.className='bbtn take';mb.textContent='−';mb.addEventListener('click',e=>{e.stopPropagation();stPrice(sel,-1);});
+  const inp=document.createElement('input');inp.type='number';inp.id='stPrice';inp.min=1;inp.max=99999;inp.step=5;inp.value=sl.p;inp.setAttribute('inputmode','numeric');
+  inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')inp.blur();});inp.addEventListener('keyup',e=>e.stopPropagation());
+  inp.addEventListener('change',()=>{const v=Math.round(Number(inp.value));if(!(v>=1)){inp.value=sl.p;return toast('Enter a price of at least Rp 1.');}sl.p=Math.min(99999,v);saveProgress();stRender();});
+  const pb=document.createElement('div');pb.className='bbtn store';pb.textContent='+';pb.addEventListener('click',e=>{e.stopPropagation();stPrice(sel,1);});
+  row.appendChild(mb);row.appendChild(inp);row.appendChild(pb);bb.appendChild(row);
+  mk('⬆ Take 1','dall',()=>stTake(sel,1));mk('⬆ Take all','dall',()=>stTake(sel,99));return;}
+ em('🏪',0);nm.textContent='Your Market Stall';ds.textContent=(sel>=0?'Empty slot. Tap a dish in your backpack to stock it.':'Tap a dish in your backpack below to put it on sale. Customers buy what fits their taste and budget, or move on to other stalls. Type any price or use + / −.')+(stRented()?'':' ⚠ Stall not rented.');
+ mk(stRented()?'🔄 Extend +7 days · '+rp(STALL_RENT):'🏪 Rent · '+rp(STALL_RENT)+' / week','unl'+(S.money<STALL_RENT?' dis':''),stRent);
 }
 function stBind(){$('stX').addEventListener('click',closeStall);$('st').addEventListener('pointerdown',e=>{if(e.target===$('st'))closeStall();});}
 
