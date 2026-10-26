@@ -568,6 +568,33 @@
         #team-hud.visible { display: flex; }
         #team-hud .chip { padding: 3px 8px; border-radius: 9px; background: rgba(14,58,46,.82); color: #d6fff0; white-space: nowrap; }
         #team-hud .chip.warn { background: rgba(120,84,10,.88); color: #ffe9a8; }
+        #tutorial-card {
+            position: absolute; top: 268px; left: 164px; right: 16px; display: none; box-sizing: border-box; padding: 10px 14px 12px;
+            border: 2px solid rgba(125,255,224,.8); border-radius: 14px; background: rgba(8,22,28,.88); color: #eafffa;
+            box-shadow: 0 8px 28px #000a, inset 0 0 18px rgba(80,255,220,.08); pointer-events: none; z-index: 106; font-family: Arial, sans-serif;
+        }
+        #tutorial-card.visible { display: block; }
+        #tutorial-card .tut-head { display: flex; align-items: center; gap: 10px; }
+        #tutorial-card .tut-step { color: #7dffe0; font: 900 11px Arial, sans-serif; letter-spacing: 1.6px; }
+        #tutorial-card .tut-pause { color: #ffd86b; font: 800 10px Arial, sans-serif; letter-spacing: .8px; }
+        #tut-skip {
+            margin-left: auto; padding: 5px 12px; border: 1px solid rgba(200,220,220,.5); border-radius: 8px; background: rgba(30,50,56,.9);
+            color: #dff; font: 800 11px Arial, sans-serif; letter-spacing: 1px; pointer-events: auto; cursor: pointer; touch-action: manipulation;
+        }
+        #tutorial-card .tut-title { margin-top: 6px; color: #fff; font: 900 17px Arial, sans-serif; letter-spacing: 1.2px; }
+        #tutorial-card .tut-text { margin-top: 3px; color: #d6efe9; font: 600 13px Arial, sans-serif; line-height: 1.35; }
+        #tutorial-card .tut-hint { margin-top: 6px; padding: 5px 8px; border-radius: 8px; background: rgba(125,255,224,.14); color: #aaffee; font: 800 12px Arial, sans-serif; }
+        #tutorial-card .tut-dots { display: flex; gap: 5px; margin-top: 8px; }
+        #tutorial-card .tut-dots i { flex: 1; height: 4px; border-radius: 3px; background: rgba(255,255,255,.18); }
+        #tutorial-card .tut-dots i.done { background: #5dffb0; }
+        #tutorial-card .tut-dots i.cur { background: #ffd86b; }
+        #tutorial-replay {
+            position: absolute; right: 24px; top: 218px; width: 44px; height: 44px; display: none; place-items: center; padding: 0;
+            border: 2px solid rgba(125,255,224,.7); border-radius: 50%; background: rgba(8,22,28,.88); color: #7dffe0;
+            font: 900 22px Arial, sans-serif; pointer-events: auto; cursor: pointer; touch-action: manipulation; z-index: 112;
+        }
+        @keyframes tutPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(125,255,224,.95); } 55% { box-shadow: 0 0 0 16px rgba(125,255,224,0); } }
+        .tut-pulse { animation: tutPulse 0.9s infinite; outline: 3px solid #7dffe0; outline-offset: 2px; }
         .bench-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
         .bench-side { padding: 8px 10px; border: 1px solid rgba(190,200,200,.25); border-radius: 12px; background: rgba(255,255,255,.04); }
         .bench-side .row { display: flex; justify-content: space-between; font: 800 12px Arial, sans-serif; letter-spacing: .5px; }
@@ -6612,14 +6639,14 @@
                 teamBox.marker.position.y = 2.7 + Math.sin(t * 0.004) * 0.1;
                 teamBox.marker.rotation.y += dt * 2;
                 // Survivor events happen in the daytime.
-                if (gameState.phase === 'day' && !team.petitioner && team.members.length < TEAM_MAX && !gameState.gameOver) {
+                if (gameState.phase === 'day' && !tutorial.freeze && !team.petitioner && team.members.length < TEAM_MAX && !gameState.gameOver) {
                     team.eventTimer -= dt;
                     if (team.eventTimer <= 0) {
                         team.eventTimer = 40 + Math.random() * 40;
                         if (Math.random() < 0.7 && gameState.phaseTimer > 25) spawnPetitioner();
                     }
                 }
-                if (gameState.phase === 'day' && !team.trader && !team.petitioner && !gameState.gameOver) {
+                if (gameState.phase === 'day' && !tutorial.freeze && !team.trader && !team.petitioner && !gameState.gameOver) {
                     team.traderTimer -= dt;
                     if (team.traderTimer <= 0) { team.traderTimer = 9999; if (gameState.phaseTimer > 30) spawnTrader(); }
                 }
@@ -6660,6 +6687,281 @@
                     else if (!teamPointerDown) renderBoxPanel(false);
                 }
                 updateTeamHud();
+            }
+
+            // ===== INTERACTIVE TUTORIAL: move -> climb out -> supermarket -> (zombie) -> pharmacy -> hardware store -> back =====
+            const savedState = { bestScore: 0, bestWave: 0, tutorialDone: false };
+            const tutorial = { active: false, freeze: false, stepIdx: 0, sub: null, zombie: null, zombieDone: false, aimTimer: 0, hwId: null, searched: {}, started: false, loaded: false, climbSeen: false };
+            const TUT_STEPS = [
+                { id: 'move', title: 'MOVE TO THE FENCE', text: () => isMobile ? 'Drag the left joystick toward the glowing point on the fence.' : 'Walk with W A S D toward the glowing point on the fence.' },
+                { id: 'climb', title: 'CLIMB OUT OF THE BASE', text: () => isMobile ? 'Stand at the fence and tap the green CLIMB button to hop over.' : 'Stand at the fence and press E (or the CLIMB button) to hop over.' },
+                { id: 'supermarket', title: 'SUPERMARKET', text: () => 'Follow the beacon to the supermarket. Open the door, then search a shelf for food and water.' },
+                { id: 'pharmacy', title: 'PHARMACY', text: () => 'Next: the pharmacy. Open the door and search a cabinet for medkits.' },
+                { id: 'hardware', title: 'HARDWARE STORE', text: () => 'Last stop: a hardware store. Racks and crates hide Metal Scrap, Power Cells and special nails.' },
+                { id: 'return', title: 'BACK TO BASE', text: () => 'Daylight is running again. Head back and climb over the fence before nightfall!' }
+            ];
+            const TUT_BUILDING_IDS = ['supermarket', 'pharmacy', 'hardware-east', 'hardware-west'];
+
+            // ---- 3D guidance: a light beam at the destination and an arrow over the player ----
+            const tutBeacon = new THREE.Group();
+            const tutBeamMat = new THREE.MeshBasicMaterial({ color: 0x3fe8ff, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+            const tutPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 18, 18, 1, true), tutBeamMat);
+            tutPillar.position.y = 9;
+            const tutRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.35, 28), new THREE.MeshBasicMaterial({ color: 0x7dffe0, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+            tutRing.rotation.x = -Math.PI / 2; tutRing.position.y = 0.09;
+            const tutGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 0), new THREE.MeshBasicMaterial({ color: 0x9dfff0, fog: false }));
+            tutBeacon.add(tutPillar, tutRing, tutGem);
+            tutBeacon.visible = false;
+            scene.add(tutBeacon);
+            const tutArrow = new THREE.Group();
+            {
+                const mat = new THREE.MeshBasicMaterial({ color: 0x7dffe0, depthTest: false, transparent: true, opacity: 0.95, fog: false });
+                const head = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.8, 6), mat);
+                head.rotation.x = Math.PI / 2; head.position.z = 0.55;
+                const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.7), mat);
+                tail.position.z = -0.1;
+                tutArrow.add(head, tail);
+                tutArrow.renderOrder = 900;
+                head.renderOrder = tail.renderOrder = 900;
+            }
+            tutArrow.visible = false;
+            scene.add(tutArrow);
+
+            // ---- UI ----
+            const tutCard = document.createElement('div');
+            tutCard.id = 'tutorial-card';
+            tutCard.innerHTML = '<div class="tut-head"><span class="tut-step"></span><span class="tut-pause">⏸ DAYLIGHT PAUSED</span><button id="tut-skip" type="button">SKIP</button></div><div class="tut-title"></div><div class="tut-text"></div><div class="tut-hint"></div><div class="tut-dots"></div>';
+            document.getElementById('ui-overlay').appendChild(tutCard);
+            const tutReplay = document.createElement('button');
+            tutReplay.id = 'tutorial-replay';
+            tutReplay.type = 'button';
+            tutReplay.setAttribute('aria-label', 'Replay the tutorial');
+            tutReplay.textContent = '?';
+            document.getElementById('ui-overlay').appendChild(tutReplay);
+            const tutEls = { step: tutCard.querySelector('.tut-step'), pause: tutCard.querySelector('.tut-pause'), title: tutCard.querySelector('.tut-title'), text: tutCard.querySelector('.tut-text'), hint: tutCard.querySelector('.tut-hint'), dots: tutCard.querySelector('.tut-dots') };
+            let tutSignature = '';
+            let tutPulseTargets = [];
+            function tutPulse(ids) {
+                const wanted = ids.join('|');
+                if (wanted === tutPulseTargets.join('|')) return;
+                for (const id of tutPulseTargets) { const el = document.getElementById(id); if (el) el.classList.remove('tut-pulse'); }
+                tutPulseTargets = ids;
+                for (const id of ids) { const el = document.getElementById(id); if (el) el.classList.add('tut-pulse'); }
+            }
+
+            // ---- Flow control ----
+            function tutorialSave() {
+                try { Promise.resolve(lib.saveUserGameState(savedState)).catch(() => {}); } catch (e) { /* offline: tutorial simply shows again next session */ }
+            }
+            function startTutorial() {
+                if (mode !== 'play' || tutorial.active || gameState.gameOver) return;
+                if (gameState.phase !== 'day') { showBanner('THE TUTORIAL IS AVAILABLE IN THE DAYTIME', '#ffd86b', 1800); return; }
+                tutorial.active = true;
+                tutorial.freeze = true;
+                tutorial.stepIdx = 0;
+                tutorial.sub = null;
+                tutorial.zombieDone = false;
+                tutorial.searched = {};
+                tutorial.hwId = null;
+                tutSignature = '';
+                gameState.phaseTimer = Math.max(gameState.phaseTimer, 60);
+                tutorial.climbSeen = false;
+                showBanner('TUTORIAL — DAYLIGHT IS PAUSED', '#9df4e4', 2400);
+            }
+            function maybeStartTutorial() {
+                if (tutorial.started || mode !== 'play') return;
+                tutorial.started = true;
+                if (!savedState.tutorialDone) startTutorial();
+            }
+            function endTutorial(completed) {
+                if (!tutorial.active) return;
+                tutorial.active = false;
+                tutorial.freeze = false;
+                tutorial.sub = null;
+                if (tutorial.zombie && tutorial.zombie.state !== 'dead') { scene.remove(tutorial.zombie.model); tutorial.zombie.state = 'dead'; tutorial.zombie.deadTimer = 5; }
+                tutorial.zombie = null;
+                tutBeacon.visible = false; tutArrow.visible = false; tutCard.classList.remove('visible');
+                tutPulse([]);
+                savedState.tutorialDone = true;
+                tutorialSave();
+                showBanner(completed ? 'TUTORIAL COMPLETE — GOOD LUCK, SURVIVOR!' : 'TUTORIAL SKIPPED — DAYLIGHT RESUMES', completed ? '#8de8c4' : '#ffd86b', 2600);
+            }
+            function tutorialReset() {
+                // A restart cancels a running tutorial; it comes back if it was never completed.
+                tutorial.active = false; tutorial.freeze = false; tutorial.sub = null; tutorial.zombie = null;
+                tutBeacon.visible = false; tutArrow.visible = false; tutCard.classList.remove('visible');
+                tutPulse([]);
+                if (!savedState.tutorialDone) setTimeout(() => { if (!gameState.gameOver) startTutorial(); }, 600);
+            }
+            function isInsideFenceNow() {
+                const half = window.gameConfig.settings.arenaSize / 2, p = gameState.player.position;
+                return Math.abs(p.x) <= half && Math.abs(p.z) <= half;
+            }
+            function tutorialOnSearch(station) {
+                if (tutorial.active) tutorial.searched[station.buildingId] = true;
+            }
+            document.getElementById('tut-skip').addEventListener('pointerdown', e => e.stopPropagation());
+            document.getElementById('tut-skip').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); endTutorial(false); });
+            tutReplay.addEventListener('pointerdown', e => e.stopPropagation());
+            tutReplay.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); startTutorial(); });
+
+            // ---- Guidance helpers ----
+            function tutFencePoint() {
+                const half = window.gameConfig.settings.arenaSize / 2;
+                const p = gameState.player.position;
+                const lim = half - 0.7;
+                if (isInsideFenceNow() && !tutorial.climbSeen) {
+                    // Aim the player at the fence in the direction of the supermarket
+                    const dx = supermarket.x, dz = supermarket.z, k = half / Math.max(Math.abs(dx), Math.abs(dz), 0.001);
+                    return { x: THREE.MathUtils.clamp(dx * k, -lim, lim), z: THREE.MathUtils.clamp(dz * k, -lim, lim) };
+                }
+                return { x: THREE.MathUtils.clamp(p.x, -lim, lim), z: THREE.MathUtils.clamp(p.z, -lim, lim) };
+            }
+            function tutBuildingGuide(buildingId) {
+                const p = gameState.player.position;
+                const door = interactiveShopDoors.find(d => d.buildingId === buildingId);
+                const rect = getBuildingRects()[TUT_BUILDING_IDS.indexOf(buildingId)];
+                const stations = storeSearchTargets.filter(s => s.buildingId === buildingId && s.stock.length);
+                if (!door || !rect) return { target: null, hint: '', complete: true };
+                const line = localToWorldXZ(door.building, door.lineX, door.lineZ);
+                const approach = localToWorldXZ(door.building, door.approachX, door.approachZ);
+                const inside = pointInRect(p.x, p.z, rect, 0);
+                if (inside) {
+                    if (!stations.length) return { target: null, hint: '', complete: true };
+                    stations.sort((a, b) => Math.hypot(a.position.x - p.x, a.position.z - p.z) - Math.hypot(b.position.x - p.x, b.position.z - p.z));
+                    const st = stations[0];
+                    const near = Math.hypot(st.position.x - p.x, st.position.z - p.z) < 3.8;
+                    return { target: { x: st.position.x, z: st.position.z }, hint: near ? `Press ${isMobile ? 'the SEARCH button' : 'E (or SEARCH)'} to search here.` : 'Walk to the glowing shelf.', pulse: near ? ['search-button'] : [] };
+                }
+                const dLine = Math.hypot(line.x - p.x, line.z - p.z);
+                if (!door.open && dLine < 4.8) return { target: { x: line.x, z: line.z }, hint: `Press ${isMobile ? 'the OPEN button' : 'E (or OPEN)'} to open the shop door.`, pulse: ['open-door-button'] };
+                return { target: door.open ? { x: line.x, z: line.z } : { x: approach.x, z: approach.z }, hint: `${Math.round(Math.hypot(approach.x - p.x, approach.z - p.z))} m to the entrance.`, pulse: [] };
+            }
+            function spawnTutorialZombie() {
+                const model = createBlockyCharacter(false);
+                const p = gameState.player.position;
+                const a = Math.random() * Math.PI * 2;
+                let x = p.x + Math.cos(a) * 13, z = p.z + Math.sin(a) * 13;
+                const half = window.gameConfig.settings.arenaSize / 2 + 1.5;
+                if (Math.abs(x) < half && Math.abs(z) < half) { x = p.x - Math.cos(a) * 13; z = p.z - Math.sin(a) * 13; }
+                model.position.set(x, 0, z);
+                model.scale.setScalar(0.92);
+                scene.add(model);
+                const z0 = { type: 'normal', model, health: 1, maxHealth: 1, speed: 1.05, state: 'approaching', attackTimer: 0, walkCycle: Math.random() * 6, dayWanderer: true, tutorialZombie: true };
+                gameState.zombies.push(z0);
+                tutorial.zombie = z0;
+                tutorial.sub = 'aim';
+                tutorial.aimTimer = 0;
+                showBanner('🧟 A ZOMBIE! AIM AND SHOOT IT', '#ff8c83', 2200);
+                playSound('zombieGroan', 0.5);
+            }
+            function tutorialAdvance() {
+                tutorial.stepIdx++;
+                tutSignature = '';
+                if (tutorial.stepIdx >= TUT_STEPS.length) { endTutorial(true); return; }
+                const next = TUT_STEPS[tutorial.stepIdx];
+                if (next.id === 'hardware') {
+                    // Pick the nearer hardware store to the player's current position
+                    const p = gameState.player.position;
+                    const east = hardwareStores.find(h => h.id === 'hardware-east'), west = hardwareStores.find(h => h.id === 'hardware-west');
+                    tutorial.hwId = Math.hypot(east.x - p.x, east.z - p.z) <= Math.hypot(west.x - p.x, west.z - p.z) ? 'hardware-east' : 'hardware-west';
+                }
+                if (next.id === 'return') { tutorial.freeze = false; gameState.phaseTimer = Math.max(gameState.phaseTimer, 45); }
+                showBanner('✔ STEP COMPLETE', '#8de8c4', 1200);
+                playFenceTone('triangle', 420, 660, 0.18, 0.12);
+            }
+
+            // ---- Per-frame update ----
+            function updateTutorial(dt, t) {
+                const showReplay = mode === 'play' && !gameState.gameOver && !tutorial.active && gameState.phase === 'day';
+                tutReplay.style.display = showReplay ? 'grid' : 'none';
+                if (!tutorial.active) return;
+                const p = gameState.player.position;
+                const half = window.gameConfig.settings.arenaSize / 2;
+                const step = TUT_STEPS[tutorial.stepIdx];
+                let target = null, hint = '', pulse = [], complete = false;
+                if (tutorial.sub) {
+                    const z = tutorial.zombie;
+                    if (!z || z.state === 'dead') {
+                        tutorial.sub = null; tutorial.zombieDone = true; tutorial.zombie = null; tutSignature = '';
+                        showBanner('✔ NICE SHOT!', '#8de8c4', 1400);
+                    } else {
+                        const zp = z.model.position;
+                        target = { x: zp.x, z: zp.z };
+                        const dx = zp.x - p.x, dz = zp.z - p.z;
+                        let diff = Math.atan2(dx, dz) - gameState.cameraYaw;
+                        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                        const aimed = Math.abs(diff) < 0.22;
+                        if (tutorial.sub === 'aim') {
+                            hint = isMobile ? 'Drag on the right side of the screen to turn the crosshair onto the zombie.' : 'Move the mouse to put the crosshair on the zombie (click the game once to capture the mouse).';
+                            tutorial.aimTimer = aimed ? tutorial.aimTimer + dt : 0;
+                            if (tutorial.aimTimer > 0.3) { tutorial.sub = 'shoot'; tutSignature = ''; }
+                        } else {
+                            hint = isMobile ? 'Hold the FIRE button to shoot. Headshots hurt more!' : 'Hold the left mouse button to fire. Headshots hurt more!';
+                            if (isMobile) pulse = ['shoot-button'];
+                            if (Math.abs(diff) > 0.7) { tutorial.sub = 'aim'; tutSignature = ''; }
+                        }
+                    }
+                } else {
+                    if (step.id === 'move') {
+                        target = tutFencePoint();
+                        const d = Math.hypot(target.x - p.x, target.z - p.z);
+                        const edge = findUsableFenceEdge(p, half, 1.4);
+                        hint = d > 1.9 ? `${Math.round(d)} m to the fence.` : 'Right there!';
+                        if (isMobile) pulse = ['move-joystick'];
+                        complete = !!edge || !isInsideFenceNow();
+                    } else if (step.id === 'climb') {
+                        target = tutFencePoint();
+                        const edge = findUsableFenceEdge(p, half, 1.45);
+                        const inside = isInsideFenceNow();
+                        hint = edge ? `Press ${isMobile ? 'CLIMB' : 'E (or CLIMB)'} now!` : 'Step a little closer to the fence.';
+                        if (edge && inside) pulse = ['climb-button'];
+                        complete = !inside && Math.max(Math.abs(p.x), Math.abs(p.z)) > half + 0.8;
+                        if (complete) tutorial.climbSeen = true;
+                    } else if (step.id === 'return') {
+                        target = tutFencePoint();
+                        const edge = findUsableFenceEdge(p, half, 1.45);
+                        hint = isInsideFenceNow() ? '' : (edge ? `Press ${isMobile ? 'CLIMB' : 'E (or CLIMB)'} to hop back in.` : `${Math.round(Math.hypot(target.x - p.x, target.z - p.z))} m to the fence.`);
+                        if (edge && !isInsideFenceNow()) pulse = ['climb-button'];
+                        complete = isInsideFenceNow();
+                    } else {
+                        const id = step.id === 'hardware' ? tutorial.hwId : step.id;
+                        const guide = tutBuildingGuide(id);
+                        target = guide.target; hint = guide.hint; pulse = guide.pulse || [];
+                        complete = guide.complete || !!(step.id === 'hardware' ? (tutorial.searched['hardware-east'] || tutorial.searched['hardware-west']) : tutorial.searched[id]);
+                        // One scripted zombie teaches aiming and shooting, the first time the player is out in the open.
+                        if (!tutorial.zombieDone && !isInsideFenceNow() && Math.max(Math.abs(p.x), Math.abs(p.z)) > half + 9 && step.id === 'supermarket') { spawnTutorialZombie(); }
+                    }
+                    if (complete) { tutorialAdvance(); return; }
+                }
+                // Beacon + arrow
+                if (target) {
+                    tutBeacon.visible = !tutorial.sub;
+                    tutBeacon.position.set(target.x, 0, target.z);
+                    tutGem.position.y = 3.2 + Math.sin(t * 0.004) * 0.25;
+                    tutGem.rotation.y += dt * 2;
+                    tutRing.scale.setScalar(1 + 0.12 * Math.sin(t * 0.006));
+                    const dx = target.x - p.x, dz = target.z - p.z, dist = Math.hypot(dx, dz);
+                    tutArrow.visible = dist > 2.6;
+                    tutArrow.position.set(p.x, 3.75 + Math.sin(t * 0.005) * 0.12, p.z);
+                    tutArrow.scale.setScalar(0.75);
+                    tutArrow.rotation.y = Math.atan2(dx, dz);
+                } else { tutBeacon.visible = false; tutArrow.visible = false; }
+                tutPulse(pulse);
+                // Card
+                const subLabel = tutorial.sub ? (tutorial.sub === 'aim' ? 'ZOMBIE — AIM' : 'ZOMBIE — SHOOT') : null;
+                const sig = [tutorial.stepIdx, tutorial.sub, hint, tutorial.freeze].join('|');
+                if (sig !== tutSignature) {
+                    tutSignature = sig;
+                    tutEls.step.textContent = `TUTORIAL ${tutorial.stepIdx + 1}/${TUT_STEPS.length}`;
+                    tutEls.pause.style.display = tutorial.freeze ? '' : 'none';
+                    tutEls.title.textContent = subLabel || step.title;
+                    tutEls.text.textContent = tutorial.sub ? (tutorial.sub === 'aim' ? 'A zombie is shuffling toward you. Turn to face it.' : 'Crosshair on target. Open fire!') : step.text();
+                    tutEls.hint.textContent = hint;
+                    tutEls.hint.style.display = hint ? '' : 'none';
+                    tutEls.dots.innerHTML = TUT_STEPS.map((s, i) => `<i class="${i < tutorial.stepIdx ? 'done' : (i === tutorial.stepIdx ? 'cur' : '')}"></i>`).join('');
+                }
+                tutCard.classList.add('visible');
             }
 
             // Create fence
@@ -9166,7 +9468,7 @@
                     label.textContent = gameState.phase === 'day' ? 'DAYTIME' : (gameState.nightEnding ? 'DAWN APPROACHING' : 'NIGHT — SURVIVE');
                     label.style.color = gameState.phase === 'day' ? '#ffd86b' : '#ff8c83';
                 }
-                if (time) time.textContent = `${Math.max(0, Math.ceil(gameState.phaseTimer))}s`;
+                if (time) time.textContent = tutorial.freeze ? '⏸' : `${Math.max(0, Math.ceil(gameState.phaseTimer))}s`;
                 if (hunger) hunger.textContent = Math.round(hungerPct);
                 if (thirst) thirst.textContent = Math.round(thirstPct);
                 if (hungerFill) {
@@ -9268,6 +9570,7 @@
                     showBanner(`${station.label} EMPTY — RESTOCKS AT DAWN`, '#ffd86b', 1700);
                     return true;
                 }
+                tutorialOnSearch(station);
                 if (station.hardware) {
                     if (Math.random() >= station.chance) {
                         station.stock.length = 0;
@@ -9470,8 +9773,13 @@
                 try {
                     const r = await lib.getUserGameState();
                     bestScore = (r && r.state && r.state.bestScore) || 0;
+                    if (r && r.state) Object.assign(savedState, r.state);
                 } catch (e) { lib.log('load failed: ' + e); }
+                tutorial.loaded = true;
+                maybeStartTutorial();
             })();
+            // If the save service is slow or unavailable, start the tutorial anyway after a moment.
+            setTimeout(() => { if (!tutorial.loaded) maybeStartTutorial(); }, 2500);
 
             async function submitRunResult() {
                 const score = gameState.score;
@@ -9482,7 +9790,8 @@
                 const rankEl = document.getElementById('final-rank');
                 if (rankEl) rankEl.textContent = '-';
                 try {
-                    await lib.saveUserGameState({ bestScore, bestWave: gameState.wave });
+                    savedState.bestScore = bestScore; savedState.bestWave = Math.max(savedState.bestWave || 0, gameState.wave);
+                    await lib.saveUserGameState(savedState);
                     const res = await lib.addPlayerScoreToLeaderboard(score, 5);
                     if (rankEl && res && res.userRank) rankEl.textContent = '#' + res.userRank;
                 } catch (e) { lib.log('score submit failed: ' + e); }
@@ -9616,6 +9925,7 @@
                 gameState.inventory.push({ id: 'mat:scrap', name: 'Metal Scrap', icon: '🔩', count: 4 });
                 resetFenceSystem();
                 resetTeam();
+                tutorialReset();
                 updateInventoryUI();
                 setInventoryOpen(false);
                 supplyPoints.forEach(point => { point.userData.supply.active = true; point.visible = true; });
@@ -9754,10 +10064,12 @@
                 if (mode === 'play' && !gameState.gameOver) {
                     // Day/night survival clock, hunger/thirst, scavenging, and sparse daylight roamers.
                     if (gameState.phase === 'day') {
-                        gameState.phaseTimer -= deltaTime;
-                        gameState.player.hunger = Math.max(0, gameState.player.hunger - deltaTime * 0.24);
-                        gameState.player.thirst = Math.max(0, gameState.player.thirst - deltaTime * 0.32);
-                        gameState.wandererSpawnTimer -= deltaTime;
+                        // The tutorial holds the daylight clock, hunger, thirst and roamer spawns.
+                        const dayDt = tutorial.freeze ? 0 : deltaTime;
+                        gameState.phaseTimer -= dayDt;
+                        gameState.player.hunger = Math.max(0, gameState.player.hunger - dayDt * 0.24);
+                        gameState.player.thirst = Math.max(0, gameState.player.thirst - dayDt * 0.32);
+                        gameState.wandererSpawnTimer -= dayDt;
                         if (gameState.wandererSpawnTimer <= 0) {
                             spawnDayWanderer();
                             gameState.wandererSpawnTimer = 20 + Math.random() * 12;
@@ -10552,6 +10864,7 @@
                     updateWorkbench(deltaTime, timestamp);
                     updateFenceHud(deltaTime);
                     updateTeam(deltaTime, timestamp);
+                    updateTutorial(deltaTime, timestamp);
                     updateBlasts(deltaTime);
 
                     // Wave management
