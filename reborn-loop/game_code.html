@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Reborn Loop</title>
+<title>Soulshard Saga</title>
 <style>
 html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:'Trebuchet MS',Verdana,sans-serif;color:#fff}
 #app{position:relative;width:100%;height:100%;overflow:hidden}
@@ -58,6 +58,29 @@ h2{margin:26px 0 8px;font:900 34px sans-serif;color:#b9a6ff;letter-spacing:3px;a
 .lbw{width:520px;height:30px;border-radius:15px;background:rgba(0,0,0,.55);border:4px solid #fff;overflow:hidden;margin-top:50px}
 #lb{height:100%;width:0;background:linear-gradient(90deg,#aeea00,#64dd17)}
 #lp{font:800 26px sans-serif;margin-top:16px}
+/* Soulshard Saga — lightweight cinematic loading identity */
+#loader{background:radial-gradient(ellipse at 50% 47%,#173d54 0%,#111c35 36%,#060914 78%);isolation:isolate;justify-content:flex-start;padding:140px 44px 70px;box-sizing:border-box;overflow:hidden}
+#loader:before{content:'';position:absolute;inset:18px;border:1px solid rgba(222,193,126,.25);pointer-events:none}
+#loader:after{content:'';position:absolute;width:620px;height:620px;top:350px;border-radius:50%;border:1px solid #63dfff33;box-shadow:0 0 100px #34d9ff12,inset 0 0 100px #34d9ff12;transform:rotateX(65deg);z-index:-1}
+#loader .lk{font:700 18px sans-serif;letter-spacing:7px;color:#a9c5d4;margin-bottom:25px;text-align:center}
+#loader .lt{font:900 76px/1.04 Georgia,serif;letter-spacing:3px;color:#ffe6ab;text-shadow:0 3px 0 #73542f,0 8px 25px #000;position:relative}
+#loader .lt span{display:block;font-size:88px;letter-spacing:14px;color:#fff1cf;margin-top:8px}
+#loader .ls{font:600 22px sans-serif;letter-spacing:2px;color:#b0cad8;margin-top:26px;text-align:center}
+.soul-stage{position:relative;width:100%;height:390px;flex:1;min-height:260px;max-height:460px;display:grid;place-items:center;perspective:800px}
+.soul-gem{width:130px;height:220px;position:relative;filter:drop-shadow(0 0 32px #36dfff);animation:soulFloat 4s ease-in-out infinite}
+.soul-gem:before,.soul-gem:after{content:'';position:absolute;inset:0;clip-path:polygon(50% 0,100% 44%,50% 100%,0 44%);background:conic-gradient(from 10deg at 50% 44%,#e7ffff,#29bee5,#074977,#6ef4ff,#efffff);border-radius:4px}
+.soul-gem:after{inset:10px 24px 27px 20px;background:linear-gradient(115deg,#ffffffcc,transparent 48%,#00376099);clip-path:polygon(50% 0,100% 44%,50% 100%,47% 44%)}
+.soul-stage i{position:absolute;width:5px;height:5px;background:#c8fbff;box-shadow:0 0 12px #47e6ff;border-radius:50%;animation:soulMote 5s ease-in-out infinite;left:25%;top:60%}
+.soul-stage i:nth-child(2){left:72%;top:36%;animation-delay:-2s}.soul-stage i:nth-child(3){left:65%;top:76%;animation-delay:-3s}.soul-stage i:nth-child(4){left:33%;top:24%;animation-delay:-1s}
+#loader .load-panel{width:100%;max-width:540px;text-align:center}
+#loader .lbw{width:100%;box-sizing:border-box;height:16px;border:1px solid #b1dce466;border-radius:8px;margin-top:22px;background:#030813;padding:3px}
+#loader #lb{border-radius:4px;background:linear-gradient(90deg,#237ea4,#69ebff,#edffff);box-shadow:0 0 16px #5fe9ff;transition:width .25s ease}
+#loader #lp{font:600 21px sans-serif;color:#d2e6ed;margin:18px 0 0;min-height:26px}
+#loader .load-label{display:flex;justify-content:space-between;font:700 17px sans-serif;letter-spacing:3px;color:#c9b983}
+#loader .load-note{font:400 20px/1.5 sans-serif;color:#91a9ba;margin:32px auto 0;max-width:480px;min-height:60px}
+@keyframes soulFloat{0%,100%{transform:translateY(12px) rotateY(-18deg) rotateZ(-6deg)}50%{transform:translateY(-12px) rotateY(18deg) rotateZ(6deg)}}
+@keyframes soulMote{0%,100%{transform:translateY(18px);opacity:.2}50%{transform:translateY(-22px);opacity:.9}}
+@media(prefers-reduced-motion:reduce){.soul-gem,.soul-stage i{animation:none}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
 </head>
@@ -67,7 +90,7 @@ h2{margin:26px 0 8px;font:900 34px sans-serif;color:#b9a6ff;letter-spacing:3px;a
   <canvas id="hud" width="720" height="1280"></canvas>
   <div id="touch"></div>
   <div id="ui"></div>
-  <div id="loader"><div class="lt">REBORN LOOP</div><div class="ls">Die. Remember. Conquer the world.</div><div class="lbw"><div id="lb"></div></div><div id="lp">Forging the world...</div></div>
+  <div id="loader" role="status" aria-live="polite"><div class="lk">EVERY LIFE MAKES YOU STRONGER</div><div class="lt">SOULSHARD<span>SAGA</span></div><div class="ls">Explore. Fall. Rise stronger.</div><div class="soul-stage" aria-hidden="true"><div class="soul-gem"></div><i></i><i></i><i></i><i></i></div><div class="load-panel"><div class="load-label"><span>AWAKENING THE WORLD</span><span id="loadPercent">0%</span></div><div class="lbw"><div id="lb"></div></div><div id="lp">Gathering your memories...</div><div class="load-note">Gather Soul Shards. Earn permanent upgrades.<br>Challenge the four Guardians.</div></div></div>
 </div>
 <script>
 /* ============================================================================
@@ -2156,9 +2179,9 @@ function showEnd(win){
 }
 async function enterRun(){
   if(!WRL||WRL.route!==routeOf()){
-    const ld=$('loader');ld.style.display='flex';ld.style.opacity=1;$('lp').textContent='The world shifts...';$('lb').style.width='0%';
+    const ld=$('loader');ld.style.display='flex';ld.style.opacity=1;setLoad(0,'The world shifts...');
     ui.style.display='none';
-    await buildWorld(routeOf(),(f,t)=>{$('lb').style.width=Math.round(f*100)+'%';$('lp').textContent=t;});
+    await buildWorld(routeOf(),setLoad);
     ld.style.opacity=0;setTimeout(()=>{ld.style.display='none';},400);
   }
   startRun();
@@ -2278,7 +2301,7 @@ function frame(ts){
     renderer.render(scene,camera);drawHud();
   }catch(err){try{lib.log('err '+err.message+' '+(err.stack||'').split('\n')[1]);}catch(_){}}
 }
-function setLoad(f,t){$('lb').style.width=Math.round(f*100)+'%';$('lp').textContent=t;}
+function setLoad(f,t){const percent=Math.round(clamp(f,0,1)*100);$('lb').style.width=percent+'%';$('loadPercent').textContent=percent+'%';$('lp').textContent=t;}
 async function boot(){
   initGL();initFx();initEnv();initSkillFx();
   setLoad(0.02,'Loading save...');
@@ -2292,7 +2315,7 @@ function run(mode){
   const gp=window.gameConfig||(window.gameConfig={});
   gp.settings=Object.assign({enemyScale:1,rewardMult:1,worldSeed:0},gp.settings);
   try{
-    lib.showGameParameters({name:'Reborn Loop',params:{
+    lib.showGameParameters({name:'Soulshard Saga',params:{
       'Enemy Strength':{key:'settings.enemyScale',type:'slider',min:0.5,max:2,step:0.1},
       'Reward Multiplier':{key:'settings.rewardMult',type:'slider',min:0.5,max:3,step:0.1},
       'World Seed Offset':{key:'settings.worldSeed',type:'slider',min:0,max:50,step:1}
