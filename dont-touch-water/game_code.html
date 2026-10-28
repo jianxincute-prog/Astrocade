@@ -1858,139 +1858,122 @@ async function run(mode) {
       mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
       return mesh;
     };
+    // Rig: group -> torso (pitch pivot at the hips) -> chest + head. Limbs hang from group-level roots with an
+    // elbow/knee pivot (mid) and a hand/foot pivot (end), so updateHumanoidVisuals can solve two-bone IK:
+    // an upright bipedal shamble while stalking and an all-fours scuttle on long arms and legs while hunting.
     const arms = [], legs = [];
+    const torso = new THREE.Group(); torso.position.set(0, 0.84, 0); group.add(torso);
+    const head = new THREE.Group(); head.position.set(0, 0.68, 0.02); torso.add(head);
+    const limb = (x, l1, l2) => {
+      const root = new THREE.Group(); group.add(root);
+      const mid = new THREE.Group(); mid.position.y = -l1; root.add(mid);
+      const end = new THREE.Group(); end.position.y = -l2; mid.add(end);
+      return { root, mid, end, l1, l2, x };
+    };
+    const seg = (parent, mat, r1, r2, len) => add(new THREE.CylinderGeometry(r1, r2, len, 8), mat, 0, -len / 2, 0, parent);
+    const cone = (mat, r, h, x, y, z, rx, parent) => { const m = add(new THREE.ConeGeometry(r, h, 5), mat, x, y, z, parent); m.rotation.x = rx; return m; };
 
     if (isWarden) {
-      // The Warden: tall, narrow drowned figure with a hood, exposed ribs and long claws.
-      box(mats.robe, 0, 0.89, 0, 0.34, 0.48, 0.22);
-      // Sculpted shoulder mantle overlaps the torso and upper arms to hide hard seams.
-      for (const side of [-1, 1]) {
-        const pauldron = sphere(mats.edge, side * 0.185, 1.075, 0.005, 0.125, 0.12, 0.15);
-        pauldron.rotation.z = side * 0.16;
-        sphere(mats.robe, side * 0.19, 0.96, -0.01, 0.105, 0.20, 0.12);
-      }
-      box(mats.edge, 0, 0.58, -0.01, 0.42, 0.34, 0.29);
-      box(mats.dark, 0, 0.48, 0.012, 0.34, 0.16, 0.27);
-      box(mats.robe, 0, 0.54, 0.02, 0.39, 0.075, 0.30);
-      box(mats.edge, 0, 0.46, 0.018, 0.36, 0.045, 0.29);
-      // Spine and layered rib cage anchor the exposed anatomy into the armored chest.
-      box(mats.dark, 0, 0.88, 0.131, 0.055, 0.36, 0.026);
+      // The Warden: a gaunt drowned figure, hooded, ribs showing, arms that hang to its knees and hooked claws.
+      box(mats.dark, 0, 0.02, 0, 0.26, 0.17, 0.20, torso);
+      box(mats.robe, 0, 0.36, 0, 0.30, 0.42, 0.20, torso);
+      box(mats.edge, 0, 0.27, -0.02, 0.35, 0.12, 0.24, torso);
+      box(mats.edge, 0, 0.60, 0, 0.46, 0.07, 0.17, torso);
       for (let i = 0; i < 4; i++) {
-        const vertebra = sphere(mats.bone, 0, 1.035 - i * 0.085, 0.151, 0.035, 0.024, 0.025);
-        vertebra.rotation.z = (i % 2 ? 0.12 : -0.12);
+        const rib = box(mats.bone, 0, 0.50 - i * 0.075, 0.105, 0.26, 0.022, 0.022, torso);
+        rib.rotation.z = i % 2 ? 0.06 : -0.06;
       }
-      const hood = box(mats.robe, 0, 1.31, -0.005, 0.31, 0.34, 0.29); hood.rotation.z = -0.05;
-      // Overlapping hood rim, cheek guards and crown spines frame the face as one sculpted silhouette.
-      box(mats.edge, 0, 1.405, 0.118, 0.30, 0.055, 0.075);
-      box(mats.skin, 0, 1.28, 0.035, 0.25, 0.23, 0.22);
-      box(mats.dark, 0, 1.23, 0.151, 0.19, 0.11, 0.018);
+      for (let i = 0; i < 6; i++) cone(mats.bone, 0.026, 0.08, 0, 0.10 + i * 0.1, -0.115, -Math.PI / 2 + 0.25, torso);   // spine ridge: shows on its back when it crawls
       for (const side of [-1, 1]) {
-        const cheek = sphere(mats.edge, side * 0.125, 1.235, 0.125, 0.055, 0.105, 0.07);
-        cheek.rotation.z = side * -0.22;
-        const horn = add(new THREE.ConeGeometry(0.045, 0.19, 6), mats.bone, side * 0.105, 1.51, -0.01);
-        horn.rotation.z = side * -0.38;
+        const pauldron = sphere(mats.edge, side * 0.235, 0.60, 0, 0.11, 0.08, 0.13, torso); pauldron.rotation.z = side * 0.25;
+        cone(mats.bone, 0.03, 0.12, side * 0.265, 0.68, 0, side * 0, torso).rotation.z = side * -0.35;
       }
-      box(mats.dark, 0, 1.17, 0.156, 0.17, 0.026, 0.025);
+      for (let i = 0; i < 3; i++) cone(i % 2 ? mats.robe : mats.edge, 0.085, 0.34 + i * 0.04, (i - 1) * 0.10, -0.15, -0.09, Math.PI, torso);   // tattered loincloth
+      box(mats.skin, 0, 0.65, 0.0, 0.08, 0.1, 0.08, torso);
+      // head
+      box(mats.robe, 0, 0.16, -0.01, 0.30, 0.34, 0.28, head);
+      box(mats.edge, 0, 0.32, 0.12, 0.30, 0.05, 0.07, head);
+      box(mats.skin, 0, 0.12, 0.04, 0.24, 0.22, 0.20, head);
+      box(mats.dark, 0, 0.06, 0.145, 0.18, 0.10, 0.02, head);
+      box(mats.bone, 0, -0.01, 0.135, 0.15, 0.03, 0.04, head);
       for (const side of [-1, 1]) {
-        add(new THREE.SphereGeometry(0.027, 8, 6), mats.glow, side * 0.052, 1.30, 0.168);
-        for (let i = 0; i < 4; i++) {
-          const rib = box(mats.bone, side * (0.035 + i * 0.004), 0.97 - i * 0.075, 0.121, 0.105, 0.025, 0.025);
-          rib.rotation.z = side * (i % 2 ? 0.08 : -0.08);
-        }
-        box(mats.dark, side * 0.19, 0.66, 0.005, 0.08, 0.28, 0.26);
-        const arm = new THREE.Group(); arm.position.set(side * 0.22, 1.08, 0); group.add(arm); arms.push(arm);
-        sphere(mats.robe, 0, 0, 0, 0.105, 0.13, 0.115, arm);
-        box(mats.skin, side * 0.015, -0.18, 0, 0.09, 0.38, 0.095, arm);
-        sphere(mats.skin, side * 0.015, -0.20, 0, 0.052, 0.085, 0.055, arm);
-        box(mats.edge, side * 0.025, -0.40, 0.025, 0.075, 0.28, 0.075, arm);
-        box(mats.dark, side * 0.025, -0.30, 0.04, 0.084, 0.035, 0.09, arm);
-        sphere(mats.edge, side * 0.025, -0.39, 0.025, 0.052, 0.055, 0.052, arm);
-        box(mats.bone, side * 0.04, -0.57, 0.065, 0.065, 0.13, 0.06, arm);
-        for (let f = 0; f < 3; f++) {
-          const claw = add(new THREE.ConeGeometry(0.018, 0.105, 5), mats.bone, side * (0.015 + (f - 1) * 0.035), -0.67, 0.105, arm);
-          claw.rotation.x = -0.32;
-        }
-        const leg = new THREE.Group(); leg.position.set(side * 0.095, 0.47, 0); group.add(leg); legs.push(leg);
-        sphere(mats.dark, 0, 0, 0, 0.085, 0.10, 0.09, leg);
-        box(mats.robe, 0, -0.20, 0, 0.12, 0.42, 0.14, leg);
-        sphere(mats.edge, 0, -0.28, 0.005, 0.073, 0.07, 0.08, leg);
-        box(mats.skin, 0, -0.41, 0.025, 0.13, 0.08, 0.20, leg);
-        box(mats.dark, 0, -0.438, 0.052, 0.14, 0.025, 0.19, leg);
+        add(new THREE.SphereGeometry(0.027, 8, 6), mats.glow, side * 0.052, 0.16, 0.152, head);
+        const horn = add(new THREE.ConeGeometry(0.045, 0.2, 6), mats.bone, side * 0.105, 0.42, -0.01, head); horn.rotation.z = side * -0.38;
+        const cheek = sphere(mats.edge, side * 0.125, 0.07, 0.115, 0.05, 0.1, 0.07, head); cheek.rotation.z = side * -0.22;
       }
-      for (let i = 0; i < 3; i++) {
-        const flap = add(new THREE.ConeGeometry(0.09, 0.34 + i * 0.04, 4), i % 2 ? mats.robe : mats.edge, (i - 1) * 0.105, 0.43, -0.13);
-        flap.rotation.x = Math.PI;
+      for (const side of [-1, 1]) {
+        const arm = limb(side * 0.21, 0.46, 0.54); arms.push(arm);
+        sphere(mats.edge, 0, 0, 0, 0.075, 0.07, 0.08, arm.root);
+        seg(arm.root, mats.skin, 0.05, 0.04, 0.46);
+        box(mats.dark, 0, -0.1, 0, 0.075, 0.03, 0.08, arm.root);
+        sphere(mats.edge, 0, 0, 0, 0.055, 0.055, 0.055, arm.mid);
+        cone(mats.bone, 0.02, 0.11, 0, 0, -0.075, -Math.PI / 2, arm.mid);   // elbow spike
+        seg(arm.mid, mats.skin, 0.04, 0.03, 0.54);
+        box(mats.edge, 0, -0.22, 0, 0.085, 0.15, 0.085, arm.mid);
+        box(mats.bone, 0, -0.035, 0.01, 0.075, 0.08, 0.05, arm.end);
+        for (let f = 0; f < 4; f++) cone(mats.bone, 0.014, 0.17, (f - 1.5) * 0.026, -0.16, 0.015, Math.PI, arm.end);
+        const leg = limb(side * 0.10, 0.46, 0.48); legs.push(leg);
+        sphere(mats.dark, 0, 0, 0, 0.08, 0.085, 0.085, leg.root);
+        seg(leg.root, mats.robe, 0.075, 0.055, 0.46);
+        sphere(mats.edge, 0, 0, 0.005, 0.06, 0.06, 0.06, leg.mid);
+        cone(mats.bone, 0.022, 0.1, 0, 0, 0.07, Math.PI / 2, leg.mid);   // knee spike
+        seg(leg.mid, mats.skin, 0.05, 0.034, 0.48);
+        box(mats.skin, 0, -0.03, 0.07, 0.09, 0.05, 0.2, leg.end);
+        for (let f = 0; f < 3; f++) cone(mats.bone, 0.014, 0.1, (f - 1) * 0.03, -0.035, 0.2, Math.PI / 2, leg.end);
       }
     } else {
-      // The Bell Diver: broad rusted suit, sealed brass helmet, air tanks and red portholes.
-      box(mats.dark, 0, 0.89, 0, 0.48, 0.47, 0.31);
-      box(mats.robe, 0, 0.88, 0.035, 0.42, 0.38, 0.30);
-      box(mats.edge, 0, 0.96, 0.19, 0.34, 0.22, 0.055);
-      box(mats.bone, 0, 0.69, 0.18, 0.25, 0.055, 0.035);
-      // Continuous lower torso and overlapping thigh shells close the old hip gap.
-      // The core overlaps the chest above and both leg joints below, so the suit reads as one body.
-      box(mats.dark, 0, 0.575, 0, 0.46, 0.22, 0.32);
-      box(mats.robe, 0, 0.565, 0.025, 0.44, 0.19, 0.31);
-      box(mats.edge, 0, 0.56, 0.187, 0.30, 0.15, 0.045);
+      // The Bell Diver: a brass-helmeted, tank-backed brute; long hose-fed limbs and heavy hooks for hands.
+      box(mats.dark, 0, 0.02, 0, 0.34, 0.20, 0.26, torso);
+      box(mats.robe, 0, 0.36, 0.01, 0.42, 0.44, 0.28, torso);
+      box(mats.edge, 0, 0.43, 0.15, 0.32, 0.20, 0.05, torso);
+      box(mats.bone, 0, 0.16, 0.0, 0.44, 0.05, 0.30, torso);
+      add(new THREE.SphereGeometry(0.045, 8, 6), mats.glow, 0, 0.46, 0.18, torso);
+      add(new THREE.TorusGeometry(0.2, 0.035, 8, 18), mats.edge, 0, 0.62, 0.0, torso).rotation.x = Math.PI / 2;
+      add(new THREE.TorusGeometry(0.22, 0.014, 6, 18), mats.bone, 0, 0.645, 0.0, torso).rotation.x = Math.PI / 2;
       for (const side of [-1, 1]) {
-        const thighShell = box(mats.robe, side * 0.13, 0.49, 0, 0.19, 0.30, 0.20);
-        thighShell.rotation.z = side * -0.035;
-        box(mats.edge, side * 0.13, 0.39, 0.012, 0.175, 0.045, 0.205);
+        sphere(mats.edge, side * 0.27, 0.57, 0, 0.14, 0.12, 0.17, torso).rotation.z = side * -0.12;
+        add(new THREE.CylinderGeometry(0.085, 0.095, 0.5, 8), mats.edge, side * 0.13, 0.36, -0.24, torso);
+        add(new THREE.SphereGeometry(0.095, 8, 6), mats.dark, side * 0.13, 0.61, -0.24, torso);
+        add(new THREE.SphereGeometry(0.095, 8, 6), mats.edge, side * 0.13, 0.11, -0.24, torso);
+        link(mats.dark, side * 0.1, 0.58, -0.2, side * 0.12, 0.66, 0.02, 0.022, 0.022, torso);
       }
-      // Continuous collar flange and shoulder shells visually lock the bell helmet to the suit.
-      add(new THREE.TorusGeometry(0.205, 0.035, 8, 18), mats.edge, 0, 1.105, 0.005).rotation.x = Math.PI / 2;
-      add(new THREE.TorusGeometry(0.222, 0.014, 6, 18), mats.bone, 0, 1.13, 0.005).rotation.x = Math.PI / 2;
+      // helmet
+      const helmet = add(new THREE.CylinderGeometry(0.19, 0.21, 0.30, 10), mats.edge, 0, 0.17, 0, head); helmet.rotation.y = Math.PI / 10;
+      add(new THREE.SphereGeometry(0.18, 10, 8), mats.robe, 0, 0.29, 0, head);
+      add(new THREE.SphereGeometry(0.115, 12, 8), mats.dark, 0, 0.17, 0.17, head).scale.set(1.15, 0.72, 0.34);
+      add(new THREE.SphereGeometry(0.075, 12, 8), mats.glow, 0, 0.17, 0.205, head).scale.set(1.35, 0.65, 0.38);
+      box(mats.edge, 0, 0.265, 0.19, 0.32, 0.035, 0.045, head);
+      box(mats.dark, 0, 0.065, 0.205, 0.27, 0.045, 0.035, head);
+      for (let i = 0; i < 5; i++) box(mats.edge, (i - 2) * 0.045, 0.065, 0.226, 0.012, 0.035, 0.012, head);
       for (const side of [-1, 1]) {
-        const shoulder = sphere(mats.edge, side * 0.245, 1.02, 0, 0.16, 0.14, 0.19);
-        shoulder.rotation.z = side * -0.12;
-        sphere(mats.robe, side * 0.25, 0.91, -0.02, 0.125, 0.17, 0.15);
+        sphere(mats.bone, side * 0.18, 0, 0.19, 0.018, 0.018, 0.012, head);
+        sphere(mats.glow, side * 0.16, 0.17, 0.238, 0.018, 0.018, 0.012, head);
       }
-      const helmet = add(new THREE.CylinderGeometry(0.19, 0.21, 0.31, 10), mats.edge, 0, 1.31, 0); helmet.rotation.y = Math.PI / 10;
-      add(new THREE.SphereGeometry(0.18, 10, 8), mats.robe, 0, 1.43, 0);
-      add(new THREE.SphereGeometry(0.115, 12, 8), mats.dark, 0, 1.31, 0.17).scale.set(1.15, 0.72, 0.34);
-      add(new THREE.SphereGeometry(0.075, 12, 8), mats.glow, 0, 1.31, 0.205).scale.set(1.35, 0.65, 0.38);
-      // Heavy brow, riveted helmet band, face grille and corroded shell seams.
-      box(mats.edge, 0, 1.405, 0.19, 0.32, 0.035, 0.045);
-      box(mats.dark, 0, 1.205, 0.205, 0.27, 0.045, 0.035);
-      box(mats.edge, 0, 1.13, 0.11, 0.38, 0.07, 0.18);
       for (const side of [-1, 1]) {
-        sphere(mats.bone, side * 0.18, 1.13, 0.19, 0.018, 0.018, 0.012);
-        sphere(mats.glow, side * 0.16, 1.31, 0.238, 0.018, 0.018, 0.012);
+        const arm = limb(side * 0.27, 0.46, 0.52); arms.push(arm);
+        sphere(mats.edge, 0, 0, 0, 0.09, 0.09, 0.09, arm.root);
+        seg(arm.root, mats.robe, 0.075, 0.062, 0.46);
+        add(new THREE.TorusGeometry(0.07, 0.014, 6, 12), mats.bone, 0, -0.22, 0, arm.root).rotation.x = Math.PI / 2;
+        sphere(mats.edge, 0, 0, 0, 0.075, 0.075, 0.075, arm.mid);
+        seg(arm.mid, mats.edge, 0.062, 0.05, 0.52);
+        add(new THREE.TorusGeometry(0.06, 0.013, 6, 12), mats.bone, 0, -0.25, 0, arm.mid).rotation.x = Math.PI / 2;
+        box(mats.dark, 0, -0.06, 0.005, 0.12, 0.12, 0.12, arm.end);
+        for (let f = 0; f < 3; f++) cone(mats.bone, 0.017, 0.16, (f - 1) * 0.04, -0.16, 0.02, Math.PI, arm.end);
+        const leg = limb(side * 0.12, 0.44, 0.46); legs.push(leg);
+        sphere(mats.dark, 0, 0, 0, 0.1, 0.1, 0.1, leg.root);
+        seg(leg.root, mats.robe, 0.09, 0.07, 0.44);
+        add(new THREE.TorusGeometry(0.08, 0.014, 6, 12), mats.bone, 0, -0.2, 0, leg.root).rotation.x = Math.PI / 2;
+        sphere(mats.edge, 0, 0, 0.005, 0.085, 0.085, 0.085, leg.mid);
+        seg(leg.mid, mats.edge, 0.07, 0.06, 0.46);
+        box(mats.dark, 0, -0.045, 0.07, 0.15, 0.09, 0.27, leg.end);
+        box(mats.bone, 0, -0.095, 0.075, 0.16, 0.025, 0.28, leg.end);
       }
-      for (let i = 0; i < 5; i++) box(mats.edge, (i - 2) * 0.045, 1.205, 0.226, 0.012, 0.035, 0.012);
-      for (const side of [-1, 1]) {
-        const tank = add(new THREE.CylinderGeometry(0.085, 0.095, 0.48, 8), mats.edge, side * 0.28, 0.91, -0.12); tank.rotation.z = side * -0.08;
-        add(new THREE.SphereGeometry(0.095, 8, 6), mats.dark, side * 0.28, 1.16, -0.12);
-        add(new THREE.SphereGeometry(0.095, 8, 6), mats.edge, side * 0.28, 0.66, -0.12);
-        link(mats.dark, side * 0.16, 1.09, -0.10, side * 0.21, 1.04, 0.10, 0.026, 0.026);
-        link(mats.bone, side * 0.21, 1.04, 0.10, side * 0.31, 0.99, 0.11, 0.018, 0.018);
-        add(new THREE.SphereGeometry(0.034, 8, 6), mats.glow, side * 0.085, 1.31, 0.22);
-        for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(0.027, 7, 5), mats.bone, side * (0.17 + (i % 2) * 0.035), 0.99 - i * 0.10, 0.205);
-        box(mats.edge, side * 0.29, 0.65, 0, 0.19, 0.25, 0.25);
-        const arm = new THREE.Group(); arm.position.set(side * 0.31, 1.00, 0); group.add(arm); arms.push(arm);
-        sphere(mats.robe, 0, 0, 0, 0.14, 0.13, 0.15, arm);
-        box(mats.robe, side * 0.025, -0.17, 0, 0.15, 0.34, 0.15, arm);
-        sphere(mats.robe, side * 0.025, -0.17, 0, 0.079, 0.10, 0.08, arm);
-        box(mats.edge, side * 0.04, -0.38, 0.025, 0.13, 0.19, 0.14, arm);
-        add(new THREE.TorusGeometry(0.085, 0.018, 6, 12), mats.bone, side * 0.04, -0.30, 0.025, arm).rotation.x = Math.PI / 2;
-        sphere(mats.edge, side * 0.04, -0.39, 0.025, 0.076, 0.055, 0.075, arm);
-        box(mats.dark, side * 0.045, -0.52, 0.045, 0.13, 0.13, 0.12, arm);
-        for (let f = 0; f < 3; f++) box(mats.bone, side * (0.02 + (f - 1) * 0.04), -0.60, 0.09, 0.025, 0.09, 0.035, arm);
-        const leg = new THREE.Group(); leg.position.set(side * 0.13, 0.48, 0); group.add(leg); legs.push(leg);
-        sphere(mats.dark, 0, 0, 0, 0.105, 0.11, 0.11, leg);
-        box(mats.robe, 0, -0.20, 0, 0.15, 0.40, 0.17, leg);
-        sphere(mats.robe, 0, -0.20, 0, 0.078, 0.11, 0.09, leg);
-        box(mats.edge, 0, -0.41, 0.035, 0.17, 0.10, 0.23, leg);
-        add(new THREE.TorusGeometry(0.073, 0.014, 6, 12), mats.bone, 0, -0.30, 0.01, leg).rotation.x = Math.PI / 2;
-        box(mats.dark, 0, -0.465, 0.045, 0.18, 0.03, 0.24, leg);
-      }
-      add(new THREE.TorusGeometry(0.125, 0.018, 6, 16), mats.edge, 0, 1.31, 0.205).scale.set(1.12, 0.72, 0.45);
-      add(new THREE.TorusGeometry(0.24, 0.035, 6, 12), mats.edge, 0, 1.13, 0);
     }
 
+    group.scale.setScalar(0.92);
     const eyeLight = new THREE.PointLight(isWarden ? 0x48ffdd : 0xff5636, 1.0, 3.4);
-    eyeLight.position.set(0, 1.30, 0.28); group.add(eyeLight);
-    return { type, group, arms, legs, eyeLight, pos: new THREE.Vector2(), vel: new THREE.Vector2(), target: new THREE.Vector2(), heading: Math.PI, lastDist: Infinity, stuck: 0, attacking: false, phase: isWarden ? 0.7 : 2.4, gaitPhase: isWarden ? 0.7 : 2.4, gaitBlend: 0, radius: isWarden ? 0.22 : 0.27, footBottom: isWarden ? 0.02 : 0.0 };
+    eyeLight.position.set(0, 0.17, 0.3); head.add(eyeLight);
+    return { type, group, torso, head, arms, legs, eyeLight, pos: new THREE.Vector2(), vel: new THREE.Vector2(), target: new THREE.Vector2(), heading: Math.PI, lastDist: Infinity, stuck: 0, attacking: false, phase: isWarden ? 0.7 : 2.4, gaitPhase: isWarden ? 0.7 : 2.4, gaitBlend: 0, crawlBlend: 0, radius: isWarden ? 0.22 : 0.27, footBottom: 0, footH: isWarden ? 0.05 : 0.095, handY: 0.15 };
   }
   const humanoidMonsters = [createHumanoidMonster('warden'), createHumanoidMonster('diver')];
   humanoidMonsters.forEach(h => { scene.add(h.group); h.dTarget = new THREE.Vector2(); h.distractT = 0; h.stunT = 0; });
@@ -4298,45 +4281,73 @@ async function run(mode) {
     });
   }
 
+  // Two-bone IK in the creature's sagittal (y/z) plane. psi = limb angle measured from straight down, toward +z.
+  function solveLimb(L, rootY, rootZ, ty, tz, splay) {
+    const vz = tz - rootZ, vy = ty - rootY;
+    const d = Math.hypot(vz, vy);
+    const dc = clampV(d, Math.abs(L.l1 - L.l2) + 0.02, (L.l1 + L.l2) * 0.995);
+    const psiT = Math.atan2(vz, -vy);
+    const A = Math.acos(clampV((L.l1 * L.l1 + dc * dc - L.l2 * L.l2) / (2 * L.l1 * dc), -1, 1));
+    const psi1 = psiT + A;                       // the middle joint (elbow / knee) pops up and forward
+    const ez = rootZ + L.l1 * Math.sin(psi1), ey = rootY - L.l1 * Math.cos(psi1);
+    const txc = rootZ + Math.sin(psiT) * dc, tyc = rootY - Math.cos(psiT) * dc;
+    const psi2 = Math.atan2(txc - ez, -(tyc - ey));
+    L.root.position.set(L.x, rootY, rootZ);
+    L.root.rotation.set(-psi1, 0, splay);
+    L.mid.rotation.set(psi1 - psi2, 0, 0);
+    return psi2;
+  }
+
+  function poseHumanoid(h, t) {
+    const cw = h.crawlBlend, gb = h.gaitBlend, ph = h.gaitPhase + h.phase;
+    const stun = h.stunT > 0 ? 1 : 0;
+    const lerp = (x, y, k) => x + (y - x) * k;
+    // torso and head: upright with a slight hunch, or pitched forward onto all fours
+    const pitch = lerp(0.12 + Math.sin(t * 1.7 + h.phase) * 0.02, 1.18 + Math.sin(ph * 2) * 0.04 * gb, cw) + 0.22 * stun;
+    const hipY = lerp(0.84 + Math.abs(Math.sin(ph)) * 0.03 * gb, 0.60 + Math.sin(ph * 2) * 0.035 * gb, cw) - 0.04 * stun;
+    h.torso.position.set(0, hipY, 0);
+    h.torso.rotation.set(pitch, 0, Math.sin(ph) * (0.04 * (1 - cw) + 0.10 * cw) * gb + Math.sin(t * 25) * 0.05 * stun);
+    h.head.rotation.set(-pitch * 0.8 + Math.sin(ph * 2 + 1) * 0.06 * gb * cw + 0.25 * stun, Math.sin(ph) * 0.12 * gb * cw, 0);
+    const shY = hipY + 0.6 * Math.cos(pitch), shZ = 0.6 * Math.sin(pitch);
+    for (let i = 0; i < 2; i++) {
+      const side = i ? 1 : -1;
+      // legs: opposite phase left/right; arms swing against the same-side leg (diagonal pairs when crawling)
+      const phL = ph + (i ? Math.PI : 0), phA = ph + (i ? 0 : Math.PI);
+      const sL = Math.sin(phL), cL = Math.cos(phL), sA = Math.sin(phA), cA = Math.cos(phA);
+      const lz = lerp(0.28 * sL * gb, -0.14 + 0.30 * sL, cw), ly = lerp(h.footH + Math.max(0, cL) * 0.13 * gb, h.footH + Math.max(0, cL) * 0.2, cw);
+      const psiF = solveLimb(h.legs[i], hipY, 0, ly, lz, side * lerp(0.03, 0.30, cw));
+      h.legs[i].end.rotation.x = psiF;
+      const az = lerp(shZ + 0.2 * sA * gb, shZ + 0.34 + 0.34 * sA, cw), ay = lerp(shY - 0.9 + Math.max(0, cA) * 0.05 * gb, h.handY + Math.max(0, cA) * 0.22, cw);
+      const psiH = solveLimb(h.arms[i], shY, shZ, ay, az, side * lerp(0.05, 0.26, cw));
+      h.arms[i].end.rotation.x = psiH - lerp(0, 0.9, cw);
+      h.arms[i].root.position.x = side * (0.21 + 0.03 * cw) * (h.type === 'warden' ? 1 : 1.28);
+    }
+  }
+
   function updateHumanoidVisuals(dt, t) {
     humanoidMonsters.forEach(h => {
       h.group.visible = true;
       const speed = h.vel.length();
-      const gaitTarget = h.attacking ? clampV(speed / 4.2, 0, 1) : clampV(speed / 0.9, 0, 1);
+      h.crawlBlend += ((h.attacking ? 1 : 0) - h.crawlBlend) * Math.min(1, dt * 7);
+      const gaitTarget = clampV(speed / (h.attacking ? 3.5 : 0.8), 0, 1);
       h.gaitBlend += (gaitTarget - h.gaitBlend) * Math.min(1, dt * 7.5);
-      // Advance the gait only as the creature moves; the attack has a quicker,
-      // heavier cadence while patrol motion uses a measured walking rhythm.
-      const cadence = (h.attacking ? 7.2 : 4.7) + Math.min(speed, 4.5) * 0.42;
-      h.gaitPhase += dt * cadence;
-      const stride = Math.sin(h.gaitPhase + h.phase);
-      const recovery = Math.sin(h.gaitPhase * 2 + h.phase * 0.7);
-      const bob = Math.abs(Math.sin(h.gaitPhase + h.phase)) * 0.022 * h.gaitBlend;
-      const idleBreath = Math.sin(t * 1.8 + h.phase) * 0.012;
-      // Keep each creature's lowest foot just above the tiled floor. The waterline
-      // then cuts naturally across its legs according to the configured water depth.
+      // Limb cadence follows ground speed so hands and feet do not skate across the tiles.
+      const cw = h.crawlBlend;
+      const cadence = (1 - cw) * clampV(speed * 3.6, 0, 6) + cw * (3 + speed * 2.4);
+      if (h.stunT <= 0) h.gaitPhase += dt * cadence;
+      poseHumanoid(h, t);
       const waterLevel = waterY();
       const footTargetY = Math.max(0.008, waterLevel * 0.08);
-      h.group.position.set(h.pos.x, footTargetY - h.footBottom + idleBreath + bob, h.pos.y);
+      h.group.position.set(h.pos.x, footTargetY + Math.sin(t * 1.8 + h.phase) * 0.008, h.pos.y);
       if (speed > 0.02) {
         const target = Math.atan2(h.vel.x, h.vel.y);
         let d = target - h.heading;
         while (d > Math.PI) d -= Math.PI * 2;
         while (d < -Math.PI) d += Math.PI * 2;
-        h.heading += d * Math.min(1, dt * 4.5);
+        h.heading += d * Math.min(1, dt * (h.attacking ? 7 : 4.5));
       }
       h.group.rotation.y = h.heading;
-      h.group.rotation.z = -stride * 0.035 * h.gaitBlend;
-      h.arms.forEach((arm, i) => {
-        const side = i === 0 ? 1 : -1;
-        const swing = stride * (h.attacking ? 0.34 : 0.30) * h.gaitBlend;
-        const attackReach = h.attacking ? -0.24 - Math.max(0, recovery) * 0.12 : -0.04;
-        arm.rotation.x = attackReach + swing * side;
-        arm.rotation.z = side * (h.type === 'warden' ? 0.08 : 0.03) + recovery * 0.035 * h.gaitBlend;
-      });
-      h.legs.forEach((leg, i) => {
-        leg.rotation.x = stride * (h.attacking ? 0.38 : 0.32) * h.gaitBlend * (i === 0 ? 1 : -1);
-      });
-      h.eyeLight.intensity = (h.attacking ? 1.5 : 0.75) * (0.88 + Math.sin(t * 7 + h.phase) * 0.12);
+      h.eyeLight.intensity = (h.attacking ? 1.6 : 0.75) * (0.88 + Math.sin(t * 7 + h.phase) * 0.12);
     });
   }
 
