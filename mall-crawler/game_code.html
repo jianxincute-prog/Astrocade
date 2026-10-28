@@ -856,6 +856,16 @@
     .heart-icon { width: 30px; height: 30px; }
     .hp-hearts { display: flex; gap: 4px; }
     .hunger-row { margin: 0; font-size: 20px; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; }
+    .bar-ico { font-size: 20px; width: 26px; text-align: center; line-height: 1; }
+    .hunger-bar { position: relative; flex: 1; height: 16px; border-radius: 8px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+    .hunger-fill { transition: transform 0.25s ease-out; }
+    .hunger-fill.hp { background: linear-gradient(90deg, #dc2626, #f87171); }
+    .hunger-fill.thirst { background: linear-gradient(90deg, #0891b2, #22d3ee); }
+    .hunger-fill.low { animation: barPulse 0.7s ease-in-out infinite alternate; }
+    @keyframes barPulse { from { filter: brightness(1); } to { filter: brightness(1.7); } }
+    .bar-txt { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-family: var(--font-mono); font-size: 13px; font-weight: 800; line-height: 16px; color: #fff; text-shadow: 0 1px 2px #000; }
+    .chip-row-hud { padding: 2px 6px; }
     .inventory-row { font-size: 22px; padding: 3px 10px; }
     .objective-panel { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 22px; font-weight: 700; padding: 3px 10px; margin-top: 0; }
     .objective-panel b { color: var(--color-green); }
@@ -988,24 +998,24 @@
       <!-- Top HUD (ringkas) -->
       <div class="hud-header">
         <div class="status-panel hud-card">
-          <div class="hud-row">
-            <div class="hp-hearts" id="hp-hearts"></div>
-            <div class="hud-stat">⏱ <span id="hud-time">00:00</span></div>
-            <div class="hud-stat">★ <span id="hud-score">0</span></div>
+          <div class="bar-row">
+            <span class="bar-ico">❤️</span>
+            <div class="hunger-bar"><div class="hunger-fill hp" id="hp-fill"></div><span class="bar-txt" id="hp-txt">3/3</span></div>
             <div class="hud-stat" id="hud-armor-stat" style="display:none">🛡 <span id="hud-armor">0</span></div>
           </div>
-          <div class="hunger-row"><span>🍽️</span><div class="hunger-bar"><div class="hunger-fill" id="hunger-fill"></div></div></div>
-          <div class="inventory-row" id="hud-inv-row" style="cursor:pointer;">
-            <div class="inv-item">🎒 <span id="inv-total" class="inv-counter">0/15</span></div>
-            <div class="inv-item">🍞 <span id="inv-food" class="inv-counter">0</span></div>
-            <div class="inv-item">🥤 <span id="inv-drink" class="inv-counter">0</span></div>
+          <div class="bar-row"><span class="bar-ico">🍽️</span><div class="hunger-bar"><div class="hunger-fill" id="hunger-fill"></div></div></div>
+          <div class="bar-row"><span class="bar-ico">💧</span><div class="hunger-bar"><div class="hunger-fill thirst" id="thirst-fill"></div></div></div>
+          <div class="hud-row chip-row-hud" id="hud-inv-row" style="cursor:pointer;">
+            <div class="hud-stat">⏱ <span id="hud-time">00:00</span></div>
+            <div class="hud-stat">★ <span id="hud-score">0</span></div>
+            <div class="hud-stat">🎒 <span id="inv-total" class="inv-counter">0/15</span></div>
           </div>
           <div class="objective-panel">
             <span>🍞 <b id="base-food">0</b>/<b id="goal-food">4</b></span>
             <span>🥤 <b id="base-drink">0</b>/<b id="goal-drink">4</b></span>
             <span>⛺ <b id="basecamp-count">0</b></span>
-            <span>🏪 <b id="hud-opened">0</b></span>
           </div>
+          <div style="display:none"><span id="hp-hearts"></span><span id="inv-food"></span><span id="inv-drink"></span><span id="hud-opened">0</span></div>
         </div>
 
         <!-- Minimap Radar -->
@@ -1107,6 +1117,7 @@
         <div class="chip-row">
           <button class="chip active" id="tab-buy">BELI</button>
           <button class="chip" id="tab-sell">JUAL</button>
+          <button class="chip" id="tab-rank">🏆 PERINGKAT</button>
         </div>
         <div class="trade-list" id="trade-list"></div>
       </div>
@@ -1253,6 +1264,8 @@
               <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas, atau dekati tumpukan bekal di basecamp untuk <b>MAKAN/MINUM</b> (mengurangi bekal target!). Istirahat di basecamp memulihkan nyawa.</li>
               <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
               <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap, Spons Rakus.</li>
+              <li>💧 Ada bar <b>HP</b>, <b>lapar</b>, dan <b>haus</b>. Makanan mengisi lapar, minuman mengisi haus. Mati = respawn di basecamp, waktu bertahan kembali ke 0 (progres lain tetap).</li>
+              <li>🏆 Komputer punya tab <b>Peringkat</b>: 10 pemain dengan waktu bertahan hidup terlama. Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di layar judul.</li>
               <li>🎰 <b>Vending machine</b>: jatah <b>3 kotak misteri gratis per hari</b>, lalu ¢500 per kotak (kredit didapat dari menjual barang lewat komputer).</li>
               <li>🔄 Ruang gudang, jebakan, monster &amp; bahan <b>tertutup lagi setelah 20 detik</b> dan isinya diacak ulang. Penyintas bisa mati dan respawn di basecamp mereka.</li>
               <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
@@ -1296,6 +1309,7 @@
           <button class="chip" data-diff="sulit">SULIT</button>
         </div>
         <div class="best-line" id="title-best"></div>
+        <button class="btn-large btn-secondary" id="btn-continue" style="display:none; margin-bottom: 10px;">LANJUTKAN</button>
         <button class="btn-large" id="btn-start">MULAI</button>
       </div>
     </div>
@@ -1778,8 +1792,12 @@
       const titleOverlay = document.getElementById('title-overlay');
       const titleBest = document.getElementById('title-best');
       const btnStart = document.getElementById('btn-start');
+      const btnContinue = document.getElementById('btn-continue');
       const btnMute = document.getElementById('btn-mute');
       const hungerFill = document.getElementById('hunger-fill');
+      const thirstFill = document.getElementById('thirst-fill');
+      const hpFill = document.getElementById('hp-fill');
+      const hpTxt = document.getElementById('hp-txt');
       const compassEl = document.getElementById('compass');
       const compassArrow = document.getElementById('compass-arrow');
       const compassText = document.getElementById('compass-text');
@@ -1803,6 +1821,7 @@
       const tradeSub = document.getElementById('trade-sub');
       const tabBuy = document.getElementById('tab-buy');
       const tabSell = document.getElementById('tab-sell');
+      const tabRank = document.getElementById('tab-rank');
       const staminaFill = document.getElementById('stamina-fill');
       const appContainer = document.getElementById('app-container');
       
@@ -1834,6 +1853,7 @@
             'Target Makanan': { key: 'goal.food', type: 'slider', min: 2, max: 6, step: 1 },
             'Target Minuman': { key: 'goal.drink', type: 'slider', min: 2, max: 6, step: 1 },
             'Waktu Habis Lapar (dtk)': { key: 'player.hungerSeconds', type: 'slider', min: 120, max: 420, step: 20 },
+            'Waktu Habis Haus (dtk)': { key: 'player.thirstSeconds', type: 'slider', min: 100, max: 380, step: 20 },
             'Peluang Bekal': { key: 'outcomeWeights.supplies', type: 'slider', min: 0.2, max: 0.6, step: 0.02 },
             'Peluang Kosong (Base)': { key: 'outcomeWeights.empty', type: 'slider', min: 0.15, max: 0.45, step: 0.02 },
             'Peluang Jebakan': { key: 'outcomeWeights.trap', type: 'slider', min: 0.05, max: 0.3, step: 0.02 },
@@ -1855,7 +1875,8 @@
           sprintSpeed: 8.2,
           staminaSeconds: 15,
           staminaRecoverSeconds: 4.5,
-          hungerSeconds: 240
+          hungerSeconds: 240,
+          thirstSeconds: 200
         },
         monster: {
           speed: 3.2,
@@ -1886,6 +1907,7 @@
       config.monster.detectRange = config.monster.detectRange ?? 26;
       config.monster.maxCount = config.monster.maxCount ?? 3;
       config.player.hungerSeconds = config.player.hungerSeconds ?? 240;
+      config.player.thirstSeconds = config.player.thirstSeconds ?? 200;
 
       // Konstanta balance/AI yang sebelumnya tersebar sebagai angka ajaib
       const TUNING = {
@@ -1912,9 +1934,6 @@
         sulit:  { label: 'Sulit',  monsterSpeed: 1.12, detect: 1.2, maxMul: 1.34, hunger: 1.3, scoreMult: 1.4 }
       };
       let diff = DIFFS.normal;
-
-      // Jumlah hati mengikuti config.player.health
-      hpHearts.innerHTML = '<svg class="heart-icon" viewBox="0 0 24 24" fill="#ff1744"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>'.repeat(Math.max(1, config.player.health));
 
       goalFoodEl.textContent = config.goal.food;
       goalDrinkEl.textContent = config.goal.drink;
@@ -3939,8 +3958,12 @@
         tradeOpen: false,
         actionSlot: null,
         hunger: 1,
+        thirst: 1,
+        lifeTime: 0,
+        deaths: 0,
         starveTimer: 0,
         warnedHunger: false,
+        warnedThirst: false,
         healTimer: 0,
         blackoutT: 0,
         blackoutNext: TUNING.blackoutFirst[0] + Math.random() * TUNING.blackoutFirst[1],
@@ -4499,11 +4522,12 @@
           showToast('PERSEDIAAN BASECAMP KOSONG', '#94a3b8');
           return;
         }
-        if (state.hunger > 0.92) {
-          showToast('MASIH KENYANG!', '#94a3b8');
+        let cat = state.hunger <= state.thirst ? 'food' : 'drink';
+        if (cat === 'food' ? state.baseFood <= 0 : state.baseDrink <= 0) cat = cat === 'food' ? 'drink' : 'food';
+        if ((cat === 'food' ? state.hunger : state.thirst) > 0.92) {
+          showToast(cat === 'food' ? 'MASIH KENYANG!' : 'TIDAK HAUS!', '#94a3b8');
           return;
         }
-        let cat = state.baseFood >= state.baseDrink ? 'food' : 'drink';
         let idx = -1;
         for (let pass = 0; pass < 2 && idx < 0; pass++) {
           for (let i = store.stashItems.length - 1; i >= 0; i--) {
@@ -4520,7 +4544,8 @@
         }
         if (cat === 'food') state.baseFood--; else state.baseDrink--;
         layoutStash(store);
-        state.hunger = Math.min(1, state.hunger + TUNING.baseMealRestore);
+        if (cat === 'food') state.hunger = Math.min(1, state.hunger + TUNING.baseMealRestore);
+        else state.thirst = Math.min(1, state.thirst + TUNING.baseMealRestore);
         audio.play('supply_pickup_sfx');
         showToast(`${cat === 'food' ? 'MAKAN' : 'MINUM'} DI BASECAMP: ${ITEM_DEFS[it.id].name.toUpperCase()} • SISA 🍞${state.baseFood} 🥤${state.baseDrink}`, '#ffd600');
         updateHUD();
@@ -4861,28 +4886,76 @@
         updateHUD();
 
         if (state.health <= 0) {
-          triggerGameEnd(false);
+          handlePlayerDeath(state.deathCause);
         }
+      }
+
+      // Mati bukan akhir permainan: respawn di basecamp, waktu bertahan kembali 0, progres lain tetap
+      const DEATH_TEXT = {
+        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap', sponge: 'diserap Spons Rakus',
+        plate: 'tertusuk paku', laser: 'terkena laser', gas: 'keracunan gas', collapse: 'jatuh di lantai runtuh',
+        hunger: 'kelaparan', thirst: 'dehidrasi'
+      };
+      function handlePlayerDeath(cause) {
+        const survived = state.lifeTime;
+        submitSurvival(survived, true);
+        state.deaths++;
+        state.lifeTime = 0;
+        state.health = config.player.health;
+        state.hunger = Math.max(state.hunger, 0.6);
+        state.thirst = Math.max(state.thirst, 0.6);
+        state.stamina = 1;
+        state.exhausted = false;
+        state.starveTimer = 0;
+        state.healTimer = 0;
+        state.slowDebuffTimer = 0;
+        state.isInvulnerable = true;
+        state.invulnTimer = 4;
+        state.deathCause = null;
+        sprintIntent.btn = sprintIntent.key = sprintIntent.joy = false;
+        inputs.moveX = 0; inputs.moveZ = 0;
+        const base = stores.find(st => st.isClaimed);
+        if (base) playerGroup.position.set(base.interiorCenterX, 0, base.interiorCenterZ);
+        else playerGroup.position.set(0, 0, 12);
+        monsters.forEach(m => {
+          if (Math.hypot(m.x - playerGroup.position.x, m.z - playerGroup.position.z) < 16) { m.isStunned = true; m.stunTimer = Math.max(m.stunTimer, 4); }
+        });
+        damageVignette.style.opacity = '1';
+        setTimeout(() => { damageVignette.style.opacity = '0'; }, 500);
+        showToast(`KAMU ${(DEATH_TEXT[cause] || 'TUMBANG').toUpperCase()} • BERTAHAN ${fmtTime(survived)} • RESPAWN DI ${base ? 'BASECAMP' : 'AWAL'}`, '#ff1744', true);
+        hudTimeEl.textContent = '00:00';
+        updateHUD();
+        persistSave();
       }
 
       function updateSurvival(dt) {
         const safe = !!(state.currentBasecamp && state.currentBasecamp.isClaimed);
-        // Lapar: berhenti saat berada di basecamp
-        if (!safe) state.hunger = Math.max(0, state.hunger - dt / (config.player.hungerSeconds / diff.hunger));
-        if (state.hunger <= 0) {
+        // Lapar & haus: berhenti saat berada di basecamp
+        if (!safe) {
+          state.hunger = Math.max(0, state.hunger - dt / (config.player.hungerSeconds / diff.hunger));
+          state.thirst = Math.max(0, state.thirst - dt / (config.player.thirstSeconds / diff.hunger));
+        }
+        if (state.hunger <= 0 || state.thirst <= 0) {
           state.starveTimer += dt;
           if (state.starveTimer >= TUNING.starveSeconds) {
             state.starveTimer = 0;
-            applyDamage(1, 'hunger', true);
-            showToast('KELAPARAN! MAKAN SEKARANG', '#ff9100', true);
+            const thirsty = state.thirst <= 0;
+            applyDamage(1, thirsty ? 'thirst' : 'hunger', true);
+            showToast(thirsty ? 'DEHIDRASI! MINUM SEKARANG' : 'KELAPARAN! MAKAN SEKARANG', '#ff9100', true);
           }
         } else state.starveTimer = 0;
         if (state.hunger < TUNING.hungerWarn && !state.warnedHunger) {
           state.warnedHunger = true;
-          showToast('LAPAR! MAKAN/MINUM DARI TAS', '#ffd600');
+          showToast('LAPAR! MAKAN DARI TAS', '#ffd600');
         } else if (state.hunger > 0.4) state.warnedHunger = false;
+        if (state.thirst < TUNING.hungerWarn && !state.warnedThirst) {
+          state.warnedThirst = true;
+          showToast('HAUS! MINUM DARI TAS', '#22d3ee');
+        } else if (state.thirst > 0.4) state.warnedThirst = false;
         hungerFill.style.transform = `scaleX(${state.hunger.toFixed(3)})`;
         hungerFill.classList.toggle('low', state.hunger < TUNING.hungerWarn);
+        thirstFill.style.transform = `scaleX(${state.thirst.toFixed(3)})`;
+        thirstFill.classList.toggle('low', state.thirst < TUNING.hungerWarn);
 
         // Istirahat di basecamp memulihkan nyawa perlahan
         if (safe && state.health < config.player.health) {
@@ -4946,7 +5019,8 @@
             laser: 'Sinar laser jebakan menembusmu.',
             gas: 'Gas beracun dari pipa jebakan melumpuhkanmu.',
             collapse: 'Lantai runtuh membuatmu jatuh berkali-kali.',
-            hunger: 'Kamu kelaparan. Makan atau istirahat di basecamp!'
+            hunger: 'Kamu kelaparan. Makan atau istirahat di basecamp!',
+            thirst: 'Kamu dehidrasi. Minum atau istirahat di basecamp!'
           };
           modalDesc.textContent = causes[state.deathCause] || 'Kamu kehabisan nyawa di dalam koridor mal.';
         }
@@ -4964,20 +5038,29 @@
 
         gameModal.classList.add('active');
 
-        // Submit Score to Platform Leaderboard (hasil dijaga: bisa undefined / ditolak)
-        if (typeof lib !== 'undefined' && typeof lib.addPlayerScoreToLeaderboard === 'function') {
-          try {
-            Promise.resolve(lib.addPlayerScoreToLeaderboard(finalScore)).then((res) => {
-              const rank = res && (res.rank || res.playerRank);
-              if (typeof rank === 'number' && state.isGameOver) modalBest.textContent += ` • PERINGKAT #${rank}`;
-            }).catch(() => {});
-          } catch (e) {}
-        }
+        // Misi selesai: simpanan lanjutan dihapus; peringkat memakai waktu bertahan hidup
+        submitSurvival(state.lifeTime, true);
+        savedRun = null;
+        persistSave();
         if (isNewBest) persistSave();
       }
 
       function refreshBestLabels() {
         titleBest.textContent = bestScore > 0 ? `REKOR TERBAIK: ${bestScore.toLocaleString()}` : '';
+      }
+
+      // Peringkat: waktu bertahan hidup terlama dalam satu nyawa (detik)
+      const fmtTime = sec => { sec = Math.max(0, Math.floor(sec)); return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0'); };
+      let bestLife = 0, lbLastSent = 0, lbSentAt = -999, saveT = 0;
+      let savedRun = null; // simpanan permainan untuk tombol LANJUTKAN
+      function submitSurvival(sec, force) {
+        sec = Math.floor(sec);
+        if (sec > bestLife) bestLife = sec;
+        if (sec <= 0 || sec <= lbLastSent) return Promise.resolve();
+        if (!force && (animTime - lbSentAt < 30 || sec < lbLastSent + 15)) return Promise.resolve();
+        if (typeof lib === 'undefined' || typeof lib.addPlayerScoreToLeaderboard !== 'function') return Promise.resolve();
+        lbLastSent = sec; lbSentAt = animTime;
+        try { return Promise.resolve(lib.addPlayerScoreToLeaderboard(sec)).catch(() => {}); } catch (e) { return Promise.resolve(); }
       }
 
       // Vending machine: jatah gratis per hari (tanggal lokal), disimpan bersama skor
@@ -4996,10 +5079,32 @@
         document.querySelectorAll('[data-pref]').forEach(btn => btn.classList.toggle('active', prefs[btn.dataset.pref] === btn.dataset.val));
         Object.keys(beamMats).forEach(k => { beamMats[k].opacity = prefs.contrast === 'high' ? 0.45 : 0.22; });
       }
+      // Snapshot ringkas untuk LANJUTKAN: status pemain + basecamp (dunia lain diacak ulang karena ruangan berganti tiap 20 dtk)
+      function buildRunSnapshot() {
+        const base = stores.find(st => st.isClaimed);
+        const dk = Object.keys(DIFFS).find(k => DIFFS[k] === diff) || 'normal';
+        return {
+          v: 1, at: Date.now(), diff: dk,
+          life: Math.floor(state.lifeTime), game: Math.floor(state.gameTime), hp: state.health,
+          hunger: +state.hunger.toFixed(3), thirst: +state.thirst.toFixed(3),
+          inv: state.inventory.slice(0, INV_CAPACITY), credits: state.credits, weapon: state.weaponDur, armor: state.armor,
+          kills: state.kills, deaths: state.deaths, opened: state.openedStoresCount,
+          base: base ? {
+            id: base.id,
+            craft: !!(base.slots && base.slots.craft && base.slots.craft.built),
+            comp: !!(base.slots && base.slots.comp && base.slots.comp.built),
+            stash: base.stashItems.map(i => i.id).slice(0, 40)
+          } : null
+        };
+      }
+      function currentRunSave() {
+        if (mode === 'play' && state.started && !state.isGameOver) return buildRunSnapshot();
+        return state.started ? null : savedRun;
+      }
       function persistSave() {
         if (!saveLoaded || typeof lib === 'undefined' || typeof lib.saveUserGameState !== 'function') return;
         try {
-          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, prefs: { text: prefs.text, contrast: prefs.contrast }, vend: { day: vend.day, used: vend.used }, timestamp: Date.now() })).catch(() => {});
+          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, bestLife, prefs: { text: prefs.text, contrast: prefs.contrast }, vend: { day: vend.day, used: vend.used }, run: currentRunSave(), timestamp: Date.now() })).catch(() => {});
         } catch (e) {}
       }
       document.querySelectorAll('[data-pref]').forEach(btn => {
@@ -5019,6 +5124,10 @@
             saveLoaded = true;
             const hs = saved && (saved.highScore ?? (saved.state && saved.state.highScore));
             if (typeof hs === 'number') bestScore = Math.max(bestScore, hs);
+            const bl = saved && (saved.bestLife ?? (saved.state && saved.state.bestLife));
+            if (typeof bl === 'number') { bestLife = Math.max(bestLife, bl); lbLastSent = Math.max(lbLastSent, bl); }
+            const sr = saved && (saved.run || (saved.state && saved.state.run));
+            if (sr && sr.v === 1 && !state.started) { savedRun = sr; showContinue(); }
             const sv = saved && (saved.vend || (saved.state && saved.state.vend));
             if (sv && typeof sv.day === 'string' && typeof sv.used === 'number') { vend.day = sv.day; vend.used = Math.max(vend.used, sv.used); vendRoll(); }
             const sp = saved && (saved.prefs || (saved.state && saved.state.prefs));
@@ -5159,15 +5268,11 @@
       }
 
       function updateHUD() {
-        // Hearts
-        const hearts = hpHearts.children;
-        for (let i = 0; i < hearts.length; i++) {
-          if (i < state.health) {
-            hearts[i].classList.remove('lost');
-          } else {
-            hearts[i].classList.add('lost');
-          }
-        }
+        // Bar HP
+        const hpFrac = Math.max(0, Math.min(1, state.health / Math.max(1, config.player.health)));
+        hpFill.style.transform = `scaleX(${hpFrac.toFixed(3)})`;
+        hpFill.classList.toggle('low', hpFrac <= 0.34);
+        hpTxt.textContent = `${state.health}/${config.player.health}`;
 
         hudArmorStat.style.display = state.armor > 0 ? '' : 'none';
         hudArmorEl.textContent = state.armor;
@@ -5263,6 +5368,7 @@
       document.getElementById('btn-pause-restart').addEventListener('click', (e) => {
         e.stopPropagation();
         setPaused(false);
+        savedRun = null;
         resetGame();
         state.started = true;
       });
@@ -5380,15 +5486,17 @@
         const id = state.inventory[state.selectedSlot];
         if (!id) return;
         if (ITEM_DEFS[id].cat === 'food' || ITEM_DEFS[id].cat === 'drink') {
-          if (state.hunger > 0.92) {
-            showToast('MASIH KENYANG!', '#94a3b8');
+          const isFood = ITEM_DEFS[id].cat === 'food';
+          if ((isFood ? state.hunger : state.thirst) > 0.92) {
+            showToast(isFood ? 'MASIH KENYANG!' : 'TIDAK HAUS!', '#94a3b8');
             return;
           }
-          state.hunger = Math.min(1, state.hunger + TUNING.foodRestore);
+          if (isFood) state.hunger = Math.min(1, state.hunger + TUNING.foodRestore);
+          else state.thirst = Math.min(1, state.thirst + TUNING.foodRestore);
           state.inventory.splice(state.selectedSlot, 1);
           state.selectedSlot = -1;
           audio.play('supply_pickup_sfx');
-          showToast(ITEM_DEFS[id].cat === 'food' ? 'KAMU MAKAN. ENERGI PULIH 🍽️' : 'KAMU MINUM. ENERGI PULIH 🍽️', '#ffd600');
+          showToast(isFood ? 'KAMU MAKAN. LAPAR BERKURANG 🍽️' : 'KAMU MINUM. HAUS HILANG 💧', '#ffd600');
           updateHUD();
           renderInventory();
           return;
@@ -5427,6 +5535,7 @@
 
       // Restart Button
       btnRestart.addEventListener('click', () => {
+        savedRun = null;
         resetGame();
         state.started = true;
       });
@@ -5459,9 +5568,64 @@
 
       btnStart.addEventListener('click', () => {
         audio.init();
+        savedRun = null;
         state.started = true;
         titleOverlay.classList.remove('active');
       });
+
+      // Lanjutkan permainan yang terputus: pulihkan status pemain dan basecamp (isi mal diacak ulang)
+      function showContinue() {
+        if (!savedRun || state.started) return;
+        const m = Math.floor((Date.now() - (savedRun.at || Date.now())) / 60000);
+        btnContinue.textContent = `LANJUTKAN • ${fmtTime(savedRun.life)}${savedRun.base ? ' • BASECAMP' : ''}`;
+        btnContinue.style.display = '';
+      }
+      function resumeRun(snap) {
+        resetGame();
+        diff = DIFFS[snap.diff] || diff;
+        Object.assign(state, {
+          health: Math.max(1, Math.min(config.player.health, snap.hp | 0 || config.player.health)),
+          hunger: Math.max(0.15, snap.hunger ?? 1), thirst: Math.max(0.15, snap.thirst ?? 1),
+          lifeTime: snap.life || 0, gameTime: snap.game || 0, credits: snap.credits ?? 30,
+          weaponDur: snap.weapon || 0, armor: Math.min(ARMOR_MAX, snap.armor || 0), kills: snap.kills || 0, deaths: snap.deaths || 0
+        });
+        const b = snap.base;
+        const st = b && stores.find(x => x.id === b.id);
+        if (st) {
+          resetStoreState(st, { outcome: 'empty', lootItems: [], trapKind: null, matVariant: null });
+          openStore(st);
+          claimBasecamp(st);
+          state.isGameOver = true; // cegah kemenangan palsu saat bekal dipulihkan
+          state.inventory = (b.stash || []).filter(id => ITEM_DEFS[id] && (ITEM_DEFS[id].cat === 'food' || ITEM_DEFS[id].cat === 'drink'));
+          storeSupplies(st);
+          state.isGameOver = false;
+          ['craft', 'comp'].forEach(k => {
+            if (!b[k]) return;
+            state.inventory = [];
+            Object.keys(BUILD_COST[k]).forEach(id => { for (let i = 0; i < BUILD_COST[k][id]; i++) state.inventory.push(id); });
+            buildSlot(st, k);
+          });
+          playerGroup.position.set(st.interiorCenterX, 0, st.interiorCenterZ);
+        }
+        state.openedStoresCount = Math.max(state.openedStoresCount, snap.opened || 0);
+        state.inventory = (snap.inv || []).filter(id => ITEM_DEFS[id]).slice(0, INV_CAPACITY);
+        state.selectedSlot = -1;
+        state.started = true;
+        state.isInvulnerable = true;
+        state.invulnTimer = 3;
+        savedRun = null;
+        titleOverlay.classList.remove('active');
+        hudTimeEl.textContent = fmtTime(state.lifeTime);
+        updateHUD();
+        showToast('PERMAINAN DILANJUTKAN', '#00e676', true);
+      }
+      btnContinue.addEventListener('click', () => {
+        if (!savedRun) return;
+        audio.init();
+        try { resumeRun(savedRun); } catch (err) { console.error(err); savedRun = null; resetGame(); state.started = true; titleOverlay.classList.remove('active'); }
+      });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) persistSave(); });
+      window.addEventListener('pagehide', persistSave);
       refreshBestLabels();
 
       // Mobile Touch Joystick
@@ -5517,9 +5681,6 @@
               inputs.moveX = (dx / dist) * ratio;
               inputs.moveZ = (dy / dist) * ratio;
 
-              // Sprint saat didorong ke tepi luar (histeresis agar tidak berkedip)
-              if (dist >= JOY_MAX_RADIUS * 0.9) sprintIntent.joy = true;
-              else if (dist < JOY_MAX_RADIUS * 0.75) sprintIntent.joy = false;
             } else {
               inputs.moveX = 0;
               inputs.moveZ = 0;
@@ -5730,9 +5891,11 @@
 
         if (!state.isGameOver && mode === 'play' && state.started) {
           state.gameTime += dt;
-          const mins = Math.floor(state.gameTime / 60);
-          const secs = Math.floor(state.gameTime % 60);
-          hudTimeEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          state.lifeTime += dt;
+          hudTimeEl.textContent = fmtTime(state.lifeTime);
+          submitSurvival(state.lifeTime, false);
+          saveT += dt;
+          if (saveT >= 10) { saveT = 0; persistSave(); }
         }
 
         // Cooldowns & Debuffs
@@ -5801,7 +5964,7 @@
           state.stamina = Math.min(1, state.stamina + dt * regenRate);
           if (state.exhausted && state.stamina >= 0.25) state.exhausted = false;
         }
-        btnSprint.classList.toggle('active', state.isSprinting);
+        btnSprint.classList.toggle('active', sprintIntent.btn || sprintIntent.key);
         btnSprint.classList.toggle('tired', state.exhausted);
         staminaFill.style.transform = `scaleX(${state.stamina.toFixed(3)})`;
 
@@ -5873,13 +6036,13 @@
           playerGroup.rotation.y += diffRot * Math.min(1, dt * 20);
 
           // Limb Animation (irama ayunan kaki dan langkah kaki proporsional)
-          walkAnimPhase += dt * currentSpeed * speedFactor * (state.isSprinting ? 1.7 : 2.1);
+          walkAnimPhase += dt * currentSpeed * speedFactor * (state.isSprinting ? 2.7 : 3.6);
           const stepIdx = Math.floor(walkAnimPhase / Math.PI);
           if (stepIdx !== lastStepIdx) {
             lastStepIdx = stepIdx;
             audio.playStep(state.isSprinting ? 1 : 0.5);
           }
-          const swing = Math.sin(walkAnimPhase) * (state.isSprinting ? 0.75 : 0.45);
+          const swing = Math.sin(walkAnimPhase) * (state.isSprinting ? 0.85 : 0.55);
           leftLegPivot.rotation.x = swing;
           rightLegPivot.rotation.x = -swing;
           leftArmPivot.rotation.x = -swing;
@@ -6595,7 +6758,9 @@
         tradeSub.textContent = online.length ? `${online.length} pedagang online` : 'Belum ada pedagang online';
         tabBuy.classList.toggle('active', tradeTab === 'buy');
         tabSell.classList.toggle('active', tradeTab === 'sell');
+        tabRank.classList.toggle('active', tradeTab === 'rank');
         tradeList.innerHTML = '';
+        if (tradeTab === 'rank') { renderRank(); return; }
         if (!online.length) {
           tradeList.innerHTML = '<div class="trade-empty">Belum ada penyintas yang membangun komputer.<br>Mereka sedang mencari komponen — cek lagi nanti.</div>';
           return;
@@ -6645,6 +6810,56 @@
           });
         }
       }
+      // Papan peringkat 10 besar (waktu bertahan hidup terlama)
+      const rank = { entries: null, userRank: null, loading: false, err: false, t: -1e9 };
+      function loadRank() {
+        if (rank.loading) return;
+        rank.loading = true;
+        rank.err = false;
+        const done = () => { rank.loading = false; rank.t = animTime; if (state.tradeOpen && tradeTab === 'rank') renderTrade(); };
+        if (typeof lib === 'undefined' || typeof lib.getTopNEntriesFromLeaderboard !== 'function') { rank.err = true; done(); return; }
+        submitSurvival(state.lifeTime, true).then(() => lib.getTopNEntriesFromLeaderboard(10)).then(res => {
+          rank.entries = (res && res.entries) || [];
+          rank.userRank = res && res.userRank != null ? res.userRank : null;
+        }).catch(() => { rank.err = true; }).then(done);
+      }
+      function renderRank() {
+        tradeSub.textContent = 'Peringkat bertahan hidup';
+        if (animTime - rank.t > 15) loadRank();
+        const list = rank.entries || [];
+        const head = document.createElement('div');
+        head.className = 'trade-empty';
+        head.style.padding = '6px 12px';
+        head.textContent = `Waktu bertahanmu kini ${fmtTime(state.lifeTime)} • rekormu ${fmtTime(bestLife)}${rank.userRank ? ' • peringkat #' + rank.userRank : ''}`;
+        tradeList.appendChild(head);
+        if (rank.loading && !list.length) {
+          tradeList.insertAdjacentHTML('beforeend', '<div class="trade-empty">Memuat peringkat…</div>');
+        } else if (rank.err && !list.length) {
+          tradeList.insertAdjacentHTML('beforeend', '<div class="trade-empty">Papan peringkat tidak tersedia saat ini.</div>');
+        } else if (!list.length) {
+          tradeList.insertAdjacentHTML('beforeend', '<div class="trade-empty">Belum ada pemain di papan peringkat.<br>Bertahanlah selama mungkin!</div>');
+        } else {
+          list.slice(0, 10).forEach((e, i) => {
+            const row = document.createElement('div');
+            row.className = 'trade-row';
+            const medal = document.createElement('span');
+            medal.className = 'emoji';
+            medal.textContent = ['🥇', '🥈', '🥉'][i] || `#${i + 1}`;
+            if (i > 2) medal.style.fontSize = '24px';
+            const info = document.createElement('div');
+            info.className = 'info';
+            const nm = document.createElement('div');
+            nm.textContent = String(e.username || 'Pemain');
+            const sc = document.createElement('div');
+            sc.className = 'who';
+            sc.textContent = `bertahan ${fmtTime(e.score)}`;
+            info.appendChild(nm); info.appendChild(sc);
+            row.appendChild(medal); row.appendChild(info);
+            tradeList.appendChild(row);
+          });
+        }
+      }
+      tabRank.addEventListener('click', (e) => { e.stopPropagation(); tradeTab = 'rank'; renderTrade(); });
       tabBuy.addEventListener('click', (e) => { e.stopPropagation(); tradeTab = 'buy'; renderTrade(); });
       tabSell.addEventListener('click', (e) => { e.stopPropagation(); tradeTab = 'sell'; renderTrade(); });
       document.getElementById('trade-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
