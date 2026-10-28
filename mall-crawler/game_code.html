@@ -1263,7 +1263,7 @@
             <ul class="tutorial-list">
               <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas, atau dekati tumpukan bekal di basecamp untuk <b>MAKAN/MINUM</b> (mengurangi bekal target!). Istirahat di basecamp memulihkan nyawa.</li>
               <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
-              <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap, Spons Rakus.</li>
+              <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap, Spons Rakus, Roh Sakura.</li>
               <li>💧 Ada bar <b>HP</b>, <b>lapar</b>, dan <b>haus</b>. Makanan mengisi lapar, minuman mengisi haus. Mati = respawn di basecamp, waktu bertahan kembali ke 0 (progres lain tetap).</li>
               <li>🏆 Komputer punya tab <b>Peringkat</b>: 10 pemain dengan waktu bertahan hidup terlama. Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di layar judul.</li>
               <li>🎰 <b>Vending machine</b>: jatah <b>3 kotak misteri gratis per hari</b>, lalu ¢500 per kotak (kredit didapat dari menjual barang lewat komputer).</li>
@@ -3383,13 +3383,14 @@
 
       // Tipe monster: pemburu (standar), brute (lambat, besar, 2 damage, tahan senter), penyelinap (cepat, rapuh, mudah terkena senter)
       const MTYPES = {
-        hunter:  { name: 'Pemburu',    hp: 3, speed: 1,    detect: 1,    scale: 1,    dmg: 1, stun: 1,   reach: 1.5, body: 0x0f172a, eye: 0xff1744, w: 0.48 },
-        brute:   { name: 'Brute',      hp: 5, speed: 0.78, detect: 0.9,  scale: 1.35, dmg: 2, stun: 0.6, reach: 1.9, body: 0x3b1010, eye: 0xff6d00, w: 0.22 },
-        stalker: { name: 'Penyelinap', hp: 2, speed: 1.25, detect: 0.75, scale: 0.92, dmg: 1, stun: 1.4, reach: 1.5, body: 0x12202c, eye: 0x00e5ff, w: 0.17 },
-        sponge:  { name: 'Spons Rakus', hp: 4, speed: 0.92, detect: 1.1, scale: 1.1, dmg: 1, stun: 0.45, reach: 1.6, body: 0x9a8f1c, eye: 0xb6ff3a, w: 0.13 }
+        hunter:  { name: 'Pemburu',    hp: 3, speed: 1,    detect: 1,    scale: 1,    dmg: 1, stun: 1,   reach: 1.5, body: 0x0f172a, eye: 0xff1744, w: 0.45 },
+        brute:   { name: 'Brute',      hp: 5, speed: 0.78, detect: 0.9,  scale: 1.35, dmg: 2, stun: 0.6, reach: 1.9, body: 0x3b1010, eye: 0xff6d00, w: 0.20 },
+        stalker: { name: 'Penyelinap', hp: 2, speed: 1.25, detect: 0.75, scale: 0.92, dmg: 1, stun: 1.4, reach: 1.5, body: 0x12202c, eye: 0x00e5ff, w: 0.15 },
+        sponge:  { name: 'Spons Rakus', hp: 4, speed: 0.92, detect: 1.1, scale: 1.1, dmg: 1, stun: 0.45, reach: 1.6, body: 0x9a8f1c, eye: 0xb6ff3a, w: 0.12 },
+        sakura:  { name: 'Roh Sakura', hp: 3, speed: 1.05, detect: 1.05, scale: 1.0, dmg: 1, stun: 0.9, reach: 1.6, body: 0x3a2a2f, eye: 0xff4fa3, w: 0.08 }
       };
       MTYPES.hunter.mat = monsterMat; MTYPES.hunter.eyeMat = eyeMat;
-      ['brute', 'stalker', 'sponge'].forEach(k => {
+      ['brute', 'stalker', 'sponge', 'sakura'].forEach(k => {
         MTYPES[k].mat = new THREE.MeshStandardMaterial({ color: MTYPES[k].body, roughness: 0.4 });
         MTYPES[k].eyeMat = new THREE.MeshBasicMaterial({ color: MTYPES[k].eye });
       });
@@ -3418,6 +3419,7 @@
         tp.dark = new THREE.MeshStandardMaterial({ color: c.clone().multiplyScalar(0.45), roughness: 0.8, metalness: 0.05 });
         tp.armor = new THREE.MeshStandardMaterial({ color: c.clone().lerp(new THREE.Color(0x9aa4ad), 0.35), roughness: 0.38, metalness: 0.7 });
         tp.bone = new THREE.MeshStandardMaterial({ color: 0xb9ae94, roughness: 0.55, metalness: 0.05, emissive: 0x0d0b08 });
+        tp.petal = new THREE.MeshStandardMaterial({ color: 0xf6a5c8, roughness: 0.55, emissive: 0x5a1236, emissiveIntensity: 0.6 });
         tp.core = new THREE.MeshStandardMaterial({ color: 0x120505, emissive: tp.eye, emissiveIntensity: 1.6, roughness: 0.5 });
       });
       const _mg = {};
@@ -3521,6 +3523,59 @@
           const hand = (el, y) => { el.add(box(0.3, 0.3, 0.3, skin, 0, y - 0.12, 0)); [-0.1, 0, 0.1].forEach(x => el.add(cone(0.035, 0.18, bone, x, y - 0.32, 0.1, 0.4, 0, Math.PI))); };
           const as = { x: 0.64, y: 1.88, z: 0.04, uw: 0.28, ul: 0.55, fw: 0.24, fl: 0.55, bend: 0.2, plate: true, hand };
           armL = mkArm(-1, as); armR = mkArm(1, as);
+        } else if (typeKey === 'sakura') {
+          // Roh Sakura: roh pohon sakura layu — batang berkulit kayu, topeng porselen retak bermata merah muda,
+          // mahkota bunga, ranting menjuntai seperti rambut, lengan ranting berjari tajam, kelopak melayang
+          const petal = tp.petal;
+          const blob = (r, x, y, z, mat, sy) => {
+            const m = new THREE.Mesh(mgeo('ico', () => new THREE.IcosahedronGeometry(1, 0)), mat || petal);
+            m.scale.set(r, r * (sy || 0.85), r); m.position.set(x, y, z); m.rotation.set(x * 3, y * 5, z * 7); group.add(m); return m;
+          };
+          const lg = { x: 0.17, tw: 0.1, tl: 0.6, ty: 0.66, tz: 0.04, tr: -0.2, sw: 0.08, sl: 0.6, sy: 0.3, sz: 0.0, sr: 0.18, fw: 0.14, fl: 0.3, fz: 0.1, knee: 0, ky: 0, kz: 0 };
+          legL = mkLeg(-1, lg); legR = mkLeg(1, lg);
+          // akar menjalar di kaki
+          [-1, 1].forEach(sd => [-0.08, 0.08].forEach(dx => group.add(cone(0.03, 0.26, dark, sd * 0.17 + dx, 0.08, 0.34, Math.PI / 2 + 0.3))));
+          group.add(box(0.42, 0.2, 0.28, dark, 0, 1.12, 0));
+          const torso = taper(0.23, 0.17, 0.85, skin, 0, 1.58, 0.02, 0.08); torso.scale.z = 0.7; group.add(torso);
+          group.add(box(0.5, 0.14, 0.3, skin, 0, 1.96, 0.02));
+          [[-0.1, 1.45], [0.12, 1.7], [-0.14, 1.78]].forEach(([x, y]) => group.add(box(0.1, 0.12, 0.03, dark, x, y, 0.2)));
+          group.add(box(0.12, 0.34, 0.04, core, 0.0, 1.55, 0.24));            // celah membara di dada
+          [[-0.2, 1.3, 0.14], [0.22, 1.85, 0.12]].forEach(([x, y, r]) => blob(r, x, y, 0.2));
+          // kepala: topeng porselen retak
+          const head = new THREE.Group(); head.position.set(0, 2.2, 0.06); group.add(head);
+          head.add(box(0.3, 0.36, 0.28, bone, 0, 0, 0));
+          head.add(box(0.012, 0.3, 0.012, dark, 0.07, 0.0, 0.145, 0, 0, 0.3));
+          [-1, 1].forEach(sd => {
+            head.add(box(0.1, 0.05, 0.04, eyeM, sd * 0.075, 0.04, 0.15, 0, 0, -sd * 0.25));
+            const gl = new THREE.Sprite(tp.glowMat); gl.scale.set(0.3, 0.3, 1); gl.position.set(sd * 0.075, 0.04, 0.2); head.add(gl);
+          });
+          head.add(box(0.14, 0.02, 0.03, dark, 0, -0.09, 0.15));
+          head.add(box(0.02, 0.05, 0.03, dark, -0.07, -0.075, 0.15));
+          head.add(box(0.02, 0.05, 0.03, dark, 0.07, -0.075, 0.15));
+          // mahkota bunga
+          [[0, 0.3, 0, 0.2], [-0.16, 0.24, -0.02, 0.15], [0.16, 0.25, 0.02, 0.15], [0.0, 0.22, -0.16, 0.16], [-0.1, 0.26, 0.12, 0.1], [0.12, 0.28, 0.12, 0.09]].forEach(([x, y, z, r]) => {
+            const b = new THREE.Mesh(mgeo('ico', () => new THREE.IcosahedronGeometry(1, 0)), petal);
+            b.scale.set(r, r * 0.85, r); b.position.set(x, y, z); b.rotation.set(x * 3, y * 5, z * 7); head.add(b);
+          });
+          head.add(cone(0.03, 0.28, dark, -0.12, 0.38, 0.0, 0, 0, 0.5));
+          head.add(cone(0.03, 0.3, dark, 0.14, 0.4, -0.03, 0, 0, -0.45));
+          group.add(head);
+          // ranting menjuntai seperti rambut + bunga di ujungnya
+          [-0.17, -0.09, 0.09, 0.17].forEach((x, i) => {
+            const t = new THREE.Mesh(mgeo('hairb', () => new THREE.CylinderGeometry(0.012, 0.03, 0.8, 5)), dark);
+            t.position.set(x, 1.95, -0.1); t.rotation.x = -0.15 - (i % 2) * 0.12; t.rotation.z = x * 1.2; group.add(t);
+            blob(0.06, x * 1.4, 1.58 - (i % 2) * 0.1, -0.2, petal);
+          });
+          // lengan ranting dengan bunga di siku dan jari tajam
+          const hand = (el, y) => { clawSet(el, y, 4, 0.34, 0.04, dark); el.add(box(0.09, 0.1, 0.07, skin, 0, y - 0.04, 0)); };
+          const as = { x: 0.34, y: 1.92, z: 0.02, uw: 0.09, ul: 0.6, fw: 0.075, fl: 0.7, bend: 0.4, hand };
+          armL = mkArm(-1, as); armR = mkArm(1, as);
+          [-1, 1].forEach(sd => blob(0.1, sd * 0.36, 1.32, 0.18));
+          // kelopak melayang
+          [[0.55, 1.5, 0.3], [-0.6, 1.9, 0.1], [0.4, 2.3, -0.3], [-0.45, 1.2, -0.35], [0.7, 0.9, -0.1], [-0.3, 2.5, 0.25]].forEach(([x, y, z], i) => {
+            const pl = box(0.1, 0.012, 0.06, petal, x, y, z, 0.4 * i, 0.6 * i, 0.5);
+            group.add(pl);
+          });
         } else if (typeKey === 'sponge') {
           // Spons Rakus: tubuh persegi berpori berwarna kuning-lumut, mata melotot berurat, seringai bergerigi, lengan-kaki seperti tali
           const lg = { x: 0.2, tw: 0.09, tl: 0.5, ty: 0.68, tz: 0, tr: 0, sw: 0.08, sl: 0.55, sy: 0.3, sz: 0, sr: 0, fw: 0.2, fl: 0.46, fz: 0.12, knee: 0, ky: 0, kz: 0 };
@@ -4892,7 +4947,7 @@
 
       // Mati bukan akhir permainan: respawn di basecamp, waktu bertahan kembali 0, progres lain tetap
       const DEATH_TEXT = {
-        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap', sponge: 'diserap Spons Rakus',
+        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap', sponge: 'diserap Spons Rakus', sakura: 'disergap Roh Sakura',
         plate: 'tertusuk paku', laser: 'terkena laser', gas: 'keracunan gas', collapse: 'jatuh di lantai runtuh',
         hunger: 'kelaparan', thirst: 'dehidrasi'
       };
@@ -5015,6 +5070,7 @@
             brute: 'Brute menghantammu hingga tak berdaya.',
             stalker: 'Penyelinap menyergapmu dari bayangan.',
             sponge: 'Spons Rakus menyerapmu ke dalam tubuhnya.',
+            sakura: 'Roh Sakura menyergapmu dalam badai kelopak.',
             plate: 'Kamu tertusuk paku jebakan lantai.',
             laser: 'Sinar laser jebakan menembusmu.',
             gas: 'Gas beracun dari pipa jebakan melumpuhkanmu.',
@@ -6875,7 +6931,7 @@
       const npcs = [];
       const NPC_HP = 3;
       const CAUSE_NAMES = {
-        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap', sponge: 'diserap Spons Rakus',
+        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap', sponge: 'diserap Spons Rakus', sakura: 'disergap Roh Sakura',
         plate: 'tertusuk paku jebakan', laser: 'terkena laser', gas: 'keracunan gas', collapse: 'jatuh di lantai runtuh'
       };
 
