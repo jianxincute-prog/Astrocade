@@ -93,7 +93,7 @@
     position: absolute;
     z-index: 60;
     bottom: 24px; left: 24px;
-    width: 320px; height: 320px;   /* generous touch zone; the stick appears under the thumb */
+    width: 280px; height: 320px;   /* generous touch zone; the stick appears under the thumb */
     pointer-events: auto;
   }
   .joystick-base {
@@ -249,6 +249,40 @@
   #hud-l1 { font: 700 20px 'Orbitron', sans-serif; line-height: 1.5; white-space: nowrap; }
   #hud-l1.over { color: #ffb36b; }
   #hud-l2 { font: 600 15px 'Inter', sans-serif; color: #b9e6ee; white-space: nowrap; }
+  #item-slots { position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%); display: none; gap: 6px; z-index: 62; }
+  #item-slots.on { display: flex; }
+  .item-slot {
+    position: relative; width: 92px; height: 92px; padding: 0; border-radius: 22px; display: grid; place-items: center;
+    border: 2px solid rgba(180,225,235,.6); background: rgba(10,24,36,.8); color: #fff; cursor: pointer;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .item-slot svg { width: 48px; height: 48px; pointer-events: none; }
+  .item-slot .is-key { position: absolute; top: 5px; left: 9px; font: 700 13px 'Inter', sans-serif; color: #9fc4cf; pointer-events: none; }
+  .item-slot .is-count { position: absolute; right: 8px; bottom: 4px; font: 700 20px 'Orbitron', sans-serif; text-shadow: 0 2px 4px #000; pointer-events: none; }
+  .item-slot.empty { opacity: .42; }
+  .item-slot.active { border-color: #7dffe0; box-shadow: 0 0 18px rgba(125,255,224,.75); }
+  .item-slot.active .is-count { color: #7dffe0; font-size: 26px; }
+  .item-slot.blink { animation: slotBlink .35s infinite alternate; }
+  @keyframes slotBlink { from { opacity: 1; } to { opacity: .45; } }
+  .item-slot:active { transform: scale(.92); }
+  .mn-btn.big { min-height: 130px; font-size: 38px; }
+  .mn-btn.shop { background: linear-gradient(180deg, #8a5fd0, #5c3a9c); }
+  .mn-coins { text-align: center; font: 700 26px 'Orbitron', sans-serif; color: #ffd86b; }
+  .shop-card { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 20px; background: rgba(255,255,255,.07); border: 1px solid rgba(160,215,230,.3); }
+  .sh-ico { flex: 0 0 64px; height: 64px; border-radius: 16px; background: rgba(10,24,36,.8); display: grid; place-items: center; }
+  .sh-ico svg { width: 44px; height: 44px; }
+  .sh-info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .sh-info b { font: 700 18px 'Orbitron', sans-serif; color: #fff; }
+  .sh-info span { font: 600 14px 'Inter', sans-serif; color: #b9d6dc; line-height: 1.3; }
+  .sh-info em { font: 700 14px 'Inter', sans-serif; color: #ffd86b; font-style: normal; }
+  .sh-buy { flex: 0 0 104px; min-height: 96px; border-radius: 20px; border: 2px solid rgba(255,255,255,.6); background: linear-gradient(180deg, #e0a23d, #b0702a); color: #fff; font: 700 20px 'Orbitron', sans-serif; cursor: pointer; touch-action: manipulation; }
+  .sh-buy.off { opacity: .4; }
+  .sh-buy:active { transform: scale(.94); }
+  .shop-msg { min-height: 22px; text-align: center; color: #9fe8c8; font: 700 16px 'Inter', sans-serif; }
+  .set-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.07); font: 600 20px 'Inter', sans-serif; }
+  .set-row span { flex: 0 0 130px; }
+  .set-row input[type=range] { flex: 1; height: 44px; accent-color: #34c98a; touch-action: pan-x; }
+  .set-row b { flex: 0 0 36px; text-align: right; font-family: 'Orbitron', sans-serif; color: #ffd86b; }
   #hud-l3 { margin-top: 2px; font: 700 16px 'Inter', sans-serif; color: #ffe08a; white-space: nowrap; letter-spacing: .5px; }
   #hud-l3.done { color: #8dffbf; }
   #keypad-screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 100; background: rgba(4,12,18,.84); }
@@ -272,7 +306,7 @@
     opacity: 0; pointer-events: none; transition: opacity 250ms ease;
   }
   #toast.show { opacity: 1; }
-  #game-world.in-menu #joystick-area, #game-world.in-menu #jump-btn, #game-world.in-menu #hud,
+  #game-world.in-menu #joystick-area, #game-world.in-menu #jump-btn, #game-world.in-menu #hud, #game-world.in-menu #item-slots,
   #game-world.in-menu #radar-panel, #game-world.in-menu #goal-hint, #game-world.in-menu #danger-vignette,
   #game-world.in-menu #danger-banner, #game-world.in-menu #toast { display: none !important; }
 
@@ -447,6 +481,11 @@
       <div class="joystick-knob" id="joystick-knob"></div>
     </div>
     <div id="jump-btn">JUMP</div>
+    <div id="item-slots">
+      <button class="item-slot" data-i="0" aria-label="Batu"><span class="is-key">1</span><b class="is-count">0</b></button>
+      <button class="item-slot" data-i="1" aria-label="Jarum akupuntur"><span class="is-key">2</span><b class="is-count">0</b></button>
+      <button class="item-slot" data-i="2" aria-label="Sepatu chakra"><span class="is-key">3</span><b class="is-count">0</b></button>
+    </div>
     <div id="hud">
       <button id="menu-btn" aria-label="Menu">&#9776;</button>
       <div id="hud-info"><div id="hud-l1">LV 1 &middot; 00:00.0</div><div id="hud-l2"></div><div id="hud-l3"></div></div>
@@ -462,6 +501,7 @@
         <button id="next-btn" class="end-btn primary">LEVEL BERIKUTNYA</button>
         <button id="cont-btn" class="end-btn primary">LANJUT DARI CHECKPOINT</button>
         <button id="restart-btn" class="end-btn">ULANGI</button>
+        <button id="end-shop-btn" class="end-btn ghost">🛍 TOKO</button>
         <button id="end-menu-btn" class="end-btn ghost">MENU</button>
       </div>
     </div>
@@ -852,7 +892,19 @@ async function run(mode) {
   const MAX_LEVEL = 30;
   const PAR_PER_HOP = 1.25, PAR_BASE = 8, PAR_PER_CRYSTAL = 3.5;
   let levelSpec = null;
-  const save = { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0 };
+  // Shop items: slot i = ITEMS[i]. Coins are earned by finishing levels and spent in the shop.
+  const ITEMS = [
+    { id: 'stone', name: 'Batu', price: 15, max: 9, desc: 'Lempar ke arah kamera (makin ke atas makin jauh). Monster teralihkan ke titik jatuhnya selama 6 detik.' },
+    { id: 'needle', name: 'Jarum Akupuntur', price: 60, max: 5, desc: 'Lempar lurus ke monster: tersengat 5 detik. Kalau meleset, jarumnya sia-sia.' },
+    { id: 'shoes', name: 'Sepatu Chakra', price: 120, max: 3, desc: 'Berlari di atas air selama 15 detik tanpa memancing monster.' }
+  ];
+  const STUN_TIME = 5, DISTRACT_TIME = 6, SHOES_TIME = 15;
+  const ITEM_ICONS = [
+    '<svg viewBox="0 0 48 48"><path d="M7 31 L13 16 L27 9 L40 19 L38 34 L22 41 Z" fill="#9aa4ad" stroke="#e3eaef" stroke-width="2.5" stroke-linejoin="round"/><path d="M13 16 L22 24 L38 34 M27 9 L22 24" fill="none" stroke="#6f7a84" stroke-width="2"/></svg>',
+    '<svg viewBox="0 0 48 48"><line x1="8" y1="40" x2="35" y2="13" stroke="#f1d27a" stroke-width="3.5" stroke-linecap="round"/><circle cx="38" cy="10" r="5.5" fill="#ff7b6b" stroke="#fff" stroke-width="2"/><line x1="8" y1="40" x2="5" y2="44" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+    '<svg viewBox="0 0 48 48"><path d="M14 7 H28 V23 L41 29 Q45 31 45 36 V40 H12 Z" fill="#3aa7d8" stroke="#d9f6ff" stroke-width="2.5" stroke-linejoin="round"/><path d="M12 34 H45" stroke="#d9f6ff" stroke-width="2"/><path d="M3 21 q6 -2 8 4 M2 29 q6 -2 8 4" stroke="#8fe8ff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>'
+  ];
+  const save = { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0, coins: 50, inv: [3, 0, 0], snd: [8, 7] };
 
   function dateKey() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
   function alertFor(mult) { const a0 = Number(cfg.settings.alertTime) || 0; return a0 <= 0 ? 0 : Math.min(a0, Math.max(0.8, a0 * mult)); }
@@ -904,6 +956,10 @@ async function run(mode) {
     if (st.daily) save.daily = { k: st.daily.k | 0, s: +st.daily.s || 0, st: st.daily.st | 0, t: +st.daily.t || 0 };
     save.dailyTotal = +st.dailyTotal || 0;
     save.tut = st.tut ? 1 : 0;
+    if (st.coins != null) save.coins = Math.max(0, Math.min(999999, st.coins | 0));
+    if (Array.isArray(st.inv)) save.inv = ITEMS.map((it, i) => Math.max(0, Math.min(it.max, st.inv[i] | 0)));
+    if (Array.isArray(st.snd)) save.snd = [Math.max(0, Math.min(10, st.snd[0] | 0)), Math.max(0, Math.min(10, st.snd[1] | 0))];
+    if (typeof soundSystem !== 'undefined') soundSystem.applyVolumes();
   }
   let saveTimer = 0;
   function saveProgress() {
@@ -1924,7 +1980,7 @@ async function run(mode) {
     return { type, group, arms, legs, eyeLight, pos: new THREE.Vector2(), vel: new THREE.Vector2(), target: new THREE.Vector2(), heading: Math.PI, lastDist: Infinity, stuck: 0, attacking: false, phase: isWarden ? 0.7 : 2.4, gaitPhase: isWarden ? 0.7 : 2.4, gaitBlend: 0, radius: isWarden ? 0.22 : 0.27, footBottom: isWarden ? 0.02 : 0.0 };
   }
   const humanoidMonsters = [createHumanoidMonster('warden'), createHumanoidMonster('diver')];
-  humanoidMonsters.forEach(h => scene.add(h.group));
+  humanoidMonsters.forEach(h => { scene.add(h.group); h.dTarget = new THREE.Vector2(); h.distractT = 0; h.stunT = 0; });
 
   // ─── RIPPLE POOL ───
   const ripples = [];
@@ -1973,17 +2029,30 @@ async function run(mode) {
       this.ambienceGain = null;
       this.isAmbiencePlaying = false;
       this.unlocked = false;
+      this.busSfx = null;
+      this.busAmb = null;
     }
 
     ensureContext() {
       if (!this.ctx) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) this.ctx = new AudioCtx();
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+          this.busSfx = this.ctx.createGain(); this.busSfx.connect(this.ctx.destination);
+          this.busAmb = this.ctx.createGain(); this.busAmb.connect(this.ctx.destination);
+          this.applyVolumes();
+        }
       }
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume().catch(() => {});
       }
       return this.ctx;
+    }
+
+    applyVolumes() {
+      if (!this.busSfx) return;
+      this.busSfx.gain.value = Math.pow(save.snd[0] / 10, 1.5);
+      this.busAmb.gain.value = Math.pow(save.snd[1] / 10, 1.5);
     }
 
     async loadAsset(id) {
@@ -2006,7 +2075,7 @@ async function run(mode) {
       });
     }
 
-    playBuffer(id, volume = 1.0, loop = false) {
+    playBuffer(id, volume = 1.0, loop = false, bus = 'sfx') {
       const ctx = this.ensureContext();
       if (!ctx) return null;
       const buf = this.buffers[id];
@@ -2019,7 +2088,7 @@ async function run(mode) {
         const gain = ctx.createGain();
         gain.gain.value = volume;
         src.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(bus === 'amb' ? this.busAmb : this.busSfx);
         src.start(0);
         return { src, gain };
       } catch (e) {
@@ -2034,7 +2103,7 @@ async function run(mode) {
       this.isAmbiencePlaying = true;
 
       if (this.buffers['room_ambience_loop']) {
-        const handle = this.playBuffer('room_ambience_loop', 0.28, true);
+        const handle = this.playBuffer('room_ambience_loop', 0.28, true, 'amb');
         if (handle) {
           this.ambienceNode = handle.src;
           this.ambienceGain = handle.gain;
@@ -2055,7 +2124,7 @@ async function run(mode) {
         gain.gain.setValueAtTime(0.05, ctx.currentTime);
 
         osc1.connect(filter); osc2.connect(filter);
-        filter.connect(gain); gain.connect(ctx.destination);
+        filter.connect(gain); gain.connect(this.busAmb);
         osc1.start(); osc2.start();
 
         this.ambienceNode = {
@@ -2104,7 +2173,7 @@ async function run(mode) {
         gain.gain.setValueAtTime(0.6, now);
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.36);
 
-        noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+        noise.connect(filter); filter.connect(gain); gain.connect(this.busSfx);
         noise.start(now);
 
         // Water droplet resonant pop
@@ -2115,7 +2184,7 @@ async function run(mode) {
         drop.frequency.exponentialRampToValueAtTime(220, now + 0.18);
         dropGain.gain.setValueAtTime(0.35, now);
         dropGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        drop.connect(dropGain); dropGain.connect(ctx.destination);
+        drop.connect(dropGain); dropGain.connect(this.busSfx);
         drop.start(now); drop.stop(now + 0.22);
       } catch (e) {}
     }
@@ -2153,7 +2222,7 @@ async function run(mode) {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
 
         osc1.connect(filter); osc2.connect(filter);
-        filter.connect(gain); gain.connect(ctx.destination);
+        filter.connect(gain); gain.connect(this.busSfx);
 
         osc1.start(now); osc2.start(now);
         osc1.stop(now + 1.25); osc2.stop(now + 1.25);
@@ -2172,11 +2241,38 @@ async function run(mode) {
           gain.gain.setValueAtTime(0, now + i * step);
           gain.gain.linearRampToValueAtTime(vol, now + i * step + 0.02);
           gain.gain.exponentialRampToValueAtTime(0.001, now + i * step + dur);
-          osc.connect(gain); gain.connect(ctx.destination);
+          osc.connect(gain); gain.connect(this.busSfx);
           osc.start(now + i * step); osc.stop(now + i * step + dur + 0.05);
         });
       } catch (e) {}
     }
+    playWhoosh() {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      try {
+        const now = ctx.currentTime, len = Math.floor(ctx.sampleRate * 0.22);
+        const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / len);
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+        f.frequency.setValueAtTime(500, now); f.frequency.exponentialRampToValueAtTime(2200, now + 0.2);
+        const g = ctx.createGain(); g.gain.value = 0.35;
+        src.connect(f); f.connect(g); g.connect(this.busSfx); src.start(now);
+      } catch (e) {}
+    }
+    playClack() { this.playBlip([320, 190], 0.03, 0.4, 0.12); }
+    playZap() {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      try {
+        const now = ctx.currentTime, osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1500, now); osc.frequency.exponentialRampToValueAtTime(160, now + 0.35);
+        g.gain.setValueAtTime(0.3, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+        osc.connect(g); g.connect(this.busSfx); osc.start(now); osc.stop(now + 0.4);
+      } catch (e) {}
+    }
+    playShoes() { this.playBlip([659.25, 880, 1318.5], 0.06, 0.25, 0.5); }
     playPickup() { this.playBlip([1046.5, 1568], 0.07, 0.26, 0.35); }
     playCheckpoint() { this.playBlip([523.25, 659.25, 783.99], 0.09, 0.28, 0.5); }
 
@@ -2201,7 +2297,7 @@ async function run(mode) {
           gain.gain.linearRampToValueAtTime(0.32, now + idx * 0.08 + 0.03);
           gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 1.9);
 
-          osc.connect(gain); gain.connect(ctx.destination);
+          osc.connect(gain); gain.connect(this.busSfx);
           osc.start(now + idx * 0.08);
           osc.stop(now + idx * 0.08 + 2.0);
         });
@@ -2574,7 +2670,7 @@ async function run(mode) {
   // ─── GAME / MONSTER STATE ───
   let gameState = mode === 'play' ? 'boot' : 'playing'; // boot | menu | playing | gameover | won
   let mState = 'patrol';     // patrol | alert | chase | search | preview; the monster stays present in the room
-  let mAlertT = 0, mChaseT = 0, mSearchT = 0;
+  let mAlertT = 0, mChaseT = 0, mSearchT = 0, mStunT = 0, mDistractT = 0;
   const mLastKnown = new THREE.Vector2(0, 0);   // where the player last splashed
   let mRise = 1;             // keep the creature surfaced and visible while it swims
   let mHeading = 0;
@@ -2620,6 +2716,7 @@ async function run(mode) {
       }
       if (gameState === 'boot') return;
       if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); pauseToMenu(); return; }
+      if (/^Digit[1-3]$/.test(e.code)) { e.preventDefault(); useItem(+e.code.slice(-1) - 1); return; }
       if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
         e.preventDefault();
         keys[e.code] = true;
@@ -3046,7 +3143,8 @@ async function run(mode) {
     gameState = st;
     gameWorld.classList.toggle('in-menu', mode === 'play' && st !== 'playing');
   }
-  if (mode === 'play') { gameWorld.classList.add('in-menu'); hudEl.classList.add('on'); }
+  const slotsEl = document.getElementById('item-slots');
+  if (mode === 'play') { gameWorld.classList.add('in-menu'); hudEl.classList.add('on'); slotsEl.classList.add('on'); }
 
   function showDanger(text) {
     dangerBanner.textContent = text;
@@ -3083,6 +3181,7 @@ async function run(mode) {
     hudL3.textContent = pt;
     hudL3.style.display = pt ? '' : 'none';
     hudL3.classList.toggle('done', !!pt && runStats.solved);
+    updateSlots();
   }
 
   // ── Door puzzle (key / fuses / code) ──
@@ -3207,20 +3306,25 @@ async function run(mode) {
     const stars = 1 + (stTime ? 1 : 0) + (stCry ? 1 : 0);
     const score = Math.max(100, Math.round(500 + Math.max(0, par * 2 - t) * 10 + got * 150 + stars * 300 - runStats.falls * 40 - runStats.deaths * 100 - runStats.wrong * 30));
     rollDaily();
-    let prevScore = 0;
+    let prevScore = 0, prevSt = 0;
     if (L.kind === 'level') {
       const prev = save.lv[L.n - 1] || { s: 0, st: 0, t: 0 };
-      prevScore = prev.s;
+      prevScore = prev.s; prevSt = prev.st;
       for (let i = 0; i < L.n - 1; i++) if (save.lv[i] === undefined) save.lv[i] = null;
       save.lv[L.n - 1] = { s: Math.max(prev.s, score), st: Math.max(prev.st, stars), t: prev.t ? Math.min(prev.t, t) : t };
       save.maxLv = Math.max(save.maxLv, L.n);
     } else {
       const prev = save.daily;
-      prevScore = prev.s;
+      prevScore = prev.s; prevSt = prev.st;
       if (score > prev.s) save.daily = { k: dateKey(), s: score, st: Math.max(stars, prev.st), t };
     }
+    // Coin payout: first clear pays x1.5, improving your stars pays in full, plain repeats pay 40%.
+    const first = prevSt === 0;
+    let coins = Math.round((20 + stars * 20 + got * 10 + (puzzleInfo() ? 15 : 0)) * (1 + 0.04 * (L.n || 8)));
+    coins = first ? Math.round(coins * 1.5) : (stars > prevSt ? coins : Math.round(coins * 0.4));
+    save.coins = Math.min(999999, save.coins + coins);
     saveProgress();
-    return { stars, score, stTime, stCry, newBest: score > prevScore, par, total, got };
+    return { stars, score, stTime, stCry, newBest: score > prevScore, par, total, got, coins, first };
   }
 
   async function submitBoard() {
@@ -3246,6 +3350,7 @@ async function run(mode) {
         row('Kristal', `${r.got}/${r.total}`, r.total ? ((r.stCry ? '★ ' : '☆ ') + 'semua') : '—', r.stCry) +
         (puzzleInfo() ? row('Puzzle pintu', puzzleInfo().type === 'key' ? 'Kunci' : puzzleInfo().type === 'fuse' ? 'Sekering' : 'Kode', runStats.wrong ? `salah kode ${runStats.wrong}×` : 'terpecahkan', !runStats.wrong) : '') +
         row('Jatuh ke air', runStats.falls, runStats.deaths ? `tertangkap ${runStats.deaths}×` : '') +
+        row('Koin', '🪙 +' + r.coins, r.first ? 'pertama ×1,5' : '', true) +
         row('SKOR', r.score.toLocaleString('id-ID'), r.newBest ? 'REKOR BARU!' : '', false, 'total');
       const canNext = levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL;
       nextBtn.style.display = canNext ? '' : 'none';
@@ -3283,6 +3388,7 @@ async function run(mode) {
   // Put the player on the start pad (or the last checkpoint) and reset the monsters.
   function restartGame(fromCp) {
     const plat = (fromCp && runStats.cp) ? runStats.cp : startPlat;
+    resetItemEffects();
     placePlayerOnPlatform(plat);
     velY = 0; onGround = true; onPlatform = true; wasInWater = false;
     facingAngle = Math.atan2(doorInfo.x - playerPos.x, doorInfo.z - playerPos.z);
@@ -3315,7 +3421,7 @@ async function run(mode) {
     if (pzi) toast(pzi.type === 'key' ? '🔒 Pintu terkunci. Temukan KUNCI di pijakan samping rute (lihat radar kuning).'
       : pzi.type === 'fuse' ? `🔒 Pintu terkunci. Kumpulkan ${pzi.count} SEKERING di pijakan samping rute (radar kuning).`
       : `🔒 Pintu terkunci. Temukan ${pzi.count} DIGIT kode satu per satu; tercatat otomatis di HUD.`, 6500);
-    else if (levelSpec.kind === 'level' && levelSpec.n === 1 && !save.lv[0]) toast('Geser joystick untuk bergerak, tekan JUMP untuk melompat. Capai pintu EXIT!', 6000);
+    else if (levelSpec.kind === 'level' && levelSpec.n === 1 && !save.lv[0]) toast('Geser joystick untuk bergerak, tekan JUMP untuk melompat. Capai pintu EXIT! Slot item ada di tengah bawah.', 6500);
   }
   function continueFromCheckpoint() {
     if (!runStats.cp) { retryLevel(); return; }
@@ -3336,30 +3442,61 @@ async function run(mode) {
     else openMenu(false);
   }
 
-  // ── Menu ──
-  function renderMenu() {
-    rollDaily();
-    const next = Math.max(1, Math.min(MAX_LEVEL, save.maxLv + 1));
-    const dk = dateKey(), d = save.daily;
-    const dLabel = `${dk % 100}/${Math.floor(dk / 100) % 100}`;
+  // ── Menu: HOME (just PLAY) -> LIST (play / levels / daily / shop / leaderboard / how to play / settings) ──
+  let menuView = 'home', shopMsg = '';
+  function renderLevels(next) {
     let cells = '';
     for (let i = 1; i <= MAX_LEVEL; i++) {
       const e = save.lv[i - 1], locked = i > save.maxLv + 1;
       cells += `<button class="lv-cell${locked ? ' locked' : ''}${i === next ? ' next' : ''}" data-act="level" data-n="${i}"${locked ? ' disabled' : ''}><b>${locked ? '🔒' : i}</b><span>${e ? starStr(e.st) : (locked ? '' : '☆☆☆')}</span></button>`;
     }
-    menuPanel.innerHTML =
-      `<div class="mn-title">DON'T TOUCH WATER</div>` +
-      `<div class="mn-sub">Lompati pijakan, jauhi air, capai pintu EXIT</div>` +
-      `<div class="mn-stats"><span>★ ${totalStars()}/${MAX_LEVEL * 3}</span><span>SKOR ${totalScore().toLocaleString('id-ID')}</span></div>` +
-      (pausedLevel ? `<button class="mn-btn primary" data-act="resume">⏸ LANJUTKAN ${esc(levelSpec.title)}</button>` : '') +
-      `<button class="mn-btn ${pausedLevel ? '' : 'primary'}" data-act="level" data-n="${next}">▶ MAIN LEVEL ${next}</button>` +
-      `<button class="mn-btn daily" data-act="daily">☀ TANTANGAN HARIAN<small>${dLabel} · ${d.k === dk && d.st > 0 ? starStr(d.st) + ' · ' + fmtTime(d.t) : 'belum dimainkan'}</small></button>` +
-      `<div class="mn-row"><button class="mn-btn sm" data-act="board">🏆 PERINGKAT</button><button class="mn-btn sm" data-act="help">? CARA MAIN</button></div>` +
-      `<div class="mn-h">PILIH LEVEL</div><div class="lv-grid">${cells}</div>`;
+    return `<div class="mn-title sm">PILIH LEVEL</div><div class="lv-grid">${cells}</div><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+  }
+  function renderShop() {
+    const cards = ITEMS.map((it, i) => {
+      const full = save.inv[i] >= it.max, poor = save.coins < it.price;
+      return `<div class="shop-card"><div class="sh-ico">${ITEM_ICONS[i]}</div><div class="sh-info"><b>${it.name}</b><span>${it.desc}</span><em>Punya ${save.inv[i]}/${it.max}</em></div>` +
+        `<button class="sh-buy${full || poor ? ' off' : ''}" data-act="buy" data-i="${i}">${full ? 'PENUH' : '🪙 ' + it.price}</button></div>`;
+    }).join('');
+    return `<div class="mn-title sm">🛍 TOKO</div><div class="mn-coins">🪙 ${save.coins.toLocaleString('id-ID')}</div><div class="shop-msg">${shopMsg}</div>${cards}` +
+      `<div class="mn-sub">Koin didapat dengan menamatkan level. Level pertama kali memberi bonus ×1,5.</div><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+  }
+  function renderSettings() {
+    const row = (label, idx) => `<div class="set-row"><span>${label}</span><input type="range" min="0" max="10" step="1" value="${save.snd[idx]}" data-s="${idx}"><b>${save.snd[idx]}</b></div>`;
+    return `<div class="mn-title sm">⚙ PENGATURAN</div><div class="mn-sub">Atur suara</div>${row('Efek suara', 0)}${row('Ambience', 1)}<button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+  }
+  function renderMenu() {
+    rollDaily();
+    const next = Math.max(1, Math.min(MAX_LEVEL, save.maxLv + 1));
+    const dk = dateKey(), d = save.daily;
+    const dLabel = `${dk % 100}/${Math.floor(dk / 100) % 100}`;
+    const resume = pausedLevel ? `<button class="mn-btn primary" data-act="resume">⏸ LANJUTKAN ${esc(levelSpec.title)}</button>` : '';
+    const stats = `<div class="mn-stats"><span>★ ${totalStars()}/${MAX_LEVEL * 3}</span><span>🪙 ${save.coins.toLocaleString('id-ID')}</span></div>`;
+    let html;
+    if (menuView === 'home') {
+      html = `<div class="mn-title">DON'T TOUCH WATER</div><div class="mn-sub">Lompati pijakan, jauhi air, capai pintu EXIT</div>${stats}${resume}` +
+        `<button class="mn-btn primary big" data-act="play">▶ PLAY</button>`;
+    } else if (menuView === 'list') {
+      html = `<div class="mn-title sm">MENU</div>${stats}${resume}` +
+        `<button class="mn-btn primary" data-act="level" data-n="${next}">▶ MAIN LEVEL ${next}</button>` +
+        `<button class="mn-btn" data-act="view" data-v="levels">☰ PILIH LEVEL</button>` +
+        `<button class="mn-btn daily" data-act="daily">☀ TANTANGAN HARIAN<small>${dLabel} · ${d.k === dk && d.st > 0 ? starStr(d.st) + ' · ' + fmtTime(d.t) : 'belum dimainkan'}</small></button>` +
+        `<button class="mn-btn shop" data-act="view" data-v="shop">🛍 TOKO<small>🪙 ${save.coins.toLocaleString('id-ID')}</small></button>` +
+        `<button class="mn-btn" data-act="view" data-v="board">🏆 PERINGKAT</button>` +
+        `<button class="mn-btn" data-act="help">? CARA MAIN</button>` +
+        `<button class="mn-btn" data-act="view" data-v="settings">⚙ PENGATURAN</button>` +
+        `<button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+    } else if (menuView === 'levels') html = renderLevels(next);
+    else if (menuView === 'shop') html = renderShop();
+    else if (menuView === 'settings') html = renderSettings();
+    else { openBoard(); return; }
+    menuPanel.innerHTML = html;
     menuPanel.scrollTop = 0;
   }
-  function openMenu(paused) {
+  function openMenu(paused, view) {
     pausedLevel = !!paused;
+    menuView = view || (paused ? 'list' : 'home');
+    shopMsg = '';
     endScreen.classList.remove('show');
     setState('menu');
     renderMenu();
@@ -3381,7 +3518,7 @@ async function run(mode) {
   let boardToken = 0;
   async function openBoard() {
     const tok = ++boardToken;
-    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-note">Memuat…</div><button class="mn-btn sm" data-act="closeboard">‹ KEMBALI</button>`;
+    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-note">Memuat…</div><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
     let body;
     try {
       const r = await lib.getTopNEntriesFromLeaderboard(10);
@@ -3393,8 +3530,20 @@ async function run(mode) {
     } catch (e) {
       body = `<div class="mn-note">Papan peringkat belum tersedia.</div>`;
     }
-    if (tok !== boardToken || gameState !== 'menu') return;
-    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-sub">Skor total semua level + tantangan harian</div>${body}<button class="mn-btn sm" data-act="closeboard">‹ KEMBALI</button>`;
+    if (tok !== boardToken || gameState !== 'menu' || menuView !== 'board') return;
+    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-sub">Skor total semua level + tantangan harian</div>${body}<button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+  }
+  function buyItem(i) {
+    const it = ITEMS[i];
+    if (save.inv[i] >= it.max) { shopMsg = `${it.name} sudah penuh`; soundSystem.playClack(); }
+    else if (save.coins < it.price) { shopMsg = 'Koin tidak cukup. Tamatkan level untuk dapat koin.'; soundSystem.playClack(); }
+    else {
+      save.coins -= it.price; save.inv[i]++;
+      shopMsg = `${it.name} dibeli!`;
+      soundSystem.playPickup();
+      saveProgress();
+    }
+    renderMenu();
   }
 
   // ── How-to-play cards ──
@@ -3403,6 +3552,7 @@ async function run(mode) {
     { t: 'JANGAN SENTUH AIR', d: 'Lantai adalah air. Begitu menyentuhnya, monster mendengar dan datang. Kamu punya beberapa detik untuk melompat kembali ke pijakan sebelum ia mengejar. Pijakan yang aman membuatnya kehilangan jejak.' },
     { t: 'KRISTAL & CHECKPOINT', d: 'Kristal ◆ ada di pijakan samping rute dengan lompatan lebih berisiko; radar menandainya. Bendera hijau adalah checkpoint: kalau tertangkap, kamu bisa lanjut dari sana (+15 detik).' },
     { t: 'PUZZLE PINTU', d: 'Mulai level 3 pintu EXIT terkunci. Level 3–5: temukan kunci. Level 6–9: kumpulkan sekering. Level 10 ke atas: temukan digit kode satu per satu (tercatat otomatis di HUD), lalu ketik di keypad pintu. Salah kode menambah 5 detik. Benda puzzle ada di pijakan samping rute, ditandai kuning di radar.' },
+    { t: 'KOIN, TOKO & ITEM', d: 'Tamatkan level untuk mendapat koin 🪙, lalu belanja di TOKO. Tiga slot item ada di tengah bawah layar (keyboard: 1, 2, 3). ① Batu: lempar ke arah kamera, monster teralihkan 6 detik. ② Jarum akupuntur: lempar lurus ke monster, tersengat 5 detik; kalau meleset sia-sia. ③ Sepatu chakra: berlari di atas air 15 detik tanpa dikejar.' },
     { t: 'BINTANG & PERINGKAT', d: '★ selesai level  ·  ★ waktu di bawah target  ·  ★ semua kristal. Skor makin tinggi untuk waktu cepat, kristal, dan sedikit jatuh. Skor total semua level + tantangan harian masuk papan peringkat.' }
   ];
   let helpIdx = 0;
@@ -3427,9 +3577,24 @@ async function run(mode) {
     if (act === 'level') beginLevel(levelSpecFor(+b.dataset.n));
     else if (act === 'daily') beginLevel(dailySpec());
     else if (act === 'resume') resumeLevel();
-    else if (act === 'board') openBoard();
-    else if (act === 'closeboard') { boardToken++; renderMenu(); }
+    else if (act === 'play') { menuView = 'list'; renderMenu(); }
+    else if (act === 'view') { shopMsg = ''; menuView = b.dataset.v; renderMenu(); }
+    else if (act === 'back') { boardToken++; menuView = menuView === 'list' ? 'home' : 'list'; renderMenu(); }
+    else if (act === 'buy') buyItem(+b.dataset.i);
     else if (act === 'help') openHelp(0);
+  });
+  menuPanel.addEventListener('input', e => {
+    const idx = e.target.dataset ? e.target.dataset.s : undefined;
+    if (idx === undefined) return;
+    save.snd[+idx] = +e.target.value;
+    e.target.nextElementSibling.textContent = e.target.value;
+    soundSystem.ensureContext(); soundSystem.applyVolumes();
+    saveProgress();
+  });
+  menuPanel.addEventListener('change', e => {
+    const idx = e.target.dataset ? e.target.dataset.s : undefined;
+    if (idx === undefined) return;
+    if (+idx === 0) soundSystem.playPickup(); else { soundSystem.startAmbience(); }
   });
   helpCard.addEventListener('click', e => {
     const b = e.target.closest('[data-h]');
@@ -3443,7 +3608,210 @@ async function run(mode) {
   nextBtn.addEventListener('click', endTap(goNext));
   contBtn.addEventListener('click', endTap(continueFromCheckpoint));
   endMenuBtn.addEventListener('click', endTap(() => openMenu(false)));
+  document.getElementById('end-shop-btn').addEventListener('click', endTap(() => openMenu(false, 'shop')));
   menuBtn.addEventListener('click', e => { e.preventDefault(); pauseToMenu(); });
+
+  // ─── ITEMS: stone, acupuncture needle, chakra shoes (3 quick slots) ───
+  let shoesT = 0, useCd = 0, shoeRippleT = 0;
+  const projectiles = [];
+  const slotEls = Array.from(document.querySelectorAll('.item-slot'));
+  slotEls.forEach((el, i) => el.insertAdjacentHTML('afterbegin', ITEM_ICONS[i]));
+  function updateSlots() {
+    slotEls.forEach((el, i) => {
+      const n = save.inv[i], active = i === 2 && shoesT > 0;
+      el.querySelector('.is-count').textContent = active ? Math.ceil(shoesT) : n;
+      el.classList.toggle('empty', n <= 0 && !active);
+      el.classList.toggle('active', active);
+      el.classList.toggle('blink', active && shoesT < 3);
+    });
+  }
+  slotEls.forEach(el => el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); useItem(+el.dataset.i); }));
+  updateSlots();
+
+  const stoneGeo = new THREE.DodecahedronGeometry(0.075, 0);
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8d979f, roughness: 0.9, flatShading: true });
+  const needleShaftGeo = new THREE.CylinderGeometry(0.007, 0.007, 0.34, 6); needleShaftGeo.rotateX(Math.PI / 2);
+  const needleHeadGeo = new THREE.SphereGeometry(0.022, 8, 6);
+  const needleMat = new THREE.MeshStandardMaterial({ color: 0xe9eef2, metalness: 0.8, roughness: 0.25, emissive: 0x335566, emissiveIntensity: 0.6 });
+  const needleHeadMat = new THREE.MeshBasicMaterial({ color: 0xff7b6b });
+  const shoesGlow = new THREE.Mesh(new THREE.RingGeometry(0.12, 0.34, 28), new THREE.MeshBasicMaterial({ color: 0x8fe8ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
+  shoesGlow.rotation.x = -Math.PI / 2; shoesGlow.visible = false; scene.add(shoesGlow);
+
+  // spinning stars above a stunned monster
+  const stunTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d'); x.fillStyle = '#ffe066'; x.strokeStyle = '#a87a00'; x.lineWidth = 3;
+    for (let k = 0; k < 3; k++) {
+      const a0 = k * Math.PI * 2 / 3, cx = 64 + Math.cos(a0) * 34, cy = 64 + Math.sin(a0) * 34;
+      x.beginPath();
+      for (let j = 0; j < 10; j++) { const r = j % 2 ? 7 : 17, a = -Math.PI / 2 + j * Math.PI / 5; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+      x.closePath(); x.fill(); x.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+  })();
+  const stunSprites = [0, 1, 2].map(() => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: stunTex, transparent: true, depthWrite: false }));
+    sp.scale.set(0.7, 0.7, 1); sp.visible = false; scene.add(sp); return sp;
+  });
+  function updateStunVisuals(t) {
+    const arr = [[mStunT, mPos.x, mPos.y, 0.95]].concat(humanoidMonsters.map(h => [h.stunT, h.pos.x, h.pos.y, 1.4]));
+    arr.forEach((a, i) => {
+      const sp = stunSprites[i];
+      sp.visible = a[0] > 0;
+      if (a[0] > 0) { sp.position.set(a[1], a[3] + Math.sin(t * 4 + i) * 0.04, a[2]); sp.material.rotation = t * 3; }
+    });
+  }
+
+  function resetItemEffects() {
+    shoesT = 0; useCd = 0;
+    shoesGlow.visible = false;
+    while (projectiles.length) scene.remove(projectiles.pop().mesh);
+    stunSprites.forEach(sp => { sp.visible = false; });
+    updateSlots();
+  }
+  function stoneBlocked(x, z) {
+    if (Math.abs(x) > RS / 2 - 0.2 || Math.abs(z) > RS / 2 - 0.2) return true;
+    queryBoxes(x, z, 0.6, monsterNear);
+    for (const b of monsterNear) if (b.kind === 'pillar' && Math.abs(x - b.x) < b.hw + 0.04 && Math.abs(z - b.z) < b.hd + 0.04) return true;
+    return false;
+  }
+  function segBlocked(x0, z0, x1, z1) {
+    const len = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(len / 0.25));
+    for (let i = 1; i <= n; i++) if (stoneBlocked(x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n)) return true;
+    return false;
+  }
+  function surfaceAt(x, z) {
+    queryBoxes(x, z, 0.5, monsterNear);
+    for (const b of monsterNear) if (b.kind === 'plat' && Math.abs(x - b.x) <= b.hw && Math.abs(z - b.z) <= b.hd) return b.top;
+    return waterY();
+  }
+  function segDist(px, pz, ax, az, bx, bz) {
+    const vx = bx - ax, vz = bz - az, l2 = vx * vx + vz * vz;
+    const t = l2 > 1e-9 ? clampV(((px - ax) * vx + (pz - az) * vz) / l2, 0, 1) : 0;
+    return Math.hypot(px - (ax + vx * t), pz - (az + vz * t));
+  }
+  function monsterTargets() {
+    const out = [{ x: mPos.x, z: mPos.y, r: 0.55, hit: () => { mStunT = STUN_TIME; mVel.set(0, 0); } }];
+    humanoidMonsters.forEach(h => out.push({ x: h.pos.x, z: h.pos.y, r: 0.6, hit: () => { h.stunT = STUN_TIME; h.vel.set(0, 0); h.attacking = false; } }));
+    return out;
+  }
+  function distractMonsters(x, z) {
+    const R = 60;
+    let any = false;
+    if (Math.hypot(mPos.x - x, mPos.y - z) < R) {
+      mState = 'distract'; mDistractT = DISTRACT_TIME; mLastKnown.set(x, z); hideDanger(); any = true;
+    }
+    humanoidMonsters.forEach(h => {
+      if (Math.hypot(h.pos.x - x, h.pos.y - z) < R) { h.distractT = DISTRACT_TIME; h.dTarget.set(x, z); any = true; }
+    });
+    if (any) toast('🪨 Monster teralihkan ke suara batu', 1800);
+  }
+
+  function useItem(i) {
+    if (gameState !== 'playing' || useCd > 0) return;
+    if (i === 2 && shoesT > 0) { toast('Sepatu chakra masih aktif', 1400); return; }
+    if (save.inv[i] <= 0) { toast(`${ITEMS[i].name} habis. Beli di TOKO`, 1800); soundSystem.playClack(); return; }
+    save.inv[i]--; useCd = 0.45;
+    saveProgress();
+    if (i === 0) throwStone(); else if (i === 1) throwNeedle(); else activateShoes();
+    updateSlots();
+  }
+  function throwStone() {
+    const dx = Math.sin(camAngle), dz = Math.cos(camAngle);
+    const dist = 5 + (1 - (camPitch - PITCH_MIN) / (PITCH_MAX - PITCH_MIN)) * 9;   // looking toward the horizon = far throw
+    let d = 0.6;
+    while (d < dist && !stoneBlocked(playerPos.x + dx * (d + 0.25), playerPos.z + dz * (d + 0.25))) d += 0.25;
+    const ex = playerPos.x + dx * d, ez = playerPos.z + dz * d;
+    const mesh = new THREE.Mesh(stoneGeo, stoneMat); scene.add(mesh);
+    projectiles.push({ kind: 'stone', mesh, t: 0, dur: 0.3 + d / 20, sx: playerPos.x, sz: playerPos.z, sy: playerPos.y + 0.5, ex, ez, ey: surfaceAt(ex, ez), apex: 0.8 + d * 0.08 });
+    facingAngle = camAngle; character.rotation.y = camAngle;
+    soundSystem.playWhoosh();
+  }
+  function throwNeedle() {
+    let dx = Math.sin(camAngle), dz = Math.cos(camAngle);
+    // mild aim assist: snap to a monster within ~10 degrees of where the camera points
+    let best = null, bestAng = 0.18;
+    for (const t of monsterTargets()) {
+      const vx = t.x - playerPos.x, vz = t.z - playerPos.z, dist = Math.hypot(vx, vz);
+      if (dist < 0.6 || dist > 14) continue;
+      let da = Math.atan2(vx, vz) - camAngle;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      if (Math.abs(da) < bestAng) { bestAng = Math.abs(da); best = { vx: vx / dist, vz: vz / dist }; }
+    }
+    if (best) { dx = best.vx; dz = best.vz; }
+    const mesh = new THREE.Group();
+    mesh.add(new THREE.Mesh(needleShaftGeo, needleMat));
+    const head = new THREE.Mesh(needleHeadGeo, needleHeadMat); head.position.z = -0.17; mesh.add(head);
+    mesh.position.set(playerPos.x + dx * 0.3, playerPos.y + 0.55, playerPos.z + dz * 0.3);
+    mesh.rotation.y = Math.atan2(dx, dz);
+    scene.add(mesh);
+    projectiles.push({ kind: 'needle', mesh, x: mesh.position.x, z: mesh.position.z, dx, dz, speed: 16, left: 14 });
+    facingAngle = Math.atan2(dx, dz); character.rotation.y = facingAngle;
+    soundSystem.playWhoosh();
+  }
+  function activateShoes() {
+    shoesT = SHOES_TIME;
+    shoeRippleT = 0;
+    soundSystem.playShoes();
+    spawnRipple(playerPos.x, playerPos.z, 0.9, 0x9ff0ff, 1.0);
+    toast('👟 Sepatu chakra aktif! Berlari di atas air 15 detik', 2600);
+  }
+  function landStone(p) {
+    const wY = waterY();
+    if (p.ey <= wY + 0.01) { spawnRipple(p.ex, p.ez, 1.4, 0xffffff, 1.2); spawnRipple(p.ex, p.ez, 0.8, 0xffffff, 0.9); spawnSplashBurst(p.ex, p.ez, 10); soundSystem.playSplash(); }
+    else soundSystem.playClack();
+    distractMonsters(p.ex, p.ez);
+  }
+  function updateProjectiles(dt) {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const p = projectiles[i];
+      if (p.kind === 'stone') {
+        p.t += dt;
+        const k = Math.min(1, p.t / p.dur);
+        p.mesh.position.set(p.sx + (p.ex - p.sx) * k, p.sy + (p.ey - p.sy) * k + p.apex * 4 * k * (1 - k), p.sz + (p.ez - p.sz) * k);
+        p.mesh.rotation.x += dt * 9; p.mesh.rotation.z += dt * 6;
+        if (k >= 1) { landStone(p); scene.remove(p.mesh); projectiles.splice(i, 1); }
+        continue;
+      }
+      const step = Math.min(p.speed * dt, p.left), x0 = p.x, z0 = p.z, x1 = x0 + p.dx * step, z1 = z0 + p.dz * step;
+      let hit = null;
+      for (const t of monsterTargets()) { if (segDist(t.x, t.z, x0, z0, x1, z1) <= t.r) { hit = t; break; } }
+      let done = false;
+      if (hit) {
+        hit.hit();
+        spawnVictoryBurst(hit.x, 0.7, hit.z, 10);
+        soundSystem.playZap();
+        toast(`⚡ Monster tersengat ${STUN_TIME} detik!`, 2000);
+        done = true;
+      } else if (segBlocked(x0, z0, x1, z1)) { soundSystem.playClack(); done = true; }
+      else {
+        p.x = x1; p.z = z1; p.left -= step;
+        p.mesh.position.x = x1; p.mesh.position.z = z1;
+        if (p.left <= 0.001) { spawnRipple(x1, z1, 0.4, 0xdcf2fe, 0.6); done = true; }   // missed: the needle is wasted
+      }
+      if (done) { scene.remove(p.mesh); projectiles.splice(i, 1); }
+    }
+  }
+  function updateItems(dt, activePlat) {
+    useCd = Math.max(0, useCd - dt);
+    if (shoesT > 0) {
+      const was = shoesT;
+      shoesT = Math.max(0, shoesT - dt);
+      if (was > 3 && shoesT <= 3) toast('👟 Sepatu chakra hampir habis!', 1800);
+      if (shoesT <= 0) toast('Sepatu chakra habis', 1500);
+      const wY = waterY();
+      const onWater = shoesT > 0 && !activePlat && Math.abs(playerPos.y - wY) < 0.06;
+      shoesGlow.visible = onWater;
+      if (onWater) {
+        shoesGlow.position.set(playerPos.x, wY + 0.03, playerPos.z);
+        shoesGlow.rotation.z += dt * 3;
+        shoeRippleT -= dt;
+        if (shoeRippleT <= 0) { shoeRippleT = 0.25; spawnRipple(playerPos.x, playerPos.z, 0.55, 0x9ff0ff, 0.8); }
+      }
+    } else shoesGlow.visible = false;
+    updateProjectiles(dt);
+  }
 
   // ─── CAMERA & ROTATION CONTROLS (SWIPE / DRAG ANYWHERE) ───
   let camAngle = Math.PI / 4;
@@ -3480,6 +3848,7 @@ async function run(mode) {
     return Boolean(
       elem.closest('#jump-btn') ||
       elem.closest('#joystick-area') ||
+      elem.closest('#item-slots') ||
       elem.closest('.ui-modal') ||
       elem.closest('#menu-btn') ||
       elem.closest('#minimap-panel')
@@ -3796,7 +4165,7 @@ async function run(mode) {
     mVel.set(0, 0);
     mRise = 1;
     mState = 'patrol';
-    mAlertT = 0; mChaseT = 0; mSearchT = 0;
+    mAlertT = 0; mChaseT = 0; mSearchT = 0; mStunT = 0; mDistractT = 0;
     mHeading = Math.random() * Math.PI * 2;
     mRippleTimer = 0;
     monster.visible = true;
@@ -3833,7 +4202,7 @@ async function run(mode) {
       const p = findHumanoidSpawn(i);
       h.pos.set(p.x, p.z); h.vel.set(0, 0);
       h.heading = Math.atan2(playerPos.x - p.x, playerPos.z - p.z);
-      h.attacking = false; h.group.visible = true;
+      h.attacking = false; h.group.visible = true; h.stunT = 0; h.distractT = 0;
       chooseHumanoidPatrolTarget(h);
     });
   }
@@ -3891,6 +4260,15 @@ async function run(mode) {
 
   function updateHumanoidMonsters(dt, playerInWater, playerSafe) {
     humanoidMonsters.forEach(h => {
+      if (h.stunT > 0) { h.stunT -= dt; h.vel.set(0, 0); h.attacking = false; return; }
+      if (h.distractT > 0) {
+        h.distractT -= dt; h.attacking = false;
+        const dd = Math.hypot(h.dTarget.x - h.pos.x, h.dTarget.y - h.pos.y);
+        if (dd > 1.0) steerHumanoid(h, Math.max(2.6, cfg.settings.monsterSpeed * 2.2) * mMult(), dt, h.dTarget.x, h.dTarget.y);
+        else h.vel.multiplyScalar(0.85);
+        if (h.distractT <= 0) chooseHumanoidPatrolTarget(h);
+        return;
+      }
       // Attacking and catching are disabled the instant the player is safe on a pad.
       h.attacking = playerInWater && !playerSafe;
       if (h.attacking) {
@@ -3960,6 +4338,16 @@ async function run(mode) {
     monster.visible = true;
     mRise = 1;
     const mult = mMult();
+    if (mStunT > 0) { mStunT -= dt; mVel.set(0, 0); if (mStunT <= 0) mChaseT = 0; return; }
+    if (mState === 'distract') {
+      // A thrown stone: it swims to the noise and waits there until the timer runs out.
+      mDistractT -= dt;
+      const dist = Math.hypot(mLastKnown.x - mPos.x, mLastKnown.y - mPos.y);
+      if (dist > 1.0) steerMonster(Math.max(3.2, cfg.settings.monsterSpeed * 3) * mult, dt, mLastKnown.x, mLastKnown.y);
+      else mVel.multiplyScalar(0.8);
+      if (mDistractT <= 0) { mState = 'patrol'; choosePatrolTarget(); }
+      return;
+    }
     if (mState === 'alert') {
       // The monster heard the splash: it creeps toward the spot while the warning timer runs down.
       steerMonster(Math.max(1.0, cfg.settings.monsterSpeed * 1.8) * mult, dt, mLastKnown.x, mLastKnown.y);
@@ -4217,7 +4605,13 @@ async function run(mode) {
         onPlatform = true;
       } else {
         // If not landed on a platform, check submerged tiled floor (y = 0)
-        if (newY <= 0) {
+        if (shoesT > 0 && newY <= wY) {
+          // Chakra shoes: stand on the water surface
+          playerPos.y = wY;
+          velY = 0;
+          onGround = true;
+          onPlatform = false;
+        } else if (newY <= 0) {
           playerPos.y = 0;
           velY = 0;
           onGround = true;
@@ -4250,8 +4644,9 @@ async function run(mode) {
 
       // ─── MONSTER CHASE LOGIC ───
       const safe = onGround && onPlatform && !!activePlat;
+      const safeEff = safe || shoesT > 0;
       const alertTime = levelSpec ? levelSpec.alert : cfg.settings.alertTime;
-      if (nowInWater && mState !== 'chase' && mState !== 'alert') {
+      if (nowInWater && mState !== 'chase' && mState !== 'alert' && mState !== 'distract') {
         mLastKnown.set(playerPos.x, playerPos.z);
         spawnRipple(mPos.x, mPos.y, 0.9, 0xffc9bd, 1.0);
         soundSystem.playAlert();
@@ -4264,15 +4659,16 @@ async function run(mode) {
       if (mState === 'alert') {
         if (nowInWater) mLastKnown.set(playerPos.x, playerPos.z);
         mAlertT -= dt;
-        if (mAlertT <= 0 && !safe) startChase();
+        if (mAlertT <= 0 && !safeEff) startChase();
       }
-      if ((mState === 'chase' || mState === 'alert') && safe) {
+      if ((mState === 'chase' || mState === 'alert') && safeEff) {
         mState = 'search';
         mSearchT = 5;
         hideDanger();
       }
       updateMonsterLogic(dt);
-      updateHumanoidMonsters(dt, nowInWater && mState === 'chase', safe);
+      updateHumanoidMonsters(dt, nowInWater && mState === 'chase', safeEff);
+      updateItems(dt, activePlat);
 
       // Crystals and checkpoints
       if (levelSpec) {
@@ -4298,7 +4694,7 @@ async function run(mode) {
         fillLight.intensity = 0.27 - 0.04 * prox;
 
         // Caught
-        if (mState === 'chase' && d < CATCH_DIST && playerPos.y < wY + 0.08) {
+        if (mState === 'chase' && mStunT <= 0 && shoesT <= 0 && d < CATCH_DIST && playerPos.y < wY + 0.08) {
           showEnd(false);
         }
         // Humanoids can catch the player only while immersed, never on platforms.
@@ -4342,7 +4738,7 @@ async function run(mode) {
       character.armR.rotation.z = -Math.sin(now * 0.003) * 0.04;
     }
 
-    if (mode === 'play') animateLevelObjects(waterAnimTime);
+    if (mode === 'play') { animateLevelObjects(waterAnimTime); updateStunVisuals(waterAnimTime); }
     updateMonsterVisual(dt, waterAnimTime);
     updateHumanoidVisuals(dt, waterAnimTime);
     updateRipples(dt);
