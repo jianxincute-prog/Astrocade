@@ -1766,6 +1766,10 @@
           name: 'Pengaturan Mall Crawler',
           params: {
             'Lebar Jalur (m)': { key: 'map.corridorWidth', type: 'slider', min: 8, max: 12, step: 1 },
+            'Kecepatan Jalan (m/s)': { key: 'player.walkSpeed', type: 'slider', min: 3.5, max: 6.0, step: 0.1 },
+            'Kecepatan Lari (m/s)': { key: 'player.sprintSpeed', type: 'slider', min: 6.0, max: 12.0, step: 0.2 },
+            'Durasi Lari / Stamina (dtk)': { key: 'player.staminaSeconds', type: 'slider', min: 8, max: 30, step: 1 },
+            'Pemulihan Stamina (dtk)': { key: 'player.staminaRecoverSeconds', type: 'slider', min: 2, max: 8, step: 0.5 },
             'Kecepatan Monster': { key: 'monster.speed', type: 'slider', min: 2.8, max: 4.2, step: 0.1 },
             'Jarak Deteksi Monster (m)': { key: 'monster.detectRange', type: 'slider', min: 14, max: 40, step: 2 },
             'Jumlah Monster Maks': { key: 'monster.maxCount', type: 'slider', min: 1, max: 5, step: 1 },
@@ -1789,10 +1793,10 @@
         },
         player: {
           health: 3,
-          walkSpeed: 3.4,
-          sprintSpeed: 5.2,
-          staminaSeconds: 5,
-          staminaRecoverSeconds: 7,
+          walkSpeed: 4.5,
+          sprintSpeed: 8.2,
+          staminaSeconds: 15,
+          staminaRecoverSeconds: 4.5,
           hungerSeconds: 240
         },
         monster: {
@@ -1816,8 +1820,10 @@
       };
 
       // Nilai bawaan untuk kunci baru (jika config platform lama belum memilikinya)
-      config.player.staminaSeconds = config.player.staminaSeconds ?? 5;
-      config.player.staminaRecoverSeconds = config.player.staminaRecoverSeconds ?? 7;
+      config.player.walkSpeed = config.player.walkSpeed ?? 4.5;
+      config.player.sprintSpeed = config.player.sprintSpeed ?? 8.2;
+      config.player.staminaSeconds = config.player.staminaSeconds ?? 15;
+      config.player.staminaRecoverSeconds = config.player.staminaRecoverSeconds ?? 4.5;
       config.monster.detectRange = config.monster.detectRange ?? 26;
       config.monster.maxCount = config.monster.maxCount ?? 3;
       config.player.hungerSeconds = config.player.hungerSeconds ?? 240;
@@ -3975,12 +3981,9 @@
         }
       }
 
-      // Ruang Jebakan: pelat tekan bergaris, paku tersembunyi, garis peringatan, kaca pecah, kabel percikan
+      // Ruang Jebakan: tidak ada tanda bahaya/garis peringatan agar pemain tidak tahu
       // Dekorasi + umpan bersama untuk jebakan non-pelat
       function buildTrapCommon(store, g) {
-        const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), MAT.dangerSign);
-        sign.position.set(0, 2.9, -4.07);
-        g.add(sign);
         for (let i = 0; i < 10; i++) {
           const sz = 0.6 + Math.random() * 1.2;
           addFlat(g, shardGeo, MAT.glass, (Math.random() - 0.5) * 7, 0.1, (Math.random() - 0.5) * 7.5, sz, sz, Math.random() * 6);
@@ -4027,7 +4030,7 @@
         store.trapRT = rt;
       }
 
-      // Lantai runtuh: ubin gelap & retak = rapuh
+      // Lantai runtuh: ubin tampak sama seperti lantai normal tanpa retakan penanda
       function buildCollapseRoom(store, g) {
         buildTrapCommon(store, g);
         const rt = { kind: 'collapse', tiles: [] };
@@ -4037,19 +4040,10 @@
           const weakSet = new Set(shuffleArr([0, 1, 2, 3]).slice(0, weakCount));
           xs.forEach((tx, ci) => {
             const weak = weakSet.has(ci);
-            const tile = new THREE.Mesh(unitBoxGeo, weak ? MAT.tileWeak : MAT.tileOk);
+            const tile = new THREE.Mesh(unitBoxGeo, MAT.tileOk);
             tile.scale.set(2.0, 0.1, 2.0);
             tile.position.set(tx, 0.1, tz);
             g.add(tile);
-            if (weak) {
-              [0.5, -0.5].forEach(rz => {
-                const crack = new THREE.Mesh(unitBoxGeo, MAT.crack);
-                crack.scale.set(0.8 / 2.0, 0.12, 0.05 / 2.0);
-                crack.position.set(0, 0.52, (rz * 0.5));
-                crack.rotation.y = rz * 1.1;
-                tile.add(crack);
-              });
-            }
             const hole = new THREE.Mesh(unitBoxGeo, MAT.hole);
             hole.scale.set(1.95, 0.01, 1.95);
             hole.position.set(tx, 0.055, tz);
@@ -4135,13 +4129,14 @@
         if (store.trapKind === 'laser') return buildLaserRoom(store, g);
         if (store.trapKind === 'gas') return buildGasRoom(store, g);
         if (store.trapKind === 'collapse') return buildCollapseRoom(store, g);
-        const plateMat = new THREE.MeshStandardMaterial({ map: createHazardTexture(2), color: 0xffffff, emissive: 0x5a3a00, roughness: 0.5, metalness: 0.4 });
+        // Pelat jebakan tersamar menyerupai lantai ruangan tanpa garis atau corak peringatan
+        const plateMat = new THREE.MeshStandardMaterial({ color: 0x1b2334, roughness: 0.72, metalness: 0.15 });
         plateMat.userData.own = true;
-        const plate = addBox(g, 2.8, 0.06, 2.8, plateMat, 0, 0.11, 0);
+        const plate = addBox(g, 2.8, 0.02, 2.8, plateMat, 0, 0.05, 0);
         plate.userData.st = false;
         store.trapPlateMesh = plate;
 
-        // Paku tersembunyi di bawah lantai (muncul saat terpicu)
+        // Paku tersembunyi di bawah lantai (hanya muncul saat terinjak)
         const spikes = new THREE.Group();
         for (let ix = -2; ix <= 2; ix++) {
           for (let iz = -2; iz <= 2; iz++) {
@@ -4154,31 +4149,11 @@
         g.add(spikes);
         store.spikesGroup = spikes;
 
-        // Garis peringatan di lantai mengelilingi pelat
-        [[0, -1.75, 3.6, 0.16], [0, 1.75, 3.6, 0.16], [-1.75, 0, 0.16, 3.6], [1.75, 0, 0.16, 3.6]].forEach(([x, z, w, d]) => {
-          addBox(g, w, 0.015, d, MAT.hazardTape, x, 0.1, z);
-        });
-
-        // Papan peringatan BAHAYA
-        const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), MAT.dangerSign);
-        sign.position.set(0, 2.9, -4.07);
-        g.add(sign);
-
         // Pecahan kaca berserakan
         for (let i = 0; i < 14; i++) {
           const s = 0.6 + Math.random() * 1.2;
           addFlat(g, shardGeo, MAT.glass, (Math.random() - 0.5) * 7, 0.1, (Math.random() - 0.5) * 7.5, s, s, Math.random() * 6);
         }
-
-        // Kabel listrik terkelupas dengan percikan api
-        const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.6, 6), MAT.wire);
-        wire.position.set(2.6, WALL_HEIGHT - 0.8, -1.6);
-        wire.rotation.z = 0.12;
-        g.add(wire);
-        const spark = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), MAT.spark);
-        spark.position.set(2.5, WALL_HEIGHT - 1.6, -1.6);
-        g.add(spark);
-        store.sparkMesh = spark;
 
         // Panel plafon jebol menggantung
         addBox(g, 1.2, 0.04, 1.2, MAT.ceilingPanel, -2.3, WALL_HEIGHT - 0.6, -1.4, 0.2, 0, 0.55);
@@ -4443,7 +4418,7 @@
         scene.add(g);
         store.interiorGroup = g;
 
-        const lightColor = { monster: 0xff2a3a, trap: 0xff9a3c, empty: 0xdde7ff, supplies: 0xffe8c8, materials: 0xffd9a0 }[store.outcome];
+        const lightColor = { monster: 0xff2a3a, trap: 0xffe8c8, empty: 0xdde7ff, supplies: 0xffe8c8, materials: 0xffd9a0 }[store.outcome];
         store.interiorLight = { intensity: 1.8, color: new THREE.Color(lightColor) };
         store.baseLightIntensity = 1.8;
 
@@ -4478,7 +4453,7 @@
             if (s.outcome === 'monster') {
               L.intensity = s.baseLightIntensity * (0.45 + 0.4 * Math.abs(Math.sin(animTime * 7 + s.id)) - (Math.random() < 0.06 ? 0.35 : 0));
             } else if (s.outcome === 'trap') {
-              L.intensity = s.baseLightIntensity * (s.sparkMesh && s.sparkMesh.visible ? 1.25 : 0.85);
+              L.intensity = s.baseLightIntensity;
             } else if (s.outcome === 'empty') {
               if (s.isClaimed) {
                 L.intensity = s.baseLightIntensity * (0.92 + 0.08 * Math.sin(animTime * 3 + s.id));
@@ -4547,14 +4522,11 @@
         } else if (store.outcome === 'empty') {
           showToast('TOKO KOSONG! BISA DIKLAIM JADI BASECAMP', '#00e676');
         } else if (store.outcome === 'trap') {
-          const trapMsg = {
-            plate: store.lootItems.length ? (PART_IDS.includes(store.lootItems[0]) ? 'AWAS JEBAKAN! ADA KOMPONEN LANGKA DI UJUNG RUANGAN' : 'AWAS JEBAKAN! ADA BARANG DI UJUNG RUANGAN') : 'AWAS: JEBAKAN LANTAI TERDETEKSI!',
-            laser: 'JEBAKAN LASER! TUNGGU CELAHNYA',
-            gas: 'JEBAKAN GAS! JAUHI PIPA SAAT BERDESIS',
-            collapse: 'LANTAI RAPUH! HINDARI UBIN GELAP RETAK'
-          };
-          showToast(trapMsg[store.trapKind] || trapMsg.plate, '#ff9100');
-          if (store.trapKind !== 'plate' && store.lootItems.length && PART_IDS.includes(store.lootItems[0])) showToast('ADA KOMPONEN LANGKA DI UJUNG RUANGAN!', '#b388ff');
+          if (store.lootItems.length) {
+            showToast(`TOKO DIBUKA: ADA ${store.lootItems.length} BARANG DI DALAM`, '#ffd600');
+          } else {
+            showToast('PINTU TOKO DIBUKA!', '#00e5ff');
+          }
         } else if (store.outcome === 'monster') {
           showToast('BAHAYA: MONSTER MUNCUL DARI TOKO!', '#ff1744');
           audio.play('monster_reveal_sfx');
@@ -5446,13 +5418,14 @@
         minimapCtx.arc(originX, originY, 3, 0, Math.PI * 2);
         minimapCtx.fill();
 
-        // Opened stores & Basecamps (Render representasi ruangan persegi)
+        // Opened stores & Basecamps (Ruang jebakan tersamar seperti toko biasa di minimap)
         stores.forEach(s => {
           if (s.isClaimed) {
             minimapCtx.fillStyle = '#00e676';
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 3, originY + s.interiorCenterZ * scale - 3, 6, 6);
           } else if (s.isOpen) {
-            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: '#ef4444', monster: '#a855f7', empty: '#e2e8f0', materials: '#cd853f' }[s.outcome] || '#f59e0b';
+            const trapColor = s.isTrapDisarmed ? '#ef4444' : '#f59e0b';
+            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: trapColor, monster: '#a855f7', empty: '#e2e8f0', materials: '#cd853f' }[s.outcome] || '#f59e0b';
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 2.5, originY + s.interiorCenterZ * scale - 2.5, 5, 5);
           }
         });
@@ -5577,7 +5550,7 @@
         const inputMag = canMove ? Math.hypot(inputX, inputZ) : 0;
         state.moving = inputMag > 0.04;
 
-        // Stamina lari
+        // Stamina lari (durasi lebih panjang & pulih lebih cepat)
         const wantSprint = sprintIntent.key || sprintIntent.btn || sprintIntent.joy;
         state.isSprinting = wantSprint && state.moving && !state.exhausted && state.stamina > 0;
         if (state.isSprinting) {
@@ -5588,8 +5561,10 @@
             showToast('KELELAHAN! NAPAS HABIS', '#ff9100');
           }
         } else {
-          state.stamina = Math.min(1, state.stamina + (dt / config.player.staminaRecoverSeconds) * (state.moving ? 0.5 : 1));
-          if (state.exhausted && state.stamina >= 0.3) state.exhausted = false;
+          // Diam memulihkan stamina ekstra cepat (1.35x), jalan santai tetap pulih dengan stabil (0.85x)
+          const regenRate = (state.moving ? 0.85 : 1.35) / config.player.staminaRecoverSeconds;
+          state.stamina = Math.min(1, state.stamina + dt * regenRate);
+          if (state.exhausted && state.stamina >= 0.25) state.exhausted = false;
         }
         btnSprint.classList.toggle('active', state.isSprinting);
         btnSprint.classList.toggle('tired', state.exhausted);
@@ -5662,8 +5637,8 @@
           while (diffRot > Math.PI) diffRot -= Math.PI * 2;
           playerGroup.rotation.y += diffRot * Math.min(1, dt * 20);
 
-          // Limb Animation
-          walkAnimPhase += dt * currentSpeed * speedFactor * 2.2;
+          // Limb Animation (irama ayunan kaki dan langkah kaki proporsional)
+          walkAnimPhase += dt * currentSpeed * speedFactor * (state.isSprinting ? 1.7 : 2.1);
           const stepIdx = Math.floor(walkAnimPhase / Math.PI);
           if (stepIdx !== lastStepIdx) {
             lastStepIdx = stepIdx;
@@ -5695,6 +5670,14 @@
 
         // --- CAMERA THIRD PERSON TRACKING ---
         if (mode !== 'play' || !state.started) camState.yaw += dt * (mode === 'edit' ? 0.12 : 0.2);
+        // Dynamic Camera FOV saat lari untuk sensasi kecepatan
+        if (mode === 'play') {
+          const targetFov = state.isSprinting ? 66 : 60;
+          if (Math.abs(camera.fov - targetFov) > 0.05) {
+            camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 7);
+            camera.updateProjectionMatrix();
+          }
+        }
         camState.distance += (camState.targetDistance - camState.distance) * 0.15;
         const camOffsetY = Math.sin(camState.pitch) * camState.distance + camState.targetY;
         const camHorizDist = Math.cos(camState.pitch) * camState.distance;
