@@ -265,6 +265,19 @@
   .item-slot.blink { animation: slotBlink .35s infinite alternate; }
   @keyframes slotBlink { from { opacity: 1; } to { opacity: .45; } }
   .item-slot:active { transform: scale(.92); }
+  .mn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .mn-tile {
+    min-height: 140px; border-radius: 22px; border: 3px solid rgba(255,255,255,.65); color: #fff; cursor: pointer; touch-action: manipulation;
+    background: linear-gradient(180deg, #3d8fe0, #2464b0); box-shadow: 0 8px 22px rgba(0,0,0,.45);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px 4px; box-sizing: border-box; min-width: 0;
+  }
+  .mn-tile i { font-style: normal; font-size: 38px; line-height: 1; }
+  .mn-tile b { font: 700 15px 'Orbitron', sans-serif; text-align: center; line-height: 1.15; }
+  .mn-tile small { font: 600 13px 'Inter', sans-serif; opacity: .88; text-align: center; }
+  .mn-tile.daily { background: linear-gradient(180deg, #e0a23d, #b0702a); }
+  .mn-tile.shop { background: linear-gradient(180deg, #8a5fd0, #5c3a9c); }
+  .mn-tile.slate { background: linear-gradient(180deg, #4b6a86, #2e4558); }
+  .mn-tile:active { transform: scale(.96); }
   .mn-btn.big { min-height: 130px; font-size: 38px; }
   .mn-btn.shop { background: linear-gradient(180deg, #8a5fd0, #5c3a9c); }
   .mn-coins { text-align: center; font: 700 26px 'Orbitron', sans-serif; color: #ffd86b; }
@@ -3443,7 +3456,7 @@ async function run(mode) {
   }
 
   // ── Menu: HOME (just PLAY) -> LIST (play / levels / daily / shop / leaderboard / how to play / settings) ──
-  let menuView = 'home', shopMsg = '';
+  let menuView = 'list', shopMsg = '';
   function renderLevels(next) {
     let cells = '';
     for (let i = 1; i <= MAX_LEVEL; i++) {
@@ -3473,19 +3486,18 @@ async function run(mode) {
     const resume = pausedLevel ? `<button class="mn-btn primary" data-act="resume">⏸ LANJUTKAN ${esc(levelSpec.title)}</button>` : '';
     const stats = `<div class="mn-stats"><span>★ ${totalStars()}/${MAX_LEVEL * 3}</span><span>🪙 ${save.coins.toLocaleString('id-ID')}</span></div>`;
     let html;
-    if (menuView === 'home') {
-      html = `<div class="mn-title">DON'T TOUCH WATER</div><div class="mn-sub">Lompati pijakan, jauhi air, capai pintu EXIT</div>${stats}${resume}` +
-        `<button class="mn-btn primary big" data-act="play">▶ PLAY</button>`;
-    } else if (menuView === 'list') {
-      html = `<div class="mn-title sm">MENU</div>${stats}${resume}` +
+    if (menuView === 'list') {
+      const dTxt = d.k === dk && d.st > 0 ? starStr(d.st) : 'belum main';
+      html = `<div class="mn-title sm">DON'T TOUCH WATER</div>${stats}${resume}` +
         `<button class="mn-btn primary" data-act="level" data-n="${next}">▶ MAIN LEVEL ${next}</button>` +
-        `<button class="mn-btn" data-act="view" data-v="levels">☰ PILIH LEVEL</button>` +
-        `<button class="mn-btn daily" data-act="daily">☀ TANTANGAN HARIAN<small>${dLabel} · ${d.k === dk && d.st > 0 ? starStr(d.st) + ' · ' + fmtTime(d.t) : 'belum dimainkan'}</small></button>` +
-        `<button class="mn-btn shop" data-act="view" data-v="shop">🛍 TOKO<small>🪙 ${save.coins.toLocaleString('id-ID')}</small></button>` +
-        `<button class="mn-btn" data-act="view" data-v="board">🏆 PERINGKAT</button>` +
-        `<button class="mn-btn" data-act="help">? CARA MAIN</button>` +
-        `<button class="mn-btn" data-act="view" data-v="settings">⚙ PENGATURAN</button>` +
-        `<button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+        `<div class="mn-grid">` +
+        `<button class="mn-tile" data-act="view" data-v="levels"><i>☰</i><b>PILIH LEVEL</b></button>` +
+        `<button class="mn-tile daily" data-act="daily"><i>☀</i><b>HARIAN</b><small>${dLabel} · ${dTxt}</small></button>` +
+        `<button class="mn-tile shop" data-act="view" data-v="shop"><i>🛍</i><b>TOKO</b><small>🪙 ${save.coins.toLocaleString('id-ID')}</small></button>` +
+        `<button class="mn-tile" data-act="view" data-v="board"><i>🏆</i><b>PERINGKAT</b></button>` +
+        `<button class="mn-tile" data-act="help"><i>?</i><b>CARA MAIN</b></button>` +
+        `<button class="mn-tile slate" data-act="view" data-v="settings"><i>⚙</i><b>PENGATURAN</b></button>` +
+        `</div>`;
     } else if (menuView === 'levels') html = renderLevels(next);
     else if (menuView === 'shop') html = renderShop();
     else if (menuView === 'settings') html = renderSettings();
@@ -3495,7 +3507,7 @@ async function run(mode) {
   }
   function openMenu(paused, view) {
     pausedLevel = !!paused;
-    menuView = view || (paused ? 'list' : 'home');
+    menuView = view || 'list';
     shopMsg = '';
     endScreen.classList.remove('show');
     setState('menu');
@@ -3579,7 +3591,7 @@ async function run(mode) {
     else if (act === 'resume') resumeLevel();
     else if (act === 'play') { menuView = 'list'; renderMenu(); }
     else if (act === 'view') { shopMsg = ''; menuView = b.dataset.v; renderMenu(); }
-    else if (act === 'back') { boardToken++; menuView = menuView === 'list' ? 'home' : 'list'; renderMenu(); }
+    else if (act === 'back') { boardToken++; menuView = 'list'; renderMenu(); }
     else if (act === 'buy') buyItem(+b.dataset.i);
     else if (act === 'help') openHelp(0);
   });
