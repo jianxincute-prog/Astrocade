@@ -3075,103 +3075,132 @@
 
       // --- PLAYER CHARACTER (Blocky 1.80m Proportions) ---
       // Shoes: 0.06m; Legs: 0.74m; Pelvis: 0.16m; Torso: 0.50m; Neck: 0.06m; Head: 0.28m; Arms: 0.80m
-      // Pembangun karakter penyintas (dipakai pemain & NPC): tubuh berjaket, ransel, sarung tangan, rambut, wajah
-      const _sg = {};
-      const sgeo = (k, f) => _sg[k] || (_sg[k] = f());
+      // Pembangun karakter penyintas (dipakai pemain & NPC). Semua kotak kecil digabung per bagian tubuh
+      // (badan, 2 kaki, 2 lengan) dengan warna per-vertex agar hanya ~10 draw call per karakter.
+      const SURV_LIT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.08 });
+      const SURV_GLOW = new THREE.MeshBasicMaterial({ vertexColors: true });
+      const _boxG = new THREE.BoxGeometry(1, 1, 1);
       function buildSurvivor(cfg) {
         const group = new THREE.Group();
-        const M = (c, r, m, extra) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: r == null ? 0.7 : r, metalness: m || 0 }, extra || {}));
-        const skin = M(cfg.skin, 0.65), jacket = M(cfg.jacket, 0.5, 0.05), jacketDk = M(new THREE.Color(cfg.jacket).multiplyScalar(0.62).getHex(), 0.6);
-        const pants = M(cfg.pants, 0.8), pantsDk = M(new THREE.Color(cfg.pants).multiplyScalar(0.6).getHex(), 0.85);
-        const hair = M(cfg.hair, 0.85), glove = M(0x1f2937, 0.7), boot = M(cfg.boot || 0xf1f5f9, 0.55), sole = M(0x0f172a, 0.9);
-        const strip = M(0x222222, 0.4, 0, { emissive: cfg.accent, emissiveIntensity: 0.9 });
-        const metal = M(0x94a3b8, 0.3, 0.85), accent = M(cfg.accent, 0.5, 0.1);
-        const packM = M(cfg.pack, 0.75), packDk = M(new THREE.Color(cfg.pack).multiplyScalar(0.6).getHex(), 0.85);
-        const faceM = new THREE.MeshBasicMaterial({ color: 0x1b1410 }), white = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
-        const box = (w, h, d, mat, x, y, z, par) => { const m = new THREE.Mesh(sgeo('b' + w + '_' + h + '_' + d, () => new THREE.BoxGeometry(w, h, d)), mat); m.position.set(x, y, z); (par || group).add(m); return m; };
-        const cyl = (rt, rb, h, seg, mat, x, y, z, par, rotZ) => { const m = new THREE.Mesh(sgeo('c' + rt + rb + h + seg, () => new THREE.CylinderGeometry(rt, rb, h, seg)), mat); m.position.set(x, y, z); if (rotZ) m.rotation.z = rotZ; (par || group).add(m); return m; };
-
+        const C = (c, k) => new THREE.Color(c).multiplyScalar(k == null ? 1 : k);
+        const col = {
+          skin: C(cfg.skin), jacket: C(cfg.jacket), jacketDk: C(cfg.jacket, 0.62), pants: C(cfg.pants), pantsDk: C(cfg.pants, 0.6),
+          hair: C(cfg.hair), glove: C(0x1f2937), boot: C(cfg.boot || 0xf1f5f9), sole: C(0x0f172a), metal: C(0x94a3b8, 0.9),
+          accent: C(cfg.accent), pack: C(cfg.pack), packDk: C(cfg.pack, 0.6), eye: C(0x1b1410), white: C(0xf8fafc),
+          mouth: C(0x8a3b2a), cheek: C(0xe8a58f), lens: C(0xbff7ff)
+        };
+        const parts = {};
+        const part = k => parts[k] || (parts[k] = { lit: { p: [], n: [], c: [], i: [] }, glow: { p: [], n: [], c: [], i: [] } });
+        const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v3 = new THREE.Vector3(), nm = new THREE.Matrix3();
+        // kotak (w,h,d) berwarna c di (x,y,z) pada bagian pk; rx = putar sumbu X; glow = tak terpengaruh cahaya
+        const box = (w, h, d, c, x, y, z, pk, rx, glow) => {
+          const acc = part(pk || 'body')[glow ? 'glow' : 'lit'];
+          e.set(rx || 0, 0, 0); q.setFromEuler(e);
+          m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(w, h, d));
+          nm.getNormalMatrix(m4);
+          const pos = _boxG.attributes.position, nor = _boxG.attributes.normal, base = acc.p.length / 3;
+          for (let k = 0; k < pos.count; k++) {
+            v3.fromBufferAttribute(pos, k).applyMatrix4(m4); acc.p.push(v3.x, v3.y, v3.z);
+            v3.fromBufferAttribute(nor, k).applyMatrix3(nm).normalize(); acc.n.push(v3.x, v3.y, v3.z);
+            acc.c.push(c.r, c.g, c.b);
+          }
+          _boxG.index.array.forEach(ix => acc.i.push(base + ix));
+        };
+        const body = 'body';
         // Pinggul + sabuk + kantong
-        box(0.34, 0.16, 0.2, pants, 0, 0.88, 0);
-        box(0.36, 0.045, 0.22, glove, 0, 0.95, 0);
-        box(0.07, 0.05, 0.02, metal, 0, 0.95, 0.115);
-        box(0.09, 0.1, 0.05, pantsDk, 0.2, 0.86, 0.03);
-        // Torso jaket: dada lebih lebar dari pinggang, kerah, ritsleting, saku, strip reflektif
-        box(0.36, 0.5, 0.22, jacket, 0, 1.21, 0);
-        box(0.38, 0.14, 0.235, jacket, 0, 1.36, 0);
-        box(0.37, 0.07, 0.235, jacketDk, 0, 0.99, 0);
-        box(0.3, 0.07, 0.17, jacketDk, 0, 1.48, 0);
-        box(0.014, 0.44, 0.012, metal, 0, 1.2, 0.117);
-        box(0.09, 0.07, 0.02, jacketDk, -0.1, 1.15, 0.118);
-        box(0.37, 0.026, 0.226, strip, 0, 1.3, 0);
-        box(0.37, 0.026, 0.226, strip, 0, 1.08, 0);
-        [-1, 1].forEach(sd => box(0.14, 0.05, 0.16, jacketDk, sd * 0.23, 1.44, 0));
-        // Leher + kepala
-        box(0.12, 0.06, 0.12, skin, 0, 1.5, 0);
-        const head = new THREE.Group(); head.position.y = 1.66; group.add(head);
-        box(0.26, 0.28, 0.24, skin, 0, 0, 0, head);
-        box(0.2, 0.06, 0.2, skin, 0, -0.14, 0.01, head); // dagu
-        box(0.03, 0.05, 0.04, skin, 0, -0.025, 0.14, head); // hidung
+        box(0.34, 0.16, 0.2, col.pants, 0, 0.88, 0);
+        box(0.36, 0.045, 0.22, col.glove, 0, 0.95, 0);
+        box(0.07, 0.05, 0.02, col.metal, 0, 0.95, 0.115);
+        box(0.09, 0.1, 0.05, col.pantsDk, 0.2, 0.86, 0.03);
+        // Torso jaket: bahu, kerah, ritsleting, saku, strip reflektif
+        box(0.36, 0.5, 0.22, col.jacket, 0, 1.21, 0);
+        box(0.38, 0.14, 0.235, col.jacket, 0, 1.36, 0);
+        box(0.37, 0.07, 0.235, col.jacketDk, 0, 0.99, 0);
+        box(0.3, 0.07, 0.17, col.jacketDk, 0, 1.48, 0);
+        box(0.014, 0.44, 0.012, col.metal, 0, 1.2, 0.117);
+        box(0.09, 0.07, 0.02, col.jacketDk, -0.1, 1.15, 0.118);
+        box(0.37, 0.026, 0.226, col.accent, 0, 1.3, 0, body, 0, true);
+        box(0.37, 0.026, 0.226, col.accent, 0, 1.08, 0, body, 0, true);
+        [-1, 1].forEach(sd => box(0.14, 0.05, 0.16, col.jacketDk, sd * 0.23, 1.44, 0));
+        // Leher + kepala (gabung di badan; kepala berpusat y=1.66)
+        box(0.12, 0.06, 0.12, col.skin, 0, 1.5, 0);
+        const H = 1.66;
+        box(0.26, 0.28, 0.24, col.skin, 0, H, 0);
+        box(0.2, 0.06, 0.2, col.skin, 0, H - 0.14, 0.01);
+        box(0.03, 0.05, 0.04, col.skin, 0, H - 0.025, 0.14);
         [-1, 1].forEach(sd => {
-          box(0.03, 0.06, 0.05, skin, sd * 0.14, -0.01, 0, head); // telinga
-          box(0.05, 0.05, 0.012, white, sd * 0.06, 0.01, 0.123, head);
-          box(0.028, 0.04, 0.014, faceM, sd * 0.06, 0.01, 0.13, head);
-          box(0.07, 0.016, 0.02, hair, sd * 0.06, 0.055, 0.125, head);
-          box(0.025, 0.012, 0.012, new THREE.MeshBasicMaterial({ color: 0xe8a58f }), sd * 0.085, -0.045, 0.123, head);
+          box(0.03, 0.06, 0.05, col.skin, sd * 0.14, H - 0.01, 0);
+          box(0.05, 0.05, 0.012, col.white, sd * 0.06, H + 0.01, 0.123, body, 0, true);
+          box(0.028, 0.04, 0.014, col.eye, sd * 0.06, H + 0.01, 0.13, body, 0, true);
+          box(0.07, 0.016, 0.02, col.hair, sd * 0.06, H + 0.055, 0.125);
+          box(0.025, 0.012, 0.012, col.cheek, sd * 0.085, H - 0.045, 0.123, body, 0, true);
         });
-        box(0.07, 0.016, 0.014, new THREE.MeshBasicMaterial({ color: 0x8a3b2a }), 0, -0.07, 0.125, head);
+        box(0.07, 0.016, 0.014, col.mouth, 0, H - 0.07, 0.125, body, 0, true);
         // Rambut / topi sesuai gaya
-        box(0.28, 0.1, 0.26, hair, 0, 0.12, 0, head);
-        box(0.28, 0.22, 0.06, hair, 0, 0.03, -0.13, head);
-        [-1, 1].forEach(sd => box(0.03, 0.12, 0.22, hair, sd * 0.14, 0.06, 0, head));
+        box(0.28, 0.1, 0.26, col.hair, 0, H + 0.12, 0);
+        box(0.28, 0.22, 0.06, col.hair, 0, H + 0.03, -0.13);
+        [-1, 1].forEach(sd => box(0.03, 0.12, 0.22, col.hair, sd * 0.14, H + 0.06, 0));
         if (cfg.style === 'ponytail') {
-          box(0.3, 0.05, 0.1, hair, 0, 0.14, 0.12, head);
-          const tail = box(0.07, 0.3, 0.07, hair, 0, -0.04, -0.2, head); tail.rotation.x = 0.35;
-          box(0.08, 0.03, 0.08, accent, 0, 0.08, -0.17, head);
+          box(0.3, 0.05, 0.1, col.hair, 0, H + 0.14, 0.12);
+          box(0.07, 0.3, 0.07, col.hair, 0, H - 0.07, -0.22, body, 0.35);
+          box(0.08, 0.03, 0.08, col.accent, 0, H + 0.08, -0.17);
         } else if (cfg.style === 'beanie') {
-          box(0.3, 0.12, 0.28, accent, 0, 0.14, 0, head);
-          box(0.31, 0.04, 0.29, jacketDk, 0, 0.09, 0, head);
-          box(0.06, 0.05, 0.06, accent, 0, 0.22, 0, head);
+          box(0.3, 0.12, 0.28, col.accent, 0, H + 0.14, 0);
+          box(0.31, 0.04, 0.29, col.jacketDk, 0, H + 0.09, 0);
+          box(0.06, 0.05, 0.06, col.accent, 0, H + 0.22, 0);
         } else {
-          box(0.3, 0.04, 0.27, accent, 0, 0.085, 0, head); // ikat kepala
-          box(0.07, 0.04, 0.02, new THREE.MeshBasicMaterial({ color: 0xbff7ff }), 0.0, 0.085, 0.14, head); // lampu kepala
+          box(0.3, 0.04, 0.27, col.accent, 0, H + 0.085, 0);
+          box(0.07, 0.04, 0.02, col.lens, 0, H + 0.085, 0.14, body, 0, true);
         }
         // Ransel: badan, tutup, kantong samping, gulungan tidur, tali dan gesper
-        box(0.3, 0.4, 0.14, packM, 0, 1.2, -0.18);
-        box(0.3, 0.1, 0.16, packDk, 0, 1.4, -0.18);
-        box(0.2, 0.14, 0.05, packDk, 0, 1.1, -0.27);
-        [-1, 1].forEach(sd => box(0.05, 0.2, 0.1, packDk, sd * 0.17, 1.12, -0.18));
-        cyl(0.055, 0.055, 0.34, 8, accent, 0, 1.5, -0.2, group, Math.PI / 2);
-        [-0.1, 0.1].forEach(sx => { box(0.04, 0.4, 0.02, packDk, sx, 1.2, 0.115); box(0.045, 0.03, 0.025, metal, sx, 1.1, 0.12); });
+        box(0.3, 0.4, 0.14, col.pack, 0, 1.2, -0.18);
+        box(0.3, 0.1, 0.16, col.packDk, 0, 1.4, -0.18);
+        box(0.2, 0.14, 0.05, col.packDk, 0, 1.1, -0.27);
+        [-1, 1].forEach(sd => box(0.05, 0.2, 0.1, col.packDk, sd * 0.17, 1.12, -0.18));
+        box(0.34, 0.1, 0.1, col.accent, 0, 1.5, -0.2);
+        [-0.1, 0.1].forEach(sx => { box(0.04, 0.4, 0.02, col.packDk, sx, 1.2, 0.115); box(0.045, 0.03, 0.025, col.metal, sx, 1.1, 0.12); });
+        // Kaki
+        const legParts = { L: 'legL', R: 'legR' };
+        Object.keys(legParts).forEach(k => {
+          const pk = legParts[k];
+          box(0.13, 0.74, 0.14, col.pants, 0, -0.37, 0, pk);
+          box(0.135, 0.1, 0.05, col.pantsDk, 0, -0.38, 0.09, pk);
+          box(0.135, 0.05, 0.145, col.pantsDk, 0, -0.62, 0, pk);
+          box(0.14, 0.2, 0.145, col.boot, 0, -0.64, 0, pk);
+          box(0.145, 0.05, 0.145, col.jacketDk, 0, -0.55, 0, pk);
+          box(0.14, 0.07, 0.22, col.boot, 0, -0.705, 0.04, pk);
+          box(0.15, 0.03, 0.23, col.sole, 0, -0.735, 0.04, pk);
+          box(0.12, 0.035, 0.06, col.accent, 0, -0.69, 0.14, pk, 0, true);
+        });
+        // Lengan
+        ['armL', 'armR'].forEach(pk => {
+          box(0.12, 0.8, 0.12, col.jacket, 0, -0.4, 0, pk);
+          box(0.125, 0.05, 0.125, col.jacketDk, 0, -0.1, 0, pk);
+          box(0.125, 0.07, 0.125, col.jacketDk, 0, -0.4, 0, pk);
+          box(0.13, 0.026, 0.13, col.accent, 0, -0.2, 0, pk, 0, true);
+          box(0.13, 0.04, 0.13, col.jacketDk, 0, -0.66, 0, pk);
+          box(0.115, 0.1, 0.115, col.glove, 0, -0.74, 0, pk);
+          box(0.09, 0.05, 0.05, col.glove, 0, -0.8, 0.03, pk);
+        });
+        const mk = (pk, pivot) => {
+          const pr = parts[pk];
+          ['lit', 'glow'].forEach(t => {
+            const a = pr[t]; if (!a.i.length) return;
+            const g = new THREE.BufferGeometry();
+            g.setAttribute('position', new THREE.Float32BufferAttribute(a.p, 3));
+            g.setAttribute('normal', new THREE.Float32BufferAttribute(a.n, 3));
+            g.setAttribute('color', new THREE.Float32BufferAttribute(a.c, 3));
+            g.setIndex(a.i);
+            pivot.add(new THREE.Mesh(g, t === 'lit' ? SURV_LIT : SURV_GLOW));
+          });
+        };
+        mk('body', group);
+        const mkPivot = (pk, x, y) => { const g = new THREE.Group(); g.position.set(x, y, 0); group.add(g); mk(pk, g); return g; };
+        const legL = mkPivot('legL', -0.09, 0.8), legR = mkPivot('legR', 0.09, 0.8);
+        const armL = mkPivot('armL', -0.24, 1.4), armR = mkPivot('armR', 0.24, 1.4);
         const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), MAT.shadow);
         sh.rotation.x = -Math.PI / 2; sh.position.y = 0.03; group.add(sh);
-
-        // Kaki berporos di pinggul: celana, lutut berlapis, ujung celana, sepatu bot bersol
-        const mkLeg = sd => {
-          const L = new THREE.Group(); L.position.set(sd * 0.09, 0.8, 0); group.add(L);
-          box(0.13, 0.74, 0.14, pants, 0, -0.37, 0, L);
-          box(0.135, 0.1, 0.05, pantsDk, 0, -0.38, 0.09, L);
-          box(0.135, 0.05, 0.145, pantsDk, 0, -0.62, 0, L);
-          box(0.14, 0.2, 0.145, boot, 0, -0.64, 0.0, L);
-          box(0.145, 0.05, 0.145, jacketDk, 0, -0.55, 0, L);
-          box(0.14, 0.07, 0.22, boot, 0, -0.705, 0.04, L);
-          box(0.15, 0.03, 0.23, sole, 0, -0.735, 0.04, L);
-          box(0.12, 0.035, 0.06, accent, 0, -0.69, 0.14, L);
-          return L;
-        };
-        const mkArm = sd => {
-          const A = new THREE.Group(); A.position.set(sd * 0.24, 1.40, 0); group.add(A);
-          box(0.12, 0.8, 0.12, jacket, 0, -0.4, 0, A);
-          box(0.125, 0.05, 0.125, jacketDk, 0, -0.1, 0, A);
-          box(0.125, 0.07, 0.125, jacketDk, 0, -0.4, 0.0, A);
-          box(0.13, 0.026, 0.13, strip, 0, -0.2, 0, A);
-          box(0.13, 0.04, 0.13, jacketDk, 0, -0.66, 0, A);
-          box(0.115, 0.1, 0.115, glove, 0, -0.74, 0, A);
-          box(0.09, 0.05, 0.05, glove, 0, -0.8, 0.03, A);
-          return A;
-        };
-        const legL = mkLeg(-1), legR = mkLeg(1), armL = mkArm(-1), armR = mkArm(1);
-        return { group, head, legL, legR, armL, armR, accent, metal };
+        return { group, legL, legR, armL, armR };
       }
 
       const playerGroup = new THREE.Group();
@@ -3179,7 +3208,6 @@
       const _pl = buildSurvivor({ skin: 0xffdbac, jacket: 0x0284c7, pants: 0x1e293b, hair: 0x3b2f2f, pack: 0xd97706, accent: 0x22d3ee, boot: 0xf1f5f9, style: 'headband' });
       playerGroup.add(_pl.group);
       const leftLegPivot = _pl.legL, rightLegPivot = _pl.legR, leftArmPivot = _pl.armL, rightArmPivot = _pl.armR;
-      const headGroup = _pl.head;
 
       // Senjata papan paku (terlihat saat punya durabilitas)
       const weaponMesh = new THREE.Group();
