@@ -3257,60 +3257,146 @@
         audio.play('monster_reveal_sfx');
       }
 
+      // Material tambahan per tipe: kulit, kulit gelap, tulang, inti membara
+      Object.keys(MTYPES).forEach(k => {
+        const tp = MTYPES[k];
+        const c = new THREE.Color(tp.body);
+        tp.skin = new THREE.MeshStandardMaterial({ color: c, roughness: 0.62, metalness: 0.12 });
+        tp.dark = new THREE.MeshStandardMaterial({ color: c.clone().multiplyScalar(0.45), roughness: 0.8, metalness: 0.05 });
+        tp.armor = new THREE.MeshStandardMaterial({ color: c.clone().lerp(new THREE.Color(0x9aa4ad), 0.35), roughness: 0.38, metalness: 0.7 });
+        tp.bone = new THREE.MeshStandardMaterial({ color: 0xb9ae94, roughness: 0.55, metalness: 0.05, emissive: 0x0d0b08 });
+        tp.core = new THREE.MeshStandardMaterial({ color: 0x120505, emissive: tp.eye, emissiveIntensity: 1.6, roughness: 0.5 });
+      });
+      const _mg = {};
+      const mgeo = (key, fn) => _mg[key] || (_mg[key] = fn());
+
       function createMonsterMesh(typeKey) {
         const tp = MTYPES[typeKey];
-        const body = tp.mat, eyeM = tp.eyeMat;
+        const eyeM = tp.eyeMat, skin = tp.skin, dark = tp.dark, armor = tp.armor, bone = tp.bone, core = tp.core;
         const group = new THREE.Group();
         group.scale.setScalar(tp.scale);
-        const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m; };
-
-        const torso = box(0.62, 0.78, 0.34, body, 0, 1.5, 0.05);
-        torso.rotation.x = 0.18; // bungkuk
-        group.add(torso);
-        group.add(box(1.0, 0.2, 0.4, body, 0, 1.86, 0.06)); // bahu lebar
-
-        const head = box(0.38, 0.36, 0.38, body, 0, 2.08, 0.18);
-        [-1, 1].forEach(sd => {
-          const eye = box(0.11, 0.06, 0.05, eyeM, sd * 0.1, 0.04, 0.2);
-          head.add(eye);
-          const glow = new THREE.Sprite(tp.glowMat);
-          glow.scale.set(0.6, 0.6, 1);
-          glow.position.set(sd * 0.1, 0.04, 0.24);
-          head.add(glow);
-          const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.32, 6), body);
-          horn.position.set(sd * 0.14, 0.3, 0);
-          horn.rotation.z = -sd * 0.3;
-          head.add(horn);
-        });
-        group.add(head);
-
-        [1.9, 1.6, 1.3].forEach((y, i) => {
-          const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07 - i * 0.012, 0.3, 6), body);
-          sp.position.set(0, y, -0.2);
-          sp.rotation.x = -Math.PI / 2 - 0.2;
-          group.add(sp);
-        });
-
-        const legL = box(0.2, 1.15, 0.2, body, -0.17, 0.58, 0);
-        const legR = box(0.2, 1.15, 0.2, body, 0.17, 0.58, 0);
-        group.add(legL);
-        group.add(legR);
-
-        // Lengan berporos di bahu + cakar
-        const mkArm = (sd) => {
-          const pivot = new THREE.Group();
-          pivot.position.set(sd * 0.48, 1.82, 0.06);
-          pivot.add(box(0.17, 1.1, 0.17, body, 0, -0.52, 0));
-          [-0.05, 0.05].forEach(cx => {
-            const claw = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.22, 5), eyeM);
-            claw.position.set(cx, -1.2, 0.02);
-            claw.rotation.z = Math.PI;
-            pivot.add(claw);
-          });
-          group.add(pivot);
-          return pivot;
+        const box = (w, h, d, mat, x, y, z, rx, ry, rz) => {
+          const m = new THREE.Mesh(mgeo('b' + w + h + d, () => new THREE.BoxGeometry(w, h, d)), mat);
+          m.position.set(x, y, z); if (rx) m.rotation.x = rx; if (ry) m.rotation.y = ry; if (rz) m.rotation.z = rz; return m;
         };
-        const armL = mkArm(-1), armR = mkArm(1);
+        const cone = (r, h, mat, x, y, z, rx, ry, rz, seg) => {
+          const m = new THREE.Mesh(mgeo('c' + r + h + (seg || 5), () => new THREE.ConeGeometry(r, h, seg || 5)), mat);
+          m.position.set(x, y, z); if (rx) m.rotation.x = rx; if (ry) m.rotation.y = ry; if (rz) m.rotation.z = rz; return m;
+        };
+        // balok meruncing (rTop/rBot dalam setengah lebar), alas persegi
+        const taper = (rt, rb, h, mat, x, y, z, rx, ry, rz) => {
+          const m = new THREE.Mesh(mgeo('t' + rt + rb + h, () => { const g = new THREE.CylinderGeometry(rt, rb, h, 4); g.rotateY(Math.PI / 4); return g; }), mat);
+          m.position.set(x, y, z); if (rx) m.rotation.x = rx; if (ry) m.rotation.y = ry; if (rz) m.rotation.z = rz; return m;
+        };
+        const addGlowEyes = (head, pts, size) => pts.forEach(([x, y, z]) => {
+          head.add(box(size[0], size[1], 0.04, eyeM, x, y, z));
+          const gl = new THREE.Sprite(tp.glowMat);
+          gl.scale.set(size[2], size[2], 1); gl.position.set(x, y, z + 0.05); head.add(gl);
+        });
+        const mkLeg = (sd, spec) => {
+          const g = new THREE.Group(); g.position.x = sd * spec.x;
+          g.add(box(spec.tw, spec.tl, spec.tw, skin, 0, spec.ty, spec.tz, spec.tr));
+          g.add(box(spec.sw, spec.sl, spec.sw, dark, 0, spec.sy, spec.sz, spec.sr));
+          g.add(box(spec.fw, 0.09, spec.fl, dark, 0, 0.05, spec.fz));
+          [-1, 0, 1].forEach(i => g.add(cone(0.025 * spec.fw / 0.18 + 0.01, 0.16, bone, i * spec.fw * 0.32, 0.06, spec.fz + spec.fl / 2 + 0.04, Math.PI / 2 + 0.2)));
+          if (spec.knee) g.add(cone(0.05, 0.16, bone, 0, spec.ky, spec.kz, spec.knee));
+          group.add(g); return g;
+        };
+        const mkArm = (sd, spec) => {
+          const pivot = new THREE.Group();
+          pivot.position.set(sd * spec.x, spec.y, spec.z);
+          pivot.add(box(spec.uw, spec.ul, spec.uw, skin, 0, -spec.ul / 2, 0));
+          const el = new THREE.Group(); el.position.y = -spec.ul; el.rotation.x = -spec.bend; pivot.add(el);
+          el.add(box(spec.fw, spec.fl, spec.fw, dark, 0, -spec.fl / 2, 0));
+          if (spec.plate) el.add(box(spec.fw + 0.05, spec.fl * 0.55, spec.fw + 0.05, armor, 0, -spec.fl * 0.35, 0));
+          spec.hand(el, -spec.fl);
+          group.add(pivot); return pivot;
+        };
+        const clawSet = (par, y, n, len, spread, mat) => { for (let i = 0; i < n; i++) par.add(cone(0.028, len, mat, (i - (n - 1) / 2) * spread, y - len / 2, 0.03, 0, 0, Math.PI)); };
+        const spineRow = (ys, zs, r0, h0, mat, tilt) => ys.forEach((y, i) => group.add(cone(r0 - i * 0.008, h0 - i * 0.03, mat, 0, y, zs[i], -Math.PI / 2 - tilt)));
+        let legL, legR, armL, armR;
+
+        if (typeKey === 'hunter') {
+          // Pemburu: predator kurus membungkuk, rahang bergigi, tulang rusuk, lengan panjang bercakar
+          const lg = { x: 0.19, tw: 0.17, tl: 0.5, ty: 0.9, tz: 0.12, tr: -0.62, sw: 0.12, sl: 0.62, sy: 0.4, sz: 0.2, sr: 0.38, fw: 0.15, fl: 0.32, fz: 0.2, knee: 0.4, ky: 0.72, kz: 0.34 };
+          legL = mkLeg(-1, lg); legR = mkLeg(1, lg);
+          group.add(box(0.42, 0.2, 0.28, dark, 0, 1.1, 0.02));
+          const torso = taper(0.24, 0.17, 0.8, skin, 0, 1.52, 0.1, 0.38); torso.scale.z = 0.7; group.add(torso);
+          group.add(box(0.74, 0.17, 0.34, skin, 0, 1.84, 0.26, 0.3));
+          for (let i = 0; i < 4; i++) { group.add(box(0.5 - i * 0.05, 0.035, 0.05, bone, 0, 1.72 - i * 0.14, 0.34 + i * 0.03, 0.38)); }
+          group.add(box(0.08, 0.5, 0.04, core, 0, 1.5, 0.37, 0.38));
+          spineRow([1.98, 1.84, 1.7, 1.56, 1.42, 1.3], [0.08, 0.0, -0.06, -0.1, -0.12, -0.13], 0.06, 0.28, bone, 0.1);
+          // leher + kepala
+          group.add(box(0.14, 0.3, 0.14, dark, 0, 2.0, 0.34, 0.6));
+          const head = new THREE.Group(); head.position.set(0, 2.1, 0.58); head.rotation.x = 0.12;
+          head.add(box(0.28, 0.26, 0.4, skin, 0, 0.04, 0));
+          head.add(box(0.2, 0.12, 0.22, dark, 0, -0.04, 0.26));
+          const jaw = box(0.22, 0.07, 0.32, dark, 0, -0.17, 0.12, 0.28); head.add(jaw);
+          for (let i = 0; i < 5; i++) { const x = -0.08 + i * 0.04; head.add(cone(0.014, 0.08, bone, x, -0.12, 0.34, Math.PI)); head.add(cone(0.014, 0.09, bone, x, -0.14, 0.27, 0)); }
+          addGlowEyes(head, [[-0.09, 0.1, 0.2], [0.09, 0.1, 0.2]], [0.09, 0.035, 0.32]);
+          [-1, 1].forEach(sd => { head.add(cone(0.035, 0.36, bone, sd * 0.12, 0.22, -0.12, -1.05, 0, -sd * 0.25)); head.add(box(0.05, 0.1, 0.02, dark, sd * 0.15, 0.0, 0.0, 0, 0, sd * 0.5)); });
+          group.add(head);
+          [-1, 1].forEach(sd => group.add(cone(0.06, 0.26, bone, sd * 0.42, 1.98, 0.22, 0, 0, -sd * 0.7)));
+          const hand = (el, y) => { clawSet(el, y, 3, 0.3, 0.06, core); el.add(box(0.12, 0.12, 0.08, dark, 0, y - 0.04, 0)); };
+          const as = { x: 0.43, y: 1.86, z: 0.24, uw: 0.13, ul: 0.55, fw: 0.1, fl: 0.6, bend: 0.35, hand };
+          armL = mkArm(-1, as); armR = mkArm(1, as);
+        } else if (typeKey === 'brute') {
+          // Brute: raksasa lebar berbaju zirah, kepala kecil, taring, inti membara di dada
+          const lg = { x: 0.3, tw: 0.3, tl: 0.62, ty: 0.7, tz: 0.04, tr: 0, sw: 0.26, sl: 0.5, sy: 0.27, sz: 0.04, sr: 0, fw: 0.34, fl: 0.4, fz: 0.08, knee: 0, ky: 0, kz: 0 };
+          legL = mkLeg(-1, lg); legR = mkLeg(1, lg);
+          group.add(box(0.46, 0.14, 0.3, armor, 0, 0.9, 0.0, 0, 0, 0));
+          group.add(box(0.9, 0.34, 0.55, dark, 0, 1.08, 0.04));
+          const torso = taper(0.5, 0.34, 0.9, skin, 0, 1.58, 0.06, 0.12); torso.scale.z = 0.62; group.add(torso);
+          group.add(box(0.5, 0.5, 0.06, armor, 0, 1.52, 0.31, 0.12));
+          group.add(box(0.2, 0.28, 0.06, core, 0, 1.55, 0.35, 0.12));
+          [-0.06, 0.06].forEach(x => group.add(box(0.015, 0.34, 0.07, dark, x * 2.4, 1.55, 0.355, 0.12)));
+          group.add(box(0.36, 0.3, 0.34, skin, 0, 1.9, -0.2, -0.4)); // punuk
+          spineRow([2.1, 1.95, 1.8, 1.65], [-0.22, -0.28, -0.3, -0.28], 0.1, 0.34, bone, 0.15);
+          group.add(box(0.2, 0.18, 0.2, dark, 0, 2.0, 0.14));
+          const head = new THREE.Group(); head.position.set(0, 2.06, 0.22);
+          head.add(box(0.34, 0.28, 0.34, skin, 0, 0, 0));
+          head.add(box(0.36, 0.1, 0.36, armor, 0, 0.17, 0));
+          head.add(box(0.3, 0.09, 0.2, dark, 0, -0.14, 0.14));
+          [-1, 1].forEach(sd => { head.add(cone(0.035, 0.2, bone, sd * 0.1, -0.1, 0.27, 0.3, 0, sd * 0.1)); head.add(cone(0.05, 0.4, bone, sd * 0.2, 0.2, 0.0, 0.1, 0, -sd * 0.9)); });
+          addGlowEyes(head, [[-0.08, 0.02, 0.18], [0.08, 0.02, 0.18]], [0.07, 0.05, 0.4]);
+          group.add(head);
+          [-1, 1].forEach(sd => {
+            group.add(box(0.46, 0.14, 0.46, armor, sd * 0.62, 1.98, 0.04, 0, 0, -sd * 0.25));
+            group.add(box(0.3, 0.1, 0.34, dark, sd * 0.62, 1.88, 0.04));
+            [-1, 0, 1].forEach(i => group.add(cone(0.05, 0.28, bone, sd * (0.6 + i * 0.12), 2.1 - Math.abs(i) * 0.03, 0.04, 0, 0, -sd * (0.15 + i * 0.12))));
+          });
+          const hand = (el, y) => { el.add(box(0.3, 0.3, 0.3, skin, 0, y - 0.12, 0)); [-0.1, 0, 0.1].forEach(x => el.add(cone(0.035, 0.18, bone, x, y - 0.32, 0.1, 0.4, 0, Math.PI))); };
+          const as = { x: 0.64, y: 1.88, z: 0.04, uw: 0.28, ul: 0.55, fw: 0.24, fl: 0.55, bend: 0.2, plate: true, hand };
+          armL = mkArm(-1, as); armR = mkArm(1, as);
+        } else {
+          // Penyelinap: sangat kurus, kepala memanjang tanpa mulut dengan banyak mata, lengan bilah, sirip punggung, sulur
+          const lg = { x: 0.14, tw: 0.1, tl: 0.62, ty: 0.9, tz: 0.18, tr: -0.75, sw: 0.075, sl: 0.78, sy: 0.4, sz: 0.2, sr: 0.5, fw: 0.1, fl: 0.4, fz: 0.2, knee: 0.5, ky: 0.7, kz: 0.46 };
+          legL = mkLeg(-1, lg); legR = mkLeg(1, lg);
+          group.add(box(0.26, 0.16, 0.2, dark, 0, 1.14, 0.0));
+          const torso = taper(0.15, 0.1, 0.78, skin, 0, 1.5, 0.12, 0.62); torso.scale.z = 0.8; group.add(torso);
+          for (let i = 0; i < 5; i++) group.add(box(0.3 - i * 0.025, 0.025, 0.04, bone, 0, 1.78 - i * 0.12, 0.27 + i * 0.05, 0.62));
+          group.add(box(0.5, 0.1, 0.22, skin, 0, 1.8, 0.3, 0.55));
+          [0.2, 0.36, 0.52, 0.68, 0.84].forEach((o, i) => { const f = new THREE.Mesh(mgeo('fin', () => new THREE.ConeGeometry(0.09, 0.34, 3)), core); f.scale.z = 0.25; f.position.set(0, 1.9 - i * 0.13 + 0.0, 0.1 - i * 0.02 - 0.12); f.rotation.x = -0.9 - i * 0.05; group.add(f); });
+          // sulur punggung
+          [-0.12, -0.04, 0.04, 0.12].forEach((x, i) => { const t = new THREE.Mesh(mgeo('tn', () => new THREE.CylinderGeometry(0.012, 0.03, 0.9, 5)), dark); t.position.set(x, 1.15, -0.28); t.rotation.x = -0.5 - (i % 2) * 0.25; t.rotation.z = x * 2.4; group.add(t); });
+          group.add(box(0.1, 0.4, 0.1, dark, 0, 2.02, 0.46, 0.9));
+          const head = new THREE.Group(); head.position.set(0, 2.06, 0.74); head.rotation.x = 0.25;
+          head.add(taper(0.06, 0.13, 0.5, skin, 0, 0.0, 0.1, Math.PI / 2 + 0.1));
+          head.add(box(0.26, 0.2, 0.24, skin, 0, 0.02, -0.04));
+          head.add(box(0.05, 0.05, 0.4, bone, 0, 0.14, 0.05));
+          addGlowEyes(head, [[-0.07, 0.07, 0.14], [0.07, 0.07, 0.14], [-0.11, 0.0, 0.1], [0.11, 0.0, 0.1], [-0.045, 0.11, 0.2], [0.045, 0.11, 0.2]], [0.045, 0.03, 0.2]);
+          [-1, 1].forEach(sd => head.add(cone(0.025, 0.3, bone, sd * 0.14, 0.06, -0.12, -1.3, 0, -sd * 0.5)));
+          group.add(head);
+          const hand = (el, y) => {
+            const blade = new THREE.Mesh(mgeo('blade', () => new THREE.ConeGeometry(0.07, 0.85, 4)), armor);
+            blade.scale.x = 0.3; blade.position.set(0, y - 0.38, 0.02); blade.rotation.z = Math.PI; el.add(blade);
+            const edge = new THREE.Mesh(mgeo('edge', () => new THREE.ConeGeometry(0.02, 0.8, 3)), core);
+            edge.position.set(0, y - 0.39, 0.075); edge.rotation.z = Math.PI; el.add(edge);
+            clawSet(el, y, 2, 0.22, 0.05, bone);
+          };
+          const as = { x: 0.24, y: 1.84, z: 0.34, uw: 0.075, ul: 0.62, fw: 0.065, fl: 0.7, bend: 0.5, hand };
+          armL = mkArm(-1, as); armR = mkArm(1, as);
+        }
 
         const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), MAT.shadow);
         sh.rotation.x = -Math.PI / 2;
