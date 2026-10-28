@@ -1,0 +1,14 @@
+{
+  "name": "mall-crawler",
+  "private": true,
+  "description": "Mall Crawler (Astrocade single-file game): sumber, lint, dan smoke test Playwright",
+  "scripts": {
+    "lint": "node tools/extract-js.js && eslint -c .eslintrc.json tools/.extracted.js",
+    "test": "node tests/smoke.js"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "playwright": "*",
+    "three": "0.128.0"
+  }
+}

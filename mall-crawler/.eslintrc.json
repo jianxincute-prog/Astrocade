@@ -1,0 +1,1 @@
+{"root":true,"env":{"browser":true,"es2022":true},"parserOptions":{"ecmaVersion":2022,"sourceType":"script"},"globals":{"THREE":"readonly","lib":"readonly"},"rules":{"no-unused-vars":["warn",{"args":"none"}],"no-undef":"error","no-redeclare":"error","no-dupe-keys":"error","no-unreachable":"warn","no-empty":"off"}}
