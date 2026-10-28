@@ -10,7 +10,7 @@ const GAME = process.env.GAME_HTML || path.join(__dirname, '..', 'game_code.html
 const THREE = process.env.THREE_JS || path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.min.js');
 const DBG_FILE = path.join(__dirname, '.game_dbg.html');
 
-const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,setPaused,isPaused:()=>paused};\n';
+const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,setPaused,isPaused:()=>paused};\n';
 const ANCHOR = '      rafId = requestAnimationFrame(gameLoop);\n    }\n  </script>';
 
 let failures = 0;
@@ -98,6 +98,23 @@ const check = (name, ok, extra = '') => {
   await page.evaluate(() => __dbg.resetGame());
   const after = await page.evaluate(() => ({ c: __dbg.colliders.length, open: __dbg.stores.some(s => s.isOpen || s.interiorGroup), mons: __dbg.monsters.length, hp: __dbg.state.health }));
   check('restart mengembalikan collider & state', after.c === base && !after.open && after.mons === 0 && after.hp === 3);
+
+  // 5b. hanya 1 basecamp + makan/minum dari persediaan basecamp
+  const base1 = await page.evaluate(() => {
+    const d = __dbg;
+    d.state.blackoutNext = 1e9;
+    const [A, B] = d.stores.filter(x => x.outcome === 'empty');
+    d.openStore(A); d.openStore(B);
+    d.claimBasecamp(A); d.claimBasecamp(B);
+    d.state.inventory = ['roti', 'air'];
+    d.storeSupplies(A);
+    d.state.hunger = 0.3;
+    d.eatAtBase(A);
+    return { claimed: d.state.claimedBasesCount, bClaimed: B.isClaimed, stock: d.state.baseFood + d.state.baseDrink, hunger: d.state.hunger > 0.6 };
+  });
+  check('hanya 1 basecamp yang bisa diklaim', base1.claimed === 1 && !base1.bClaimed);
+  check('makan dari persediaan basecamp', base1.stock === 1 && base1.hunger);
+  await page.evaluate(() => __dbg.resetGame());
 
   // 6. jeda membekukan waktu
   await page.evaluate(() => { __dbg.state.started = true; __dbg.setPaused(true); });

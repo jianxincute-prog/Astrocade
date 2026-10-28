@@ -1145,13 +1145,13 @@
             <p class="modal-desc">Mal terbengkalai dengan 240 toko. Kumpulkan bekal dan bertahan hidup!</p>
             <ul class="tutorial-list">
               <li>🏪 <b>Buka toko</b> untuk mencari 🍞 makanan &amp; 🥤 minuman — awas jebakan dan monster!</li>
-              <li>⛺ <b>Klaim toko kosong</b> jadi basecamp (aman dari monster), lalu <b>SIMPAN</b> bekal di sana.</li>
+              <li>⛺ <b>Klaim SATU toko kosong</b> jadi basecamp (aman dari monster), lalu <b>SIMPAN</b> bekal di sana.</li>
               <li>🔦 <b>SOROT</b> membekukan monster sesaat. ⚡ <b>LARI</b> cepat tapi menguras stamina.</li>
             </ul>
           </div>
           <div class="tpage">
             <ul class="tutorial-list">
-              <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas (mengurangi bekal!) atau <b>istirahat di basecamp</b>.</li>
+              <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas, atau dekati tumpukan bekal di basecamp untuk <b>MAKAN/MINUM</b> (mengurangi bekal target!). Istirahat di basecamp memulihkan nyawa.</li>
               <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
               <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap.</li>
               <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
@@ -1728,7 +1728,8 @@
       const TUNING = {
         healSeconds: 15,          // istirahat di basecamp: +1 nyawa tiap N detik
         starveSeconds: 12,        // kelaparan: -1 nyawa tiap N detik
-        foodRestore: 0.35,        // pemulihan energi saat makan/minum
+        foodRestore: 0.35,        // pemulihan energi saat makan/minum dari tas
+        baseMealRestore: 0.5,     // pemulihan energi saat makan/minum dari persediaan basecamp
         hungerWarn: 0.25,         // ambang peringatan lapar
         blackoutFirst: [80, 40],  // [dasar, acak] detik sebelum padam pertama
         blackoutEvery: [90, 60],  // [dasar, acak] jeda antar padam
@@ -2506,7 +2507,9 @@
           spikeAnim: 0,
           rentSign: null,
           claimRing: null,
-          stashCount: 0
+          stashCount: 0,
+          stashItems: [],
+          warnedSingle: false
         };
 
         stores.push(storeObj);
@@ -4003,14 +4006,68 @@
         }
       }
 
+      // Tampilan stash di rak basecamp: tiap item dilacak agar bisa diambil (dimakan) lagi
+      function layoutStash(store) {
+        const g = store.interiorGroup;
+        if (!g) return;
+        store.stashItems.forEach((it, i) => {
+          if (i >= 10) {
+            if (it.mesh) { g.remove(it.mesh); it.mesh = null; }
+            return;
+          }
+          if (!it.mesh) {
+            it.mesh = buildItemMesh(it.id);
+            it.mesh.scale.setScalar(1.1);
+            it.mesh.rotation.y = Math.random() * 0.6 - 0.3;
+            g.add(it.mesh);
+          }
+          it.mesh.position.set(1.88 + (i % 5) * 0.28, 1.02, -3.75 + Math.floor(i / 5) * 0.32);
+        });
+      }
       function addStashDisplay(store, id) {
-        const n = store.stashCount++;
-        if (!store.interiorGroup || n >= 10) return;
-        const mesh = buildItemMesh(id);
-        mesh.scale.setScalar(1.1);
-        mesh.position.set(1.88 + (n % 5) * 0.28, 1.02, -3.75 + Math.floor(n / 5) * 0.32);
-        mesh.rotation.y = Math.random() * 0.6 - 0.3;
-        store.interiorGroup.add(mesh);
+        store.stashItems.push({ id, mesh: null });
+        store.stashCount = store.stashItems.length;
+        layoutStash(store);
+      }
+
+      // Dekat tumpukan bekal (peti + rak di sudut belakang-kanan basecamp)?
+      function nearBaseStash(store, x, z) {
+        const lp = worldToRoomLocal(store, x, z);
+        return Math.hypot(lp.x - 2.4, lp.z + 3.2) < 2.8;
+      }
+
+      // Makan/minum langsung dari persediaan basecamp (mengurangi progres target)
+      function eatAtBase(store) {
+        if (!store.isClaimed) return;
+        if (state.baseFood + state.baseDrink <= 0) {
+          showToast('PERSEDIAAN BASECAMP KOSONG', '#94a3b8');
+          return;
+        }
+        if (state.hunger > 0.92) {
+          showToast('MASIH KENYANG!', '#94a3b8');
+          return;
+        }
+        let cat = state.baseFood >= state.baseDrink ? 'food' : 'drink';
+        let idx = -1;
+        for (let pass = 0; pass < 2 && idx < 0; pass++) {
+          for (let i = store.stashItems.length - 1; i >= 0; i--) {
+            if (ITEM_DEFS[store.stashItems[i].id].cat === cat) { idx = i; break; }
+          }
+          if (idx < 0) cat = cat === 'food' ? 'drink' : 'food';
+        }
+        if (idx < 0) return;
+        const it = store.stashItems.splice(idx, 1)[0];
+        store.stashCount = store.stashItems.length;
+        if (it.mesh) {
+          if (it.mesh.parent) it.mesh.parent.remove(it.mesh);
+          it.mesh.traverse(c => { if (c.geometry && !c.geometry.userData.shared) c.geometry.dispose(); });
+        }
+        if (cat === 'food') state.baseFood--; else state.baseDrink--;
+        layoutStash(store);
+        state.hunger = Math.min(1, state.hunger + TUNING.baseMealRestore);
+        audio.play('supply_pickup_sfx');
+        showToast(`${cat === 'food' ? 'MAKAN' : 'MINUM'} DI BASECAMP: ${ITEM_DEFS[it.id].name.toUpperCase()} • SISA 🍞${state.baseFood} 🥤${state.baseDrink}`, '#ffd600');
+        updateHUD();
       }
 
       function initializeStoreInterior(store) {
@@ -4160,6 +4217,10 @@
 
       function claimBasecamp(store) {
         if (!store.isOpen || store.outcome !== 'empty' || store.isClaimed) return;
+        if (state.claimedBasesCount >= 1) {
+          showToast('HANYA BOLEH 1 BASECAMP!', '#ff9100');
+          return;
+        }
         store.isClaimed = true;
         state.claimedBasesCount++;
         audio.play('basecamp_claim_sfx');
@@ -4430,7 +4491,7 @@
             isOpen: false, isClaimed: false, isTrapDisarmed: false, doorAnimProgress: 0,
             interiorInitialized: false, interiorGroup: null, trapPlateMesh: null, interiorLight: null,
             baseLightIntensity: 1.8, sparkMesh: null, spikesGroup: null, spikeTriggered: false, spikeAnim: 0,
-            rentSign: null, claimRing: null, stashCount: 0
+            rentSign: null, claimRing: null, stashCount: 0, stashItems: [], warnedSingle: false
           });
           setShutterY(st, (WALL_HEIGHT - 0.6) / 2);
         });
@@ -4490,7 +4551,7 @@
         // Basecamp
         baseFoodEl.textContent = state.baseFood;
         baseDrinkEl.textContent = state.baseDrink;
-        basecampCountEl.textContent = `${state.claimedBasesCount}`;
+        basecampCountEl.textContent = `${state.claimedBasesCount}/1`;
 
         // Score preview
         hudScoreEl.textContent = Math.max(0, Math.round((
@@ -4598,6 +4659,8 @@
           claimBasecamp(state.currentBasecamp);
         } else if (state.currentAction === 'STORE' && state.currentBasecamp) {
           storeSupplies(state.currentBasecamp);
+        } else if (state.currentAction === 'EAT' && state.currentBasecamp) {
+          eatAtBase(state.currentBasecamp);
         }
       }
 
@@ -5245,10 +5308,20 @@
               if (s.outcome === 'empty') {
                 inBase = s;
                 if (!s.isClaimed) {
-                  foundAction = 'CLAIM';
-                  actionStore = s;
+                  if (state.claimedBasesCount >= 1) {
+                    if (!s.warnedSingle) {
+                      s.warnedSingle = true;
+                      showToast('HANYA BOLEH 1 BASECAMP. KEMBALI KE BASECAMPMU!', '#ff9100');
+                    }
+                  } else {
+                    foundAction = 'CLAIM';
+                    actionStore = s;
+                  }
                 } else if (countCat('food') + countCat('drink') > 0) {
                   foundAction = 'STORE';
+                  actionStore = s;
+                } else if (state.baseFood + state.baseDrink > 0 && nearBaseStash(s, pX, pZ)) {
+                  foundAction = 'EAT';
                   actionStore = s;
                 }
               } else if (s.outcome === 'trap' && s.trapKind === 'plate' && !s.isTrapDisarmed) {
@@ -5323,6 +5396,10 @@
           } else if (foundAction === 'STORE') {
             actionLabel.textContent = 'SIMPAN';
             actionSub.textContent = 'BEKAL';
+            btnAction.classList.add('store-mode');
+          } else if (foundAction === 'EAT') {
+            actionLabel.textContent = state.baseFood >= state.baseDrink ? 'MAKAN' : 'MINUM';
+            actionSub.textContent = `🍞${state.baseFood} 🥤${state.baseDrink}`;
             btnAction.classList.add('store-mode');
           }
         } else {
