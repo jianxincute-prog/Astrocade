@@ -139,6 +139,7 @@ const check = (name, ok, extra = '') => {
   // 5d. NPC mengklaim basecamp dan membangun komputer dalam simulasi
   const npc = await page.evaluate(() => {
     const d = __dbg;
+    d.state.started = true;
     d.playerGroup.position.set(0, 0, 12);
     let t = 0;
     for (; t < 900 && !d.npcs.some(n => n.online); t += 0.05) {
