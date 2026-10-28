@@ -1226,7 +1226,7 @@
             <ul class="tutorial-list">
               <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas, atau dekati tumpukan bekal di basecamp untuk <b>MAKAN/MINUM</b> (mengurangi bekal target!). Istirahat di basecamp memulihkan nyawa.</li>
               <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
-              <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap.</li>
+              <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap, Spons Rakus.</li>
               <li>🔄 Ruang gudang, jebakan, monster &amp; bahan <b>tertutup lagi setelah 20 detik</b> dan isinya diacak ulang. Penyintas bisa mati dan respawn di basecamp mereka.</li>
               <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
             </ul>
@@ -3322,12 +3322,13 @@
 
       // Tipe monster: pemburu (standar), brute (lambat, besar, 2 damage, tahan senter), penyelinap (cepat, rapuh, mudah terkena senter)
       const MTYPES = {
-        hunter:  { name: 'Pemburu',    hp: 3, speed: 1,    detect: 1,    scale: 1,    dmg: 1, stun: 1,   reach: 1.5, body: 0x0f172a, eye: 0xff1744, w: 0.55 },
-        brute:   { name: 'Brute',      hp: 5, speed: 0.78, detect: 0.9,  scale: 1.35, dmg: 2, stun: 0.6, reach: 1.9, body: 0x3b1010, eye: 0xff6d00, w: 0.25 },
-        stalker: { name: 'Penyelinap', hp: 2, speed: 1.25, detect: 0.75, scale: 0.92, dmg: 1, stun: 1.4, reach: 1.5, body: 0x12202c, eye: 0x00e5ff, w: 0.20 }
+        hunter:  { name: 'Pemburu',    hp: 3, speed: 1,    detect: 1,    scale: 1,    dmg: 1, stun: 1,   reach: 1.5, body: 0x0f172a, eye: 0xff1744, w: 0.48 },
+        brute:   { name: 'Brute',      hp: 5, speed: 0.78, detect: 0.9,  scale: 1.35, dmg: 2, stun: 0.6, reach: 1.9, body: 0x3b1010, eye: 0xff6d00, w: 0.22 },
+        stalker: { name: 'Penyelinap', hp: 2, speed: 1.25, detect: 0.75, scale: 0.92, dmg: 1, stun: 1.4, reach: 1.5, body: 0x12202c, eye: 0x00e5ff, w: 0.17 },
+        sponge:  { name: 'Spons Rakus', hp: 4, speed: 0.92, detect: 1.1, scale: 1.1, dmg: 1, stun: 0.45, reach: 1.6, body: 0x9a8f1c, eye: 0xb6ff3a, w: 0.13 }
       };
       MTYPES.hunter.mat = monsterMat; MTYPES.hunter.eyeMat = eyeMat;
-      ['brute', 'stalker'].forEach(k => {
+      ['brute', 'stalker', 'sponge'].forEach(k => {
         MTYPES[k].mat = new THREE.MeshStandardMaterial({ color: MTYPES[k].body, roughness: 0.4 });
         MTYPES[k].eyeMat = new THREE.MeshBasicMaterial({ color: MTYPES[k].eye });
       });
@@ -3459,6 +3460,46 @@
           const hand = (el, y) => { el.add(box(0.3, 0.3, 0.3, skin, 0, y - 0.12, 0)); [-0.1, 0, 0.1].forEach(x => el.add(cone(0.035, 0.18, bone, x, y - 0.32, 0.1, 0.4, 0, Math.PI))); };
           const as = { x: 0.64, y: 1.88, z: 0.04, uw: 0.28, ul: 0.55, fw: 0.24, fl: 0.55, bend: 0.2, plate: true, hand };
           armL = mkArm(-1, as); armR = mkArm(1, as);
+        } else if (typeKey === 'sponge') {
+          // Spons Rakus: tubuh persegi berpori berwarna kuning-lumut, mata melotot berurat, seringai bergerigi, lengan-kaki seperti tali
+          const lg = { x: 0.2, tw: 0.09, tl: 0.5, ty: 0.68, tz: 0, tr: 0, sw: 0.08, sl: 0.55, sy: 0.3, sz: 0, sr: 0, fw: 0.2, fl: 0.46, fz: 0.12, knee: 0, ky: 0, kz: 0 };
+          legL = mkLeg(-1, lg); legR = mkLeg(1, lg);
+          const pore = skin;
+          group.add(box(1.04, 0.3, 0.5, dark, 0, 1.0, 0));                      // pita busuk di pinggang
+          [-0.4, -0.2, 0, 0.22, 0.42].forEach((x, i) => group.add(cone(0.06, 0.2 + (i % 2) * 0.12, dark, x, 0.78 - (i % 2) * 0.05, 0.2, Math.PI)));
+          group.add(box(1.0, 1.0, 0.46, skin, 0, 1.65, 0));                      // badan persegi
+          group.add(box(0.9, 0.08, 0.5, armor, 0, 1.18, 0));                     // lipatan berlumut
+          [[-0.3, 1.42], [0.28, 1.35], [0.0, 1.22], [-0.38, 1.2], [0.4, 1.58], [-0.12, 1.5]].forEach(([x, y]) => {
+            group.add(box(0.13, 0.13, 0.04, dark, x, y, 0.235));                 // pori depan
+          });
+          [[-0.3, 1.9], [0.38, 1.85], [0.1, 1.98]].forEach(([x, y]) => group.add(box(0.11, 0.11, 0.04, dark, x, y, -0.235)));
+          [-1, 1].forEach(sd => { [1.35, 1.7].forEach(y => group.add(box(0.04, 0.12, 0.12, dark, sd * 0.51, y, 0.05))); });
+          // karang & jamur di atas kepala
+          [[-0.3, 0.3, 0.2], [0.05, 0.4, 0.28], [0.34, 0.26, 0.18]].forEach(([x, h, r]) => group.add(cone(r * 0.35, h, armor, x, 2.15 + h / 2 - 0.02, -0.02, 0, 0, x * -0.4)));
+          // wajah: mata melotot (bola putih berurat, pupil menyala), seringai bergerigi
+          const head = new THREE.Group(); head.position.set(0, 1.85, 0.24); group.add(head);
+          [-1, 1].forEach(sd => {
+            head.add(box(0.3, 0.34, 0.1, bone, sd * 0.22, 0.04, 0.03));
+            head.add(box(0.012, 0.3, 0.012, core, sd * 0.28, 0.05, 0.09, 0.0, 0, 0.4));
+            head.add(box(0.012, 0.22, 0.012, core, sd * 0.16, 0.0, 0.09, 0.0, 0, -0.5));
+            head.add(box(0.12, 0.14, 0.05, eyeM, sd * 0.2 - sd * 0.03, 0.02 - sd * 0.02, 0.1));
+            head.add(box(0.05, 0.07, 0.05, dark, sd * 0.2 - sd * 0.03, 0.02 - sd * 0.02, 0.13));
+            const gl = new THREE.Sprite(tp.glowMat); gl.scale.set(0.32, 0.32, 1); gl.position.set(sd * 0.17, 0, 0.17); head.add(gl);
+          });
+          head.add(box(0.66, 0.2, 0.06, dark, 0, -0.4, 0.04, 0, 0, 0.05));
+          for (let i = 0; i < 7; i++) {
+            const x = -0.28 + i * 0.093, h = 0.09 + (i * 7 % 3) * 0.045;
+            head.add(cone(0.026, h, bone, x, -0.33 + (i % 2) * 0.01, 0.09, Math.PI));
+            if (i % 2 === 0) head.add(cone(0.024, h * 0.9, bone, x + 0.04, -0.47, 0.09, 0));
+          }
+          head.add(box(0.1, 0.04, 0.05, core, 0.0, -0.28, 0.08));
+          group.add(head);
+          // lengan: tali panjang dengan tangan besar berjari tiga
+          const hand = (el, y) => { el.add(box(0.2, 0.2, 0.1, skin, 0, y - 0.08, 0)); clawSet(el, y - 0.14, 3, 0.26, 0.07, bone); };
+          const as = { x: 0.6, y: 1.85, z: 0.0, uw: 0.09, ul: 0.65, fw: 0.08, fl: 0.7, bend: 0.3, hand };
+          armL = mkArm(-1, as); armR = mkArm(1, as);
+          // lendir menetes dari lengan
+          [-1, 1].forEach(sd => group.add(cone(0.035, 0.18, core, sd * 0.6, 0.62, 0.03, Math.PI)));
         } else {
           // Penyelinap: sangat kurus, kepala memanjang tanpa mulut dengan banyak mata, lengan bilah, sirip punggung, sulur
           const lg = { x: 0.14, tw: 0.1, tl: 0.62, ty: 0.9, tz: 0.18, tr: -0.75, sw: 0.075, sl: 0.78, sy: 0.4, sz: 0.2, sr: 0.5, fw: 0.1, fl: 0.4, fz: 0.2, knee: 0.5, ky: 0.7, kz: 0.46 };
@@ -4819,6 +4860,7 @@
             hunter: 'Kamu diterkam Pemburu di koridor mal.',
             brute: 'Brute menghantammu hingga tak berdaya.',
             stalker: 'Penyelinap menyergapmu dari bayangan.',
+            sponge: 'Spons Rakus menyerapmu ke dalam tubuhnya.',
             plate: 'Kamu tertusuk paku jebakan lantai.',
             laser: 'Sinar laser jebakan menembusmu.',
             gas: 'Gas beracun dari pipa jebakan melumpuhkanmu.',
@@ -6445,7 +6487,7 @@
       const npcs = [];
       const NPC_HP = 3;
       const CAUSE_NAMES = {
-        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap',
+        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap', sponge: 'diserap Spons Rakus',
         plate: 'tertusuk paku jebakan', laser: 'terkena laser', gas: 'keracunan gas', collapse: 'jatuh di lantai runtuh'
       };
 
