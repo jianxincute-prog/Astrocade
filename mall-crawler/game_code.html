@@ -311,7 +311,7 @@
       left: 0;
       bottom: 0;
       width: 330px;
-      height: 360px;
+      height: 280px;
       z-index: 1;
       pointer-events: auto;
       touch-action: none;
@@ -320,7 +320,7 @@
     .joystick-base {
       position: absolute;
       left: 130px;
-      top: 230px;
+      top: 170px;
       width: 150px;
       height: 150px;
       border-radius: 50%;
@@ -707,7 +707,7 @@
 
     /* Bag Button */
     .btn-bag {
-      position: absolute; left: 44px; bottom: 300px; width: 104px; height: 104px; border-radius: 28px;
+      z-index: 3; position: absolute; left: 44px; bottom: 300px; width: 104px; height: 104px; border-radius: 28px;
       background: linear-gradient(160deg, rgba(41, 28, 12, 0.95), rgba(15, 23, 42, 0.95));
       border: 2px solid #f59e0b; box-shadow: 0 6px 22px rgba(0,0,0,0.6), 0 0 16px rgba(245,158,11,0.3);
       color: #fbbf24; font-family: var(--font-title); font-size: 16px; font-weight: 800; letter-spacing: 1px;
@@ -5224,11 +5224,15 @@
           if (!touchControls.joyActive) {
             touchControls.joyActive = true;
             touchControls.joyTouchId = t.identifier;
+            // Pangkalan joystick dikunci di dalam zona kiri-bawah agar tidak menutupi tombol tas
             const rect = joyZone.getBoundingClientRect();
-            touchControls.joyStartX = t.clientX;
-            touchControls.joyStartY = t.clientY;
-            joyBase.style.left = `${t.clientX - rect.left}px`;
-            joyBase.style.top = `${t.clientY - rect.top}px`;
+            const k = rect.width / 330;
+            const cx = Math.min(Math.max(t.clientX, rect.left + 90 * k), rect.right - 90 * k);
+            const cy = Math.min(Math.max(t.clientY, rect.top + 90 * k), rect.bottom - 80 * k);
+            touchControls.joyStartX = cx;
+            touchControls.joyStartY = cy;
+            joyBase.style.left = `${cx - rect.left}px`;
+            joyBase.style.top = `${cy - rect.top}px`;
             joyKnob.style.transform = 'translate(0, 0)';
             break;
           }
@@ -5245,13 +5249,7 @@
             const dist = Math.hypot(dx, dy);
 
             if (dist > JOY_MAX_RADIUS) {
-              // Floating base: anchor shifts so knob stays under finger
-              const excess = dist - JOY_MAX_RADIUS;
-              touchControls.joyStartX += (dx / dist) * excess;
-              touchControls.joyStartY += (dy / dist) * excess;
-              const rect = joyZone.getBoundingClientRect();
-              joyBase.style.left = `${touchControls.joyStartX - rect.left}px`;
-              joyBase.style.top = `${touchControls.joyStartY - rect.top}px`;
+              // Pangkalan tetap diam; knob hanya sampai tepi
               dx = (dx / dist) * JOY_MAX_RADIUS;
               dy = (dy / dist) * JOY_MAX_RADIUS;
             }
@@ -5287,7 +5285,7 @@
             inputs.moveZ = 0;
             joyKnob.style.transform = 'translate(0, 0)';
             joyBase.style.left = '130px';
-            joyBase.style.top = '230px';
+            joyBase.style.top = '170px';
             sprintIntent.joy = false;
             break;
           }
