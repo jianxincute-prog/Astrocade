@@ -3,6 +3,7 @@
 <head>
 <title>Don't Touch Water</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;600;700&display=swap');
   :root {
     --transition-fast: 150ms;
     --transition-normal: 300ms;
@@ -20,7 +21,6 @@
     background: #d8e2dc;
     font-family: 'Inter', sans-serif;
   }
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;600&display=swap');
 
   #game-world {
     position: relative;
@@ -153,7 +153,7 @@
   }
   #danger-banner {
     position: absolute;
-    top: 18px; left: 50%;
+    top: 176px; left: 50%;
     transform: translateX(-50%);
     z-index: 80;
     max-width: calc(100% - 36px);
@@ -180,10 +180,10 @@
   }
   #goal-hint {
     position: absolute;
-    top: 58px; left: 50%;
+    top: 112px; left: 50%;
     transform: translateX(-50%);
     color: #bfe9d2;
-    font-size: 18px;
+    font-size: 16px;
     text-shadow: 0 1px 4px rgba(0,0,0,0.8);
     pointer-events: none;
     white-space: nowrap;
@@ -193,37 +193,116 @@
     display: none;
     flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 28px;
-    background: rgba(40,4,8,0.8);
-    z-index: 30;
+    gap: 16px; padding: 24px; box-sizing: border-box;
+    background: rgba(40,4,8,0.84);
+    z-index: 95; overflow-y: auto; touch-action: pan-y;
   }
-  #end-screen.win { background: rgba(4,34,24,0.8); }
+  #end-screen.win { background: rgba(4,34,24,0.84); }
   #end-screen.show { display: flex; }
   #end-title {
     font-family: 'Orbitron', sans-serif;
-    font-size: 64px; font-weight: 700;
+    font-size: 56px; font-weight: 700; text-align: center;
     color: #ff6b5b;
     text-shadow: 0 4px 18px rgba(0,0,0,0.8);
   }
   #end-screen.win #end-title { color: #7dffb0; }
+  #end-stars { font-size: 66px; letter-spacing: 10px; color: #ffd86b; text-shadow: 0 4px 16px rgba(0,0,0,.6); min-height: 0; }
   #end-sub {
-    font-size: 26px; color: #e6eef5;
+    font-size: 21px; color: #e6eef5;
     text-align: center; max-width: 560px;
     line-height: 1.4;
   }
-  #restart-btn {
-    min-width: 300px; height: 112px;
-    border-radius: 28px;
+  #end-stats { width: min(560px, 92%); display: flex; flex-direction: column; gap: 8px; }
+  .st-row { display: flex; align-items: center; gap: 12px; padding: 9px 16px; border-radius: 14px; background: rgba(255,255,255,.08); color: #eaf5f8; font: 600 20px 'Inter', sans-serif; }
+  .st-row span { flex: 1; }
+  .st-row b { font-family: 'Orbitron', sans-serif; font-size: 20px; }
+  .st-row i { font-style: normal; font-size: 15px; color: #9fb4bd; min-width: 118px; text-align: right; }
+  .st-row i.ok { color: #7dffb0; }
+  .st-row.total { background: rgba(255,216,107,.16); border: 1px solid rgba(255,216,107,.5); }
+  .st-row.total i { color: #ffd86b; }
+  #end-rank { color: #bfe9ff; font: 600 18px 'Inter', sans-serif; min-height: 22px; text-align: center; }
+  #end-btns { display: flex; flex-direction: column; gap: 12px; width: min(560px, 92%); }
+  .end-btn {
+    min-height: 96px; border-radius: 26px;
     border: 3px solid rgba(255,255,255,0.7);
     background: linear-gradient(180deg, #3d8fe0, #2464b0);
-    color: #fff;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 34px; font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    color: #fff; font-family: 'Orbitron', sans-serif; font-size: 25px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     transition: transform var(--transition-fast) var(--ease-out);
+    touch-action: manipulation;
   }
-  #restart-btn:active { transform: scale(0.94); }
+  .end-btn.primary { background: linear-gradient(180deg, #34c98a, #1a8f62); }
+  .end-btn.ghost { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.35); min-height: 76px; font-size: 20px; box-shadow: none; }
+  .end-btn:active { transform: scale(0.95); }
+
+  /* ─── HUD (level, timer, crystals) ─── */
+  #hud { position: absolute; top: 14px; left: 14px; display: none; align-items: flex-start; gap: 10px; z-index: 70; pointer-events: none; }
+  #hud.on { display: flex; }
+  #menu-btn {
+    pointer-events: auto; width: 88px; height: 88px; border-radius: 22px; padding: 0;
+    border: 2px solid rgba(180,225,235,.55); background: rgba(10,24,36,.74); color: #e8fbff;
+    font: 700 34px 'Inter', sans-serif; cursor: pointer; touch-action: manipulation;
+  }
+  #menu-btn:active { transform: scale(.94); }
+  #hud-info { padding: 9px 14px; border-radius: 16px; background: rgba(10,24,36,.7); border: 1px solid rgba(150,210,225,.35); color: #eaf9ff; }
+  #hud-l1 { font: 700 20px 'Orbitron', sans-serif; line-height: 1.5; white-space: nowrap; }
+  #hud-l1.over { color: #ffb36b; }
+  #hud-l2 { font: 600 15px 'Inter', sans-serif; color: #b9e6ee; white-space: nowrap; }
+  #toast {
+    position: absolute; top: 236px; left: 50%; transform: translateX(-50%); z-index: 85; max-width: 84%;
+    padding: 10px 20px; border-radius: 14px; background: rgba(10,24,36,.84); border: 1px solid rgba(150,230,215,.5);
+    color: #eafffa; font: 600 18px 'Inter', sans-serif; text-align: center; line-height: 1.35;
+    opacity: 0; pointer-events: none; transition: opacity 250ms ease;
+  }
+  #toast.show { opacity: 1; }
+  #game-world.in-menu #joystick-area, #game-world.in-menu #jump-btn, #game-world.in-menu #hud,
+  #game-world.in-menu #radar-panel, #game-world.in-menu #goal-hint, #game-world.in-menu #danger-vignette,
+  #game-world.in-menu #danger-banner, #game-world.in-menu #toast { display: none !important; }
+
+  /* ─── MENU / LEVEL SELECT / HELP ─── */
+  #menu-screen, #help-screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; }
+  #menu-screen { z-index: 90; background: radial-gradient(ellipse at 50% 30%, rgba(24,60,70,.82), rgba(6,16,24,.93)); }
+  #help-screen { z-index: 110; background: rgba(4,12,18,.86); }
+  #menu-screen.show, #help-screen.show { display: flex; }
+  #menu-panel { width: min(640px, 94%); max-height: 94%; overflow-y: auto; touch-action: pan-y; padding: 18px 8px 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; color: #eaf5f8; }
+  .mn-title { font: 700 clamp(30px, 6.4vw, 46px) 'Orbitron', sans-serif; text-align: center; letter-spacing: 1px; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,.7); }
+  .mn-title.sm { font-size: 32px; }
+  .mn-sub { text-align: center; color: #a9cdd3; font: 600 17px 'Inter', sans-serif; }
+  .mn-stats { display: flex; justify-content: center; gap: 22px; font: 700 20px 'Orbitron', sans-serif; color: #ffd86b; }
+  .mn-note { text-align: center; color: #a9cdd3; font: 600 18px 'Inter', sans-serif; padding: 14px 0; }
+  .mn-btn {
+    min-height: 96px; border-radius: 24px; border: 3px solid rgba(255,255,255,.65); color: #fff; cursor: pointer; touch-action: manipulation;
+    background: linear-gradient(180deg, #3d8fe0, #2464b0); font: 700 26px 'Orbitron', sans-serif; box-shadow: 0 8px 22px rgba(0,0,0,.45);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 12px;
+  }
+  .mn-btn small { font: 600 15px 'Inter', sans-serif; opacity: .85; }
+  .mn-btn.primary { background: linear-gradient(180deg, #34c98a, #1a8f62); }
+  .mn-btn.daily { background: linear-gradient(180deg, #e0a23d, #b0702a); font-size: 22px; }
+  .mn-btn.sm { flex: 1; font-size: 19px; min-height: 96px; background: linear-gradient(180deg, #4b6a86, #2e4558); }
+  .mn-btn:active { transform: scale(.96); }
+  .mn-row { display: flex; gap: 12px; }
+  .mn-h { margin-top: 6px; text-align: center; color: #7fb7c0; font: 700 14px 'Inter', sans-serif; letter-spacing: 2px; }
+  .lv-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .lv-cell { min-height: 96px; border-radius: 16px; border: 2px solid rgba(160,215,230,.4); background: rgba(14,38,52,.8); color: #eaf9ff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; touch-action: manipulation; }
+  .lv-cell b { font: 700 24px 'Orbitron', sans-serif; }
+  .lv-cell span { font-size: 15px; color: #ffd86b; letter-spacing: 1px; }
+  .lv-cell.next { border-color: #7dffb0; box-shadow: 0 0 14px rgba(125,255,176,.45); }
+  .lv-cell.locked { opacity: .38; cursor: default; }
+  .lb-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 14px; background: rgba(255,255,255,.07); font: 600 19px 'Inter', sans-serif; }
+  .lb-row.me { background: rgba(125,255,176,.18); border: 1px solid rgba(125,255,176,.5); }
+  .lb-row em { font-style: normal; font-family: 'Orbitron', sans-serif; color: #ffd86b; min-width: 42px; }
+  .lb-row span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-row b { font-family: 'Orbitron', sans-serif; }
+  .help-card { width: min(600px, 92%); box-sizing: border-box; padding: 26px 24px 22px; border-radius: 28px; border: 2px solid rgba(125,255,224,.7); background: rgba(8,22,30,.96); color: #eafffa; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px #000a; }
+  .hp-step { color: #7dffe0; font: 800 14px 'Inter', sans-serif; letter-spacing: 2px; }
+  .hp-title { font: 700 30px 'Orbitron', sans-serif; color: #fff; }
+  .hp-text { font: 600 21px 'Inter', sans-serif; line-height: 1.5; color: #d6efe9; min-height: 190px; }
+  .hp-dots { display: flex; gap: 8px; }
+  .hp-dots i { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.2); }
+  .hp-dots i.cur { background: #ffd86b; }
+  .hp-btns { display: flex; gap: 12px; }
+  .hp-btns button { flex: 1; min-height: 96px; border-radius: 22px; border: 2px solid rgba(255,255,255,.55); background: linear-gradient(180deg, #34c98a, #1a8f62); color: #fff; font: 700 24px 'Orbitron', sans-serif; cursor: pointer; touch-action: manipulation; }
+  .hp-btns button.alt { flex: 0 0 120px; background: rgba(255,255,255,.12); }
 
   .edit-info {
     position: absolute;
@@ -351,11 +430,26 @@
       <div class="joystick-knob" id="joystick-knob"></div>
     </div>
     <div id="jump-btn">JUMP</div>
-    <div id="end-screen">
-      <div id="end-title">GAME OVER</div>
-      <div id="end-sub"></div>
-      <button id="restart-btn">ULANGI</button>
+    <div id="hud">
+      <button id="menu-btn" aria-label="Menu">&#9776;</button>
+      <div id="hud-info"><div id="hud-l1">LV 1 &middot; 00:00.0</div><div id="hud-l2"></div></div>
     </div>
+    <div id="toast"></div>
+    <div id="end-screen" class="ui-modal">
+      <div id="end-title">TERTANGKAP!</div>
+      <div id="end-stars"></div>
+      <div id="end-sub"></div>
+      <div id="end-stats"></div>
+      <div id="end-rank"></div>
+      <div id="end-btns">
+        <button id="next-btn" class="end-btn primary">LEVEL BERIKUTNYA</button>
+        <button id="cont-btn" class="end-btn primary">LANJUT DARI CHECKPOINT</button>
+        <button id="restart-btn" class="end-btn">ULANGI</button>
+        <button id="end-menu-btn" class="end-btn ghost">MENU</button>
+      </div>
+    </div>
+    <div id="menu-screen" class="ui-modal"><div id="menu-panel"></div></div>
+    <div id="help-screen" class="ui-modal"><div id="help-card" class="help-card"></div></div>
   </div>
 </div>
 
@@ -734,9 +828,117 @@ async function run(mode) {
     return tex;
   }
 
+  // ─── LEVEL SYSTEM, PROGRESS & SCORING ───
+  // Play mode runs numbered levels (own seed / size / difficulty) and a daily challenge.
+  // Edit mode keeps using the raw config values so the creator can preview maps.
+  const MAX_LEVEL = 30;
+  const PAR_PER_HOP = 1.25, PAR_BASE = 8, PAR_PER_CRYSTAL = 3.5;
+  let levelSpec = null;
+  const save = { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0 };
+
+  function dateKey() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
+  function alertFor(mult) { const a0 = Number(cfg.settings.alertTime) || 0; return a0 <= 0 ? 0 : Math.max(0.5, a0 * mult); }
+  function levelSpecFor(n) {
+    n = Math.max(1, Math.min(MAX_LEVEL, n | 0));
+    const base = clampRoomSize(cfg.settings.roomSize);
+    const size = Math.max(40, Math.min(260, Math.round(base * (0.42 + 0.10 * (n - 1)) / 10) * 10));
+    return {
+      kind: 'level', n, title: 'LV ' + n, seed: 1337 + n * 7919, size,
+      dif: Math.min(1, (n - 1) / 12), crystals: Math.min(10, 4 + (n >> 1)),
+      monsterMult: 1 + 0.04 * Math.min(12, n - 1), alert: alertFor(1 - 0.04 * (n - 1)), par: 0
+    };
+  }
+  function dailySpec() {
+    const k = dateKey();
+    const size = Math.max(60, Math.min(260, Math.round(clampRoomSize(cfg.settings.roomSize) * 0.9 / 10) * 10));
+    return {
+      kind: 'daily', n: 0, title: 'HARIAN', seed: (Math.imul(k, 2654435761) ^ 0x5bd1e995) | 0, size,
+      dif: 0.6, crystals: 8, monsterMult: 1.2, alert: alertFor(0.7), par: 0
+    };
+  }
+  function effSize() { return levelSpec ? levelSpec.size : cfg.settings.roomSize; }
+  function effSeed() { return levelSpec ? levelSpec.seed : cfg.settings.mapSeed; }
+  function mMult() { return levelSpec ? levelSpec.monsterMult : 1; }
+
+  function rollDaily() {
+    const k = dateKey();
+    if (!save.daily.k) save.daily.k = k;
+    else if (save.daily.k !== k) { save.dailyTotal += save.daily.s; save.daily = { k, s: 0, st: 0, t: 0 }; }
+  }
+  function totalScore() {
+    let t = save.dailyTotal + (save.daily.k ? save.daily.s : 0);
+    for (const e of save.lv) if (e) t += e.s || 0;
+    return Math.round(t);
+  }
+  function totalStars() { let t = 0; for (const e of save.lv) if (e) t += e.st || 0; return t; }
+  function applySave(st) {
+    if (!st || typeof st !== 'object') return;
+    save.maxLv = Math.max(0, Math.min(MAX_LEVEL, st.maxLv | 0));
+    save.lv = Array.isArray(st.lv) ? st.lv.slice(0, MAX_LEVEL).map(e => e ? { s: +e.s || 0, st: e.st | 0, t: +e.t || 0 } : null) : [];
+    if (st.daily) save.daily = { k: st.daily.k | 0, s: +st.daily.s || 0, st: st.daily.st | 0, t: +st.daily.t || 0 };
+    save.dailyTotal = +st.dailyTotal || 0;
+    save.tut = st.tut ? 1 : 0;
+  }
+  let saveTimer = 0;
+  function saveProgress() {
+    if (mode !== 'play') return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      try { await lib.saveUserGameState(save); } catch (e) { lib.log('save failed: ' + e); }
+    }, 400);
+  }
+
+  // Collectible crystals (on side pads) and checkpoint flags (on route platforms)
+  const levelObjGroup = new THREE.Group();
+  scene.add(levelObjGroup);
+  const crystalGeo = new THREE.OctahedronGeometry(0.15, 0); crystalGeo.scale(1, 1.5, 1);
+  const crystalMat = new THREE.MeshStandardMaterial({ color: 0x4df0ff, emissive: 0x18c8e8, emissiveIntensity: 1.1, roughness: 0.15, metalness: 0.3, flatShading: true });
+  const haloGeo = new THREE.RingGeometry(0.2, 0.3, 28); haloGeo.rotateX(-Math.PI / 2);
+  const haloMat = new THREE.MeshBasicMaterial({ color: 0x4df0ff, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+  const cpRingGeo = new THREE.RingGeometry(0.3, 0.38, 28); cpRingGeo.rotateX(-Math.PI / 2);
+  const cpPoleGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.9, 6);
+  const cpFlagGeo = new THREE.PlaneGeometry(0.3, 0.18);
+  const cpBeamGeo = new THREE.CylinderGeometry(0.1, 0.1, 2.4, 10, 1, true);
+  const cpPoleMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: 0.4, metalness: 0.5 });
+  let crystals = [], cpObjs = [];
+  function paintCp(c, on) {
+    c.on = on;
+    const col = on ? 0x7dffb0 : 0x6f8f86;
+    c.ringMat.color.set(col); c.flagMat.color.set(col); c.beamMat.color.set(col);
+    c.ringMat.opacity = on ? 0.95 : 0.5; c.beamMat.opacity = on ? 0.22 : 0.08;
+  }
+  function buildLevelObjects() {
+    while (levelObjGroup.children.length) levelObjGroup.remove(levelObjGroup.children[0]);
+    cpObjs.forEach(c => c.mats.forEach(m => m.dispose()));
+    crystals = []; cpObjs = [];
+    crystalPads.forEach((pad, i) => {
+      const g = new THREE.Group(); g.position.set(pad.x, pad.top, pad.z);
+      const gem = new THREE.Mesh(crystalGeo, crystalMat); gem.position.y = 0.42; g.add(gem);
+      const halo = new THREE.Mesh(haloGeo, haloMat); halo.position.y = 0.012; g.add(halo);
+      levelObjGroup.add(g);
+      crystals.push({ pad, g, gem, got: false, ph: i * 1.7 });
+    });
+    checkpointPlats.forEach(plat => {
+      const g = new THREE.Group(); g.position.set(plat.x, plat.top, plat.z);
+      const ringMat = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false });
+      const flagMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      const beamMat = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false });
+      const ring = new THREE.Mesh(cpRingGeo, ringMat); ring.position.y = 0.012; g.add(ring);
+      const px = plat.hw * 0.55, pz = plat.hd * 0.55;
+      const pole = new THREE.Mesh(cpPoleGeo, cpPoleMat); pole.position.set(px, 0.45, pz); g.add(pole);
+      const flag = new THREE.Mesh(cpFlagGeo, flagMat); flag.position.set(px + 0.15, 0.8, pz); g.add(flag);
+      const beam = new THREE.Mesh(cpBeamGeo, beamMat); beam.position.set(0, 1.2, 0); g.add(beam);
+      levelObjGroup.add(g);
+      const c = { plat, ringMat, flagMat, beamMat, mats: [ringMat, flagMat, beamMat], on: false };
+      paintCp(c, false);
+      cpObjs.push(c);
+    });
+  }
+  if (mode === 'play') levelSpec = levelSpecFor(1);
+
   // Room Dimensions
   function clampRoomSize(v) { v = Math.round(Number(v) || 500); return Math.max(20, Math.min(500, v)); }
-  let RS = clampRoomSize(cfg.settings.roomSize);   // room size in meters (up to 500 x 500)
+  let RS = clampRoomSize(effSize());   // room size in meters (up to 500 x 500)
   let PATCH = RS;                                   // full-room floor and water so the monster can roam across the whole map
   const WH = 6;   // 6m wall height; raised porcelain ceiling and concrete pillars meet here
   const WT = 0.1; // wall thickness
@@ -855,11 +1057,11 @@ async function run(mode) {
       "Water Speed Multiplier": { key: "settings.waterSpeedMult", type: "slider", min: 0.15, max: 1.0, step: 0.05 },
       "Monster Speed": { key: "settings.monsterSpeed", type: "slider", min: 0.4, max: 3.0, step: 0.1 },
       "Danger Warning Time (s)": { key: "settings.alertTime", type: "slider", min: 0, max: 3.0, step: 0.1 },
-      "Map Size (m)": {
+      "Base Map Size (m) - scales every level": {
         key: "settings.roomSize", type: "slider", min: 20, max: 500, step: 10,
         onChange: (v) => { cfg.settings.roomSize = v; rebuildWorld(true); }
       },
-      "Map Seed": {
+      "Preview Map Seed (edit mode)": {
         key: "settings.mapSeed", type: "number",
         onChange: (v) => { cfg.settings.mapSeed = Math.round(Number(v) || 1); rebuildWorld(true); }
       }
@@ -935,6 +1137,7 @@ async function run(mode) {
   let pillarBoxes = [];    // {x,z,hw,hd,kind:'pillar'}
   let routeBoxes = [];
   let startPlat = null, lastPlat = null;
+  let crystalPads = [], checkpointPlats = [];
   const GRID = 4;
   let grid = new Map();
   let qStamp = 0;
@@ -977,7 +1180,8 @@ async function run(mode) {
 
   const MAX_ROUTE_GAP = 1.05; // guaranteed jumpable edge-to-edge gap along the main route
   function generateMap() {
-    const rng = mulberry32((cfg.settings.mapSeed | 0) || 1);
+    const rng = mulberry32((effSeed() | 0) || 1);
+    const dif = levelSpec ? levelSpec.dif : 0;   // 0 = original layout, 1 = smallest pads / longest jumps
     platformBoxes = []; pillarBoxes = []; routeBoxes = [];
     grid = new Map();
     const top = platTop();
@@ -1007,8 +1211,8 @@ async function run(mode) {
         const side = (routeBoxes.length % 4 === 1) ? (rng() < 0.5 ? -1 : 1) : 0;
         const spread = side ? 2.8 : (attempt < 12 ? 2.2 : 0.7);
         const ang = desired + side * (0.75 + rng() * 0.45) + (rng() - 0.5) * spread;
-        const w = 0.75 + rng() * 1.25, d = 0.75 + rng() * 1.25;
-        const gap = 0.40 + rng() * 0.60;
+        const w = 0.75 - 0.25 * dif + rng() * (1.25 - 0.2 * dif), d = 0.75 - 0.25 * dif + rng() * (1.25 - 0.2 * dif);
+        const gap = 0.40 + 0.20 * dif + rng() * (0.60 - 0.20 * dif);
         const c = placeAlong(cur, ang, w, d, gap);
         if (!c) continue;
         if (Math.abs(c.x) > half - c.hw - 0.3 || Math.abs(c.z) > half - c.hd - 0.3) continue;
@@ -1047,6 +1251,40 @@ async function run(mode) {
     routeBoxes.push(fin);
     routeBoxes.forEach(b => { platformBoxes.push(b); gridInsert(b); });
     startPlat = start; lastPlat = fin;
+
+    // Level extras: side pads that hold crystals (a longer, riskier hop off the route) and checkpoints.
+    crystalPads = []; checkpointPlats = [];
+    if (levelSpec) {
+      const n = routeBoxes.length;
+      const prng = mulberry32((((effSeed() | 0) ^ 0x9e3779b9) | 0) || 7);
+      const padAlong = (cur, ang, sz, gap) => {
+        const dx = Math.sin(ang), dz = Math.cos(ang);
+        for (let q = 0.3; q < 6; q += 0.05) {
+          const t = mk(cur.x + dx * q, cur.z + dz * q, sz, sz, false);
+          if (gapBetween(cur, t) >= gap) return t;
+        }
+        return null;
+      };
+      const want = Math.min(levelSpec.crystals, Math.max(0, Math.floor((n - 8) / 3)));
+      const near2 = [];
+      for (let k = 0; k < want; k++) {
+        const idx = 4 + Math.floor((n - 9) * (k + 0.5) / want);
+        const base = routeBoxes[Math.max(1, Math.min(n - 3, idx))];
+        for (let attempt = 0; attempt < 40; attempt++) {
+          const t = padAlong(base, prng() * Math.PI * 2, 0.9, 0.7 + prng() * 0.28 + 0.05 * dif);
+          if (!t) continue;
+          if (Math.abs(t.x) > half - t.hw - 0.6 || Math.abs(t.z) > half - t.hd - 0.6) continue;
+          queryBoxes(t.x, t.z, 3, near2);
+          let ok = true;
+          for (const o of near2) { if (o !== base && gapBetween(t, o) < 0.6) { ok = false; break; } }
+          if (!ok) continue;
+          t.pad = true; platformBoxes.push(t); gridInsert(t); crystalPads.push(t);
+          break;
+        }
+      }
+      for (let i = 20; i < n - 8; i += 20) checkpointPlats.push(routeBoxes[i]);
+      levelSpec.par = Math.round(n * PAR_PER_HOP + PAR_BASE + crystalPads.length * PAR_PER_CRYSTAL);
+    }
 
     const near = [];
     // Extra scattered resting platforms (alternate paths & decoys)
@@ -1128,7 +1366,7 @@ async function run(mode) {
 
   // Build / rebuild the whole world (called at start and when map size/seed changes)
   function rebuildWorld(fromUI) {
-    RS = clampRoomSize(cfg.settings.roomSize);
+    RS = clampRoomSize(effSize());
     PATCH = RS;
     floorTileTex.repeat.set(PATCH * 2, PATCH * 2);
     ceilingTileTex.repeat.set(PATCH * 2, PATCH * 2);
@@ -1145,8 +1383,9 @@ async function run(mode) {
     refreshPlatformInstances();
     refreshPillarInstances();
     repositionDoor();
+    buildLevelObjects();
     if (fromUI) {
-      if (mode === 'play') restartGame();
+      if (mode === 'play') retryLevel();
       else {
         const p = findSpawnPoint(startPlat.x, startPlat.z);
         mPos.set(p.x, p.z);
@@ -1803,6 +2042,26 @@ async function run(mode) {
       } catch (e) {}
     }
 
+    playBlip(freqs, step, vol, dur) {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      try {
+        const now = ctx.currentTime;
+        freqs.forEach((f, i) => {
+          const osc = ctx.createOscillator(), gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f, now + i * step);
+          gain.gain.setValueAtTime(0, now + i * step);
+          gain.gain.linearRampToValueAtTime(vol, now + i * step + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * step + dur);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(now + i * step); osc.stop(now + i * step + dur + 0.05);
+        });
+      } catch (e) {}
+    }
+    playPickup() { this.playBlip([1046.5, 1568], 0.07, 0.26, 0.35); }
+    playCheckpoint() { this.playBlip([523.25, 659.25, 783.99], 0.09, 0.28, 0.5); }
+
     playVictory() {
       const ctx = this.ensureContext();
       if (!ctx) return;
@@ -1905,8 +2164,8 @@ async function run(mode) {
   }
   let vIdx = 0;
 
-  function spawnVictoryBurst(x, y, z) {
-    for (let i = 0; i < victoryParticles.length; i++) {
+  function spawnVictoryBurst(x, y, z, count = victoryParticles.length) {
+    for (let i = 0; i < count; i++) {
       const p = victoryParticles[vIdx];
       vIdx = (vIdx + 1) % victoryParticles.length;
       p.active = true;
@@ -2189,13 +2448,16 @@ async function run(mode) {
   // Briefly latch the initial/respawn support so the first physics frames cannot
   // drop the player through a platform before contact state is established.
   let spawnSafetyTime = 0;
+  let spawnPlat = null;
   let playerRippleTimer = 0;
   let facingAngle = Math.PI / 4; // facing diagonally into the room toward the far EXIT corner
   const GRAVITY = -9.8;
 
   // ─── GAME / MONSTER STATE ───
-  let gameState = 'playing'; // playing | gameover | won
-  let mState = 'patrol';     // patrol | chase | preview; the monster stays present in the room
+  let gameState = mode === 'play' ? 'boot' : 'playing'; // boot | menu | playing | gameover | won
+  let mState = 'patrol';     // patrol | alert | chase | search | preview; the monster stays present in the room
+  let mAlertT = 0, mChaseT = 0, mSearchT = 0;
+  const mLastKnown = new THREE.Vector2(0, 0);   // where the player last splashed
   let mRise = 1;             // keep the creature surfaced and visible while it swims
   let mHeading = 0;
   const mPatrolTarget = new THREE.Vector2(0, 0);
@@ -2215,11 +2477,23 @@ async function run(mode) {
   // Keyboard
   if (mode === 'play') {
     window.addEventListener('keydown', e => {
-      if (gameState !== 'playing' && (e.code === 'Enter' || e.code === 'KeyR' || e.code === 'Space')) {
-        e.preventDefault();
-        restartGame();
+      if (gameState === 'gameover' || gameState === 'won') {
+        if (e.code === 'Enter' || e.code === 'KeyR' || e.code === 'Space') {
+          e.preventDefault();
+          if (performance.now() < endLockUntil) return;
+          if (e.code === 'KeyR') retryLevel();
+          else if (gameState === 'won') goNext();
+          else if (runStats.cp) continueFromCheckpoint();
+          else retryLevel();
+        }
         return;
       }
+      if (gameState === 'menu') {
+        if (e.code === 'Escape' && pausedLevel) resumeLevel();
+        return;
+      }
+      if (gameState === 'boot') return;
+      if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); pauseToMenu(); return; }
       if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
         e.preventDefault();
         keys[e.code] = true;
@@ -2460,6 +2734,23 @@ async function run(mode) {
       radarCtx.fillRect(pm.x - b.hw * scale, pm.y - b.hd * scale, b.hw * 2 * scale, b.hd * 2 * scale);
     }
 
+    // Crystals (diamonds) and checkpoints (flags)
+    if (levelSpec) {
+      for (const c of crystals) {
+        if (c.got) continue;
+        const q = toR(c.pad.x, c.pad.z);
+        if (Math.abs(q.x - cx) > w / 2 - 3 || Math.abs(q.y - cy) > h / 2 - 3) continue;
+        radarCtx.fillStyle = '#4df0ff';
+        radarCtx.beginPath(); radarCtx.moveTo(q.x, q.y - 5); radarCtx.lineTo(q.x + 4, q.y); radarCtx.lineTo(q.x, q.y + 5); radarCtx.lineTo(q.x - 4, q.y); radarCtx.closePath(); radarCtx.fill();
+      }
+      for (const o of cpObjs) {
+        const q = toR(o.plat.x, o.plat.z);
+        if (Math.abs(q.x - cx) > w / 2 - 3 || Math.abs(q.y - cy) > h / 2 - 3) continue;
+        radarCtx.strokeStyle = o.on ? '#7dffb0' : '#8fb0a8'; radarCtx.lineWidth = 2;
+        radarCtx.strokeRect(q.x - 4, q.y - 4, 8, 8);
+      }
+    }
+
     // EXIT: marker if in range, otherwise arrow on the rim
     const ex = doorInfo.x - playerPos.x, ez = doorInfo.z - playerPos.z;
     const edist = Math.hypot(ex, ez);
@@ -2502,7 +2793,7 @@ async function run(mode) {
 
     if (mState !== 'hidden' && monster.visible) {
       const mmd = toR(mPos.x, mPos.y);
-      radarCtx.fillStyle = '#ef4444';
+      radarCtx.fillStyle = mState === 'chase' ? '#ef4444' : (mState === 'alert' ? '#fb923c' : '#b91c1c');
       radarCtx.beginPath();
       radarCtx.arc(mmd.x, mmd.y, 4.5, 0, Math.PI * 2);
       radarCtx.fill();
@@ -2549,13 +2840,39 @@ async function run(mode) {
     window.addEventListener('touchstart', unlockAudio, { once: true });
   }
 
-  // ─── HUD / END SCREEN ───
+  // ─── HUD / END SCREEN / MENU ───
   const dangerBanner = document.getElementById('danger-banner');
   const dangerVignette = document.getElementById('danger-vignette');
   const endScreen = document.getElementById('end-screen');
   const endTitle = document.getElementById('end-title');
+  const endStars = document.getElementById('end-stars');
   const endSub = document.getElementById('end-sub');
+  const endStats = document.getElementById('end-stats');
+  const endRank = document.getElementById('end-rank');
   const restartBtn = document.getElementById('restart-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const contBtn = document.getElementById('cont-btn');
+  const endMenuBtn = document.getElementById('end-menu-btn');
+  const hudEl = document.getElementById('hud');
+  const hudL1 = document.getElementById('hud-l1');
+  const hudL2 = document.getElementById('hud-l2');
+  const menuBtn = document.getElementById('menu-btn');
+  const toastEl = document.getElementById('toast');
+  const menuScreen = document.getElementById('menu-screen');
+  const menuPanel = document.getElementById('menu-panel');
+  const helpScreen = document.getElementById('help-screen');
+  const helpCard = document.getElementById('help-card');
+
+  const CP_PENALTY = 15;   // seconds added when continuing from a checkpoint
+  const runStats = { t: 0, falls: 0, got: 0, deaths: 0, cp: null };
+  let endLockUntil = 0;    // ignore end-screen taps right after it appears (mashed JUMP)
+  let pausedLevel = false;
+
+  function setState(st) {
+    gameState = st;
+    gameWorld.classList.toggle('in-menu', mode === 'play' && st !== 'playing');
+  }
+  if (mode === 'play') { gameWorld.classList.add('in-menu'); hudEl.classList.add('on'); }
 
   function showDanger(text) {
     dangerBanner.textContent = text;
@@ -2563,23 +2880,144 @@ async function run(mode) {
   }
   function hideDanger() { dangerBanner.classList.remove('show'); }
 
+  function fmtTime(t) {
+    t = Math.max(0, t || 0);
+    const m = Math.floor(t / 60), r = t - m * 60;
+    return String(m).padStart(2, '0') + ':' + (r < 10 ? '0' : '') + r.toFixed(1);
+  }
+  function starStr(n) { n = Math.max(0, Math.min(3, n | 0)); return '★'.repeat(n) + '☆'.repeat(3 - n); }
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  let toastTimer = 0;
+  function toast(text, ms = 3200) {
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
+  }
+
+  let hudTimer = 0;
+  function updateHud(dt, force) {
+    hudTimer -= dt;
+    if (hudTimer > 0 && !force) return;
+    hudTimer = 0.1;
+    if (!levelSpec) return;
+    hudL1.textContent = `${levelSpec.title}  ·  ${fmtTime(runStats.t)}`;
+    hudL1.classList.toggle('over', runStats.t > levelSpec.par);
+    hudL2.textContent = `◆ ${runStats.got}/${crystals.length}   ·   target ${fmtTime(levelSpec.par)}   ·   jatuh ${runStats.falls}`;
+  }
+
+  function collectCrystal(c) {
+    c.got = true; c.g.visible = false; runStats.got++;
+    soundSystem.playPickup();
+    spawnVictoryBurst(c.pad.x, c.pad.top + 0.4, c.pad.z, 12);
+    toast(`◆ Kristal ${runStats.got}/${crystals.length}`, 1400);
+    updateHud(0, true);
+  }
+  function reachCheckpoint(plat) {
+    for (const c of cpObjs) {
+      if (c.plat !== plat || c.on) continue;
+      paintCp(c, true);
+      runStats.cp = plat;
+      soundSystem.playCheckpoint();
+      toast('⚑ Checkpoint tersimpan', 1800);
+    }
+  }
+  function animateLevelObjects(t) {
+    for (const c of crystals) {
+      if (c.got) continue;
+      c.gem.rotation.y = t * 1.8 + c.ph;
+      c.gem.position.y = 0.42 + Math.sin(t * 2.2 + c.ph) * 0.045;
+    }
+  }
+
+  // ── Scoring: ★ finish, ★ under the target time, ★ every crystal ──
+  function finishLevel() {
+    const L = levelSpec, t = runStats.t, par = L.par;
+    const total = crystals.length, got = runStats.got;
+    const stTime = t <= par, stCry = total === 0 || got >= total;
+    const stars = 1 + (stTime ? 1 : 0) + (stCry ? 1 : 0);
+    const score = Math.max(100, Math.round(500 + Math.max(0, par * 2 - t) * 10 + got * 150 + stars * 300 - runStats.falls * 40 - runStats.deaths * 100));
+    rollDaily();
+    let prevScore = 0;
+    if (L.kind === 'level') {
+      const prev = save.lv[L.n - 1] || { s: 0, st: 0, t: 0 };
+      prevScore = prev.s;
+      for (let i = 0; i < L.n - 1; i++) if (save.lv[i] === undefined) save.lv[i] = null;
+      save.lv[L.n - 1] = { s: Math.max(prev.s, score), st: Math.max(prev.st, stars), t: prev.t ? Math.min(prev.t, t) : t };
+      save.maxLv = Math.max(save.maxLv, L.n);
+    } else {
+      const prev = save.daily;
+      prevScore = prev.s;
+      if (score > prev.s) save.daily = { k: dateKey(), s: score, st: Math.max(stars, prev.st), t };
+    }
+    saveProgress();
+    return { stars, score, stTime, stCry, newBest: score > prevScore, par, total, got };
+  }
+
+  async function submitBoard() {
+    try { return await lib.addPlayerScoreToLeaderboard(totalScore(), 10); }
+    catch (e) { lib.log('leaderboard failed: ' + e); return null; }
+  }
+
   function showEnd(win) {
-    gameState = win ? 'won' : 'gameover';
+    setState(win ? 'won' : 'gameover');
     hideDanger();
+    dangerVignette.style.opacity = 0;
     endScreen.classList.toggle('win', win);
-    endTitle.textContent = win ? 'KAMU LOLOS!' : 'GAME OVER';
-    endSub.textContent = win
-      ? 'Kamu berhasil mencapai pintu keluar tanpa tertangkap!'
-      : 'Monster air menangkapmu. Segera lompat ke pijakan saat jatuh!';
+    endRank.textContent = '';
+    const row = (name, val, note, ok, cls) => `<div class="st-row${cls ? ' ' + cls : ''}"><span>${name}</span><b>${val}</b><i${ok ? ' class="ok"' : ''}>${note || ''}</i></div>`;
+    if (win) {
+      const r = finishLevel();
+      endTitle.textContent = 'KAMU LOLOS!';
+      endStars.textContent = starStr(r.stars);
+      endStars.style.display = '';
+      endSub.textContent = levelSpec.kind === 'daily' ? 'Tantangan harian selesai!' : `${levelSpec.title} selesai!`;
+      endStats.innerHTML =
+        row('Waktu', fmtTime(runStats.t), (r.stTime ? '★ ' : '☆ ') + 'target ' + fmtTime(r.par), r.stTime) +
+        row('Kristal', `${r.got}/${r.total}`, r.total ? ((r.stCry ? '★ ' : '☆ ') + 'semua') : '—', r.stCry) +
+        row('Jatuh ke air', runStats.falls, runStats.deaths ? `tertangkap ${runStats.deaths}×` : '') +
+        row('SKOR', r.score.toLocaleString('id-ID'), r.newBest ? 'REKOR BARU!' : '', false, 'total');
+      const canNext = levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL;
+      nextBtn.style.display = canNext ? '' : 'none';
+      nextBtn.textContent = canNext ? `LEVEL ${levelSpec.n + 1} ▶` : '';
+      contBtn.style.display = 'none';
+      restartBtn.textContent = 'ULANGI';
+      submitBoard().then(res => {
+        if (res && res.userRank && gameState === 'won') endRank.textContent = `Peringkat dunia: #${res.userRank}  ·  skor total ${totalScore().toLocaleString('id-ID')}`;
+      });
+    } else {
+      runStats.deaths++;
+      endTitle.textContent = 'TERTANGKAP!';
+      endStars.textContent = '';
+      endStars.style.display = 'none';
+      endSub.textContent = 'Monster air menangkapmu. Begitu jatuh, langsung lompat ke pijakan terdekat!';
+      endStats.innerHTML =
+        row('Waktu', fmtTime(runStats.t), '') +
+        row('Kristal', `${runStats.got}/${crystals.length}`, '') +
+        row('Jatuh ke air', runStats.falls, '');
+      nextBtn.style.display = 'none';
+      contBtn.style.display = runStats.cp ? '' : 'none';
+      contBtn.textContent = `⚑ LANJUT DARI CHECKPOINT (+${CP_PENALTY} dtk)`;
+      restartBtn.textContent = 'ULANGI DARI AWAL';
+    }
     endScreen.classList.add('show');
+    endLockUntil = performance.now() + 700;
     jsReset();
     for (const k in keys) keys[k] = false;
   }
 
-  function restartGame() {
-    placePlayerOnStartPlatform();
+  function snapCamera() {
+    camera.position.set(playerPos.x - Math.sin(camAngle) * 2.2, playerPos.y + 1.4, playerPos.z - Math.cos(camAngle) * 2.2);
+  }
+
+  // Put the player on the start pad (or the last checkpoint) and reset the monsters.
+  function restartGame(fromCp) {
+    const plat = (fromCp && runStats.cp) ? runStats.cp : startPlat;
+    placePlayerOnPlatform(plat);
     velY = 0; onGround = true; onPlatform = true; wasInWater = false;
-    facingAngle = Math.PI / 4; character.rotation.y = Math.PI / 4; camAngle = Math.PI / 4; camPitch = 0.38;
+    facingAngle = Math.atan2(doorInfo.x - playerPos.x, doorInfo.z - playerPos.z);
+    character.rotation.y = facingAngle; camAngle = facingAngle; camPitch = 0.38;
     splashParticles.forEach(p => { p.active = false; p.mesh.visible = false; });
     resetMonsterRoam();
     resetHumanoidMonsters();
@@ -2588,10 +3026,147 @@ async function run(mode) {
     dangerVignette.style.opacity = 0;
     endScreen.classList.remove('show');
     jumpRequested = false;
-    gameState = 'playing';
+    pausedLevel = false;
+    setState('playing');
     soundSystem.startAmbience();
+    snapCamera();
   }
-  restartBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); restartGame(); });
+
+  // Fresh run of the current level
+  function retryLevel() {
+    runStats.t = 0; runStats.falls = 0; runStats.got = 0; runStats.deaths = 0; runStats.cp = null;
+    crystals.forEach(c => { c.got = false; c.g.visible = true; });
+    cpObjs.forEach(c => paintCp(c, false));
+    restartGame(false);
+    updateHud(0, true);
+    if (levelSpec.kind === 'level' && levelSpec.n === 1 && !save.lv[0]) toast('Geser joystick untuk bergerak, tekan JUMP untuk melompat. Capai pintu EXIT!', 6000);
+  }
+  function continueFromCheckpoint() {
+    if (!runStats.cp) { retryLevel(); return; }
+    runStats.t += CP_PENALTY;
+    restartGame(true);
+    updateHud(0, true);
+    toast(`Lanjut dari checkpoint  (+${CP_PENALTY} dtk)`, 2200);
+  }
+  function beginLevel(spec) {
+    menuScreen.classList.remove('show');
+    helpScreen.classList.remove('show');
+    levelSpec = spec;
+    rebuildWorld(false);
+    retryLevel();
+  }
+  function goNext() {
+    if (levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL) beginLevel(levelSpecFor(levelSpec.n + 1));
+    else openMenu(false);
+  }
+
+  // ── Menu ──
+  function renderMenu() {
+    rollDaily();
+    const next = Math.max(1, Math.min(MAX_LEVEL, save.maxLv + 1));
+    const dk = dateKey(), d = save.daily;
+    const dLabel = `${dk % 100}/${Math.floor(dk / 100) % 100}`;
+    let cells = '';
+    for (let i = 1; i <= MAX_LEVEL; i++) {
+      const e = save.lv[i - 1], locked = i > save.maxLv + 1;
+      cells += `<button class="lv-cell${locked ? ' locked' : ''}${i === next ? ' next' : ''}" data-act="level" data-n="${i}"${locked ? ' disabled' : ''}><b>${locked ? '🔒' : i}</b><span>${e ? starStr(e.st) : (locked ? '' : '☆☆☆')}</span></button>`;
+    }
+    menuPanel.innerHTML =
+      `<div class="mn-title">DON'T TOUCH WATER</div>` +
+      `<div class="mn-sub">Lompati pijakan, jauhi air, capai pintu EXIT</div>` +
+      `<div class="mn-stats"><span>★ ${totalStars()}/${MAX_LEVEL * 3}</span><span>SKOR ${totalScore().toLocaleString('id-ID')}</span></div>` +
+      (pausedLevel ? `<button class="mn-btn primary" data-act="resume">⏸ LANJUTKAN ${esc(levelSpec.title)}</button>` : '') +
+      `<button class="mn-btn ${pausedLevel ? '' : 'primary'}" data-act="level" data-n="${next}">▶ MAIN LEVEL ${next}</button>` +
+      `<button class="mn-btn daily" data-act="daily">☀ TANTANGAN HARIAN<small>${dLabel} · ${d.k === dk && d.st > 0 ? starStr(d.st) + ' · ' + fmtTime(d.t) : 'belum dimainkan'}</small></button>` +
+      `<div class="mn-row"><button class="mn-btn sm" data-act="board">🏆 PERINGKAT</button><button class="mn-btn sm" data-act="help">? CARA MAIN</button></div>` +
+      `<div class="mn-h">PILIH LEVEL</div><div class="lv-grid">${cells}</div>`;
+    menuPanel.scrollTop = 0;
+  }
+  function openMenu(paused) {
+    pausedLevel = !!paused;
+    endScreen.classList.remove('show');
+    setState('menu');
+    renderMenu();
+    menuScreen.classList.add('show');
+    if (!save.tut) openHelp(0);
+  }
+  function pauseToMenu() {
+    if (gameState !== 'playing') return;
+    jsReset();
+    for (const k in keys) keys[k] = false;
+    openMenu(true);
+  }
+  function resumeLevel() {
+    pausedLevel = false;
+    menuScreen.classList.remove('show');
+    jumpRequested = false;
+    setState('playing');
+  }
+  let boardToken = 0;
+  async function openBoard() {
+    const tok = ++boardToken;
+    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-note">Memuat…</div><button class="mn-btn sm" data-act="closeboard">‹ KEMBALI</button>`;
+    let body;
+    try {
+      const r = await lib.getTopNEntriesFromLeaderboard(10);
+      const rows = (r && r.entries) || [];
+      body = rows.length
+        ? rows.map((e, i) => `<div class="lb-row"><em>#${i + 1}</em><span>${esc(e.username)}</span><b>${Math.round(e.score).toLocaleString('id-ID')}</b></div>`).join('')
+        : `<div class="mn-note">Belum ada skor. Jadilah yang pertama!</div>`;
+      if (r && r.userRank) body += `<div class="lb-row me"><em>#${r.userRank}</em><span>Peringkatmu</span><b>${totalScore().toLocaleString('id-ID')}</b></div>`;
+    } catch (e) {
+      body = `<div class="mn-note">Papan peringkat belum tersedia.</div>`;
+    }
+    if (tok !== boardToken || gameState !== 'menu') return;
+    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-sub">Skor total semua level + tantangan harian</div>${body}<button class="mn-btn sm" data-act="closeboard">‹ KEMBALI</button>`;
+  }
+
+  // ── How-to-play cards ──
+  const HELP = [
+    { t: 'GERAK & LOMPAT', d: 'Geser joystick (kiri bawah) untuk berjalan dan tekan JUMP untuk melompat antar pijakan. Geser layar untuk memutar kamera. Di keyboard: WASD / panah dan Spasi. Radar kanan atas menunjukkan arah pintu EXIT.' },
+    { t: 'JANGAN SENTUH AIR', d: 'Lantai adalah air. Begitu menyentuhnya, monster mendengar dan datang. Kamu punya beberapa detik untuk melompat kembali ke pijakan sebelum ia mengejar. Pijakan yang aman membuatnya kehilangan jejak.' },
+    { t: 'KRISTAL & CHECKPOINT', d: 'Kristal ◆ ada di pijakan samping rute dengan lompatan lebih berisiko; radar menandainya. Bendera hijau adalah checkpoint: kalau tertangkap, kamu bisa lanjut dari sana (+15 detik).' },
+    { t: 'BINTANG & PERINGKAT', d: '★ selesai level  ·  ★ waktu di bawah target  ·  ★ semua kristal. Skor makin tinggi untuk waktu cepat, kristal, dan sedikit jatuh. Skor total semua level + tantangan harian masuk papan peringkat.' }
+  ];
+  let helpIdx = 0;
+  function renderHelp() {
+    const h = HELP[helpIdx], last = helpIdx === HELP.length - 1;
+    helpCard.innerHTML =
+      `<div class="hp-step">CARA MAIN  ${helpIdx + 1} / ${HELP.length}</div><div class="hp-title">${h.t}</div><div class="hp-text">${h.d}</div>` +
+      `<div class="hp-dots">${HELP.map((_, i) => `<i class="${i === helpIdx ? 'cur' : ''}"></i>`).join('')}</div>` +
+      `<div class="hp-btns">${helpIdx ? '<button class="alt" data-h="prev">‹</button>' : ''}<button data-h="next">${last ? 'MENGERTI' : 'LANJUT ›'}</button></div>`;
+  }
+  function openHelp(i) { helpIdx = i; renderHelp(); helpScreen.classList.add('show'); }
+  function closeHelp() {
+    helpScreen.classList.remove('show');
+    if (!save.tut) { save.tut = 1; saveProgress(); }
+  }
+
+  menuPanel.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]');
+    if (!b || b.disabled) return;
+    soundSystem.ensureContext(); soundSystem.startAmbience();
+    const act = b.dataset.act;
+    if (act === 'level') beginLevel(levelSpecFor(+b.dataset.n));
+    else if (act === 'daily') beginLevel(dailySpec());
+    else if (act === 'resume') resumeLevel();
+    else if (act === 'board') openBoard();
+    else if (act === 'closeboard') { boardToken++; renderMenu(); }
+    else if (act === 'help') openHelp(0);
+  });
+  helpCard.addEventListener('click', e => {
+    const b = e.target.closest('[data-h]');
+    if (!b) return;
+    if (b.dataset.h === 'prev') { helpIdx = Math.max(0, helpIdx - 1); renderHelp(); }
+    else if (helpIdx < HELP.length - 1) { helpIdx++; renderHelp(); }
+    else closeHelp();
+  });
+  const endTap = fn => e => { e.preventDefault(); e.stopPropagation(); if (performance.now() >= endLockUntil) fn(); };
+  restartBtn.addEventListener('click', endTap(retryLevel));
+  nextBtn.addEventListener('click', endTap(goNext));
+  contBtn.addEventListener('click', endTap(continueFromCheckpoint));
+  endMenuBtn.addEventListener('click', endTap(() => openMenu(false)));
+  menuBtn.addEventListener('click', e => { e.preventDefault(); pauseToMenu(); });
 
   // ─── CAMERA & ROTATION CONTROLS (SWIPE / DRAG ANYWHERE) ───
   let camAngle = Math.PI / 4;
@@ -2628,7 +3203,8 @@ async function run(mode) {
     return Boolean(
       elem.closest('#jump-btn') ||
       elem.closest('#joystick-area') ||
-      elem.closest('#restart-btn') ||
+      elem.closest('.ui-modal') ||
+      elem.closest('#menu-btn') ||
       elem.closest('#minimap-panel')
     );
   }
@@ -2825,8 +3401,8 @@ async function run(mode) {
 
   // Always place the player's feet at the exact top of the start platform.
   // The inset keeps the complete foot/collision footprint safely inside its solid top.
-  function placePlayerOnStartPlatform() {
-    const p = startPlat;
+  function placePlayerOnPlatform(p) {
+    spawnPlat = p;
     const inset = 0.18;
     const halfX = Math.max(0, p.hw - inset);
     const halfZ = Math.max(0, p.hd - inset);
@@ -2845,7 +3421,7 @@ async function run(mode) {
     character.armL.rotation.set(0, 0, 0);
     character.armR.rotation.set(0, 0, 0);
   }
-  placePlayerOnStartPlatform();
+  placePlayerOnPlatform(startPlat);
 
   function resolveMonster() {
     const half = RS / 2 - MONSTER_R;
@@ -2943,6 +3519,7 @@ async function run(mode) {
     mVel.set(0, 0);
     mRise = 1;
     mState = 'patrol';
+    mAlertT = 0; mChaseT = 0; mSearchT = 0;
     mHeading = Math.random() * Math.PI * 2;
     mRippleTimer = 0;
     monster.visible = true;
@@ -3040,7 +3617,7 @@ async function run(mode) {
       // Attacking and catching are disabled the instant the player is safe on a pad.
       h.attacking = playerInWater && !playerSafe;
       if (h.attacking) {
-        steerHumanoid(h, Math.max(4.2, cfg.settings.monsterSpeed * 3.8), dt, playerPos.x, playerPos.z);
+        steerHumanoid(h, Math.max(4.2, cfg.settings.monsterSpeed * 3.8) * mMult(), dt, playerPos.x, playerPos.z);
         return;
       }
       const dist = Math.hypot(h.target.x - h.pos.x, h.target.y - h.pos.y);
@@ -3096,13 +3673,35 @@ async function run(mode) {
     });
   }
 
+  function startChase() {
+    mState = 'chase';
+    mChaseT = 0;
+    showDanger('⚠ MONSTER MENGEJAR! LOMPAT KE PIJAKAN!');
+  }
+
   function updateMonsterLogic(dt) {
     monster.visible = true;
     mRise = 1;
+    const mult = mMult();
+    if (mState === 'alert') {
+      // The monster heard the splash: it creeps toward the spot while the warning timer runs down.
+      steerMonster(Math.max(1.0, cfg.settings.monsterSpeed * 1.8) * mult, dt, mLastKnown.x, mLastKnown.y);
+      return;
+    }
     if (mState === 'chase') {
-      // A fall into the water triggers a very fast pursuit, clearly faster than the player.
-      const chaseSpeed = Math.max(7, cfg.settings.monsterSpeed * 4.5);
+      // A fall into the water triggers a very fast pursuit; it eases in over ~1.5 s so a quick hop back still saves you.
+      mChaseT += dt;
+      const ramp = clampV(0.5 + 0.5 * mChaseT / 1.5, 0.5, 1);
+      const chaseSpeed = Math.max(7, cfg.settings.monsterSpeed * 4.5) * mult * ramp;
       steerMonster(chaseSpeed, dt, playerPos.x, playerPos.z);
+      return;
+    }
+    if (mState === 'search') {
+      // The player is safe again: it checks the last splash, then loses interest.
+      mSearchT -= dt;
+      const dist = Math.hypot(mLastKnown.x - mPos.x, mLastKnown.y - mPos.y);
+      if (dist < 1.5 || mSearchT <= 0) { mState = 'patrol'; choosePatrolTarget(); }
+      else steerMonster(Math.max(2.2, cfg.settings.monsterSpeed * 2.2) * mult, dt, mLastKnown.x, mLastKnown.y);
       return;
     }
     if (mState === 'patrol') {
@@ -3113,7 +3712,7 @@ async function run(mode) {
         if (mPatrolLastDist - dist < dt * 0.12) mStuckTimer += dt;
         else mStuckTimer = 0;
         if (mStuckTimer > 3.5) choosePatrolTarget();
-        else steerMonster(Math.max(0.7, cfg.settings.monsterSpeed * 0.8), dt, mPatrolTarget.x, mPatrolTarget.y);
+        else steerMonster(Math.max(0.7, cfg.settings.monsterSpeed * 0.8) * mult, dt, mPatrolTarget.x, mPatrolTarget.y);
         mPatrolLastDist = dist;
       }
     }
@@ -3199,6 +3798,8 @@ async function run(mode) {
     doorLight.intensity = 0.75 + Math.sin(waterAnimTime * 2.2) * 0.2;
 
     if (mode === 'play' && gameState === 'playing' && !loadingActive) {
+      runStats.t += dt;
+      updateHud(dt);
       const spawnSafetyActive = spawnSafetyTime > 0;
       spawnSafetyTime = Math.max(0, spawnSafetyTime - dt);
       const wY = waterY();
@@ -3235,14 +3836,15 @@ async function run(mode) {
       // On a fresh run or respawn, explicitly re-latch the start pad if the
       // feet are at its edge height. This guards against a missed first-frame
       // landing test without interrupting an actual upward jump.
+      const sp = spawnPlat || startPlat;
       const insideStartPad =
-        playerPos.x >= startPlat.x - startPlat.hw + 0.08 &&
-        playerPos.x <= startPlat.x + startPlat.hw - 0.08 &&
-        playerPos.z >= startPlat.z - startPlat.hd + 0.08 &&
-        playerPos.z <= startPlat.z + startPlat.hd - 0.08;
+        playerPos.x >= sp.x - sp.hw + 0.08 &&
+        playerPos.x <= sp.x + sp.hw - 0.08 &&
+        playerPos.z >= sp.z - sp.hd + 0.08 &&
+        playerPos.z <= sp.z + sp.hd - 0.08;
       if (spawnSafetyActive && insideStartPad && velY <= 0 &&
-          playerPos.y <= startPlat.top + 0.04 && playerPos.y >= startPlat.top - 0.35) {
-        playerPos.y = startPlat.top;
+          playerPos.y <= sp.top + 0.04 && playerPos.y >= sp.top - 0.35) {
+        playerPos.y = sp.top;
         velY = 0;
         onGround = true;
         onPlatform = true;
@@ -3348,6 +3950,7 @@ async function run(mode) {
       // Water contact detection + ripples & splash SFX
       const nowInWater = playerPos.y < wY - 0.02;
       if (nowInWater && !wasInWater) {
+        runStats.falls++;
         spawnRipple(playerPos.x, playerPos.z, 0.9, 0xffffff, 1.2);
         spawnRipple(playerPos.x, playerPos.z, 0.5, 0xffffff, 0.9);
         spawnSplashBurst(playerPos.x, playerPos.z, 16);
@@ -3365,19 +3968,39 @@ async function run(mode) {
 
       // ─── MONSTER CHASE LOGIC ───
       const safe = onGround && onPlatform && !!activePlat;
-      if (nowInWater && mState !== 'chase') {
-        mState = 'chase';
-        showDanger('⚠ MONSTER MENGEJAR DENGAN CEPAT! LOMPAT!');
+      const alertTime = levelSpec ? levelSpec.alert : cfg.settings.alertTime;
+      if (nowInWater && mState !== 'chase' && mState !== 'alert') {
+        mLastKnown.set(playerPos.x, playerPos.z);
         spawnRipple(mPos.x, mPos.y, 0.9, 0xffc9bd, 1.0);
         soundSystem.playAlert();
+        if (alertTime > 0.05) {
+          mState = 'alert';
+          mAlertT = alertTime;
+          showDanger('⚠ MONSTER MENDENGAR! LOMPAT KELUAR!');
+        } else startChase();
       }
-      if (mState === 'chase' && safe) {
-        mState = 'patrol';
+      if (mState === 'alert') {
+        if (nowInWater) mLastKnown.set(playerPos.x, playerPos.z);
+        mAlertT -= dt;
+        if (mAlertT <= 0 && !safe) startChase();
+      }
+      if ((mState === 'chase' || mState === 'alert') && safe) {
+        mState = 'search';
+        mSearchT = 5;
         hideDanger();
-        choosePatrolTarget();
       }
       updateMonsterLogic(dt);
-      updateHumanoidMonsters(dt, nowInWater, safe);
+      updateHumanoidMonsters(dt, nowInWater && mState === 'chase', safe);
+
+      // Crystals and checkpoints
+      if (levelSpec) {
+        for (const c of crystals) {
+          if (c.got) continue;
+          const ddx = playerPos.x - c.pad.x, ddz = playerPos.z - c.pad.z;
+          if (ddx * ddx + ddz * ddz < 0.55 * 0.55 && playerPos.y > c.pad.top - 0.1 && playerPos.y < c.pad.top + 0.9) collectCrystal(c);
+        }
+        if (safe && activePlat && cpObjs.length) reachCheckpoint(activePlat);
+      }
 
       // Danger vignette & lighting tension feedback by proximity
       if (mState === 'chase') {
@@ -3402,7 +4025,7 @@ async function run(mode) {
       } else {
         ambient.intensity = 0.70;
         fillLight.intensity = 0.27;
-        dangerVignette.style.opacity = 0;
+        dangerVignette.style.opacity = mState === 'alert' ? 0.4 : 0;
       }
 
       // ─── EXIT TRIGGER ───
@@ -3431,6 +4054,7 @@ async function run(mode) {
       character.armR.rotation.z = -Math.sin(now * 0.003) * 0.04;
     }
 
+    if (mode === 'play') animateLevelObjects(waterAnimTime);
     updateMonsterVisual(dt, waterAnimTime);
     updateHumanoidVisuals(dt, waterAnimTime);
     updateRipples(dt);
@@ -3445,9 +4069,10 @@ async function run(mode) {
     pLight2.position.set(playerPos.x + 1.5, WH - 0.4, playerPos.z + 1.5);
     updatePatches(playerPos.x, playerPos.z);
 
+    if (mode === 'play' && (gameState === 'menu' || gameState === 'boot')) camAngle += dt * 0.18;
     updateCamera();
     if (mode === 'play' && loadingActive) {
-      if (now - loadingStarted < 3400) {
+      if (now - loadingStarted < 2000) {
         if (updateLoadingPreview(now)) renderer.render(loadingPreviewScene, loadingPreviewCamera);
         else renderer.render(scene, camera);
       } else {
@@ -3465,12 +4090,30 @@ async function run(mode) {
           gameWorld.classList.remove('loading-startup', 'loading-controls-hidden');
           jsReset();
           jumpRequested = false;
+          loadingDone = true;
+          tryOpenMenu();
         }
       }
     } else {
       renderer.render(scene, camera);
     }
     requestAnimationFrame(gameLoop);
+  }
+
+  // Play mode: once the intro is over and progress is loaded, show the menu.
+  let loadingDone = false, saveReady = false;
+  function tryOpenMenu() { if (loadingDone && saveReady && gameState === 'boot') openMenu(false); }
+  if (mode === 'play') {
+    (async () => {
+      try {
+        const r = await lib.getUserGameState();
+        if (r && r.state) applySave(r.state);
+      } catch (e) { lib.log('load failed: ' + e); }
+      saveReady = true;
+      if (gameState === 'menu' && !pausedLevel) renderMenu();
+      tryOpenMenu();
+    })();
+    setTimeout(() => { saveReady = true; tryOpenMenu(); }, 3500);
   }
 
   requestAnimationFrame(gameLoop);
