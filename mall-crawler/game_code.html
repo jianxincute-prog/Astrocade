@@ -883,6 +883,67 @@
     .desk-hint { display: none; font-size: 18px; color: #94a3b8; line-height: 1.4; }
     @media (hover: hover) and (pointer: fine) { .desk-hint { display: block; } }
     .desktop-keys-guide { display: none !important; }
+
+    /* ===== Layar judul berhalaman + pengaturan aksesibilitas ===== */
+    .tpages { width: 100%; min-height: 300px; display: flex; }
+    .tpage { display: none; flex-direction: column; gap: 14px; width: 100%; }
+    .tpage.active { display: flex; }
+    .tdots { display: flex; gap: 10px; }
+    .dot { width: 14px; height: 14px; border-radius: 50%; background: #334155; }
+    .dot.active { background: #00e5ff; }
+    .tnav { display: flex; gap: 10px; width: 100%; }
+    .tnav .chip { height: 52px; }
+    .setting-block { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .setting-label { font-size: 20px; color: #94a3b8; text-align: left; width: 100%; font-weight: 700; }
+
+    /* Teks besar */
+    #app-container.big-text .status-panel { width: 430px; }
+    #app-container.big-text .hud-row,
+    #app-container.big-text .inventory-row,
+    #app-container.big-text .objective-panel { font-size: 27px; }
+    #app-container.big-text .hunger-row { font-size: 24px; }
+    #app-container.big-text .heart-icon { width: 34px; height: 34px; }
+    #app-container.big-text .compass-chip { top: 214px; font-size: 26px; height: 62px; }
+    #app-container.big-text .btn-mute { top: 214px; width: 62px; height: 62px; }
+    #app-container.big-text .btn-mute.btn-pause { right: 84px; }
+    #app-container.big-text #toast-banner { top: 300px; font-size: 28px; }
+    #app-container.big-text .btn-action-sub { font-size: 22px; }
+    #app-container.big-text .slot-name { font-size: 19px; }
+    #app-container.big-text .slot-index { font-size: 18px; }
+    #app-container.big-text .inv-detail-desc { font-size: 21px; }
+    #app-container.big-text .inv-summary { font-size: 23px; }
+    #app-container.big-text .tutorial-list,
+    #app-container.big-text .stat-row,
+    #app-container.big-text .modal-desc { font-size: 23px; }
+    #app-container.big-text .chip { font-size: 22px; }
+    #app-container.big-text .setting-label,
+    #app-container.big-text .best-line { font-size: 23px; }
+
+    /* Kontras tinggi */
+    #app-container.hc .hud-card, #app-container.hc .compass-chip, #app-container.hc .btn-mute,
+    #app-container.hc #toast-banner, #app-container.hc .modal-card, #app-container.hc .inv-panel,
+    #app-container.hc .minimap-card { background: #000 !important; border: 2px solid #fff !important; box-shadow: none !important; }
+    #app-container.hc .modal-overlay { background: rgba(0, 0, 0, 0.97); }
+    #app-container.hc .inv-overlay { background: rgba(0, 0, 0, 0.97); }
+    #app-container.hc .hud-row, #app-container.hc .hud-stat, #app-container.hc .inventory-row,
+    #app-container.hc .objective-panel, #app-container.hc .compass-chip, #app-container.hc .hunger-row,
+    #app-container.hc .modal-desc, #app-container.hc .stat-row, #app-container.hc .setting-label,
+    #app-container.hc .inv-summary, #app-container.hc .inv-detail-desc { color: #fff; }
+    #app-container.hc .inv-counter, #app-container.hc .objective-panel b, #app-container.hc .best-line,
+    #app-container.hc .stat-value { color: #ffff00; }
+    #app-container.hc .inventory-row, #app-container.hc .objective-panel { background: #111; border: 1px solid #fff; }
+    #app-container.hc .hunger-bar { background: #333; border: 1px solid #fff; }
+    #app-container.hc .hunger-fill { background: #ffff00; }
+    #app-container.hc .hunger-fill.low { background: #ff4d4d; }
+    #app-container.hc .btn-sprint, #app-container.hc .btn-sorot, #app-container.hc .btn-bag,
+    #app-container.hc .btn-action-primary { border: 4px solid #fff; }
+    #app-container.hc .chip { border-color: #fff; color: #fff; background: #000; }
+    #app-container.hc .chip.active { background: #fff; color: #000; }
+    #app-container.hc .tutorial-list li { background: #111; border-color: #fff; color: #fff; }
+    #app-container.hc .joystick-base { border: 3px solid #fff; background: rgba(0, 0, 0, 0.6); }
+    #app-container.hc #minimap-canvas { background: #000; }
+    #app-container.hc .dot { background: #666; }
+    #app-container.hc .dot.active { background: #fff; }
   </style>
 </head>
 <body>
@@ -1056,29 +1117,75 @@
       <div class="modal-card">
         <h2 class="modal-title win">JEDA</h2>
         <p class="desk-hint">⌨️ WASD/Panah gerak • Shift lari • E aksi • F sorot • I tas • M suara • P jeda</p>
+        <div class="setting-block">
+          <div class="setting-label">Ukuran teks</div>
+          <div class="chip-row">
+            <button class="chip active" data-pref="text" data-val="normal">NORMAL</button>
+            <button class="chip" data-pref="text" data-val="big">BESAR</button>
+          </div>
+        </div>
+        <div class="setting-block">
+          <div class="setting-label">Kontras</div>
+          <div class="chip-row">
+            <button class="chip active" data-pref="contrast" data-val="normal">BIASA</button>
+            <button class="chip" data-pref="contrast" data-val="high">TINGGI</button>
+          </div>
+        </div>
         <button class="btn-large" id="btn-resume">LANJUTKAN</button>
         <button class="btn-large btn-secondary" id="btn-pause-restart">MULAI ULANG</button>
       </div>
     </div>
 
-    <!-- Title / Tutorial -->
+    <!-- Title / Tutorial (3 halaman) -->
     <div class="modal-overlay active" id="title-overlay">
       <div class="modal-card">
         <h2 class="modal-title win">MALL CRAWLER</h2>
-        <p class="modal-desc">Mal terbengkalai dengan 240 toko. Kumpulkan bekal dan bertahan hidup!</p>
-        <ul class="tutorial-list">
-          <li>🏪 <b>Buka toko</b> untuk mencari 🍞 makanan &amp; 🥤 minuman — awas jebakan dan monster!</li>
-          <li>⛺ <b>Klaim toko kosong</b> jadi basecamp (aman dari monster), lalu <b>SIMPAN</b> bekal di sana.</li>
-          <li>🔦 <b>SOROT</b> membekukan monster sesaat. ⚡ <b>LARI</b> cepat tapi menguras stamina.</li>
-          <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas (mengurangi bekal!) atau <b>istirahat di basecamp</b>. Awas <b>listrik padam</b>.</li>
-          <li>🕹️ Joystick di kiri untuk bergerak • geser layar sisi kanan untuk memutar kamera.</li>
-        </ul>
+        <div class="tpages">
+          <div class="tpage active">
+            <p class="modal-desc">Mal terbengkalai dengan 240 toko. Kumpulkan bekal dan bertahan hidup!</p>
+            <ul class="tutorial-list">
+              <li>🏪 <b>Buka toko</b> untuk mencari 🍞 makanan &amp; 🥤 minuman — awas jebakan dan monster!</li>
+              <li>⛺ <b>Klaim toko kosong</b> jadi basecamp (aman dari monster), lalu <b>SIMPAN</b> bekal di sana.</li>
+              <li>🔦 <b>SOROT</b> membekukan monster sesaat. ⚡ <b>LARI</b> cepat tapi menguras stamina.</li>
+            </ul>
+          </div>
+          <div class="tpage">
+            <ul class="tutorial-list">
+              <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas (mengurangi bekal!) atau <b>istirahat di basecamp</b>.</li>
+              <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
+              <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap.</li>
+              <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
+            </ul>
+            <p class="desk-hint">⌨️ WASD/Panah gerak • Shift lari • E aksi • F sorot • I tas • M suara • P jeda • Mouse: putar kamera</p>
+          </div>
+          <div class="tpage">
+            <div class="setting-block">
+              <div class="setting-label">Ukuran teks</div>
+              <div class="chip-row">
+                <button class="chip active" data-pref="text" data-val="normal">NORMAL</button>
+                <button class="chip" data-pref="text" data-val="big">BESAR</button>
+              </div>
+            </div>
+            <div class="setting-block">
+              <div class="setting-label">Kontras</div>
+              <div class="chip-row">
+                <button class="chip active" data-pref="contrast" data-val="normal">BIASA</button>
+                <button class="chip" data-pref="contrast" data-val="high">TINGGI</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tdots" id="title-dots"><span class="dot active"></span><span class="dot"></span><span class="dot"></span></div>
+        <div class="tnav">
+          <button class="chip" id="title-prev">‹ KEMBALI</button>
+          <button class="chip" id="title-next">BERIKUTNYA ›</button>
+        </div>
+        <div class="setting-label">Tingkat kesulitan</div>
         <div class="chip-row" id="diff-row">
           <button class="chip" data-diff="santai">SANTAI</button>
           <button class="chip active" data-diff="normal">NORMAL</button>
           <button class="chip" data-diff="sulit">SULIT</button>
         </div>
-        <p class="desk-hint">⌨️ WASD/Panah gerak • Shift lari • E aksi • F sorot • I tas • M suara • P jeda • Mouse: putar kamera</p>
         <div class="best-line" id="title-best"></div>
         <button class="btn-large" id="btn-start">MULAI</button>
       </div>
@@ -2780,6 +2887,16 @@
             acc.U.push(u, vv);
           });
           acc.I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+          // Decal di lantai depan pintu (tidak tertutup HUD, terbaca saat mendekat dari lorong)
+          const b2 = acc.P.length / 3;
+          [[-1.6, 2.3, u0, v0], [1.6, 2.3, u1, v0], [1.6, 1.5, u1, v1], [-1.6, 1.5, u0, v1]].forEach(([px, pz, u, vv]) => {
+            v.set(px, 0.05, pz);
+            st.group.localToWorld(v);
+            acc.P.push(v.x, v.y, v.z);
+            acc.N.push(0, 1, 0);
+            acc.U.push(u, vv);
+          });
+          acc.I.push(b2, b2 + 1, b2 + 2, b2, b2 + 2, b2 + 3);
         });
         scene.add(buildMerged(acc, new THREE.MeshBasicMaterial({ map: tex })));
       })();
@@ -4234,23 +4351,51 @@
             }).catch(() => {});
           } catch (e) {}
         }
-        if (isNewBest && typeof lib !== 'undefined' && typeof lib.saveUserGameState === 'function') {
-          try {
-            Promise.resolve(lib.saveUserGameState({ highScore: bestScore, timestamp: Date.now() })).catch(() => {});
-          } catch (e) {}
-        }
+        if (isNewBest) persistSave();
       }
 
       function refreshBestLabels() {
         titleBest.textContent = bestScore > 0 ? `REKOR TERBAIK: ${bestScore.toLocaleString()}` : '';
       }
 
+      // Preferensi aksesibilitas (disimpan bersama skor tertinggi lewat saveUserGameState)
+      const prefs = { text: 'normal', contrast: window.matchMedia && window.matchMedia('(prefers-contrast: more)').matches ? 'high' : 'normal' };
+      let saveLoaded = false; // jangan menimpa simpanan sebelum simpanan lama berhasil dibaca
+      function applyPrefs() {
+        appContainer.classList.toggle('big-text', prefs.text === 'big');
+        appContainer.classList.toggle('hc', prefs.contrast === 'high');
+        document.querySelectorAll('[data-pref]').forEach(btn => btn.classList.toggle('active', prefs[btn.dataset.pref] === btn.dataset.val));
+        Object.keys(beamMats).forEach(k => { beamMats[k].opacity = prefs.contrast === 'high' ? 0.45 : 0.22; });
+      }
+      function persistSave() {
+        if (!saveLoaded || typeof lib === 'undefined' || typeof lib.saveUserGameState !== 'function') return;
+        try {
+          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, prefs: { text: prefs.text, contrast: prefs.contrast }, timestamp: Date.now() })).catch(() => {});
+        } catch (e) {}
+      }
+      document.querySelectorAll('[data-pref]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          prefs[btn.dataset.pref] = btn.dataset.val;
+          applyPrefs();
+          persistSave();
+        });
+      });
+      applyPrefs();
+
       async function loadBest() {
         try {
           if (typeof lib !== 'undefined' && typeof lib.getUserGameState === 'function') {
             const saved = await lib.getUserGameState();
+            saveLoaded = true;
             const hs = saved && (saved.highScore ?? (saved.state && saved.state.highScore));
             if (typeof hs === 'number') bestScore = Math.max(bestScore, hs);
+            const sp = saved && (saved.prefs || (saved.state && saved.state.prefs));
+            if (sp) {
+              if (sp.text === 'big' || sp.text === 'normal') prefs.text = sp.text;
+              if (sp.contrast === 'high' || sp.contrast === 'normal') prefs.contrast = sp.contrast;
+              applyPrefs();
+            }
           }
         } catch (e) {}
         refreshBestLabels();
@@ -4562,6 +4707,23 @@
         state.started = true;
       });
 
+      // Halaman layar judul
+      const titlePages = Array.from(document.querySelectorAll('.tpage'));
+      const titleDots = Array.from(document.querySelectorAll('#title-dots .dot'));
+      const titlePrev = document.getElementById('title-prev');
+      const titleNext = document.getElementById('title-next');
+      let titlePage = 0;
+      function showTitlePage(i) {
+        titlePage = Math.max(0, Math.min(titlePages.length - 1, i));
+        titlePages.forEach((p, k) => p.classList.toggle('active', k === titlePage));
+        titleDots.forEach((d, k) => d.classList.toggle('active', k === titlePage));
+        titlePrev.style.visibility = titlePage === 0 ? 'hidden' : 'visible';
+        titleNext.style.visibility = titlePage === titlePages.length - 1 ? 'hidden' : 'visible';
+      }
+      titlePrev.addEventListener('click', (e) => { e.stopPropagation(); showTitlePage(titlePage - 1); });
+      titleNext.addEventListener('click', (e) => { e.stopPropagation(); showTitlePage(titlePage + 1); });
+      showTitlePage(0);
+
       document.querySelectorAll('#diff-row .chip').forEach(ch => {
         ch.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -4752,7 +4914,7 @@
         const originY = 154 / 2;
 
         // Mall perimeter & corridors
-        minimapCtx.strokeStyle = '#1e293b';
+        minimapCtx.strokeStyle = prefs.contrast === 'high' ? '#94a3b8' : '#1e293b';
         minimapCtx.lineWidth = 3;
         LANES.forEach(pos => {
           const p = originX + pos * scale;
@@ -4876,7 +5038,8 @@
           // Pencahayaan mal meredup saat listrik padam (berkedip di awal)
           const dark = state.blackoutT > 0;
           const flick = dark && state.blackoutT > 13.3 && Math.random() < 0.5;
-          const ta = dark && !flick ? 0.22 : 1.2, td = dark && !flick ? 0.06 : 0.65;
+          const hcMul = prefs.contrast === 'high' ? 1.35 : 1;
+          const ta = (dark && !flick ? 0.22 : 1.2) * hcMul, td = dark && !flick ? 0.06 : 0.65;
           const k = Math.min(1, dt * 4);
           ambientLight.intensity += (ta - ambientLight.intensity) * k;
           mallDirLight.intensity += (td - mallDirLight.intensity) * k;
