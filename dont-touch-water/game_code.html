@@ -249,6 +249,22 @@
   #hud-l1 { font: 700 20px 'Orbitron', sans-serif; line-height: 1.5; white-space: nowrap; }
   #hud-l1.over { color: #ffb36b; }
   #hud-l2 { font: 600 15px 'Inter', sans-serif; color: #b9e6ee; white-space: nowrap; }
+  #hud-l3 { margin-top: 2px; font: 700 16px 'Inter', sans-serif; color: #ffe08a; white-space: nowrap; letter-spacing: .5px; }
+  #hud-l3.done { color: #8dffbf; }
+  #keypad-screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 100; background: rgba(4,12,18,.84); }
+  #keypad-screen.show { display: flex; }
+  .kp-card { width: min(520px, 92%); box-sizing: border-box; padding: 22px; border-radius: 28px; border: 2px solid rgba(255,216,107,.7); background: rgba(8,22,30,.97); display: flex; flex-direction: column; gap: 14px; align-items: center; color: #eafffa; box-shadow: 0 20px 60px #000a; }
+  .kp-title { font: 700 28px 'Orbitron', sans-serif; color: #fff; }
+  .kp-hint { font: 600 18px 'Inter', sans-serif; color: #ffe08a; }
+  .kp-hint b { font-family: 'Orbitron', sans-serif; letter-spacing: 6px; color: #fff; }
+  .kp-disp { display: flex; gap: 10px; }
+  .kp-disp i { width: 72px; height: 88px; border-radius: 14px; border: 2px solid rgba(255,216,107,.6); background: rgba(255,255,255,.07); font: 700 44px 'Orbitron', sans-serif; display: grid; place-items: center; font-style: normal; color: #fff; }
+  .kp-disp.shake { animation: kpShake .35s; }
+  @keyframes kpShake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-12px); } 40% { transform: translateX(12px); } 60% { transform: translateX(-8px); } 80% { transform: translateX(8px); } }
+  .kp-msg { min-height: 24px; color: #ff9a8c; font: 700 18px 'Inter', sans-serif; text-align: center; }
+  .kp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+  .kp-grid button { min-height: 96px; border-radius: 20px; border: 2px solid rgba(255,255,255,.5); background: linear-gradient(180deg, #4b6a86, #2e4558); color: #fff; font: 700 34px 'Orbitron', sans-serif; cursor: pointer; touch-action: manipulation; }
+  .kp-grid button:active { transform: scale(.94); }
   #toast {
     position: absolute; top: 236px; left: 50%; transform: translateX(-50%); z-index: 85; max-width: 84%;
     padding: 10px 20px; border-radius: 14px; background: rgba(10,24,36,.84); border: 1px solid rgba(150,230,215,.5);
@@ -433,7 +449,7 @@
     <div id="jump-btn">JUMP</div>
     <div id="hud">
       <button id="menu-btn" aria-label="Menu">&#9776;</button>
-      <div id="hud-info"><div id="hud-l1">LV 1 &middot; 00:00.0</div><div id="hud-l2"></div></div>
+      <div id="hud-info"><div id="hud-l1">LV 1 &middot; 00:00.0</div><div id="hud-l2"></div><div id="hud-l3"></div></div>
     </div>
     <div id="toast"></div>
     <div id="end-screen" class="ui-modal">
@@ -449,6 +465,7 @@
         <button id="end-menu-btn" class="end-btn ghost">MENU</button>
       </div>
     </div>
+    <div id="keypad-screen" class="ui-modal"><div id="keypad-card" class="kp-card"></div></div>
     <div id="menu-screen" class="ui-modal"><div id="menu-panel"></div></div>
     <div id="help-screen" class="ui-modal"><div id="help-card" class="help-card"></div></div>
   </div>
@@ -839,6 +856,13 @@ async function run(mode) {
 
   function dateKey() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
   function alertFor(mult) { const a0 = Number(cfg.settings.alertTime) || 0; return a0 <= 0 ? 0 : Math.min(a0, Math.max(0.8, a0 * mult)); }
+  // Door puzzle per level: none (1-2) -> key (3-5) -> fuses (6-9) -> code of 3/4/5 digits (10+)
+  function puzzleFor(n) {
+    if (n < 3) return { type: 'none', count: 0 };
+    if (n < 6) return { type: 'key', count: 1 };
+    if (n < 10) return { type: 'fuse', count: n < 8 ? 3 : 4 };
+    return { type: 'code', count: n < 14 ? 3 : (n < 21 ? 4 : 5) };
+  }
   function levelSpecFor(n) {
     n = Math.max(1, Math.min(MAX_LEVEL, n | 0));
     const base = clampRoomSize(cfg.settings.roomSize);
@@ -846,7 +870,7 @@ async function run(mode) {
     return {
       kind: 'level', n, title: 'LV ' + n, seed: 1337 + n * 7919, size,
       dif: Math.min(1, (n - 1) / 12), crystals: Math.min(10, 4 + (n >> 1)),
-      monsterMult: 1 + 0.025 * Math.min(12, n - 1), alert: alertFor(1 - 0.03 * (n - 1)), par: 0
+      monsterMult: 1 + 0.025 * Math.min(12, n - 1), alert: alertFor(1 - 0.03 * (n - 1)), par: 0, puzzle: puzzleFor(n), code: []
     };
   }
   function dailySpec() {
@@ -854,7 +878,8 @@ async function run(mode) {
     const size = Math.max(60, Math.min(260, Math.round(clampRoomSize(cfg.settings.roomSize) * 0.9 / 10) * 10));
     return {
       kind: 'daily', n: 0, title: 'HARIAN', seed: (Math.imul(k, 2654435761) ^ 0x5bd1e995) | 0, size,
-      dif: 0.6, crystals: 8, monsterMult: 1.2, alert: alertFor(0.75), par: 0
+      dif: 0.6, crystals: 8, monsterMult: 1.2, alert: alertFor(0.75), par: 0,
+      puzzle: [{ type: 'key', count: 1 }, { type: 'fuse', count: 4 }, { type: 'code', count: 4 }][k % 3], code: []
     };
   }
   function effSize() { return levelSpec ? levelSpec.size : cfg.settings.roomSize; }
@@ -901,7 +926,45 @@ async function run(mode) {
   const cpFlagGeo = new THREE.PlaneGeometry(0.3, 0.18);
   const cpBeamGeo = new THREE.CylinderGeometry(0.1, 0.1, 2.4, 10, 1, true);
   const cpPoleMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: 0.4, metalness: 0.5 });
-  let crystals = [], cpObjs = [];
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd24d, emissive: 0xb88a10, emissiveIntensity: 0.9, roughness: 0.25, metalness: 0.8 });
+  const fuseMat = new THREE.MeshStandardMaterial({ color: 0xffa13c, emissive: 0xff7a10, emissiveIntensity: 1.1, roughness: 0.3, metalness: 0.2 });
+  const haloPzMat = new THREE.MeshBasicMaterial({ color: 0xffd24d, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+  const keyRingGeo = new THREE.TorusGeometry(0.07, 0.022, 8, 18), keyShaftGeo = new THREE.BoxGeometry(0.034, 0.22, 0.034);
+  const keyTooth1Geo = new THREE.BoxGeometry(0.08, 0.034, 0.034), keyTooth2Geo = new THREE.BoxGeometry(0.06, 0.034, 0.034);
+  const fuseBodyGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.2, 12), fuseCapGeo = new THREE.CylinderGeometry(0.062, 0.062, 0.04, 12);
+  function makeKeyMesh() {
+    const g = new THREE.Group();
+    const ring = new THREE.Mesh(keyRingGeo, goldMat); ring.position.y = 0.13; g.add(ring);
+    const shaft = new THREE.Mesh(keyShaftGeo, goldMat); shaft.position.y = -0.01; g.add(shaft);
+    const t1 = new THREE.Mesh(keyTooth1Geo, goldMat); t1.position.set(0.05, -0.08, 0); g.add(t1);
+    const t2 = new THREE.Mesh(keyTooth2Geo, goldMat); t2.position.set(0.04, -0.125, 0); g.add(t2);
+    g.scale.setScalar(1.5);
+    return g;
+  }
+  function makeFuseMesh() {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(fuseBodyGeo, fuseMat));
+    const c1 = new THREE.Mesh(fuseCapGeo, goldMat); c1.position.y = 0.12; g.add(c1);
+    const c2 = new THREE.Mesh(fuseCapGeo, goldMat); c2.position.y = -0.12; g.add(c2);
+    g.scale.setScalar(1.5);
+    return g;
+  }
+  const digitTex = {};
+  function digitTexture(d) {
+    if (!digitTex[d]) {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const x = c.getContext('2d');
+      const gr = x.createRadialGradient(64, 64, 10, 64, 64, 60);
+      gr.addColorStop(0, 'rgba(24,70,88,.96)'); gr.addColorStop(1, 'rgba(8,24,34,.94)');
+      x.fillStyle = gr; x.beginPath(); x.arc(64, 64, 60, 0, Math.PI * 2); x.fill();
+      x.lineWidth = 6; x.strokeStyle = '#ffd86b'; x.stroke();
+      x.fillStyle = '#fff'; x.font = 'bold 76px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(String(d), 64, 70);
+      digitTex[d] = new THREE.CanvasTexture(c);
+    }
+    return digitTex[d];
+  }
+  let crystals = [], cpObjs = [], puzzleItems = [];
   function paintCp(c, on) {
     c.on = on;
     const col = on ? 0x7dffb0 : 0x6f8f86;
@@ -911,13 +974,25 @@ async function run(mode) {
   function buildLevelObjects() {
     while (levelObjGroup.children.length) levelObjGroup.remove(levelObjGroup.children[0]);
     cpObjs.forEach(c => c.mats.forEach(m => m.dispose()));
-    crystals = []; cpObjs = [];
+    crystals = []; cpObjs = []; puzzleItems = [];
     crystalPads.forEach((pad, i) => {
       const g = new THREE.Group(); g.position.set(pad.x, pad.top, pad.z);
       const gem = new THREE.Mesh(crystalGeo, crystalMat); gem.position.y = 0.42; g.add(gem);
       const halo = new THREE.Mesh(haloGeo, haloMat); halo.position.y = 0.012; g.add(halo);
       levelObjGroup.add(g);
       crystals.push({ pad, g, gem, got: false, ph: i * 1.7 });
+    });
+    const pzs = levelSpec && levelSpec.puzzle;
+    puzzlePads.forEach((pad, i) => {
+      const g = new THREE.Group(); g.position.set(pad.x, pad.top, pad.z);
+      let obj;
+      if (pzs.type === 'key') obj = makeKeyMesh();
+      else if (pzs.type === 'fuse') obj = makeFuseMesh();
+      else { obj = new THREE.Sprite(new THREE.SpriteMaterial({ map: digitTexture(levelSpec.code[i]), depthWrite: false })); obj.scale.set(0.44, 0.44, 1); }
+      obj.position.y = 0.46; g.add(obj);
+      const halo = new THREE.Mesh(haloGeo, haloPzMat); halo.position.y = 0.012; halo.scale.setScalar(1.25); g.add(halo);
+      levelObjGroup.add(g);
+      puzzleItems.push({ pad, g, obj, got: false, slot: i, digit: pzs.type === 'code' ? levelSpec.code[i] : null, ph: i * 2.3 });
     });
     checkpointPlats.forEach(plat => {
       const g = new THREE.Group(); g.position.set(plat.x, plat.top, plat.z);
@@ -1138,7 +1213,7 @@ async function run(mode) {
   let pillarBoxes = [];    // {x,z,hw,hd,kind:'pillar'}
   let routeBoxes = [];
   let startPlat = null, lastPlat = null;
-  let crystalPads = [], checkpointPlats = [];
+  let crystalPads = [], checkpointPlats = [], puzzlePads = [];
   const GRID = 4;
   let grid = new Map();
   let qStamp = 0;
@@ -1273,7 +1348,7 @@ async function run(mode) {
         const base = routeBoxes[Math.max(1, Math.min(n - 3, idx))];
         for (let attempt = 0; attempt < 40; attempt++) {
           const t = padAlong(base, prng() * Math.PI * 2, 0.9, 0.7 + prng() * 0.28 + 0.05 * dif);
-          if (!t) continue;
+          if (!t || gapBetween(base, t) > 1.0) continue;
           if (Math.abs(t.x) > half - t.hw - 0.6 || Math.abs(t.z) > half - t.hd - 0.6) continue;
           queryBoxes(t.x, t.z, 3, near2);
           let ok = true;
@@ -1283,8 +1358,34 @@ async function run(mode) {
           break;
         }
       }
+      // Door puzzle items: mandatory pickups on side pads (same one-jump guarantee as the crystals)
+      puzzlePads = [];
+      const pz = levelSpec.puzzle;
+      if (pz && pz.type !== 'none') {
+        const zr = mulberry32((((effSeed() | 0) ^ 0x7f4a7c15) | 0) || 11);
+        const wantP = Math.min(pz.count, Math.max(0, Math.floor((n - 8) / 4)));
+        for (let k = 0; k < wantP; k++) {
+          const idx = 6 + Math.floor((n - 12) * (k + 0.25 + zr() * 0.4) / wantP);
+          for (let attempt = 0; attempt < 140; attempt++) {
+            const base = routeBoxes[Math.max(2, Math.min(n - 3, idx + (attempt % 7) - 3))];
+            const sepMin = attempt < 70 ? 0.6 : 0.45;
+            const t = padAlong(base, zr() * Math.PI * 2, 1.0, 0.7 + zr() * 0.25 + 0.04 * dif);
+            if (!t || gapBetween(base, t) > 1.0) continue;
+            if (Math.abs(t.x) > half - t.hw - 0.6 || Math.abs(t.z) > half - t.hd - 0.6) continue;
+            queryBoxes(t.x, t.z, 3, near2);
+            let ok = true;
+            for (const o of near2) { if (o !== base && gapBetween(t, o) < sepMin) { ok = false; break; } }
+            if (!ok) continue;
+            t.pad = true; platformBoxes.push(t); gridInsert(t); puzzlePads.push(t);
+            break;
+          }
+        }
+        pz.count = puzzlePads.length;           // never demand more items than were placed
+        if (pz.count === 0) pz.type = 'none';
+        if (pz.type === 'code') levelSpec.code = puzzlePads.map(() => Math.floor(zr() * 10));
+      }
       for (let i = 20; i < n - 8; i += 20) checkpointPlats.push(routeBoxes[i]);
-      levelSpec.par = Math.round(n * PAR_PER_HOP + PAR_BASE + crystalPads.length * PAR_PER_CRYSTAL);
+      levelSpec.par = Math.round(n * PAR_PER_HOP + PAR_BASE + crystalPads.length * PAR_PER_CRYSTAL + puzzlePads.length * 5 + (pz && pz.type === 'code' ? 8 : 0));
     }
 
     const near = [];
@@ -1421,7 +1522,17 @@ async function run(mode) {
     sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
     sctx.fillText('EXIT', 128, 52); }
   const signTex = new THREE.CanvasTexture(signCanvas);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.17), new THREE.MeshBasicMaterial({ map: signTex }));
+  const signLockCanvas = document.createElement('canvas');
+  signLockCanvas.width = 256; signLockCanvas.height = 96;
+  { const lctx = signLockCanvas.getContext('2d');
+    lctx.fillStyle = '#4a0f0f'; lctx.fillRect(0, 0, 256, 96);
+    lctx.strokeStyle = '#ff7b6b'; lctx.lineWidth = 6; lctx.strokeRect(4, 4, 248, 88);
+    lctx.fillStyle = '#ffb3a8'; lctx.font = 'bold 46px sans-serif';
+    lctx.textAlign = 'center'; lctx.textBaseline = 'middle';
+    lctx.fillText('TERKUNCI', 128, 52); }
+  const signLockTex = new THREE.CanvasTexture(signLockCanvas);
+  const signMat = new THREE.MeshBasicMaterial({ map: signTex });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.17), signMat);
   sign.position.set(0, 1.44, 0.045); doorGroup.add(sign);
   const doorLight = new THREE.PointLight(0x7dffb0, 0.9, 2.6);
   doorLight.position.set(0, 0.8, 0.45); doorGroup.add(doorLight);
@@ -1430,6 +1541,12 @@ async function run(mode) {
   const doorIn = new THREE.Vector3(Math.sin(doorInfo.rot), 0, Math.cos(doorInfo.rot)).multiplyScalar(0.04);
   doorGroup.position.set(doorInfo.x + doorIn.x, platTop(), doorInfo.z + doorIn.z);
   scene.add(doorGroup);
+  // A locked door glows red and reads TERKUNCI until the puzzle is solved.
+  function setDoorLocked(locked) {
+    signMat.map = locked ? signLockTex : signTex; signMat.needsUpdate = true;
+    doorGlowMat.color.set(locked ? 0xff8c7a : 0xc8ffe2);
+    doorLight.color.set(locked ? 0xff5a4a : 0x7dffb0);
+  }
 
   // ─── PREMIUM TEXTURED WATER MONSTER ───
   function createMonster() {
@@ -2479,6 +2596,13 @@ async function run(mode) {
   // Keyboard
   if (mode === 'play') {
     window.addEventListener('keydown', e => {
+      if (gameState === 'keypad') {
+        e.preventDefault();
+        if (/^(Digit|Numpad)[0-9]$/.test(e.code)) keypadPress(e.code.slice(-1));
+        else if (e.code === 'Backspace') keypadPress('⌫');
+        else if (e.code === 'Escape') keypadPress('✕');
+        return;
+      }
       if (gameState === 'gameover' || gameState === 'won') {
         if (e.code === 'Enter' || e.code === 'KeyR' || e.code === 'Space') {
           e.preventDefault();
@@ -2758,6 +2882,34 @@ async function run(mode) {
       }
     }
 
+    // Door puzzle items (yellow) with a rim arrow to the nearest missing one
+    if (levelSpec && puzzleLocked()) {
+      let nearest = null, nd = 1e9;
+      for (const it of puzzleItems) {
+        if (it.got) continue;
+        const dd = Math.hypot(it.pad.x - playerPos.x, it.pad.z - playerPos.z);
+        if (dd < nd) { nd = dd; nearest = it; }
+        const q = toR(it.pad.x, it.pad.z);
+        if (Math.abs(q.x - cx) > w / 2 - 4 || Math.abs(q.y - cy) > h / 2 - 4) continue;
+        radarCtx.fillStyle = '#ffd24d';
+        radarCtx.beginPath(); radarCtx.arc(q.x, q.y, 5, 0, Math.PI * 2); radarCtx.fill();
+        radarCtx.strokeStyle = '#07121b'; radarCtx.lineWidth = 1.5; radarCtx.stroke();
+      }
+      if (nearest) {
+        const px = nearest.pad.x - playerPos.x, pz2 = nearest.pad.z - playerPos.z;
+        if (Math.abs(px) * scale >= w / 2 - 4 || Math.abs(pz2) * scale >= h / 2 - 4) {
+          const ang = Math.atan2(pz2, px);
+          const ax = cx + Math.cos(ang) * (w / 2 - 14), ay = cy + Math.sin(ang) * (h / 2 - 14);
+          radarCtx.fillStyle = '#ffd24d';
+          radarCtx.beginPath();
+          radarCtx.moveTo(ax + Math.cos(ang) * 7, ay + Math.sin(ang) * 7);
+          radarCtx.lineTo(ax + Math.cos(ang + 2.4) * 7, ay + Math.sin(ang + 2.4) * 7);
+          radarCtx.lineTo(ax + Math.cos(ang - 2.4) * 7, ay + Math.sin(ang - 2.4) * 7);
+          radarCtx.closePath(); radarCtx.fill();
+        }
+      }
+    }
+
     // EXIT: marker if in range, otherwise arrow on the rim
     const ex = doorInfo.x - playerPos.x, ez = doorInfo.z - playerPos.z;
     const edist = Math.hypot(ex, ez);
@@ -2823,7 +2975,19 @@ async function run(mode) {
     if (goalHintTimer > 0 || !goalHint) return;
     goalHintTimer = 0.25;
     const d = Math.hypot(doorInfo.x - playerPos.x, doorInfo.z - playerPos.z);
-    goalHint.textContent = `Lompati pijakan menuju EXIT • ${Math.round(d)} m`;
+    const pzi = levelSpec && puzzleInfo();
+    if (pzi && puzzleLocked()) {
+      let nearest = null, nd = 1e9;
+      for (const it of puzzleItems) {
+        if (it.got) continue;
+        const dd = Math.hypot(it.pad.x - playerPos.x, it.pad.z - playerPos.z);
+        if (dd < nd) { nd = dd; nearest = it; }
+      }
+      if (nearest) {
+        const what = pzi.type === 'key' ? 'kunci' : pzi.type === 'fuse' ? `sekering ${runStats.pz}/${pzi.count}` : `digit kode ${runStats.pz}/${pzi.count}`;
+        goalHint.textContent = `Cari ${what} • ${Math.round(nd)} m`;
+      } else goalHint.textContent = `Ketik kode di pintu EXIT • ${Math.round(d)} m`;
+    } else goalHint.textContent = `Lompati pijakan menuju EXIT • ${Math.round(d)} m`;
   }
 
   // Edit / Play Mode UI Initialization
@@ -2863,6 +3027,9 @@ async function run(mode) {
   const hudEl = document.getElementById('hud');
   const hudL1 = document.getElementById('hud-l1');
   const hudL2 = document.getElementById('hud-l2');
+  const hudL3 = document.getElementById('hud-l3');
+  const keypadScreen = document.getElementById('keypad-screen');
+  const keypadCard = document.getElementById('keypad-card');
   const menuBtn = document.getElementById('menu-btn');
   const toastEl = document.getElementById('toast');
   const menuScreen = document.getElementById('menu-screen');
@@ -2871,7 +3038,7 @@ async function run(mode) {
   const helpCard = document.getElementById('help-card');
 
   const CP_PENALTY = 15;   // seconds added when continuing from a checkpoint
-  const runStats = { t: 0, falls: 0, got: 0, deaths: 0, cp: null };
+  const runStats = { t: 0, falls: 0, got: 0, deaths: 0, cp: null, pz: 0, solved: false, wrong: 0, slots: [] };
   let endLockUntil = 0;    // ignore end-screen taps right after it appears (mashed JUMP)
   let pausedLevel = false;
 
@@ -2912,7 +3079,96 @@ async function run(mode) {
     hudL1.textContent = `${levelSpec.title}  ·  ${fmtTime(runStats.t)}`;
     hudL1.classList.toggle('over', runStats.t > levelSpec.par);
     hudL2.textContent = `◆ ${runStats.got}/${crystals.length}   ·   target ${fmtTime(levelSpec.par)}   ·   jatuh ${runStats.falls}`;
+    const pt = puzzleHudText();
+    hudL3.textContent = pt;
+    hudL3.style.display = pt ? '' : 'none';
+    hudL3.classList.toggle('done', !!pt && runStats.solved);
   }
+
+  // ── Door puzzle (key / fuses / code) ──
+  function puzzleInfo() { return levelSpec && levelSpec.puzzle && levelSpec.puzzle.type !== 'none' ? levelSpec.puzzle : null; }
+  function puzzleLocked() { return !!puzzleInfo() && !runStats.solved; }
+  function puzzleHudText() {
+    const pz = puzzleInfo();
+    if (!pz) return '';
+    if (runStats.solved) return pz.type === 'code' ? '🔓 Kode benar' : '🔓 Pintu terbuka';
+    if (pz.type === 'key') return runStats.pz ? '🔑 Kunci didapat' : '🔒 Cari KUNCI';
+    if (pz.type === 'fuse') return `⚡ Sekering ${runStats.pz}/${pz.count}`;
+    return '🔒 Kode: ' + Array.from({ length: pz.count }, (_, i) => runStats.slots[i] == null ? '_' : runStats.slots[i]).join(' ');
+  }
+  function collectPuzzle(it) {
+    const pz = levelSpec.puzzle;
+    it.got = true; it.g.visible = false; runStats.pz++;
+    if (pz.type === 'code') runStats.slots[it.slot] = it.digit;
+    soundSystem.playBlip([880, 1175, 1568], 0.07, 0.28, 0.45);
+    spawnVictoryBurst(it.pad.x, it.pad.top + 0.45, it.pad.z, 14);
+    const done = runStats.pz >= pz.count;
+    if (pz.type === 'key') toast('🔑 Kunci didapat! Pintu EXIT terbuka', 3000);
+    else if (pz.type === 'fuse') toast(done ? '⚡ Semua sekering terkumpul! Pintu EXIT terbuka' : `⚡ Sekering ${runStats.pz}/${pz.count}`, 2600);
+    else toast(done ? `Kode lengkap: ${runStats.slots.join(' ')}. Ketik di keypad pintu EXIT` : `Digit ke-${it.slot + 1} = ${it.digit}   (${runStats.pz}/${pz.count})`, done ? 4200 : 2600);
+    if (done && pz.type !== 'code') { runStats.solved = true; setDoorLocked(false); soundSystem.playCheckpoint(); }
+    updateHud(0, true);
+  }
+  let lockToastAt = 0, keypadCooldown = 0, kpBuf = '', kpMsg = '', kpShake = false;
+  function onLockedDoor() {
+    const pz = puzzleInfo(), nowMs = performance.now();
+    if (pz.type === 'code' && runStats.pz >= pz.count) { if (nowMs > keypadCooldown) openKeypad(); return; }
+    if (nowMs - lockToastAt < 2600) return;
+    lockToastAt = nowMs;
+    toast(pz.type === 'key' ? '🔒 Pintu terkunci: cari KUNCI dulu' : pz.type === 'fuse' ? `🔒 Pintu terkunci: sekering ${runStats.pz}/${pz.count}` : `🔒 Kode belum lengkap: ${runStats.pz}/${pz.count} digit`, 2200);
+  }
+  function renderKeypad() {
+    const n = levelSpec.puzzle.count;
+    const boxes = Array.from({ length: n }, (_, i) => `<i>${kpBuf[i] || ''}</i>`).join('');
+    const ks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✕'];
+    keypadCard.innerHTML =
+      `<div class="kp-title">KEYPAD PINTU</div><div class="kp-hint">Kode tercatat: <b>${runStats.slots.join(' ')}</b></div>` +
+      `<div class="kp-disp${kpShake ? ' shake' : ''}">${boxes}</div><div class="kp-msg">${kpMsg}</div>` +
+      `<div class="kp-grid">${ks.map(k => `<button data-k="${k}">${k}</button>`).join('')}</div>`;
+    kpShake = false;
+  }
+  function openKeypad() {
+    kpBuf = ''; kpMsg = ''; kpShake = false;
+    jsReset();
+    for (const k in keys) keys[k] = false;
+    setState('keypad');
+    renderKeypad();
+    keypadScreen.classList.add('show');
+  }
+  function closeKeypad() {
+    keypadScreen.classList.remove('show');
+    keypadCooldown = performance.now() + 2500;
+    jumpRequested = false;
+    setState('playing');
+  }
+  function keypadPress(k) {
+    if (gameState !== 'keypad') return;
+    const n = levelSpec.puzzle.count;
+    if (k === '✕') { closeKeypad(); return; }
+    kpMsg = '';
+    if (k === '⌫') kpBuf = kpBuf.slice(0, -1);
+    else if (kpBuf.length < n) kpBuf += k;
+    renderKeypad();
+    if (kpBuf.length === n) {
+      setTimeout(() => {
+        if (gameState !== 'keypad') return;
+        if (kpBuf === levelSpec.code.join('')) {
+          runStats.solved = true;
+          setDoorLocked(false);
+          soundSystem.playCheckpoint();
+          closeKeypad();
+          toast('🔓 Pintu terbuka!', 2000);
+          updateHud(0, true);
+        } else {
+          runStats.wrong++; runStats.t += 5;
+          kpBuf = ''; kpMsg = 'Kode salah! +5 detik'; kpShake = true;
+          soundSystem.playAlert();
+          renderKeypad();
+        }
+      }, 220);
+    }
+  }
+  keypadCard.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) keypadPress(b.dataset.k); });
 
   function collectCrystal(c) {
     c.got = true; c.g.visible = false; runStats.got++;
@@ -2931,6 +3187,11 @@ async function run(mode) {
     }
   }
   function animateLevelObjects(t) {
+    for (const it of puzzleItems) {
+      if (it.got) continue;
+      if (!it.obj.isSprite) it.obj.rotation.y = t * 2.0 + it.ph;
+      it.obj.position.y = 0.46 + Math.sin(t * 2.4 + it.ph) * 0.05;
+    }
     for (const c of crystals) {
       if (c.got) continue;
       c.gem.rotation.y = t * 1.8 + c.ph;
@@ -2944,7 +3205,7 @@ async function run(mode) {
     const total = crystals.length, got = runStats.got;
     const stTime = t <= par, stCry = total === 0 || got >= total;
     const stars = 1 + (stTime ? 1 : 0) + (stCry ? 1 : 0);
-    const score = Math.max(100, Math.round(500 + Math.max(0, par * 2 - t) * 10 + got * 150 + stars * 300 - runStats.falls * 40 - runStats.deaths * 100));
+    const score = Math.max(100, Math.round(500 + Math.max(0, par * 2 - t) * 10 + got * 150 + stars * 300 - runStats.falls * 40 - runStats.deaths * 100 - runStats.wrong * 30));
     rollDaily();
     let prevScore = 0;
     if (L.kind === 'level') {
@@ -2983,6 +3244,7 @@ async function run(mode) {
       endStats.innerHTML =
         row('Waktu', fmtTime(runStats.t), (r.stTime ? '★ ' : '☆ ') + 'target ' + fmtTime(r.par), r.stTime) +
         row('Kristal', `${r.got}/${r.total}`, r.total ? ((r.stCry ? '★ ' : '☆ ') + 'semua') : '—', r.stCry) +
+        (puzzleInfo() ? row('Puzzle pintu', puzzleInfo().type === 'key' ? 'Kunci' : puzzleInfo().type === 'fuse' ? 'Sekering' : 'Kode', runStats.wrong ? `salah kode ${runStats.wrong}×` : 'terpecahkan', !runStats.wrong) : '') +
         row('Jatuh ke air', runStats.falls, runStats.deaths ? `tertangkap ${runStats.deaths}×` : '') +
         row('SKOR', r.score.toLocaleString('id-ID'), r.newBest ? 'REKOR BARU!' : '', false, 'total');
       const canNext = levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL;
@@ -3042,11 +3304,18 @@ async function run(mode) {
   // Fresh run of the current level
   function retryLevel() {
     runStats.t = 0; runStats.falls = 0; runStats.got = 0; runStats.deaths = 0; runStats.cp = null;
+    runStats.pz = 0; runStats.solved = false; runStats.wrong = 0; runStats.slots = [];
     crystals.forEach(c => { c.got = false; c.g.visible = true; });
+    puzzleItems.forEach(it => { it.got = false; it.g.visible = true; });
+    setDoorLocked(!!puzzleInfo());
     cpObjs.forEach(c => paintCp(c, false));
     restartGame(false);
     updateHud(0, true);
-    if (levelSpec.kind === 'level' && levelSpec.n === 1 && !save.lv[0]) toast('Geser joystick untuk bergerak, tekan JUMP untuk melompat. Capai pintu EXIT!', 6000);
+    const pzi = puzzleInfo();
+    if (pzi) toast(pzi.type === 'key' ? '🔒 Pintu terkunci. Temukan KUNCI di pijakan samping rute (lihat radar kuning).'
+      : pzi.type === 'fuse' ? `🔒 Pintu terkunci. Kumpulkan ${pzi.count} SEKERING di pijakan samping rute (radar kuning).`
+      : `🔒 Pintu terkunci. Temukan ${pzi.count} DIGIT kode satu per satu; tercatat otomatis di HUD.`, 6500);
+    else if (levelSpec.kind === 'level' && levelSpec.n === 1 && !save.lv[0]) toast('Geser joystick untuk bergerak, tekan JUMP untuk melompat. Capai pintu EXIT!', 6000);
   }
   function continueFromCheckpoint() {
     if (!runStats.cp) { retryLevel(); return; }
@@ -3133,6 +3402,7 @@ async function run(mode) {
     { t: 'GERAK & LOMPAT', d: 'Geser joystick (kiri bawah) untuk berjalan dan tekan JUMP untuk melompat antar pijakan. Geser layar untuk memutar kamera. Di keyboard: WASD / panah dan Spasi. Radar kanan atas menunjukkan arah pintu EXIT.' },
     { t: 'JANGAN SENTUH AIR', d: 'Lantai adalah air. Begitu menyentuhnya, monster mendengar dan datang. Kamu punya beberapa detik untuk melompat kembali ke pijakan sebelum ia mengejar. Pijakan yang aman membuatnya kehilangan jejak.' },
     { t: 'KRISTAL & CHECKPOINT', d: 'Kristal ◆ ada di pijakan samping rute dengan lompatan lebih berisiko; radar menandainya. Bendera hijau adalah checkpoint: kalau tertangkap, kamu bisa lanjut dari sana (+15 detik).' },
+    { t: 'PUZZLE PINTU', d: 'Mulai level 3 pintu EXIT terkunci. Level 3–5: temukan kunci. Level 6–9: kumpulkan sekering. Level 10 ke atas: temukan digit kode satu per satu (tercatat otomatis di HUD), lalu ketik di keypad pintu. Salah kode menambah 5 detik. Benda puzzle ada di pijakan samping rute, ditandai kuning di radar.' },
     { t: 'BINTANG & PERINGKAT', d: '★ selesai level  ·  ★ waktu di bawah target  ·  ★ semua kristal. Skor makin tinggi untuk waktu cepat, kristal, dan sedikit jatuh. Skor total semua level + tantangan harian masuk papan peringkat.' }
   ];
   let helpIdx = 0;
@@ -3804,6 +4074,7 @@ async function run(mode) {
     // Exit door glow pulse
     doorLight.intensity = 0.75 + Math.sin(waterAnimTime * 2.2) * 0.2;
 
+    if (mode === 'play' && gameState === 'keypad') { runStats.t += dt; updateHud(dt); }
     if (mode === 'play' && gameState === 'playing' && !loadingActive) {
       runStats.t += dt;
       updateHud(dt);
@@ -4010,6 +4281,11 @@ async function run(mode) {
           const ddx = playerPos.x - c.pad.x, ddz = playerPos.z - c.pad.z;
           if (ddx * ddx + ddz * ddz < 0.55 * 0.55 && playerPos.y > c.pad.top - 0.1 && playerPos.y < c.pad.top + 0.9) collectCrystal(c);
         }
+        for (const it of puzzleItems) {
+          if (it.got) continue;
+          const ddx = playerPos.x - it.pad.x, ddz = playerPos.z - it.pad.z;
+          if (ddx * ddx + ddz * ddz < 0.6 * 0.6 && playerPos.y > it.pad.top - 0.1 && playerPos.y < it.pad.top + 0.9) collectPuzzle(it);
+        }
         if (safe && activePlat && cpObjs.length) reachCheckpoint(activePlat);
       }
 
@@ -4042,7 +4318,8 @@ async function run(mode) {
       // ─── EXIT TRIGGER ───
       if (gameState === 'playing' && safe && activePlat === lastPlat) {
         const dd = Math.hypot(playerPos.x - doorInfo.x, playerPos.z - doorInfo.z);
-        if (dd < 1.3) {
+        if (dd < 1.3 && puzzleLocked()) onLockedDoor();
+        else if (dd < 1.3) {
           spawnVictoryBurst(doorGroup.position.x, doorGroup.position.y + 0.6, doorGroup.position.z);
           soundSystem.playVictory();
           showEnd(true);
