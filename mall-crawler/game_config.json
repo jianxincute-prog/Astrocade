@@ -2,6 +2,6 @@
   "map": { "width": 320, "depth": 320, "corridorWidth": 12 },
   "player": { "health": 3, "walkSpeed": 4.5, "sprintSpeed": 8.2, "staminaSeconds": 15, "staminaRecoverSeconds": 4.5, "hungerSeconds": 240 },
   "monster": { "speed": 3.2, "detectRange": 26, "maxCount": 3, "stunDuration": 2, "flashlightCooldown": 8 },
-  "outcomeWeights": { "supplies": 0.28, "empty": 0.24, "trap": 0.19, "monster": 0.19, "materials": 0.10 },
+  "outcomeWeights": { "supplies": 0.28, "empty": 0.24, "trap": 0.19, "monster": 0.19, "materials": 0.10, "vending": 0.09 },
   "goal": { "food": 4, "drink": 4 }
 }

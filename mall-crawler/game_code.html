@@ -906,6 +906,12 @@
     .inv-slot.cat-part { border-color: rgba(179, 136, 255, 0.95); }
     .tag-mat { background: rgba(205, 133, 63, 0.25); color: #e6b07a; }
     .tag-part { background: rgba(179, 136, 255, 0.25); color: #c9b3ff; }
+    .vend-stage { font-size: 110px; text-align: center; margin: 18px 0 6px; line-height: 1.1; }
+    .vend-stage.shake { animation: vendShake 0.6s ease-in-out; }
+    @keyframes vendShake { 0%,100% { transform: rotate(0) scale(1); } 15% { transform: rotate(-12deg) scale(1.1); } 30% { transform: rotate(10deg) scale(1.12); } 45% { transform: rotate(-9deg) scale(1.1); } 60% { transform: rotate(7deg) scale(1.12); } 80% { transform: rotate(-4deg) scale(1.05); } }
+    .vend-msg { text-align: center; color: #e2e8f0; font-size: 22px; min-height: 64px; padding: 0 18px; }
+    .vend-btn { display: block; margin: 14px auto 8px; padding: 18px 30px; font-family: var(--font-title); font-size: 26px; font-weight: 800; letter-spacing: 1px; border-radius: 18px; border: 2px solid #38bdf8; background: linear-gradient(160deg, rgba(8, 47, 73, 0.95), rgba(15, 23, 42, 0.95)); color: #e0f2fe; cursor: pointer; touch-action: manipulation; }
+    .vend-btn:disabled { opacity: 0.45; cursor: default; }
     .inv-slot.cat-gear { border-color: rgba(52, 211, 153, 0.9); }
     .tag-gear { background: rgba(52, 211, 153, 0.25); color: #6ee7b7; }
     #app-container.hc .trade-row { background: #111; border-color: #fff; }
@@ -1123,6 +1129,26 @@
       </div>
     </div>
 
+    <!-- Vending machine kotak misteri -->
+    <div class="inv-overlay" id="vend-overlay">
+      <div class="inv-panel">
+        <div class="inv-header">
+          <div class="inv-title">
+            <span style="font-size: 52px;">🎰</span>
+            <div>
+              <div class="inv-title-main">VENDING MACHINE</div>
+              <div class="inv-title-sub" id="vend-sub">Kotak misteri</div>
+            </div>
+          </div>
+          <div class="inv-cap" id="vend-credits">¢0</div>
+          <button class="inv-close" id="vend-close" aria-label="Tutup Vending Machine">✕</button>
+        </div>
+        <div class="vend-stage" id="vend-stage">📦</div>
+        <div class="vend-msg" id="vend-msg">Tekan tombol untuk mendapatkan kotak misteri.</div>
+        <button class="vend-btn" id="vend-btn">AMBIL KOTAK MISTERI</button>
+      </div>
+    </div>
+
     <div class="inv-overlay" id="inv-overlay">
       <div class="inv-panel">
         <div class="inv-header">
@@ -1227,6 +1253,7 @@
               <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas, atau dekati tumpukan bekal di basecamp untuk <b>MAKAN/MINUM</b> (mengurangi bekal target!). Istirahat di basecamp memulihkan nyawa.</li>
               <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
               <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap, Spons Rakus.</li>
+              <li>🎰 <b>Vending machine</b>: jatah <b>3 kotak misteri gratis per hari</b>, lalu ¢500 per kotak (kredit didapat dari menjual barang lewat komputer).</li>
               <li>🔄 Ruang gudang, jebakan, monster &amp; bahan <b>tertutup lagi setelah 20 detik</b> dan isinya diacak ulang. Penyintas bisa mati dan respawn di basecamp mereka.</li>
               <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
             </ul>
@@ -1766,6 +1793,12 @@
       const craftList = document.getElementById('craft-list');
       const hudArmorStat = document.getElementById('hud-armor-stat');
       const hudArmorEl = document.getElementById('hud-armor');
+      const vendOverlay = document.getElementById('vend-overlay');
+      const vendStage = document.getElementById('vend-stage');
+      const vendMsg = document.getElementById('vend-msg');
+      const vendBtn = document.getElementById('vend-btn');
+      const vendSub = document.getElementById('vend-sub');
+      const vendCredits = document.getElementById('vend-credits');
       const tradeCredits = document.getElementById('trade-credits');
       const tradeSub = document.getElementById('trade-sub');
       const tabBuy = document.getElementById('tab-buy');
@@ -1836,7 +1869,8 @@
           empty: 0.24,
           trap: 0.19,
           monster: 0.19,
-          materials: 0.10
+          materials: 0.10,
+          vending: 0.09
         },
         goal: {
           food: 4,
@@ -2233,6 +2267,14 @@
       ]) });
       MAT.medWhite = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, roughness: 0.5, metalness: 0.1 });
       MAT.medRed = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
+      MAT.vendBody = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.4, metalness: 0.5 });
+      MAT.vendGlass = new THREE.MeshBasicMaterial({ color: 0x9be7ff });
+      MAT.vendDark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.4 });
+      MAT.vendProd = [0xfacc15, 0x22c55e, 0xef4444, 0x3b82f6, 0xf97316, 0xa855f7].map(c => new THREE.MeshBasicMaterial({ color: c }));
+      MAT.vendSign = new THREE.MeshBasicMaterial({ map: createTextTexture('#7f1d1d', '#fde68a', '#fde68a', [
+        { text: 'KOTAK', font: 'bold 92px sans-serif', y: 100 },
+        { text: 'MISTERI ?', font: 'bold 70px sans-serif', y: 185 }
+      ]) });
       MAT.laser = new THREE.MeshBasicMaterial({ color: 0xff2040 });
       MAT.gasCloud = new THREE.MeshBasicMaterial({ color: 0x5bff7a, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
       MAT.tileOk = new THREE.MeshStandardMaterial({ color: 0x59606e, roughness: 0.8 });
@@ -2488,7 +2530,7 @@
       function rollStoreContents(doorX, doorZ, noEmpty = false, exclude = null) {
         // Tentukan isi toko berdasarkan bobot (noEmpty: pengacakan ulang tidak pernah menjadi toko kosong)
         const w = config.outcomeWeights;
-        const weights = [['supplies', w.supplies], ['empty', noEmpty ? 0 : w.empty], ['trap', w.trap], ['monster', w.monster], ['materials', w.materials ?? 0.1]]
+        const weights = [['supplies', w.supplies], ['empty', noEmpty ? 0 : w.empty], ['trap', w.trap], ['monster', w.monster], ['materials', w.materials ?? 0.1], ['vending', w.vending ?? 0.09]]
           .map(([k, v]) => [k, k === exclude ? 0 : v]);
         const totalW = weights.reduce((acc, [, v]) => acc + v, 0);
         let r = Math.random() * totalW;
@@ -4526,6 +4568,40 @@
         }
       }
 
+      // Ruang Vending Machine: mesin utama menyala di dinding belakang, dua mesin mati di samping
+      function buildVendingRoom(store, g) {
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.6), MAT.vendSign);
+        sign.position.set(0, 2.55, -3.03);
+        g.add(sign);
+        addBox(g, 1.5, 2.3, 0.9, MAT.vendBody, 0, 1.15, -3.5);
+        addBox(g, 1.0, 1.55, 0.04, MAT.vendGlass, -0.14, 1.45, -3.03);
+        addBox(g, 0.3, 1.55, 0.04, MAT.vendDark, 0.55, 1.45, -3.03);
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) addBox(g, 0.18, 0.3, 0.1, MAT.vendProd[(r * 4 + c) % MAT.vendProd.length], -0.45 + c * 0.24, 2.0 - r * 0.5, -3.08);
+        [1.2, 1.55, 1.9].forEach((y, i) => addBox(g, 0.18, 0.1, 0.06, i === 0 ? MAT.vendProd[0] : MAT.vendProd[3], 0.55, y, -3.04));
+        addBox(g, 1.0, 0.32, 0.06, MAT.vendDark, -0.1, 0.38, -3.03);
+        addBox(g, 1.5, 0.06, 0.06, MAT.vendGlass, 0, 0.1, -3.03);
+        [-1, 1].forEach(sd => {
+          addBox(g, 1.2, 2.1, 0.8, MAT.shelfMetal, sd * 2.7, 1.05, -3.55);
+          addBox(g, 0.85, 1.3, 0.04, MAT.vendDark, sd * 2.7 - sd * 0.1, 1.3, -3.14);
+          addRoomCollider(store, sd * 2.7 - 0.62, -3.97, sd * 2.7 + 0.62, -3.12);
+        });
+        addRoomCollider(store, -0.78, -3.97, 0.78, -3.0);
+        // bangku tunggu, tong sampah, kaleng berserakan
+        addBox(g, 1.6, 0.08, 0.45, MAT.pallet, 2.4, 0.5, 1.6);
+        [[1.7, 1.6], [3.1, 1.6]].forEach(([x, z]) => addBox(g, 0.08, 0.46, 0.4, MAT.shelfMetal, x, 0.23, z));
+        addRoomCollider(store, 1.55, 1.35, 3.25, 1.85);
+        const keg = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.25, 0.7, 10), MAT.shelfMetal);
+        keg.position.set(-3.2, 0.35, 1.8);
+        g.add(keg);
+        addRoomCollider(store, -3.5, 1.5, -2.9, 2.1);
+        [[-0.8, -1.2], [0.6, -1.7], [1.2, -0.6]].forEach(([x, z], i) => {
+          const can = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 8), MAT.vendProd[i]);
+          can.position.set(x, 0.07, z);
+          can.rotation.z = 1.4 * (i % 2 ? 1 : -1);
+          g.add(can);
+        });
+      }
+
       function initializeStoreInterior(store) {
         if (store.interiorInitialized) return;
         store.interiorInitialized = true;
@@ -4536,7 +4612,7 @@
         scene.add(g);
         store.interiorGroup = g;
 
-        const lightColor = { monster: 0xff2a3a, trap: 0xffe8c8, empty: 0xdde7ff, supplies: 0xffe8c8, materials: 0xffd9a0 }[store.outcome];
+        const lightColor = { monster: 0xff2a3a, trap: 0xffe8c8, empty: 0xdde7ff, supplies: 0xffe8c8, materials: 0xffd9a0, vending: 0xbfe6ff }[store.outcome];
         store.interiorLight = { intensity: 1.8, color: new THREE.Color(lightColor) };
         store.baseLightIntensity = 1.8;
 
@@ -4544,6 +4620,7 @@
         else if (store.outcome === 'trap') buildTrapRoom(store, g);
         else if (store.outcome === 'monster') buildMonsterRoom(store, g);
         else if (store.outcome === 'materials') buildMaterialsRoom(store, g);
+        else if (store.outcome === 'vending') buildVendingRoom(store, g);
         else buildEmptyRoom(store, g);
 
         mergeInteriorStatics(g);
@@ -4572,6 +4649,8 @@
               L.intensity = s.baseLightIntensity * (0.45 + 0.4 * Math.abs(Math.sin(animTime * 7 + s.id)) - (Math.random() < 0.06 ? 0.35 : 0));
             } else if (s.outcome === 'trap') {
               L.intensity = s.baseLightIntensity;
+            } else if (s.outcome === 'vending') {
+              L.intensity = s.baseLightIntensity * (0.92 + 0.08 * Math.sin(animTime * 4 + s.id));
             } else if (s.outcome === 'empty') {
               if (s.isClaimed) {
                 L.intensity = s.baseLightIntensity * (0.92 + 0.08 * Math.sin(animTime * 3 + s.id));
@@ -4645,6 +4724,8 @@
           } else {
             showToast('PINTU TOKO DIBUKA!', '#00e5ff');
           }
+        } else if (store.outcome === 'vending') {
+          showToast(`VENDING MACHINE! GRATIS ${VEND_FREE}× SEHARI, SELANJUTNYA ¢${VEND_PRICE}`, '#7dd3fc');
         } else if (store.outcome === 'monster') {
           showToast('BAHAYA: MONSTER MUNCUL DARI TOKO!', '#ff1744');
           audio.play('monster_reveal_sfx');
@@ -4899,6 +4980,13 @@
         titleBest.textContent = bestScore > 0 ? `REKOR TERBAIK: ${bestScore.toLocaleString()}` : '';
       }
 
+      // Vending machine: jatah gratis per hari (tanggal lokal), disimpan bersama skor
+      const VEND_FREE = 3, VEND_PRICE = 500;
+      const vend = { day: '', used: 0 };
+      const vendToday = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+      function vendRoll() { if (vend.day !== vendToday()) { vend.day = vendToday(); vend.used = 0; } }
+      function vendFreeLeft() { vendRoll(); return Math.max(0, VEND_FREE - vend.used); }
+
       // Preferensi aksesibilitas (disimpan bersama skor tertinggi lewat saveUserGameState)
       const prefs = { text: 'normal', contrast: window.matchMedia && window.matchMedia('(prefers-contrast: more)').matches ? 'high' : 'normal' };
       let saveLoaded = false; // jangan menimpa simpanan sebelum simpanan lama berhasil dibaca
@@ -4911,7 +4999,7 @@
       function persistSave() {
         if (!saveLoaded || typeof lib === 'undefined' || typeof lib.saveUserGameState !== 'function') return;
         try {
-          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, prefs: { text: prefs.text, contrast: prefs.contrast }, timestamp: Date.now() })).catch(() => {});
+          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, prefs: { text: prefs.text, contrast: prefs.contrast }, vend: { day: vend.day, used: vend.used }, timestamp: Date.now() })).catch(() => {});
         } catch (e) {}
       }
       document.querySelectorAll('[data-pref]').forEach(btn => {
@@ -4931,6 +5019,8 @@
             saveLoaded = true;
             const hs = saved && (saved.highScore ?? (saved.state && saved.state.highScore));
             if (typeof hs === 'number') bestScore = Math.max(bestScore, hs);
+            const sv = saved && (saved.vend || (saved.state && saved.state.vend));
+            if (sv && typeof sv.day === 'string' && typeof sv.used === 'number') { vend.day = sv.day; vend.used = Math.max(vend.used, sv.used); vendRoll(); }
             const sp = saved && (saved.prefs || (saved.state && saved.state.prefs));
             if (sp) {
               if (sp.text === 'big' || sp.text === 'normal') prefs.text = sp.text;
@@ -5218,6 +5308,8 @@
           openCraft();
         } else if (state.currentAction === 'TRADE') {
           openTrade();
+        } else if (state.currentAction === 'VEND') {
+          openVending();
         }
       }
 
@@ -5568,7 +5660,7 @@
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 3, originY + s.interiorCenterZ * scale - 3, 6, 6);
           } else if (s.isOpen) {
             const trapColor = s.isTrapDisarmed ? '#ef4444' : '#f59e0b';
-            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: trapColor, monster: '#a855f7', empty: '#e2e8f0', materials: '#cd853f' }[s.outcome] || '#f59e0b';
+            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: trapColor, monster: '#a855f7', empty: '#e2e8f0', materials: '#cd853f', vending: '#38bdf8' }[s.outcome] || '#f59e0b';
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 2.5, originY + s.interiorCenterZ * scale - 2.5, 5, 5);
           }
         });
@@ -5931,6 +6023,12 @@
                   foundAction = 'EAT';
                   actionStore = s;
                 }
+              } else if (s.outcome === 'vending') {
+                const mp = roomLocalToWorld(s, 0, -2.3);
+                if (Math.hypot(pX - mp.x, pZ - mp.z) < 2.0) {
+                  foundAction = 'VEND';
+                  actionStore = s;
+                }
               } else if (s.outcome === 'trap' && s.trapKind === 'plate' && !s.isTrapDisarmed) {
                 // Trap stepping check (plate at interior center)
                 const distToPlate = Math.hypot(pX - s.interiorCenterX, pZ - s.interiorCenterZ);
@@ -6011,6 +6109,10 @@
           } else if (foundAction === 'CRAFT') {
             actionLabel.textContent = 'BUAT';
             actionSub.textContent = '🔨 RESEP';
+            btnAction.classList.add('store-mode');
+          } else if (foundAction === 'VEND') {
+            actionLabel.textContent = 'MESIN';
+            actionSub.textContent = vendFreeLeft() > 0 ? `🎁 GRATIS ${vendFreeLeft()}` : `🎁 ¢${VEND_PRICE}`;
             btnAction.classList.add('store-mode');
           } else if (foundAction === 'TRADE') {
             actionLabel.textContent = 'DAGANG';
@@ -6297,8 +6399,78 @@
       document.getElementById('craft-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
       craftOverlay.addEventListener('click', (e) => { if (e.target === craftOverlay) closeTrade(); });
 
+      // ================= VENDING MACHINE: KOTAK MISTERI =================
+      let vendBusy = false;
+      function rollVendReward() {
+        const r = Math.random();
+        if (r < 0.30) return { id: pickRandom(FOOD_IDS.concat(DRINK_IDS)) };
+        if (r < 0.38) return { id: 'perban' };
+        if (r < 0.60) return { id: pickRandom(['papan', 'paku', 'besi', 'kain', 'antiseptik']) };
+        if (r < 0.68) return { id: 'jerat' };
+        if (r < 0.76) return { id: 'medkit' };
+        if (r < 0.84) return { id: pickRandom(PART_IDS) };
+        return { credits: 120 + Math.floor(Math.random() * 5) * 40 };
+      }
+      function openVending() {
+        if (state.isGameOver || state.tradeOpen) return;
+        state.tradeOpen = true;
+        state.inventoryOpen = true;
+        inputs.moveX = 0;
+        inputs.moveZ = 0;
+        vendOverlay.classList.add('active');
+        vendStage.className = 'vend-stage';
+        vendStage.textContent = '📦';
+        vendMsg.textContent = 'Tekan tombol untuk mendapatkan kotak misteri.';
+        renderVending();
+      }
+      function renderVending() {
+        const free = vendFreeLeft();
+        vendCredits.textContent = `¢${state.credits}`;
+        vendSub.textContent = `Gratis hari ini: ${free}/${VEND_FREE} • lalu ¢${VEND_PRICE} per kotak`;
+        vendBtn.textContent = free > 0 ? `AMBIL KOTAK GRATIS (${free})` : `BAYAR ¢${VEND_PRICE}`;
+        vendBtn.disabled = vendBusy || (free <= 0 && state.credits < VEND_PRICE);
+      }
+      function vendUse() {
+        if (vendBusy) return false;
+        const free = vendFreeLeft() > 0;
+        if (!free && state.credits < VEND_PRICE) { showToast(`KREDIT KURANG (BUTUH ¢${VEND_PRICE})`, '#ff9100', true); return false; }
+        const rw = rollVendReward();
+        if (rw.id && state.inventory.length >= INV_CAPACITY) { showToast('TAS PENUH! KOSONGKAN DULU', '#ff9100', true); return false; }
+        if (!free) state.credits -= VEND_PRICE;
+        vend.used++;
+        persistSave();
+        if (rw.id) state.inventory.push(rw.id); else state.credits += rw.credits;
+        audio.play('trap_trigger_sfx');
+        vendBusy = true;
+        vendStage.className = 'vend-stage shake';
+        vendStage.textContent = '📦';
+        vendMsg.textContent = 'Kotak jatuh ke bawah…';
+        renderVending();
+        updateHUD();
+        setTimeout(() => {
+          vendBusy = false;
+          vendStage.className = 'vend-stage';
+          if (rw.id) {
+            vendStage.textContent = ITEM_DEFS[rw.id].emoji;
+            vendMsg.innerHTML = `<b>${ITEM_DEFS[rw.id].name}</b><br>masuk ke tasmu!`;
+            showToast(`KOTAK MISTERI: ${ITEM_DEFS[rw.id].name.toUpperCase()}!`, '#7dd3fc', true);
+          } else {
+            vendStage.textContent = '💰';
+            vendMsg.innerHTML = `<b>+¢${rw.credits}</b><br>kredit bonus!`;
+            showToast(`KOTAK MISTERI: +¢${rw.credits}!`, '#ffd600', true);
+          }
+          audio.play('supply_pickup_sfx');
+          renderVending();
+          updateHUD();
+        }, 650);
+        return true;
+      }
+      vendBtn.addEventListener('click', (e) => { e.stopPropagation(); vendUse(); });
+      document.getElementById('vend-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
+      vendOverlay.addEventListener('click', (e) => { if (e.target === vendOverlay) closeTrade(); });
+
       // ================= JERAT MONSTER =================
-      const trapTemplate = (() => {
+      const trapTemplate = (() => { // (didefinisikan setelah vending)
         const acc = newAcc();
         const mats = new THREE.Matrix4();
         const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.06, 12));
@@ -6400,6 +6572,7 @@
       }
       function closeTrade() {
         craftOverlay.classList.remove('active');
+        vendOverlay.classList.remove('active');
         if (!state.tradeOpen) { tradeOverlay.classList.remove('active'); return; }
         state.tradeOpen = false;
         state.inventoryOpen = false;
