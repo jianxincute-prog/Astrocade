@@ -1,0 +1,3480 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Don't Touch Water</title>
+<style>
+  :root {
+    --transition-fast: 150ms;
+    --transition-normal: 300ms;
+    --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    --space-sm: 16px;
+    --space-md: 24px;
+    --space-lg: 32px;
+  }
+  body, html {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+    touch-action: none;
+    -ms-touch-action: none;
+    background: #d8e2dc;
+    font-family: 'Inter', sans-serif;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;600&display=swap');
+
+  #game-world {
+    position: relative;
+    width: 100%; height: 100%;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+  }
+  #game-world:active {
+    cursor: grabbing;
+  }
+  #game-world.loading-controls-hidden #joystick-area,
+  #game-world.loading-controls-hidden #jump-btn {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  /* During startup, forcibly suppress stale gameplay visuals and touch HUD. */
+  #game-world.loading-startup #ui-overlay > :not(#loading-screen) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  #game-world.loading-startup > canvas { visibility: hidden !important; }
+  #game-world.loading-startup #loading-screen {
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 10000;
+    background: radial-gradient(ellipse at 50% 38%, #28575a 0%, #17383f 48%, #101f2a 100%);
+  }
+  canvas { display: block; }
+  /* Neutral color response: remove the extra brightness boost for more natural lighting. */
+  #game-world > canvas { filter: brightness(0.97) contrast(1.01) saturate(1.04); }
+
+  .ui-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .ui-overlay > * { pointer-events: auto; }
+
+  #jump-btn {
+    position: absolute;
+    z-index: 60;
+    bottom: 48px; right: 32px;
+    width: 112px; height: 112px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, rgba(100,180,255,0.45), rgba(40,100,200,0.35));
+    border: 3px solid rgba(180,220,255,0.6);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 22px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform var(--transition-fast) var(--ease-out),
+                background var(--transition-fast);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+  #jump-btn:active {
+    transform: scale(0.9);
+    background: radial-gradient(circle at 40% 35%, rgba(100,180,255,0.65), rgba(40,100,200,0.55));
+  }
+
+  #joystick-area {
+    position: absolute;
+    z-index: 60;
+    bottom: 24px; left: 24px;
+    width: 180px; height: 180px;
+    pointer-events: auto;
+  }
+  .joystick-base {
+    position: absolute;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.25);
+    left: 20px; top: 20px;
+  }
+  .joystick-knob {
+    position: absolute;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, rgba(200,230,255,0.6), rgba(80,140,220,0.4));
+    border: 2px solid rgba(200,230,255,0.5);
+    left: 62px; top: 62px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  /* ─── CINEMATIC 3D LOADING SCREEN ─── */
+  #loading-screen {
+    position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column;
+    justify-content: space-between; padding: 42px 42px 48px; box-sizing: border-box;
+    color: #f2fbff; pointer-events: none; overflow: hidden;
+    background: linear-gradient(180deg, rgba(28,48,52,.30) 0%, rgba(28,48,52,.10) 38%, rgba(28,48,52,.18) 58%, rgba(18,34,38,.66) 100%);
+    opacity: 1; transform: scale(1); transition: opacity 620ms ease, transform 620ms ease;
+  }
+  #loading-screen.fade-out { opacity: 0; transform: scale(1.025); }
+  .loading-topline { display:flex; align-items:center; justify-content:space-between; gap:16px; font:700 15px 'Inter',sans-serif; letter-spacing:2px; text-transform:uppercase; text-shadow:0 2px 8px #06101a; }
+  .loading-live { display:flex; align-items:center; gap:10px; color:#a9f5d2; }
+  .loading-live::before { content:''; width:10px; height:10px; border-radius:50%; background:#73ffc0; box-shadow:0 0 16px #73ffc0; animation: loadingBlink 1s infinite alternate; }
+  .loading-top-meta { color:#d1e6ee; opacity:.82; }
+  @keyframes loadingBlink { from { opacity:.45; } to { opacity:1; } }
+  .loading-title-block { margin-top:auto; margin-bottom:36px; max-width:620px; }
+  .loading-eyebrow { margin:0 0 12px; color:#8de9d4; font:700 16px 'Inter',sans-serif; letter-spacing:3px; text-transform:uppercase; text-shadow:0 2px 8px #06101a; }
+  .loading-title { margin:0; color:#fff; font:700 clamp(34px, 7vw, 58px) 'Orbitron',sans-serif; line-height:1.08; letter-spacing:1px; text-shadow:0 4px 22px rgba(0,0,0,.78); }
+  .loading-subtitle { margin:16px 0 0; color:#d6e9ee; font:600 21px 'Inter',sans-serif; line-height:1.4; text-shadow:0 2px 10px #06101a; }
+  .loading-footer { width:100%; max-width:620px; }
+  .loading-progress-label { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; color:#e5f3f7; font:700 15px 'Inter',sans-serif; letter-spacing:1px; text-transform:uppercase; text-shadow:0 2px 8px #06101a; }
+  .loading-bar { height:14px; overflow:hidden; border:1px solid rgba(210,246,255,.62); border-radius:20px; background:rgba(4,17,27,.58); box-shadow:0 0 20px rgba(71,212,215,.18), inset 0 1px 4px rgba(0,0,0,.65); }
+  #loading-progress-fill { display:block; width:8%; height:100%; border-radius:inherit; background:linear-gradient(90deg,#38b9bd,#91ffe0); box-shadow:0 0 16px rgba(93,255,224,.8); transition:width 300ms ease; }
+  .loading-tip { margin:14px 0 0; color:#b8d0d8; font:600 16px 'Inter',sans-serif; text-shadow:0 2px 8px #06101a; }
+  @media (max-width: 480px) {
+    #loading-screen { padding:28px 24px 34px; }
+    .loading-topline { font-size:12px; letter-spacing:1.2px; }
+    .loading-subtitle { font-size:18px; }
+    .loading-progress-label { font-size:13px; }
+  }
+
+  #danger-vignette {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 58%, rgba(210,55,35,0.44) 100%);
+    opacity: 0;
+    transition: opacity 200ms;
+  }
+  #danger-banner {
+    position: absolute;
+    top: 18px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 80;
+    max-width: calc(100% - 36px);
+    box-sizing: border-box;
+    padding: 8px 16px;
+    border-radius: 10px;
+    background: rgba(160,20,20,0.90);
+    border: 2px solid #ff7b6b;
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 17px; font-weight: 700;
+    letter-spacing: 0.5px;
+    line-height: 1.25;
+    text-align: center;
+    display: none;
+    pointer-events: none;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    white-space: normal;
+  }
+  #danger-banner.show { display: block; animation: dangerPulse 0.45s infinite alternate; }
+  @keyframes dangerPulse {
+    from { transform: translateX(-50%) scale(1); }
+    to { transform: translateX(-50%) scale(1.035); background: rgba(225,30,30,0.95); }
+  }
+  #goal-hint {
+    position: absolute;
+    top: 58px; left: 50%;
+    transform: translateX(-50%);
+    color: #bfe9d2;
+    font-size: 18px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #end-screen {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 28px;
+    background: rgba(40,4,8,0.8);
+    z-index: 30;
+  }
+  #end-screen.win { background: rgba(4,34,24,0.8); }
+  #end-screen.show { display: flex; }
+  #end-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 64px; font-weight: 700;
+    color: #ff6b5b;
+    text-shadow: 0 4px 18px rgba(0,0,0,0.8);
+  }
+  #end-screen.win #end-title { color: #7dffb0; }
+  #end-sub {
+    font-size: 26px; color: #e6eef5;
+    text-align: center; max-width: 560px;
+    line-height: 1.4;
+  }
+  #restart-btn {
+    min-width: 300px; height: 112px;
+    border-radius: 28px;
+    border: 3px solid rgba(255,255,255,0.7);
+    background: linear-gradient(180deg, #3d8fe0, #2464b0);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 34px; font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    transition: transform var(--transition-fast) var(--ease-out);
+  }
+  #restart-btn:active { transform: scale(0.94); }
+
+  .edit-info {
+    position: absolute;
+    top: 56px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    color: #aad;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 18px;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* ─── REDESIGNED TACTICAL MAP (EDIT MODE) ─── */
+  #minimap-panel {
+    position: absolute;
+    top: 76px; left: 50%; transform: translateX(-50%);
+    width: 446px; max-width: calc(100vw - 28px); box-sizing: border-box;
+    padding: 16px; display: none; flex-direction: column; gap: 12px;
+    align-items: stretch; color: #eaf5f8; z-index: 25; pointer-events: auto;
+    user-select: none; -webkit-user-select: none;
+    border: 1px solid rgba(130, 205, 220, 0.42); border-radius: 24px;
+    background: linear-gradient(145deg, rgba(12, 29, 42, 0.97), rgba(7, 16, 28, 0.96));
+    box-shadow: 0 24px 64px rgba(0,0,0,.62), inset 0 1px 0 rgba(255,255,255,.08);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .minimap-header { width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .map-heading { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .minimap-title { font-family:'Orbitron',sans-serif; font-size:17px; font-weight:700; color:#e7fbff; letter-spacing:1.1px; }
+  .map-subtitle { color:#85aebb; font-size:11px; letter-spacing:.8px; text-transform:uppercase; }
+  .minimap-snap { flex:0 0 auto; background:rgba(44,191,178,.12); border:1px solid rgba(91,225,205,.34); color:#8df2dd; font-size:11px; font-weight:700; letter-spacing:.35px; padding:8px 10px; border-radius:12px; }
+  .map-viewport { position:relative; width:100%; aspect-ratio:1; overflow:hidden; border-radius:18px; background:#081722; border:1px solid rgba(145,210,226,.26); box-shadow:inset 0 0 28px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.25); }
+  #minimap-canvas { width:100%; height:100%; display:block; background:#081722; touch-action:none; }
+  .map-corner-label { position:absolute; left:12px; top:12px; color:#a8c8cf; font-size:10px; font-weight:700; letter-spacing:1px; text-shadow:0 1px 4px #06101a; pointer-events:none; }
+  .map-legend { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .map-legend-item { display:flex; align-items:center; justify-content:center; gap:6px; min-height:30px; border-radius:10px; background:rgba(255,255,255,.035); color:#b7cdd4; font-size:11px; white-space:nowrap; }
+  .map-key { width:9px; height:9px; display:inline-block; border-radius:3px; flex:0 0 auto; }
+  .map-key.route { background:#50e3c2; box-shadow:0 0 8px rgba(80,227,194,.6); }
+  .map-key.platform { background:#704321; }
+  .map-key.pillar { background:#758591; }
+  .map-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; border-top:1px solid rgba(180,220,230,.12); padding-top:10px; }
+  #minimap-status { color:#d1e4e7; font-size:11px; line-height:1.35; font-weight:600; }
+  #minimap-warning { color:#70d6ce; font-size:10px; text-align:right; line-height:1.35; max-width:43%; }
+  @media (max-width: 480px) {
+    #minimap-panel { top:64px; padding:12px; border-radius:19px; gap:9px; }
+    .minimap-title { font-size:14px; }
+    .map-legend-item { font-size:10px; }
+  }
+
+  /* ─── RADAR HUD (PLAY MODE) ─── */
+  #radar-panel {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 150px; height: 150px;
+    border-radius: 14px;
+    background: rgba(10, 20, 32, 0.75);
+    border: 2px solid rgba(100, 180, 255, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: none;
+    z-index: 15;
+    pointer-events: none;
+  }
+  #radar-canvas {
+    width: 150px; height: 150px;
+    display: block;
+  }
+</style>
+</head>
+<body>
+<div id="game-world" class="loading-startup loading-controls-hidden">
+  <div class="ui-overlay" id="ui-overlay">
+    <div id="loading-screen" aria-label="Memuat permainan">
+      <div class="loading-topline">
+        <span class="loading-live">SIMULASI AKTIF</span>
+        <span class="loading-top-meta">EXPEDITION LOG&nbsp; / &nbsp;03</span>
+      </div>
+      <div class="loading-title-block">
+        <p class="loading-eyebrow">Jangan percaya permukaan air</p>
+        <h1 class="loading-title">DON'T TOUCH WATER</h1>
+        <p class="loading-subtitle">Lompati pijakan. Sesuatu sedang mengintai di bawahmu.</p>
+      </div>
+      <div class="loading-footer">
+        <div class="loading-progress-label"><span id="loading-status">Menyiapkan ruang porselen...</span><span>MEMUAT</span></div>
+        <div class="loading-bar"><i id="loading-progress-fill"></i></div>
+        <p class="loading-tip">Petunjuk: jika jatuh ke air, segera lompat ke pijakan terdekat.</p>
+      </div>
+    </div>
+    <div id="danger-vignette"></div>
+    <div id="goal-hint">Lompati pijakan menuju pintu EXIT</div>
+    <div id="danger-banner">⚠ BAHAYA!</div>
+
+    <!-- Minimap Panel for Edit Mode -->
+    <div id="minimap-panel">
+      <div class="minimap-header">
+        <div class="map-heading">
+          <span class="minimap-title" id="minimap-title">TACTICAL MAP</span>
+          <span class="map-subtitle">Room navigation • overhead view</span>
+        </div>
+        <span class="minimap-snap" id="minimap-snap">SEED 1337</span>
+      </div>
+      <div class="map-viewport">
+        <canvas id="minimap-canvas" width="600" height="600"></canvas>
+        <span class="map-corner-label">N ↑ &nbsp; / &nbsp; ROOM GRID</span>
+      </div>
+      <div class="map-legend">
+        <div class="map-legend-item"><i class="map-key route"></i>Rute aman</div>
+        <div class="map-legend-item"><i class="map-key platform"></i>Pijakan</div>
+        <div class="map-legend-item"><i class="map-key pillar"></i>Tiang beton</div>
+      </div>
+      <div class="map-footer">
+        <div id="minimap-status">Peta dibuat otomatis</div>
+        <div id="minimap-warning"></div>
+      </div>
+    </div>
+
+    <!-- Radar HUD for Play Mode -->
+    <div id="radar-panel">
+      <canvas id="radar-canvas" width="150" height="150"></canvas>
+    </div>
+
+    <div id="joystick-area">
+      <div class="joystick-base" id="joystick-base"></div>
+      <div class="joystick-knob" id="joystick-knob"></div>
+    </div>
+    <div id="jump-btn">JUMP</div>
+    <div id="end-screen">
+      <div id="end-title">GAME OVER</div>
+      <div id="end-sub"></div>
+      <button id="restart-btn">ULANGI</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*
+  Don't Touch Water - Art Pass Ruang Porselen
+  - High-gloss porcelain tiles on floor, walls, and platforms with customizable tint
+  - Textured concrete pillars
+  - Animated translucent water surface with ripples over submerged tiled floor
+  - Final blocky character model with long straight legs and tight-fitting joint hierarchy
+*/
+
+async function run(mode) {
+  const runToken = (window.__dontTouchWaterRunToken || 0) + 1;
+  window.__dontTouchWaterRunToken = runToken;
+  const isCurrentRun = () => window.__dontTouchWaterRunToken === runToken;
+  const gameWorld = document.getElementById('game-world');
+  const uiOverlay = document.getElementById('ui-overlay');
+  const cfg = window.gameConfig;
+  // Show a usable, non-black startup screen immediately, before WebGL/world setup.
+  const loadingScreen = document.getElementById('loading-screen');
+  const joystickArea = document.getElementById('joystick-area');
+  if (mode === 'play') {
+    gameWorld.classList.add('loading-startup', 'loading-controls-hidden');
+    loadingScreen.style.display = 'flex';
+    loadingScreen.classList.remove('fade-out');
+  } else {
+    gameWorld.classList.remove('loading-startup', 'loading-controls-hidden');
+    loadingScreen.style.display = 'none';
+  }
+  // Host restarts must not leave a previous WebGL canvas visible or running.
+  for (const child of Array.from(gameWorld.children)) {
+    if (child.tagName === 'CANVAS') child.remove();
+  }
+
+  // Defaults if not already set in config
+  if (!cfg.settings) cfg.settings = {};
+  if (cfg.settings.moveSpeed === undefined) cfg.settings.moveSpeed = 2.5;
+  if (cfg.settings.jumpHeight === undefined) cfg.settings.jumpHeight = 0.6;
+  if (!cfg.settings.porcelainTint) cfg.settings.porcelainTint = "#f4f1e8";
+  if (!cfg.settings.waterTint) cfg.settings.waterTint = "#69b9c5";
+  if (cfg.settings.waterDepth === undefined) cfg.settings.waterDepth = 0.30;
+  if (cfg.settings.platformOffset === undefined) cfg.settings.platformOffset = 0.10;
+  if (cfg.settings.waterSpeedMult === undefined) cfg.settings.waterSpeedMult = 0.45;
+  if (cfg.settings.monsterSpeed === undefined) cfg.settings.monsterSpeed = 1.3;
+  if (cfg.settings.alertTime === undefined) cfg.settings.alertTime = 1.2;
+  if (cfg.settings.roomSize === undefined) cfg.settings.roomSize = 500;
+  if (cfg.settings.mapSeed === undefined) cfg.settings.mapSeed = 1337;
+
+  function waterY() { return cfg.settings.waterDepth; }
+  function platTop() { return cfg.settings.waterDepth + cfg.settings.platformOffset; }
+
+  // ─── THREE.JS SETUP ───
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9bb6b7);
+  scene.fog = new THREE.FogExp2(0x9bb6b7, 0.05); // Density is scaled to room size in rebuildWorld().
+
+  const camera = new THREE.PerspectiveCamera(55, gameWorld.clientWidth / gameWorld.clientHeight, 0.05, 800);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+  renderer.setSize(gameWorld.clientWidth, gameWorld.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Keep colors in a standard sRGB range and avoid dramatic tone shifts.
+  renderer.shadowMap.enabled = false;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  gameWorld.insertBefore(renderer.domElement, uiOverlay);
+
+  // One short, self-contained Three.js preview scene shares the game's renderer.
+  // It is rendered before the main world is ready and then during the fade-in,
+  // avoiding a second WebGL context on mobile devices.
+  let loadingActive = mode === 'play';
+  let loadingSetup = loadingActive;
+  let loadingLeavingAt = 0;
+  const loadingStarted = performance.now();
+  const loadingStatus = document.getElementById('loading-status');
+  const loadingProgressFill = document.getElementById('loading-progress-fill');
+  let loadingPreviewScene = null, loadingPreviewCamera = null, loadingPreviewCharacter = null;
+  let loadingPreviewMonster = null, loadingPreviewPath = [], loadingPreviewRipples = [];
+  const loadingPlatformY = 0.60;
+
+  function buildLoadingPreview() {
+    if (!loadingActive) return;
+    loadingScreen.style.display = 'flex';
+    loadingScreen.classList.remove('fade-out');
+    loadingPreviewScene = new THREE.Scene();
+    loadingPreviewScene.background = new THREE.Color(0x8faeae);
+    loadingPreviewScene.fog = new THREE.Fog(0x8faeae, 13, 25);
+    loadingPreviewCamera = new THREE.PerspectiveCamera(46, gameWorld.clientWidth / gameWorld.clientHeight, 0.1, 60);
+    loadingPreviewCamera.position.set(0, 6.1, 10.8);
+    loadingPreviewCamera.lookAt(0, 0.95, 0);
+    loadingPreviewScene.add(new THREE.HemisphereLight(0xd9f4ff, 0x1a303a, 0.58));
+    const key = new THREE.DirectionalLight(0xfff4dc, 0.62);
+    key.position.set(-3.5, 7, 4); key.castShadow = true; key.shadow.mapSize.set(512, 512);
+    key.shadow.camera.left = -8; key.shadow.camera.right = 8; key.shadow.camera.top = 8; key.shadow.camera.bottom = -8;
+    loadingPreviewScene.add(key);
+    const blueFill = new THREE.PointLight(0x51bce0, 0.25, 14); blueFill.position.set(3, 3.2, 2.8); loadingPreviewScene.add(blueFill);
+
+    const mat = (color, roughness = 0.55, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
+    const tileMat = mat(0xe7edf0, 0.22, 0.04), groutMat = mat(0x8299a8, 0.72), concreteMat = mat(0x77838b, 0.92);
+    const waterPreviewMat = new THREE.MeshStandardMaterial({ color:0x68b9c5, roughness:0.24, metalness:0.03, transparent:true, opacity:0.62, side:THREE.DoubleSide });
+    const box = (parent, geometry, material, x, y, z, cast = true) => {
+      const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x,y,z); mesh.castShadow = cast; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+    };
+
+    // Flooded tiled chamber, with an open camera side so the jump route reads clearly.
+    const previewFloor = new THREE.Mesh(new THREE.PlaneGeometry(12,12), tileMat);
+    previewFloor.rotation.x = -Math.PI/2; previewFloor.position.y = 0.10; previewFloor.receiveShadow = true; loadingPreviewScene.add(previewFloor);
+    for (let p = -5.5; p <= 5.51; p += 0.5) {
+      box(loadingPreviewScene, new THREE.BoxGeometry(0.018,0.008,12), groutMat, p,0.108,0,false);
+      box(loadingPreviewScene, new THREE.BoxGeometry(12,0.008,0.018), groutMat, 0,0.108,p,false);
+    }
+    const wallBack = box(loadingPreviewScene, new THREE.BoxGeometry(12,5.6,0.18), tileMat, 0,2.9,-5.92,false);
+    box(loadingPreviewScene, new THREE.BoxGeometry(0.18,5.6,12), tileMat, -5.92,2.9,0,false);
+    box(loadingPreviewScene, new THREE.BoxGeometry(0.18,5.6,12), tileMat, 5.92,2.9,0,false);
+    // Visible grout seams across the back wall echo the room's porcelain tilework.
+    for (let x = -5.5; x <= 5.51; x += 0.75) box(loadingPreviewScene,new THREE.BoxGeometry(0.018,5.45,0.012),groutMat,x,2.9,-5.82,false);
+    for (let y = 0.25; y <= 5.55; y += 0.75) box(loadingPreviewScene,new THREE.BoxGeometry(11.9,0.018,0.012),groutMat,0,y,-5.82,false);
+    const previewCeiling = new THREE.Mesh(new THREE.PlaneGeometry(12,12), tileMat);
+    previewCeiling.rotation.x = Math.PI/2; previewCeiling.position.y = 5.72; loadingPreviewScene.add(previewCeiling);
+    for (const [x,z] of [[-3.7,-1.8],[2.8,-3.0],[3.7,2.0],[-2.7,3.6]]) {
+      box(loadingPreviewScene,new THREE.BoxGeometry(0.62,5.55,0.62),concreteMat,x,2.88,z);
+    }
+    const waterPlane = new THREE.Mesh(new THREE.PlaneGeometry(12,12),waterPreviewMat);
+    waterPlane.rotation.x=-Math.PI/2; waterPlane.position.y=0.44; waterPlane.renderOrder=2; loadingPreviewScene.add(waterPlane);
+
+    loadingPreviewPath = [
+      {x:-3.55,z:2.6},{x:-2.15,z:1.65},{x:-0.75,z:0.72},
+      {x:0.72,z:-0.20},{x:2.12,z:-1.15},{x:3.48,z:-2.25}
+    ];
+    const padMat = mat(0x704321,0.48,0.02), padEdgeMat = mat(0x49301d,0.62,0.02);
+    loadingPreviewPath.forEach((p,i) => {
+      const pad = box(loadingPreviewScene,new THREE.BoxGeometry(1.28,0.20,1.28),padEdgeMat,p.x,0.48,p.z);
+      box(loadingPreviewScene,new THREE.BoxGeometry(1.22,0.025,1.22),padMat,p.x,0.592,p.z,false);
+      if (i===loadingPreviewPath.length-1) {
+        const exit = box(loadingPreviewScene,new THREE.BoxGeometry(0.8,1.15,0.10),mat(0x42db9b,0.25,0.2),4.75,1.1,-5.78,false);
+        exit.material.emissive = new THREE.Color(0x12683e); exit.material.emissiveIntensity = 0.8;
+      }
+    });
+
+    // Blocky expedition survivor with joined limbs, orange shell, headlamp and backpack.
+    const survivor = new THREE.Group();
+    const orange = mat(0xe58920,0.62), darkCloth = mat(0x27383a,0.82), skin = mat(0xd7a27b,0.72), leather = mat(0x49372a,0.78), reflective = new THREE.MeshStandardMaterial({color:0xd7e5c7,emissive:0x34472b,emissiveIntensity:0.45,roughness:0.4});
+    const part = (geo,material,x,y,z,parent=survivor) => box(parent,geo,material,x,y,z,true);
+    part(new THREE.BoxGeometry(0.26,0.23,0.15),orange,0,0.57,0);
+    part(new THREE.BoxGeometry(0.22,0.11,0.14),orange,0,0.405,0);
+    part(new THREE.BoxGeometry(0.22,0.045,0.15),darkCloth,0,0.325,0);
+    part(new THREE.BoxGeometry(0.17,0.22,0.12),leather,0,0.56,-0.12);
+    part(new THREE.BoxGeometry(0.15,0.17,0.13),skin,0,0.83,0.005);
+    part(new THREE.BoxGeometry(0.18,0.05,0.17),darkCloth,0,0.94,0);
+    part(new THREE.BoxGeometry(0.17,0.018,0.018),reflective,0,0.89,0.09);
+    part(new THREE.BoxGeometry(0.055,0.035,0.02),mat(0xffcf6c,0.25),0,0.89,0.105);
+    const legs=[], arms=[];
+    for (const side of [-1,1]) {
+      const leg = new THREE.Group(); leg.position.set(side*0.065,0.32,0); survivor.add(leg); legs.push(leg);
+      part(new THREE.BoxGeometry(0.095,0.32,0.105),darkCloth,0,-0.15,0,leg);
+      part(new THREE.BoxGeometry(0.105,0.075,0.15),leather,0,-0.345,0.018,leg);
+      part(new THREE.BoxGeometry(0.11,0.018,0.155),reflective,0,-0.386,0.018,leg);
+      const arm = new THREE.Group(); arm.position.set(side*0.17,0.65,0); survivor.add(arm); arms.push(arm);
+      part(new THREE.BoxGeometry(0.075,0.17,0.085),orange,0,-0.08,0,arm);
+      part(new THREE.BoxGeometry(0.07,0.16,0.078),orange,0,-0.22,0,arm);
+      part(new THREE.BoxGeometry(0.075,0.07,0.08),leather,0,-0.32,0.015,arm);
+    }
+    survivor.position.set(loadingPreviewPath[0].x,loadingPlatformY,loadingPreviewPath[0].z);
+    loadingPreviewScene.add(survivor);
+    loadingPreviewCharacter={group:survivor,legs,arms};
+
+    // A lurking aquatic creature: only its ridged back and glowing eyes break the surface.
+    const lurker = new THREE.Group();
+    const monsterSkin = mat(0x17434a,0.32,0.2), ridgeMat=mat(0x286b68,0.3,0.22), eyeMat=new THREE.MeshStandardMaterial({color:0xff6338,emissive:0xff2808,emissiveIntensity:2.2,roughness:0.2});
+    box(lurker,new THREE.SphereGeometry(0.58,12,8),monsterSkin,0,0.18,0);
+    const back = box(lurker,new THREE.SphereGeometry(0.63,10,7),ridgeMat,0,0.25,-0.12); back.scale.set(1,0.55,1.25);
+    for (let i=0;i<5;i++) box(lurker,new THREE.ConeGeometry(0.11,0.28,5),ridgeMat,0,0.52,-0.35+i*0.17);
+    for (const side of [-1,1]) {
+      box(lurker,new THREE.SphereGeometry(0.105,10,8),eyeMat,side*0.19,0.49,0.36);
+      box(lurker,new THREE.ConeGeometry(0.16,0.36,5),ridgeMat,side*0.55,0.18,-0.05).rotation.z=side*0.55;
+    }
+    lurker.position.set(0.25,0.02,2.05); loadingPreviewScene.add(lurker); loadingPreviewMonster=lurker;
+    for(let i=0;i<3;i++) {
+      const ring=new THREE.Mesh(new THREE.RingGeometry(0.78,0.82,40),new THREE.MeshBasicMaterial({color:0xc9f6ff,transparent:true,opacity:0.36,side:THREE.DoubleSide,depthWrite:false}));
+      ring.rotation.x=-Math.PI/2; ring.position.set(0.25,0.455+i*0.002,2.05); loadingPreviewScene.add(ring); loadingPreviewRipples.push(ring);
+    }
+    loadingPreviewCamera.aspect = gameWorld.clientWidth / gameWorld.clientHeight;
+    loadingPreviewCamera.updateProjectionMatrix();
+  }
+
+  function updateLoadingPreview(now) {
+    // The RAF primer can outlive or race a loading-preview setup (for example
+    // when the host restarts the game). Treat incomplete preview state as a
+    // skipped frame instead of dereferencing a missing waypoint or character.
+    if (!loadingPreviewScene || !loadingPreviewCamera ||
+        !Array.isArray(loadingPreviewPath) || loadingPreviewPath.length < 2 ||
+        !loadingPreviewCharacter || !loadingPreviewCharacter.group ||
+        !loadingPreviewCharacter.legs || loadingPreviewCharacter.legs.length < 2 ||
+        !loadingPreviewCharacter.arms || loadingPreviewCharacter.arms.length < 2 ||
+        !loadingPreviewMonster) return false;
+    const t = Math.max(0, (now - loadingStarted) / 1000);
+    const hopDuration = 1.12, hopCount = loadingPreviewPath.length - 1;
+    const hopIndex = Math.min(hopCount - 1, Math.floor(t / hopDuration) % hopCount);
+    const u = (t % hopDuration) / hopDuration;
+    const a = loadingPreviewPath[hopIndex], b = loadingPreviewPath[hopIndex + 1];
+    if (!a || !b || !Number.isFinite(a.x) || !Number.isFinite(a.z) ||
+        !Number.isFinite(b.x) || !Number.isFinite(b.z)) return false;
+    const eased = u*u*(3-2*u);
+    const c = loadingPreviewCharacter;
+    c.group.position.set(a.x+(b.x-a.x)*eased, loadingPlatformY+Math.sin(Math.PI*u)*0.78, a.z+(b.z-a.z)*eased);
+    c.group.rotation.y = Math.atan2(b.x-a.x,b.z-a.z);
+    const stride = Math.sin(u*Math.PI*2 + t*5)*0.65;
+    c.legs[0].rotation.x = stride; c.legs[1].rotation.x = -stride;
+    c.arms[0].rotation.x = -stride*0.65; c.arms[1].rotation.x = stride*0.65;
+    loadingPreviewMonster.position.x = 0.25 + Math.sin(t*0.65)*0.28;
+    loadingPreviewMonster.position.y = 0.02 + Math.sin(t*2.5)*0.035;
+    loadingPreviewMonster.rotation.y = Math.sin(t*0.4)*0.28;
+    loadingPreviewRipples.forEach((ring,i)=>{
+      const pulse=(t*0.38+i/3)%1;
+      ring.scale.setScalar(0.45+pulse*1.15);
+      ring.material.opacity=(1-pulse)*0.38;
+    });
+    loadingPreviewCamera.position.x=Math.sin(t*0.12)*0.28;
+    loadingPreviewCamera.lookAt(0,0.95,0);
+    const pct=Math.min(94,Math.round(12+(now-loadingStarted)/38));
+    loadingProgressFill.style.width=pct+'%';
+    if (loadingStatus) loadingStatus.textContent = t<1.4 ? 'Membangun ruang porselen...' : t<3.2 ? 'Memetakan pijakan aman...' : 'Mendeteksi gerakan di bawah air...';
+    return true;
+  }
+
+  function primeLoadingFrame(now) {
+    if (!isCurrentRun() || !loadingSetup || !updateLoadingPreview(now)) return;
+    renderer.render(loadingPreviewScene,loadingPreviewCamera);
+  }
+
+  if (loadingActive) {
+    buildLoadingPreview();
+    requestAnimationFrame(primeLoadingFrame);
+    // Yield twice so the first rendered 3D loading frame is painted before world generation.
+    await new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); });
+    if (!isCurrentRun()) return;
+  }
+
+  window.addEventListener('resize', () => {
+    const w = gameWorld.clientWidth, h = gameWorld.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+
+  // ─── LIGHTING (Clean high-gloss porcelain reflections) ───
+  const ambient = new THREE.HemisphereLight(0xfff8ec, 0x9aa89a, 0.72);
+  scene.add(ambient);
+
+  const dirLight = new THREE.DirectionalLight(0xfff4df, 0.48);
+  dirLight.position.set(3, 5.5, 2.5);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(1024, 1024);
+  dirLight.shadow.camera.near = 0.1;
+  dirLight.shadow.camera.far = 15;
+  dirLight.shadow.camera.left = -4; dirLight.shadow.camera.right = 4;
+  dirLight.shadow.camera.top = 4; dirLight.shadow.camera.bottom = -4;
+  dirLight.shadow.bias = -0.0005;
+  scene.add(dirLight);
+  scene.add(dirLight.target);
+
+  const fillLight = new THREE.DirectionalLight(0xc4dfdc, 0.30);
+  fillLight.position.set(-3, 4, -2.5);
+  scene.add(fillLight);
+
+  // Ceiling soft point lights in corners
+  const pLight1 = new THREE.PointLight(0xffedcf, 0.18, 12);
+  pLight1.position.set(-1.5, 5.6, -1.5);
+  scene.add(pLight1);
+  const pLight2 = new THREE.PointLight(0xe5f2df, 0.16, 12);
+  pLight2.position.set(1.5, 5.6, 1.5);
+  scene.add(pLight2);
+
+  // ─── PROCEDURAL TEXTURE GENERATORS (Instant fallback & seamless maps) ───
+  function makeProceduralTileCanvas() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#f2efe5';
+    ctx.fillRect(0, 0, 512, 512);
+
+    const tileSize = 128;
+    for (let x = 0; x < 512; x += tileSize) {
+      for (let y = 0; y < 512; y += tileSize) {
+        // Tile gradient & gloss
+        const g = ctx.createLinearGradient(x, y, x + tileSize, y + tileSize);
+        g.addColorStop(0, '#fffdf5');
+        g.addColorStop(0.5, '#f6f3e9');
+        g.addColorStop(1, '#e8e4d8');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+
+        // Highlight top & left bevel
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillRect(x + 2, y + 2, tileSize - 4, 3);
+        ctx.fillRect(x + 2, y + 2, 3, tileSize - 4);
+
+        // Shading bottom & right bevel
+        ctx.fillStyle = 'rgba(160,185,205,0.35)';
+        ctx.fillRect(x + 2, y + tileSize - 5, tileSize - 4, 3);
+        ctx.fillRect(x + tileSize - 5, y + 2, 3, tileSize - 4);
+      }
+    }
+    // Grout lines
+    ctx.fillStyle = '#b7b3a7';
+    for (let x = 0; x <= 512; x += tileSize) {
+      ctx.fillRect(x - 2, 0, 4, 512);
+    }
+    for (let y = 0; y <= 512; y += tileSize) {
+      ctx.fillRect(0, y - 2, 512, 4);
+    }
+    return c;
+  }
+
+  function makeProceduralConcreteCanvas() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#7a868e';
+    ctx.fillRect(0, 0, 512, 512);
+    // Subtle aggregate flecks & streaks
+    for (let i = 0; i < 4000; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const gray = 100 + Math.random() * 60;
+      const a = 0.15 + Math.random() * 0.25;
+      ctx.fillStyle = `rgba(${gray},${gray + 4},${gray + 8},${a})`;
+      ctx.fillRect(x, y, 1.5 + Math.random() * 2, 1.5 + Math.random() * 2);
+    }
+    return c;
+  }
+
+  function makeProceduralWaterCanvas() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#6bbbc5';
+    ctx.fillRect(0, 0, 512, 512);
+    // Caustic ripple lines
+    ctx.strokeStyle = 'rgba(235, 250, 255, 0.45)';
+    ctx.lineWidth = 4;
+    ctx.filter = 'blur(3px)';
+    for (let i = 0; i < 16; i++) {
+      ctx.beginPath();
+      const cx = (i % 4) * 128 + 64;
+      const cy = Math.floor(i / 4) * 128 + 64;
+      ctx.arc(cx, cy, 38 + (i * 7) % 25, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.filter = 'none';
+    return c;
+  }
+
+  // Texture Loader helper
+  const texLoader = new THREE.TextureLoader();
+
+  function createRepeatingTexture(assetId, fallbackCanvas, repeatX, repeatY) {
+    let tex;
+    const asset = lib.getAsset(assetId);
+    if (asset && asset.url) {
+      tex = texLoader.load(asset.url);
+    } else {
+      tex = new THREE.CanvasTexture(fallbackCanvas);
+    }
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeatX, repeatY);
+    tex.encoding = THREE.sRGBEncoding;
+
+    // If loaded asynchronously, apply repeat settings when ready
+    if (asset && asset.url && tex.image) {
+      tex.needsUpdate = true;
+    }
+    return tex;
+  }
+
+  // Room Dimensions
+  function clampRoomSize(v) { v = Math.round(Number(v) || 500); return Math.max(20, Math.min(500, v)); }
+  let RS = clampRoomSize(cfg.settings.roomSize);   // room size in meters (up to 500 x 500)
+  let PATCH = RS;                                   // full-room floor and water so the monster can roam across the whole map
+  const WH = 6;   // 6m wall height; raised porcelain ceiling and concrete pillars meet here
+  const WT = 0.1; // wall thickness
+
+  // ─── PORCELAIN & CONCRETE TEXTURES ───
+  const floorTileTex = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), PATCH * 2, PATCH * 2);
+  const ceilingTileTex = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), PATCH * 2, PATCH * 2);
+  const wallTileTexX = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), RS * 2, 6);
+  const wallTileTexZ = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), RS * 2, 6);
+  const platformTileTex = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), 2, 2);
+  const concretePillarTex = createRepeatingTexture('concrete_pillar_texture', makeProceduralConcreteCanvas(), 1, 6);
+  const waterTex = createRepeatingTexture('water_surface_texture', makeProceduralWaterCanvas(), PATCH, PATCH);
+
+  // Materials
+  const floorMat = new THREE.MeshStandardMaterial({
+    map: floorTileTex,
+    color: new THREE.Color(cfg.settings.porcelainTint),
+    roughness: 0.28,
+    metalness: 0.015
+  });
+
+  const ceilingMat = new THREE.MeshStandardMaterial({
+    map: ceilingTileTex,
+    color: new THREE.Color(cfg.settings.porcelainTint),
+    roughness: 0.30,
+    metalness: 0.015,
+    side: THREE.DoubleSide
+  });
+
+  const wallMatX = new THREE.MeshStandardMaterial({
+    map: wallTileTexX,
+    color: new THREE.Color(cfg.settings.porcelainTint),
+    roughness: 0.28,
+    metalness: 0.015
+  });
+
+  const wallMatZ = new THREE.MeshStandardMaterial({
+    map: wallTileTexZ,
+    color: new THREE.Color(cfg.settings.porcelainTint),
+    roughness: 0.28,
+    metalness: 0.015
+  });
+
+  const pillarMat = new THREE.MeshStandardMaterial({
+    map: concretePillarTex,
+    roughness: 0.88,
+    metalness: 0.05
+  });
+
+  const platformMat = new THREE.MeshStandardMaterial({
+    map: platformTileTex,
+    color: 0x704321,
+    roughness: 0.48,
+    metalness: 0.02
+  });
+
+  const platformEdgeMat = new THREE.MeshStandardMaterial({
+    color: 0x49301d,
+    roughness: 0.62,
+    metalness: 0.02
+  });
+
+  const waterMat = new THREE.MeshStandardMaterial({
+    map: waterTex,
+    color: new THREE.Color(cfg.settings.waterTint),
+    roughness: 0.24,
+    metalness: 0.025,
+    transparent: true,
+    opacity: 0.62
+  });
+
+  // Synchronize dynamic colors from config
+  function updatePorcelainTint(hex) {
+    const col = new THREE.Color(hex);
+    floorMat.color.copy(col);
+    ceilingMat.color.copy(col);
+    wallMatX.color.copy(col);
+    wallMatZ.color.copy(col);
+    // Keep the platform's brown finish independent of the porcelain tint.
+  }
+
+  function updateWaterTint(hex) {
+    waterMat.color.set(hex);
+  }
+
+  // ─── GAME PARAMETERS (with edit-mode safe color tinting) ───
+  lib.showGameParameters({
+    name: "Room & Controls",
+    params: {
+      "Move Speed": { key: "settings.moveSpeed", type: "slider", min: 1.0, max: 5.0, step: 0.1 },
+      "Jump Height": { key: "settings.jumpHeight", type: "slider", min: 0.3, max: 1.5, step: 0.05 },
+      "Porcelain Tint": {
+        key: "settings.porcelainTint",
+        type: "color",
+        onChange: (v) => {
+          cfg.settings.porcelainTint = v;
+          updatePorcelainTint(v);
+        }
+      },
+      "Water Tint": {
+        key: "settings.waterTint",
+        type: "color",
+        onChange: (v) => {
+          cfg.settings.waterTint = v;
+          updateWaterTint(v);
+        }
+      },
+      "Water Depth (m)": {
+        key: "settings.waterDepth", type: "slider", min: 0.1, max: 0.5, step: 0.01,
+        onChange: (v) => { cfg.settings.waterDepth = v; applyWaterLayout(); }
+      },
+      "Platform Height Above Water (m)": {
+        key: "settings.platformOffset", type: "slider", min: 0.03, max: 0.3, step: 0.01,
+        onChange: (v) => { cfg.settings.platformOffset = v; applyWaterLayout(); }
+      },
+      "Water Speed Multiplier": { key: "settings.waterSpeedMult", type: "slider", min: 0.15, max: 1.0, step: 0.05 },
+      "Monster Speed": { key: "settings.monsterSpeed", type: "slider", min: 0.4, max: 3.0, step: 0.1 },
+      "Danger Warning Time (s)": { key: "settings.alertTime", type: "slider", min: 0, max: 3.0, step: 0.1 },
+      "Map Size (m)": {
+        key: "settings.roomSize", type: "slider", min: 20, max: 500, step: 10,
+        onChange: (v) => { cfg.settings.roomSize = v; rebuildWorld(true); }
+      },
+      "Map Seed": {
+        key: "settings.mapSeed", type: "number",
+        onChange: (v) => { cfg.settings.mapSeed = Math.round(Number(v) || 1); rebuildWorld(true); }
+      }
+    }
+  });
+
+  // ─── ROOM GEOMETRY (LARGE MAP, up to 500m × 500m) ───
+  // Floor & water are "follow patches" around the player, snapped to the tile period,
+  // so the texture stays seamless and precise even on a 500m map.
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), waterMat);
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = waterY();
+  water.receiveShadow = true;
+  scene.add(water);
+
+  // Full-room porcelain ceiling, facing inward so its tiled underside is visible from gameplay.
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), ceilingMat);
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.y = WH;
+  ceiling.receiveShadow = true;
+  ceiling.castShadow = false;
+  scene.add(ceiling);
+
+  function updatePatches(cx, cz) {
+    let px = 0, pz = 0;
+    if (PATCH < RS) {
+      const lim = RS / 2 - PATCH / 2;
+      px = clampV(Math.round(cx), -lim, lim);
+      pz = clampV(Math.round(cz), -lim, lim);
+    }
+    floor.position.set(px, 0, pz);
+    water.position.set(px, waterY(), pz);
+  }
+
+  // Walls (unit boxes scaled to the room size)
+  const walls = [];
+  for (let i = 0; i < 4; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, WH, 1), i < 2 ? wallMatX : wallMatZ);
+    m.receiveShadow = true;
+    scene.add(m);
+    walls.push(m);
+  }
+  function layoutWalls() {
+    walls[0].scale.set(RS + WT * 2, 1, WT); walls[0].position.set(0, WH / 2, -RS / 2 - WT / 2);
+    walls[1].scale.set(RS + WT * 2, 1, WT); walls[1].position.set(0, WH / 2, RS / 2 + WT / 2);
+    walls[2].scale.set(WT, 1, RS); walls[2].position.set(-RS / 2 - WT / 2, WH / 2, 0);
+    walls[3].scale.set(WT, 1, RS); walls[3].position.set(RS / 2 + WT / 2, WH / 2, 0);
+    wallTileTexX.repeat.set(RS * 2, WH * 2);
+    wallTileTexZ.repeat.set(RS * 2, WH * 2);
+  }
+
+  // Instanced platforms & pillars (thousands of objects, one draw call each)
+  const MAX_PLATS = 6000, MAX_PILLARS = 3000;
+  const platBodyGeo = new THREE.BoxGeometry(1, 1, 1); platBodyGeo.translate(0, 0.5, 0);
+  const platTopGeo = new THREE.PlaneGeometry(1, 1); platTopGeo.rotateX(-Math.PI / 2); platTopGeo.translate(0, 1, 0);
+  platformMat.polygonOffset = true; platformMat.polygonOffsetFactor = -2; platformMat.polygonOffsetUnits = -2;
+  const platBodyInst = new THREE.InstancedMesh(platBodyGeo, platformEdgeMat, MAX_PLATS);
+  const platTopInst = new THREE.InstancedMesh(platTopGeo, platformMat, MAX_PLATS);
+  const pillarGeo = new THREE.BoxGeometry(1, 1, 1); pillarGeo.translate(0, 0.5, 0);
+  const pillarInst = new THREE.InstancedMesh(pillarGeo, pillarMat, MAX_PILLARS);
+  [platBodyInst, platTopInst, pillarInst].forEach(m => {
+    m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.count = 0; scene.add(m);
+  });
+  platTopInst.castShadow = false;
+
+  // ─── MAP DATA + SPATIAL GRID ───
+  let platformBoxes = [];  // {x,z,hw,hd,top,kind:'plat',route}
+  let pillarBoxes = [];    // {x,z,hw,hd,kind:'pillar'}
+  let routeBoxes = [];
+  let startPlat = null, lastPlat = null;
+  const GRID = 4;
+  let grid = new Map();
+  let qStamp = 0;
+
+  function gridInsert(b) {
+    const i0 = Math.floor((b.x - b.hw + RS / 2) / GRID), i1 = Math.floor((b.x + b.hw + RS / 2) / GRID);
+    const j0 = Math.floor((b.z - b.hd + RS / 2) / GRID), j1 = Math.floor((b.z + b.hd + RS / 2) / GRID);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+      const k = i * 4096 + j;
+      let cell = grid.get(k);
+      if (!cell) { cell = []; grid.set(k, cell); }
+      cell.push(b);
+    }
+  }
+  function queryBoxes(x, z, r, out) {
+    out.length = 0;
+    qStamp++;
+    const i0 = Math.floor((x - r + RS / 2) / GRID), i1 = Math.floor((x + r + RS / 2) / GRID);
+    const j0 = Math.floor((z - r + RS / 2) / GRID), j1 = Math.floor((z + r + RS / 2) / GRID);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+      const cell = grid.get(i * 4096 + j);
+      if (!cell) continue;
+      for (const b of cell) { if (b._q !== qStamp) { b._q = qStamp; out.push(b); } }
+    }
+    return out;
+  }
+  function gapBetween(a, b) {
+    const dx = Math.max(0, Math.abs(a.x - b.x) - (a.hw + b.hw));
+    const dz = Math.max(0, Math.abs(a.z - b.z) - (a.hd + b.hd));
+    return Math.hypot(dx, dz);
+  }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  const MAX_ROUTE_GAP = 1.05; // guaranteed jumpable edge-to-edge gap along the main route
+  function generateMap() {
+    const rng = mulberry32((cfg.settings.mapSeed | 0) || 1);
+    platformBoxes = []; pillarBoxes = []; routeBoxes = [];
+    grid = new Map();
+    const top = platTop();
+    const half = RS / 2;
+    const mk = (x, z, w, d, route) => ({ x, z, hw: w / 2, hd: d / 2, top, kind: 'plat', route });
+
+    const start = mk(-half + 1.4, -half + 1.4, 2, 2, true);
+    const fin = mk(half - 1.1, half - 1.1, 2, 2, true);
+
+    function placeAlong(cur, ang, w, d, gap) {
+      const dx = Math.sin(ang), dz = Math.cos(ang);
+      for (let s = 0.3; s < 8; s += 0.05) {
+        const t = mk(cur.x + dx * s, cur.z + dz * s, w, d, true);
+        if (gapBetween(cur, t) >= gap) return t;
+      }
+      return null;
+    }
+
+    routeBoxes.push(start);
+    let cur = start, guard = 0;
+    while (gapBetween(cur, fin) > MAX_ROUTE_GAP && guard++ < 6000) {
+      const desired = Math.atan2(fin.x - cur.x, fin.z - cur.z);
+      let cand = null;
+      for (let attempt = 0; attempt < 16 && !cand; attempt++) {
+        // Scatter route platforms in broad irregular arcs; make every fourth hop
+        // deliberately swing sideways before the next hop bends back toward EXIT.
+        const side = (routeBoxes.length % 4 === 1) ? (rng() < 0.5 ? -1 : 1) : 0;
+        const spread = side ? 2.8 : (attempt < 12 ? 2.2 : 0.7);
+        const ang = desired + side * (0.75 + rng() * 0.45) + (rng() - 0.5) * spread;
+        const w = 0.75 + rng() * 1.25, d = 0.75 + rng() * 1.25;
+        const gap = 0.40 + rng() * 0.60;
+        const c = placeAlong(cur, ang, w, d, gap);
+        if (!c) continue;
+        if (Math.abs(c.x) > half - c.hw - 0.3 || Math.abs(c.z) > half - c.hd - 0.3) continue;
+        if (gapBetween(c, fin) < 0.4) continue;
+        let bad = false;
+        // Prevent route segments from bunching together or forming a tidy diagonal row,
+        // while preserving the immediately previous platform as a reachable landing.
+        const minSeparation = routeBoxes.length > 2 ? 0.7 : 0.3;
+        for (let k = Math.max(0, routeBoxes.length - 14); k < routeBoxes.length - 1; k++) {
+          if (gapBetween(c, routeBoxes[k]) < minSeparation) { bad = true; break; }
+        }
+        if (!bad && routeBoxes.length > 2) {
+          const prev = routeBoxes[routeBoxes.length - 1];
+          const prevAng = Math.atan2(prev.x - routeBoxes[routeBoxes.length - 2].x, prev.z - routeBoxes[routeBoxes.length - 2].z);
+          const newAng = Math.atan2(c.x - prev.x, c.z - prev.z);
+          let bend = newAng - prevAng;
+          while (bend > Math.PI) bend -= Math.PI * 2;
+          while (bend < -Math.PI) bend += Math.PI * 2;
+          if (Math.abs(bend) < 0.16 && rng() < 0.7) bad = true;
+        }
+        if (bad) continue;
+        cand = c;
+      }
+      if (!cand) break;
+      routeBoxes.push(cand); cur = cand;
+    }
+    // Bridge any remaining gap to the exit platform
+    let bg = 0;
+    while (gapBetween(cur, fin) > MAX_ROUTE_GAP && bg++ < 20) {
+      const g = gapBetween(cur, fin);
+      const ang = Math.atan2(fin.x - cur.x, fin.z - cur.z);
+      const b = placeAlong(cur, ang, 0.8, 0.8, Math.max(0.2, (g - 0.8) / 2));
+      if (!b) break;
+      routeBoxes.push(b); cur = b;
+    }
+    routeBoxes.push(fin);
+    routeBoxes.forEach(b => { platformBoxes.push(b); gridInsert(b); });
+    startPlat = start; lastPlat = fin;
+
+    const near = [];
+    // Extra scattered resting platforms (alternate paths & decoys)
+    const extraCount = Math.min(MAX_PLATS - platformBoxes.length, Math.floor(RS * RS * 0.009));
+    let placed = 0;
+    for (let tries = 0; tries < extraCount * 4 && placed < extraCount; tries++) {
+      const w = 0.7 + rng() * 1.0, d = 0.7 + rng() * 1.0;
+      const x = (rng() - 0.5) * (RS - w - 1.2), z = (rng() - 0.5) * (RS - d - 1.2);
+      const b = mk(x, z, w, d, false);
+      queryBoxes(x, z, 3, near);
+      let ok = true;
+      for (const o of near) { if (gapBetween(b, o) < 0.5) { ok = false; break; } }
+      if (!ok) continue;
+      platformBoxes.push(b); gridInsert(b); placed++;
+    }
+
+    // Concrete pillars (never blocking the guaranteed route)
+    const pillarCount = Math.min(MAX_PILLARS, Math.max(4, Math.floor(RS * RS * 0.0035)));
+    placed = 0;
+    for (let tries = 0; tries < pillarCount * 5 && placed < pillarCount; tries++) {
+      const s = 0.35 + rng() * 0.4;
+      const x = (rng() - 0.5) * (RS - s - 1.0), z = (rng() - 0.5) * (RS - s - 1.0);
+      const b = { x, z, hw: s / 2, hd: s / 2, top: WH, kind: 'pillar' };
+      queryBoxes(x, z, 3.5, near);
+      let ok = true;
+      for (const o of near) {
+        const g = gapBetween(b, o);
+        if (g < 0.6 || (o.route && g < 1.3)) { ok = false; break; }
+      }
+      if (!ok) continue;
+      pillarBoxes.push(b); gridInsert(b); placed++;
+    }
+  }
+
+  const _m4 = new THREE.Matrix4(), _p3 = new THREE.Vector3(), _q4 = new THREE.Quaternion(), _s3 = new THREE.Vector3();
+  function refreshPlatformInstances() {
+    const top = platTop();
+    platformBoxes.forEach((b, i) => {
+      b.top = top;
+      _p3.set(b.x, 0, b.z); _s3.set(b.hw * 2, top, b.hd * 2);
+      _m4.compose(_p3, _q4, _s3);
+      platBodyInst.setMatrixAt(i, _m4);
+      platTopInst.setMatrixAt(i, _m4);
+    });
+    platBodyInst.count = platTopInst.count = platformBoxes.length;
+    platBodyInst.instanceMatrix.needsUpdate = true;
+    platTopInst.instanceMatrix.needsUpdate = true;
+  }
+  function refreshPillarInstances() {
+    pillarBoxes.forEach((b, i) => {
+      _p3.set(b.x, 0, b.z); _s3.set(b.hw * 2, WH, b.hd * 2);
+      _m4.compose(_p3, _q4, _s3);
+      pillarInst.setMatrixAt(i, _m4);
+    });
+    pillarInst.count = pillarBoxes.length;
+    pillarInst.instanceMatrix.needsUpdate = true;
+  }
+
+  // ─── EXIT DOOR (on the wall nearest the last platform) ───
+  const doorInfo = { x: 0, z: 0, rot: 0 };
+  let doorGroup = null;
+
+  function repositionDoor() {
+    const lim = RS/2 - 0.45;
+    const cl = v => Math.max(-lim, Math.min(lim, v));
+    const dE = RS/2 - lastPlat.x, dW = lastPlat.x + RS/2, dS = RS/2 - lastPlat.z, dN = lastPlat.z + RS/2;
+    const m = Math.min(dE, dW, dS, dN);
+    if (m === dE) { doorInfo.x = RS/2; doorInfo.z = cl(lastPlat.z); doorInfo.rot = -Math.PI/2; }
+    else if (m === dW) { doorInfo.x = -RS/2; doorInfo.z = cl(lastPlat.z); doorInfo.rot = Math.PI/2; }
+    else if (m === dS) { doorInfo.x = cl(lastPlat.x); doorInfo.z = RS/2; doorInfo.rot = Math.PI; }
+    else { doorInfo.x = cl(lastPlat.x); doorInfo.z = -RS/2; doorInfo.rot = 0; }
+
+    if (doorGroup) {
+      doorGroup.rotation.y = doorInfo.rot;
+      const doorIn = new THREE.Vector3(Math.sin(doorInfo.rot), 0, Math.cos(doorInfo.rot)).multiplyScalar(0.04);
+      doorGroup.position.set(doorInfo.x + doorIn.x, platTop(), doorInfo.z + doorIn.z);
+    }
+  }
+
+  // Build / rebuild the whole world (called at start and when map size/seed changes)
+  function rebuildWorld(fromUI) {
+    RS = clampRoomSize(cfg.settings.roomSize);
+    PATCH = RS;
+    floorTileTex.repeat.set(PATCH * 2, PATCH * 2);
+    ceilingTileTex.repeat.set(PATCH * 2, PATCH * 2);
+    waterTex.repeat.set(PATCH, PATCH);
+    floor.scale.set(PATCH, PATCH, 1);
+    ceiling.scale.set(PATCH, PATCH, 1);
+    ceiling.position.set(0, WH, 0);
+    water.scale.set(PATCH, PATCH, 1);
+    camera.far = Math.max(60, RS * 1.5);
+    camera.updateProjectionMatrix();
+    scene.fog.density = Math.min(0.05, 1 / RS);
+    layoutWalls();
+    generateMap();
+    refreshPlatformInstances();
+    refreshPillarInstances();
+    repositionDoor();
+    if (fromUI) {
+      if (mode === 'play') restartGame();
+      else {
+        const p = findSpawnPoint(startPlat.x, startPlat.z);
+        mPos.set(p.x, p.z);
+        renderMinimap();
+      }
+    }
+  }
+  rebuildWorld(false);
+
+  doorGroup = new THREE.Group();
+  const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x3a4652, roughness: 0.4, metalness: 0.5 });
+  const doorGlowMat = new THREE.MeshBasicMaterial({ color: 0xc8ffe2 });
+  const postGeo = new THREE.BoxGeometry(0.06, 1.25, 0.08);
+  const postL = new THREE.Mesh(postGeo, doorFrameMat); postL.position.set(-0.33, 0.625, 0); doorGroup.add(postL);
+  const postR = new THREE.Mesh(postGeo, doorFrameMat); postR.position.set(0.33, 0.625, 0); doorGroup.add(postR);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.07, 0.08), doorFrameMat); lintel.position.set(0, 1.285, 0); doorGroup.add(lintel);
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.03, 0.12), doorFrameMat); sill.position.set(0, 0.0, 0.02); doorGroup.add(sill);
+  const doorGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 1.22), doorGlowMat);
+  doorGlow.position.set(0, 0.61, -0.01); doorGroup.add(doorGlow);
+  const hinge = new THREE.Group(); hinge.position.set(-0.3, 0, 0.02);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.2, 0.035), new THREE.MeshStandardMaterial({ color: 0x5b7083, roughness: 0.5, metalness: 0.3 }));
+  leaf.position.set(0.15, 0.6, 0); leaf.castShadow = true; hinge.add(leaf);
+  hinge.rotation.y = -1.15;
+  doorGroup.add(hinge);
+  // EXIT sign
+  const signCanvas = document.createElement('canvas');
+  signCanvas.width = 256; signCanvas.height = 96;
+  { const sctx = signCanvas.getContext('2d');
+    sctx.fillStyle = '#0b3d22'; sctx.fillRect(0, 0, 256, 96);
+    sctx.strokeStyle = '#7dffb0'; sctx.lineWidth = 6; sctx.strokeRect(4, 4, 248, 88);
+    sctx.fillStyle = '#9dffc4'; sctx.font = 'bold 64px sans-serif';
+    sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
+    sctx.fillText('EXIT', 128, 52); }
+  const signTex = new THREE.CanvasTexture(signCanvas);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.17), new THREE.MeshBasicMaterial({ map: signTex }));
+  sign.position.set(0, 1.44, 0.045); doorGroup.add(sign);
+  const doorLight = new THREE.PointLight(0x7dffb0, 0.9, 2.6);
+  doorLight.position.set(0, 0.8, 0.45); doorGroup.add(doorLight);
+  doorGroup.rotation.y = doorInfo.rot;
+  // nudge slightly inward from the wall face
+  const doorIn = new THREE.Vector3(Math.sin(doorInfo.rot), 0, Math.cos(doorInfo.rot)).multiplyScalar(0.04);
+  doorGroup.position.set(doorInfo.x + doorIn.x, platTop(), doorInfo.z + doorIn.z);
+  scene.add(doorGroup);
+
+  // ─── PREMIUM TEXTURED WATER MONSTER ───
+  function createMonster() {
+    const g = new THREE.Group();
+
+    // Procedural micro-scale albedo and relief keep the creature detailed without
+    // external requests, while remaining lightweight enough for mobile rendering.
+    const scaleCanvas = document.createElement('canvas');
+    scaleCanvas.width = scaleCanvas.height = 512;
+    const sctx = scaleCanvas.getContext('2d');
+    const baseGrad = sctx.createLinearGradient(0, 0, 512, 512);
+    baseGrad.addColorStop(0, '#477d79'); baseGrad.addColorStop(0.45, '#245451'); baseGrad.addColorStop(1, '#102d32');
+    sctx.fillStyle = baseGrad; sctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 950; i++) {
+      const x = Math.random() * 512, y = Math.random() * 512;
+      const r = 1 + Math.random() * 5;
+      sctx.fillStyle = Math.random() > 0.52 ? 'rgba(141,205,183,.12)' : 'rgba(2,19,24,.16)';
+      sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    }
+    for (let row = -1; row < 18; row++) {
+      for (let col = -1; col < 18; col++) {
+        const x = col * 32 + (row % 2) * 16, y = row * 30;
+        sctx.beginPath(); sctx.moveTo(x - 15, y - 2); sctx.quadraticCurveTo(x, y - 18, x + 15, y - 2);
+        sctx.lineTo(x + 12, y + 10); sctx.quadraticCurveTo(x, y + 18, x - 12, y + 10); sctx.closePath();
+        sctx.fillStyle = 'rgba(82,151,137,.16)'; sctx.fill();
+        sctx.strokeStyle = 'rgba(4,27,31,.48)'; sctx.lineWidth = 2; sctx.stroke();
+        sctx.beginPath(); sctx.moveTo(x - 10, y - 4); sctx.quadraticCurveTo(x, y - 13, x + 8, y - 5);
+        sctx.strokeStyle = 'rgba(190,231,204,.20)'; sctx.lineWidth = 1.5; sctx.stroke();
+      }
+    }
+    const scaleTex = new THREE.CanvasTexture(scaleCanvas);
+    scaleTex.wrapS = scaleTex.wrapT = THREE.RepeatWrapping;
+    scaleTex.repeat.set(2, 2); scaleTex.encoding = THREE.sRGBEncoding;
+
+    const reliefCanvas = document.createElement('canvas');
+    reliefCanvas.width = reliefCanvas.height = 256;
+    const rctx = reliefCanvas.getContext('2d');
+    rctx.fillStyle = '#888'; rctx.fillRect(0, 0, 256, 256);
+    for (let row = -1; row < 10; row++) for (let col = -1; col < 10; col++) {
+      const x = col * 32 + (row % 2) * 16, y = row * 28;
+      rctx.beginPath(); rctx.moveTo(x - 14, y - 2); rctx.quadraticCurveTo(x, y - 17, x + 14, y - 2);
+      rctx.lineTo(x + 11, y + 9); rctx.quadraticCurveTo(x, y + 16, x - 11, y + 9); rctx.closePath();
+      rctx.fillStyle = '#b4b4b4'; rctx.fill(); rctx.strokeStyle = '#555'; rctx.lineWidth = 2; rctx.stroke();
+    }
+    const reliefTex = new THREE.CanvasTexture(reliefCanvas);
+    reliefTex.wrapS = reliefTex.wrapT = THREE.RepeatWrapping;
+    reliefTex.repeat.set(2, 2);
+
+    const skin = new THREE.MeshStandardMaterial({
+      color: 0xc0ded3, map: scaleTex, bumpMap: reliefTex, bumpScale: 0.024,
+      roughness: 0.32, metalness: 0.22, flatShading: true
+    });
+    const skinDark = new THREE.MeshStandardMaterial({ color: 0x10282c, roughness: 0.42, metalness: 0.16, flatShading: true });
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0x39716a, roughness: 0.3, metalness: 0.28, flatShading: true });
+    const finMat = new THREE.MeshStandardMaterial({ color: 0x174146, roughness: 0.36, metalness: 0.25, side: THREE.DoubleSide, flatShading: true });
+    const toothMat = new THREE.MeshStandardMaterial({ color: 0xe6e3cf, roughness: 0.3, metalness: 0.04, flatShading: true });
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff693b, emissive: 0xff2609, emissiveIntensity: 1.8, roughness: 0.2 });
+    const glowMat = new THREE.MeshStandardMaterial({ color: 0x50f4d7, emissive: 0x12d8bb, emissiveIntensity: 1.25, roughness: 0.24, metalness: 0.15 });
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0xff5533, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false });
+
+    function add(mesh, parent = g, shadow = true) {
+      if (shadow) { mesh.castShadow = true; mesh.receiveShadow = true; }
+      parent.add(mesh); return mesh;
+    }
+
+    const body = add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 1), skin));
+    body.scale.set(1, 0.75, 1.25); body.position.y = 0.04;
+    const belly = add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.205, 1), new THREE.MeshStandardMaterial({ color: 0x7fa99a, roughness: 0.52, metalness: 0.08, flatShading: true })));
+    belly.scale.set(0.87, 0.42, 1.12); belly.position.set(0, -0.075, 0.035);
+
+    const head = add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.17, 1), skin));
+    head.position.set(0, 0.17, 0.22); head.scale.set(1.15, 0.85, 1);
+
+    // Layered jaw, dark mouth cavity, and irregular ivory teeth give the face a clear focal point.
+    const mouth = add(new THREE.Mesh(new THREE.BoxGeometry(0.185, 0.052, 0.026), skinDark));
+    mouth.position.set(0, 0.105, 0.365);
+    const jaw = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.052, 0.14), plateMat));
+    jaw.position.set(0, 0.078, 0.31);
+    for (let i = 0; i < 6; i++) {
+      const tooth = add(new THREE.Mesh(new THREE.ConeGeometry(0.012 + (i % 2) * 0.002, 0.042, 5), toothMat));
+      tooth.position.set(-0.075 + i * 0.03, 0.128, 0.375); tooth.rotation.x = Math.PI;
+    }
+    for (let i = 0; i < 4; i++) {
+      const tooth = add(new THREE.Mesh(new THREE.ConeGeometry(0.01, 0.032, 5), toothMat));
+      tooth.position.set(-0.045 + i * 0.03, 0.084, 0.377);
+    }
+
+    // Recessed-looking eyes with warm amber cores and soft halos.
+    const eyeGeo = new THREE.SphereGeometry(0.034, 10, 8);
+    const haloGeo = new THREE.SphereGeometry(0.072, 10, 8);
+    const eyes = [];
+    [-1, 1].forEach(side => {
+      const socket = add(new THREE.Mesh(new THREE.SphereGeometry(0.052, 8, 6), skinDark));
+      socket.position.set(0.078 * side, 0.23, 0.335);
+      const e = add(new THREE.Mesh(eyeGeo, eyeMat), g, false);
+      e.position.set(0.078 * side, 0.235, 0.371); eyes.push(e);
+      const pupil = add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1b1010 })), g, false);
+      pupil.position.set(0.078 * side, 0.235, 0.401);
+      const h = add(new THREE.Mesh(haloGeo, haloMat), g, false); h.position.copy(e.position); eyes.push(h);
+    });
+
+    // Three fine gill slits and bioluminescent lateral markings on each flank.
+    const gillMat = new THREE.MeshStandardMaterial({ color: 0x071d22, roughness: 0.5, metalness: 0.08 });
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const slit = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.075, 0.012), gillMat));
+        slit.position.set(side * (0.215 + (i % 2) * 0.008), 0.075, 0.105 - i * 0.052);
+        slit.rotation.z = side * -0.22;
+      }
+      for (let i = 0; i < 4; i++) {
+        const spot = add(new THREE.Mesh(new THREE.SphereGeometry(0.017 - i * 0.0015, 7, 5), glowMat), g, false);
+        spot.scale.set(0.55, 0.7, 1);
+        spot.position.set(side * 0.232, 0.11 + (i % 2) * 0.028, 0.11 - i * 0.075);
+      }
+      // Sculpted pectoral fin, mirrored to either side.
+      const finShape = new THREE.Shape();
+      finShape.moveTo(0, 0); finShape.lineTo(0.12, 0.035); finShape.lineTo(0.23, -0.045);
+      finShape.lineTo(0.15, -0.13); finShape.lineTo(0.035, -0.095); finShape.closePath();
+      const fin = add(new THREE.Mesh(new THREE.ShapeGeometry(finShape), finMat));
+      fin.position.set(side * 0.18, 0.035, 0.045); fin.rotation.y = side * -0.18; fin.scale.x = side;
+      const finRidge = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.16), glowMat), g, false);
+      finRidge.position.set(side * 0.245, 0.012, 0.035); finRidge.rotation.y = side * 0.52;
+    }
+
+    // Raised dorsal armor and small hooked spines form a more readable silhouette.
+    for (let i = 0; i < 5; i++) {
+      const z = 0.19 - i * 0.105;
+      const scute = add(new THREE.Mesh(new THREE.ConeGeometry(0.046 - i * 0.004, 0.13 - i * 0.012, 5), i % 2 ? plateMat : skinDark));
+      scute.position.set(0, 0.225 - i * 0.012, z); scute.rotation.x = -0.38;
+    }
+    for (let side of [-1, 1]) {
+      for (let i = 0; i < 7; i++) {
+        const scale = add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.027, 0), i % 3 === 0 ? plateMat : skin), g, false);
+        scale.scale.set(0.72, 0.56, 0.42);
+        scale.position.set(side * (0.19 + (i % 2) * 0.018), 0.13 - (i % 3) * 0.035, 0.16 - i * 0.052);
+      }
+    }
+
+    // A tapered, plated tail and forked fin complete the creature's silhouette.
+    const tailBase = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.075, 0.25, 7), skin));
+    tailBase.position.set(0, 0.015, -0.31); tailBase.rotation.x = -Math.PI / 2;
+    const tailTip = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.04, 0.23, 6), plateMat));
+    tailTip.position.set(0, 0.015, -0.51); tailTip.rotation.x = -Math.PI / 2;
+    const tailShape = new THREE.Shape();
+    tailShape.moveTo(0, 0.04); tailShape.lineTo(-0.11, 0.18); tailShape.lineTo(-0.075, 0.015);
+    tailShape.lineTo(-0.15, -0.13); tailShape.lineTo(0, -0.065); tailShape.lineTo(0.15, -0.13);
+    tailShape.lineTo(0.075, 0.015); tailShape.lineTo(0.11, 0.18); tailShape.closePath();
+    const tailFin = add(new THREE.Mesh(new THREE.ShapeGeometry(tailShape), finMat));
+    tailFin.position.set(0, 0.015, -0.615);
+    const tailGlow = add(new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.17), glowMat), g, false);
+    tailGlow.position.set(0, 0.02, -0.51);
+
+    const arms = [];
+    [-1, 1].forEach(side => {
+      const pivot = new THREE.Group(); pivot.position.set(0.22 * side, 0.05, 0.12);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.28, 7), skin);
+      arm.position.set(0.06 * side, 0, 0.1); arm.rotation.x = Math.PI / 2.4; arm.rotation.z = -0.4 * side; add(arm, pivot);
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.08, 5), toothMat);
+      claw.position.set(0.1 * side, 0.03, 0.23); claw.rotation.x = Math.PI / 2; add(claw, pivot);
+      g.add(pivot); arms.push(pivot);
+    });
+
+    const eyeLight = new THREE.PointLight(0xff5636, 0.75, 1.6);
+    eyeLight.position.set(0, 0.25, 0.42); g.add(eyeLight);
+    const biolight = new THREE.PointLight(0x26e8cc, 0.42, 1.15);
+    biolight.position.set(0, 0.12, -0.02); g.add(biolight);
+    g.eyeLight = eyeLight; g.biolight = biolight; g.arms = arms; g.haloMat = haloMat;
+    g.glowMat = glowMat; g.body = body; g.tailFin = tailFin; g.eyes = eyes;
+    // Swim animation is driven by actual velocity and blended smoothly at rest.
+    g.swimPhase = 0; g.swimBlend = 0;
+    g.visible = true;
+    return g;
+  }
+  const monster = createMonster();
+  scene.add(monster);
+
+  // ─── TWO DISTINCT HUMANOID WATER HUNTERS ───
+  // Both are always present in the flooded room, but attack/catch logic is gated
+  // strictly by immersion so neither can hurt a player standing on a platform.
+  function createHumanoidMonster(type) {
+    const group = new THREE.Group();
+    const isWarden = type === 'warden';
+    // A subtle shared micro-relief gives the separate armor, cloth and bone forms
+    // a tactile finish instead of the flat toy-like look of plain primitives.
+    const wearCanvas = document.createElement('canvas');
+    wearCanvas.width = wearCanvas.height = 256;
+    const wearCtx = wearCanvas.getContext('2d');
+    wearCtx.fillStyle = '#888'; wearCtx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 1700; i++) {
+      const x = Math.random() * 256, y = Math.random() * 256;
+      const v = 70 + Math.random() * 150;
+      wearCtx.fillStyle = `rgba(${v},${v},${v},${0.08 + Math.random() * 0.22})`;
+      wearCtx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 5);
+    }
+    for (let i = 0; i < 28; i++) {
+      wearCtx.strokeStyle = `rgba(35,42,43,${0.12 + Math.random() * 0.2})`;
+      wearCtx.lineWidth = 1 + Math.random() * 2;
+      wearCtx.beginPath();
+      const x = Math.random() * 256, y = Math.random() * 256;
+      wearCtx.moveTo(x, y); wearCtx.lineTo(x + (Math.random() - 0.5) * 28, y + 5 + Math.random() * 32); wearCtx.stroke();
+    }
+    const wearTex = new THREE.CanvasTexture(wearCanvas);
+    wearTex.wrapS = wearTex.wrapT = THREE.RepeatWrapping;
+    wearTex.repeat.set(2, 2);
+    const mats = isWarden ? {
+      robe: new THREE.MeshStandardMaterial({ color: 0x182a32, roughness: 0.72, metalness: 0.12, flatShading: true }),
+      edge: new THREE.MeshStandardMaterial({ color: 0x526b70, roughness: 0.48, metalness: 0.42, flatShading: true }),
+      skin: new THREE.MeshStandardMaterial({ color: 0x82999a, roughness: 0.64, metalness: 0.08, flatShading: true }),
+      bone: new THREE.MeshStandardMaterial({ color: 0xd4d4bb, roughness: 0.46, metalness: 0.08, flatShading: true }),
+      dark: new THREE.MeshStandardMaterial({ color: 0x081317, roughness: 0.56, metalness: 0.12 }),
+      glow: new THREE.MeshStandardMaterial({ color: 0x79ffe5, emissive: 0x17cdb4, emissiveIntensity: 2.4, roughness: 0.2 })
+    } : {
+      robe: new THREE.MeshStandardMaterial({ color: 0x33241f, roughness: 0.48, metalness: 0.48, flatShading: true }),
+      edge: new THREE.MeshStandardMaterial({ color: 0xa77943, roughness: 0.3, metalness: 0.78, flatShading: true }),
+      skin: new THREE.MeshStandardMaterial({ color: 0x1d3032, roughness: 0.62, metalness: 0.2, flatShading: true }),
+      bone: new THREE.MeshStandardMaterial({ color: 0xc2a779, roughness: 0.34, metalness: 0.56 }),
+      dark: new THREE.MeshStandardMaterial({ color: 0x0a1113, roughness: 0.4, metalness: 0.48 }),
+      glow: new THREE.MeshStandardMaterial({ color: 0xff7545, emissive: 0xdf3515, emissiveIntensity: 2.25, roughness: 0.18 })
+    };
+    Object.values(mats).forEach(mat => {
+      mat.bumpMap = wearTex;
+      mat.bumpScale = isWarden ? 0.018 : 0.012;
+      mat.needsUpdate = true;
+    });
+    const add = (geo, mat, x, y, z, parent = group) => {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      parent.add(mesh); return mesh;
+    };
+    const box = (mat, x, y, z, sx, sy, sz, parent = group) => add(new THREE.BoxGeometry(sx, sy, sz), mat, x, y, z, parent);
+    const sphere = (mat, x, y, z, sx, sy, sz, parent = group) => {
+      const mesh = add(new THREE.SphereGeometry(1, 10, 8), mat, x, y, z, parent);
+      mesh.scale.set(sx, sy, sz); return mesh;
+    };
+    const link = (mat, ax, ay, az, bx, by, bz, r1, r2, parent = group) => {
+      const a = new THREE.Vector3(ax, ay, az), b = new THREE.Vector3(bx, by, bz);
+      const delta = b.clone().sub(a), length = delta.length();
+      const mesh = add(new THREE.CylinderGeometry(r2, r1, length, 8, 1), mat, (ax + bx) / 2, (ay + by) / 2, (az + bz) / 2, parent);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+      return mesh;
+    };
+    const arms = [], legs = [];
+
+    if (isWarden) {
+      // The Warden: tall, narrow drowned figure with a hood, exposed ribs and long claws.
+      box(mats.robe, 0, 0.89, 0, 0.34, 0.48, 0.22);
+      // Sculpted shoulder mantle overlaps the torso and upper arms to hide hard seams.
+      for (const side of [-1, 1]) {
+        const pauldron = sphere(mats.edge, side * 0.185, 1.075, 0.005, 0.125, 0.12, 0.15);
+        pauldron.rotation.z = side * 0.16;
+        sphere(mats.robe, side * 0.19, 0.96, -0.01, 0.105, 0.20, 0.12);
+      }
+      box(mats.edge, 0, 0.58, -0.01, 0.42, 0.34, 0.29);
+      box(mats.dark, 0, 0.48, 0.012, 0.34, 0.16, 0.27);
+      box(mats.robe, 0, 0.54, 0.02, 0.39, 0.075, 0.30);
+      box(mats.edge, 0, 0.46, 0.018, 0.36, 0.045, 0.29);
+      // Spine and layered rib cage anchor the exposed anatomy into the armored chest.
+      box(mats.dark, 0, 0.88, 0.131, 0.055, 0.36, 0.026);
+      for (let i = 0; i < 4; i++) {
+        const vertebra = sphere(mats.bone, 0, 1.035 - i * 0.085, 0.151, 0.035, 0.024, 0.025);
+        vertebra.rotation.z = (i % 2 ? 0.12 : -0.12);
+      }
+      const hood = box(mats.robe, 0, 1.31, -0.005, 0.31, 0.34, 0.29); hood.rotation.z = -0.05;
+      // Overlapping hood rim, cheek guards and crown spines frame the face as one sculpted silhouette.
+      box(mats.edge, 0, 1.405, 0.118, 0.30, 0.055, 0.075);
+      box(mats.skin, 0, 1.28, 0.035, 0.25, 0.23, 0.22);
+      box(mats.dark, 0, 1.23, 0.151, 0.19, 0.11, 0.018);
+      for (const side of [-1, 1]) {
+        const cheek = sphere(mats.edge, side * 0.125, 1.235, 0.125, 0.055, 0.105, 0.07);
+        cheek.rotation.z = side * -0.22;
+        const horn = add(new THREE.ConeGeometry(0.045, 0.19, 6), mats.bone, side * 0.105, 1.51, -0.01);
+        horn.rotation.z = side * -0.38;
+      }
+      box(mats.dark, 0, 1.17, 0.156, 0.17, 0.026, 0.025);
+      for (const side of [-1, 1]) {
+        add(new THREE.SphereGeometry(0.027, 8, 6), mats.glow, side * 0.052, 1.30, 0.168);
+        for (let i = 0; i < 4; i++) {
+          const rib = box(mats.bone, side * (0.035 + i * 0.004), 0.97 - i * 0.075, 0.121, 0.105, 0.025, 0.025);
+          rib.rotation.z = side * (i % 2 ? 0.08 : -0.08);
+        }
+        box(mats.dark, side * 0.19, 0.66, 0.005, 0.08, 0.28, 0.26);
+        const arm = new THREE.Group(); arm.position.set(side * 0.22, 1.08, 0); group.add(arm); arms.push(arm);
+        sphere(mats.robe, 0, 0, 0, 0.105, 0.13, 0.115, arm);
+        box(mats.skin, side * 0.015, -0.18, 0, 0.09, 0.38, 0.095, arm);
+        sphere(mats.skin, side * 0.015, -0.20, 0, 0.052, 0.085, 0.055, arm);
+        box(mats.edge, side * 0.025, -0.40, 0.025, 0.075, 0.28, 0.075, arm);
+        box(mats.dark, side * 0.025, -0.30, 0.04, 0.084, 0.035, 0.09, arm);
+        sphere(mats.edge, side * 0.025, -0.39, 0.025, 0.052, 0.055, 0.052, arm);
+        box(mats.bone, side * 0.04, -0.57, 0.065, 0.065, 0.13, 0.06, arm);
+        for (let f = 0; f < 3; f++) {
+          const claw = add(new THREE.ConeGeometry(0.018, 0.105, 5), mats.bone, side * (0.015 + (f - 1) * 0.035), -0.67, 0.105, arm);
+          claw.rotation.x = -0.32;
+        }
+        const leg = new THREE.Group(); leg.position.set(side * 0.095, 0.47, 0); group.add(leg); legs.push(leg);
+        sphere(mats.dark, 0, 0, 0, 0.085, 0.10, 0.09, leg);
+        box(mats.robe, 0, -0.20, 0, 0.12, 0.42, 0.14, leg);
+        sphere(mats.edge, 0, -0.28, 0.005, 0.073, 0.07, 0.08, leg);
+        box(mats.skin, 0, -0.41, 0.025, 0.13, 0.08, 0.20, leg);
+        box(mats.dark, 0, -0.438, 0.052, 0.14, 0.025, 0.19, leg);
+      }
+      for (let i = 0; i < 3; i++) {
+        const flap = add(new THREE.ConeGeometry(0.09, 0.34 + i * 0.04, 4), i % 2 ? mats.robe : mats.edge, (i - 1) * 0.105, 0.43, -0.13);
+        flap.rotation.x = Math.PI;
+      }
+    } else {
+      // The Bell Diver: broad rusted suit, sealed brass helmet, air tanks and red portholes.
+      box(mats.dark, 0, 0.89, 0, 0.48, 0.47, 0.31);
+      box(mats.robe, 0, 0.88, 0.035, 0.42, 0.38, 0.30);
+      box(mats.edge, 0, 0.96, 0.19, 0.34, 0.22, 0.055);
+      box(mats.bone, 0, 0.69, 0.18, 0.25, 0.055, 0.035);
+      // Continuous lower torso and overlapping thigh shells close the old hip gap.
+      // The core overlaps the chest above and both leg joints below, so the suit reads as one body.
+      box(mats.dark, 0, 0.575, 0, 0.46, 0.22, 0.32);
+      box(mats.robe, 0, 0.565, 0.025, 0.44, 0.19, 0.31);
+      box(mats.edge, 0, 0.56, 0.187, 0.30, 0.15, 0.045);
+      for (const side of [-1, 1]) {
+        const thighShell = box(mats.robe, side * 0.13, 0.49, 0, 0.19, 0.30, 0.20);
+        thighShell.rotation.z = side * -0.035;
+        box(mats.edge, side * 0.13, 0.39, 0.012, 0.175, 0.045, 0.205);
+      }
+      // Continuous collar flange and shoulder shells visually lock the bell helmet to the suit.
+      add(new THREE.TorusGeometry(0.205, 0.035, 8, 18), mats.edge, 0, 1.105, 0.005).rotation.x = Math.PI / 2;
+      add(new THREE.TorusGeometry(0.222, 0.014, 6, 18), mats.bone, 0, 1.13, 0.005).rotation.x = Math.PI / 2;
+      for (const side of [-1, 1]) {
+        const shoulder = sphere(mats.edge, side * 0.245, 1.02, 0, 0.16, 0.14, 0.19);
+        shoulder.rotation.z = side * -0.12;
+        sphere(mats.robe, side * 0.25, 0.91, -0.02, 0.125, 0.17, 0.15);
+      }
+      const helmet = add(new THREE.CylinderGeometry(0.19, 0.21, 0.31, 10), mats.edge, 0, 1.31, 0); helmet.rotation.y = Math.PI / 10;
+      add(new THREE.SphereGeometry(0.18, 10, 8), mats.robe, 0, 1.43, 0);
+      add(new THREE.SphereGeometry(0.115, 12, 8), mats.dark, 0, 1.31, 0.17).scale.set(1.15, 0.72, 0.34);
+      add(new THREE.SphereGeometry(0.075, 12, 8), mats.glow, 0, 1.31, 0.205).scale.set(1.35, 0.65, 0.38);
+      // Heavy brow, riveted helmet band, face grille and corroded shell seams.
+      box(mats.edge, 0, 1.405, 0.19, 0.32, 0.035, 0.045);
+      box(mats.dark, 0, 1.205, 0.205, 0.27, 0.045, 0.035);
+      box(mats.edge, 0, 1.13, 0.11, 0.38, 0.07, 0.18);
+      for (const side of [-1, 1]) {
+        sphere(mats.bone, side * 0.18, 1.13, 0.19, 0.018, 0.018, 0.012);
+        sphere(mats.glow, side * 0.16, 1.31, 0.238, 0.018, 0.018, 0.012);
+      }
+      for (let i = 0; i < 5; i++) box(mats.edge, (i - 2) * 0.045, 1.205, 0.226, 0.012, 0.035, 0.012);
+      for (const side of [-1, 1]) {
+        const tank = add(new THREE.CylinderGeometry(0.085, 0.095, 0.48, 8), mats.edge, side * 0.28, 0.91, -0.12); tank.rotation.z = side * -0.08;
+        add(new THREE.SphereGeometry(0.095, 8, 6), mats.dark, side * 0.28, 1.16, -0.12);
+        add(new THREE.SphereGeometry(0.095, 8, 6), mats.edge, side * 0.28, 0.66, -0.12);
+        link(mats.dark, side * 0.16, 1.09, -0.10, side * 0.21, 1.04, 0.10, 0.026, 0.026);
+        link(mats.bone, side * 0.21, 1.04, 0.10, side * 0.31, 0.99, 0.11, 0.018, 0.018);
+        add(new THREE.SphereGeometry(0.034, 8, 6), mats.glow, side * 0.085, 1.31, 0.22);
+        for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(0.027, 7, 5), mats.bone, side * (0.17 + (i % 2) * 0.035), 0.99 - i * 0.10, 0.205);
+        box(mats.edge, side * 0.29, 0.65, 0, 0.19, 0.25, 0.25);
+        const arm = new THREE.Group(); arm.position.set(side * 0.31, 1.00, 0); group.add(arm); arms.push(arm);
+        sphere(mats.robe, 0, 0, 0, 0.14, 0.13, 0.15, arm);
+        box(mats.robe, side * 0.025, -0.17, 0, 0.15, 0.34, 0.15, arm);
+        sphere(mats.robe, side * 0.025, -0.17, 0, 0.079, 0.10, 0.08, arm);
+        box(mats.edge, side * 0.04, -0.38, 0.025, 0.13, 0.19, 0.14, arm);
+        add(new THREE.TorusGeometry(0.085, 0.018, 6, 12), mats.bone, side * 0.04, -0.30, 0.025, arm).rotation.x = Math.PI / 2;
+        sphere(mats.edge, side * 0.04, -0.39, 0.025, 0.076, 0.055, 0.075, arm);
+        box(mats.dark, side * 0.045, -0.52, 0.045, 0.13, 0.13, 0.12, arm);
+        for (let f = 0; f < 3; f++) box(mats.bone, side * (0.02 + (f - 1) * 0.04), -0.60, 0.09, 0.025, 0.09, 0.035, arm);
+        const leg = new THREE.Group(); leg.position.set(side * 0.13, 0.48, 0); group.add(leg); legs.push(leg);
+        sphere(mats.dark, 0, 0, 0, 0.105, 0.11, 0.11, leg);
+        box(mats.robe, 0, -0.20, 0, 0.15, 0.40, 0.17, leg);
+        sphere(mats.robe, 0, -0.20, 0, 0.078, 0.11, 0.09, leg);
+        box(mats.edge, 0, -0.41, 0.035, 0.17, 0.10, 0.23, leg);
+        add(new THREE.TorusGeometry(0.073, 0.014, 6, 12), mats.bone, 0, -0.30, 0.01, leg).rotation.x = Math.PI / 2;
+        box(mats.dark, 0, -0.465, 0.045, 0.18, 0.03, 0.24, leg);
+      }
+      add(new THREE.TorusGeometry(0.125, 0.018, 6, 16), mats.edge, 0, 1.31, 0.205).scale.set(1.12, 0.72, 0.45);
+      add(new THREE.TorusGeometry(0.24, 0.035, 6, 12), mats.edge, 0, 1.13, 0);
+    }
+
+    const eyeLight = new THREE.PointLight(isWarden ? 0x48ffdd : 0xff5636, 1.0, 3.4);
+    eyeLight.position.set(0, 1.30, 0.28); group.add(eyeLight);
+    return { type, group, arms, legs, eyeLight, pos: new THREE.Vector2(), vel: new THREE.Vector2(), target: new THREE.Vector2(), heading: Math.PI, lastDist: Infinity, stuck: 0, attacking: false, phase: isWarden ? 0.7 : 2.4, gaitPhase: isWarden ? 0.7 : 2.4, gaitBlend: 0, radius: isWarden ? 0.22 : 0.27, footBottom: isWarden ? 0.02 : 0.0 };
+  }
+  const humanoidMonsters = [createHumanoidMonster('warden'), createHumanoidMonster('diver')];
+  humanoidMonsters.forEach(h => scene.add(h.group));
+
+  // ─── RIPPLE POOL ───
+  const ripples = [];
+  const rippleGeo = new THREE.RingGeometry(0.86, 1, 28);
+  for (let i = 0; i < 14; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xe6f6ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    const r = new THREE.Mesh(rippleGeo, mat);
+    r.rotation.x = -Math.PI / 2; r.visible = false;
+    scene.add(r);
+    ripples.push({ mesh: r, life: 0, max: 1, size: 1, active: false });
+  }
+  let rippleIdx = 0;
+  function spawnRipple(x, z, size, color, life) {
+    const r = ripples[rippleIdx]; rippleIdx = (rippleIdx + 1) % ripples.length;
+    r.active = true; r.life = 0; r.max = life || 1.1; r.size = size;
+    r.mesh.material.color.set(color || 0xe6f6ff);
+    r.mesh.position.set(x, waterY() + 0.02, z);
+    r.mesh.visible = true;
+  }
+  function updateRipples(dt) {
+    for (const r of ripples) {
+      if (!r.active) continue;
+      r.life += dt;
+      const t = r.life / r.max;
+      if (t >= 1) { r.active = false; r.mesh.visible = false; continue; }
+      const s = 0.05 + t * r.size;
+      r.mesh.scale.set(s, s, s);
+      r.mesh.position.y = waterY() + 0.02;
+      r.mesh.material.opacity = (1 - t) * 0.6;
+    }
+  }
+
+  // Apply water depth / platform height changes live
+  function applyWaterLayout() {
+    water.position.y = waterY();
+    refreshPlatformInstances();
+    repositionDoor();
+  }
+
+  // ─── AUDIO SYSTEM (Ambience, Splash, Alert, Exit Chime) ───
+  class SoundSystem {
+    constructor() {
+      this.ctx = null;
+      this.buffers = {};
+      this.ambienceNode = null;
+      this.ambienceGain = null;
+      this.isAmbiencePlaying = false;
+      this.unlocked = false;
+    }
+
+    ensureContext() {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) this.ctx = new AudioCtx();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      return this.ctx;
+    }
+
+    async loadAsset(id) {
+      const asset = lib.getAsset(id);
+      if (!asset || !asset.url) return;
+      try {
+        const resp = await fetch(asset.url);
+        const arrayBuf = await resp.arrayBuffer();
+        const ctx = this.ensureContext();
+        if (!ctx) return;
+        this.buffers[id] = await ctx.decodeAudioData(arrayBuf);
+      } catch (e) {
+        // Procedural fallback will handle this gracefully
+      }
+    }
+
+    preloadAll() {
+      ['room_ambience_loop', 'water_splash_sfx', 'monster_alert_sfx', 'exit_chime_sfx'].forEach(id => {
+        this.loadAsset(id);
+      });
+    }
+
+    playBuffer(id, volume = 1.0, loop = false) {
+      const ctx = this.ensureContext();
+      if (!ctx) return null;
+      const buf = this.buffers[id];
+      if (!buf) return null;
+
+      try {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = loop;
+        const gain = ctx.createGain();
+        gain.gain.value = volume;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(0);
+        return { src, gain };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    startAmbience() {
+      if (this.isAmbiencePlaying) return;
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      this.isAmbiencePlaying = true;
+
+      if (this.buffers['room_ambience_loop']) {
+        const handle = this.playBuffer('room_ambience_loop', 0.28, true);
+        if (handle) {
+          this.ambienceNode = handle.src;
+          this.ambienceGain = handle.gain;
+          return;
+        }
+      }
+
+      // Procedural room ambience fallback: reverberant room drone + subtle water drops
+      try {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const filter = ctx.createBiquadFilter();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine'; osc1.frequency.setValueAtTime(58, ctx.currentTime);
+        osc2.type = 'triangle'; osc2.frequency.setValueAtTime(87, ctx.currentTime);
+        filter.type = 'lowpass'; filter.frequency.setValueAtTime(260, ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+
+        osc1.connect(filter); osc2.connect(filter);
+        filter.connect(gain); gain.connect(ctx.destination);
+        osc1.start(); osc2.start();
+
+        this.ambienceNode = {
+          stop: () => {
+            try { osc1.stop(); osc2.stop(); } catch (e) {}
+          }
+        };
+        this.ambienceGain = gain;
+      } catch (e) {}
+    }
+
+    stopAmbience() {
+      this.isAmbiencePlaying = false;
+      if (this.ambienceNode && this.ambienceNode.stop) {
+        try { this.ambienceNode.stop(); } catch (e) {}
+      }
+      this.ambienceNode = null;
+    }
+
+    playSplash() {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      if (this.buffers['water_splash_sfx']) {
+        this.playBuffer('water_splash_sfx', 0.85);
+        return;
+      }
+      // Procedural crisp shallow water splash
+      try {
+        const now = ctx.currentTime;
+        const bufLen = Math.floor(ctx.sampleRate * 0.38);
+        const buffer = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.07));
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1600, now);
+        filter.frequency.exponentialRampToValueAtTime(320, now + 0.35);
+        filter.Q.setValueAtTime(2.2, now);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.36);
+
+        noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+        noise.start(now);
+
+        // Water droplet resonant pop
+        const drop = ctx.createOscillator();
+        const dropGain = ctx.createGain();
+        drop.type = 'sine';
+        drop.frequency.setValueAtTime(580, now);
+        drop.frequency.exponentialRampToValueAtTime(220, now + 0.18);
+        dropGain.gain.setValueAtTime(0.35, now);
+        dropGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        drop.connect(dropGain); dropGain.connect(ctx.destination);
+        drop.start(now); drop.stop(now + 0.22);
+      } catch (e) {}
+    }
+
+    playAlert() {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      if (this.buffers['monster_alert_sfx']) {
+        this.playBuffer('monster_alert_sfx', 0.95);
+        return;
+      }
+      // Procedural aquatic monster alert sting
+      try {
+        const now = ctx.currentTime;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(90, now);
+        osc1.frequency.exponentialRampToValueAtTime(46, now + 1.1);
+
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(58, now);
+        osc2.frequency.exponentialRampToValueAtTime(36, now + 1.1);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(320, now);
+        filter.frequency.linearRampToValueAtTime(850, now + 0.3);
+        filter.frequency.exponentialRampToValueAtTime(140, now + 1.2);
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.7, now + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+        osc1.connect(filter); osc2.connect(filter);
+        filter.connect(gain); gain.connect(ctx.destination);
+
+        osc1.start(now); osc2.start(now);
+        osc1.stop(now + 1.25); osc2.stop(now + 1.25);
+      } catch (e) {}
+    }
+
+    playVictory() {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      if (this.buffers['exit_chime_sfx']) {
+        this.playBuffer('exit_chime_sfx', 0.95);
+        return;
+      }
+      // Procedural triumph chime chord (E5, G#5, B5, E6)
+      try {
+        const now = ctx.currentTime;
+        const notes = [659.25, 830.61, 987.77, 1318.51];
+        notes.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f, now + idx * 0.08);
+
+          gain.gain.setValueAtTime(0, now + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0.32, now + idx * 0.08 + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 1.9);
+
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 2.0);
+        });
+      } catch (e) {}
+    }
+  }
+
+  const soundSystem = new SoundSystem();
+  soundSystem.preloadAll();
+
+  // ─── 3D WATER SPLASH PARTICLES ───
+  const splashParticles = [];
+  const splashGeo = new THREE.DodecahedronGeometry(0.028, 0);
+  const splashMat = new THREE.MeshBasicMaterial({ color: 0xe0f4ff, transparent: true, opacity: 0.85 });
+
+  for (let i = 0; i < 28; i++) {
+    const m = new THREE.Mesh(splashGeo, splashMat);
+    m.visible = false;
+    scene.add(m);
+    splashParticles.push({ mesh: m, vx: 0, vy: 0, vz: 0, life: 0, maxLife: 1, active: false });
+  }
+  let splashIdx = 0;
+
+  function spawnSplashBurst(x, z, count = 14) {
+    const wY = waterY();
+    for (let i = 0; i < count; i++) {
+      const p = splashParticles[splashIdx];
+      splashIdx = (splashIdx + 1) % splashParticles.length;
+      p.active = true;
+      p.life = 0;
+      p.maxLife = 0.45 + Math.random() * 0.35;
+      p.mesh.position.set(x + (Math.random() - 0.5) * 0.12, wY + 0.02, z + (Math.random() - 0.5) * 0.12);
+      const speed = 0.8 + Math.random() * 1.4;
+      const ang = Math.random() * Math.PI * 2;
+      p.vx = Math.cos(ang) * speed * 0.7;
+      p.vy = 1.2 + Math.random() * 1.6;
+      p.vz = Math.sin(ang) * speed * 0.7;
+      const s = 0.6 + Math.random() * 0.7;
+      p.mesh.scale.set(s, s, s);
+      p.mesh.visible = true;
+    }
+  }
+
+  function updateSplashParticles(dt) {
+    const wY = waterY();
+    for (const p of splashParticles) {
+      if (!p.active) continue;
+      p.life += dt;
+      if (p.life >= p.maxLife) {
+        p.active = false;
+        p.mesh.visible = false;
+        continue;
+      }
+      p.vy -= 9.8 * dt;
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.y += p.vy * dt;
+      p.mesh.position.z += p.vz * dt;
+      if (p.mesh.position.y <= wY && p.vy < 0) {
+        spawnRipple(p.mesh.position.x, p.mesh.position.z, 0.25, 0xdcf2fe, 0.5);
+        p.active = false;
+        p.mesh.visible = false;
+        continue;
+      }
+      const fade = 1 - (p.life / p.maxLife);
+      p.mesh.scale.setScalar(fade * 0.8);
+    }
+  }
+
+  // ─── VICTORY CELEBRATION PARTICLES ───
+  const victoryParticles = [];
+  const vGeo = new THREE.OctahedronGeometry(0.045, 0);
+  for (let i = 0; i < 35; i++) {
+    const col = [0x7dffb0, 0xffe066, 0x60e1ff, 0xffffff][i % 4];
+    const vm = new THREE.Mesh(vGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 }));
+    vm.visible = false;
+    scene.add(vm);
+    victoryParticles.push({ mesh: vm, vx: 0, vy: 0, vz: 0, rotSpd: 0, life: 0, maxLife: 1, active: false });
+  }
+  let vIdx = 0;
+
+  function spawnVictoryBurst(x, y, z) {
+    for (let i = 0; i < victoryParticles.length; i++) {
+      const p = victoryParticles[vIdx];
+      vIdx = (vIdx + 1) % victoryParticles.length;
+      p.active = true;
+      p.life = 0;
+      p.maxLife = 1.3 + Math.random() * 1.0;
+      p.mesh.position.set(x, y, z);
+      const speed = 1.2 + Math.random() * 2.2;
+      const ang = Math.random() * Math.PI * 2;
+      p.vx = Math.cos(ang) * speed;
+      p.vy = 1.2 + Math.random() * 2.8;
+      p.vz = Math.sin(ang) * speed;
+      p.rotSpd = (Math.random() - 0.5) * 8;
+      p.mesh.scale.set(1, 1, 1);
+      p.mesh.visible = true;
+    }
+  }
+
+  function updateVictoryParticles(dt) {
+    for (const p of victoryParticles) {
+      if (!p.active) continue;
+      p.life += dt;
+      if (p.life >= p.maxLife) {
+        p.active = false;
+        p.mesh.visible = false;
+        continue;
+      }
+      p.vy -= 4.2 * dt;
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.y += p.vy * dt;
+      p.mesh.position.z += p.vz * dt;
+      p.mesh.rotation.x += p.rotSpd * dt;
+      p.mesh.rotation.y += p.rotSpd * dt;
+      const fade = 1 - (p.life / p.maxLife);
+      p.mesh.scale.setScalar(fade * 1.1);
+    }
+  }
+
+  // ─── FINAL BLOCKY CHARACTER MODEL (Tight joints & long straight legs) ───
+  function createCharacter() {
+    const group = new THREE.Group();
+
+    // Materials with refined styling
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xd9a77f, roughness: 0.62 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0x26302c, roughness: 0.78 });
+    const shirtMat = new THREE.MeshStandardMaterial({ color: 0xd99124, roughness: 0.68 }); // expedition waterproof shell
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x263e43, roughness: 0.58, metalness: 0.12 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x26363a, roughness: 0.82 });
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0x202a2b, roughness: 0.76 });
+    const soleMat = new THREE.MeshStandardMaterial({ color: 0xb7c2b9, roughness: 0.5 });
+    const reflectiveMat = new THREE.MeshStandardMaterial({ color: 0xd8e2cb, emissive: 0x27352c, emissiveIntensity: 0.25, roughness: 0.38, metalness: 0.18 });
+    const leatherMat = new THREE.MeshStandardMaterial({ color: 0x49372a, roughness: 0.88 });
+    const lensMat = new THREE.MeshStandardMaterial({ color: 0xffd277, emissive: 0xff9b25, emissiveIntensity: 1.4, roughness: 0.2 });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x181e24 });
+    const eyePupilMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    // Root offset node
+    const bodyRoot = new THREE.Group();
+    group.add(bodyRoot);
+
+    // HEAD ASSEMBLY (Centered around y = 0.76)
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 0.76, 0);
+
+    const headGeo = new THREE.BoxGeometry(0.17, 0.17, 0.17);
+    const head = new THREE.Mesh(headGeo, skinMat);
+    head.castShadow = true;
+    headGroup.add(head);
+
+    // Stylish block hair / cap piece
+    const hairTopGeo = new THREE.BoxGeometry(0.18, 0.06, 0.18);
+    const hairTop = new THREE.Mesh(hairTopGeo, hairMat);
+    hairTop.position.set(0, 0.065, 0);
+    hairTop.castShadow = true;
+    headGroup.add(hairTop);
+
+    const hairBackGeo = new THREE.BoxGeometry(0.18, 0.10, 0.05);
+    const hairBack = new THREE.Mesh(hairBackGeo, hairMat);
+    hairBack.position.set(0, 0.02, -0.07);
+    headGroup.add(hairBack);
+
+    // Weatherproof expedition cap, stitched brim and a bright, readable headlamp.
+    const capCrown = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.055, 0.18), trimMat);
+    capCrown.position.set(0, 0.105, -0.005); capCrown.castShadow = true; headGroup.add(capCrown);
+    const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.025, 0.105), shirtMat);
+    capBrim.position.set(0, 0.075, 0.065); capBrim.castShadow = true; headGroup.add(capBrim);
+    const headlampBand = new THREE.Mesh(new THREE.BoxGeometry(0.185, 0.018, 0.018), reflectiveMat);
+    headlampBand.position.set(0, 0.078, 0.09); headGroup.add(headlampBand);
+    const headlamp = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.04, 0.026), leatherMat);
+    headlamp.position.set(0, 0.083, 0.104); headGroup.add(headlamp);
+    const headlampLens = new THREE.Mesh(new THREE.BoxGeometry(0.027, 0.025, 0.009), lensMat);
+    headlampLens.position.set(0, 0.084, 0.122); headGroup.add(headlampLens);
+
+    // Clean blocky eyes
+    const eyeGeo = new THREE.BoxGeometry(0.032, 0.032, 0.015);
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(-0.045, 0.01, 0.088);
+    headGroup.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(0.045, 0.01, 0.088);
+    headGroup.add(eyeR);
+
+    // Eye catch-light specular dot
+    const dotGeo = new THREE.BoxGeometry(0.012, 0.012, 0.016);
+    const dotL = new THREE.Mesh(dotGeo, eyePupilMat);
+    dotL.position.set(-0.040, 0.018, 0.090);
+    headGroup.add(dotL);
+    const dotR = new THREE.Mesh(dotGeo, eyePupilMat);
+    dotR.position.set(0.050, 0.018, 0.090);
+    headGroup.add(dotR);
+
+    bodyRoot.add(headGroup);
+
+    // NECK TIGHT JOINT
+    const neckGeo = new THREE.BoxGeometry(0.08, 0.04, 0.08);
+    const neck = new THREE.Mesh(neckGeo, skinMat);
+    neck.position.set(0, 0.675, 0);
+    bodyRoot.add(neck);
+
+    // TORSO ASSEMBLY (Tightly connected upper and waist segments)
+    const torsoGroup = new THREE.Group();
+
+    // Upper Torso
+    const upperGeo = new THREE.BoxGeometry(0.22, 0.17, 0.13);
+    const upperTorso = new THREE.Mesh(upperGeo, shirtMat);
+    upperTorso.position.set(0, 0.585, 0);
+    upperTorso.castShadow = true;
+    torsoGroup.add(upperTorso);
+
+    // Collar detail
+    const collarGeo = new THREE.BoxGeometry(0.11, 0.03, 0.02);
+    const collar = new THREE.Mesh(collarGeo, trimMat);
+    collar.position.set(0, 0.655, 0.062);
+    torsoGroup.add(collar);
+
+    // Expedition harness, reflective safety bands and compact field-kit details.
+    const chestStrapL = new THREE.Mesh(new THREE.BoxGeometry(0.027, 0.19, 0.018), trimMat);
+    chestStrapL.position.set(-0.072, 0.574, 0.071); chestStrapL.rotation.z = -0.18; torsoGroup.add(chestStrapL);
+    const chestStrapR = new THREE.Mesh(new THREE.BoxGeometry(0.027, 0.19, 0.018), trimMat);
+    chestStrapR.position.set(0.072, 0.574, 0.071); chestStrapR.rotation.z = 0.18; torsoGroup.add(chestStrapR);
+    const harnessBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.045, 0.022), reflectiveMat);
+    harnessBuckle.position.set(0, 0.565, 0.083); torsoGroup.add(harnessBuckle);
+    const pocketL = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.065, 0.025), trimMat);
+    pocketL.position.set(-0.067, 0.515, 0.073); torsoGroup.add(pocketL);
+    const pocketR = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.065, 0.025), trimMat);
+    pocketR.position.set(0.067, 0.515, 0.073); torsoGroup.add(pocketR);
+    const pocketFlapL = new THREE.Mesh(new THREE.BoxGeometry(0.066, 0.018, 0.029), leatherMat);
+    pocketFlapL.position.set(-0.067, 0.542, 0.079); torsoGroup.add(pocketFlapL);
+    const pocketFlapR = new THREE.Mesh(new THREE.BoxGeometry(0.066, 0.018, 0.029), leatherMat);
+    pocketFlapR.position.set(0.067, 0.542, 0.079); torsoGroup.add(pocketFlapR);
+    const reflectiveBand = new THREE.Mesh(new THREE.BoxGeometry(0.226, 0.025, 0.139), reflectiveMat);
+    reflectiveBand.position.set(0, 0.485, 0); torsoGroup.add(reflectiveBand);
+    const zipper = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.15, 0.012), leatherMat);
+    zipper.position.set(0, 0.565, 0.073); torsoGroup.add(zipper);
+
+    // Compact expedition backpack, attached directly behind the torso with shoulder straps.
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.23, 0.10), leatherMat);
+    pack.position.set(0, 0.555, -0.105); pack.castShadow = true; torsoGroup.add(pack);
+    const packTop = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.035, 0.105), trimMat);
+    packTop.position.set(0, 0.69, -0.105); torsoGroup.add(packTop);
+    const packPocket = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.075, 0.018), trimMat);
+    packPocket.position.set(0, 0.525, -0.163); torsoGroup.add(packPocket);
+    const packLatch = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.025, 0.012), reflectiveMat);
+    packLatch.position.set(0, 0.57, -0.176); torsoGroup.add(packLatch);
+
+    // Lower Torso / Waist (seamless connection to hips)
+    const waistGeo = new THREE.BoxGeometry(0.20, 0.09, 0.125);
+    const waist = new THREE.Mesh(waistGeo, shirtMat);
+    waist.position.set(0, 0.47, 0);
+    waist.castShadow = true;
+    torsoGroup.add(waist);
+
+    // Belt / Hip joint block
+    const hipGeo = new THREE.BoxGeometry(0.205, 0.045, 0.128);
+    const hip = new THREE.Mesh(hipGeo, pantsMat);
+    hip.position.set(0, 0.435, 0);
+    hip.castShadow = true;
+    torsoGroup.add(hip);
+
+    bodyRoot.add(torsoGroup);
+
+    // ARMS (Pivot anchored at shoulder height y = 0.64 for natural swing and flush joints)
+    function createArm(isLeft) {
+      const armPivot = new THREE.Group();
+      const xOffset = isLeft ? -0.145 : 0.145;
+      armPivot.position.set(xOffset, 0.65, 0);
+
+      // Upper arm
+      const upperArmGeo = new THREE.BoxGeometry(0.068, 0.14, 0.075);
+      const upperArm = new THREE.Mesh(upperArmGeo, shirtMat);
+      upperArm.position.set(0, -0.07, 0);
+      upperArm.castShadow = true;
+      armPivot.add(upperArm);
+
+      // Forearm & Hand
+      const forearmGeo = new THREE.BoxGeometry(0.062, 0.14, 0.068);
+      const forearm = new THREE.Mesh(forearmGeo, shirtMat);
+      forearm.position.set(0, -0.19, 0);
+      forearm.castShadow = true;
+      armPivot.add(forearm);
+      const cuff = new THREE.Mesh(new THREE.BoxGeometry(0.067, 0.028, 0.073), trimMat);
+      cuff.position.set(0, -0.245, 0); armPivot.add(cuff);
+      const glove = new THREE.Mesh(new THREE.BoxGeometry(0.066, 0.065, 0.072), leatherMat);
+      glove.position.set(0, -0.285, 0.005); glove.castShadow = true; armPivot.add(glove);
+      const gloveGrip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.018, 0.075), trimMat);
+      gloveGrip.position.set(0, -0.31, 0.008); armPivot.add(gloveGrip);
+
+      // Handheld survey flashlight in the right glove; the warm lens reads at a distance.
+      if (!isLeft) {
+        const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.12, 8), trimMat);
+        torch.rotation.x = Math.PI / 2; torch.position.set(0.006, -0.285, 0.075); torch.castShadow = true; armPivot.add(torch);
+        const torchLens = new THREE.Mesh(new THREE.CircleGeometry(0.017, 10), lensMat);
+        torchLens.position.set(0.006, -0.285, 0.138); armPivot.add(torchLens);
+        const torchLight = new THREE.PointLight(0xffc66b, 0.42, 1.6);
+        torchLight.position.set(0.006, -0.28, 0.16); armPivot.add(torchLight);
+      }
+      return armPivot;
+    }
+    const armL = createArm(true);
+    const armR = createArm(false);
+    bodyRoot.add(armL);
+    bodyRoot.add(armR);
+
+    // LONG STRAIGHT LEGS (Pivot anchored right below waist at y = 0.42, sole rests at exact y = 0.000)
+    function createLeg(isLeft) {
+      const legPivot = new THREE.Group();
+      const xOffset = isLeft ? -0.055 : 0.055;
+      legPivot.position.set(xOffset, 0.42, 0);
+
+      // Long straight pants leg (tightly joins hip block at y=0, extends to y=-0.356)
+      const legGeo = new THREE.BoxGeometry(0.082, 0.356, 0.092);
+      const leg = new THREE.Mesh(legGeo, pantsMat);
+      leg.position.set(0, -0.178, 0);
+      leg.castShadow = true;
+      legPivot.add(leg);
+
+      // Shoe / Sneaker upper block (extends from y=-0.356 to y=-0.404)
+      const shoeGeo = new THREE.BoxGeometry(0.088, 0.048, 0.13);
+      const shoe = new THREE.Mesh(shoeGeo, shoeMat);
+      shoe.position.set(0, -0.380, 0.016);
+      shoe.castShadow = true;
+      legPivot.add(shoe);
+
+      // Sneaker sole (extends from y=-0.404 to y=-0.420; bottom at exactly 0.42 - 0.42 = 0.000)
+      const soleGeo = new THREE.BoxGeometry(0.090, 0.016, 0.134);
+      const sole = new THREE.Mesh(soleGeo, soleMat);
+      sole.position.set(0, -0.412, 0.016);
+      sole.castShadow = true;
+      sole.receiveShadow = true;
+      legPivot.add(sole);
+
+      return legPivot;
+    }
+    const legL = createLeg(true);
+    const legR = createLeg(false);
+    bodyRoot.add(legL);
+    bodyRoot.add(legR);
+
+    group.bodyRoot = bodyRoot;
+    group.headGroup = headGroup;
+    group.armL = armL;
+    group.armR = armR;
+    group.legL = legL;
+    group.legR = legR;
+    return group;
+  }
+
+  const character = createCharacter();
+  // Initial transform uses the generated start platform's exact collision top.
+  // The spawn is clamped to its inset footprint after collision helpers are ready.
+  character.position.set(startPlat.x, startPlat.top, startPlat.z);
+  character.rotation.y = Math.PI / 4;
+  scene.add(character);
+
+  // ─── PLAYER STATE ───
+  let playerPos = character.position;
+  let velY = 0;
+  let onGround = false;
+  let onPlatform = true;
+  let wasInWater = false;
+  // Briefly latch the initial/respawn support so the first physics frames cannot
+  // drop the player through a platform before contact state is established.
+  let spawnSafetyTime = 0;
+  let playerRippleTimer = 0;
+  let facingAngle = Math.PI / 4; // facing diagonally into the room toward the far EXIT corner
+  const GRAVITY = -9.8;
+
+  // ─── GAME / MONSTER STATE ───
+  let gameState = 'playing'; // playing | gameover | won
+  let mState = 'patrol';     // patrol | chase | preview; the monster stays present in the room
+  let mRise = 1;             // keep the creature surfaced and visible while it swims
+  let mHeading = 0;
+  const mPatrolTarget = new THREE.Vector2(0, 0);
+  let mPatrolLastDist = Infinity;
+  let mStuckTimer = 0;
+  let mRippleTimer = 0;
+  const mPos = new THREE.Vector2(0, 0);
+  const mVel = new THREE.Vector2(0, 0);
+  const MONSTER_R = 0.22;
+  const CATCH_DIST = 0.36;
+
+  // ─── INPUT STATE ───
+  const keys = {};
+  let joystickInput = { x: 0, y: 0 };
+  let jumpRequested = false;
+
+  // Keyboard
+  if (mode === 'play') {
+    window.addEventListener('keydown', e => {
+      if (gameState !== 'playing' && (e.code === 'Enter' || e.code === 'KeyR' || e.code === 'Space')) {
+        e.preventDefault();
+        restartGame();
+        return;
+      }
+      if (['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
+        e.preventDefault();
+        keys[e.code] = true;
+        if (e.code === 'Space') jumpRequested = true;
+      }
+    });
+    window.addEventListener('keyup', e => { keys[e.code] = false; });
+    window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+  }
+
+  // ─── JOYSTICK ───
+  const joystickBase = document.getElementById('joystick-base');
+  const joystickKnob = document.getElementById('joystick-knob');
+  let jsTouchId = null;
+  let jsBaseX = 90, jsBaseY = 90;
+  const JS_RADIUS = 55;
+  const JS_DEAD = 8;
+
+  function jsUpdate(cx, cy) {
+    let dx = cx - jsBaseX, dy = cy - jsBaseY;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > JS_RADIUS) {
+      const over = dist - JS_RADIUS;
+      const nx = dx/dist, ny = dy/dist;
+      jsBaseX += nx * over;
+      jsBaseY += ny * over;
+      dx = cx - jsBaseX; dy = cy - jsBaseY;
+      dist = JS_RADIUS;
+      joystickBase.style.left = (jsBaseX - 70) + 'px';
+      joystickBase.style.top = (jsBaseY - 70) + 'px';
+    }
+    joystickKnob.style.left = cx + 'px';
+    joystickKnob.style.top = cy + 'px';
+    if (dist < JS_DEAD) {
+      joystickInput.x = 0; joystickInput.y = 0;
+    } else {
+      const eff = (dist - JS_DEAD) / (JS_RADIUS - JS_DEAD);
+      joystickInput.x = (dx / dist) * eff;
+      joystickInput.y = (dy / dist) * eff;
+    }
+  }
+
+  function jsReset() {
+    jsTouchId = null;
+    jsBaseX = 90; jsBaseY = 90;
+    joystickBase.style.left = '20px'; joystickBase.style.top = '20px';
+    joystickKnob.style.left = '90px'; joystickKnob.style.top = '90px';
+    joystickInput.x = 0; joystickInput.y = 0;
+  }
+
+  if (mode === 'play') {
+    joystickArea.addEventListener('touchstart', e => {
+      if (jsTouchId !== null) return;
+      const t = e.changedTouches[0];
+      jsTouchId = t.identifier;
+      const rect = joystickArea.getBoundingClientRect();
+      const cx = t.clientX - rect.left, cy = t.clientY - rect.top;
+      jsBaseX = cx; jsBaseY = cy;
+      joystickBase.style.left = (cx - 70) + 'px';
+      joystickBase.style.top = (cy - 70) + 'px';
+      joystickKnob.style.left = cx + 'px';
+      joystickKnob.style.top = cy + 'px';
+      e.preventDefault();
+    }, { passive: false });
+
+    joystickArea.addEventListener('touchmove', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === jsTouchId) {
+          const rect = joystickArea.getBoundingClientRect();
+          jsUpdate(t.clientX - rect.left, t.clientY - rect.top);
+          e.preventDefault();
+          break;
+        }
+      }
+    }, { passive: false });
+
+    const jsEnd = e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === jsTouchId) { jsReset(); break; }
+      }
+    };
+    joystickArea.addEventListener('touchend', jsEnd);
+    joystickArea.addEventListener('touchcancel', jsEnd);
+
+    const jumpBtn = document.getElementById('jump-btn');
+    jumpBtn.addEventListener('touchstart', e => { jumpRequested = true; e.preventDefault(); }, { passive: false });
+  }
+
+  // ─── MINIMAP (EDIT MODE) & RADAR (PLAY MODE) LOGIC ───
+  const minimapPanel = document.getElementById('minimap-panel');
+  const minimapCanvas = document.getElementById('minimap-canvas');
+  const minimapCtx = minimapCanvas ? minimapCanvas.getContext('2d') : null;
+  const minimapStatus = document.getElementById('minimap-status');
+  const minimapWarning = document.getElementById('minimap-warning');
+
+  const radarPanel = document.getElementById('radar-panel');
+  const radarCanvas = document.getElementById('radar-canvas');
+  const radarCtx = radarCanvas ? radarCanvas.getContext('2d') : null;
+
+  const minimapTitle = document.getElementById('minimap-title');
+  const minimapSeed = document.getElementById('minimap-snap');
+  const goalHint = document.getElementById('goal-hint');
+
+  function worldToMinimap(wx, wz, size = 336) {
+    const scale = size / RS;
+    return {
+      x: (wx + RS / 2) * scale,
+      y: (wz + RS / 2) * scale
+    };
+  }
+  // Edit-mode full-room tactical map. High-resolution canvas keeps the 500m layout legible.
+  function renderMinimap() {
+    if (!minimapCtx) return;
+    const ctx = minimapCtx;
+    const w = minimapCanvas.width, h = minimapCanvas.height;
+    const pad = 30;
+    const mapSize = Math.min(w, h) - pad * 2;
+    const left = (w - mapSize) / 2, top = (h - mapSize) / 2;
+    const scale = mapSize / RS;
+    const toMap = (x, z) => ({ x: left + (x + RS / 2) * scale, y: top + (z + RS / 2) * scale });
+    const roundedRect = (x, y, rw, rh, r) => {
+      const rr = Math.min(r, rw / 2, rh / 2);
+      ctx.beginPath(); ctx.moveTo(x + rr, y); ctx.arcTo(x + rw, y, x + rw, y + rh, rr);
+      ctx.arcTo(x + rw, y + rh, x, y + rh, rr); ctx.arcTo(x, y + rh, x, y, rr);
+      ctx.arcTo(x, y, x + rw, y, rr); ctx.closePath();
+    };
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#07121b'; ctx.fillRect(0, 0, w, h);
+    const bg = ctx.createLinearGradient(left, top, left + mapSize, top + mapSize);
+    bg.addColorStop(0, '#164253'); bg.addColorStop(.48, '#0d2d3d'); bg.addColorStop(1, '#091e2c');
+    roundedRect(left, top, mapSize, mapSize, 16); ctx.fillStyle = bg; ctx.fill();
+    ctx.save(); roundedRect(left, top, mapSize, mapSize, 16); ctx.clip();
+
+    // Architectural grid and subtle water contours provide depth without obscuring route.
+    ctx.strokeStyle = 'rgba(166, 224, 227, 0.10)'; ctx.lineWidth = 1;
+    const gridStep = Math.max(1, Math.round(RS / 10));
+    for (let m = -RS / 2 + gridStep; m < RS / 2; m += gridStep) {
+      const x = toMap(m, 0).x, y = toMap(0, m).y;
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + mapSize); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + mapSize, y); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(117, 215, 222, 0.055)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const cx = left + mapSize * ((i * 37 % 83) / 100 + .08);
+      const cy = top + mapSize * ((i * 53 % 79) / 100 + .1);
+      ctx.beginPath(); ctx.ellipse(cx, cy, mapSize * .035, mapSize * .012, -.35, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Optional landing pads.
+    for (const p of platformBoxes) {
+      if (p.route) continue;
+      const m = toMap(p.x, p.z), rw = Math.max(2.4, p.hw * 2 * scale), rh = Math.max(2.4, p.hd * 2 * scale);
+      ctx.fillStyle = 'rgba(221, 239, 239, .58)'; roundedRect(m.x-rw/2, m.y-rh/2, rw, rh, 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(244,255,255,.36)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    // Concrete pillars are distinct, dark raised-looking blocks.
+    for (const p of pillarBoxes) {
+      const m = toMap(p.x, p.z), s = Math.max(3, p.hw * 2 * scale);
+      ctx.fillStyle = 'rgba(0,0,0,.38)'; roundedRect(m.x-s/2+1, m.y-s/2+2, s, s, 2); ctx.fill();
+      ctx.fillStyle = '#71838d'; roundedRect(m.x-s/2, m.y-s/2, s, s, 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(220,239,242,.48)'; ctx.lineWidth = Math.max(1, scale * .06); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(m.x-s/2+1, m.y-s/2+1, Math.max(1,s*.28), Math.max(1,s*.28));
+    }
+
+    // Main route with a broad luminous guide and separated porcelain pads.
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    routeBoxes.forEach((p, i) => { const m = toMap(p.x,p.z); if (!i) ctx.moveTo(m.x,m.y); else ctx.lineTo(m.x,m.y); });
+    ctx.strokeStyle = 'rgba(70, 240, 197, .18)'; ctx.lineWidth = 17; ctx.stroke();
+    ctx.strokeStyle = 'rgba(91, 240, 205, .82)'; ctx.lineWidth = 4; ctx.setLineDash([7, 7]); ctx.stroke(); ctx.setLineDash([]);
+    for (let i = 0; i < routeBoxes.length; i++) {
+      const p = routeBoxes[i], m = toMap(p.x,p.z), rw = Math.max(4, p.hw*2*scale), rh = Math.max(4,p.hd*2*scale);
+      ctx.fillStyle = p === lastPlat ? '#54efb2' : '#d8f3ee';
+      roundedRect(m.x-rw/2, m.y-rh/2, rw, rh, 3); ctx.fill();
+      ctx.strokeStyle = p === lastPlat ? '#d5ffe7' : 'rgba(20,75,78,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+      if (routeBoxes.length < 80 && i > 0 && i < routeBoxes.length - 1) {
+        ctx.fillStyle = '#236b65'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(String(i), m.x, m.y);
+      }
+    }
+    ctx.restore();
+
+    // Strong boundary frame.
+    ctx.strokeStyle = 'rgba(80, 220, 221, .25)'; ctx.lineWidth = 8; roundedRect(left,top,mapSize,mapSize,16); ctx.stroke();
+    ctx.strokeStyle = '#62d9d4'; ctx.lineWidth = 2; roundedRect(left+4,top+4,mapSize-8,mapSize-8,13); ctx.stroke();
+
+    // Start and exit markers with labels.
+    const marker = (x,y,label,color) => {
+      ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=18; ctx.fillStyle=color;
+      ctx.beginPath(); ctx.arc(x,y,13,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+      ctx.strokeStyle='#f2ffff'; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle='#09202b'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,x,y+.5); ctx.restore();
+    };
+    const sm = toMap(startPlat.x,startPlat.z); marker(sm.x,sm.y,'S','#5ba7ff');
+    const em = toMap(doorInfo.x,doorInfo.z); marker(em.x,em.y,'E','#62edaa');
+
+    // North compass and distance scale.
+    const nx=left+mapSize-27, ny=top+31;
+    ctx.fillStyle='rgba(3,15,23,.78)'; roundedRect(nx-20,ny-22,40,48,12); ctx.fill();
+    ctx.fillStyle='#d9f8f5'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('N',nx,ny-10);
+    ctx.beginPath(); ctx.moveTo(nx,ny-3); ctx.lineTo(nx-7,ny+10); ctx.lineTo(nx,ny+7); ctx.lineTo(nx+7,ny+10); ctx.closePath(); ctx.fillStyle='#6fe7dd'; ctx.fill();
+    const barMeters=Math.min(100,Math.max(10,Math.round(RS/5/10)*10)), barLen=barMeters*scale;
+    const bx=left+18, by=top+mapSize-17;
+    ctx.strokeStyle='#e4faf7'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+barLen,by); ctx.moveTo(bx,by-5); ctx.lineTo(bx,by+4); ctx.moveTo(bx+barLen,by-5); ctx.lineTo(bx+barLen,by+4); ctx.stroke();
+    ctx.fillStyle='#e4faf7'; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillText(`${barMeters} m`,bx,by-6);
+
+    if (minimapTitle) minimapTitle.textContent = `TACTICAL MAP • ${RS} × ${RS} m`;
+    if (minimapSeed) minimapSeed.textContent = `SEED ${cfg.settings.mapSeed}`;
+    if (minimapStatus) minimapStatus.textContent = `${platformBoxes.length} pijakan  •  ${pillarBoxes.length} tiang  •  ${routeBoxes.length} titik rute`;
+    if (minimapWarning) minimapWarning.textContent = 'S · MULAI   /   E · EXIT';
+  }
+
+  // Play mode: local radar centered on the player (big map) + EXIT direction
+  const RADAR_RANGE = 24; // meters shown across the radar
+  const radarBuf = [];
+  function renderRadar() {
+    if (!radarCtx || mode !== 'play') return;
+    const w = radarCanvas.width, h = radarCanvas.height;
+    const scale = w / RADAR_RANGE;
+    const cx = w / 2, cy = h / 2;
+    const toR = (x, z) => ({ x: cx + (x - playerPos.x) * scale, y: cy + (z - playerPos.z) * scale });
+    radarCtx.clearRect(0, 0, w, h);
+    radarCtx.fillStyle = 'rgba(12, 24, 38, 0.88)';
+    radarCtx.fillRect(0, 0, w, h);
+
+    // Room walls if visible
+    const c0 = toR(-RS / 2, -RS / 2), c1 = toR(RS / 2, RS / 2);
+    radarCtx.strokeStyle = '#5a7896';
+    radarCtx.lineWidth = 3;
+    radarCtx.strokeRect(c0.x, c0.y, c1.x - c0.x, c1.y - c0.y);
+
+    queryBoxes(playerPos.x, playerPos.z, RADAR_RANGE * 0.75, radarBuf);
+    for (const b of radarBuf) {
+      const pm = toR(b.x, b.z);
+      if (b.kind === 'pillar') radarCtx.fillStyle = 'rgba(100, 116, 139, 0.95)';
+      else if (b === lastPlat) radarCtx.fillStyle = 'rgba(52, 211, 153, 0.9)';
+      else radarCtx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+      radarCtx.fillRect(pm.x - b.hw * scale, pm.y - b.hd * scale, b.hw * 2 * scale, b.hd * 2 * scale);
+    }
+
+    // EXIT: marker if in range, otherwise arrow on the rim
+    const ex = doorInfo.x - playerPos.x, ez = doorInfo.z - playerPos.z;
+    const edist = Math.hypot(ex, ez);
+    if (Math.abs(ex) * scale < w / 2 - 4 && Math.abs(ez) * scale < h / 2 - 4) {
+      const dm = toR(doorInfo.x, doorInfo.z);
+      radarCtx.fillStyle = '#10b981';
+      radarCtx.fillRect(dm.x - 4, dm.y - 4, 8, 8);
+    } else if (edist > 0.01) {
+      const ang = Math.atan2(ez, ex);
+      const ax = cx + Math.cos(ang) * (w / 2 - 8), ay = cy + Math.sin(ang) * (h / 2 - 8);
+      radarCtx.fillStyle = '#34d399';
+      radarCtx.beginPath();
+      radarCtx.moveTo(ax + Math.cos(ang) * 6, ay + Math.sin(ang) * 6);
+      radarCtx.lineTo(ax + Math.cos(ang + 2.4) * 6, ay + Math.sin(ang + 2.4) * 6);
+      radarCtx.lineTo(ax + Math.cos(ang - 2.4) * 6, ay + Math.sin(ang - 2.4) * 6);
+      radarCtx.closePath();
+      radarCtx.fill();
+    }
+
+    // Camera vision cone
+    const camHeading = Math.atan2(Math.cos(camAngle), Math.sin(camAngle));
+    const fovHalf = 0.48;
+    radarCtx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+    radarCtx.beginPath();
+    radarCtx.moveTo(cx, cy);
+    radarCtx.arc(cx, cy, 18, camHeading - fovHalf, camHeading + fovHalf);
+    radarCtx.closePath();
+    radarCtx.fill();
+
+    radarCtx.fillStyle = '#38bdf8';
+    radarCtx.beginPath();
+    radarCtx.arc(cx, cy, 4, 0, Math.PI * 2);
+    radarCtx.fill();
+    radarCtx.strokeStyle = '#ffffff';
+    radarCtx.lineWidth = 1.5;
+    radarCtx.beginPath();
+    radarCtx.moveTo(cx, cy);
+    radarCtx.lineTo(cx + Math.sin(facingAngle) * 7, cy + Math.cos(facingAngle) * 7);
+    radarCtx.stroke();
+
+    if (mState !== 'hidden' && monster.visible) {
+      const mmd = toR(mPos.x, mPos.y);
+      radarCtx.fillStyle = '#ef4444';
+      radarCtx.beginPath();
+      radarCtx.arc(mmd.x, mmd.y, 4.5, 0, Math.PI * 2);
+      radarCtx.fill();
+    }
+    humanoidMonsters.forEach((h, i) => {
+      const p = toR(h.pos.x, h.pos.y);
+      radarCtx.fillStyle = i === 0 ? '#5fffe0' : '#ff9a54';
+      radarCtx.beginPath(); radarCtx.arc(p.x, p.y, 4, 0, Math.PI * 2); radarCtx.fill();
+      radarCtx.strokeStyle = '#07121b'; radarCtx.lineWidth = 1.5; radarCtx.stroke();
+    });
+
+    radarCtx.strokeStyle = 'rgba(100, 180, 255, 0.35)';
+    radarCtx.lineWidth = 2;
+    radarCtx.strokeRect(1, 1, w - 2, h - 2);
+  }
+
+  let goalHintTimer = 0;
+  function updateGoalHint(dt) {
+    goalHintTimer -= dt;
+    if (goalHintTimer > 0 || !goalHint) return;
+    goalHintTimer = 0.25;
+    const d = Math.hypot(doorInfo.x - playerPos.x, doorInfo.z - playerPos.z);
+    goalHint.textContent = `Lompati pijakan menuju EXIT • ${Math.round(d)} m`;
+  }
+
+  // Edit / Play Mode UI Initialization
+  if (mode === 'edit') {
+    document.getElementById('joystick-area').style.display = 'none';
+    document.getElementById('jump-btn').style.display = 'none';
+    document.getElementById('goal-hint').style.display = 'none';
+    if (minimapPanel) minimapPanel.style.display = 'flex';
+    if (radarPanel) radarPanel.style.display = 'none';
+    renderMinimap();
+  } else {
+    if (minimapPanel) minimapPanel.style.display = 'none';
+    if (radarPanel) radarPanel.style.display = 'block';
+
+    const unlockAudio = () => {
+      soundSystem.ensureContext();
+      soundSystem.startAmbience();
+    };
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+  }
+
+  // ─── HUD / END SCREEN ───
+  const dangerBanner = document.getElementById('danger-banner');
+  const dangerVignette = document.getElementById('danger-vignette');
+  const endScreen = document.getElementById('end-screen');
+  const endTitle = document.getElementById('end-title');
+  const endSub = document.getElementById('end-sub');
+  const restartBtn = document.getElementById('restart-btn');
+
+  function showDanger(text) {
+    dangerBanner.textContent = text;
+    dangerBanner.classList.add('show');
+  }
+  function hideDanger() { dangerBanner.classList.remove('show'); }
+
+  function showEnd(win) {
+    gameState = win ? 'won' : 'gameover';
+    hideDanger();
+    endScreen.classList.toggle('win', win);
+    endTitle.textContent = win ? 'KAMU LOLOS!' : 'GAME OVER';
+    endSub.textContent = win
+      ? 'Kamu berhasil mencapai pintu keluar tanpa tertangkap!'
+      : 'Monster air menangkapmu. Segera lompat ke pijakan saat jatuh!';
+    endScreen.classList.add('show');
+    jsReset();
+    for (const k in keys) keys[k] = false;
+  }
+
+  function restartGame() {
+    placePlayerOnStartPlatform();
+    velY = 0; onGround = true; onPlatform = true; wasInWater = false;
+    facingAngle = Math.PI / 4; character.rotation.y = Math.PI / 4; camAngle = Math.PI / 4; camPitch = 0.38;
+    splashParticles.forEach(p => { p.active = false; p.mesh.visible = false; });
+    resetMonsterRoam();
+    resetHumanoidMonsters();
+    ripples.forEach(r => { r.active = false; r.mesh.visible = false; });
+    hideDanger();
+    dangerVignette.style.opacity = 0;
+    endScreen.classList.remove('show');
+    jumpRequested = false;
+    gameState = 'playing';
+    soundSystem.startAmbience();
+  }
+  restartBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); restartGame(); });
+
+  // ─── CAMERA & ROTATION CONTROLS (SWIPE / DRAG ANYWHERE) ───
+  let camAngle = Math.PI / 4;
+  let camPitch = 0.38; // Radians above horizontal
+  const CAM_DIST = 2.45;
+  const CAM_LOOK_HEIGHT = 0.55;
+  const CAM_SENS_X = 0.0075;
+  const CAM_SENS_Y = 0.0045;
+  const PITCH_MIN = 0.12;
+  const PITCH_MAX = 0.82;
+
+  function updateCamera() {
+    const horizDist = CAM_DIST * Math.cos(camPitch);
+    const vertDist = CAM_DIST * Math.sin(camPitch);
+
+    let targetX = playerPos.x - Math.sin(camAngle) * horizDist;
+    let targetZ = playerPos.z - Math.cos(camAngle) * horizDist;
+    let targetY = playerPos.y + CAM_LOOK_HEIGHT + vertDist;
+
+    if (mode === 'play') {
+      const roomLimit = RS / 2 - 0.22;
+      targetX = Math.max(-roomLimit, Math.min(roomLimit, targetX));
+      targetZ = Math.max(-roomLimit, Math.min(roomLimit, targetZ));
+      targetY = Math.max(waterY() + 0.30, Math.min(WH - 0.22, targetY));
+    }
+
+    camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.25);
+    camera.lookAt(playerPos.x, playerPos.y + CAM_LOOK_HEIGHT, playerPos.z);
+  }
+
+  // Helper to check if interactive element was targeted
+  function isInteractiveElement(elem) {
+    if (!elem) return false;
+    return Boolean(
+      elem.closest('#jump-btn') ||
+      elem.closest('#joystick-area') ||
+      elem.closest('#restart-btn') ||
+      elem.closest('#minimap-panel')
+    );
+  }
+
+  // ─── TOUCH SWIPE CAMERA ROTATION ───
+  let camTouchId = null;
+  let camTouchPrevX = 0;
+  let camTouchPrevY = 0;
+
+  window.addEventListener('touchstart', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === jsTouchId) continue;
+      const hit = document.elementFromPoint(t.clientX, t.clientY);
+      if (isInteractiveElement(e.target) || isInteractiveElement(hit)) continue;
+      if (camTouchId === null) {
+        camTouchId = t.identifier;
+        camTouchPrevX = t.clientX;
+        camTouchPrevY = t.clientY;
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener('touchmove', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === camTouchId) {
+        const dx = t.clientX - camTouchPrevX;
+        const dy = t.clientY - camTouchPrevY;
+        camTouchPrevX = t.clientX;
+        camTouchPrevY = t.clientY;
+
+        camAngle -= dx * CAM_SENS_X;
+        camPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, camPitch - dy * CAM_SENS_Y));
+        e.preventDefault();
+        break;
+      }
+    }
+  }, { passive: false });
+
+  const endCamTouch = e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === camTouchId) {
+        camTouchId = null;
+        break;
+      }
+    }
+  };
+  window.addEventListener('touchend', endCamTouch);
+  window.addEventListener('touchcancel', endCamTouch);
+
+  // ─── MOUSE DRAG CAMERA ROTATION (DESKTOP) ───
+  let isMouseRotating = false;
+  let mousePrevX = 0;
+  let mousePrevY = 0;
+
+  window.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (isInteractiveElement(e.target) || (mode === 'edit' && minimapPanel && minimapPanel.contains(e.target))) return;
+    isMouseRotating = true;
+    mousePrevX = e.clientX;
+    mousePrevY = e.clientY;
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!isMouseRotating) return;
+    const dx = e.clientX - mousePrevX;
+    const dy = e.clientY - mousePrevY;
+    mousePrevX = e.clientX;
+    mousePrevY = e.clientY;
+
+    camAngle -= dx * CAM_SENS_X;
+    camPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, camPitch - dy * CAM_SENS_Y));
+  });
+
+  const endMouseRotation = () => { isMouseRotating = false; };
+  window.addEventListener('mouseup', endMouseRotation);
+  window.addEventListener('blur', () => { isMouseRotating = false; camTouchId = null; });
+
+  // ─── COLLISION HELPERS & SOLID PLATFORM PHYSICS ───
+  function getPlatformAt(x, z, margin = 0) {
+    for (const p of platformBoxes) {
+      if (x >= p.x - p.hw - margin && x <= p.x + p.hw + margin &&
+          z >= p.z - p.hd - margin && z <= p.z + p.hd + margin) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  function getPlatformBelow(x, z, y) {
+    for (const p of platformBoxes) {
+      if (x >= p.x - p.hw && x <= p.x + p.hw &&
+          z >= p.z - p.hd && z <= p.z + p.hd &&
+          y >= p.top - 0.12) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  const playerNear = [];
+  const monsterNear = [];
+
+  function resolvePlayerHorizontal(x, z, r, py) {
+    for (let iter = 0; iter < 2; iter++) {
+      // 1. Room perimeter porcelain walls
+      const half = RS / 2 - r;
+      x = Math.max(-half, Math.min(half, x));
+      z = Math.max(-half, Math.min(half, z));
+
+      queryBoxes(x, z, 2.5, playerNear);
+      // 2. Concrete pillars (solid full-height columns)
+      for (const p of playerNear) {
+        if (p.kind !== 'pillar') continue;
+        const hw = p.hw;
+        const hd = p.hd;
+        const cx = Math.max(p.x - hw, Math.min(p.x + hw, x));
+        const cz = Math.max(p.z - hd, Math.min(p.z + hd, z));
+        const dx = x - cx;
+        const dz = z - cz;
+        const dSq = dx * dx + dz * dz;
+        if (dSq < r * r) {
+          const d = Math.sqrt(dSq);
+          if (d > 1e-4) {
+            x = cx + (dx / d) * r;
+            z = cz + (dz / d) * r;
+          } else {
+            const penX = (hw + r) - Math.abs(x - p.x);
+            const penZ = (hd + r) - Math.abs(z - p.z);
+            if (penX < penZ) x += Math.sign(x - p.x || 1) * penX;
+            else z += Math.sign(z - p.z || 1) * penZ;
+          }
+        }
+      }
+
+      // 3. Platform vertical sides (solid 3D walls when feet are below platform surface)
+      for (const b of playerNear) {
+        if (b.kind === 'plat' && py < b.top - 0.015) {
+          const cx = Math.max(b.x - b.hw, Math.min(b.x + b.hw, x));
+          const cz = Math.max(b.z - b.hd, Math.min(b.z + b.hd, z));
+          const dx = x - cx;
+          const dz = z - cz;
+          const dSq = dx * dx + dz * dz;
+          if (dSq < r * r) {
+            const d = Math.sqrt(dSq);
+            if (d > 1e-4) {
+              x = cx + (dx / d) * r;
+              z = cz + (dz / d) * r;
+            } else {
+              const penX = (b.hw + r) - Math.abs(x - b.x);
+              const penZ = (b.hd + r) - Math.abs(z - b.z);
+              if (penX < penZ) x += Math.sign(x - b.x || 1) * penX;
+              else z += Math.sign(z - b.z || 1) * penZ;
+            }
+          }
+        }
+      }
+    }
+    return { x, z };
+  }
+
+  function clampV(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function pointBlocked(x, z, r) {
+    const half = RS / 2 - r;
+    if (x < -half || x > half || z < -half || z > half) return true;
+    queryBoxes(x, z, r + 2.5, monsterNear);
+    for (const b of monsterNear) {
+      if (Math.abs(x - b.x) < b.hw + r && Math.abs(z - b.z) < b.hd + r) return true;
+    }
+    return false;
+  }
+
+  function findSpawnPoint(px, pz) {
+    for (let i = 0; i < 50; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const rad = 1.6 + Math.random() * 0.9;
+      const x = px + Math.sin(ang) * rad, z = pz + Math.cos(ang) * rad;
+      if (!pointBlocked(x, z, MONSTER_R + 0.08)) return { x, z };
+    }
+    // Fallback: farthest free grid point
+    let best = { x: 0, z: 0 }, bestD = -1;
+    for (let gx = px - 3; gx <= px + 3; gx += 0.3) {
+      for (let gz = pz - 3; gz <= pz + 3; gz += 0.3) {
+        if (pointBlocked(gx, gz, MONSTER_R + 0.05)) continue;
+        const d = Math.hypot(gx - px, gz - pz);
+        if (d > bestD) { bestD = d; best = { x: gx, z: gz }; }
+      }
+    }
+    return best;
+  }
+
+  // Always place the player's feet at the exact top of the start platform.
+  // The inset keeps the complete foot/collision footprint safely inside its solid top.
+  function placePlayerOnStartPlatform() {
+    const p = startPlat;
+    const inset = 0.18;
+    const halfX = Math.max(0, p.hw - inset);
+    const halfZ = Math.max(0, p.hd - inset);
+    const x = clampV(p.x, p.x - halfX, p.x + halfX);
+    const z = clampV(p.z, p.z - halfZ, p.z + halfZ);
+    playerPos.set(x, p.top, z);
+    character.position.set(x, p.top, z);
+    velY = 0;
+    onGround = true;
+    onPlatform = true;
+    wasInWater = false;
+    spawnSafetyTime = 0.45;
+    character.bodyRoot.position.y = 0;
+    character.legL.rotation.set(0, 0, 0);
+    character.legR.rotation.set(0, 0, 0);
+    character.armL.rotation.set(0, 0, 0);
+    character.armR.rotation.set(0, 0, 0);
+  }
+  placePlayerOnStartPlatform();
+
+  function resolveMonster() {
+    const half = RS / 2 - MONSTER_R;
+    mPos.x = clampV(mPos.x, -half, half);
+    mPos.y = clampV(mPos.y, -half, half);
+    queryBoxes(mPos.x, mPos.y, 2.5, monsterNear);
+    for (const b of monsterNear) {
+      const cx = clampV(mPos.x, b.x - b.hw, b.x + b.hw);
+      const cz = clampV(mPos.y, b.z - b.hd, b.z + b.hd);
+      let dx = mPos.x - cx, dz = mPos.y - cz;
+      const d = Math.hypot(dx, dz);
+      if (d < MONSTER_R) {
+        if (d > 1e-4) {
+          mPos.x = cx + dx / d * MONSTER_R;
+          mPos.y = cz + dz / d * MONSTER_R;
+        } else {
+          // Center inside box: push out along the shortest axis
+          const ox = (b.hw + MONSTER_R) - Math.abs(mPos.x - b.x);
+          const oz = (b.hd + MONSTER_R) - Math.abs(mPos.y - b.z);
+          if (ox < oz) mPos.x += Math.sign(mPos.x - b.x || 1) * ox;
+          else mPos.y += Math.sign(mPos.y - b.z || 1) * oz;
+        }
+      }
+    }
+  }
+
+  // Steering toward the player while sliding around pillars and platforms
+  function steerMonster(speed, dt, targetX = playerPos.x, targetZ = playerPos.z) {
+    let tx = targetX - mPos.x, tz = targetZ - mPos.y;
+    const td = Math.hypot(tx, tz) || 1;
+    tx /= td; tz /= td;
+    let ax = tx, az = tz;
+    const AVOID = 0.55;
+    queryBoxes(mPos.x, mPos.y, 2.5, monsterNear);
+    for (const b of monsterNear) {
+      const cx = clampV(mPos.x, b.x - b.hw, b.x + b.hw);
+      const cz = clampV(mPos.y, b.z - b.hd, b.z + b.hd);
+      let ox = mPos.x - cx, oz = mPos.y - cz;
+      let od = Math.hypot(ox, oz);
+      const clear = od - MONSTER_R;
+      if (clear < AVOID) {
+        if (od < 1e-4) { ox = mPos.x - b.x; oz = mPos.y - b.z; od = Math.hypot(ox, oz) || 1; }
+        ox /= od; oz /= od;
+        const ahead = -(ox * tx + oz * tz); // > 0 means obstacle lies toward the target
+        if (ahead > -0.2) {
+          const w = (1 - Math.max(0, clear) / AVOID) * 1.6;
+          let px = -oz, pz = ox;
+          if (px * tx + pz * tz < 0) { px = -px; pz = -pz; }
+          ax += ox * w * 0.6 + px * w;
+          az += oz * w * 0.6 + pz * w;
+        }
+      }
+    }
+    const ad = Math.hypot(ax, az) || 1;
+    ax /= ad; az /= ad;
+    const k = Math.min(1, dt * 6);
+    mVel.x += (ax * speed - mVel.x) * k;
+    mVel.y += (az * speed - mVel.y) * k;
+    mPos.x += mVel.x * dt;
+    mPos.y += mVel.y * dt;
+    resolveMonster();
+  }
+
+  function findRoamPoint(avoidX, avoidZ, minDistance = 0) {
+    const margin = Math.min(1, RS * 0.05);
+    const limit = Math.max(0, RS / 2 - margin);
+    for (let i = 0; i < 180; i++) {
+      const x = (Math.random() * 2 - 1) * limit;
+      const z = (Math.random() * 2 - 1) * limit;
+      if (Math.hypot(x - avoidX, z - avoidZ) < minDistance) continue;
+      if (!pointBlocked(x, z, MONSTER_R + 0.08)) return { x, z };
+    }
+    // Deterministic local search fallback in case random samples land on geometry.
+    const step = Math.max(0.45, RS / 80);
+    for (let radius = step; radius <= Math.min(RS / 2, 30); radius += step) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+        const x = clampV(avoidX + Math.cos(a) * radius, -limit, limit);
+        const z = clampV(avoidZ + Math.sin(a) * radius, -limit, limit);
+        if (!pointBlocked(x, z, MONSTER_R + 0.08)) return { x, z };
+      }
+    }
+    return { x: clampV(avoidX, -limit, limit), z: clampV(avoidZ, -limit, limit) };
+  }
+
+  function choosePatrolTarget() {
+    const p = findRoamPoint(mPos.x, mPos.y, Math.min(8, RS * 0.08));
+    mPatrolTarget.set(p.x, p.z);
+    mPatrolLastDist = Math.hypot(p.x - mPos.x, p.z - mPos.y);
+    mStuckTimer = 0;
+  }
+
+  function resetMonsterRoam() {
+    const p = findRoamPoint(playerPos.x, playerPos.z, Math.min(18, RS * 0.12));
+    mPos.set(p.x, p.z);
+    mVel.set(0, 0);
+    mRise = 1;
+    mState = 'patrol';
+    mHeading = Math.random() * Math.PI * 2;
+    mRippleTimer = 0;
+    monster.visible = true;
+    choosePatrolTarget();
+  }
+
+  function chooseHumanoidPatrolTarget(h) {
+    const p = findRoamPoint(h.pos.x, h.pos.y, Math.min(9, RS * 0.04));
+    h.target.set(p.x, p.z);
+    h.lastDist = Math.hypot(p.x - h.pos.x, p.z - h.pos.y);
+    h.stuck = 0;
+  }
+
+  function findHumanoidSpawn(index) {
+    const base = Math.PI / 4 + (index === 0 ? -0.30 : 0.30);
+    const other = humanoidMonsters[1 - index];
+    const offsets = [0, -0.22, 0.22, -0.48, 0.48, -0.78, 0.78, -1.1, 1.1, -1.55, 1.55, Math.PI];
+    for (let radius = 2.8; radius <= 10; radius += 0.35) {
+      for (const offset of offsets) {
+        const a = base + offset;
+        const x = playerPos.x + Math.sin(a) * radius;
+        const z = playerPos.z + Math.cos(a) * radius;
+        if (Math.abs(x) > RS / 2 - 0.5 || Math.abs(z) > RS / 2 - 0.5) continue;
+        if (pointBlocked(x, z, 0.34) || Math.hypot(x - mPos.x, z - mPos.y) < 1.7) continue;
+        if (index === 1 && Math.hypot(x - other.pos.x, z - other.pos.y) < 2.0) continue;
+        return { x, z };
+      }
+    }
+    return findRoamPoint(playerPos.x, playerPos.z, 2.5);
+  }
+
+  function resetHumanoidMonsters() {
+    humanoidMonsters.forEach((h, i) => {
+      const p = findHumanoidSpawn(i);
+      h.pos.set(p.x, p.z); h.vel.set(0, 0);
+      h.heading = Math.atan2(playerPos.x - p.x, playerPos.z - p.z);
+      h.attacking = false; h.group.visible = true;
+      chooseHumanoidPatrolTarget(h);
+    });
+  }
+
+  function resolveHumanoidPosition(h) {
+    const r = h.radius;
+    h.pos.x = clampV(h.pos.x, -RS / 2 + r, RS / 2 - r);
+    h.pos.y = clampV(h.pos.y, -RS / 2 + r, RS / 2 - r);
+    queryBoxes(h.pos.x, h.pos.y, 2.5, monsterNear);
+    for (const b of monsterNear) {
+      const cx = clampV(h.pos.x, b.x - b.hw, b.x + b.hw);
+      const cz = clampV(h.pos.y, b.z - b.hd, b.z + b.hd);
+      let dx = h.pos.x - cx, dz = h.pos.y - cz;
+      const d = Math.hypot(dx, dz);
+      if (d < r) {
+        if (d > 1e-4) { h.pos.x = cx + dx / d * r; h.pos.y = cz + dz / d * r; }
+        else {
+          const ox = (b.hw + r) - Math.abs(h.pos.x - b.x);
+          const oz = (b.hd + r) - Math.abs(h.pos.y - b.z);
+          if (ox < oz) h.pos.x += Math.sign(h.pos.x - b.x || 1) * ox;
+          else h.pos.y += Math.sign(h.pos.y - b.z || 1) * oz;
+        }
+      }
+    }
+  }
+
+  function steerHumanoid(h, speed, dt, targetX, targetZ) {
+    let tx = targetX - h.pos.x, tz = targetZ - h.pos.y;
+    const td = Math.hypot(tx, tz) || 1; tx /= td; tz /= td;
+    let ax = tx, az = tz;
+    queryBoxes(h.pos.x, h.pos.y, 2.5, monsterNear);
+    for (const b of monsterNear) {
+      const cx = clampV(h.pos.x, b.x - b.hw, b.x + b.hw);
+      const cz = clampV(h.pos.y, b.z - b.hd, b.z + b.hd);
+      let ox = h.pos.x - cx, oz = h.pos.y - cz;
+      let od = Math.hypot(ox, oz);
+      const clear = od - h.radius;
+      if (clear < 0.62) {
+        if (od < 1e-4) { ox = h.pos.x - b.x; oz = h.pos.y - b.z; od = Math.hypot(ox, oz) || 1; }
+        ox /= od; oz /= od;
+        if (-(ox * tx + oz * tz) > -0.2) {
+          const w = (1 - Math.max(0, clear) / 0.62) * 1.5;
+          let px = -oz, pz = ox;
+          if (px * tx + pz * tz < 0) { px = -px; pz = -pz; }
+          ax += ox * w * 0.55 + px * w; az += oz * w * 0.55 + pz * w;
+        }
+      }
+    }
+    const ad = Math.hypot(ax, az) || 1; ax /= ad; az /= ad;
+    const k = Math.min(1, dt * 5.5);
+    h.vel.x += (ax * speed - h.vel.x) * k; h.vel.y += (az * speed - h.vel.y) * k;
+    h.pos.x += h.vel.x * dt; h.pos.y += h.vel.y * dt;
+    resolveHumanoidPosition(h);
+  }
+
+  function updateHumanoidMonsters(dt, playerInWater, playerSafe) {
+    humanoidMonsters.forEach(h => {
+      // Attacking and catching are disabled the instant the player is safe on a pad.
+      h.attacking = playerInWater && !playerSafe;
+      if (h.attacking) {
+        steerHumanoid(h, Math.max(4.2, cfg.settings.monsterSpeed * 3.8), dt, playerPos.x, playerPos.z);
+        return;
+      }
+      const dist = Math.hypot(h.target.x - h.pos.x, h.target.y - h.pos.y);
+      if (dist < 1.35) chooseHumanoidPatrolTarget(h);
+      else {
+        if (h.lastDist - dist < dt * 0.10) h.stuck += dt; else h.stuck = 0;
+        if (h.stuck > 3.5) chooseHumanoidPatrolTarget(h);
+        else steerHumanoid(h, Math.max(0.55, cfg.settings.monsterSpeed * 0.72), dt, h.target.x, h.target.y);
+        h.lastDist = dist;
+      }
+    });
+  }
+
+  function updateHumanoidVisuals(dt, t) {
+    humanoidMonsters.forEach(h => {
+      h.group.visible = true;
+      const speed = h.vel.length();
+      const gaitTarget = h.attacking ? clampV(speed / 4.2, 0, 1) : clampV(speed / 0.9, 0, 1);
+      h.gaitBlend += (gaitTarget - h.gaitBlend) * Math.min(1, dt * 7.5);
+      // Advance the gait only as the creature moves; the attack has a quicker,
+      // heavier cadence while patrol motion uses a measured walking rhythm.
+      const cadence = (h.attacking ? 7.2 : 4.7) + Math.min(speed, 4.5) * 0.42;
+      h.gaitPhase += dt * cadence;
+      const stride = Math.sin(h.gaitPhase + h.phase);
+      const recovery = Math.sin(h.gaitPhase * 2 + h.phase * 0.7);
+      const bob = Math.abs(Math.sin(h.gaitPhase + h.phase)) * 0.022 * h.gaitBlend;
+      const idleBreath = Math.sin(t * 1.8 + h.phase) * 0.012;
+      // Keep each creature's lowest foot just above the tiled floor. The waterline
+      // then cuts naturally across its legs according to the configured water depth.
+      const waterLevel = waterY();
+      const footTargetY = Math.max(0.008, waterLevel * 0.08);
+      h.group.position.set(h.pos.x, footTargetY - h.footBottom + idleBreath + bob, h.pos.y);
+      if (speed > 0.02) {
+        const target = Math.atan2(h.vel.x, h.vel.y);
+        let d = target - h.heading;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        h.heading += d * Math.min(1, dt * 4.5);
+      }
+      h.group.rotation.y = h.heading;
+      h.group.rotation.z = -stride * 0.035 * h.gaitBlend;
+      h.arms.forEach((arm, i) => {
+        const side = i === 0 ? 1 : -1;
+        const swing = stride * (h.attacking ? 0.34 : 0.30) * h.gaitBlend;
+        const attackReach = h.attacking ? -0.24 - Math.max(0, recovery) * 0.12 : -0.04;
+        arm.rotation.x = attackReach + swing * side;
+        arm.rotation.z = side * (h.type === 'warden' ? 0.08 : 0.03) + recovery * 0.035 * h.gaitBlend;
+      });
+      h.legs.forEach((leg, i) => {
+        leg.rotation.x = stride * (h.attacking ? 0.38 : 0.32) * h.gaitBlend * (i === 0 ? 1 : -1);
+      });
+      h.eyeLight.intensity = (h.attacking ? 1.5 : 0.75) * (0.88 + Math.sin(t * 7 + h.phase) * 0.12);
+    });
+  }
+
+  function updateMonsterLogic(dt) {
+    monster.visible = true;
+    mRise = 1;
+    if (mState === 'chase') {
+      // A fall into the water triggers a very fast pursuit, clearly faster than the player.
+      const chaseSpeed = Math.max(7, cfg.settings.monsterSpeed * 4.5);
+      steerMonster(chaseSpeed, dt, playerPos.x, playerPos.z);
+      return;
+    }
+    if (mState === 'patrol') {
+      const dist = Math.hypot(mPatrolTarget.x - mPos.x, mPatrolTarget.y - mPos.y);
+      if (dist < 1.4) {
+        choosePatrolTarget();
+      } else {
+        if (mPatrolLastDist - dist < dt * 0.12) mStuckTimer += dt;
+        else mStuckTimer = 0;
+        if (mStuckTimer > 3.5) choosePatrolTarget();
+        else steerMonster(Math.max(0.7, cfg.settings.monsterSpeed * 0.8), dt, mPatrolTarget.x, mPatrolTarget.y);
+        mPatrolLastDist = dist;
+      }
+    }
+  }
+
+  function updateMonsterVisual(dt, t) {
+    monster.visible = true;
+    const wY = waterY();
+    const speed = mVel.length();
+    const swimTarget = clampV(speed / 2.2, 0, 1);
+    monster.swimBlend += (swimTarget - monster.swimBlend) * Math.min(1, dt * 5.5);
+    monster.swimPhase += dt * (3.0 + Math.min(speed, 7) * 0.9);
+    const phase = monster.swimPhase;
+    const swim = monster.swimBlend;
+    const bob = Math.sin(phase * 2) * (0.012 + 0.018 * swim) * mRise;
+    // Keep the head and upper body visibly above water while giving its body a
+    // travelling, velocity-synced swimming rhythm rather than a fixed loop.
+    monster.position.set(mPos.x, wY - 0.08 + mRise * 0.12 + bob, mPos.y);
+    if (speed > 0.02) {
+      const target = Math.atan2(mVel.x, mVel.y);
+      let d = target - mHeading;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      mHeading += d * Math.min(1, dt * 6);
+    }
+    monster.rotation.y = mHeading;
+    monster.body.rotation.z = Math.sin(phase) * (0.025 + 0.075 * swim);
+    monster.body.rotation.y = Math.sin(phase * 0.5) * (0.02 + 0.04 * swim);
+    monster.tailFin.rotation.y = Math.sin(phase - 0.55) * (0.06 + 0.32 * swim);
+    monster.arms[0].rotation.x = Math.sin(phase + 0.35) * (0.08 + 0.28 * swim);
+    monster.arms[1].rotation.x = Math.sin(phase - 0.35) * (0.08 + 0.28 * swim);
+    const flicker = 0.85 + Math.sin(t * 11) * 0.1 + Math.sin(t * 23) * 0.05;
+    monster.eyeLight.intensity = (0.3 + mRise * 0.9) * flicker;
+    monster.biolight.intensity = (0.18 + mRise * 0.48) * (0.88 + Math.sin(t * 7) * 0.12);
+    monster.glowMat.emissiveIntensity = 0.9 + Math.sin(t * 5) * 0.28;
+    monster.haloMat.opacity = 0.2 + 0.25 * mRise * flicker;
+    // Ripples around the monster
+    mRippleTimer -= dt;
+    if (mRise > 0.05 && mRippleTimer <= 0) {
+      const moving = mVel.length() > 0.2;
+      mRippleTimer = moving ? 0.22 : 0.45;
+      spawnRipple(mPos.x, mPos.y, moving ? 0.55 : 0.75, 0xffd6cc, 1.1);
+    }
+  }
+
+  // The monster is present in both modes; in play it begins at a free point and patrols the full room.
+  if (mode === 'edit') {
+    const p = findSpawnPoint(startPlat.x, startPlat.z);
+    mPos.set(p.x, p.z);
+    mHeading = Math.atan2(startPlat.x - p.x, startPlat.z - p.z);
+    mRise = 1;
+    mState = 'preview';
+    monster.visible = true;
+    resetHumanoidMonsters();
+  } else {
+    resetMonsterRoam();
+    resetHumanoidMonsters();
+  }
+
+  // ─── ANIMATION CYCLES ───
+  let walkCycle = 0;
+  let waterAnimTime = 0;
+
+  // ─── GAME LOOP ───
+  let lastTime = performance.now();
+
+  function gameLoop(now) {
+    if (!isCurrentRun()) return;
+    let dt = (now - lastTime) / 1000;
+    lastTime = now;
+    if (dt > 0.11) dt = 0.11;
+
+    waterAnimTime += dt;
+
+    // ─── WATER MATERIAL & SURFACE RIPPLES ───
+    if (waterMat.map) {
+      waterMat.map.offset.x = (waterAnimTime * 0.025) % 1;
+      waterMat.map.offset.y = (waterAnimTime * 0.018) % 1;
+    }
+    waterMat.opacity = 0.70 + Math.sin(waterAnimTime * 1.5) * 0.04;
+
+    // Exit door glow pulse
+    doorLight.intensity = 0.75 + Math.sin(waterAnimTime * 2.2) * 0.2;
+
+    if (mode === 'play' && gameState === 'playing' && !loadingActive) {
+      const spawnSafetyActive = spawnSafetyTime > 0;
+      spawnSafetyTime = Math.max(0, spawnSafetyTime - dt);
+      const wY = waterY();
+      const inWater = playerPos.y < wY - 0.02;
+      const speedMult = inWater ? cfg.settings.waterSpeedMult : 1;
+      const moveSpeed = cfg.settings.moveSpeed * speedMult;
+      const jumpHeight = cfg.settings.jumpHeight;
+      let jumpVel = Math.sqrt(2 * Math.abs(GRAVITY) * jumpHeight);
+      // Always allow escaping the water onto a platform
+      if (inWater) jumpVel = Math.max(jumpVel, Math.sqrt(2 * Math.abs(GRAVITY) * (platTop() + 0.18)));
+
+      // Gather input
+      let ix = joystickInput.x;
+      let iz = joystickInput.y;
+      if (keys['KeyW'] || keys['ArrowUp']) iz -= 1;
+      if (keys['KeyS'] || keys['ArrowDown']) iz += 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+
+      let inputMag = Math.sqrt(ix*ix + iz*iz);
+      if (inputMag > 1) { ix /= inputMag; iz /= inputMag; inputMag = 1; }
+
+      // Camera-relative movement (100% consistent with player view orientation)
+      const sinC = Math.sin(camAngle), cosC = Math.cos(camAngle);
+      const moveX = (-ix * cosC - iz * sinC) * moveSpeed * inputMag * dt;
+      const moveZ = (ix * sinC - iz * cosC) * moveSpeed * inputMag * dt;
+
+      // Full horizontal solid collision with smooth sliding along walls, pillars, and platform sides
+      const playerR = 0.11;
+      const nextH = resolvePlayerHorizontal(playerPos.x + moveX, playerPos.z + moveZ, playerR, playerPos.y);
+      playerPos.x = nextH.x;
+      playerPos.z = nextH.z;
+
+      // On a fresh run or respawn, explicitly re-latch the start pad if the
+      // feet are at its edge height. This guards against a missed first-frame
+      // landing test without interrupting an actual upward jump.
+      const insideStartPad =
+        playerPos.x >= startPlat.x - startPlat.hw + 0.08 &&
+        playerPos.x <= startPlat.x + startPlat.hw - 0.08 &&
+        playerPos.z >= startPlat.z - startPlat.hd + 0.08 &&
+        playerPos.z <= startPlat.z + startPlat.hd - 0.08;
+      if (spawnSafetyActive && insideStartPad && velY <= 0 &&
+          playerPos.y <= startPlat.top + 0.04 && playerPos.y >= startPlat.top - 0.35) {
+        playerPos.y = startPlat.top;
+        velY = 0;
+        onGround = true;
+        onPlatform = true;
+        wasInWater = false;
+      }
+
+      // Facing
+      if (inputMag > 0.1) {
+        const targetAngle = Math.atan2(moveX, moveZ);
+        let diff = targetAngle - facingAngle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        facingAngle += diff * Math.min(1, dt * 14);
+      }
+      character.rotation.y = facingAngle;
+
+      // Leg & Arm Swing Animation (Soles stay grounded on supporting foot)
+      if (inputMag > 0.1 && onGround) {
+        walkCycle += dt * Math.max(1.2, moveSpeed) * 5.2;
+        const legSwing = Math.sin(walkCycle) * 0.38;
+        const armSwing = Math.sin(walkCycle) * (inWater ? 0.55 : 0.32);
+        character.legL.rotation.x = legSwing;
+        character.legR.rotation.x = -legSwing;
+        character.armL.rotation.x = -armSwing;
+        character.armR.rotation.x = armSwing;
+        // Maintain supporting foot grounded on platform surface
+        character.bodyRoot.position.y = -(0.42 * (1 - Math.cos(Math.abs(legSwing) * 0.5)));
+        character.headGroup.rotation.y = Math.sin(walkCycle) * 0.04;
+      } else {
+        character.legL.rotation.x *= 0.8;
+        character.legR.rotation.x *= 0.8;
+        character.armL.rotation.x *= 0.8;
+        character.armR.rotation.x *= 0.8;
+        character.bodyRoot.position.y *= 0.8;
+        character.headGroup.rotation.y *= 0.8;
+        if (Math.abs(character.legL.rotation.x) < 0.002) character.legL.rotation.x = 0;
+        if (Math.abs(character.legR.rotation.x) < 0.002) character.legR.rotation.x = 0;
+        if (Math.abs(character.bodyRoot.position.y) < 0.001) character.bodyRoot.position.y = 0;
+      }
+
+      // Gravity & jump
+      if (jumpRequested && onGround) {
+        velY = jumpVel;
+        onGround = false;
+        onPlatform = false;
+        if (inWater) {
+          spawnRipple(playerPos.x, playerPos.z, 0.5, 0xe6f6ff, 0.8);
+          spawnSplashBurst(playerPos.x, playerPos.z, 10);
+          soundSystem.playSplash();
+        }
+      }
+      jumpRequested = false;
+
+      const prevY = playerPos.y;
+      velY += GRAVITY * dt;
+      // Water drag while falling through the water
+      if (playerPos.y < wY && velY < 0) velY *= Math.max(0, 1 - dt * 4);
+      const newY = prevY + velY * dt;
+
+      // ─── SOLID VERTICAL SURFACE COLLISION (FULL COLLISION CATCH) ───
+      let activePlat = null;
+      if (velY <= 0) {
+        // Falling or standing: check if player feet land on or stay on any platform surface
+        queryBoxes(playerPos.x, playerPos.z, 2.5, playerNear);
+        for (const p of playerNear) {
+          if (p.kind !== 'plat') continue;
+          // Accept either a downward crossing or continued contact with the
+          // platform that supported the player last frame. The latter avoids
+          // losing support to tiny floating-point/frame-time variations.
+          const crossedTop = prevY >= p.top - 0.03 && newY <= p.top;
+          const retainedSupport = onGround && onPlatform &&
+            Math.abs(prevY - p.top) <= 0.06 && Math.abs(newY - p.top) <= 0.06;
+          if (crossedTop || retainedSupport) {
+            // Check the full foot position is over the platform.
+            if (playerPos.x >= p.x - p.hw && playerPos.x <= p.x + p.hw &&
+                playerPos.z >= p.z - p.hd && playerPos.z <= p.z + p.hd) {
+              activePlat = p;
+              break;
+            }
+          }
+        }
+      }
+
+      if (activePlat) {
+        playerPos.y = activePlat.top;
+        velY = 0;
+        onGround = true;
+        onPlatform = true;
+      } else {
+        // If not landed on a platform, check submerged tiled floor (y = 0)
+        if (newY <= 0) {
+          playerPos.y = 0;
+          velY = 0;
+          onGround = true;
+          onPlatform = false;
+        } else {
+          playerPos.y = newY;
+          onGround = false;
+          onPlatform = false;
+        }
+      }
+
+      // Water contact detection + ripples & splash SFX
+      const nowInWater = playerPos.y < wY - 0.02;
+      if (nowInWater && !wasInWater) {
+        spawnRipple(playerPos.x, playerPos.z, 0.9, 0xffffff, 1.2);
+        spawnRipple(playerPos.x, playerPos.z, 0.5, 0xffffff, 0.9);
+        spawnSplashBurst(playerPos.x, playerPos.z, 16);
+        soundSystem.playSplash();
+      }
+      wasInWater = nowInWater;
+      if (nowInWater && inputMag > 0.1) {
+        playerRippleTimer -= dt;
+        if (playerRippleTimer <= 0) {
+          playerRippleTimer = 0.32;
+          spawnRipple(playerPos.x, playerPos.z, 0.4, 0xe6f6ff, 0.9);
+          if (Math.random() < 0.4) soundSystem.playSplash();
+        }
+      }
+
+      // ─── MONSTER CHASE LOGIC ───
+      const safe = onGround && onPlatform && !!activePlat;
+      if (nowInWater && mState !== 'chase') {
+        mState = 'chase';
+        showDanger('⚠ MONSTER MENGEJAR DENGAN CEPAT! LOMPAT!');
+        spawnRipple(mPos.x, mPos.y, 0.9, 0xffc9bd, 1.0);
+        soundSystem.playAlert();
+      }
+      if (mState === 'chase' && safe) {
+        mState = 'patrol';
+        hideDanger();
+        choosePatrolTarget();
+      }
+      updateMonsterLogic(dt);
+      updateHumanoidMonsters(dt, nowInWater, safe);
+
+      // Danger vignette & lighting tension feedback by proximity
+      if (mState === 'chase') {
+        const d = Math.hypot(playerPos.x - mPos.x, playerPos.z - mPos.y);
+        const prox = clampV(1.2 - d / 2.0, 0, 1);
+        dangerVignette.style.opacity = clampV(1.15 - d / 2.2, 0.25, 1).toFixed(2);
+        ambient.intensity = 0.70 - 0.07 * prox + Math.sin(waterAnimTime * 14) * 0.015 * prox;
+        fillLight.intensity = 0.27 - 0.04 * prox;
+
+        // Caught
+        if (mState === 'chase' && d < CATCH_DIST && playerPos.y < wY + 0.08) {
+          showEnd(false);
+        }
+        // Humanoids can catch the player only while immersed, never on platforms.
+        if (nowInWater && !safe && gameState === 'playing') {
+          for (const h of humanoidMonsters) {
+            if (h.attacking && Math.hypot(playerPos.x - h.pos.x, playerPos.z - h.pos.y) < 0.52) {
+              showEnd(false); break;
+            }
+          }
+        }
+      } else {
+        ambient.intensity = 0.70;
+        fillLight.intensity = 0.27;
+        dangerVignette.style.opacity = 0;
+      }
+
+      // ─── EXIT TRIGGER ───
+      if (gameState === 'playing' && safe && activePlat === lastPlat) {
+        const dd = Math.hypot(playerPos.x - doorInfo.x, playerPos.z - doorInfo.z);
+        if (dd < 1.3) {
+          spawnVictoryBurst(doorGroup.position.x, doorGroup.position.y + 0.6, doorGroup.position.z);
+          soundSystem.playVictory();
+          showEnd(true);
+        }
+      }
+    }
+
+    // Edit mode: orbit camera to inspect room & materials (pauses during user drag)
+    if (mode === 'edit') {
+      if (!isMouseRotating && camTouchId === null) {
+        camAngle += dt * 0.25;
+      }
+      character.position.set(startPlat.x, startPlat.top, startPlat.z);
+      // Feet remain planted at the exact collision surface of the starting platform
+      character.bodyRoot.position.y = 0;
+      character.legL.rotation.x = 0;
+      character.legR.rotation.x = 0;
+      character.headGroup.position.y = 0.76 + Math.sin(now * 0.003) * 0.005;
+      character.armL.rotation.z = Math.sin(now * 0.003) * 0.04;
+      character.armR.rotation.z = -Math.sin(now * 0.003) * 0.04;
+    }
+
+    updateMonsterVisual(dt, waterAnimTime);
+    updateHumanoidVisuals(dt, waterAnimTime);
+    updateRipples(dt);
+    updateSplashParticles(dt);
+    updateVictoryParticles(dt);
+    if (mode === 'play') { renderRadar(); updateGoalHint(dt); }
+
+    // Lights, shadows and floor/water patches follow the player across the big map
+    dirLight.position.set(playerPos.x + 3, 5.5, playerPos.z + 2.5);
+    dirLight.target.position.set(playerPos.x, 0, playerPos.z);
+    pLight1.position.set(playerPos.x - 1.5, WH - 0.4, playerPos.z - 1.5);
+    pLight2.position.set(playerPos.x + 1.5, WH - 0.4, playerPos.z + 1.5);
+    updatePatches(playerPos.x, playerPos.z);
+
+    updateCamera();
+    if (mode === 'play' && loadingActive) {
+      if (now - loadingStarted < 3400) {
+        if (updateLoadingPreview(now)) renderer.render(loadingPreviewScene, loadingPreviewCamera);
+        else renderer.render(scene, camera);
+      } else {
+        if (!loadingLeavingAt) {
+          loadingLeavingAt = now;
+          loadingScreen.classList.add('fade-out');
+          loadingProgressFill.style.width = '100%';
+          if (loadingStatus) loadingStatus.textContent = 'Rute siap — semoga berhasil keluar.';
+        }
+        renderer.render(scene, camera);
+        if (now - loadingLeavingAt > 650) {
+          loadingActive = false;
+          loadingSetup = false;
+          loadingScreen.style.display = 'none';
+          gameWorld.classList.remove('loading-startup', 'loading-controls-hidden');
+          jsReset();
+          jumpRequested = false;
+        }
+      }
+    } else {
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(gameLoop);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+</script>
+</body>
+</html>
