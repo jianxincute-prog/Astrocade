@@ -1207,6 +1207,7 @@
               <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas, atau dekati tumpukan bekal di basecamp untuk <b>MAKAN/MINUM</b> (mengurangi bekal target!). Istirahat di basecamp memulihkan nyawa.</li>
               <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
               <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap.</li>
+              <li>🔄 Ruang gudang, jebakan, monster &amp; bahan <b>tertutup lagi setelah 20 detik</b> dan isinya diacak ulang. Penyintas bisa mati dan respawn di basecamp mereka.</li>
               <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
             </ul>
             <p class="desk-hint">⌨️ WASD/Panah gerak • Shift lari • E aksi • F sorot • I tas • M suara • P jeda • Mouse: putar kamera</p>
@@ -2426,28 +2427,23 @@
       const extW3 = new THREE.Mesh(extWallGeoV, wallMat); extW3.position.set(-BORDER, WALL_HEIGHT / 2, 0); scene.add(extW3);
       const extW4 = new THREE.Mesh(extWallGeoV, wallMat); extW4.position.set(BORDER, WALL_HEIGHT / 2, 0); scene.add(extW4);
 
-      function rollStoreContents(doorX, doorZ) {
-        // Determine store contents based on weights
-        const r = Math.random();
-        let outcome = 'supplies';
+      function rollStoreContents(doorX, doorZ, noEmpty = false, exclude = null) {
+        // Tentukan isi toko berdasarkan bobot (noEmpty: pengacakan ulang tidak pernah menjadi toko kosong)
         const w = config.outcomeWeights;
-        const wMat = w.materials ?? 0.1;
-        const totalW = w.supplies + w.empty + w.trap + w.monster + wMat;
-        const pSupplies = w.supplies / totalW;
-        const pEmpty = pSupplies + (w.empty / totalW);
-        const pTrap = pEmpty + (w.trap / totalW);
-        const pMonster = pTrap + (w.monster / totalW);
-
-        if (r < pSupplies) outcome = 'supplies';
-        else if (r < pEmpty) outcome = 'empty';
-        else if (r < pTrap) outcome = 'trap';
-        else if (r < pMonster) outcome = 'monster';
-        else outcome = 'materials';
+        const weights = [['supplies', w.supplies], ['empty', noEmpty ? 0 : w.empty], ['trap', w.trap], ['monster', w.monster], ['materials', w.materials ?? 0.1]]
+          .map(([k, v]) => [k, k === exclude ? 0 : v]);
+        const totalW = weights.reduce((acc, [, v]) => acc + v, 0);
+        let r = Math.random() * totalW;
+        let outcome = 'supplies';
+        for (const [k, v] of weights) {
+          if (v > 0 && r <= v) { outcome = k; break; }
+          r -= v;
+        }
 
         // Guarantees: At least one empty shop within 40m of origin (0, 0)
-        const distFromCenter = Math.hypot(doorX, doorZ);
-        if (distFromCenter < 38 && Math.random() < 0.6) {
-          outcome = 'empty';
+        if (!noEmpty) {
+          const distFromCenter = Math.hypot(doorX, doorZ);
+          if (distFromCenter < 38 && Math.random() < 0.6) outcome = 'empty';
         }
 
         let trapKind = null;
@@ -2675,7 +2671,13 @@
           warnedSingle: false,
           slots: null,
           npcOwner: null,
-          npcTarget: null
+          npcTarget: null,
+          roomColliders: [],
+          closing: false,
+          openT: 0,
+          counted: false,
+          npcTrapDone: false,
+          warnedClose: false
         };
 
         stores.push(storeObj);
@@ -3511,6 +3513,14 @@
             m.senseT = 0.2;
             m.sees = !safe && dist < detect * m.tp.detect && !segmentBlocked(m.x, m.z, pX, pZ);
             m.hears = !safe && dist < hearR;
+            // penyintas (NPC) terdekat yang terlihat juga jadi mangsa
+            m.npcT = null;
+            let nd = 11;
+            for (const n of npcs) {
+              if (n.dead || n.safe) continue;
+              const d2 = Math.hypot(n.x - m.x, n.z - m.z);
+              if (d2 < nd && !segmentBlocked(m.x, m.z, n.x, n.z)) { nd = d2; m.npcT = n; }
+            }
           }
           if (m.sees || m.hears) {
             m.lastX = pX; m.lastZ = pZ; m.lostT = 0;
@@ -3525,6 +3535,13 @@
             }
           } else {
             m.lostT += dt;
+          }
+          if (m.npcT && (m.npcT.dead || m.npcT.safe)) m.npcT = null;
+          const npcDist = m.npcT ? Math.hypot(m.npcT.x - m.x, m.npcT.z - m.z) : 1e9;
+          const chaseNpc = !!m.npcT && (!(m.sees || m.hears) || npcDist < dist);
+          if (chaseNpc) {
+            m.lastX = m.npcT.x; m.lastZ = m.npcT.z; m.lostT = 0;
+            if (m.mode !== 'chase') { m.mode = 'chase'; m.repathT = 0; }
           }
 
           let speed = m.speed;
@@ -3561,6 +3578,8 @@
             m.group.rotation.y += dt * 1.5;
             if (m.waitT > 3) m.mode = 'patrol';
           }
+
+          if (chaseNpc && m.mode === 'chase' && npcDist < m.tp.reach) npcHurt(m.npcT, m.tp.dmg, m.type);
 
           // Serang bila dekat dan terlihat (tidak tembus dinding)
           if (!safe && m.mode === 'chase' && m.sees && dist < m.tp.reach && !state.isInvulnerable) {
@@ -3746,10 +3765,12 @@
         cgDirty = true;
         const a = roomLocalToWorld(store, lx1, lz1);
         const b = roomLocalToWorld(store, lx2, lz2);
-        colliders.push({
+        const col = {
           minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x),
           minZ: Math.min(a.z, b.z), maxZ: Math.max(a.z, b.z)
-        });
+        };
+        colliders.push(col);
+        store.roomColliders.push(col);
       }
 
       function placePickup(store, g, itemId, lx, ly, lz) {
@@ -4379,7 +4400,11 @@
       function openStore(store) {
         if (store.isOpen) return;
         store.isOpen = true;
-        state.openedStoresCount++;
+        markOpened(store);
+        if (!store.counted) {
+          store.counted = true;
+          state.openedStoresCount++;
+        }
         hudOpenedEl.textContent = state.openedStoresCount;
 
         // Collider tirai dilepas di loop animasi setelah tirai cukup tinggi (tidak bisa ditembus)
@@ -4698,6 +4723,75 @@
         });
       }
 
+      // ================= SIKLUS RUANGAN: tutup lagi setelah 20 detik & isi diacak =================
+      const ROOM_LIFETIME = 20;
+      function markOpened(st) {
+        st.openT = animTime;
+        st.warnedClose = false;
+        st.closing = false;
+      }
+      const inBounds = (b, x, z, pad = 0) => x >= b.minX - pad && x <= b.maxX + pad && z >= b.minZ - pad && z <= b.maxZ + pad;
+      function roomOccupied(st) {
+        const px = playerGroup.position.x, pz = playerGroup.position.z;
+        if (inBounds(st.bounds, px, pz, 0.5) || Math.hypot(px - st.doorX, pz - st.doorZ) < 3.5) return true;
+        if (st.npcTarget) return true;
+        for (const n of npcs) {
+          if (!n.dead && (inBounds(st.bounds, n.x, n.z, 0.5) || Math.hypot(n.x - st.doorX, n.z - st.doorZ) < 3.5)) return true;
+        }
+        for (const m of monsters) {
+          if (Math.hypot(m.x - st.doorX, m.z - st.doorZ) < 2.5) return true;
+        }
+        return false;
+      }
+      function updateRoomCycle() {
+        for (let i = openedInteriors.length - 1; i >= 0; i--) {
+          const st = openedInteriors[i];
+          if (st.outcome === 'empty' || st.closing) continue;
+          const age = animTime - st.openT;
+          if (age >= ROOM_LIFETIME - 5 && !st.warnedClose && inBounds(st.bounds, playerGroup.position.x, playerGroup.position.z)) {
+            st.warnedClose = true;
+            showToast('RUANGAN AKAN TERTUTUP & BERUBAH DALAM 5 DETIK!', '#ff9100');
+          }
+          if (age >= ROOM_LIFETIME && !roomOccupied(st)) beginCloseRoom(st);
+        }
+      }
+      function beginCloseRoom(st) {
+        st.closing = true;
+        if (!colliders.includes(st.shutterCollider)) colliders.push(st.shutterCollider);
+        cgDirty = true;
+        st.shutterFreed = false;
+        if (Math.hypot(st.doorX - playerGroup.position.x, st.doorZ - playerGroup.position.z) < 40) audio.play('shutter_close_sfx');
+      }
+      function finalizeCloseRoom(st) {
+        if (st.interiorGroup) { scene.remove(st.interiorGroup); disposeTree(st.interiorGroup); }
+        const idx = openedInteriors.indexOf(st);
+        if (idx !== -1) openedInteriors.splice(idx, 1);
+        st.pickups.forEach(p => {
+          const k = allPickups.indexOf(p);
+          if (k !== -1) allPickups.splice(k, 1);
+          if (state.nearbyPickup === p) state.nearbyPickup = null;
+        });
+        st.roomColliders.forEach(c => { const k = colliders.indexOf(c); if (k !== -1) colliders.splice(k, 1); });
+        const counted = st.counted;
+        resetStoreState(st, rollStoreContents(st.doorX, st.doorZ, true, st.outcome)); // selalu jadi jenis ruangan lain
+        st.counted = counted;
+        cgDirty = true;
+        setShutterY(st, (WALL_HEIGHT - 0.6) / 2);
+      }
+
+      // Kembalikan satu toko ke keadaan tertutup dengan isi baru (dipakai restart dan pengacakan ruangan)
+      function resetStoreState(st, rolled) {
+        Object.assign(st, {
+          shutterFreed: false,
+          outcome: rolled.outcome, lootItems: rolled.lootItems, trapKind: rolled.trapKind, trapRT: null, pickups: [],
+          isOpen: false, isClaimed: false, isTrapDisarmed: false, doorAnimProgress: 0,
+          interiorInitialized: false, interiorGroup: null, trapPlateMesh: null, interiorLight: null,
+          baseLightIntensity: 1.8, sparkMesh: null, spikesGroup: null, spikeTriggered: false, spikeAnim: 0,
+          rentSign: null, claimRing: null, stashCount: 0, stashItems: [], warnedSingle: false, slots: null, npcOwner: null, npcTarget: null,
+          roomColliders: [], closing: false, openT: 0, npcTrapDone: false, warnedClose: false
+        });
+      }
+
       // Reset bersih tanpa reload halaman: toko diacak ulang, interior dibuang, state dikembalikan
       function resetGame() {
         colliders.length = 0;
@@ -4707,15 +4801,8 @@
         allPickups.length = 0;
         stores.forEach(st => {
           if (st.interiorGroup) { scene.remove(st.interiorGroup); disposeTree(st.interiorGroup); }
-          const rolled = rollStoreContents(st.doorX, st.doorZ);
-          Object.assign(st, {
-            shutterFreed: false,
-            outcome: rolled.outcome, lootItems: rolled.lootItems, trapKind: rolled.trapKind, trapRT: null, pickups: [],
-            isOpen: false, isClaimed: false, isTrapDisarmed: false, doorAnimProgress: 0,
-            interiorInitialized: false, interiorGroup: null, trapPlateMesh: null, interiorLight: null,
-            baseLightIntensity: 1.8, sparkMesh: null, spikesGroup: null, spikeTriggered: false, spikeAnim: 0,
-            rentSign: null, claimRing: null, stashCount: 0, stashItems: [], warnedSingle: false, slots: null, npcOwner: null, npcTarget: null
-          });
+          resetStoreState(st, rollStoreContents(st.doorX, st.doorZ));
+          st.counted = false;
           setShutterY(st, (WALL_HEIGHT - 0.6) / 2);
         });
         monsters.forEach(m => scene.remove(m.group));
@@ -5530,7 +5617,11 @@
 
         // --- SHUTTER DOOR ANIMATIONS ---
         stores.forEach(s => {
-          if (s.isOpen && s.doorAnimProgress < 1) {
+          if (s.closing) {
+            s.doorAnimProgress = Math.max(0, s.doorAnimProgress - dt * 1.4);
+            setShutterY(s, ((WALL_HEIGHT - 0.6) / 2) + s.doorAnimProgress * (WALL_HEIGHT - 0.4));
+            if (s.doorAnimProgress <= 0) finalizeCloseRoom(s);
+          } else if (s.isOpen && s.doorAnimProgress < 1) {
             s.doorAnimProgress = Math.min(1, s.doorAnimProgress + dt * 1.4);
             setShutterY(s, ((WALL_HEIGHT - 0.6) / 2) + s.doorAnimProgress * (WALL_HEIGHT - 0.4));
             if (!s.shutterFreed && s.doorAnimProgress >= 0.45) {
@@ -5723,6 +5814,7 @@
           // pratinjau: pastikan mode edit tidak memunculkan geser kamera ke bawah lantai
         }
 
+        if (mode === 'play' && state.started && !state.isGameOver) updateRoomCycle();
         updateAtmosphere(dt);
         animateRoomDetails(dt);
         renderMinimap();
@@ -6017,11 +6109,18 @@
       tradeOverlay.addEventListener('click', (e) => { if (e.target === tradeOverlay) closeTrade(); });
 
       // ================= NPC PENYINTAS =================
+      // Bisa mati (monster/jebakan), respawn di basecamp, dan harus mengumpulkan bahan dulu untuk
+      // membangun komputer (5 komponen) dan meja crafting (3 papan + 2 paku); senjata dibuat setelah meja jadi.
       const NPC_DEFS = [
         { name: 'Rina', color: 0xdb2777, start: [-68, -68] },
         { name: 'Bima', color: 0x16a34a, start: [68, 68] }
       ];
       const npcs = [];
+      const NPC_HP = 3;
+      const CAUSE_NAMES = {
+        hunter: 'diterkam Pemburu', brute: 'dihantam Brute', stalker: 'disergap Penyelinap',
+        plate: 'tertusuk paku jebakan', laser: 'terkena laser', gas: 'keracunan gas', collapse: 'jatuh di lantai runtuh'
+      };
 
       function createNpcMesh(def) {
         const group = new THREE.Group();
@@ -6045,7 +6144,6 @@
         sh.rotation.x = -Math.PI / 2;
         sh.position.y = 0.03;
         group.add(sh);
-        // label nama
         const c = document.createElement('canvas');
         c.width = 256; c.height = 64;
         const ctx = c.getContext('2d');
@@ -6060,7 +6158,13 @@
         label.scale.set(1.5, 0.375, 1);
         label.position.y = 2.2;
         group.add(label);
-        return { group, legL, legR };
+        // papan paku di tangan (terlihat saat bersenjata)
+        const wp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.035), new THREE.MeshStandardMaterial({ color: 0xb77a3b, roughness: 0.9 }));
+        wp.position.set(0.3, 0.95, 0.25);
+        wp.rotation.x = -0.9;
+        wp.visible = false;
+        group.add(wp);
+        return { group, legL, legR, weaponMesh: wp };
       }
 
       function initNpcs() {
@@ -6070,9 +6174,12 @@
           const mesh = createNpcMesh(def);
           scene.add(mesh.group);
           const n = {
-            name: def.name, group: mesh.group, legL: mesh.legL, legR: mesh.legR, legAmp: 0.1,
-            x: def.start[0], z: def.start[1], animTimer: 0, path: [], goalKey: null, repathT: 0, stuckT: 0, stuckMoved: 0, stuckCount: 0,
-            mode: 'findBase', target: null, base: null, timer: 0, trips: 0, parts: {}, stock: [], credits: 120, online: false, speechCd: 20
+            name: def.name, group: mesh.group, legL: mesh.legL, legR: mesh.legR, weaponMesh: mesh.weaponMesh, legAmp: 0.1,
+            start: def.start.slice(), x: def.start[0], z: def.start[1], animTimer: 0, path: [], goalKey: null, repathT: 0, stuckT: 0, stuckMoved: 0, stuckCount: 0,
+            mode: 'findBase', target: null, base: null, timer: 0, trips: 0, speechCd: 20,
+            hp: NPC_HP, invuln: 0, dead: false, respawnT: 0, regenT: 0, safe: false, threat: null, threatT: 0, attackCd: 0, fleeGoal: null,
+            bag: [], parts: {}, mats: { papan: 0, paku: 0 }, table: false, weapon: 0, buildWhat: null,
+            stock: [], credits: 120, online: false
           };
           n.group.position.set(n.x, 0, n.z);
           npcs.push(n);
@@ -6083,7 +6190,48 @@
         const e = n.stock.find(x => x.id === id);
         if (e) e.qty += q; else n.stock.push({ id, qty: q });
       }
-      function npcHasAllParts(n) { return PART_IDS.every(p => n.parts[p] > 0); }
+      const npcNear = n => Math.hypot(n.x - playerGroup.position.x, n.z - playerGroup.position.z) < 45;
+
+      // Bahan yang masih dibutuhkan NPC (menentukan target penjarahan & kapan pulang)
+      function npcWants(n, id, parts, mats) {
+        const cat = ITEM_DEFS[id].cat;
+        if (cat === 'part') return !n.online && !(parts[id] > 0);
+        if (cat === 'mat') {
+          if (!n.table) return id === 'papan' ? mats.papan < 3 : mats.paku < 2;
+          return n.weapon <= 0 && mats[id] < 1;
+        }
+        return false;
+      }
+      function npcNextBuild(n) {
+        if (!n.online && PART_IDS.every(p => n.parts[p] > 0)) return 'comp';
+        if (!n.table && n.mats.papan >= 3 && n.mats.paku >= 2) return 'table';
+        if (n.table && n.weapon <= 0 && n.mats.papan >= 1 && n.mats.paku >= 1) return 'weapon';
+        return null;
+      }
+      // Apakah isi tas + simpanan cukup untuk membangun sesuatu begitu pulang?
+      function npcWouldBuild(n) {
+        const parts = Object.assign({}, n.parts), mats = Object.assign({}, n.mats);
+        n.bag.forEach(id => {
+          const cat = ITEM_DEFS[id].cat;
+          if (cat === 'part' && !n.online) parts[id] = Math.max(parts[id] || 0, 1);
+          else if (cat === 'mat') mats[id]++;
+        });
+        if (!n.online && PART_IDS.every(p => parts[p] > 0)) return true;
+        if (!n.table && mats.papan >= 3 && mats.paku >= 2) return true;
+        return n.table && n.weapon <= 0 && mats.papan >= 1 && mats.paku >= 1;
+      }
+      function npcDeposit(n) {
+        n.bag.forEach(id => {
+          const cat = ITEM_DEFS[id].cat;
+          if (cat === 'part' && !n.online && !(n.parts[id] > 0)) n.parts[id] = 1;
+          else if (cat === 'mat') n.mats[id]++;
+          else addNpcStock(n, id, 1);
+        });
+        n.bag.length = 0;
+        // kelebihan bahan setelah meja jadi dijual
+        if (n.table) ['papan', 'paku'].forEach(id => { if (n.mats[id] > 4) { addNpcStock(n, id, n.mats[id] - 4); n.mats[id] = 4; } });
+        if (n.online) PART_IDS.forEach(id => { if (n.parts[id] > 0) { addNpcStock(n, id, n.parts[id]); n.parts[id] = 0; } });
+      }
 
       // Navigasi NPC memakai perencana jalur monster (graf lorong + pintu toko)
       function npcGo(n, gx, gz, speed, dt, arrive) {
@@ -6121,6 +6269,7 @@
       function npcOpenStore(st) {
         if (st.isOpen) return;
         st.isOpen = true;
+        markOpened(st);
         initializeStoreInterior(st);
         if (Math.hypot(st.doorX - playerGroup.position.x, st.doorZ - playerGroup.position.z) < 40) audio.play('shutter_open_sfx');
       }
@@ -6134,12 +6283,47 @@
         if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
         const i = allPickups.indexOf(p);
         if (i !== -1) allPickups.splice(i, 1);
-        const id = p.itemId;
-        if (ITEM_DEFS[id].cat === 'part' && !n.online && !(n.parts[id] > 0)) n.parts[id] = 1;
-        else addNpcStock(n, id, 1);
+        n.bag.push(p.itemId);
         if (Math.hypot(p.x - playerGroup.position.x, p.z - playerGroup.position.z) < 15) audio.play('supply_pickup_sfx');
       }
 
+      // ---- kematian & respawn ----
+      function npcHurt(n, dmg, cause) {
+        if (n.dead || n.invuln > 0) return;
+        n.hp -= dmg;
+        n.invuln = 1.2;
+        if (npcNear(n)) audio.play('hit_sfx');
+        if (n.hp <= 0) npcDie(n, cause);
+      }
+      function npcDie(n, cause) {
+        n.dead = true;
+        n.respawnT = 14;
+        n.group.visible = false;
+        n.bag.length = 0;
+        n.weapon = 0;
+        n.threat = null;
+        n.path = [];
+        n.goalKey = null;
+        if (n.target) { n.target.npcTarget = null; n.target = null; }
+        monsters.forEach(m => { if (m.npcT === n) m.npcT = null; });
+        if (npcNear(n)) showToast(`${n.name.toUpperCase()} TEWAS: ${CAUSE_NAMES[cause] || 'tak selamat'}`, '#ff6b6b', true);
+      }
+      function npcRespawn(n) {
+        const sp = n.base ? roomLocalToWorld(n.base, 0, 0.6) : { x: n.start[0], z: n.start[1] };
+        n.x = sp.x; n.z = sp.z;
+        n.group.position.set(n.x, 0, n.z);
+        n.dead = false;
+        n.hp = NPC_HP;
+        n.invuln = 2;
+        n.group.visible = true;
+        n.mode = n.base ? 'rest' : 'findBase';
+        n.timer = 4;
+        n.buildWhat = null;
+        n.trips = 0;
+        if (npcNear(n)) showToast(`${n.name.toUpperCase()} KEMBALI DI BASECAMP-NYA`, '#facc15');
+      }
+
+      // ---- pilih target ----
       function npcPickBase(n) {
         let best = null, bd = 1e9;
         stores.forEach(st => {
@@ -6155,8 +6339,7 @@
           if (st.isOpen || st.npcTarget || !st.lootItems.length) return;
           if (st.outcome !== 'supplies' && st.outcome !== 'materials' && st.outcome !== 'trap') return;
           let d = Math.hypot(st.doorX - n.x, st.doorZ - n.z);
-          if (st.lootItems.some(id => ITEM_DEFS[id].cat === 'part' && !(n.parts[id] > 0))) d -= 150;
-          if (!n.online && st.outcome === 'materials') d += 60;
+          if (st.lootItems.some(id => npcWants(n, id, n.parts, n.mats))) d -= 150;
           if (d < bd) { bd = d; best = st; }
         });
         return best;
@@ -6164,10 +6347,99 @@
       const npcInsidePoint = st => ({ x: st.doorX - st.normalX * 1.5, z: st.doorZ - st.normalZ * 1.5 });
       const npcOutsidePoint = st => ({ x: st.doorX + st.normalX * 1.6, z: st.doorZ + st.normalZ * 1.6 });
 
+      function npcTrapHit(n, st) {
+        if (Math.random() >= 0.55) return;
+        const kind = st.trapKind || 'plate';
+        if (npcNear(n)) showToast(`${n.name.toUpperCase()} TERKENA JEBAKAN ${kind === 'plate' ? 'PAKU' : kind.toUpperCase()}!`, '#ff9100');
+        if (kind === 'collapse' && !n.dead) {
+          const op = npcOutsidePoint(st);
+          n.x = op.x; n.z = op.z;
+          n.group.position.set(n.x, 0, n.z);
+          n.path = []; n.goalKey = null;
+        }
+        npcHurt(n, 2, kind);
+      }
+
+      // ---- ancaman monster: melawan bila bersenjata, selain itu lari ke basecamp ----
+      function npcHandleThreat(n, dt) {
+        const m = n.threat;
+        const dx = m.x - n.x, dz = m.z - n.z;
+        const d = Math.hypot(dx, dz);
+        const armed = n.weapon > 0 && n.hp >= 2;
+        if (armed) {
+          if (d > 1.7) monsterStep(n, m.x, m.z, 3.4, dt);
+          else n.group.rotation.y = Math.atan2(dx, dz);
+          if (d < 2.1 && n.attackCd <= 0) {
+            n.attackCd = 0.9;
+            n.weapon--;
+            m.hp -= 1;
+            if (npcNear(n)) audio.play('swing_sfx');
+            if (m.hp <= 0) {
+              const k = monsters.indexOf(m);
+              if (k !== -1) monsters.splice(k, 1);
+              scene.remove(m.group);
+              n.threat = null;
+              if (npcNear(n)) showToast(`${n.name.toUpperCase()} MENGALAHKAN ${m.tp.name.toUpperCase()}!`, '#fb923c');
+            } else {
+              m.isStunned = true;
+              m.stunTimer = Math.max(m.stunTimer, 0.5);
+              monsterStep(m, m.x + (dx / (d || 1)) * 3, m.z + (dz / (d || 1)) * 3, 7, 0.16);
+            }
+          }
+        } else {
+          // lari: ke basecamp bila ada, atau menjauh ke persimpangan terjauh dari monster
+          if (n.base) {
+            const w = roomLocalToWorld(n.base, 0, 0.6);
+            npcGo(n, w.x, w.z, 4.4, dt, 1.2);
+          } else {
+            if (!n.fleeGoal) {
+              const cands = nearestNodes(n.x, n.z, 8).map(o => ({ o, away: Math.hypot(o.n.x - m.x, o.n.z - m.z) })).sort((a, b) => b.away - a.away);
+              n.fleeGoal = cands[0].o.n;
+            }
+            npcGo(n, n.fleeGoal.x, n.fleeGoal.z, 4.4, dt, 1.5);
+          }
+        }
+      }
+
       function updateNpcs(dt, pX, pZ) {
         const SPD = 3.0;
         npcs.forEach(n => {
+          if (n.dead) {
+            n.respawnT -= dt;
+            if (n.respawnT <= 0) npcRespawn(n);
+            return;
+          }
           n.speechCd = Math.max(0, n.speechCd - dt);
+          n.invuln = Math.max(0, n.invuln - dt);
+          n.attackCd = Math.max(0, n.attackCd - dt);
+          n.weaponMesh.visible = n.weapon > 0;
+          n.safe = !!n.base && inBounds(n.base.bounds, n.x, n.z);
+          if (n.safe && n.hp < NPC_HP) {
+            n.regenT += dt;
+            if (n.regenT >= 15) { n.hp++; n.regenT = 0; }
+          }
+
+          // deteksi ancaman monster (dibatasi tiap 0.25 dtk)
+          n.threatT -= dt;
+          if (n.threatT <= 0) {
+            n.threatT = 0.25;
+            let best = null, bd = 12;
+            if (!n.safe) {
+              monsters.forEach(m => {
+                if (m.windup > 0) return;
+                const d = Math.hypot(m.x - n.x, m.z - n.z);
+                if (d < bd && !segmentBlocked(n.x, n.z, m.x, m.z)) { bd = d; best = m; }
+              });
+            }
+            if (best !== n.threat) { n.path = []; n.goalKey = null; n.fleeGoal = null; }
+            n.threat = best;
+          }
+          if (n.threat && !monsters.includes(n.threat)) n.threat = null;
+          if (n.threat) {
+            npcHandleThreat(n, dt);
+            return;
+          }
+
           const before = n.animTimer;
           switch (n.mode) {
             case 'findBase': {
@@ -6213,6 +6485,7 @@
                 n.path = []; n.goalKey = null;
               }
               const st = n.target;
+              if (st.closing) { st.npcTarget = null; n.target = null; break; }
               if (st.isOpen) {
                 const ip = npcInsidePoint(st);
                 if (npcGo(n, ip.x, ip.z, SPD, dt, 1.0)) { n.mode = 'loot'; n.timer = 0.5; }
@@ -6230,13 +6503,17 @@
               n.timer -= dt;
               if (n.timer > 0) break;
               const st = n.target;
+              if (st && st.outcome === 'trap' && !st.npcTrapDone) {
+                st.npcTrapDone = true;
+                npcTrapHit(n, st);
+                if (n.dead) break;
+              }
               const p = st && st.pickups.find(q => !q.taken);
               if (p) { npcCollect(n, p); n.timer = 0.55; break; }
               if (st) st.npcTarget = null;
               n.target = null;
               n.trips++;
-              if ((!n.online && npcHasAllParts(n)) || (n.online && n.trips >= 2) || n.trips >= 6) n.mode = 'return';
-              else n.mode = 'scavenge';
+              n.mode = (npcWouldBuild(n) || n.bag.length >= 6 || n.trips >= 6) ? 'return' : 'scavenge';
               break;
             }
             case 'return': {
@@ -6244,9 +6521,12 @@
               const w = roomLocalToWorld(n.base, 0, 0.6);
               if (npcGo(n, w.x, w.z, SPD, dt, 1.6)) {
                 n.trips = 0;
-                if (!n.online && npcHasAllParts(n)) {
-                  n.mode = 'build'; n.timer = 6;
-                  if (Math.hypot(n.x - pX, n.z - pZ) < 40) npcSpeak(n, 'Semua komponen terkumpul. Merakit komputer…');
+                npcDeposit(n);
+                n.buildWhat = npcNextBuild(n);
+                if (n.buildWhat) {
+                  n.mode = 'build';
+                  n.timer = { comp: 6, table: 4, weapon: 1.5 }[n.buildWhat];
+                  if (Math.hypot(n.x - pX, n.z - pZ) < 40) npcSpeak(n, { comp: 'Semua komponen terkumpul. Merakit komputer…', table: 'Bahannya cukup. Membuat meja crafting…', weapon: 'Membuat senjata papan paku…' }[n.buildWhat]);
                 } else { n.mode = 'rest'; n.timer = 8 + Math.random() * 12; }
               }
               break;
@@ -6255,11 +6535,24 @@
               n.timer -= dt;
               n.group.rotation.y += dt * 0.5;
               if (n.timer <= 0) {
-                PART_IDS.forEach(id => { n.parts[id]--; });
-                addComputerModel(n.base, SLOT_INFO.comp.lx, SLOT_INFO.comp.lz);
-                n.online = true;
-                showToast(`${n.name.toUpperCase()} MEMBANGUN KOMPUTER! PASAR DIBUKA`, '#00e5ff', true);
-                n.mode = 'rest'; n.timer = 10;
+                if (n.buildWhat === 'comp') {
+                  PART_IDS.forEach(id => { n.parts[id]--; });
+                  addComputerModel(n.base, SLOT_INFO.comp.lx, SLOT_INFO.comp.lz);
+                  n.online = true;
+                  showToast(`${n.name.toUpperCase()} MEMBANGUN KOMPUTER! PASAR DIBUKA`, '#00e5ff', true);
+                } else if (n.buildWhat === 'table') {
+                  n.mats.papan -= 3; n.mats.paku -= 2;
+                  addCraftTableModel(n.base, SLOT_INFO.craft.lx, SLOT_INFO.craft.lz);
+                  n.table = true;
+                  if (npcNear(n)) showToast(`${n.name.toUpperCase()} MEMBANGUN MEJA CRAFTING`, '#e6b07a');
+                } else if (n.buildWhat === 'weapon') {
+                  n.mats.papan--; n.mats.paku--;
+                  n.weapon = TUNING.weaponDurability;
+                  if (npcNear(n)) showToast(`${n.name.toUpperCase()} MEMBUAT SENJATA PAPAN PAKU`, '#fb923c');
+                }
+                n.buildWhat = npcNextBuild(n);
+                if (n.buildWhat) n.timer = { comp: 6, table: 4, weapon: 1.5 }[n.buildWhat];
+                else { n.mode = 'rest'; n.timer = 10; }
               }
               break;
             case 'rest':
@@ -6272,7 +6565,7 @@
           if (n.speechCd <= 0 && Math.hypot(pX - n.x, pZ - n.z) < 6) {
             n.speechCd = 45;
             if (n.online) npcSpeak(n, state.hasComputer ? 'Cek pasar komputer ya!' : 'Aku buka lapak! Bangun komputer untuk berdagang denganku.');
-            else npcSpeak(n, n.base ? 'Aku lagi cari komponen komputer…' : 'Hati-hati di sini. Aku cari basecamp.');
+            else npcSpeak(n, n.base ? 'Aku lagi cari bahan dan komponen…' : 'Hati-hati di sini. Aku cari basecamp.');
           }
         });
       }

@@ -10,7 +10,7 @@ const GAME = process.env.GAME_HTML || path.join(__dirname, '..', 'game_code.html
 const THREE = process.env.THREE_JS || path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.min.js');
 const DBG_FILE = path.join(__dirname, '.game_dbg.html');
 
-const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,npcs,buildSlot,craftWeapon,attackWithWeapon,setPaused,isPaused:()=>paused};\n';
+const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,npcs,buildSlot,craftWeapon,attackWithWeapon,npcHurt,setPaused,isPaused:()=>paused};\n';
 const ANCHOR = '      rafId = requestAnimationFrame(gameLoop);\n    }\n  </script>';
 
 let failures = 0;
@@ -149,6 +149,35 @@ const check = (name, ok, extra = '') => {
     return { bases: d.npcs.filter(n => n.base).length, online: d.npcs.filter(n => n.online).length, sec: Math.round(t) };
   });
   check('NPC punya basecamp & komputer online', npc.bases === 2 && npc.online >= 1, `${npc.sec} dtk`);
+  const npcLife = await page.evaluate(() => {
+    const d = __dbg;
+    const n = d.npcs.find(x => x.base);
+    d.npcHurt(n, 99, 'hunter');
+    const diedHidden = n.dead && !n.group.visible;
+    for (let t = 0; t < 16 && n.dead; t += 0.05) { d.state.hunger = 1; d.state.isInvulnerable = true; d.update(0.05); }
+    const b = n.base.bounds;
+    return { diedHidden, alive: !n.dead && n.hp > 0, inBase: n.x >= b.minX && n.x <= b.maxX && n.z >= b.minZ && n.z <= b.maxZ };
+  });
+  check('NPC bisa mati lalu respawn di basecamp-nya', npcLife.diedHidden && npcLife.alive && npcLife.inBase);
+  await page.evaluate(() => __dbg.resetGame());
+
+  // 5e. ruangan tertutup lagi setelah 20 dtk & isinya berganti jenis
+  const cycle = await page.evaluate(() => {
+    const d = __dbg;
+    d.state.started = true;
+    d.npcs.forEach(n => { n.mode = 'rest'; n.timer = 1e9; });
+    d.playerGroup.position.set(0, 0, 12);
+    const st = d.stores.find(s => s.outcome === 'supplies' && Math.hypot(s.doorX, s.doorZ) > 60);
+    const before = st.outcome;
+    d.openStore(st);
+    const run = sec => { for (let t = 0; t < sec; t += 0.05) { d.state.hunger = 1; d.state.isInvulnerable = true; d.state.invulnTimer = 1e9; d.state.blackoutNext = 1e9; d.update(0.05); } };
+    run(18);
+    const stillOpen = st.isOpen;
+    run(6);
+    return { stillOpen, closed: !st.isOpen && !st.interiorGroup, changed: st.outcome !== before && st.outcome !== 'empty' };
+  });
+  check('ruangan masih terbuka di 18 dtk', cycle.stillOpen);
+  check('ruangan tertutup & berganti jenis setelah 20 dtk', cycle.closed && cycle.changed);
   await page.evaluate(() => __dbg.resetGame());
 
   // 6. jeda membekukan waktu
