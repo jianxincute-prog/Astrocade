@@ -906,6 +906,8 @@
     .inv-slot.cat-part { border-color: rgba(179, 136, 255, 0.95); }
     .tag-mat { background: rgba(205, 133, 63, 0.25); color: #e6b07a; }
     .tag-part { background: rgba(179, 136, 255, 0.25); color: #c9b3ff; }
+    .inv-slot.cat-gear { border-color: rgba(52, 211, 153, 0.9); }
+    .tag-gear { background: rgba(52, 211, 153, 0.25); color: #6ee7b7; }
     #app-container.hc .trade-row { background: #111; border-color: #fff; }
 
     /* ===== Layar judul berhalaman + pengaturan aksesibilitas ===== */
@@ -984,6 +986,7 @@
             <div class="hp-hearts" id="hp-hearts"></div>
             <div class="hud-stat">⏱ <span id="hud-time">00:00</span></div>
             <div class="hud-stat">★ <span id="hud-score">0</span></div>
+            <div class="hud-stat" id="hud-armor-stat" style="display:none">🛡 <span id="hud-armor">0</span></div>
           </div>
           <div class="hunger-row"><span>🍽️</span><div class="hunger-bar"><div class="hunger-fill" id="hunger-fill"></div></div></div>
           <div class="inventory-row" id="hud-inv-row" style="cursor:pointer;">
@@ -1103,6 +1106,23 @@
       </div>
     </div>
 
+    <!-- Meja crafting (resep) -->
+    <div class="inv-overlay" id="craft-overlay">
+      <div class="inv-panel">
+        <div class="inv-header">
+          <div class="inv-title">
+            <span style="font-size: 52px;">🔨</span>
+            <div>
+              <div class="inv-title-main">MEJA CRAFTING</div>
+              <div class="inv-title-sub">Pilih resep • bahan diambil dari tasmu</div>
+            </div>
+          </div>
+          <button class="inv-close" id="craft-close" aria-label="Tutup Meja Crafting">✕</button>
+        </div>
+        <div class="trade-list" id="craft-list"></div>
+      </div>
+    </div>
+
     <div class="inv-overlay" id="inv-overlay">
       <div class="inv-panel">
         <div class="inv-header">
@@ -1215,7 +1235,8 @@
           <div class="tpage">
             <ul class="tutorial-list">
               <li>➕ Di lantai basecamp ada <b>2 slot +</b>: <b>Meja Crafting</b> (3 🪵 papan + 2 📌 paku) dan <b>Komputer</b> (5 komponen langka).</li>
-              <li>⚔️ Meja crafting membuat <b>senjata papan paku</b> (1 papan + 1 paku) untuk melawan monster.</li>
+              <li>🔨 Meja crafting punya <b>resep</b>: ⚔️ senjata papan paku (1 papan + 1 paku), 🪤 jerat monster (2 besi + 2 paku), 🛡️ rompi (3 kain + 1 besi), 🧰 med kit (2 kain + 1 antiseptik).</li>
+              <li>🔩 Besi, 🧵 kain, dan 🧴 antiseptik ada di <b>ruang bahan</b> (rongsokan & perbekalan medis) dan kadang di ruang jebakan.</li>
               <li>💻 Komponen komputer ada di gudang dan <b>ruang jebakan</b>. Dengan komputer, kamu bisa <b>berdagang</b> dengan 2 penyintas lain — mereka juga mencari bekal dan membangun basecamp sendiri.</li>
             </ul>
           </div>
@@ -1741,6 +1762,10 @@
       const attackDurEl = document.getElementById('attack-dur');
       const tradeOverlay = document.getElementById('trade-overlay');
       const tradeList = document.getElementById('trade-list');
+      const craftOverlay = document.getElementById('craft-overlay');
+      const craftList = document.getElementById('craft-list');
+      const hudArmorStat = document.getElementById('hud-armor-stat');
+      const hudArmorEl = document.getElementById('hud-armor');
       const tradeCredits = document.getElementById('trade-credits');
       const tradeSub = document.getElementById('trade-sub');
       const tabBuy = document.getElementById('tab-buy');
@@ -2018,14 +2043,21 @@
         cpu:     { name: 'Prosesor (CPU)', emoji: '🔲', cat: 'part', desc: 'Otak komputer.' },
         ram:     { name: 'Modul RAM', emoji: '🟪', cat: 'part', desc: 'Memori kerja komputer.' },
         layar:   { name: 'Monitor', emoji: '🖥️', cat: 'part', desc: 'Layar tampilan komputer.' },
-        psu:     { name: 'Catu Daya (PSU)', emoji: '🔋', cat: 'part', desc: 'Pemasok listrik komputer.' }
+        psu:     { name: 'Catu Daya (PSU)', emoji: '🔋', cat: 'part', desc: 'Pemasok listrik komputer.' },
+        besi:    { name: 'Besi Tua', emoji: '🔩', cat: 'mat', desc: 'Batang dan pelat besi bekas.' },
+        kain:    { name: 'Kain Bekas', emoji: '🧵', cat: 'mat', desc: 'Gulungan kain tebal.' },
+        antiseptik: { name: 'Cairan Antiseptik', emoji: '🧴', cat: 'mat', desc: 'Botol cairan antiseptik.' },
+        jerat:   { name: 'Jerat Monster', emoji: '🪤', cat: 'gear', desc: 'Pasang di lantai. Monster yang menginjaknya terjebak 5 detik dan terluka.' },
+        medkit:  { name: 'Med Kit', emoji: '🧰', cat: 'med', heal: 2, desc: 'Perlengkapan medis lengkap. Memulihkan 2 nyawa.' }
       };
       // Nilai dasar untuk perdagangan (kredit ¢)
-      Object.entries({ roti: 8, sarden: 10, mi: 9, biskuit: 7, air: 6, soda: 7, jus: 8, kopi: 9, perban: 25, papan: 14, paku: 12, mobo: 90, cpu: 110, ram: 70, layar: 80, psu: 60 })
+      Object.entries({ roti: 8, sarden: 10, mi: 9, biskuit: 7, air: 6, soda: 7, jus: 8, kopi: 9, perban: 25, papan: 14, paku: 12, mobo: 90, cpu: 110, ram: 70, layar: 80, psu: 60, besi: 13, kain: 9, antiseptik: 11, jerat: 40, medkit: 55 })
         .forEach(([k, v]) => { ITEM_DEFS[k].value = v; });
       const PART_IDS = ['mobo', 'cpu', 'ram', 'layar', 'psu'];
       const BUILD_COST = { craft: { papan: 3, paku: 2 }, comp: { mobo: 1, cpu: 1, ram: 1, layar: 1, psu: 1 } };
       const WEAPON_COST = { papan: 1, paku: 1 };
+      const NPC_MATS = ['papan', 'paku'];
+      const ARMOR_MAX = 3, TRAP_MAX = 6, TRAP_STUN = 5, TRAP_DMG = 2;
       const FOOD_IDS = ['roti', 'sarden', 'mi', 'biskuit'];
       const DRINK_IDS = ['air', 'soda', 'jus', 'kopi'];
       const INV_CAPACITY = 15;
@@ -2191,6 +2223,16 @@
         { text: 'BAHAN', font: 'bold 92px sans-serif', y: 105 },
         { text: 'BANGUNAN', font: 'bold 56px sans-serif', y: 190 }
       ]) });
+      MAT.matSignScrap = new THREE.MeshBasicMaterial({ map: createTextTexture('#242a31', '#cbd5e1', '#94a3b8', [
+        { text: 'BESI TUA', font: 'bold 92px sans-serif', y: 105 },
+        { text: 'RONGSOKAN', font: 'bold 56px sans-serif', y: 190 }
+      ]) });
+      MAT.matSignMed = new THREE.MeshBasicMaterial({ map: createTextTexture('#f1f5f9', '#b91c1c', '#b91c1c', [
+        { text: 'PERBEKALAN', font: 'bold 84px sans-serif', y: 105 },
+        { text: 'MEDIS', font: 'bold 80px sans-serif', y: 190 }
+      ]) });
+      MAT.medWhite = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, roughness: 0.5, metalness: 0.1 });
+      MAT.medRed = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
       MAT.laser = new THREE.MeshBasicMaterial({ color: 0xff2040 });
       MAT.gasCloud = new THREE.MeshBasicMaterial({ color: 0x5bff7a, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
       MAT.tileOk = new THREE.MeshStandardMaterial({ color: 0x59606e, roughness: 0.8 });
@@ -2201,7 +2243,7 @@
       MAT.shadow = new THREE.MeshBasicMaterial({ map: radialTexture('0,0,0', 0.55), transparent: true, depthWrite: false });
       const beamGeo = new THREE.CylinderGeometry(0.1, 0.2, 1.3, 10, 1, true);
       const beamMats = {};
-      [['food', 0xffc400], ['drink', 0x00e5ff], ['med', 0xff5252], ['mat', 0xcd853f], ['part', 0xb388ff]].forEach(([k, col]) => {
+      [['food', 0xffc400], ['drink', 0x00e5ff], ['med', 0xff5252], ['mat', 0xcd853f], ['part', 0xb388ff], ['gear', 0x34d399]].forEach(([k, col]) => {
         beamMats[k] = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false });
       });
       function slotTexture(label) {
@@ -2347,6 +2389,16 @@
             box(0.34, 0.22, 0.03, 0x111827, 0, 0.19, 0); box(0.3, 0.18, 0.012, 0x38bdf8, 0, 0.19, 0.02); box(0.05, 0.08, 0.05, 0x374151, 0, 0.04, 0); box(0.16, 0.015, 0.1, 0x374151, 0, 0.008, 0); break;
           case 'psu':
             box(0.26, 0.14, 0.16, 0x374151, 0, 0.07, 0); box(0.12, 0.12, 0.012, 0x9ca3af, 0, 0.07, 0.085); cyl(0.012, 0.012, 0.18, 0xef4444, 0.1, 0.05, 0.1); break;
+          case 'besi':
+            box(0.5, 0.05, 0.07, 0x6b7280, 0, 0.025, 0); box(0.46, 0.05, 0.07, 0x9ca3af, 0.02, 0.075, 0.03); box(0.3, 0.04, 0.2, 0x4b5563, -0.05, 0.12, -0.06); cyl(0.02, 0.02, 0.04, 0xb45309, 0.17, 0.12, 0.05); break;
+          case 'kain':
+            box(0.3, 0.05, 0.22, 0x8b5cf6, 0, 0.025, 0); box(0.28, 0.05, 0.2, 0xa78bfa, 0.01, 0.075, 0.01); box(0.3, 0.05, 0.22, 0x7c3aed, -0.01, 0.125, -0.01); box(0.32, 0.015, 0.05, 0xfacc15, 0, 0.09, 0.1); break;
+          case 'antiseptik':
+            cyl(0.07, 0.075, 0.24, 0x93c5fd, 0, 0.12, 0, { transparent: true, opacity: 0.85 }); cyl(0.04, 0.05, 0.05, 0xf8fafc, 0, 0.265, 0); box(0.1, 0.09, 0.005, 0xef4444, 0, 0.12, 0.076); break;
+          case 'jerat':
+            cyl(0.2, 0.22, 0.04, 0x4b5563, 0, 0.02, 0); for (let k = 0; k < 6; k++) cyl(0.0, 0.025, 0.14, 0xd1d5db, Math.cos(k * 1.047) * 0.13, 0.1, Math.sin(k * 1.047) * 0.13); break;
+          case 'medkit':
+            box(0.34, 0.22, 0.16, 0x16a34a, 0, 0.11, 0); box(0.36, 0.03, 0.17, 0x14532d, 0, 0.235, 0); box(0.14, 0.04, 0.01, 0xf8fafc, 0, 0.12, 0.086); box(0.04, 0.14, 0.01, 0xf8fafc, 0, 0.12, 0.086); box(0.1, 0.03, 0.04, 0x9ca3af, 0, 0.265, 0); break;
           default:
             box(0.25, 0.25, 0.25, 0xffffff, 0, 0.125, 0);
         }
@@ -2460,17 +2512,24 @@
 
         // Isi barang (harus dipungut satu per satu di dalam ruangan)
         let lootItems = [];
+        let matVariant = null;
         if (outcome === 'supplies') {
           lootItems = rollLoot(2 + Math.floor(Math.random() * 3)); // 2-4 barang
           if (Math.random() < 0.07) lootItems[lootItems.length - 1] = pickRandom(PART_IDS); // komponen langka kadang di gudang
         } else if (outcome === 'materials') {
           const n = 4 + Math.floor(Math.random() * 3); // 4-6: papan & paku
-          for (let i = 0; i < n; i++) lootItems.push(Math.random() < 0.55 ? 'papan' : 'paku');
+          const rv = Math.random();
+          matVariant = rv < 0.34 ? 'kayu' : rv < 0.67 ? 'besi' : 'medis';
+          for (let i = 0; i < n; i++) {
+            const r = Math.random();
+            lootItems.push(matVariant === 'kayu' ? (r < 0.55 ? 'papan' : 'paku') : matVariant === 'besi' ? (r < 0.6 ? 'besi' : 'paku') : (r < 0.6 ? 'kain' : 'antiseptik'));
+          }
         } else if (outcome === 'trap' && (trapKind !== 'plate' || Math.random() < 0.85)) {
           lootItems = rollLoot(1 + (Math.random() < 0.4 ? 1 : 0)); // umpan di ujung ruangan jebakan
           if (Math.random() < 0.7) lootItems[0] = pickRandom(PART_IDS); // hadiah berharga: komponen komputer
+          else if (Math.random() < 0.5) lootItems[0] = pickRandom(['besi', 'kain', 'antiseptik', 'paku']); // atau bahan crafting
         }
-        return { outcome, lootItems, trapKind };
+        return { outcome, lootItems, trapKind, matVariant };
       }
 
       // Store Generator Function
@@ -2483,7 +2542,7 @@
         const roomDepth = width; // Bentuk bujur sangkar / persegi (lebar = kedalaman)
         const wallThick = 0.9;   // Ketebalan dinding beton kokoh
 
-        const { outcome, lootItems, trapKind } = rollStoreContents(doorX, doorZ);
+        const { outcome, lootItems, trapKind, matVariant } = rollStoreContents(doorX, doorZ);
 
         // Store Group in Scene
         const storeGroup = new THREE.Group();
@@ -2654,6 +2713,7 @@
           group: storeGroup,
           outcome,
           lootItems,
+          matVariant,
           trapKind,
           trapRT: null,
           pickups: [],
@@ -2822,28 +2882,6 @@
         }));
       })();
 
-      // Landmark Decor: Center Atrium Fountain (at 0, 0)
-      const fountainGroup = new THREE.Group();
-      fountainGroup.position.set(0, 0, 0);
-      const basinGeo = new THREE.CylinderGeometry(4.2, 4.6, 0.9, 12);
-      const basinMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
-      const basin = new THREE.Mesh(basinGeo, basinMat);
-      basin.position.y = 0.45;
-      fountainGroup.add(basin);
-
-      const dryFloorGeo = new THREE.CylinderGeometry(3.8, 3.8, 0.2, 12);
-      const dryMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
-      const dryFloor = new THREE.Mesh(dryFloorGeo, dryMat);
-      dryFloor.position.y = 0.6;
-      fountainGroup.add(dryFloor);
-
-      const tierGeo = new THREE.CylinderGeometry(1.6, 2.0, 1.6, 8);
-      const tier = new THREE.Mesh(tierGeo, basinMat);
-      tier.position.y = 1.3;
-      fountainGroup.add(tier);
-
-      scene.add(fountainGroup);
-      colliders.push({ minX: -4.5, maxX: 4.5, minZ: -4.5, maxZ: 4.5 });
       const baseColliders = colliders.slice(); // collider permanen (restart mengembalikan ke sini)
 
       // Landmark: Food Court (at X = 68, Z = 0)
@@ -3264,6 +3302,17 @@
       torchCone.frustumCulled = false;
       rightArmPivot.add(torchCone);
 
+      // Rompi pelindung (terlihat saat armor > 0)
+      const armorGroup = new THREE.Group();
+      {
+        const vm = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.35, metalness: 0.7 });
+        const vg = new THREE.BoxGeometry(1, 1, 1);
+        [[0.4, 0.34, 0.07, 0, 1.24, 0.15], [0.36, 0.3, 0.07, 0, 1.24, -0.28], [0.17, 0.08, 0.2, -0.25, 1.45, 0], [0.17, 0.08, 0.2, 0.25, 1.45, 0]].forEach(([w, h, d, x, y, z]) => {
+          const m = new THREE.Mesh(vg, vm); m.scale.set(w, h, d); m.position.set(x, y, z); armorGroup.add(m);
+        });
+        armorGroup.visible = false;
+        playerGroup.add(armorGroup);
+      }
       scene.add(playerGroup);
 
       // --- MONSTER CREATURES (~2.2m tall, blocky shadowy predators) ---
@@ -3455,7 +3504,7 @@
       // --- NAVIGASI MONSTER: graf persimpangan lorong + garis pandang terhadap collider ---
       const NODES = [];
       LANES.forEach((lx, i) => LANES.forEach((lz, j) => {
-        NODES.push({ id: NODES.length, i, j, x: lx, z: lz, blocked: lx === 0 && lz === 0 }); // (0,0) = air mancur
+        NODES.push({ id: NODES.length, i, j, x: lx, z: lz, blocked: false });
       }));
       const NODE_DIST = NODES.map(() => new Array(NODES.length).fill(1e9));
       const NODE_PREV = NODES.map(() => new Array(NODES.length).fill(-1));
@@ -3623,8 +3672,8 @@
 
           if (m.isStunned) {
             m.stunTimer -= dt;
-            m.group.rotation.y += dt * 4; // Flinch/spin in place
-            if (m.stunTimer <= 0) m.isStunned = false;
+            if (!m.trapped) m.group.rotation.y += dt * 4; // Flinch/spin in place
+            if (m.stunTimer <= 0) { m.isStunned = false; m.trapped = false; }
             continue;
           }
           if (m.windup > 0) { // meraung sebelum mengejar
@@ -3797,6 +3846,8 @@
         currentAction: null, // 'OPEN', 'PICKUP', 'CLAIM', 'STORE'
         started: false,
         credits: 30,
+        armor: 0,
+        playerTraps: [],
         weaponDur: 0,
         swingT: 0,
         attackCd: 0,
@@ -4395,17 +4446,43 @@
       // Ruang Bahan Bangunan: rak gudang berisi papan & paku + tumpukan papan dan keg paku
       function buildMaterialsRoom(store, g) {
         buildSupplyRoom(store, g);
-        const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), MAT.matSign);
+        const v = store.matVariant || 'kayu';
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), v === 'besi' ? MAT.matSignScrap : v === 'medis' ? MAT.matSignMed : MAT.matSign);
         sign.position.set(-2.4, 3.4, -4.06);
         g.add(sign);
-        for (let i = 0; i < 5; i++) addBox(g, 1.5, 0.08, 0.22, MAT.pallet, -1.0, 0.1 + i * 0.09, 2.3 + (i % 2) * 0.04, 0, 0.06 * (i % 3 - 1), 0);
-        addBox(g, 1.5, 0.06, 0.8, MAT.woodDark, -1.0, 0.05, 2.3);
-        addRoomCollider(store, -1.8, 1.8, -0.2, 2.8);
-        [[1.2, 2.3], [1.7, 2.6], [1.45, 2.0]].forEach(([x, z]) => {
-          const keg = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.4, 10), MAT.shelfMetal);
-          keg.position.set(x, 0.2, z);
-          g.add(keg);
-        });
+        if (v === 'kayu') {
+          for (let i = 0; i < 5; i++) addBox(g, 1.5, 0.08, 0.22, MAT.pallet, -1.0, 0.1 + i * 0.09, 2.3 + (i % 2) * 0.04, 0, 0.06 * (i % 3 - 1), 0);
+          addBox(g, 1.5, 0.06, 0.8, MAT.woodDark, -1.0, 0.05, 2.3);
+          addRoomCollider(store, -1.8, 1.8, -0.2, 2.8);
+          [[1.2, 2.3], [1.7, 2.6], [1.45, 2.0]].forEach(([x, z]) => {
+            const keg = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.4, 10), MAT.shelfMetal);
+            keg.position.set(x, 0.2, z);
+            g.add(keg);
+          });
+        } else if (v === 'besi') {
+          // tumpukan batang besi, pelat baja, dan drum karat
+          for (let i = 0; i < 4; i++) addBox(g, 1.7, 0.12, 0.16, MAT.shelfMetal, -1.0, 0.1 + i * 0.13, 2.1 + (i % 2) * 0.12, 0, 0.05 * (i % 3 - 1), 0);
+          addBox(g, 1.5, 0.05, 0.8, MAT.woodDark, -1.0, 0.03, 2.3);
+          addBox(g, 1.1, 0.05, 0.7, MAT.shelfMetal, -1.0, 0.7, 2.4, 0, 0.3, 0.05);
+          addRoomCollider(store, -1.9, 1.8, -0.1, 2.8);
+          [[1.2, 2.3], [1.75, 2.5], [1.5, 1.9]].forEach(([x, z], i) => {
+            const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.7, 12), i === 1 ? MAT.woodDark : MAT.shelfMetal);
+            drum.position.set(x, 0.35, z);
+            g.add(drum);
+          });
+          addRoomCollider(store, 0.85, 1.55, 2.1, 2.85);
+        } else {
+          // lemari obat, ranjang lipat, dan kotak medis
+          addBox(g, 1.1, 1.7, 0.5, MAT.medWhite, -1.3, 0.85, 2.7);
+          addBox(g, 0.5, 0.12, 0.02, MAT.medRed, -1.3, 1.25, 2.44);
+          addBox(g, 0.12, 0.5, 0.02, MAT.medRed, -1.3, 1.25, 2.44);
+          addBox(g, 1.7, 0.1, 0.75, MAT.medWhite, 1.4, 0.5, 2.3);
+          [[0.7, 1.95], [2.1, 1.95], [0.7, 2.65], [2.1, 2.65]].forEach(([x, z]) => addBox(g, 0.06, 0.5, 0.06, MAT.shelfMetal, x, 0.25, z));
+          addBox(g, 0.4, 0.2, 0.3, MAT.medWhite, 1.9, 0.65, 2.3);
+          addBox(g, 0.14, 0.04, 0.02, MAT.medRed, 1.9, 0.66, 2.46);
+          addRoomCollider(store, -1.9, 2.4, -0.7, 3.0);
+          addRoomCollider(store, 0.5, 1.9, 2.3, 2.7);
+        }
       }
 
       function initializeStoreInterior(store) {
@@ -4516,7 +4593,7 @@
         audio.play('shutter_open_sfx');
 
         if (store.outcome === 'materials') {
-          showToast(`BAHAN BANGUNAN: ${store.lootItems.length} BARANG (PAPAN & PAKU)`, '#e6b07a');
+          showToast(`${{ kayu: 'BAHAN BANGUNAN (PAPAN & PAKU)', besi: 'RONGSOKAN (BESI TUA & PAKU)', medis: 'PERBEKALAN MEDIS (KAIN & ANTISEPTIK)' }[store.matVariant || 'kayu']}: ${store.lootItems.length} BARANG`, '#e6b07a');
         } else if (store.outcome === 'supplies') {
           showToast(`GUDANG: ${store.lootItems.length} BARANG! AMBIL SATU PER SATU`, '#ffd600');
         } else if (store.outcome === 'empty') {
@@ -4637,6 +4714,19 @@
 
       function applyDamage(n = 1, cause = null, force = false) {
         if ((state.isInvulnerable && !force) || state.isGameOver) return;
+        if (!force && state.armor > 0) {
+          const absorbed = Math.min(state.armor, n);
+          state.armor -= absorbed;
+          n -= absorbed;
+          audio.play('hit_sfx');
+          showToast(state.armor > 0 ? `ROMPI MENAHAN SERANGAN (${state.armor} TERSISA)` : 'ROMPI HANCUR!', '#38bdf8', true);
+          if (n <= 0) {
+            state.isInvulnerable = true;
+            state.invulnTimer = 1.2;
+            updateHUD();
+            return;
+          }
+        }
         state.health = Math.max(0, state.health - n);
         state.deathCause = cause;
         state.isInvulnerable = true;
@@ -4883,7 +4973,7 @@
       function resetStoreState(st, rolled) {
         Object.assign(st, {
           shutterFreed: false,
-          outcome: rolled.outcome, lootItems: rolled.lootItems, trapKind: rolled.trapKind, trapRT: null, pickups: [],
+          outcome: rolled.outcome, lootItems: rolled.lootItems, matVariant: rolled.matVariant, trapKind: rolled.trapKind, trapRT: null, pickups: [],
           isOpen: false, isClaimed: false, isTrapDisarmed: false, doorAnimProgress: 0,
           interiorInitialized: false, interiorGroup: null, trapPlateMesh: null, interiorLight: null,
           baseLightIntensity: 1.8, sparkMesh: null, spikesGroup: null, spikeTriggered: false, spikeAnim: 0,
@@ -4912,6 +5002,7 @@
         monsterGlow.intensity = 0;
         lightPool.forEach(l => { l.intensity = 0; });
 
+        clearPlayerTraps();
         Object.assign(state, makeState());
         clearToasts();
         camShake = 0;
@@ -4945,6 +5036,10 @@
             hearts[i].classList.add('lost');
           }
         }
+
+        hudArmorStat.style.display = state.armor > 0 ? '' : 'none';
+        hudArmorEl.textContent = state.armor;
+        armorGroup.visible = state.armor > 0;
 
         // Inventory
         const carry = state.inventory.length;
@@ -5078,7 +5173,7 @@
         } else if (state.currentAction === 'BUILD' && state.currentBasecamp) {
           buildSlot(state.currentBasecamp, state.actionSlot);
         } else if (state.currentAction === 'CRAFT') {
-          craftWeapon();
+          openCraft();
         } else if (state.currentAction === 'TRADE') {
           openTrade();
         }
@@ -5137,10 +5232,10 @@
         const sel = state.inventory[state.selectedSlot];
         if (sel) {
           const def = ITEM_DEFS[sel];
-          const catLabel = { food: 'MAKANAN', drink: 'MINUMAN', med: 'MEDIS', mat: 'BAHAN', part: 'KOMPONEN' }[def.cat];
-          invDetailEl.innerHTML = `<div class="inv-detail-emoji">${def.emoji}</div><div><div class="inv-detail-name">${def.name} <span class="inv-tag tag-${def.cat}">${catLabel}</span></div><div class="inv-detail-desc">${def.desc}${(def.cat === 'food' || def.cat === 'drink') ? ' Simpan di basecamp untuk target, atau konsumsi untuk memulihkan energi.' : ''}${def.cat === 'mat' ? ' Dipakai membangun meja crafting dan membuat senjata. Bisa dijual.' : ''}${def.cat === 'part' ? ' Komponen langka untuk membangun komputer. Bisa dijual.' : ''}</div></div>`;
+          const catLabel = { food: 'MAKANAN', drink: 'MINUMAN', med: 'MEDIS', mat: 'BAHAN', part: 'KOMPONEN', gear: 'PERALATAN' }[def.cat];
+          invDetailEl.innerHTML = `<div class="inv-detail-emoji">${def.emoji}</div><div><div class="inv-detail-name">${def.name} <span class="inv-tag tag-${def.cat}">${catLabel}</span></div><div class="inv-detail-desc">${def.desc}${(def.cat === 'food' || def.cat === 'drink') ? ' Simpan di basecamp untuk target, atau konsumsi untuk memulihkan energi.' : ''}${def.cat === 'mat' ? ' Bahan crafting di meja basecamp. Bisa dijual.' : ''}${def.cat === 'gear' ? ' Pilih PASANG untuk menaruhnya di depanmu. Bisa dijual.' : ''}${def.cat === 'part' ? ' Komponen langka untuk membangun komputer. Bisa dijual.' : ''}</div></div>`;
           invUseBtn.style.display = (def.cat === 'mat' || def.cat === 'part') ? 'none' : 'flex';
-          invUseBtn.textContent = { med: 'PAKAI', food: 'MAKAN', drink: 'MINUM' }[def.cat] || '';
+          invUseBtn.textContent = { med: 'PAKAI', food: 'MAKAN', drink: 'MINUM', gear: 'PASANG' }[def.cat] || '';
         } else {
           invDetailEl.innerHTML = `<div class="inv-detail-emoji">🎒</div><div><div class="inv-detail-name">Tas Ransel</div><div class="inv-detail-desc">Ketuk slot untuk melihat detail barang. Makanan & minuman dipindahkan saat SIMPAN di basecamp.</div></div>`;
           invUseBtn.style.display = 'none';
@@ -5164,16 +5259,27 @@
           renderInventory();
           return;
         }
+        if (ITEM_DEFS[id].cat === 'gear') {
+          if (!placeTrap()) return;
+          state.inventory.splice(state.selectedSlot, 1);
+          state.selectedSlot = -1;
+          audio.play('supply_pickup_sfx');
+          showToast('JERAT DIPASANG DI DEPANMU', '#34d399', true);
+          updateHUD();
+          renderInventory();
+          return;
+        }
         if (ITEM_DEFS[id].cat === 'med') {
           if (state.health >= config.player.health) {
             showToast('NYAWA SUDAH PENUH!', '#94a3b8');
             return;
           }
-          state.health++;
+          const heal = ITEM_DEFS[id].heal || 1;
+          state.health = Math.min(config.player.health, state.health + heal);
           state.inventory.splice(state.selectedSlot, 1);
           state.selectedSlot = -1;
           audio.play('supply_pickup_sfx');
-          showToast('+1 NYAWA DIPULIHKAN 🩹', '#00e676');
+          showToast(`+${heal} NYAWA DIPULIHKAN 🩹`, '#00e676');
           updateHUD();
           renderInventory();
         }
@@ -5412,11 +5518,6 @@
           minimapCtx.stroke();
         });
 
-        // Center fountain icon
-        minimapCtx.fillStyle = '#0284c7';
-        minimapCtx.beginPath();
-        minimapCtx.arc(originX, originY, 3, 0, Math.PI * 2);
-        minimapCtx.fill();
 
         // Opened stores & Basecamps (Ruang jebakan tersamar seperti toko biasa di minimap)
         stores.forEach(s => {
@@ -5867,7 +5968,7 @@
             btnAction.classList.add('store-mode');
           } else if (foundAction === 'CRAFT') {
             actionLabel.textContent = 'BUAT';
-            actionSub.textContent = '⚔️ PAKU';
+            actionSub.textContent = '🔨 RESEP';
             btnAction.classList.add('store-mode');
           } else if (foundAction === 'TRADE') {
             actionLabel.textContent = 'DAGANG';
@@ -5911,6 +6012,7 @@
         // --- MONSTER AI & ATTACK LOGIC ---
         if (mode === 'play' && state.started && !state.isGameOver) {
           updateMonsters(dt, pX, pZ);
+          updatePlayerTraps();
           updateTraps(dt, pX, pZ);
           updateNpcs(dt, pX, pZ);
           heartCd -= dt;
@@ -6091,6 +6193,121 @@
         updateHUD();
       }
 
+      // ================= RESEP MEJA CRAFTING =================
+      const RECIPES = [
+        { id: 'weapon', emoji: '⚔️', name: 'Senjata Papan Paku', cost: WEAPON_COST,
+          desc: () => `+${TUNING.weaponDurability} durabilitas • kini ${state.weaponDur}/${TUNING.weaponMax}`,
+          blocked: () => state.weaponDur >= TUNING.weaponMax ? 'SENJATA SUDAH PENUH' : null,
+          make: () => { state.weaponDur = Math.min(TUNING.weaponMax, state.weaponDur + TUNING.weaponDurability); return `SENJATA SIAP! DURABILITAS ${state.weaponDur} • TOMBOL ⚔️ / SPASI`; } },
+        { id: 'trap', emoji: '🪤', name: 'Jerat Monster', cost: { besi: 2, paku: 2 },
+          desc: () => 'Pasang di lantai: monster terjebak 5 dtk & terluka',
+          blocked: () => null,
+          make: () => { state.inventory.push('jerat'); return 'JERAT MONSTER MASUK TAS. PASANG DARI TAS'; } },
+        { id: 'armor', emoji: '🛡️', name: 'Rompi Pelindung', cost: { kain: 3, besi: 1 },
+          desc: () => `Menahan ${ARMOR_MAX} serangan • kini ${state.armor}/${ARMOR_MAX}`,
+          blocked: () => state.armor >= ARMOR_MAX ? 'ROMPI SUDAH PENUH' : null,
+          make: () => { state.armor = ARMOR_MAX; return `ROMPI TERPASANG! MENAHAN ${ARMOR_MAX} SERANGAN`; } },
+        { id: 'medkit', emoji: '🧰', name: 'Med Kit', cost: { kain: 2, antiseptik: 1 },
+          desc: () => 'Memulihkan 2 nyawa sekali pakai',
+          blocked: () => null,
+          make: () => { state.inventory.push('medkit'); return 'MED KIT MASUK TAS'; } }
+      ];
+      function costLine(cost) {
+        return Object.keys(cost).map(id => `${ITEM_DEFS[id].emoji} ${ITEM_DEFS[id].name} ${Math.min(bagCount(id), cost[id])}/${cost[id]}`).join(' • ');
+      }
+      function openCraft() {
+        if (state.isGameOver || state.tradeOpen) return;
+        state.tradeOpen = true;
+        state.inventoryOpen = true;
+        inputs.moveX = 0;
+        inputs.moveZ = 0;
+        craftOverlay.classList.add('active');
+        renderCraft();
+      }
+      function renderCraft() {
+        craftList.innerHTML = '';
+        RECIPES.forEach(r => {
+          const row = document.createElement('div');
+          row.className = 'trade-row';
+          row.innerHTML = `<span class="emoji">${r.emoji}</span><div class="info"><div>${r.name}</div><div class="who">${r.desc()}</div><div class="who">${costLine(r.cost)}</div></div>`;
+          const btn = document.createElement('button');
+          btn.textContent = 'BUAT';
+          btn.disabled = !hasCost(r.cost) || !!r.blocked();
+          btn.addEventListener('click', (e) => { e.stopPropagation(); craftRecipe(r.id); });
+          row.appendChild(btn);
+          craftList.appendChild(row);
+        });
+      }
+      function craftRecipe(id) {
+        const r = RECIPES.find(x => x.id === id);
+        if (!r) return false;
+        const why = r.blocked();
+        if (why) { showToast(why, '#94a3b8'); return false; }
+        if (!hasCost(r.cost)) { showToast(`BUTUH: ${missingText(r.cost)}`, '#ff9100', true); return false; }
+        spendCost(r.cost);
+        const msg = r.make();
+        audio.play('hit_sfx');
+        showToast(msg, '#fb923c', true);
+        updateHUD();
+        if (craftOverlay.classList.contains('active')) renderCraft();
+        return true;
+      }
+      document.getElementById('craft-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
+      craftOverlay.addEventListener('click', (e) => { if (e.target === craftOverlay) closeTrade(); });
+
+      // ================= JERAT MONSTER =================
+      const trapTemplate = (() => {
+        const acc = newAcc();
+        const mats = new THREE.Matrix4();
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.06, 12));
+        disc.position.y = 0.03; disc.updateMatrix(); bakeInto(acc, disc, disc.matrix);
+        for (let k = 0; k < 8; k++) {
+          const sp = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.24, 5));
+          sp.position.set(Math.cos(k * Math.PI / 4) * 0.34, 0.16, Math.sin(k * Math.PI / 4) * 0.34);
+          sp.rotation.set(Math.sin(k * Math.PI / 4) * 0.25, 0, -Math.cos(k * Math.PI / 4) * 0.25);
+          sp.updateMatrix(); bakeInto(acc, sp, sp.matrix);
+        }
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 8));
+        hub.position.y = 0.08; hub.updateMatrix(); bakeInto(acc, hub, hub.matrix);
+        return buildMerged(acc, new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.45, metalness: 0.75, emissive: 0x220a0a }));
+      })();
+      function placeTrap() {
+        if (state.playerTraps.length >= TRAP_MAX) { showToast(`MAKSIMAL ${TRAP_MAX} JERAT AKTIF`, '#ff9100', true); return false; }
+        const x = playerGroup.position.x + Math.sin(playerGroup.rotation.y) * 1.3;
+        const z = playerGroup.position.z + Math.cos(playerGroup.rotation.y) * 1.3;
+        const mesh = trapTemplate.clone();
+        mesh.position.set(x, 0.02, z);
+        scene.add(mesh);
+        state.playerTraps.push({ x, z, mesh });
+        return true;
+      }
+      function clearPlayerTraps() {
+        state.playerTraps.forEach(t => scene.remove(t.mesh));
+        state.playerTraps.length = 0;
+      }
+      function updatePlayerTraps() {
+        const traps = state.playerTraps;
+        for (let t = traps.length - 1; t >= 0; t--) {
+          const tr = traps[t];
+          for (let i = monsters.length - 1; i >= 0; i--) {
+            const m = monsters[i];
+            if (Math.hypot(m.x - tr.x, m.z - tr.z) > 1.25) continue;
+            scene.remove(tr.mesh);
+            traps.splice(t, 1);
+            audio.play('trap_trigger_sfx');
+            m.hp -= TRAP_DMG;
+            if (m.hp <= 0) { killMonster(m, i); }
+            else {
+              m.isStunned = true;
+              m.trapped = true;
+              m.stunTimer = Math.max(m.stunTimer, TRAP_STUN);
+              showToast(`${m.tp.name.toUpperCase()} TERJEBAK JERAT!`, '#34d399', true);
+            }
+            break;
+          }
+        }
+      }
+
       // ================= SENJATA: serangan jarak dekat =================
       function killMonster(m, idx) {
         scene.remove(m.group);
@@ -6140,6 +6357,7 @@
         renderTrade();
       }
       function closeTrade() {
+        craftOverlay.classList.remove('active');
         if (!state.tradeOpen) { tradeOverlay.classList.remove('active'); return; }
         state.tradeOpen = false;
         state.inventoryOpen = false;
@@ -6292,6 +6510,7 @@
         const cat = ITEM_DEFS[id].cat;
         if (cat === 'part') return !n.online && !(parts[id] > 0);
         if (cat === 'mat') {
+          if (!NPC_MATS.includes(id)) return false;
           if (!n.table) return id === 'papan' ? mats.papan < 3 : mats.paku < 2;
           return n.weapon <= 0 && mats[id] < 1;
         }
@@ -6309,7 +6528,7 @@
         n.bag.forEach(id => {
           const cat = ITEM_DEFS[id].cat;
           if (cat === 'part' && !n.online) parts[id] = Math.max(parts[id] || 0, 1);
-          else if (cat === 'mat') mats[id]++;
+          else if (cat === 'mat' && NPC_MATS.includes(id)) mats[id]++;
         });
         if (!n.online && PART_IDS.every(p => parts[p] > 0)) return true;
         if (!n.table && mats.papan >= 3 && mats.paku >= 2) return true;
@@ -6319,7 +6538,7 @@
         n.bag.forEach(id => {
           const cat = ITEM_DEFS[id].cat;
           if (cat === 'part' && !n.online && !(n.parts[id] > 0)) n.parts[id] = 1;
-          else if (cat === 'mat') n.mats[id]++;
+          else if (cat === 'mat' && NPC_MATS.includes(id)) n.mats[id]++;
           else addNpcStock(n, id, 1);
         });
         n.bag.length = 0;
