@@ -10,7 +10,7 @@ const GAME = process.env.GAME_HTML || path.join(__dirname, '..', 'game_code.html
 const THREE = process.env.THREE_JS || path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.min.js');
 const DBG_FILE = path.join(__dirname, '.game_dbg.html');
 
-const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,setPaused,isPaused:()=>paused};\n';
+const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,npcs,buildSlot,craftWeapon,attackWithWeapon,setPaused,isPaused:()=>paused};\n';
 const ANCHOR = '      rafId = requestAnimationFrame(gameLoop);\n    }\n  </script>';
 
 let failures = 0;
@@ -114,6 +114,40 @@ const check = (name, ok, extra = '') => {
   });
   check('hanya 1 basecamp yang bisa diklaim', base1.claimed === 1 && !base1.bClaimed);
   check('makan dari persediaan basecamp', base1.stock === 1 && base1.hunger);
+  await page.evaluate(() => __dbg.resetGame());
+
+  // 5c. crafting, senjata, komputer
+  const craft = await page.evaluate(() => {
+    const d = __dbg;
+    const A = d.stores.filter(x => x.outcome === 'empty' && !x.npcOwner)[0];
+    d.openStore(A); d.claimBasecamp(A);
+    const out = { slots: Object.keys(A.slots || {}).length };
+    d.state.inventory = ['papan', 'papan', 'papan', 'papan', 'paku', 'paku', 'paku'];
+    d.buildSlot(A, 'craft'); out.table = A.slots.craft.built;
+    d.craftWeapon(); out.weapon = d.state.weaponDur;
+    d.state.inventory = ['mobo', 'cpu', 'ram'];
+    d.buildSlot(A, 'comp'); out.compEarly = A.slots.comp.built;
+    d.state.inventory = ['mobo', 'cpu', 'ram', 'layar', 'psu'];
+    d.buildSlot(A, 'comp'); out.comp = A.slots.comp.built && d.state.hasComputer;
+    return out;
+  });
+  check('2 slot basecamp', craft.slots === 2);
+  check('meja crafting + senjata papan paku', craft.table && craft.weapon === 12);
+  check('komputer butuh 5 komponen', !craft.compEarly && craft.comp);
+  await page.evaluate(() => __dbg.resetGame());
+
+  // 5d. NPC mengklaim basecamp dan membangun komputer dalam simulasi
+  const npc = await page.evaluate(() => {
+    const d = __dbg;
+    d.playerGroup.position.set(0, 0, 12);
+    let t = 0;
+    for (; t < 900 && !d.npcs.some(n => n.online); t += 0.05) {
+      d.state.hunger = 1; d.state.isInvulnerable = true; d.state.invulnTimer = 1e9; d.state.blackoutNext = 1e9;
+      d.update(0.05);
+    }
+    return { bases: d.npcs.filter(n => n.base).length, online: d.npcs.filter(n => n.online).length, sec: Math.round(t) };
+  });
+  check('NPC punya basecamp & komputer online', npc.bases === 2 && npc.online >= 1, `${npc.sec} dtk`);
   await page.evaluate(() => __dbg.resetGame());
 
   // 6. jeda membekukan waktu

@@ -884,6 +884,30 @@
     @media (hover: hover) and (pointer: fine) { .desk-hint { display: block; } }
     .desktop-keys-guide { display: none !important; }
 
+    .btn-attack {
+      display: none; position: relative; width: 96px; height: 96px; border-radius: 48px; background: rgba(60, 20, 10, 0.9);
+      border: 2px solid #fb923c; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6); color: #fed7aa; font-family: var(--font-title);
+      font-size: 18px; font-weight: 800; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; touch-action: manipulation;
+    }
+    .btn-attack.show { display: flex; }
+    .btn-attack:active { transform: scale(0.92); }
+    .attack-dur { position: absolute; top: -6px; right: -6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: 16px; background: #fb923c; color: #1c0a00; border: 2px solid #fff; font-family: var(--font-mono); font-size: 18px; display: flex; align-items: center; justify-content: center; }
+
+    .trade-list { margin-top: 12px; max-height: 640px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; touch-action: pan-y; }
+    .trade-row { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 8px 12px; font-size: 22px; font-weight: 700; }
+    .trade-row .emoji { font-size: 38px; }
+    .trade-row .info { flex: 1; }
+    .trade-row .who { font-size: 18px; color: #94a3b8; font-weight: 600; }
+    .trade-row button { min-width: 132px; height: 56px; border-radius: 12px; border: 2px solid #fff; background: linear-gradient(135deg, #00e676, #059669); color: #022312; font-family: var(--font-title); font-size: 20px; font-weight: 900; cursor: pointer; }
+    .trade-row button:disabled { opacity: 0.35; filter: grayscale(1); cursor: default; }
+    .trade-empty { text-align: center; color: #94a3b8; font-size: 20px; padding: 24px 12px; line-height: 1.4; }
+    #toast-banner { max-width: 690px; white-space: normal; line-height: 1.2; }
+    .inv-slot.cat-mat { border-color: rgba(205, 133, 63, 0.9); }
+    .inv-slot.cat-part { border-color: rgba(179, 136, 255, 0.95); }
+    .tag-mat { background: rgba(205, 133, 63, 0.25); color: #e6b07a; }
+    .tag-part { background: rgba(179, 136, 255, 0.25); color: #c9b3ff; }
+    #app-container.hc .trade-row { background: #111; border-color: #fff; }
+
     /* ===== Layar judul berhalaman + pengaturan aksesibilitas ===== */
     .tpages { width: 100%; min-height: 300px; display: flex; }
     .tpage { display: none; flex-direction: column; gap: 14px; width: 100%; }
@@ -1015,6 +1039,13 @@
         <!-- Action Buttons -->
         <div class="action-group">
           <div class="btn-row">
+            <!-- Serang (muncul saat punya senjata) -->
+            <button class="btn-attack" id="btn-attack" aria-label="Serang">
+              <span style="font-size: 26px;">⚔️</span>
+              <span>SERANG</span>
+              <span class="attack-dur" id="attack-dur"></span>
+            </button>
+
             <!-- Sprint Toggle -->
             <button class="btn-sprint" id="btn-sprint" aria-label="Lari">
               <span style="font-size: 26px;">⚡</span>
@@ -1050,6 +1081,28 @@
     </div>
 
     <!-- Win/Loss End Modal -->
+    <!-- Pasar komputer (perdagangan dengan penyintas) -->
+    <div class="inv-overlay" id="trade-overlay">
+      <div class="inv-panel">
+        <div class="inv-header">
+          <div class="inv-title">
+            <span style="font-size: 52px;">💻</span>
+            <div>
+              <div class="inv-title-main">PASAR KOMPUTER</div>
+              <div class="inv-title-sub" id="trade-sub">Belum ada pedagang online</div>
+            </div>
+          </div>
+          <div class="inv-cap" id="trade-credits">¢0</div>
+          <button class="inv-close" id="trade-close" aria-label="Tutup Pasar">✕</button>
+        </div>
+        <div class="chip-row">
+          <button class="chip active" id="tab-buy">BELI</button>
+          <button class="chip" id="tab-sell">JUAL</button>
+        </div>
+        <div class="trade-list" id="trade-list"></div>
+      </div>
+    </div>
+
     <div class="inv-overlay" id="inv-overlay">
       <div class="inv-panel">
         <div class="inv-header">
@@ -1159,6 +1212,13 @@
             <p class="desk-hint">⌨️ WASD/Panah gerak • Shift lari • E aksi • F sorot • I tas • M suara • P jeda • Mouse: putar kamera</p>
           </div>
           <div class="tpage">
+            <ul class="tutorial-list">
+              <li>➕ Di lantai basecamp ada <b>2 slot +</b>: <b>Meja Crafting</b> (3 🪵 papan + 2 📌 paku) dan <b>Komputer</b> (5 komponen langka).</li>
+              <li>⚔️ Meja crafting membuat <b>senjata papan paku</b> (1 papan + 1 paku) untuk melawan monster.</li>
+              <li>💻 Komponen komputer ada di gudang dan <b>ruang jebakan</b>. Dengan komputer, kamu bisa <b>berdagang</b> dengan 2 penyintas lain — mereka juga mencari bekal dan membangun basecamp sendiri.</li>
+            </ul>
+          </div>
+          <div class="tpage">
             <div class="setting-block">
               <div class="setting-label">Ukuran teks</div>
               <div class="chip-row">
@@ -1175,7 +1235,7 @@
             </div>
           </div>
         </div>
-        <div class="tdots" id="title-dots"><span class="dot active"></span><span class="dot"></span><span class="dot"></span></div>
+        <div class="tdots" id="title-dots"><span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
         <div class="tnav">
           <button class="chip" id="title-prev">‹ KEMBALI</button>
           <button class="chip" id="title-next">BERIKUTNYA ›</button>
@@ -1447,6 +1507,34 @@
               osc.stop(t + 0.38);
               break;
             }
+            case 'swing_sfx': {
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              osc.type = 'sawtooth';
+              osc.frequency.setValueAtTime(420, t);
+              osc.frequency.exponentialRampToValueAtTime(120, t + 0.18);
+              g.gain.setValueAtTime(0.1, t);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+              osc.connect(g);
+              g.connect(this.out);
+              osc.start(t);
+              osc.stop(t + 0.22);
+              break;
+            }
+            case 'hit_sfx': {
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              osc.type = 'square';
+              osc.frequency.setValueAtTime(160, t);
+              osc.frequency.exponentialRampToValueAtTime(50, t + 0.14);
+              g.gain.setValueAtTime(0.3, t);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+              osc.connect(g);
+              g.connect(this.out);
+              osc.start(t);
+              osc.stop(t + 0.18);
+              break;
+            }
             case 'shutter_open_sfx': {
               // Metallic ratcheting upward
               for (let i = 0; i < 7; i++) {
@@ -1648,6 +1736,14 @@
       const compassText = document.getElementById('compass-text');
       const pauseOverlay = document.getElementById('pause-overlay');
       const btnPause = document.getElementById('btn-pause');
+      const btnAttack = document.getElementById('btn-attack');
+      const attackDurEl = document.getElementById('attack-dur');
+      const tradeOverlay = document.getElementById('trade-overlay');
+      const tradeList = document.getElementById('trade-list');
+      const tradeCredits = document.getElementById('trade-credits');
+      const tradeSub = document.getElementById('trade-sub');
+      const tabBuy = document.getElementById('tab-buy');
+      const tabSell = document.getElementById('tab-sell');
       const staminaFill = document.getElementById('stamina-fill');
       const appContainer = document.getElementById('app-container');
       
@@ -1706,10 +1802,11 @@
           flashlightCooldown: 8.0
         },
         outcomeWeights: {
-          supplies: 0.32,
-          empty: 0.26,
-          trap: 0.21,
-          monster: 0.21
+          supplies: 0.28,
+          empty: 0.24,
+          trap: 0.19,
+          monster: 0.19,
+          materials: 0.10
         },
         goal: {
           food: 4,
@@ -1729,6 +1826,9 @@
         healSeconds: 15,          // istirahat di basecamp: +1 nyawa tiap N detik
         starveSeconds: 12,        // kelaparan: -1 nyawa tiap N detik
         foodRestore: 0.35,        // pemulihan energi saat makan/minum dari tas
+        weaponDurability: 12,     // durabilitas per pembuatan senjata
+        weaponMax: 24,
+        weaponReach: 2.6,         // jangkauan serangan (m)
         baseMealRestore: 0.5,     // pemulihan energi saat makan/minum dari persediaan basecamp
         hungerWarn: 0.25,         // ambang peringatan lapar
         blackoutFirst: [80, 40],  // [dasar, acak] detik sebelum padam pertama
@@ -1904,8 +2004,21 @@
         soda:    { name: 'Soda Kaleng', emoji: '🥤', cat: 'drink', desc: 'Dua kaleng minuman bersoda.' },
         jus:     { name: 'Jus Kotak', emoji: '🧃', cat: 'drink', desc: 'Jus buah kemasan kotak dengan sedotan.' },
         kopi:    { name: 'Kopi Kaleng', emoji: '☕', cat: 'drink', desc: 'Kopi siap minum, penambah semangat.' },
-        perban:  { name: 'Kotak P3K', emoji: '🩹', cat: 'med', desc: 'Pakai untuk memulihkan 1 nyawa.' }
+        perban:  { name: 'Kotak P3K', emoji: '🩹', cat: 'med', desc: 'Pakai untuk memulihkan 1 nyawa.' },
+        papan:   { name: 'Papan Kayu', emoji: '🪵', cat: 'mat', desc: 'Papan persegi panjang.' },
+        paku:    { name: 'Kumpulan Paku', emoji: '📌', cat: 'mat', desc: 'Sekotak paku berkarat.' },
+        mobo:    { name: 'Motherboard', emoji: '🟩', cat: 'part', desc: 'Papan sirkuit utama komputer.' },
+        cpu:     { name: 'Prosesor (CPU)', emoji: '🔲', cat: 'part', desc: 'Otak komputer.' },
+        ram:     { name: 'Modul RAM', emoji: '🟪', cat: 'part', desc: 'Memori kerja komputer.' },
+        layar:   { name: 'Monitor', emoji: '🖥️', cat: 'part', desc: 'Layar tampilan komputer.' },
+        psu:     { name: 'Catu Daya (PSU)', emoji: '🔋', cat: 'part', desc: 'Pemasok listrik komputer.' }
       };
+      // Nilai dasar untuk perdagangan (kredit ¢)
+      Object.entries({ roti: 8, sarden: 10, mi: 9, biskuit: 7, air: 6, soda: 7, jus: 8, kopi: 9, perban: 25, papan: 14, paku: 12, mobo: 90, cpu: 110, ram: 70, layar: 80, psu: 60 })
+        .forEach(([k, v]) => { ITEM_DEFS[k].value = v; });
+      const PART_IDS = ['mobo', 'cpu', 'ram', 'layar', 'psu'];
+      const BUILD_COST = { craft: { papan: 3, paku: 2 }, comp: { mobo: 1, cpu: 1, ram: 1, layar: 1, psu: 1 } };
+      const WEAPON_COST = { papan: 1, paku: 1 };
       const FOOD_IDS = ['roti', 'sarden', 'mi', 'biskuit'];
       const DRINK_IDS = ['air', 'soda', 'jus', 'kopi'];
       const INV_CAPACITY = 15;
@@ -2067,6 +2180,10 @@
         beacon: new THREE.MeshStandardMaterial({ color: 0x00e676, emissive: 0x059669 }),
         ring: new THREE.MeshBasicMaterial({ color: 0x00e676, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false })
       };
+      MAT.matSign = new THREE.MeshBasicMaterial({ map: createTextTexture('#3b2410', '#f5c37b', '#f5c37b', [
+        { text: 'BAHAN', font: 'bold 92px sans-serif', y: 105 },
+        { text: 'BANGUNAN', font: 'bold 56px sans-serif', y: 190 }
+      ]) });
       MAT.laser = new THREE.MeshBasicMaterial({ color: 0xff2040 });
       MAT.gasCloud = new THREE.MeshBasicMaterial({ color: 0x5bff7a, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
       MAT.tileOk = new THREE.MeshStandardMaterial({ color: 0x59606e, roughness: 0.8 });
@@ -2077,9 +2194,32 @@
       MAT.shadow = new THREE.MeshBasicMaterial({ map: radialTexture('0,0,0', 0.55), transparent: true, depthWrite: false });
       const beamGeo = new THREE.CylinderGeometry(0.1, 0.2, 1.3, 10, 1, true);
       const beamMats = {};
-      [['food', 0xffc400], ['drink', 0x00e5ff], ['med', 0xff5252]].forEach(([k, col]) => {
+      [['food', 0xffc400], ['drink', 0x00e5ff], ['med', 0xff5252], ['mat', 0xcd853f], ['part', 0xb388ff]].forEach(([k, col]) => {
         beamMats[k] = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false });
       });
+      function slotTexture(label) {
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 256;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+        ctx.fillRect(8, 8, 240, 240);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 8;
+        ctx.setLineDash([26, 14]);
+        ctx.strokeRect(12, 12, 232, 232);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(108, 62, 40, 110);
+        ctx.fillRect(73, 97, 110, 40);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.fillText(label, 128, 212);
+        return new THREE.CanvasTexture(c);
+      }
+      MAT.slotCraft = new THREE.MeshBasicMaterial({ map: slotTexture('MEJA CRAFTING'), transparent: true, depthWrite: false });
+      MAT.slotComp = new THREE.MeshBasicMaterial({ map: slotTexture('KOMPUTER'), transparent: true, depthWrite: false });
+      MAT.screen = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
       const unitCircleGeo = new THREE.CircleGeometry(1, 16);
       const spikeGeo = new THREE.ConeGeometry(0.08, 0.5, 6);
       const shardGeo = new THREE.CircleGeometry(0.12, 3);
@@ -2185,6 +2325,21 @@
             cyl(0.06, 0.06, 0.16, 0x78350f, 0, 0.08, 0); cyl(0.062, 0.062, 0.05, 0xfef3c7, 0, 0.09, 0); break;
           case 'perban':
             box(0.3, 0.2, 0.14, 0xf8fafc, 0, 0.1, 0); box(0.14, 0.04, 0.01, 0xef4444, 0, 0.1, 0.072); box(0.04, 0.14, 0.01, 0xef4444, 0, 0.1, 0.072); box(0.1, 0.03, 0.04, 0x9ca3af, 0, 0.215, 0); break;
+          case 'papan':
+            box(0.62, 0.04, 0.14, 0xc58b4a, 0, 0.02, 0); box(0.6, 0.04, 0.14, 0xd09a5a, -0.03, 0.06, 0.015); box(0.58, 0.04, 0.13, 0xb77a3b, 0.02, 0.1, -0.01); break;
+          case 'paku':
+            box(0.2, 0.09, 0.14, 0x94a3b8, 0, 0.045, 0);
+            [[-0.06, -0.03], [0.0, 0.03], [0.06, -0.02], [-0.03, 0.04]].forEach(([x, z]) => { cyl(0.008, 0.008, 0.2, 0xcbd5e1, x, 0.19, z); cyl(0.02, 0.02, 0.012, 0xcbd5e1, x, 0.295, z); }); break;
+          case 'mobo':
+            box(0.34, 0.025, 0.3, 0x16a34a, 0, 0.02, 0); box(0.1, 0.03, 0.1, 0x111827, 0.05, 0.05, 0.02); box(0.14, 0.02, 0.04, 0xfacc15, -0.08, 0.045, -0.08); box(0.03, 0.05, 0.2, 0xe5e7eb, -0.15, 0.05, 0); break;
+          case 'cpu':
+            box(0.16, 0.012, 0.16, 0xfbbf24, 0, 0.006, 0); box(0.16, 0.03, 0.16, 0x9ca3af, 0, 0.027, 0); box(0.1, 0.012, 0.1, 0xe5e7eb, 0, 0.048, 0); break;
+          case 'ram':
+            box(0.3, 0.05, 0.02, 0x7c3aed, 0, 0.045, 0); [-0.09, -0.03, 0.03, 0.09].forEach(x => box(0.04, 0.03, 0.025, 0x111827, x, 0.05, 0)); box(0.3, 0.012, 0.02, 0xfbbf24, 0, 0.012, 0); break;
+          case 'layar':
+            box(0.34, 0.22, 0.03, 0x111827, 0, 0.19, 0); box(0.3, 0.18, 0.012, 0x38bdf8, 0, 0.19, 0.02); box(0.05, 0.08, 0.05, 0x374151, 0, 0.04, 0); box(0.16, 0.015, 0.1, 0x374151, 0, 0.008, 0); break;
+          case 'psu':
+            box(0.26, 0.14, 0.16, 0x374151, 0, 0.07, 0); box(0.12, 0.12, 0.012, 0x9ca3af, 0, 0.07, 0.085); cyl(0.012, 0.012, 0.18, 0xef4444, 0.1, 0.05, 0.1); break;
           default:
             box(0.25, 0.25, 0.25, 0xffffff, 0, 0.125, 0);
         }
@@ -2276,15 +2431,18 @@
         const r = Math.random();
         let outcome = 'supplies';
         const w = config.outcomeWeights;
-        const totalW = w.supplies + w.empty + w.trap + w.monster;
+        const wMat = w.materials ?? 0.1;
+        const totalW = w.supplies + w.empty + w.trap + w.monster + wMat;
         const pSupplies = w.supplies / totalW;
         const pEmpty = pSupplies + (w.empty / totalW);
         const pTrap = pEmpty + (w.trap / totalW);
+        const pMonster = pTrap + (w.monster / totalW);
 
         if (r < pSupplies) outcome = 'supplies';
         else if (r < pEmpty) outcome = 'empty';
         else if (r < pTrap) outcome = 'trap';
-        else outcome = 'monster';
+        else if (r < pMonster) outcome = 'monster';
+        else outcome = 'materials';
 
         // Guarantees: At least one empty shop within 40m of origin (0, 0)
         const distFromCenter = Math.hypot(doorX, doorZ);
@@ -2302,8 +2460,13 @@
         let lootItems = [];
         if (outcome === 'supplies') {
           lootItems = rollLoot(2 + Math.floor(Math.random() * 3)); // 2-4 barang
-        } else if (outcome === 'trap' && (trapKind !== 'plate' || Math.random() < 0.7)) {
+          if (Math.random() < 0.07) lootItems[lootItems.length - 1] = pickRandom(PART_IDS); // komponen langka kadang di gudang
+        } else if (outcome === 'materials') {
+          const n = 4 + Math.floor(Math.random() * 3); // 4-6: papan & paku
+          for (let i = 0; i < n; i++) lootItems.push(Math.random() < 0.55 ? 'papan' : 'paku');
+        } else if (outcome === 'trap' && (trapKind !== 'plate' || Math.random() < 0.85)) {
           lootItems = rollLoot(1 + (Math.random() < 0.4 ? 1 : 0)); // umpan di ujung ruangan jebakan
+          if (Math.random() < 0.7) lootItems[0] = pickRandom(PART_IDS); // hadiah berharga: komponen komputer
         }
         return { outcome, lootItems, trapKind };
       }
@@ -2509,7 +2672,10 @@
           claimRing: null,
           stashCount: 0,
           stashItems: [],
-          warnedSingle: false
+          warnedSingle: false,
+          slots: null,
+          npcOwner: null,
+          npcTarget: null
         };
 
         stores.push(storeObj);
@@ -2846,6 +3012,7 @@
           if (dustPos[j + 1] > 4.2) dustPos[j + 1] -= 4.2; else if (dustPos[j + 1] < 0) dustPos[j + 1] += 4.2;
         }
         dustGeo.attributes.position.needsUpdate = true;
+        MAT.screen.color.setHSL(0.55, 0.8, 0.5 + 0.1 * Math.sin(animTime * 3));
         // kerucut cahaya senter
         torchCone.material.opacity = 0.032 * (torchLight.intensity / 2.5) * (1 + (1 - level) * 1.5);
       }
@@ -3003,6 +3170,26 @@
       leftArmPivot.add(leftArmMesh);
       playerGroup.add(leftArmPivot);
 
+      // Senjata papan paku (terlihat saat punya durabilitas)
+      const weaponMesh = new THREE.Group();
+      const wBoard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.62, 0.035), new THREE.MeshStandardMaterial({ color: 0xb77a3b, roughness: 0.9 }));
+      wBoard.position.set(0, -0.2, 0);
+      weaponMesh.add(wBoard);
+      const nailGeo = new THREE.ConeGeometry(0.014, 0.08, 5);
+      const nailMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.3 });
+      for (let j = 0; j < 4; j++) {
+        [-0.03, 0.03].forEach(nx => {
+          const nail = new THREE.Mesh(nailGeo, nailMat);
+          nail.rotation.x = Math.PI / 2;
+          nail.position.set(nx, -0.04 - j * 0.13, 0.055);
+          weaponMesh.add(nail);
+        });
+      }
+      weaponMesh.position.set(0, -0.8, 0.09);
+      weaponMesh.rotation.x = -1.2;
+      weaponMesh.visible = false;
+      leftArmPivot.add(weaponMesh);
+
       const rightArmPivot = new THREE.Group();
       rightArmPivot.position.set(0.24, 1.40, 0);
       const rightArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.80, 0.12), jacketMat);
@@ -3042,9 +3229,9 @@
 
       // Tipe monster: pemburu (standar), brute (lambat, besar, 2 damage, tahan senter), penyelinap (cepat, rapuh, mudah terkena senter)
       const MTYPES = {
-        hunter:  { name: 'Pemburu',    speed: 1,    detect: 1,    scale: 1,    dmg: 1, stun: 1,   reach: 1.5, body: 0x0f172a, eye: 0xff1744, w: 0.55 },
-        brute:   { name: 'Brute',      speed: 0.78, detect: 0.9,  scale: 1.35, dmg: 2, stun: 0.6, reach: 1.9, body: 0x3b1010, eye: 0xff6d00, w: 0.25 },
-        stalker: { name: 'Penyelinap', speed: 1.25, detect: 0.75, scale: 0.92, dmg: 1, stun: 1.4, reach: 1.5, body: 0x12202c, eye: 0x00e5ff, w: 0.20 }
+        hunter:  { name: 'Pemburu',    hp: 3, speed: 1,    detect: 1,    scale: 1,    dmg: 1, stun: 1,   reach: 1.5, body: 0x0f172a, eye: 0xff1744, w: 0.55 },
+        brute:   { name: 'Brute',      hp: 5, speed: 0.78, detect: 0.9,  scale: 1.35, dmg: 2, stun: 0.6, reach: 1.9, body: 0x3b1010, eye: 0xff6d00, w: 0.25 },
+        stalker: { name: 'Penyelinap', hp: 2, speed: 1.25, detect: 0.75, scale: 0.92, dmg: 1, stun: 1.4, reach: 1.5, body: 0x12202c, eye: 0x00e5ff, w: 0.20 }
       };
       MTYPES.hunter.mat = monsterMat; MTYPES.hunter.eyeMat = eyeMat;
       ['brute', 'stalker'].forEach(k => {
@@ -3272,8 +3459,9 @@
         while (diff > Math.PI) diff -= Math.PI * 2;
         m.group.rotation.y += diff * Math.min(1, dt * 10);
         m.animTimer += moved * 2.6;
-        m.legL.position.z = Math.sin(m.animTimer) * 0.3;
-        m.legR.position.z = -Math.sin(m.animTimer) * 0.3;
+        const amp = m.legAmp ?? 0.3;
+        m.legL.position.z = Math.sin(m.animTimer) * amp;
+        m.legR.position.z = -Math.sin(m.animTimer) * amp;
         return moved;
       }
 
@@ -3415,6 +3603,7 @@
         m.isStunned = false;
         m.stunTimer = 0;
         m.windup = TUNING.windupSeconds;
+        m.hp = m.tp.hp;
         m.mode = 'chase';
         m.lastX = playerGroup.position.x;
         m.lastZ = playerGroup.position.z;
@@ -3454,6 +3643,14 @@
         currentBasecamp: null,
         currentAction: null, // 'OPEN', 'PICKUP', 'CLAIM', 'STORE'
         started: false,
+        credits: 30,
+        weaponDur: 0,
+        swingT: 0,
+        attackCd: 0,
+        kills: 0,
+        hasComputer: false,
+        tradeOpen: false,
+        actionSlot: null,
         hunger: 1,
         starveTimer: 0,
         warnedHunger: false,
@@ -3970,9 +4167,10 @@
       }
 
       // Setelah diklaim: ruangan otomatis terisi perlengkapan basecamp
-      function furnishBasecamp(store) {
+      function furnishBasecamp(store, byNpc = false) {
         const g = store.interiorGroup;
         if (!g) return;
+        if (!byNpc) createBaseSlots(store);
         if (store.rentSign) store.rentSign.visible = false;
 
         addFlat(g, new THREE.PlaneGeometry(3.2, 2.2), MAT.rug, 0, 0.1, 0.4, 1, 1, 0);
@@ -4070,6 +4268,22 @@
         updateHUD();
       }
 
+      // Ruang Bahan Bangunan: rak gudang berisi papan & paku + tumpukan papan dan keg paku
+      function buildMaterialsRoom(store, g) {
+        buildSupplyRoom(store, g);
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), MAT.matSign);
+        sign.position.set(-2.4, 3.4, -4.06);
+        g.add(sign);
+        for (let i = 0; i < 5; i++) addBox(g, 1.5, 0.08, 0.22, MAT.pallet, -1.0, 0.1 + i * 0.09, 2.3 + (i % 2) * 0.04, 0, 0.06 * (i % 3 - 1), 0);
+        addBox(g, 1.5, 0.06, 0.8, MAT.woodDark, -1.0, 0.05, 2.3);
+        addRoomCollider(store, -1.8, 1.8, -0.2, 2.8);
+        [[1.2, 2.3], [1.7, 2.6], [1.45, 2.0]].forEach(([x, z]) => {
+          const keg = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.4, 10), MAT.shelfMetal);
+          keg.position.set(x, 0.2, z);
+          g.add(keg);
+        });
+      }
+
       function initializeStoreInterior(store) {
         if (store.interiorInitialized) return;
         store.interiorInitialized = true;
@@ -4080,13 +4294,14 @@
         scene.add(g);
         store.interiorGroup = g;
 
-        const lightColor = { monster: 0xff2a3a, trap: 0xff9a3c, empty: 0xdde7ff, supplies: 0xffe8c8 }[store.outcome];
+        const lightColor = { monster: 0xff2a3a, trap: 0xff9a3c, empty: 0xdde7ff, supplies: 0xffe8c8, materials: 0xffd9a0 }[store.outcome];
         store.interiorLight = { intensity: 1.8, color: new THREE.Color(lightColor) };
         store.baseLightIntensity = 1.8;
 
         if (store.outcome === 'supplies') buildSupplyRoom(store, g);
         else if (store.outcome === 'trap') buildTrapRoom(store, g);
         else if (store.outcome === 'monster') buildMonsterRoom(store, g);
+        else if (store.outcome === 'materials') buildMaterialsRoom(store, g);
         else buildEmptyRoom(store, g);
 
         mergeInteriorStatics(g);
@@ -4172,18 +4387,21 @@
         initializeStoreInterior(store);
         audio.play('shutter_open_sfx');
 
-        if (store.outcome === 'supplies') {
+        if (store.outcome === 'materials') {
+          showToast(`BAHAN BANGUNAN: ${store.lootItems.length} BARANG (PAPAN & PAKU)`, '#e6b07a');
+        } else if (store.outcome === 'supplies') {
           showToast(`GUDANG: ${store.lootItems.length} BARANG! AMBIL SATU PER SATU`, '#ffd600');
         } else if (store.outcome === 'empty') {
           showToast('TOKO KOSONG! BISA DIKLAIM JADI BASECAMP', '#00e676');
         } else if (store.outcome === 'trap') {
           const trapMsg = {
-            plate: store.lootItems.length ? 'AWAS JEBAKAN! ADA BARANG DI UJUNG RUANGAN' : 'AWAS: JEBAKAN LANTAI TERDETEKSI!',
+            plate: store.lootItems.length ? (PART_IDS.includes(store.lootItems[0]) ? 'AWAS JEBAKAN! ADA KOMPONEN LANGKA DI UJUNG RUANGAN' : 'AWAS JEBAKAN! ADA BARANG DI UJUNG RUANGAN') : 'AWAS: JEBAKAN LANTAI TERDETEKSI!',
             laser: 'JEBAKAN LASER! TUNGGU CELAHNYA',
             gas: 'JEBAKAN GAS! JAUHI PIPA SAAT BERDESIS',
             collapse: 'LANTAI RAPUH! HINDARI UBIN GELAP RETAK'
           };
           showToast(trapMsg[store.trapKind] || trapMsg.plate, '#ff9100');
+          if (store.trapKind !== 'plate' && store.lootItems.length && PART_IDS.includes(store.lootItems[0])) showToast('ADA KOMPONEN LANGKA DI UJUNG RUANGAN!', '#b388ff');
         } else if (store.outcome === 'monster') {
           showToast('BAHAYA: MONSTER MUNCUL DARI TOKO!', '#ff1744');
           audio.play('monster_reveal_sfx');
@@ -4217,6 +4435,10 @@
 
       function claimBasecamp(store) {
         if (!store.isOpen || store.outcome !== 'empty' || store.isClaimed) return;
+        if (store.npcOwner) {
+          showToast(`BASECAMP MILIK ${store.npcOwner.name.toUpperCase()}`, '#facc15');
+          return;
+        }
         if (state.claimedBasesCount >= 1) {
           showToast('HANYA BOLEH 1 BASECAMP!', '#ff9100');
           return;
@@ -4231,12 +4453,12 @@
 
       function storeSupplies(store) {
         if (!store.isClaimed) return;
-        const moving = state.inventory.filter(id => ITEM_DEFS[id].cat !== 'med');
+        const moving = state.inventory.filter(id => ITEM_DEFS[id].cat === 'food' || ITEM_DEFS[id].cat === 'drink');
         if (moving.length === 0) {
           showToast('TIDAK ADA MAKANAN/MINUMAN DI TAS.', '#94a3b8');
           return;
         }
-        state.inventory = state.inventory.filter(id => ITEM_DEFS[id].cat === 'med');
+        state.inventory = state.inventory.filter(id => ITEM_DEFS[id].cat !== 'food' && ITEM_DEFS[id].cat !== 'drink');
         state.selectedSlot = -1;
 
         let addedF = 0;
@@ -4364,7 +4586,8 @@
         let finalScore = (win ? 500 : 0) +
           (state.baseFood + state.baseDrink) * 100 +
           state.claimedBasesCount * 50 +
-          state.openedStoresCount * 5 -
+          state.openedStoresCount * 5 +
+          state.kills * 20 -
           timePenalty;
         finalScore = Math.max(0, Math.round(finalScore * diff.scoreMult));
         state.score = finalScore;
@@ -4491,12 +4714,14 @@
             isOpen: false, isClaimed: false, isTrapDisarmed: false, doorAnimProgress: 0,
             interiorInitialized: false, interiorGroup: null, trapPlateMesh: null, interiorLight: null,
             baseLightIntensity: 1.8, sparkMesh: null, spikesGroup: null, spikeTriggered: false, spikeAnim: 0,
-            rentSign: null, claimRing: null, stashCount: 0, stashItems: [], warnedSingle: false
+            rentSign: null, claimRing: null, stashCount: 0, stashItems: [], warnedSingle: false, slots: null, npcOwner: null, npcTarget: null
           });
           setShutterY(st, (WALL_HEIGHT - 0.6) / 2);
         });
         monsters.forEach(m => scene.remove(m.group));
         monsters.length = 0;
+        closeTrade();
+        initNpcs();
         monsterGlow.intensity = 0;
         lightPool.forEach(l => { l.intensity = 0; });
 
@@ -4557,7 +4782,8 @@
         hudScoreEl.textContent = Math.max(0, Math.round((
           (state.baseFood + state.baseDrink) * 100 +
           state.claimedBasesCount * 50 +
-          state.openedStoresCount * 5 -
+          state.openedStoresCount * 5 +
+          state.kills * 20 -
           Math.floor(state.gameTime / 10)
         ) * diff.scoreMult));
       }
@@ -4576,7 +4802,8 @@
         if (k === 'm') toggleMute();
         if (k === 'e') performContextAction();
         if (k === 'f') triggerSorot();
-        if (k === 'i' || k === 'tab') { e.preventDefault(); toggleInventory(); }
+        if (k === 'i' || k === 'tab') { e.preventDefault(); if (!state.tradeOpen) toggleInventory(); }
+        if (k === ' ') { e.preventDefault(); attackWithWeapon(); }
         if (k === 'escape' && state.inventoryOpen) closeInventory();
       });
 
@@ -4661,6 +4888,12 @@
           storeSupplies(state.currentBasecamp);
         } else if (state.currentAction === 'EAT' && state.currentBasecamp) {
           eatAtBase(state.currentBasecamp);
+        } else if (state.currentAction === 'BUILD' && state.currentBasecamp) {
+          buildSlot(state.currentBasecamp, state.actionSlot);
+        } else if (state.currentAction === 'CRAFT') {
+          craftWeapon();
+        } else if (state.currentAction === 'TRADE') {
+          openTrade();
         }
       }
 
@@ -4692,6 +4925,7 @@
       }
 
       function closeInventory() {
+        if (state.tradeOpen) { closeTrade(); return; }
         state.inventoryOpen = false;
         state.selectedSlot = -1;
         invOverlay.classList.remove('active');
@@ -4716,10 +4950,10 @@
         const sel = state.inventory[state.selectedSlot];
         if (sel) {
           const def = ITEM_DEFS[sel];
-          const catLabel = { food: 'MAKANAN', drink: 'MINUMAN', med: 'MEDIS' }[def.cat];
-          invDetailEl.innerHTML = `<div class="inv-detail-emoji">${def.emoji}</div><div><div class="inv-detail-name">${def.name} <span class="inv-tag tag-${def.cat}">${catLabel}</span></div><div class="inv-detail-desc">${def.desc}${def.cat !== 'med' ? ' Simpan di basecamp untuk target, atau konsumsi untuk memulihkan energi.' : ''}</div></div>`;
-          invUseBtn.style.display = 'flex';
-          invUseBtn.textContent = { med: 'PAKAI', food: 'MAKAN', drink: 'MINUM' }[def.cat];
+          const catLabel = { food: 'MAKANAN', drink: 'MINUMAN', med: 'MEDIS', mat: 'BAHAN', part: 'KOMPONEN' }[def.cat];
+          invDetailEl.innerHTML = `<div class="inv-detail-emoji">${def.emoji}</div><div><div class="inv-detail-name">${def.name} <span class="inv-tag tag-${def.cat}">${catLabel}</span></div><div class="inv-detail-desc">${def.desc}${(def.cat === 'food' || def.cat === 'drink') ? ' Simpan di basecamp untuk target, atau konsumsi untuk memulihkan energi.' : ''}${def.cat === 'mat' ? ' Dipakai membangun meja crafting dan membuat senjata. Bisa dijual.' : ''}${def.cat === 'part' ? ' Komponen langka untuk membangun komputer. Bisa dijual.' : ''}</div></div>`;
+          invUseBtn.style.display = (def.cat === 'mat' || def.cat === 'part') ? 'none' : 'flex';
+          invUseBtn.textContent = { med: 'PAKAI', food: 'MAKAN', drink: 'MINUM' }[def.cat] || '';
         } else {
           invDetailEl.innerHTML = `<div class="inv-detail-emoji">🎒</div><div><div class="inv-detail-name">Tas Ransel</div><div class="inv-detail-desc">Ketuk slot untuk melihat detail barang. Makanan & minuman dipindahkan saat SIMPAN di basecamp.</div></div>`;
           invUseBtn.style.display = 'none';
@@ -5005,9 +5239,17 @@
             minimapCtx.fillStyle = '#00e676';
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 3, originY + s.interiorCenterZ * scale - 3, 6, 6);
           } else if (s.isOpen) {
-            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: '#ef4444', monster: '#a855f7', empty: '#e2e8f0' }[s.outcome] || '#f59e0b';
+            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: '#ef4444', monster: '#a855f7', empty: '#e2e8f0', materials: '#cd853f' }[s.outcome] || '#f59e0b';
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 2.5, originY + s.interiorCenterZ * scale - 2.5, 5, 5);
           }
+        });
+
+        // Penyintas (NPC)
+        minimapCtx.fillStyle = '#facc15';
+        npcs.forEach(n => {
+          minimapCtx.beginPath();
+          minimapCtx.arc(originX + n.x * scale, originY + n.z * scale, 2.8, 0, Math.PI * 2);
+          minimapCtx.fill();
         });
 
         // Active Monster Dots
@@ -5227,6 +5469,17 @@
           rightArmPivot.rotation.x *= 0.85;
         }
 
+        // Ayunan senjata & tombol serang
+        state.attackCd = Math.max(0, state.attackCd - dt);
+        if (state.swingT > 0) {
+          state.swingT -= dt;
+          const pr = 1 - Math.max(0, state.swingT) / 0.3;
+          leftArmPivot.rotation.x = -2.3 * Math.sin(Math.min(1, pr) * Math.PI);
+        }
+        weaponMesh.visible = state.weaponDur > 0;
+        btnAttack.classList.toggle('show', state.weaponDur > 0 && mode === 'play');
+        attackDurEl.textContent = state.weaponDur > 0 ? String(state.weaponDur) : '';
+
         // --- CAMERA THIRD PERSON TRACKING ---
         if (mode !== 'play' || !state.started) camState.yaw += dt * (mode === 'edit' ? 0.12 : 0.2);
         camState.distance += (camState.targetDistance - camState.distance) * 0.15;
@@ -5294,6 +5547,7 @@
         let actionStore = null;
         let inBase = null;
         state.playerRoom = null;
+        state.actionSlot = null;
 
         const pX = playerGroup.position.x;
         const pZ = playerGroup.position.z;
@@ -5308,7 +5562,12 @@
               if (s.outcome === 'empty') {
                 inBase = s;
                 if (!s.isClaimed) {
-                  if (state.claimedBasesCount >= 1) {
+                  if (s.npcOwner) {
+                    if (!s.warnedSingle) {
+                      s.warnedSingle = true;
+                      showToast(`BASECAMP MILIK ${s.npcOwner.name.toUpperCase()}`, '#facc15');
+                    }
+                  } else if (state.claimedBasesCount >= 1) {
                     if (!s.warnedSingle) {
                       s.warnedSingle = true;
                       showToast('HANYA BOLEH 1 BASECAMP. KEMBALI KE BASECAMPMU!', '#ff9100');
@@ -5317,6 +5576,11 @@
                     foundAction = 'CLAIM';
                     actionStore = s;
                   }
+                } else if (s.slots && slotNear(s, pX, pZ)) {
+                  const key = slotNear(s, pX, pZ);
+                  state.actionSlot = key;
+                  foundAction = s.slots[key].built ? (key === 'craft' ? 'CRAFT' : 'TRADE') : 'BUILD';
+                  actionStore = s;
                 } else if (countCat('food') + countCat('drink') > 0) {
                   foundAction = 'STORE';
                   actionStore = s;
@@ -5397,6 +5661,18 @@
             actionLabel.textContent = 'SIMPAN';
             actionSub.textContent = 'BEKAL';
             btnAction.classList.add('store-mode');
+          } else if (foundAction === 'BUILD') {
+            actionLabel.textContent = 'BANGUN';
+            actionSub.textContent = state.actionSlot === 'craft' ? 'MEJA' : 'KOMPUTER';
+            btnAction.classList.add('store-mode');
+          } else if (foundAction === 'CRAFT') {
+            actionLabel.textContent = 'BUAT';
+            actionSub.textContent = '⚔️ PAKU';
+            btnAction.classList.add('store-mode');
+          } else if (foundAction === 'TRADE') {
+            actionLabel.textContent = 'DAGANG';
+            actionSub.textContent = '💻 ¢' + state.credits;
+            btnAction.classList.add('store-mode');
           } else if (foundAction === 'EAT') {
             actionLabel.textContent = state.baseFood >= state.baseDrink ? 'MAKAN' : 'MINUM';
             actionSub.textContent = `🍞${state.baseFood} 🥤${state.baseDrink}`;
@@ -5436,6 +5712,7 @@
         if (mode === 'play' && state.started && !state.isGameOver) {
           updateMonsters(dt, pX, pZ);
           updateTraps(dt, pX, pZ);
+          updateNpcs(dt, pX, pZ);
           heartCd -= dt;
           if (state.threat > 0.12 && heartCd <= 0) {
             audio.playHeartbeat(state.threat);
@@ -5489,6 +5766,518 @@
 
         rafId = requestAnimationFrame(gameLoop);
       }
+
+
+      // ================= BASECAMP: SLOT BANGUN, CRAFTING, KOMPUTER =================
+      const SLOT_INFO = {
+        craft: { name: 'MEJA CRAFTING', lx: -2.9, lz: 2.6, mat: 'slotCraft' },
+        comp: { name: 'KOMPUTER', lx: 2.9, lz: 2.6, mat: 'slotComp' }
+      };
+
+      function createBaseSlots(store) {
+        const g = store.interiorGroup;
+        if (!g || store.slots) return;
+        store.slots = {};
+        Object.keys(SLOT_INFO).forEach(k => {
+          const info = SLOT_INFO[k];
+          const pad = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), MAT[info.mat]);
+          pad.rotation.x = -Math.PI / 2;
+          pad.position.set(info.lx, 0.12, info.lz);
+          g.add(pad);
+          store.slots[k] = { lx: info.lx, lz: info.lz, built: false, pad, model: null };
+        });
+      }
+
+      function slotNear(store, x, z) {
+        const lp = worldToRoomLocal(store, x, z);
+        for (const k of Object.keys(store.slots)) {
+          const sl = store.slots[k];
+          if (Math.hypot(lp.x - sl.lx, lp.z - sl.lz) < 1.5) return k;
+        }
+        return null;
+      }
+
+      function bagCount(id) {
+        let n = 0;
+        for (let i = 0; i < state.inventory.length; i++) if (state.inventory[i] === id) n++;
+        return n;
+      }
+      function missingText(cost) {
+        return Object.keys(cost).map(id => `${cost[id]}× ${ITEM_DEFS[id].name} (${Math.min(bagCount(id), cost[id])}/${cost[id]})`).join(', ');
+      }
+      function hasCost(cost) { return Object.keys(cost).every(id => bagCount(id) >= cost[id]); }
+      function spendCost(cost) {
+        Object.keys(cost).forEach(id => {
+          for (let i = 0; i < cost[id]; i++) {
+            const idx = state.inventory.indexOf(id);
+            if (idx !== -1) state.inventory.splice(idx, 1);
+          }
+        });
+        state.selectedSlot = -1;
+      }
+
+      function mkBox(parent, w, h, d, mat, x, y, z) {
+        const m = new THREE.Mesh(unitBoxGeo, mat);
+        m.scale.set(w, h, d);
+        m.position.set(x, y, z);
+        parent.add(m);
+        return m;
+      }
+
+      // Model meja crafting (dibangun di posisi lokal ruangan)
+      function addCraftTableModel(store, lx, lz) {
+        const grp = new THREE.Group();
+        grp.position.set(lx, 0, lz);
+        mkBox(grp, 1.5, 0.1, 1.0, MAT.pallet, 0, 0.85, 0);
+        [[-0.65, -0.4], [0.65, -0.4], [-0.65, 0.4], [0.65, 0.4]].forEach(([x, z]) => mkBox(grp, 0.1, 0.8, 0.1, MAT.woodDark, x, 0.4, z));
+        mkBox(grp, 0.9, 0.05, 0.18, MAT.crate, -0.15, 0.93, 0.1);
+        mkBox(grp, 0.9, 0.05, 0.18, MAT.pallet, -0.1, 0.98, 0.12);
+        mkBox(grp, 0.3, 0.14, 0.2, MAT.shelfMetal, 0.5, 0.97, -0.2);
+        mkBox(grp, 0.06, 0.3, 0.06, MAT.woodDark, -0.5, 1.0, -0.25);
+        mkBox(grp, 0.2, 0.08, 0.08, MAT.shelfMetal, -0.5, 1.18, -0.25);
+        store.interiorGroup.add(grp);
+        addRoomCollider(store, lx - 0.85, lz - 0.6, lx + 0.85, lz + 0.6);
+        return grp;
+      }
+
+      // Model komputer: meja, monitor menyala, keyboard, PC mini
+      function addComputerModel(store, lx, lz) {
+        const grp = new THREE.Group();
+        grp.position.set(lx, 0, lz);
+        mkBox(grp, 1.5, 0.08, 0.8, MAT.shelfBoard, 0, 0.8, 0);
+        [[-0.68, -0.34], [0.68, -0.34], [-0.68, 0.34], [0.68, 0.34]].forEach(([x, z]) => mkBox(grp, 0.08, 0.76, 0.08, MAT.shelfMetal, x, 0.38, z));
+        mkBox(grp, 0.8, 0.52, 0.06, MAT.shelfMetal, 0, 1.2, -0.2);
+        mkBox(grp, 0.72, 0.44, 0.01, MAT.screen, 0, 1.2, -0.165);
+        mkBox(grp, 0.12, 0.2, 0.1, MAT.shelfMetal, 0, 0.94, -0.2);
+        mkBox(grp, 0.6, 0.03, 0.2, MAT.shelfMetal, 0, 0.86, 0.2);
+        mkBox(grp, 0.3, 0.5, 0.4, MAT.shelfMetal, -0.45, 0.25, 0);
+        store.interiorGroup.add(grp);
+        addRoomCollider(store, lx - 0.85, lz - 0.55, lx + 0.85, lz + 0.55);
+        return grp;
+      }
+
+      function buildSlot(store, key) {
+        const sl = store.slots && store.slots[key];
+        if (!sl || sl.built) return;
+        const cost = BUILD_COST[key];
+        if (!hasCost(cost)) {
+          showToast(`BUTUH: ${missingText(cost)}`, '#ff9100', true);
+          return;
+        }
+        spendCost(cost);
+        sl.built = true;
+        sl.pad.visible = false;
+        sl.model = key === 'craft' ? addCraftTableModel(store, sl.lx, sl.lz) : addComputerModel(store, sl.lx, sl.lz);
+        if (key === 'comp') state.hasComputer = true;
+        audio.play('basecamp_claim_sfx');
+        showToast(key === 'craft' ? 'MEJA CRAFTING DIBANGUN! BUAT SENJATA PAPAN PAKU' : 'KOMPUTER DIBANGUN! KAMU BISA BERDAGANG', '#00e676', true);
+        updateHUD();
+      }
+
+      function craftWeapon() {
+        if (state.weaponDur >= TUNING.weaponMax) {
+          showToast('SENJATA SUDAH PENUH', '#94a3b8');
+          return;
+        }
+        if (!hasCost(WEAPON_COST)) {
+          showToast(`BUTUH: ${missingText(WEAPON_COST)}`, '#ff9100', true);
+          return;
+        }
+        spendCost(WEAPON_COST);
+        state.weaponDur = Math.min(TUNING.weaponMax, state.weaponDur + TUNING.weaponDurability);
+        audio.play('hit_sfx');
+        showToast(`SENJATA SIAP! DURABILITAS ${state.weaponDur} • TOMBOL ⚔️ / SPASI`, '#fb923c', true);
+        updateHUD();
+      }
+
+      // ================= SENJATA: serangan jarak dekat =================
+      function killMonster(m, idx) {
+        scene.remove(m.group);
+        monsters.splice(idx, 1);
+        state.kills++;
+        showToast(`${m.tp.name.toUpperCase()} TUMBANG! +20 POIN`, '#fb923c', true);
+        updateHUD();
+      }
+      function attackWithWeapon() {
+        if (mode !== 'play' || !state.started || state.isGameOver || paused || state.inventoryOpen) return;
+        if (state.weaponDur <= 0 || state.attackCd > 0) return;
+        state.attackCd = 0.55;
+        state.swingT = 0.3;
+        state.weaponDur--;
+        audio.play('swing_sfx');
+        const px = playerGroup.position.x, pz = playerGroup.position.z;
+        const fx = Math.sin(playerGroup.rotation.y), fz = Math.cos(playerGroup.rotation.y);
+        let hitAny = false;
+        for (let i = monsters.length - 1; i >= 0; i--) {
+          const m = monsters[i];
+          const dx = m.x - px, dz = m.z - pz;
+          const d = Math.hypot(dx, dz);
+          if (d > TUNING.weaponReach || d < 0.01 || (dx * fx + dz * fz) / d < 0.15) continue;
+          hitAny = true;
+          m.hp -= 1;
+          if (m.hp <= 0) { killMonster(m, i); continue; }
+          m.isStunned = true;
+          m.stunTimer = Math.max(m.stunTimer, 0.6);
+          monsterStep(m, m.x + (dx / d) * 3, m.z + (dz / d) * 3, 7, 0.16); // dorong mundur
+        }
+        if (hitAny) audio.play('hit_sfx');
+        if (state.weaponDur <= 0) showToast('PAPAN PAKU RUSAK! BUAT LAGI DI MEJA CRAFTING', '#ff9100', true);
+      }
+      btnAttack.addEventListener('click', (e) => { e.stopPropagation(); attackWithWeapon(); });
+
+      // ================= DAGANG: pasar komputer =================
+      let tradeTab = 'buy';
+      const priceBuy = id => Math.max(1, Math.round(ITEM_DEFS[id].value * 1.5));
+      const priceSell = id => Math.max(1, Math.round(ITEM_DEFS[id].value * 0.6));
+      function openTrade() {
+        if (state.isGameOver || state.tradeOpen) return;
+        state.tradeOpen = true;
+        state.inventoryOpen = true;
+        inputs.moveX = 0;
+        inputs.moveZ = 0;
+        tradeOverlay.classList.add('active');
+        renderTrade();
+      }
+      function closeTrade() {
+        if (!state.tradeOpen) { tradeOverlay.classList.remove('active'); return; }
+        state.tradeOpen = false;
+        state.inventoryOpen = false;
+        tradeOverlay.classList.remove('active');
+      }
+      function tradeRow(emoji, title, who, btnText, disabled, onClick) {
+        const row = document.createElement('div');
+        row.className = 'trade-row';
+        row.innerHTML = `<span class="emoji">${emoji}</span><div class="info"><div>${title}</div><div class="who">${who}</div></div>`;
+        const btn = document.createElement('button');
+        btn.textContent = btnText;
+        btn.disabled = disabled;
+        btn.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+        row.appendChild(btn);
+        tradeList.appendChild(row);
+      }
+      function renderTrade() {
+        const online = npcs.filter(n => n.online);
+        tradeCredits.textContent = `¢${state.credits}`;
+        tradeSub.textContent = online.length ? `${online.length} pedagang online` : 'Belum ada pedagang online';
+        tabBuy.classList.toggle('active', tradeTab === 'buy');
+        tabSell.classList.toggle('active', tradeTab === 'sell');
+        tradeList.innerHTML = '';
+        if (!online.length) {
+          tradeList.innerHTML = '<div class="trade-empty">Belum ada penyintas yang membangun komputer.<br>Mereka sedang mencari komponen — cek lagi nanti.</div>';
+          return;
+        }
+        if (tradeTab === 'buy') {
+          let rows = 0;
+          online.forEach(n => n.stock.forEach(e => {
+            if (e.qty <= 0) return;
+            rows++;
+            const price = priceBuy(e.id);
+            tradeRow(ITEM_DEFS[e.id].emoji, `${ITEM_DEFS[e.id].name} ×${e.qty}`, `dari ${n.name}`, `BELI ¢${price}`, state.credits < price,
+              () => {
+                if (state.inventory.length >= INV_CAPACITY) { showToast('TAS PENUH!', '#ff9100', true); return; }
+                if (state.credits < price || e.qty <= 0) return;
+                state.credits -= price;
+                n.credits += price;
+                e.qty--;
+                state.inventory.push(e.id);
+                audio.play('supply_pickup_sfx');
+                showToast(`DIBELI: ${ITEM_DEFS[e.id].name.toUpperCase()} MASUK TAS`, '#00e676', true);
+                updateHUD();
+                renderTrade();
+              });
+          }));
+          if (!rows) tradeList.innerHTML = '<div class="trade-empty">Stok pedagang sedang kosong.</div>';
+        } else {
+          const groups = {};
+          state.inventory.forEach(id => { groups[id] = (groups[id] || 0) + 1; });
+          const ids = Object.keys(groups);
+          if (!ids.length) { tradeList.innerHTML = '<div class="trade-empty">Tasmu kosong. Barang di basecamp tidak bisa dijual langsung.</div>'; return; }
+          ids.forEach(id => {
+            const price = priceSell(id);
+            tradeRow(ITEM_DEFS[id].emoji, `${ITEM_DEFS[id].name} ×${groups[id]}`, `dibeli pedagang ¢${price}/buah`, `JUAL ¢${price}`, false, () => {
+              const buyer = online.filter(n => n.credits >= price).sort((a, b) => b.credits - a.credits)[0];
+              if (!buyer) { showToast('PEDAGANG TIDAK PUNYA KREDIT CUKUP', '#ff9100', true); return; }
+              const idx = state.inventory.indexOf(id);
+              if (idx === -1) return;
+              state.inventory.splice(idx, 1);
+              state.credits += price;
+              buyer.credits -= price;
+              addNpcStock(buyer, id, 1);
+              audio.play('supply_pickup_sfx');
+              showToast(`TERJUAL ${ITEM_DEFS[id].name.toUpperCase()} ¢${price} KE ${buyer.name.toUpperCase()}`, '#ffd600', true);
+              updateHUD();
+              renderTrade();
+            });
+          });
+        }
+      }
+      tabBuy.addEventListener('click', (e) => { e.stopPropagation(); tradeTab = 'buy'; renderTrade(); });
+      tabSell.addEventListener('click', (e) => { e.stopPropagation(); tradeTab = 'sell'; renderTrade(); });
+      document.getElementById('trade-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
+      tradeOverlay.addEventListener('click', (e) => { if (e.target === tradeOverlay) closeTrade(); });
+
+      // ================= NPC PENYINTAS =================
+      const NPC_DEFS = [
+        { name: 'Rina', color: 0xdb2777, start: [-68, -68] },
+        { name: 'Bima', color: 0x16a34a, start: [68, 68] }
+      ];
+      const npcs = [];
+
+      function createNpcMesh(def) {
+        const group = new THREE.Group();
+        const skin = new THREE.MeshStandardMaterial({ color: 0xe0b48c, roughness: 0.7 });
+        const jacket = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.5 });
+        const pants = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.8 });
+        const hair = new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.9 });
+        const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); group.add(m); return m; };
+        box(0.34, 0.16, 0.2, pants, 0, 0.88, 0);
+        box(0.36, 0.5, 0.22, jacket, 0, 1.21, 0);
+        box(0.26, 0.28, 0.24, skin, 0, 1.66, 0);
+        box(0.28, 0.1, 0.26, hair, 0, 1.78, 0);
+        box(0.3, 0.4, 0.14, new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.8 }), 0, 1.2, -0.18);
+        box(0.12, 0.7, 0.12, jacket, -0.24, 1.05, 0);
+        box(0.12, 0.7, 0.12, jacket, 0.24, 1.05, 0);
+        const legL = box(0.13, 0.78, 0.14, pants, -0.09, 0.39, 0);
+        const legR = box(0.13, 0.78, 0.14, pants, 0.09, 0.39, 0);
+        const eyeM = new THREE.MeshBasicMaterial({ color: 0x1b1410 });
+        [-0.06, 0.06].forEach(ex => box(0.04, 0.045, 0.02, eyeM, ex, 1.68, 0.125));
+        const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), MAT.shadow);
+        sh.rotation.x = -Math.PI / 2;
+        sh.position.y = 0.03;
+        group.add(sh);
+        // label nama
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(0, 8, 256, 48);
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 34px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(def.name, 128, 33);
+        const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+        label.scale.set(1.5, 0.375, 1);
+        label.position.y = 2.2;
+        group.add(label);
+        return { group, legL, legR };
+      }
+
+      function initNpcs() {
+        npcs.forEach(n => scene.remove(n.group));
+        npcs.length = 0;
+        NPC_DEFS.forEach(def => {
+          const mesh = createNpcMesh(def);
+          scene.add(mesh.group);
+          const n = {
+            name: def.name, group: mesh.group, legL: mesh.legL, legR: mesh.legR, legAmp: 0.1,
+            x: def.start[0], z: def.start[1], animTimer: 0, path: [], goalKey: null, repathT: 0, stuckT: 0, stuckMoved: 0, stuckCount: 0,
+            mode: 'findBase', target: null, base: null, timer: 0, trips: 0, parts: {}, stock: [], credits: 120, online: false, speechCd: 20
+          };
+          n.group.position.set(n.x, 0, n.z);
+          npcs.push(n);
+        });
+      }
+
+      function addNpcStock(n, id, q) {
+        const e = n.stock.find(x => x.id === id);
+        if (e) e.qty += q; else n.stock.push({ id, qty: q });
+      }
+      function npcHasAllParts(n) { return PART_IDS.every(p => n.parts[p] > 0); }
+
+      // Navigasi NPC memakai perencana jalur monster (graf lorong + pintu toko)
+      function npcGo(n, gx, gz, speed, dt, arrive) {
+        const key = Math.round(gx) + ',' + Math.round(gz);
+        n.repathT -= dt;
+        if (n.goalKey !== key || (n.repathT <= 0 && !n.path.length)) {
+          n.goalKey = key;
+          n.repathT = 1.5;
+          monsterReplan(n, gx, gz);
+        }
+        if (n.path.length) {
+          const wp = n.path[0];
+          const last = n.path.length === 1;
+          const moved = monsterStep(n, wp.x, wp.z, speed, dt);
+          if (Math.hypot(wp.x - n.x, wp.z - n.z) < (last ? 0.5 : 1.2)) n.path.shift();
+          n.stuckT += dt;
+          n.stuckMoved += moved;
+          if (n.stuckT >= 0.8) {
+            if (n.stuckMoved < 0.3 && n.path.length) {
+              n.path.length = 0;
+              n.goalKey = null;
+              if (++n.stuckCount >= 6) { // pengaman: lompat ke tujuan bila terjebak lama
+                n.x = gx; n.z = gz;
+                n.group.position.set(n.x, 0, n.z);
+                n.stuckCount = 0;
+              }
+            } else n.stuckCount = 0;
+            n.stuckT = 0;
+            n.stuckMoved = 0;
+          }
+        }
+        return Math.hypot(gx - n.x, gz - n.z) < arrive;
+      }
+
+      function npcOpenStore(st) {
+        if (st.isOpen) return;
+        st.isOpen = true;
+        initializeStoreInterior(st);
+        if (Math.hypot(st.doorX - playerGroup.position.x, st.doorZ - playerGroup.position.z) < 40) audio.play('shutter_open_sfx');
+      }
+
+      function npcSpeak(n, text) {
+        showToast(`${n.name}: “${text}”`, '#facc15');
+      }
+
+      function npcCollect(n, p) {
+        p.taken = true;
+        if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+        const i = allPickups.indexOf(p);
+        if (i !== -1) allPickups.splice(i, 1);
+        const id = p.itemId;
+        if (ITEM_DEFS[id].cat === 'part' && !n.online && !(n.parts[id] > 0)) n.parts[id] = 1;
+        else addNpcStock(n, id, 1);
+        if (Math.hypot(p.x - playerGroup.position.x, p.z - playerGroup.position.z) < 15) audio.play('supply_pickup_sfx');
+      }
+
+      function npcPickBase(n) {
+        let best = null, bd = 1e9;
+        stores.forEach(st => {
+          if (st.outcome !== 'empty' || st.isClaimed || st.npcOwner || (st.npcTarget && st.npcTarget !== n)) return;
+          const d = Math.hypot(st.doorX - n.x, st.doorZ - n.z);
+          if (d < bd) { bd = d; best = st; }
+        });
+        return best;
+      }
+      function npcPickLoot(n) {
+        let best = null, bd = 1e9;
+        stores.forEach(st => {
+          if (st.isOpen || st.npcTarget || !st.lootItems.length) return;
+          if (st.outcome !== 'supplies' && st.outcome !== 'materials' && st.outcome !== 'trap') return;
+          let d = Math.hypot(st.doorX - n.x, st.doorZ - n.z);
+          if (st.lootItems.some(id => ITEM_DEFS[id].cat === 'part' && !(n.parts[id] > 0))) d -= 150;
+          if (!n.online && st.outcome === 'materials') d += 60;
+          if (d < bd) { bd = d; best = st; }
+        });
+        return best;
+      }
+      const npcInsidePoint = st => ({ x: st.doorX - st.normalX * 1.5, z: st.doorZ - st.normalZ * 1.5 });
+      const npcOutsidePoint = st => ({ x: st.doorX + st.normalX * 1.6, z: st.doorZ + st.normalZ * 1.6 });
+
+      function updateNpcs(dt, pX, pZ) {
+        const SPD = 3.0;
+        npcs.forEach(n => {
+          n.speechCd = Math.max(0, n.speechCd - dt);
+          const before = n.animTimer;
+          switch (n.mode) {
+            case 'findBase': {
+              if (!n.target || n.target.npcOwner || n.target.isClaimed) {
+                if (n.target) n.target.npcTarget = null;
+                n.target = npcPickBase(n);
+                if (n.target) n.target.npcTarget = n;
+                n.path = []; n.goalKey = null;
+              }
+              if (!n.target) break;
+              const st = n.target;
+              if (st.isOpen) {
+                const ip = npcInsidePoint(st);
+                if (npcGo(n, ip.x, ip.z, SPD, dt, 1.0)) { n.mode = 'claimWait'; n.timer = 0.8; }
+              } else {
+                const op = npcOutsidePoint(st);
+                if (npcGo(n, op.x, op.z, SPD, dt, 0.9)) { npcOpenStore(st); n.mode = 'openWaitBase'; n.timer = 1.3; }
+              }
+              break;
+            }
+            case 'openWaitBase':
+              n.timer -= dt;
+              if (n.timer <= 0) n.mode = 'findBase';
+              break;
+            case 'claimWait':
+              n.timer -= dt;
+              if (n.timer <= 0) {
+                const st = n.target;
+                if (st && !st.npcOwner && !st.isClaimed) {
+                  st.npcOwner = n; st.npcTarget = null;
+                  n.base = st; n.target = null;
+                  furnishBasecamp(st, true);
+                  n.mode = 'scavenge';
+                  if (Math.hypot(st.doorX - pX, st.doorZ - pZ) < 30) npcSpeak(n, 'Ini basecamp-ku sekarang!');
+                } else n.mode = 'findBase';
+              }
+              break;
+            case 'scavenge': {
+              if (!n.target) {
+                n.target = npcPickLoot(n);
+                if (!n.target) { n.mode = 'return'; break; }
+                n.target.npcTarget = n;
+                n.path = []; n.goalKey = null;
+              }
+              const st = n.target;
+              if (st.isOpen) {
+                const ip = npcInsidePoint(st);
+                if (npcGo(n, ip.x, ip.z, SPD, dt, 1.0)) { n.mode = 'loot'; n.timer = 0.5; }
+              } else {
+                const op = npcOutsidePoint(st);
+                if (npcGo(n, op.x, op.z, SPD, dt, 0.9)) { npcOpenStore(st); n.mode = 'scavWait'; n.timer = 1.3; }
+              }
+              break;
+            }
+            case 'scavWait':
+              n.timer -= dt;
+              if (n.timer <= 0) n.mode = 'scavenge';
+              break;
+            case 'loot': {
+              n.timer -= dt;
+              if (n.timer > 0) break;
+              const st = n.target;
+              const p = st && st.pickups.find(q => !q.taken);
+              if (p) { npcCollect(n, p); n.timer = 0.55; break; }
+              if (st) st.npcTarget = null;
+              n.target = null;
+              n.trips++;
+              if ((!n.online && npcHasAllParts(n)) || (n.online && n.trips >= 2) || n.trips >= 6) n.mode = 'return';
+              else n.mode = 'scavenge';
+              break;
+            }
+            case 'return': {
+              if (!n.base) { n.mode = 'findBase'; break; }
+              const w = roomLocalToWorld(n.base, 0, 0.6);
+              if (npcGo(n, w.x, w.z, SPD, dt, 1.6)) {
+                n.trips = 0;
+                if (!n.online && npcHasAllParts(n)) {
+                  n.mode = 'build'; n.timer = 6;
+                  if (Math.hypot(n.x - pX, n.z - pZ) < 40) npcSpeak(n, 'Semua komponen terkumpul. Merakit komputer…');
+                } else { n.mode = 'rest'; n.timer = 8 + Math.random() * 12; }
+              }
+              break;
+            }
+            case 'build':
+              n.timer -= dt;
+              n.group.rotation.y += dt * 0.5;
+              if (n.timer <= 0) {
+                PART_IDS.forEach(id => { n.parts[id]--; });
+                addComputerModel(n.base, SLOT_INFO.comp.lx, SLOT_INFO.comp.lz);
+                n.online = true;
+                showToast(`${n.name.toUpperCase()} MEMBANGUN KOMPUTER! PASAR DIBUKA`, '#00e5ff', true);
+                n.mode = 'rest'; n.timer = 10;
+              }
+              break;
+            case 'rest':
+              n.timer -= dt;
+              if (n.timer <= 0) { n.mode = 'scavenge'; n.trips = 0; }
+              break;
+          }
+          if (n.animTimer === before) { n.legL.position.z *= 0.8; n.legR.position.z *= 0.8; }
+          // sapaan bila pemain dekat
+          if (n.speechCd <= 0 && Math.hypot(pX - n.x, pZ - n.z) < 6) {
+            n.speechCd = 45;
+            if (n.online) npcSpeak(n, state.hasComputer ? 'Cek pasar komputer ya!' : 'Aku buka lapak! Bangun komputer untuk berdagang denganku.');
+            else npcSpeak(n, n.base ? 'Aku lagi cari komponen komputer…' : 'Hati-hati di sini. Aku cari basecamp.');
+          }
+        });
+      }
+
+      initNpcs();
 
       // Pemanasan: kompilasi shader semua material dan unggah geometri statis ke GPU sebelum frame pertama
       (function warmup() {
