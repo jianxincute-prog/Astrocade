@@ -944,6 +944,24 @@
     .tag-gear { background: rgba(52, 211, 153, 0.25); color: #6ee7b7; }
     #app-container.hc .trade-row { background: #111; border-color: #fff; }
 
+    /* ===== FTUE: panduan pemula, kartu cerita & tip ===== */
+    .ftue-panel { position: absolute; top: 322px; left: 50%; transform: translateX(-50%); width: 600px; background: rgba(8, 14, 28, 0.93); border: 2px solid var(--color-cyan); border-radius: 18px; padding: 10px 14px; box-shadow: 0 0 22px rgba(0, 229, 255, 0.35); z-index: 40; }
+    .ftue-top { display: flex; align-items: center; gap: 12px; }
+    .ftue-arrow { font-size: 42px; color: var(--color-cyan); width: 50px; text-align: center; transition: transform 0.12s linear; }
+    .ftue-text { flex: 1; font-size: 21px; font-weight: 700; color: #fff; line-height: 1.25; }
+    .ftue-dist { font-family: var(--font-mono); color: var(--color-gold); font-size: 22px; font-weight: 800; min-width: 64px; text-align: right; }
+    .ftue-bot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .fd { display: inline-block; width: 12px; height: 12px; border-radius: 6px; background: #334155; margin-right: 6px; }
+    .fd.on { background: #00e676; } .fd.cur { background: var(--color-gold); }
+    .ftue-skip { background: transparent; border: 1px solid rgba(255, 255, 255, 0.35); color: #cbd5e1; border-radius: 10px; padding: 4px 12px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .story-card { position: absolute; left: 50%; top: 480px; transform: translateX(-50%); width: 580px; background: rgba(5, 8, 16, 0.9); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 18px; padding: 16px 20px; text-align: center; font-size: 25px; line-height: 1.4; font-weight: 700; color: #f1f5f9; opacity: 0; transition: opacity 0.7s; pointer-events: none; z-index: 45; }
+    .story-card.show { opacity: 1; }
+    .tip-card { position: absolute; left: 50%; top: 610px; transform: translateX(-50%) translateY(-10px); width: 580px; background: rgba(15, 23, 42, 0.95); border: 1px solid #fbbf24; border-left: 6px solid #fbbf24; border-radius: 14px; padding: 10px 14px; opacity: 0; transition: opacity 0.35s, transform 0.35s; z-index: 44; cursor: pointer; }
+    .tip-card.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .tip-title { font-family: var(--font-title); font-size: 22px; font-weight: 800; color: #fbbf24; }
+    .tip-text { font-size: 19px; line-height: 1.35; color: #e2e8f0; margin-top: 2px; }
+    #app-container.hc .ftue-panel, #app-container.hc .tip-card, #app-container.hc .story-card { background: #000; border-color: #fff; }
+
     /* ===== Menu utama, kesulitan, pengaturan ===== */
     #howto-overlay { z-index: 70; }
     #settings-overlay { z-index: 75; }
@@ -1048,6 +1066,19 @@
     <div class="ui-layer" id="game-ui">
       <div class="buff-row" id="buff-row"></div>
       <div class="save-chip" id="save-chip">💾 TERSIMPAN</div>
+      <div class="ftue-panel" id="ftue-panel" style="display:none">
+        <div class="ftue-top">
+          <span class="ftue-arrow" id="ftue-arrow">▲</span>
+          <div class="ftue-text" id="ftue-text"></div>
+          <span class="ftue-dist" id="ftue-dist"></span>
+        </div>
+        <div class="ftue-bot">
+          <span id="ftue-dots"></span>
+          <button class="ftue-skip" id="ftue-skip">LEWATI PANDUAN</button>
+        </div>
+      </div>
+      <div class="story-card" id="story-card"></div>
+      <div class="tip-card" id="tip-card"><div class="tip-title" id="tip-title"></div><div class="tip-text" id="tip-text"></div></div>
       <!-- Top HUD (ringkas) -->
       <div class="hud-header">
         <div class="status-panel hud-card">
@@ -1366,6 +1397,7 @@
           <div class="setting-label">🔊 Efek suara <span id="vol-sfx-val">100%</span></div>
           <input type="range" class="vol-slider" id="vol-sfx" min="0" max="100" step="5" value="100">
         </div>
+        <button class="btn-large btn-secondary" id="btn-ftue-reset" style="font-size: 20px; height: 56px;">🔁 ULANGI PANDUAN PEMULA</button>
         <button class="btn-large" id="btn-settings-close">SELESAI</button>
       </div>
     </div>
@@ -2032,6 +2064,12 @@
       };
       let diff = DIFFS.normal;
 
+      // FTUE: panduan pemula terpandu + fitur dibuka bertahap (gate) + kartu tip sekali tampil
+      const ftue = { done: false, gate: true, live: false, step: -1, target: null, second: null, walked: 0, lx: 0, lz: 0, monster: null, forceType: null, t: 0 };
+      const tips = {};
+      const ftueGateOn = () => ftue.live && ftue.gate;
+      const EARLY_OUTCOMES = [['supplies', 'empty'], ['supplies', 'empty', 'materials', 'trap', 'monster']];
+
       goalFoodEl.textContent = config.goal.food;
       goalDrinkEl.textContent = config.goal.drink;
 
@@ -2697,6 +2735,10 @@
         const w = config.outcomeWeights;
         const weights = [['supplies', w.supplies], ['empty', noEmpty ? 0 : w.empty], ['trap', w.trap], ['monster', w.monster], ['materials', w.materials ?? 0.1], ['vending', w.vending ?? 0.09], ['tools', w.tools ?? 0.035], ['fishing', w.fishing ?? 0.05]]
           .map(([k, v]) => [k, k === exclude ? 0 : v]);
+        if (ftueGateOn()) {
+          const okList = EARLY_OUTCOMES[ftueStage()];
+          if (okList) weights.forEach(wt => { if (!okList.includes(wt[0])) wt[1] = 0; });
+        }
         const totalW = weights.reduce((acc, [, v]) => acc + v, 0);
         let r = Math.random() * totalW;
         let outcome = 'supplies';
@@ -3579,8 +3621,13 @@
         MTYPES[k].glowMat = new THREE.SpriteMaterial({ map: radialTex, color: MTYPES[k].eye, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9 });
       });
       function rollMonsterType() {
+        if (ftue.forceType) return ftue.forceType;
+        const early = ftueGateOn() && ftueStage() < 2;
         let r = Math.random();
-        for (const k of Object.keys(MTYPES)) { r -= MTYPES[k].w; if (r <= 0) return k; }
+        for (const k of Object.keys(MTYPES)) {
+          if (early && (k === 'brute' || k === 'sponge' || k === 'sakura')) continue;
+          r -= MTYPES[k].w; if (r <= 0) return k;
+        }
         return 'hunter';
       }
 
@@ -5050,6 +5097,14 @@
       // --- PLAYER ACTIONS & INTERACTIONS ---
       function openStore(store) {
         if (store.isOpen) return;
+        if (ftueGateOn()) {
+          // fitur dibuka bertahap: isi toko yang belum waktunya diacak ulang ke jenis yang sudah terbuka
+          const okList = EARLY_OUTCOMES[ftueStage()];
+          if (okList && !okList.includes(store.outcome)) {
+            const r = rollStoreContents(store.doorX, store.doorZ, false);
+            store.outcome = r.outcome; store.lootItems = r.lootItems; store.trapKind = r.trapKind; store.matVariant = r.matVariant;
+          }
+        }
         store.isOpen = true;
         markOpened(store);
         if (!store.counted) {
@@ -5062,6 +5117,7 @@
 
         initializeStoreInterior(store);
         audio.play('shutter_open_sfx');
+        showTip(store.outcome);
 
         if (store.outcome === 'materials') {
           showToast(`${{ kayu: 'BAHAN BANGUNAN (PAPAN & PAKU)', besi: 'RONGSOKAN (BESI TUA & PAKU)', medis: 'PERBEKALAN MEDIS (KAIN & ANTISEPTIK)' }[store.matVariant || 'kayu']}: ${store.lootItems.length} BARANG`, '#e6b07a');
@@ -5186,11 +5242,12 @@
             stunned++;
           }
         });
-        if (stunned) showToast('MONSTER TERSOROT DAN TERPAKU!', '#00e5ff');
+        if (stunned) { showToast('MONSTER TERSOROT DAN TERPAKU!', '#00e5ff'); ftueEvent('sorot'); }
       }
 
       function applyDamage(n = 1, cause = null, force = false) {
         if ((state.isInvulnerable && !force) || state.isGameOver) return;
+        if (ftue.live && ftue.step >= 0 && ftue.step <= 5 && ['hunter', 'brute', 'stalker', 'sponge', 'sakura'].includes(cause)) return; // panduan pemula: monster belum melukai
         if (!force && state.armor > 0) {
           const absorbed = Math.min(state.armor, n);
           state.armor -= absorbed;
@@ -5261,7 +5318,7 @@
       function updateSurvival(dt) {
         const safe = !!(state.currentBasecamp && state.currentBasecamp.isClaimed);
         // Lapar & haus: berhenti saat berada di basecamp
-        if (!safe) {
+        if (!safe && !(ftueGateOn() && ftueStage() === 0)) {
           state.hunger = Math.max(0, state.hunger - dt / (config.player.hungerSeconds / diff.hunger));
           state.thirst = Math.max(0, state.thirst - dt / (config.player.thirstSeconds / diff.hunger));
         }
@@ -5307,7 +5364,7 @@
             showToast('LISTRIK MENYALA KEMBALI', '#00e5ff');
           }
         } else {
-          state.blackoutNext -= dt;
+          if (!(ftueGateOn() && ftueStage() < 2)) state.blackoutNext -= dt;
           if (state.blackoutNext <= 0) {
             state.blackoutT = TUNING.blackoutSeconds;
             showToast('LISTRIK PADAM! MONSTER LEBIH PEKA', '#ff9100', true);
@@ -5443,7 +5500,7 @@
         if (!saveLoaded || typeof lib === 'undefined' || typeof lib.saveUserGameState !== 'function') return;
         try {
           if (mode === 'play' && state.started && !state.isGameOver) flashSaved();
-          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, bestLife, prefs: { text: prefs.text, contrast: prefs.contrast, music: prefs.music, sfx: prefs.sfx, diff: prefs.diff }, vend: { day: vend.day, used: vend.used }, run: currentRunSave(), timestamp: Date.now() })).catch(() => {});
+          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, bestLife, prefs: { text: prefs.text, contrast: prefs.contrast, music: prefs.music, sfx: prefs.sfx, diff: prefs.diff }, vend: { day: vend.day, used: vend.used }, run: currentRunSave(), ftue: { done: ftue.done, gate: ftue.gate }, tips, timestamp: Date.now() })).catch(() => {});
         } catch (e) {}
       }
       document.querySelectorAll('[data-pref]').forEach(btn => {
@@ -5477,6 +5534,10 @@
             if (typeof hs === 'number') bestScore = Math.max(bestScore, hs);
             const bl = saved && (saved.bestLife ?? (saved.state && saved.state.bestLife));
             if (typeof bl === 'number') { bestLife = Math.max(bestLife, bl); lbLastSent = Math.max(lbLastSent, bl); }
+            const sf = saved && (saved.ftue || (saved.state && saved.state.ftue));
+            if (sf) { ftue.done = !!sf.done; ftue.gate = !!sf.gate; }
+            const stp = saved && (saved.tips || (saved.state && saved.state.tips));
+            if (stp && typeof stp === 'object') Object.keys(stp).forEach(k => { if (stp[k]) tips[k] = true; });
             const sr = saved && (saved.run || (saved.state && saved.state.run));
             if (sr && sr.v === 1 && !state.started) { savedRun = sr; showContinue(); }
             const sv = saved && (saved.vend || (saved.state && saved.state.vend));
@@ -5599,6 +5660,7 @@
         lightPool.forEach(l => { l.intensity = 0; });
 
         fishCancel();
+        ftueReset();
         clearPlayerTraps();
         if (state.hammer) scene.remove(state.hammer.mesh);
         Object.assign(state, makeState());
@@ -5737,6 +5799,7 @@
         savedRun = null;
         resetGame();
         state.started = true;
+        startFtue(false);
       });
 
       // Mute
@@ -5960,6 +6023,7 @@
         savedRun = null;
         resetGame();
         state.started = true;
+        startFtue(false);
       });
 
       // Cara bermain: tab per kategori, tiap tab berisi blok ringkas
@@ -6063,6 +6127,7 @@
         diffOverlay.classList.remove('active');
         titleOverlay.classList.remove('active');
         state.started = true;
+        startFtue(false);
         persistSave();
       });
       document.getElementById('btn-new').addEventListener('click', (e) => { e.stopPropagation(); openDiff(); });
@@ -6127,6 +6192,7 @@
         renderBuffs(true);
         updateHUD();
         showToast('PERMAINAN DILANJUTKAN', '#00e676', true);
+        startFtue(true);
       }
       document.addEventListener('visibilitychange', () => { if (document.hidden) persistSave(); });
       window.addEventListener('pagehide', persistSave);
@@ -6835,6 +6901,7 @@
           updatePlayerTraps();
           updateHammer(dt);
           updateBuffs(dt);
+          updateFtue(dt);
           updateTraps(dt, pX, pZ);
           updateNpcs(dt, pX, pZ);
           heartCd -= dt;
@@ -6994,6 +7061,7 @@
         sl.pad.visible = false;
         sl.model = key === 'craft' ? addCraftTableModel(store, sl.lx, sl.lz) : addComputerModel(store, sl.lx, sl.lz);
         if (key === 'comp') state.hasComputer = true;
+        showTip(key === 'craft' ? 'craft' : 'comp');
         audio.play('basecamp_claim_sfx');
         showToast(key === 'craft' ? 'MEJA CRAFTING DIBANGUN! BUAT SENJATA PAPAN PAKU' : 'KOMPUTER DIBANGUN! KAMU BISA BERDAGANG', '#00e676', true);
         updateHUD();
@@ -7131,6 +7199,221 @@
       }
       document.getElementById('craft-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
       craftOverlay.addEventListener('click', (e) => { if (e.target === craftOverlay) closeTrade(); });
+
+      // ================= FTUE: PANDUAN PEMULA TERPANDU =================
+      const ftuePanel = document.getElementById('ftue-panel');
+      const ftueTextEl = document.getElementById('ftue-text');
+      const ftueArrowEl = document.getElementById('ftue-arrow');
+      const ftueDistEl = document.getElementById('ftue-dist');
+      const ftueDotsEl = document.getElementById('ftue-dots');
+      const storyCard = document.getElementById('story-card');
+      const tipCard = document.getElementById('tip-card');
+      const FTUE_STEPS = 6;
+      const FTUE_TEXT = [
+        'Gerakkan joystick untuk berjalan.',
+        'Buka toko bertanda cahaya: dekati pintunya, lalu tekan BUKA.',
+        'Ambil bekal di dalam toko: dekati barang, lalu tekan AMBIL.',
+        'Temukan toko KOSONG bertanda cahaya dan KLAIM jadi basecamp (aman dari monster).',
+        'Tekan SIMPAN untuk menaruh bekal di basecamp.',
+        'Monster mengintai di luar! Keluar lalu tekan SOROT untuk membekukannya.'
+      ];
+      const STORY_TEXT = 'Kamu terjebak di mal terbengkalai saat listrik padam. Cari bekal, temukan tempat aman, dan bertahan.';
+      let ftueBeacon = null, storyT = 0, tipT = 0;
+
+      function ftueStage() {
+        if (state.claimedBasesCount === 0) return 0;
+        if (state.baseFood + state.baseDrink >= 2 || state.lifeTime >= 360) return 2;
+        return 1;
+      }
+      function showStory(text, ms) {
+        storyCard.textContent = text;
+        storyCard.classList.add('show');
+        clearTimeout(storyT);
+        storyT = setTimeout(() => storyCard.classList.remove('show'), ms);
+      }
+      const TIP_DEFS = {
+        trap: ['⚠️ RUANG JEBAKAN', 'Tampak seperti toko biasa. Waspadai lantai dan pelat mencurigakan; umpan ada di ujung ruangan.'],
+        monster: ['👹 RUANG MONSTER', 'Monster muncul saat pintu dibuka. Tekan SOROT untuk membekukannya, atau lari ke basecamp.'],
+        materials: ['🧱 RUANG BAHAN', 'Berisi papan, paku, besi, kain, atau antiseptik. Bahan ini dipakai di meja crafting basecamp.'],
+        vending: ['🎰 VENDING MACHINE', 'Dekati mesin: 3 kotak misteri gratis per hari, selanjutnya ¢500.'],
+        fishing: ['🎣 KOLAM MEMANCING', 'Pak Joko menyewakan pancingan. Tangkap ikan untuk buff sementara atau permanen.'],
+        tools: ['🧰 RUANG PERKAKAS', 'Langka! Berisi senjata, baja, bensin, atau cetak biru.'],
+        craft: ['🔨 MEJA CRAFTING', 'Tekan BUAT di dekat meja untuk melihat resep senjata, jerat, rompi, dan med kit.'],
+        comp: ['💻 KOMPUTER', 'Beli dan jual barang dengan penyintas lain, dan lihat 🏆 peringkat bertahan hidup.']
+      };
+      function showTip(id) {
+        if (tips[id] || !TIP_DEFS[id] || ftue.step >= 0 && ftue.step <= 5 && !['craft', 'comp'].includes(id)) return;
+        tips[id] = true;
+        document.getElementById('tip-title').textContent = TIP_DEFS[id][0];
+        document.getElementById('tip-text').textContent = TIP_DEFS[id][1];
+        tipCard.classList.add('show');
+        clearTimeout(tipT);
+        tipT = setTimeout(() => tipCard.classList.remove('show'), 7500);
+        persistSave();
+      }
+      tipCard.addEventListener('click', (e) => { e.stopPropagation(); tipCard.classList.remove('show'); });
+
+      function ftueBeaconEnsure() {
+        if (ftueBeacon) return ftueBeacon;
+        const g = new THREE.Group();
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 20, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }));
+        beam.position.y = 10;
+        const ring = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.6, 28), new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
+        ring.rotation.x = -Math.PI / 2; ring.position.y = 0.2;
+        g.add(beam); g.add(ring);
+        g.userData = { beam, ring };
+        g.frustumCulled = false;
+        scene.add(g);
+        ftueBeacon = g;
+        return g;
+      }
+      function ftuePickStores() {
+        const px = playerGroup.position.x, pz = playerGroup.position.z;
+        const cand = stores.filter(st => !st.isOpen && !st.npcOwner && !st.isClaimed)
+          .map(st => ({ st, d: Math.hypot(st.doorX - px, st.doorZ - pz) })).filter(o => o.d > 14).sort((a, b) => a.d - b.d);
+        if (!cand.length) return;
+        const first = cand[0].st;
+        const second = (cand.find(o => o.st !== first && Math.hypot(o.st.doorX - first.doorX, o.st.doorZ - first.doorZ) > 12) || cand[1] || cand[0]).st;
+        Object.assign(first, { outcome: 'supplies', lootItems: [pickRandom(FOOD_IDS), pickRandom(DRINK_IDS), pickRandom(FOOD_IDS.concat(DRINK_IDS))], trapKind: null, matVariant: null });
+        Object.assign(second, { outcome: 'empty', lootItems: [], trapKind: null, matVariant: null });
+        ftue.target = first; ftue.second = second;
+      }
+      function ftueDots() {
+        let h = '';
+        for (let i = 0; i < FTUE_STEPS; i++) h += `<span class="fd ${i < ftue.step ? 'on' : i === ftue.step ? 'cur' : ''}"></span>`;
+        ftueDotsEl.innerHTML = h;
+      }
+      function ftueSetStep(n) {
+        ftue.step = n;
+        ftue.t = 0;
+        if (n >= FTUE_STEPS) { ftueFinish(); return; }
+        if (n === 1 && !ftue.target) ftuePickStores();
+        if (n === 5) {
+          const base = stores.find(st => st.isClaimed);
+          if (base) {
+            ftue.forceType = 'stalker';
+            ftue.monster = spawnMonster(base);
+            ftue.forceType = null;
+          }
+        }
+        ftueTextEl.textContent = FTUE_TEXT[n];
+        ftueDots();
+        if (n > 0) { audio.play('supply_pickup_sfx'); showToast('✓ LANGKAH SELESAI', '#00e676'); }
+      }
+      function ftueFinish() {
+        ftue.done = true;
+        ftuePanel.style.display = 'none';
+        if (ftueBeacon) ftueBeacon.visible = false;
+        if (ftue.monster && monsters.includes(ftue.monster)) { const i = monsters.indexOf(ftue.monster); killMonster(ftue.monster, i); }
+        ftue.monster = null;
+        audio.play('objective_complete_sfx');
+        showStory(`🎉 Kamu sudah paham dasarnya! Simpan ${config.goal.food} 🍞 dan ${config.goal.drink} 🥤 di basecamp untuk menang. Fitur lain terbuka seiring progresmu.`, 8000);
+        persistSave();
+      }
+      function startFtue(fromResume) {
+        ftueReset();
+        ftue.live = !ftue.done || ftue.gate;
+        if (ftue.done) return;
+        ftue.lx = playerGroup.position.x; ftue.lz = playerGroup.position.z; ftue.walked = 0;
+        ftuePanel.style.display = '';
+        if (fromResume) {
+          const hasFood = state.inventory.some(id => ['food', 'drink'].includes(ITEM_DEFS[id].cat));
+          const n = state.claimedBasesCount > 0 ? (state.baseFood + state.baseDrink > 0 ? 5 : 4) : hasFood ? 3 : 1;
+          ftue.step = -1;
+          ftueSetStep(n === 3 ? 3 : n);
+        } else {
+          ftue.step = -1;
+          ftueSetStep(0);
+          showStory(STORY_TEXT, 7500);
+        }
+      }
+      function ftueReset() {
+        ftue.step = -1; ftue.target = null; ftue.second = null; ftue.monster = null; ftue.live = false;
+        ftuePanel.style.display = 'none';
+        if (ftueBeacon) ftueBeacon.visible = false;
+        storyCard.classList.remove('show');
+      }
+      function ftueEvent(name) {
+        if (name === 'sorot' && ftue.live && ftue.step === 5 && ftue.monster) ftueSetStep(6);
+      }
+      function updateFtue(dt) {
+        if (!ftue.live) return;
+        ftue.t += dt;
+        // gerbang fitur: setelah progres cukup, semua fitur terbuka
+        if (ftue.gate && ftueStage() === 2) {
+          ftue.gate = false;
+          showToast('✨ RUANGAN LANGKA & MONSTER BARU KINI TERBUKA!', '#fbbf24', true);
+          persistSave();
+          if (ftue.done) { ftue.live = false; return; }
+        }
+        if (ftue.done || ftue.step < 0 || ftue.step >= FTUE_STEPS) return;
+        const px = playerGroup.position.x, pz = playerGroup.position.z;
+        const hasFood = () => state.inventory.some(id => ['food', 'drink'].includes(ITEM_DEFS[id].cat));
+        let tx = null, tz = null;
+        switch (ftue.step) {
+          case 0:
+            ftue.walked += Math.hypot(px - ftue.lx, pz - ftue.lz);
+            if (ftue.walked >= 8) ftueSetStep(1);
+            break;
+          case 1:
+            if (ftue.target) { tx = ftue.target.doorX; tz = ftue.target.doorZ; if (ftue.target.isOpen) ftueSetStep(2); }
+            break;
+          case 2: {
+            let bd = 1e9;
+            allPickups.forEach(pk => { if (!pk.taken && ['food', 'drink'].includes(ITEM_DEFS[pk.itemId].cat)) { const d = Math.hypot(pk.x - px, pk.z - pz); if (d < bd) { bd = d; tx = pk.x; tz = pk.z; } } });
+            if (tx === null && ftue.target) { tx = ftue.target.doorX; tz = ftue.target.doorZ; }
+            if (hasFood() || state.baseFood + state.baseDrink > 0) ftueSetStep(3);
+            break;
+          }
+          case 3:
+            if (ftue.second) { tx = ftue.second.doorX; tz = ftue.second.doorZ; }
+            if (state.claimedBasesCount >= 1) ftueSetStep(4);
+            break;
+          case 4: {
+            const base = stores.find(st => st.isClaimed);
+            if (base) { tx = base.interiorCenterX; tz = base.interiorCenterZ; }
+            if (state.baseFood + state.baseDrink >= 1) ftueSetStep(5);
+            else if (!hasFood()) { ftueSetStep(2); }
+            break;
+          }
+          case 5:
+            if (ftue.monster && monsters.includes(ftue.monster)) { tx = ftue.monster.x; tz = ftue.monster.z; }
+            else ftueSetStep(6);
+            break;
+        }
+        ftue.lx = px; ftue.lz = pz;
+        if (tx === null) {
+          ftueArrowEl.style.visibility = 'hidden'; ftueDistEl.textContent = '';
+          if (ftueBeacon) ftueBeacon.visible = false;
+        } else {
+          const dx = tx - px, dz = tz - pz;
+          const fx = Math.sin(camState.yaw), fz = Math.cos(camState.yaw);
+          const rx = -Math.cos(camState.yaw), rz = Math.sin(camState.yaw);
+          ftueArrowEl.style.visibility = 'visible';
+          ftueArrowEl.style.transform = `rotate(${(Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz) * 180 / Math.PI).toFixed(0)}deg)`;
+          ftueDistEl.textContent = `${Math.round(Math.hypot(dx, dz))} m`;
+          const bc = ftueBeaconEnsure();
+          bc.visible = true;
+          bc.position.set(tx, 0, tz);
+          const pulse = 0.5 + 0.5 * Math.sin(animTime * 4);
+          bc.userData.beam.material.opacity = 0.14 + 0.16 * pulse;
+          bc.userData.ring.scale.setScalar(1 + 0.25 * pulse);
+        }
+      }
+      document.getElementById('ftue-skip').addEventListener('click', (e) => {
+        e.stopPropagation();
+        ftue.done = true; ftue.gate = false; ftue.live = false;
+        ftueReset();
+        persistSave();
+        showToast('PANDUAN DILEWATI', '#94a3b8');
+      });
+      document.getElementById('btn-ftue-reset').addEventListener('click', (e) => {
+        e.stopPropagation();
+        ftue.done = false; ftue.gate = true;
+        Object.keys(tips).forEach(k => delete tips[k]);
+        persistSave();
+        showToast('PANDUAN PEMULA AKAN MUNCUL DI PERMAINAN BARU', '#00e676', true);
+      });
 
       // ================= MEMANCING =================
       let fishPhase = 'idle', fishTimer = 0, fishTimer2 = 0;

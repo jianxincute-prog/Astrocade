@@ -34,7 +34,7 @@ const check = (name, ok, extra = '') => {
   await page.addInitScript(() => {
     window.lib = {
       showGameParameters() {}, getAsset: () => null,
-      addPlayerScoreToLeaderboard: async () => ({ rank: 1 }), saveUserGameState: async () => ({}), getUserGameState: async () => null
+      addPlayerScoreToLeaderboard: async () => ({ rank: 1 }), saveUserGameState: async () => ({}), getUserGameState: async () => ({ state: { ftue: { done: true, gate: false } } })
     };
   });
   await page.goto('file://' + DBG_FILE);
