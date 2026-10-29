@@ -944,15 +944,28 @@
     .tag-gear { background: rgba(52, 211, 153, 0.25); color: #6ee7b7; }
     #app-container.hc .trade-row { background: #111; border-color: #fff; }
 
+    /* ===== Cara bermain (tab + blok) ===== */
+    #howto-overlay { z-index: 70; padding: 20px; }
+    .ht-card { width: 680px; max-height: 1220px; background: var(--color-panel); border: 1px solid var(--color-panel-border); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .ht-head { display: flex; align-items: center; justify-content: space-between; }
+    .ht-title { font-family: var(--font-title); font-size: 34px; font-weight: 800; color: var(--color-gold); letter-spacing: 1px; }
+    .ht-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; touch-action: pan-x; }
+    .ht-tab { flex: 0 0 auto; padding: 10px 16px; border-radius: 14px; border: 2px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #e2e8f0; font-family: var(--font-title); font-size: 20px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+    .ht-tab.active { border-color: var(--color-cyan); background: rgba(0, 229, 255, 0.16); color: #fff; }
+    .ht-body { overflow-y: auto; max-height: 920px; display: flex; flex-direction: column; gap: 10px; touch-action: pan-y; padding-right: 4px; }
+    .ht-block { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-left: 6px solid var(--ac, #00e5ff); border-radius: 14px; padding: 10px 14px; }
+    .ht-block h4 { margin: 0 0 4px; font-family: var(--font-title); font-size: 23px; color: #fff; }
+    .ht-block ul { margin: 0; padding-left: 20px; }
+    .ht-block li { font-size: 19px; line-height: 1.38; color: #cbd5e1; margin: 2px 0; }
+    .ht-block b { color: #fff; }
+    #app-container.big-text .ht-block li { font-size: 23px; }
+    #app-container.big-text .ht-tab { font-size: 23px; }
+    #app-container.hc .ht-block { background: #111; border-color: #fff; }
+    #app-container.hc .ht-block li { color: #fff; }
+    #app-container.hc .ht-tab { background: #111; border-color: #fff; color: #fff; }
+    #app-container.hc .ht-tab.active { background: #fff; color: #000; }
+
     /* ===== Layar judul berhalaman + pengaturan aksesibilitas ===== */
-    .tpages { width: 100%; min-height: 300px; display: flex; }
-    .tpage { display: none; flex-direction: column; gap: 14px; width: 100%; }
-    .tpage.active { display: flex; }
-    .tdots { display: flex; gap: 10px; }
-    .dot { width: 14px; height: 14px; border-radius: 50%; background: #334155; }
-    .dot.active { background: #00e5ff; }
-    .tnav { display: flex; gap: 10px; width: 100%; }
-    .tnav .chip { height: 52px; }
     .setting-block { display: flex; flex-direction: column; gap: 8px; width: 100%; }
     .setting-label { font-size: 20px; color: #94a3b8; text-align: left; width: 100%; font-weight: 700; }
 
@@ -1284,67 +1297,30 @@
           </div>
         </div>
         <button class="btn-large" id="btn-resume">LANJUTKAN</button>
+        <button class="btn-large btn-secondary" id="btn-pause-howto">📖 CARA BERMAIN</button>
         <button class="btn-large btn-secondary" id="btn-pause-restart">MULAI ULANG</button>
       </div>
     </div>
 
-    <!-- Title / Tutorial (3 halaman) -->
+    <!-- Layar judul (tutorial lengkap ada di CARA BERMAIN) -->
     <div class="modal-overlay active" id="title-overlay">
       <div class="modal-card">
         <h2 class="modal-title win">MALL CRAWLER</h2>
-        <div class="tpages">
-          <div class="tpage active">
-            <p class="modal-desc">Mal terbengkalai dengan 240 toko. Kumpulkan bekal dan bertahan hidup!</p>
-            <ul class="tutorial-list">
-              <li>🏪 <b>Buka toko</b> untuk mencari 🍞 makanan &amp; 🥤 minuman — awas jebakan dan monster!</li>
-              <li>⛺ <b>Klaim SATU toko kosong</b> jadi basecamp (aman dari monster), lalu <b>SIMPAN</b> bekal di sana.</li>
-              <li>🔦 <b>SOROT</b> membekukan monster sesaat. ⚡ <b>LARI</b> cepat tapi menguras stamina.</li>
-            </ul>
-          </div>
-          <div class="tpage">
-            <ul class="tutorial-list">
-              <li>🍽️ Kamu <b>lapar</b> seiring waktu — makan/minum dari tas, atau dekati tumpukan bekal di basecamp untuk <b>MAKAN/MINUM</b> (mengurangi bekal target!). Istirahat di basecamp memulihkan nyawa.</li>
-              <li>💡 Awas <b>listrik padam</b>: mal gelap dan monster lebih peka.</li>
-              <li>⚠️ Jebakan: pelat paku, laser, gas, lantai runtuh. Monster: Pemburu, Brute, Penyelinap, Spons Rakus, Roh Sakura.</li>
-              <li>💧 Ada bar <b>HP</b>, <b>lapar</b>, dan <b>haus</b>. Makanan mengisi lapar, minuman mengisi haus. Mati = respawn di basecamp, waktu bertahan kembali ke 0 (progres lain tetap).</li>
-              <li>🏆 Komputer punya tab <b>Peringkat</b>: 10 pemain dengan waktu bertahan hidup terlama. Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di layar judul.</li>
-              <li>🧰 <b>Ruang perkakas</b> (langka): bahan langka (baja, bensin) + satu senjata: 🪵 papan paku, 🗡️ parang, 🪚 gergaji mesin (butuh ⛽ bensin), 🔨 palu lempar (kembali ke tangan, hancur setelah 5 lemparan) atau 📜 cetak biru palu lempar. Ganti senjata dengan tombol 🔄 / Q.</li>
-              <li>🎣 <b>Ruang memancing</b>: Pak Joko menyewakan pancingan (¢25 = 3 lemparan). 5 ikan: ⚪ putih, 🟡 kuning, 🔵 biru (buff sementara), 🟣 ungu (+1 lapis health bar: oranye lalu emas, permanen), 🔴 merah (damage +1 permanen). Makan ikan dari tas untuk mendapat efeknya.</li>
-              <li>🎰 <b>Vending machine</b>: jatah <b>3 kotak misteri gratis per hari</b>, lalu ¢500 per kotak (kredit didapat dari menjual barang lewat komputer).</li>
-              <li>🔄 Ruang gudang, jebakan, monster &amp; bahan <b>tertutup lagi setelah 20 detik</b> dan isinya diacak ulang. Penyintas bisa mati dan respawn di basecamp mereka.</li>
-              <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
-            </ul>
-            <p class="desk-hint">⌨️ WASD/Panah gerak • Shift lari • E aksi • F sorot • I tas • M suara • P jeda • Mouse: putar kamera</p>
-          </div>
-          <div class="tpage">
-            <ul class="tutorial-list">
-              <li>➕ Di lantai basecamp ada <b>2 slot +</b>: <b>Meja Crafting</b> (3 🪵 papan + 2 📌 paku) dan <b>Komputer</b> (5 komponen langka).</li>
-              <li>🔨 Meja crafting punya <b>resep</b>: ⚔️ senjata papan paku (1 papan + 1 paku), 🪤 jerat monster (2 besi + 2 paku), 🛡️ rompi (3 kain + 1 besi), 🧰 med kit (2 kain + 1 antiseptik).</li>
-              <li>🔩 Besi, 🧵 kain, dan 🧴 antiseptik ada di <b>ruang bahan</b> (rongsokan & perbekalan medis) dan kadang di ruang jebakan.</li>
-              <li>💻 Komponen komputer ada di gudang dan <b>ruang jebakan</b>. Dengan komputer, kamu bisa <b>berdagang</b> dengan 2 penyintas lain — mereka juga mencari bekal dan membangun basecamp sendiri.</li>
-            </ul>
-          </div>
-          <div class="tpage">
-            <div class="setting-block">
-              <div class="setting-label">Ukuran teks</div>
-              <div class="chip-row">
-                <button class="chip active" data-pref="text" data-val="normal">NORMAL</button>
-                <button class="chip" data-pref="text" data-val="big">BESAR</button>
-              </div>
-            </div>
-            <div class="setting-block">
-              <div class="setting-label">Kontras</div>
-              <div class="chip-row">
-                <button class="chip active" data-pref="contrast" data-val="normal">BIASA</button>
-                <button class="chip" data-pref="contrast" data-val="high">TINGGI</button>
-              </div>
-            </div>
+        <p class="modal-desc">Mal terbengkalai dengan 240 toko. Kumpulkan bekal, bangun basecamp, dan bertahan hidup selama mungkin!</p>
+        <button class="btn-large btn-secondary" id="btn-howto">📖 CARA BERMAIN</button>
+        <div class="setting-block">
+          <div class="setting-label">Ukuran teks</div>
+          <div class="chip-row">
+            <button class="chip active" data-pref="text" data-val="normal">NORMAL</button>
+            <button class="chip" data-pref="text" data-val="big">BESAR</button>
           </div>
         </div>
-        <div class="tdots" id="title-dots"><span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
-        <div class="tnav">
-          <button class="chip" id="title-prev">‹ KEMBALI</button>
-          <button class="chip" id="title-next">BERIKUTNYA ›</button>
+        <div class="setting-block">
+          <div class="setting-label">Kontras</div>
+          <div class="chip-row">
+            <button class="chip active" data-pref="contrast" data-val="normal">BIASA</button>
+            <button class="chip" data-pref="contrast" data-val="high">TINGGI</button>
+          </div>
         </div>
         <div class="setting-label">Tingkat kesulitan</div>
         <div class="chip-row" id="diff-row">
@@ -1355,6 +1331,18 @@
         <div class="best-line" id="title-best"></div>
         <button class="btn-large btn-secondary" id="btn-continue" style="display:none; margin-bottom: 10px;">LANJUTKAN</button>
         <button class="btn-large" id="btn-start">MULAI</button>
+      </div>
+    </div>
+
+    <!-- Cara bermain: tab per kategori, blok ringkas -->
+    <div class="modal-overlay" id="howto-overlay">
+      <div class="ht-card">
+        <div class="ht-head">
+          <div class="ht-title">📖 CARA BERMAIN</div>
+          <button class="inv-close" id="howto-close" aria-label="Tutup">✕</button>
+        </div>
+        <div class="ht-tabs" id="howto-tabs"></div>
+        <div class="ht-body" id="howto-body"></div>
       </div>
     </div>
   </div>
@@ -5899,22 +5887,79 @@
         state.started = true;
       });
 
-      // Halaman layar judul
-      const titlePages = Array.from(document.querySelectorAll('.tpage'));
-      const titleDots = Array.from(document.querySelectorAll('#title-dots .dot'));
-      const titlePrev = document.getElementById('title-prev');
-      const titleNext = document.getElementById('title-next');
-      let titlePage = 0;
-      function showTitlePage(i) {
-        titlePage = Math.max(0, Math.min(titlePages.length - 1, i));
-        titlePages.forEach((p, k) => p.classList.toggle('active', k === titlePage));
-        titleDots.forEach((d, k) => d.classList.toggle('active', k === titlePage));
-        titlePrev.style.visibility = titlePage === 0 ? 'hidden' : 'visible';
-        titleNext.style.visibility = titlePage === titlePages.length - 1 ? 'hidden' : 'visible';
+      // Cara bermain: tab per kategori, tiap tab berisi blok ringkas
+      const howtoOverlay = document.getElementById('howto-overlay');
+      const howtoTabs = document.getElementById('howto-tabs');
+      const howtoBody = document.getElementById('howto-body');
+      const howtoData = () => [
+        { icon: '🎯', label: 'DASAR', ac: '#00e5ff', blocks: [
+          { t: '🎯 Tujuan', l: [`Simpan <b>${config.goal.food} 🍞 makanan</b> dan <b>${config.goal.drink} 🥤 minuman</b> di basecamp untuk menang.`, 'Bertahan hidup selama mungkin — waktu terlamamu masuk peringkat.'] },
+          { t: '🏪 Buka toko', l: ['Dekati pintu toko lalu tekan <b>BUKA</b>.', 'Isinya acak: bekal, jebakan, monster, atau kosong.'] },
+          { t: '⛺ Basecamp', l: ['Toko kosong bisa <b>DIKLAIM</b> (hanya 1 basecamp). Aman dari monster.', 'Bawa bekal ke sana, tekan <b>SIMPAN</b>.'] },
+          { t: '🔦 Sorot & ⚡ Lari', l: ['<b>SOROT</b> membekukan monster di depanmu sebentar (ada jeda).', '<b>LARI</b> cepat tapi menguras stamina: tekan sekali = nyala, tekan lagi = mati.'] }
+        ] },
+        { icon: '❤️', label: 'BERTAHAN', ac: '#f87171', blocks: [
+          { t: '❤️ Nyawa (HP)', l: ['Bar HP turun saat terkena monster atau jebakan.', 'Pulih dengan 🩹 Kotak P3K, 🧰 Med Kit, atau istirahat di basecamp.', '🛡️ Rompi menahan serangan sebelum HP berkurang.'] },
+          { t: '🍽️ Lapar & 💧 Haus', l: ['Dua bar ini turun seiring waktu (berhenti di basecamp).', '<b>Makan</b> mengisi lapar, <b>minum</b> mengisi haus — dari tas atau tumpukan bekal di basecamp.', 'Kalau salah satu kosong, nyawa terus berkurang.'] },
+          { t: '💀 Kalau mati', l: ['Kamu <b>respawn di basecamp</b>. Waktu bertahan kembali ke 0.', 'Basecamp, tas, kredit, dan buff permanen tetap ada.'] },
+          { t: '💡 Listrik padam', l: ['Mal gelap dan monster lebih peka. Diam dan hindari lari.'] }
+        ] },
+        { icon: '🚪', label: 'RUANGAN', ac: '#fbbf24', blocks: [
+          { t: '📦 Gudang', l: ['Bekal 🍞🥤 dan P3K, kadang komponen komputer.'] },
+          { t: '⚠️ Jebakan', l: ['Pelat paku, laser, gas, atau lantai runtuh — tampak seperti toko biasa.', 'Umpan (barang/komponen) ada di ujung ruangan.'] },
+          { t: '👹 Monster', l: ['Monster langsung muncul saat pintu dibuka.'] },
+          { t: '🧱 Ruang bahan', l: ['<b>Bangunan</b>: papan, paku • <b>Rongsokan</b>: besi, paku • <b>Medis</b>: kain, antiseptik.'] },
+          { t: '✨ Ruang khusus', l: ['🧰 <b>Perkakas</b> (langka): senjata, baja, bensin, cetak biru.', '🎣 <b>Memancing</b> dan 🎰 <b>Vending machine</b>.'] },
+          { t: '🔄 Berganti', l: ['Ruangan menutup dan isinya diacak <b>20 detik</b> setelah dibuka (tidak menutup saat kamu di dalam). Basecamp tidak berubah.'] }
+        ] },
+        { icon: '👹', label: 'MONSTER', ac: '#a855f7', blocks: [
+          { t: '🔴 Pemburu & 🟠 Brute', l: ['<b>Pemburu</b>: seimbang, paling sering muncul (3 HP).', '<b>Brute</b>: lambat tapi kuat, damage 2 (5 HP).'] },
+          { t: '🔵 Penyelinap', l: ['Cepat dan rapuh (2 HP), mudah membeku oleh sorot.'] },
+          { t: '🟡 Spons Rakus & 🌸 Roh Sakura', l: ['<b>Spons Rakus</b>: 4 HP, tahan sorot.', '<b>Roh Sakura</b>: lincah, 3 HP.'] },
+          { t: '💡 Tips', l: ['Monster mendengar langkahmu — lari lebih berisik.', 'Gunakan sorot, jerat 🪤, atau senjata. Basecamp selalu aman.'] }
+        ] },
+        { icon: '⛺', label: 'BASECAMP', ac: '#34d399', blocks: [
+          { t: '➕ Dua slot di lantai', l: ['<b>Meja Crafting</b>: 3 🪵 papan + 2 📌 paku.', '<b>Komputer</b>: 5 komponen (motherboard, CPU, RAM, monitor, PSU).'] },
+          { t: '🔨 Resep meja crafting', l: ['⚔️ Papan paku: 1 papan + 1 paku', '🪤 Jerat monster: 2 besi + 2 paku', '🛡️ Rompi: 3 kain + 1 besi', '🧰 Med kit: 2 kain + 1 antiseptik', '🔨 Palu lempar: 2 baja + 2 besi + 1 papan (butuh cetak biru)'] },
+          { t: '💻 Komputer', l: ['Tab <b>BELI / JUAL</b> dengan penyintas Rina & Bima.', 'Tab <b>🏆 PERINGKAT</b>: 10 pemain dengan waktu bertahan terlama.'] },
+          { t: '💾 Simpan otomatis', l: ['Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di layar judul.'] }
+        ] },
+        { icon: '⚔️', label: 'SENJATA', ac: '#fb923c', blocks: [
+          { t: '🪵 Papan Paku', l: ['Damage 1, dibuat di meja crafting.'] },
+          { t: '🗡️ Parang & 🪚 Gergaji Mesin', l: ['<b>Parang</b>: damage 2, durabilitas 20.', '<b>Gergaji</b>: damage 2, cepat, butuh ⛽ <b>bensin</b> (tiap bensin = 8 bahan bakar, pakai dari tas).'] },
+          { t: '🔨 Palu Lempar', l: ['Dilempar lurus lalu kembali ke tangan.', 'Hancur setelah <b>5 lemparan</b>.'] },
+          { t: '🔄 Ganti senjata', l: ['Tombol 🔄 di tombol serang atau tombol <b>Q</b>.', 'Senjata baru ada di ruang perkakas — pilih <b>PAKAI</b> di tas.'] }
+        ] },
+        { icon: '🎣', label: 'SPESIAL', ac: '#22d3ee', blocks: [
+          { t: '🎣 Memancing', l: ['Pak Joko menyewakan pancingan: <b>¢25 = 3 lemparan</b>.', 'Tekan LEMPAR, tunggu ❗, lalu <b>TARIK!!</b> secepatnya.'] },
+          { t: '🐟 Ikan & buff', l: ['⚪ Teri: napas pulih lebih cepat • 🟡 Mas: kecepatan +15% • 🔵 Buntal: monster sulit mendeteksimu (buff sementara).', '🟣 <b>Hiu Ungu</b>: +1 lapis health bar (oranye, lalu emas) • 🔴 <b>Naga Merah</b>: damage senjata +1 (permanen, maks 2×).'] },
+          { t: '🎰 Vending machine', l: ['<b>3 kotak misteri gratis per hari</b>, selanjutnya ¢500.', 'Isi acak: bekal, bahan, jerat, med kit, komponen, atau kredit.'] },
+          { t: '💰 Kredit (¢)', l: ['Didapat dengan menjual barang lewat komputer di basecamp.'] }
+        ] },
+        { icon: '🎮', label: 'KONTROL', ac: '#94a3b8', blocks: [
+          { t: '📱 Layar sentuh', l: ['Joystick kiri = bergerak. Geser sisi kanan layar = putar kamera.', 'Tombol: <b>BUKA/aksi</b>, <b>LARI</b>, <b>SOROT</b>, <b>SERANG</b>, <b>TAS</b>.'] },
+          { t: '⌨️ Keyboard & mouse', l: ['WASD/Panah gerak • Shift lari • E aksi • F sorot', 'Spasi serang • Q ganti senjata • I tas • M suara • P jeda', 'Mouse: putar kamera.'] }
+        ] }
+      ];
+      let howtoTab = 0;
+      function renderHowto() {
+        const data = howtoData();
+        howtoTabs.innerHTML = '';
+        data.forEach((tb, i) => {
+          const b = document.createElement('button');
+          b.className = 'ht-tab' + (i === howtoTab ? ' active' : '');
+          b.textContent = `${tb.icon} ${tb.label}`;
+          b.addEventListener('click', (e) => { e.stopPropagation(); howtoTab = i; renderHowto(); howtoBody.scrollTop = 0; });
+          howtoTabs.appendChild(b);
+        });
+        const cur = data[howtoTab];
+        howtoBody.innerHTML = cur.blocks.map(bl => `<div class="ht-block" style="--ac:${cur.ac}"><h4>${bl.t}</h4><ul>${bl.l.map(x => `<li>${x}</li>`).join('')}</ul></div>`).join('');
       }
-      titlePrev.addEventListener('click', (e) => { e.stopPropagation(); showTitlePage(titlePage - 1); });
-      titleNext.addEventListener('click', (e) => { e.stopPropagation(); showTitlePage(titlePage + 1); });
-      showTitlePage(0);
+      function openHowto() { renderHowto(); howtoOverlay.classList.add('active'); }
+      function closeHowto() { howtoOverlay.classList.remove('active'); }
+      document.getElementById('btn-howto').addEventListener('click', (e) => { e.stopPropagation(); openHowto(); });
+      document.getElementById('btn-pause-howto').addEventListener('click', (e) => { e.stopPropagation(); openHowto(); });
+      document.getElementById('howto-close').addEventListener('click', (e) => { e.stopPropagation(); closeHowto(); });
 
       document.querySelectorAll('#diff-row .chip').forEach(ch => {
         ch.addEventListener('click', (e) => {
