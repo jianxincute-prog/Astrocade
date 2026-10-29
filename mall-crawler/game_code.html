@@ -2073,6 +2073,44 @@
       goalFoodEl.textContent = config.goal.food;
       goalDrinkEl.textContent = config.goal.drink;
 
+      // Material murah: Lambert (permukaan matte) / Phong (logam) menggantikan PBR Standard agar shader piksel jauh lebih ringan
+      function MatStd(p) {
+        const o = Object.assign({}, p || {});
+        const rough = o.roughness, metal = o.metalness || 0;
+        delete o.roughness; delete o.metalness;
+        if (metal >= 0.55) {
+          o.specular = new THREE.Color(0x8794a6).multiplyScalar(Math.min(1, metal) * 0.7);
+          o.shininess = 25 + (1 - (rough == null ? 0.5 : rough)) * 70;
+          return new THREE.MeshPhongMaterial(o);
+        }
+        return new THREE.MeshLambertMaterial(o);
+      }
+
+      // Penulisan DOM per frame hanya bila nilainya berubah (menghindari recalc gaya & repaint HUD tiap frame)
+      const _txtDesc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+      function guardText(el) {
+        if (!el || el.__tg) return;
+        el.__tg = true;
+        let last = el.textContent;
+        Object.defineProperty(el, 'textContent', { configurable: true, get() { return last; }, set(v) { v = String(v); if (v !== last) { last = v; _txtDesc.set.call(el, v); } } });
+      }
+      function guardTransform(el) {
+        if (!el || el.__sg) return;
+        el.__sg = true;
+        const st = el.style;
+        let last = st.transform;
+        Object.defineProperty(st, 'transform', { configurable: true, get() { return last; }, set(v) { v = String(v); if (v !== last) { last = v; st.setProperty('transform', v); } } });
+      }
+      [hudTimeEl, attackDurEl, attackEmojiEl, attackNameEl, actionLabel, actionSub, compassText].forEach(guardText);
+      [compassArrow, staminaFill, hungerFill, thirstFill].forEach(guardTransform);
+      // kelas tombol aksi: hitung kelas yang diinginkan lalu terapkan selisihnya saja
+      const _ac = {
+        want: new Set(),
+        reset() { this.want.clear(); },
+        add(c) { this.want.add(c); },
+        apply() { ['disabled', 'claim-mode', 'store-mode'].forEach(c => { const w = this.want.has(c); if (btnAction.classList.contains(c) !== w) btnAction.classList.toggle(c, w); }); }
+      };
+
       // --- THREE.JS SCENE SETUP ---
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x060913);
@@ -2080,7 +2118,7 @@
 
       const camera = new THREE.PerspectiveCamera(60, 720 / 1280, 0.2, 500);
       const deviceDpr = window.devicePixelRatio || 1;
-      const PIXEL_RATIO_CAP = Math.min(deviceDpr, 1.25);
+      const PIXEL_RATIO_CAP = Math.min(deviceDpr, 1.0);
       const PIXEL_RATIO_MIN = 0.6;
       let pixelRatio = PIXEL_RATIO_CAP;
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: deviceDpr < 1.5, powerPreference: 'high-performance' });
@@ -2096,7 +2134,7 @@
       scene.add(mallDirLight);
 
       // Cahaya interior toko dipool (2 lampu dipindah ke toko terdekat) agar jumlah lampu shader konstan
-      const lightPool = [0, 1].map(() => {
+      const lightPool = [0].map(() => {
         const l = new THREE.PointLight(0xffffff, 0, 14);
         scene.add(l);
         return l;
@@ -2187,28 +2225,28 @@
         return tex;
       }
 
-      const floorMat = new THREE.MeshStandardMaterial({
+      const floorMat = new MatStd({
         map: createFloorTexture(),
         roughness: 0.55,
         metalness: 0.12
       });
 
       const ceilingMat = new THREE.MeshBasicMaterial({ color: 0x070b14, side: THREE.DoubleSide });
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0x222a3d, roughness: 0.8 });
-      const shutterMat = new THREE.MeshStandardMaterial({ map: createShutterTexture(), roughness: 0.5, metalness: 0.5 });
-      const frameMat = new THREE.MeshStandardMaterial({ color: 0x111622, roughness: 0.5 });
+      const wallMat = new MatStd({ color: 0x222a3d, roughness: 0.8 });
+      const shutterMat = new MatStd({ map: createShutterTexture(), roughness: 0.5, metalness: 0.5 });
+      const frameMat = new MatStd({ color: 0x111622, roughness: 0.5 });
 
-      const concreteMat = new THREE.MeshStandardMaterial({
+      const concreteMat = new MatStd({
         map: createConcreteTexture(),
         roughness: 0.88,
         metalness: 0.05
       });
 
-      const lampMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, emissive: 0x1e293b, roughness: 0.4 });
-      const storeSignMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, emissive: 0x0f172a, roughness: 0.3 });
-      const junctionSignMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 });
+      const lampMat = new MatStd({ color: 0x94a3b8, emissive: 0x1e293b, roughness: 0.4 });
+      const storeSignMat = new MatStd({ color: 0x1e293b, emissive: 0x0f172a, roughness: 0.3 });
+      const junctionSignMat = new MatStd({ color: 0x0284c7, roughness: 0.4 });
       const ACCENT_COLORS = [0xef4444, 0xf59e0b, 0x22c55e, 0x06b6d4, 0x3b82f6, 0xa855f7, 0xec4899, 0x84cc16];
-      const roomFloorMat = new THREE.MeshStandardMaterial({
+      const roomFloorMat = new MatStd({
         color: 0x1a2233,
         roughness: 0.7,
         metalness: 0.15
@@ -2378,31 +2416,31 @@
       const radialTex = radialTexture('255,255,255', 1);
 
       const MAT = {
-        crate: new THREE.MeshStandardMaterial({ map: createCrateTexture(), roughness: 0.85 }),
-        woodDark: new THREE.MeshStandardMaterial({ color: 0x5b3a1e, roughness: 0.9 }),
-        pallet: new THREE.MeshStandardMaterial({ color: 0x8b6a3e, roughness: 0.9 }),
-        cardboard: new THREE.MeshStandardMaterial({ color: 0xb08850, roughness: 0.95 }),
-        shelfMetal: new THREE.MeshStandardMaterial({ color: 0x3b4a5e, roughness: 0.4, metalness: 0.6 }),
-        shelfBoard: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.55, metalness: 0.35 }),
-        shelfBack: new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 }),
+        crate: new MatStd({ map: createCrateTexture(), roughness: 0.85 }),
+        woodDark: new MatStd({ color: 0x5b3a1e, roughness: 0.9 }),
+        pallet: new MatStd({ color: 0x8b6a3e, roughness: 0.9 }),
+        cardboard: new MatStd({ color: 0xb08850, roughness: 0.95 }),
+        shelfMetal: new MatStd({ color: 0x3b4a5e, roughness: 0.4, metalness: 0.6 }),
+        shelfBoard: new MatStd({ color: 0x64748b, roughness: 0.55, metalness: 0.35 }),
+        shelfBack: new MatStd({ color: 0x334155, roughness: 0.7 }),
         priceStrip: new THREE.MeshBasicMaterial({ color: 0xfacc15 }),
         hazardTape: new THREE.MeshBasicMaterial({ map: createHazardTexture(6) }),
-        spike: new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.85, roughness: 0.25 }),
-        glass: new THREE.MeshStandardMaterial({ color: 0xa5f3fc, transparent: true, opacity: 0.6, metalness: 0.4, roughness: 0.1, side: THREE.DoubleSide }),
-        wire: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.6 }),
+        spike: new MatStd({ color: 0xcbd5e1, metalness: 0.85, roughness: 0.25 }),
+        glass: new MatStd({ color: 0xa5f3fc, transparent: true, opacity: 0.6, metalness: 0.4, roughness: 0.1, side: THREE.DoubleSide }),
+        wire: new MatStd({ color: 0x111111, roughness: 0.6 }),
         spark: new THREE.MeshBasicMaterial({ color: 0xfff176 }),
-        gasCan: new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.4, metalness: 0.5 }),
-        ceilingPanel: new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.8 }),
+        gasCan: new MatStd({ color: 0xb91c1c, roughness: 0.4, metalness: 0.5 }),
+        ceilingPanel: new MatStd({ color: 0x9ca3af, roughness: 0.8 }),
         stain: new THREE.MeshBasicMaterial({ color: 0x3a0a0a, transparent: true, opacity: 0.8, depthWrite: false }),
         claw: new THREE.MeshBasicMaterial({ color: 0x0b0303 }),
-        nest: new THREE.MeshStandardMaterial({ color: 0x1f1a17, roughness: 1 }),
-        bone: new THREE.MeshStandardMaterial({ color: 0xe7e5e4, roughness: 0.6 }),
+        nest: new MatStd({ color: 0x1f1a17, roughness: 1 }),
+        bone: new MatStd({ color: 0xe7e5e4, roughness: 0.6 }),
         dust: new THREE.MeshBasicMaterial({ color: 0x9ca3af, transparent: true, opacity: 0.1, depthWrite: false }),
         tapeFloor: new THREE.MeshBasicMaterial({ color: 0xd6c97a, transparent: true, opacity: 0.4, depthWrite: false }),
         web: new THREE.MeshBasicMaterial({ color: 0xe5e7eb, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }),
         paper: new THREE.MeshBasicMaterial({ color: 0xf1f5f9, side: THREE.DoubleSide }),
-        rail: new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.3 }),
-        ladder: new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6, metalness: 0.3 }),
+        rail: new MatStd({ color: 0x94a3b8, metalness: 0.8, roughness: 0.3 }),
+        ladder: new MatStd({ color: 0xd97706, roughness: 0.6, metalness: 0.3 }),
         rentSign: new THREE.MeshBasicMaterial({ map: createTextTexture('#f8fafc', '#b91c1c', '#b91c1c', [
           { text: 'DISEWAKAN', font: 'bold 92px sans-serif', y: 105 },
           { text: 'HUB. PENGELOLA MAL', font: 'bold 36px sans-serif', y: 190 }
@@ -2419,14 +2457,14 @@
           { text: '⛺ BASECAMP', font: 'bold 84px sans-serif', y: 108 },
           { text: 'ZONA AMAN', font: 'bold 40px sans-serif', y: 195 }
         ]) }),
-        rug: new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 1 }),
-        sleepBag: new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.8 }),
-        pillow: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.9 }),
-        locker: new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.5, metalness: 0.3 }),
-        lockerLid: new THREE.MeshStandardMaterial({ color: 0x065f46, roughness: 0.5, metalness: 0.3 }),
-        lanternBody: new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.6, roughness: 0.4 }),
+        rug: new MatStd({ color: 0x7f1d1d, roughness: 1 }),
+        sleepBag: new MatStd({ color: 0x1d4ed8, roughness: 0.8 }),
+        pillow: new MatStd({ color: 0xe2e8f0, roughness: 0.9 }),
+        locker: new MatStd({ color: 0x047857, roughness: 0.5, metalness: 0.3 }),
+        lockerLid: new MatStd({ color: 0x065f46, roughness: 0.5, metalness: 0.3 }),
+        lanternBody: new MatStd({ color: 0x1f2937, metalness: 0.6, roughness: 0.4 }),
         lanternGlow: new THREE.MeshBasicMaterial({ color: 0xffd27a }),
-        beacon: new THREE.MeshStandardMaterial({ color: 0x00e676, emissive: 0x059669 }),
+        beacon: new MatStd({ color: 0x00e676, emissive: 0x059669 }),
         ring: new THREE.MeshBasicMaterial({ color: 0x00e676, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false })
       };
       MAT.matSign = new THREE.MeshBasicMaterial({ map: createTextTexture('#3b2410', '#f5c37b', '#f5c37b', [
@@ -2441,24 +2479,24 @@
         { text: 'PERBEKALAN', font: 'bold 84px sans-serif', y: 105 },
         { text: 'MEDIS', font: 'bold 80px sans-serif', y: 190 }
       ]) });
-      MAT.medWhite = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, roughness: 0.5, metalness: 0.1 });
+      MAT.medWhite = new MatStd({ color: 0xdfe6ee, roughness: 0.5, metalness: 0.1 });
       MAT.medRed = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
       MAT.toolSign = new THREE.MeshBasicMaterial({ map: createTextTexture('#1f1306', '#fbbf24', '#f59e0b', [
         { text: 'PERKAKAS', font: 'bold 92px sans-serif', y: 105 },
         { text: 'LANGKA', font: 'bold 62px sans-serif', y: 190 }
       ]) });
-      MAT.toolRed = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.45, metalness: 0.5 });
-      MAT.toolSteel = new THREE.MeshStandardMaterial({ color: 0x8b95a3, roughness: 0.3, metalness: 0.85 });
+      MAT.toolRed = new MatStd({ color: 0xb91c1c, roughness: 0.45, metalness: 0.5 });
+      MAT.toolSteel = new MatStd({ color: 0x8b95a3, roughness: 0.3, metalness: 0.85 });
       MAT.fishSign = new THREE.MeshBasicMaterial({ map: createTextTexture('#06293b', '#7dd3fc', '#38bdf8', [
         { text: 'MEMANCING', font: 'bold 84px sans-serif', y: 105 },
         { text: 'SEWA PANCING', font: 'bold 54px sans-serif', y: 190 }
       ]) });
-      MAT.water = new THREE.MeshStandardMaterial({ color: 0x1e88c8, emissive: 0x0b4a78, emissiveIntensity: 0.8, roughness: 0.12, metalness: 0.3, transparent: true, opacity: 0.9 });
-      MAT.rim = new THREE.MeshStandardMaterial({ color: 0x59606e, roughness: 0.85 });
+      MAT.water = new MatStd({ color: 0x1e88c8, emissive: 0x0b4a78, emissiveIntensity: 0.8, roughness: 0.12, metalness: 0.3, transparent: true, opacity: 0.9 });
+      MAT.rim = new MatStd({ color: 0x59606e, roughness: 0.85 });
       MAT.fishCols = [0xf1f5f9, 0xfacc15, 0x3b82f6, 0xa855f7, 0xef4444].map(c => new THREE.MeshBasicMaterial({ color: c }));
-      MAT.vendBody = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.4, metalness: 0.5 });
+      MAT.vendBody = new MatStd({ color: 0xb91c1c, roughness: 0.4, metalness: 0.5 });
       MAT.vendGlass = new THREE.MeshBasicMaterial({ color: 0x9be7ff });
-      MAT.vendDark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.4 });
+      MAT.vendDark = new MatStd({ color: 0x111827, roughness: 0.6, metalness: 0.4 });
       MAT.vendProd = [0xfacc15, 0x22c55e, 0xef4444, 0x3b82f6, 0xf97316, 0xa855f7].map(c => new THREE.MeshBasicMaterial({ color: c }));
       MAT.vendSign = new THREE.MeshBasicMaterial({ map: createTextTexture('#7f1d1d', '#fde68a', '#fde68a', [
         { text: 'KOTAK', font: 'bold 92px sans-serif', y: 100 },
@@ -2466,8 +2504,8 @@
       ]) });
       MAT.laser = new THREE.MeshBasicMaterial({ color: 0xff2040 });
       MAT.gasCloud = new THREE.MeshBasicMaterial({ color: 0x5bff7a, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
-      MAT.tileOk = new THREE.MeshStandardMaterial({ color: 0x59606e, roughness: 0.8 });
-      MAT.tileWeak = new THREE.MeshStandardMaterial({ color: 0x3b4150, roughness: 0.9 });
+      MAT.tileOk = new MatStd({ color: 0x59606e, roughness: 0.8 });
+      MAT.tileWeak = new MatStd({ color: 0x3b4150, roughness: 0.9 });
       MAT.crack = new THREE.MeshBasicMaterial({ color: 0x0a0d14 });
       MAT.hole = new THREE.MeshBasicMaterial({ color: 0x000000 });
       const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -2575,7 +2613,7 @@
       function itemMat(color, opts) {
         const key = color + (opts ? JSON.stringify(opts) : '');
         if (!itemMatCache[key]) {
-          itemMatCache[key] = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.45, emissive: color, emissiveIntensity: 0.22 }, opts || {}));
+          itemMatCache[key] = new MatStd(Object.assign({ color, roughness: 0.45, emissive: color, emissiveIntensity: 0.22 }, opts || {}));
         }
         return itemMatCache[key];
       }
@@ -2674,20 +2712,35 @@
       let cgDirty = true;
       let cgStamp = 0;
       const cgKey = (gx, gz) => (gx + 512) * 1024 + (gz + 512);
+      // Inkremental: hanya collider yang ditambah/dibuang sejak pembangunan terakhir yang menyentuh sel grid
+      const cgIn = new Set(), cgCur = new Set();
+      function cgEach(c, fn) {
+        const x0 = Math.floor(c.minX / CG_CELL), x1 = Math.floor(c.maxX / CG_CELL);
+        const z0 = Math.floor(c.minZ / CG_CELL), z1 = Math.floor(c.maxZ / CG_CELL);
+        for (let gx = x0; gx <= x1; gx++) for (let gz = z0; gz <= z1; gz++) fn(cgKey(gx, gz));
+      }
       function rebuildColliderGrid() {
-        cgrid.clear();
+        cgCur.clear();
+        for (let i = 0; i < colliders.length; i++) cgCur.add(colliders[i]);
+        cgIn.forEach(c => {
+          if (cgCur.has(c)) return;
+          cgEach(c, k => {
+            const list = cgrid.get(k);
+            if (!list) return;
+            const idx = list.indexOf(c);
+            if (idx >= 0) { list[idx] = list[list.length - 1]; list.pop(); }
+          });
+          cgIn.delete(c);
+        });
         for (let i = 0; i < colliders.length; i++) {
           const c = colliders[i];
-          const x0 = Math.floor(c.minX / CG_CELL), x1 = Math.floor(c.maxX / CG_CELL);
-          const z0 = Math.floor(c.minZ / CG_CELL), z1 = Math.floor(c.maxZ / CG_CELL);
-          for (let gx = x0; gx <= x1; gx++) {
-            for (let gz = z0; gz <= z1; gz++) {
-              const k = cgKey(gx, gz);
-              let list = cgrid.get(k);
-              if (!list) { list = []; cgrid.set(k, list); }
-              list.push(c);
-            }
-          }
+          if (cgIn.has(c)) continue;
+          cgIn.add(c);
+          cgEach(c, k => {
+            let list = cgrid.get(k);
+            if (!list) { list = []; cgrid.set(k, list); }
+            list.push(c);
+          });
         }
         cgDirty = false;
       }
@@ -3112,10 +3165,10 @@
 
       // Properti lorong di sudut persimpangan: pot tanaman, bangku, tong sampah (digabung ke mesh statis)
       (function buildCorridorProps() {
-        const potMat = new THREE.MeshStandardMaterial({ color: 0x7c4a2d, roughness: 0.9 });
+        const potMat = new MatStd({ color: 0x7c4a2d, roughness: 0.9 });
         const benchMat = potMat;
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f7d46, roughness: 0.9 });
-        const legMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.4 });
+        const leafMat = new MatStd({ color: 0x2f7d46, roughness: 0.9 });
+        const legMat = new MatStd({ color: 0x334155, roughness: 0.5, metalness: 0.4 });
         const binMat = legMat;
         const off = CW / 2 - 0.9;
         const col = (x, z, r) => colliders.push({ minX: x - r, maxX: x + r, minZ: z - r, maxZ: z + r });
@@ -3149,14 +3202,14 @@
 
       // Landmark: Food Court (at X = 68, Z = 0)
       const foodSignGeo = new THREE.BoxGeometry(10, 1.6, 0.4);
-      const foodSignMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xb45309, roughness: 0.3 });
+      const foodSignMat = new MatStd({ color: 0xf59e0b, emissive: 0xb45309, roughness: 0.3 });
       const foodSign = new THREE.Mesh(foodSignGeo, foodSignMat);
       foodSign.position.set(68, WALL_HEIGHT - 0.8, 0);
       scene.add(foodSign);
 
       // Landmark: Vintage Cinema (at X = -68, Z = 0)
       const cinemaSignGeo = new THREE.BoxGeometry(10, 1.6, 0.4);
-      const cinemaSignMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, emissive: 0x881337, roughness: 0.3 });
+      const cinemaSignMat = new MatStd({ color: 0xe11d48, emissive: 0x881337, roughness: 0.3 });
       const cinemaSign = new THREE.Mesh(cinemaSignGeo, cinemaSignMat);
       cinemaSign.position.set(-68, WALL_HEIGHT - 0.8, 0);
       scene.add(cinemaSign);
@@ -3293,6 +3346,7 @@
       dust.frustumCulled = false;
       scene.add(dust);
 
+      let dustAcc = 0;
       function updateAtmosphere(dt) {
         const level = Math.max(0.05, Math.min(1, ambientLight.intensity / 1.2));
         stripMat.color.setRGB(0.6 * level, 0.66 * level, 0.74 * level);
@@ -3309,18 +3363,22 @@
           stripInst.instanceColor.needsUpdate = true;
           poolInst.instanceColor.needsUpdate = true;
         }
-        // debu melayang di sekitar pemain
+        // debu melayang di sekitar pemain (diperbarui 20 Hz; geraknya lambat sehingga tak terlihat bedanya)
+        dustAcc += dt;
+        if (dustAcc >= 0.05) {
         const px = playerGroup.position.x, pz = playerGroup.position.z;
+        const ddt = dustAcc; dustAcc = 0;
         for (let i = 0; i < DUST_N; i++) {
           const j = i * 3;
-          dustPos[j] += Math.sin(animTime * 0.4 + i) * 0.12 * dt;
-          dustPos[j + 1] += Math.cos(animTime * 0.3 + i * 1.7) * 0.08 * dt;
-          dustPos[j + 2] += Math.cos(animTime * 0.35 + i * 0.6) * 0.12 * dt;
+          dustPos[j] += Math.sin(animTime * 0.4 + i) * 0.12 * ddt;
+          dustPos[j + 1] += Math.cos(animTime * 0.3 + i * 1.7) * 0.08 * ddt;
+          dustPos[j + 2] += Math.cos(animTime * 0.35 + i * 0.6) * 0.12 * ddt;
           if (dustPos[j] - px > 10) dustPos[j] -= 20; else if (dustPos[j] - px < -10) dustPos[j] += 20;
           if (dustPos[j + 2] - pz > 10) dustPos[j + 2] -= 20; else if (dustPos[j + 2] - pz < -10) dustPos[j + 2] += 20;
           if (dustPos[j + 1] > 4.2) dustPos[j + 1] -= 4.2; else if (dustPos[j + 1] < 0) dustPos[j + 1] += 4.2;
         }
         dustGeo.attributes.position.needsUpdate = true;
+        }
         MAT.screen.color.setHSL(0.55, 0.8, 0.5 + 0.1 * Math.sin(animTime * 3));
         // kerucut cahaya senter
         torchCone.material.opacity = 0.032 * (torchLight.intensity / 2.5) * (1 + (1 - level) * 1.5);
@@ -3384,7 +3442,7 @@
       // Shoes: 0.06m; Legs: 0.74m; Pelvis: 0.16m; Torso: 0.50m; Neck: 0.06m; Head: 0.28m; Arms: 0.80m
       // Pembangun karakter penyintas (dipakai pemain & NPC). Semua kotak kecil digabung per bagian tubuh
       // (badan, 2 kaki, 2 lengan) dengan warna per-vertex agar hanya ~10 draw call per karakter.
-      const SURV_LIT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.08 });
+      const SURV_LIT = new MatStd({ vertexColors: true, roughness: 0.62, metalness: 0.08 });
       const SURV_GLOW = new THREE.MeshBasicMaterial({ vertexColors: true });
       const _boxG = new THREE.BoxGeometry(1, 1, 1);
       function buildSurvivor(cfg) {
@@ -3518,11 +3576,11 @@
 
       // Senjata papan paku (terlihat saat punya durabilitas)
       const weaponMesh = new THREE.Group();
-      const wBoard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.62, 0.035), new THREE.MeshStandardMaterial({ color: 0xb77a3b, roughness: 0.9 }));
+      const wBoard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.62, 0.035), new MatStd({ color: 0xb77a3b, roughness: 0.9 }));
       wBoard.position.set(0, -0.2, 0);
       weaponMesh.add(wBoard);
       const nailGeo = new THREE.ConeGeometry(0.014, 0.08, 5);
-      const nailMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.3 });
+      const nailMat = new MatStd({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.3 });
       for (let j = 0; j < 4; j++) {
         [-0.03, 0.03].forEach(nx => {
           const nail = new THREE.Mesh(nailGeo, nailMat);
@@ -3537,7 +3595,7 @@
       leftArmPivot.add(weaponMesh);
       const weaponMeshes = { papan: weaponMesh };
       {
-        const wm = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m || 0 });
+        const wm = (c, r, m) => new MatStd({ color: c, roughness: r, metalness: m || 0 });
         const addTo = (grp, w, h, d, mat, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); grp.add(b); return b; };
         const pose = g => { g.position.set(0, -0.8, 0.09); g.rotation.x = -1.2; g.visible = false; leftArmPivot.add(g); return g; };
         const par = new THREE.Group();
@@ -3560,22 +3618,22 @@
       // Flashlight attached to Right Arm
       const flashlightGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.22, 8);
       flashlightGeo.rotateX(Math.PI / 2);
-      const flashlightMesh = new THREE.Mesh(flashlightGeo, new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 }));
+      const flashlightMesh = new THREE.Mesh(flashlightGeo, new MatStd({ color: 0x334155, metalness: 0.8 }));
       flashlightMesh.position.set(0, -0.76, 0.1);
       rightArmPivot.add(flashlightMesh);
       const flashLens = new THREE.Mesh(new THREE.CircleGeometry(0.045, 12), new THREE.MeshBasicMaterial({ color: 0xbff7ff }));
       flashLens.position.set(0, -0.76, 0.212);
       rightArmPivot.add(flashLens);
-      const flashRing = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.012, 6, 14), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 }));
+      const flashRing = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.012, 6, 14), new MatStd({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 }));
       flashRing.position.set(0, -0.76, 0.206);
       rightArmPivot.add(flashRing);
 
       // Flashlight Spotlight
       const torchLight = new THREE.SpotLight(0x00e5ff, 2.5, 28, Math.PI / 5, 0.35, 1.2);
-      torchLight.position.set(0, -0.76, 0.1);
-      torchLight.target.position.set(0, -0.76, 10);
-      rightArmPivot.add(torchLight);
-      rightArmPivot.add(torchLight.target);
+      // Lampu senter berada di root scene (bukan anak playerGroup) agar tetap dihitung saat model pemain berkedip
+      // (kebal setelah terluka); jika tidak, jumlah SpotLight berubah dan SEMUA shader dikompilasi ulang.
+      scene.add(torchLight);
+      scene.add(torchLight.target);
 
       // Kerucut cahaya senter (aditif, samar) agar berkas senter terlihat bersama debu
       const coneGeo = new THREE.ConeGeometry(2.4, 9, 20, 1, true);
@@ -3589,7 +3647,7 @@
       // Rompi pelindung (terlihat saat armor > 0)
       const armorGroup = new THREE.Group();
       {
-        const vm = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.35, metalness: 0.7 });
+        const vm = new MatStd({ color: 0x475569, roughness: 0.35, metalness: 0.7 });
         const vg = new THREE.BoxGeometry(1, 1, 1);
         [[0.4, 0.34, 0.07, 0, 1.24, 0.15], [0.36, 0.3, 0.07, 0, 1.24, -0.28], [0.17, 0.08, 0.2, -0.25, 1.45, 0], [0.17, 0.08, 0.2, 0.25, 1.45, 0]].forEach(([w, h, d, x, y, z]) => {
           const m = new THREE.Mesh(vg, vm); m.scale.set(w, h, d); m.position.set(x, y, z); armorGroup.add(m);
@@ -3600,7 +3658,7 @@
       scene.add(playerGroup);
 
       // --- MONSTER CREATURES (~2.2m tall, blocky shadowy predators) ---
-      const monsterMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 });
+      const monsterMat = new MatStd({ color: 0x0f172a, roughness: 0.4 });
       const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff1744 });
       const maxMonsters = () => Math.max(1, Math.round(config.monster.maxCount * diff.maxMul));
 
@@ -3614,7 +3672,7 @@
       };
       MTYPES.hunter.mat = monsterMat; MTYPES.hunter.eyeMat = eyeMat;
       ['brute', 'stalker', 'sponge', 'sakura'].forEach(k => {
-        MTYPES[k].mat = new THREE.MeshStandardMaterial({ color: MTYPES[k].body, roughness: 0.4 });
+        MTYPES[k].mat = new MatStd({ color: MTYPES[k].body, roughness: 0.4 });
         MTYPES[k].eyeMat = new THREE.MeshBasicMaterial({ color: MTYPES[k].eye });
       });
       Object.keys(MTYPES).forEach(k => {
@@ -3643,12 +3701,12 @@
       Object.keys(MTYPES).forEach(k => {
         const tp = MTYPES[k];
         const c = new THREE.Color(tp.body);
-        tp.skin = new THREE.MeshStandardMaterial({ color: c, roughness: 0.62, metalness: 0.12 });
-        tp.dark = new THREE.MeshStandardMaterial({ color: c.clone().multiplyScalar(0.45), roughness: 0.8, metalness: 0.05 });
-        tp.armor = new THREE.MeshStandardMaterial({ color: c.clone().lerp(new THREE.Color(0x9aa4ad), 0.35), roughness: 0.38, metalness: 0.7 });
-        tp.bone = new THREE.MeshStandardMaterial({ color: 0xb9ae94, roughness: 0.55, metalness: 0.05, emissive: 0x0d0b08 });
-        tp.petal = new THREE.MeshStandardMaterial({ color: 0xf6a5c8, roughness: 0.55, emissive: 0x5a1236, emissiveIntensity: 0.6 });
-        tp.core = new THREE.MeshStandardMaterial({ color: 0x120505, emissive: tp.eye, emissiveIntensity: 1.6, roughness: 0.5 });
+        tp.skin = new MatStd({ color: c, roughness: 0.62, metalness: 0.12 });
+        tp.dark = new MatStd({ color: c.clone().multiplyScalar(0.45), roughness: 0.8, metalness: 0.05 });
+        tp.armor = new MatStd({ color: c.clone().lerp(new THREE.Color(0x9aa4ad), 0.35), roughness: 0.38, metalness: 0.7 });
+        tp.bone = new MatStd({ color: 0xb9ae94, roughness: 0.55, metalness: 0.05, emissive: 0x0d0b08 });
+        tp.petal = new MatStd({ color: 0xf6a5c8, roughness: 0.55, emissive: 0x5a1236, emissiveIntensity: 0.6 });
+        tp.core = new MatStd({ color: 0x120505, emissive: tp.eye, emissiveIntensity: 1.6, roughness: 0.5 });
       });
       const _mg = {};
       const mgeo = (key, fn) => _mg[key] || (_mg[key] = fn());
@@ -3883,8 +3941,8 @@
 
       const monsters = [];
       // Satu lampu aura merah dipindah ke monster terdekat (lampu per monster akan memicu rekompilasi shader)
-      const monsterGlow = new THREE.PointLight(0xff1744, 0, 9);
-      scene.add(monsterGlow);
+      // (PointLight aura dihapus demi performa: jumlah lampu per piksel; kilau mata monster sudah lewat sprite aditif)
+      const monsterGlow = { position: { set() {} }, intensity: 0 };
 
       // --- NAVIGASI MONSTER: graf persimpangan lorong + garis pandang terhadap collider ---
       const NODES = [];
@@ -3948,11 +4006,18 @@
         return false;
       }
 
+      const NODES_FREE = NODES.filter(n => !n.blocked);
       function nearestNodes(x, z, k) {
-        return NODES.filter(n => !n.blocked)
-          .map(n => ({ n, d: Math.hypot(n.x - x, n.z - z) }))
-          .sort((a, b) => a.d - b.d)
-          .slice(0, k);
+        const out = [];
+        for (let i = 0; i < NODES_FREE.length; i++) {
+          const n = NODES_FREE[i];
+          const d = Math.hypot(n.x - x, n.z - z);
+          if (out.length === k && d >= out[k - 1].d) continue;
+          let j = out.length < k ? out.length : k - 1;
+          while (j > 0 && out[j - 1].d > d) { out[j] = out[j - 1]; j--; }
+          out[j] = { n, d };
+        }
+        return out;
       }
 
       // Daftar titik jalan dari (fx,fz) ke (gx,gz): lurus bila terlihat, selain itu lewat lorong
@@ -4463,7 +4528,7 @@
         buildTrapCommon(store, g);
         const rt = { kind: 'gas', vents: [], exposure: 0 };
         [[-2.4, 1.3], [2.3, -0.5], [-1.9, -2.3]].forEach(([vx, vz], i) => {
-          const mat = new THREE.MeshStandardMaterial({ color: 0x222831, emissive: 0x000000, roughness: 0.5, metalness: 0.5 });
+          const mat = new MatStd({ color: 0x222831, emissive: 0x000000, roughness: 0.5, metalness: 0.5 });
           mat.userData.own = true;
           const vent = new THREE.Mesh(unitBoxGeo, mat);
           vent.scale.set(0.9, 0.08, 0.9);
@@ -4578,7 +4643,7 @@
         if (store.trapKind === 'gas') return buildGasRoom(store, g);
         if (store.trapKind === 'collapse') return buildCollapseRoom(store, g);
         // Pelat jebakan tersamar menyerupai lantai ruangan tanpa garis atau corak peringatan
-        const plateMat = new THREE.MeshStandardMaterial({ color: 0x1b2334, roughness: 0.72, metalness: 0.15 });
+        const plateMat = new MatStd({ color: 0x1b2334, roughness: 0.72, metalness: 0.15 });
         plateMat.userData.own = true;
         const plate = addBox(g, 2.8, 0.02, 2.8, plateMat, 0, 0.05, 0);
         plate.userData.st = false;
@@ -4885,6 +4950,7 @@
       }
 
       // Ruang Memancing: kolam berisi 5 ikan berwarna (putih, kuning, biru, ungu, merah) + Pak Joko penyewa pancingan
+      let jokoCache = null, jokoLabelMat = null;
       function buildFishingRoom(store, g) {
         const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), MAT.fishSign);
         sign.position.set(0, 3.1, -4.06);
@@ -4909,22 +4975,29 @@
         addRoomCollider(store, 2.9, 0.5, 3.6, 1.95);
         [-1.5, -1.8, -2.1].forEach((x, i) => addBox(g, 0.04, 2.2, 0.04, MAT.woodDark, 3.95, 1.1, -0.6 - i * 0.35, 0, 0, 0.12));
         // Pak Joko
-        const sv = buildSurvivor({ skin: 0xd9a77b, jacket: 0xd97706, pants: 0x475569, hair: 0xd1d5db, pack: 0x92400e, accent: 0xfacc15, boot: 0x57534e, style: 'beanie' });
-        sv.group.position.set(-3.3, 0, -0.3);
-        sv.group.rotation.y = Math.PI / 2;
-        const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 1.7, 5), MAT.woodDark);
-        rod.position.set(0, -0.5, 0.45); rod.rotation.x = 1.0;
-        sv.armR.add(rod);
-        sv.armR.rotation.x = -0.9;
-        g.add(sv.group);
-        const c = document.createElement('canvas');
-        c.width = 256; c.height = 64;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 8, 256, 48);
-        ctx.fillStyle = '#7dd3fc'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('Pak Joko 🎣', 128, 33);
-        const tex = new THREE.CanvasTexture(c);
-        const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+        if (!jokoCache) {
+          const tpl = buildSurvivor({ skin: 0xd9a77b, jacket: 0xd97706, pants: 0x475569, hair: 0xd1d5db, pack: 0x92400e, accent: 0xfacc15, boot: 0x57534e, style: 'beanie' });
+          const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 1.7, 5), MAT.woodDark);
+          rod.position.set(0, -0.5, 0.45); rod.rotation.x = 1.0;
+          tpl.armR.add(rod);
+          tpl.armR.rotation.x = -0.9;
+          tpl.group.traverse(o => { if (o.geometry) o.geometry.userData.shared = true; });
+          jokoCache = tpl.group;
+        }
+        const jg = jokoCache.clone(true);
+        jg.position.set(-3.3, 0, -0.3);
+        jg.rotation.y = Math.PI / 2;
+        g.add(jg);
+        if (!jokoLabelMat) {
+          const c = document.createElement('canvas');
+          c.width = 256; c.height = 64;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 8, 256, 48);
+          ctx.fillStyle = '#7dd3fc'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('Pak Joko 🎣', 128, 33);
+          jokoLabelMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false });
+        }
+        const label = new THREE.Sprite(jokoLabelMat);
         label.scale.set(1.5, 0.375, 1);
         label.position.set(-3.3, 2.25, -0.3);
         label.userData.own = true;
@@ -5033,7 +5106,24 @@
         buckets.forEach(b => g.add(buildMerged(b.acc, b.mat)));
       }
 
+      // Bangun interior ruangan "virtual" (dibuka NPC) saat pemain mendekat; maksimal satu per frame
+      function materializeVirtualRooms() {
+        const px = playerGroup.position.x, pz = playerGroup.position.z;
+        for (let i = 0; i < openedInteriors.length; i++) {
+          const st = openedInteriors[i];
+          if (!st.virtual || Math.hypot(st.interiorCenterX - px, st.interiorCenterZ - pz) > VIRTUAL_R - 8) continue;
+          st.virtual = false;
+          st.lootItems = st.pickups.filter(p => !p.taken).map(p => p.itemId);
+          st.pickups = [];
+          st.interiorInitialized = false;
+          openedInteriors.splice(i, 1);
+          initializeStoreInterior(st);
+          break;
+        }
+      }
+
       function animateRoomDetails(dt) {
+        materializeVirtualRooms();
         for (let i = 0; i < openedInteriors.length; i++) {
           const s = openedInteriors[i];
           if (s.fishSwim) s.fishSwim.forEach(f => {
@@ -5069,11 +5159,13 @@
         let b1 = null, b2 = null, d1 = 1e9, d2 = 1e9;
         for (let i = 0; i < openedInteriors.length; i++) {
           const s = openedInteriors[i];
+          if (s.virtual) continue;
           const d = Math.hypot(s.interiorCenterX - playerGroup.position.x, s.interiorCenterZ - playerGroup.position.z);
           if (d < d1) { b2 = b1; d2 = d1; b1 = s; d1 = d; } else if (d < d2) { b2 = s; d2 = d; }
         }
         [[b1, d1], [b2, d2]].forEach(([s, d], idx) => {
           const l = lightPool[idx];
+          if (!l) return;
           if (s && d < 40) {
             l.color.copy(s.interiorLight.color);
             l.intensity = s.interiorLight.intensity;
@@ -5634,7 +5726,7 @@
           isOpen: false, isClaimed: false, isTrapDisarmed: false, doorAnimProgress: 0,
           interiorInitialized: false, interiorGroup: null, trapPlateMesh: null, interiorLight: null,
           baseLightIntensity: 1.8, sparkMesh: null, spikesGroup: null, spikeTriggered: false, spikeAnim: 0,
-          rentSign: null, claimRing: null, stashCount: 0, stashItems: [], fishSwim: null, warnedSingle: false, slots: null, npcOwner: null, npcTarget: null,
+          rentSign: null, claimRing: null, stashCount: 0, stashItems: [], fishSwim: null, virtual: false, warnedSingle: false, slots: null, npcOwner: null, npcTarget: null,
           roomColliders: [], closing: false, openT: 0, npcTrapDone: false, warnedClose: false
         });
       }
@@ -6360,29 +6452,30 @@
       });
 
       // --- MINIMAP RENDERING ---
+      let _mmBase = null, _mmBaseKey = '', _mmT = -1;
       function renderMinimap() {
+        if (animTime - _mmT < 0.1 && _mmT >= 0) return;
+        _mmT = animTime;
         minimapCtx.clearRect(0, 0, 154, 154);
         const scale = 154 / config.map.width;
         const originX = 154 / 2;
         const originY = 154 / 2;
-
-        // Mall perimeter & corridors
-        minimapCtx.strokeStyle = prefs.contrast === 'high' ? '#94a3b8' : '#1e293b';
-        minimapCtx.lineWidth = 3;
-        LANES.forEach(pos => {
-          const p = originX + pos * scale;
-          // Vertical lines
-          minimapCtx.beginPath();
-          minimapCtx.moveTo(p, originY - MAP_HALF * scale);
-          minimapCtx.lineTo(p, originY + MAP_HALF * scale);
-          minimapCtx.stroke();
-          // Horizontal lines
-          minimapCtx.beginPath();
-          minimapCtx.moveTo(originX - MAP_HALF * scale, p);
-          minimapCtx.lineTo(originX + MAP_HALF * scale, p);
-          minimapCtx.stroke();
-        });
-
+        const baseKey = prefs.contrast;
+        if (!_mmBase || _mmBaseKey !== baseKey) {
+          _mmBase = document.createElement('canvas');
+          _mmBase.width = 154; _mmBase.height = 154;
+          const bc = _mmBase.getContext('2d');
+          bc.strokeStyle = prefs.contrast === 'high' ? '#94a3b8' : '#1e293b';
+          bc.lineWidth = 3;
+          LANES.forEach(pos => {
+            const pp = originX + pos * scale;
+            bc.beginPath(); bc.moveTo(pp, originY - MAP_HALF * scale); bc.lineTo(pp, originY + MAP_HALF * scale); bc.stroke();
+            bc.beginPath(); bc.moveTo(originX - MAP_HALF * scale, pp); bc.lineTo(originX + MAP_HALF * scale, pp); bc.stroke();
+          });
+          _mmBaseKey = baseKey;
+        }
+        minimapCtx.drawImage(_mmBase, 0, 0);
+        const MM_SKIP_LANES = true;
 
         // Opened stores & Basecamps (Ruang jebakan tersamar seperti toko biasa di minimap)
         stores.forEach(s => {
@@ -6443,6 +6536,7 @@
         camState.pitch = 1.15;
         camState.targetDistance = camState.distance = 190;
         scene.fog.density = 0.0015;
+        torchLight.intensity = 0;
       }
 
       // --- MAIN GAME LOOP ---
@@ -6690,9 +6784,18 @@
           camera.position.z += (Math.random() - 0.5) * shk;
         }
         camera.lookAt(playerGroup.position.x, playerGroup.position.y + camState.targetY, playerGroup.position.z);
+        {
+          const tr = playerGroup.rotation.y, tsn = Math.sin(tr), tcs = Math.cos(tr);
+          const tx = playerGroup.position.x + 0.24 * tcs + 0.1 * tsn, tz = playerGroup.position.z - 0.24 * tsn + 0.1 * tcs;
+          torchLight.position.set(tx, 0.64, tz);
+          torchLight.target.position.set(tx + tsn * 10, 0.64, tz + tcs * 10);
+          torchLight.target.updateMatrixWorld();
+        }
 
         // --- SHUTTER DOOR ANIMATIONS ---
-        stores.forEach(s => {
+        for (let si = 0; si < stores.length; si++) {
+          const s = stores[si];
+          if (!s.closing && !(s.isOpen && (s.doorAnimProgress < 1 || !s.shutterFreed))) continue;
           if (s.closing) {
             s.doorAnimProgress = Math.max(0, s.doorAnimProgress - dt * 1.4);
             setShutterY(s, ((WALL_HEIGHT - 0.6) / 2) + s.doorAnimProgress * (WALL_HEIGHT - 0.4));
@@ -6707,7 +6810,7 @@
               s.shutterFreed = true;
             }
           }
-        });
+        }
 
         // --- STORE INTERACTIONS & CONTEXT BUTTON LOGIC ---
         let foundAction = null;
@@ -6808,15 +6911,18 @@
         // Check nearby closed shutter doors
         if (!foundAction) {
           let closestDist = 4.2;
-          stores.forEach(s => {
-            if (s.isOpen) return;
-            const distToDoor = Math.hypot(pX - s.doorX, pZ - s.doorZ);
+          for (let si = 0; si < stores.length; si++) {
+            const s = stores[si];
+            if (s.isOpen) continue;
+            const ddx = pX - s.doorX;
+            if (ddx > 4.2 || ddx < -4.2) continue;
+            const distToDoor = Math.hypot(ddx, pZ - s.doorZ);
             if (distToDoor < closestDist) {
               closestDist = distToDoor;
               foundAction = 'OPEN';
               actionStore = s;
             }
-          });
+          }
         }
 
         state.nearbyStore = actionStore;
@@ -6824,7 +6930,7 @@
 
         // Update Action Button UI
         if (foundAction) {
-          btnAction.classList.remove('disabled', 'claim-mode', 'store-mode');
+          _ac.reset();
           if (foundAction === 'OPEN') {
             actionLabel.textContent = 'BUKA';
             actionSub.textContent = `No.${actionStore.id}`;
@@ -6835,41 +6941,42 @@
           } else if (foundAction === 'CLAIM') {
             actionLabel.textContent = 'KLAIM';
             actionSub.textContent = 'BASECAMP';
-            btnAction.classList.add('claim-mode');
+            _ac.add('claim-mode');
           } else if (foundAction === 'STORE') {
             actionLabel.textContent = 'SIMPAN';
             actionSub.textContent = 'BEKAL';
-            btnAction.classList.add('store-mode');
+            _ac.add('store-mode');
           } else if (foundAction === 'BUILD') {
             actionLabel.textContent = 'BANGUN';
             actionSub.textContent = state.actionSlot === 'craft' ? 'MEJA' : 'KOMPUTER';
-            btnAction.classList.add('store-mode');
+            _ac.add('store-mode');
           } else if (foundAction === 'CRAFT') {
             actionLabel.textContent = 'BUAT';
             actionSub.textContent = '🔨 RESEP';
-            btnAction.classList.add('store-mode');
+            _ac.add('store-mode');
           } else if (foundAction === 'FISH') {
             actionLabel.textContent = 'MANCING';
             actionSub.textContent = state.rodCasts > 0 ? `🎣 ${state.rodCasts}×` : `🎣 ¢${FISH_RENT}`;
-            btnAction.classList.add('store-mode');
+            _ac.add('store-mode');
           } else if (foundAction === 'VEND') {
             actionLabel.textContent = 'MESIN';
             actionSub.textContent = vendFreeLeft() > 0 ? `🎁 GRATIS ${vendFreeLeft()}` : `🎁 ¢${VEND_PRICE}`;
-            btnAction.classList.add('store-mode');
+            _ac.add('store-mode');
           } else if (foundAction === 'TRADE') {
             actionLabel.textContent = 'DAGANG';
             actionSub.textContent = '💻 ¢' + state.credits;
-            btnAction.classList.add('store-mode');
+            _ac.add('store-mode');
           } else if (foundAction === 'EAT') {
             actionLabel.textContent = state.baseFood >= state.baseDrink ? 'MAKAN' : 'MINUM';
             actionSub.textContent = `🍞${state.baseFood} 🥤${state.baseDrink}`;
-            btnAction.classList.add('store-mode');
+            _ac.add('store-mode');
           }
         } else {
-          btnAction.classList.add('disabled');
+          _ac.add('disabled');
           actionLabel.textContent = 'BUKA';
           actionSub.textContent = '[E]';
         }
+        _ac.apply();
 
         // --- KOMPAS: panah ke basecamp terdiklaim terdekat ---
         {
@@ -6887,11 +6994,11 @@
             const ang = Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz) * 180 / Math.PI;
             compassArrow.style.transform = `rotate(${ang.toFixed(0)}deg)`;
             compassText.textContent = `⛺ ${Math.round(bd)}m`;
-            compassEl.classList.remove('none');
+            if (compassEl.classList.contains('none')) compassEl.classList.remove('none');
           } else {
             compassArrow.style.transform = 'none';
             compassText.textContent = 'Belum ada basecamp';
-            compassEl.classList.add('none');
+            if (!compassEl.classList.contains('none')) compassEl.classList.add('none');
           }
         }
 
@@ -6935,11 +7042,11 @@
             perfAcc = 0;
             perfN = 0;
             if (perfWarm > 0) perfWarm--;
-            else if (avg > 0.03 && pixelRatio > PIXEL_RATIO_MIN) {
-              pixelRatio = Math.max(PIXEL_RATIO_MIN, pixelRatio - 0.15);
+            else if (avg > 0.022 && pixelRatio > PIXEL_RATIO_MIN) {
+              pixelRatio = Math.max(PIXEL_RATIO_MIN, pixelRatio - 0.1);
               renderer.setPixelRatio(pixelRatio);
-            } else if (avg < 0.019 && pixelRatio < PIXEL_RATIO_CAP) {
-              pixelRatio = Math.min(PIXEL_RATIO_CAP, pixelRatio + 0.1);
+            } else if (avg < 0.0175 && pixelRatio < PIXEL_RATIO_CAP) {
+              pixelRatio = Math.min(PIXEL_RATIO_CAP, pixelRatio + 0.05);
               renderer.setPixelRatio(pixelRatio);
             }
           }
@@ -7204,7 +7311,9 @@
       const ftuePanel = document.getElementById('ftue-panel');
       const ftueTextEl = document.getElementById('ftue-text');
       const ftueArrowEl = document.getElementById('ftue-arrow');
+      guardTransform(ftueArrowEl);
       const ftueDistEl = document.getElementById('ftue-dist');
+      guardText(ftueDistEl);
       const ftueDotsEl = document.getElementById('ftue-dots');
       const storyCard = document.getElementById('story-card');
       const tipCard = document.getElementById('tip-card');
@@ -7620,7 +7729,7 @@
         }
         const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 8));
         hub.position.y = 0.08; hub.updateMatrix(); bakeInto(acc, hub, hub.matrix);
-        return buildMerged(acc, new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.45, metalness: 0.75, emissive: 0x220a0a }));
+        return buildMerged(acc, new MatStd({ color: 0x6b7280, roughness: 0.45, metalness: 0.75, emissive: 0x220a0a }));
       })();
       function placeTrap() {
         if (state.playerTraps.length >= TRAP_MAX) { showToast(`MAKSIMAL ${TRAP_MAX} JERAT AKTIF`, '#ff9100', true); return false; }
@@ -7703,8 +7812,8 @@
       // Palu lempar: terbang lurus, mengenai monster di jalurnya, lalu kembali ke tangan pemain
       const hammerTemplate = (() => {
         const g = new THREE.Group();
-        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.06), new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.8 }));
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.16), new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.35, metalness: 0.85 }));
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.06), new MatStd({ color: 0x92400e, roughness: 0.8 }));
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.16), new MatStd({ color: 0x9ca3af, roughness: 0.35, metalness: 0.85 }));
         head.position.y = 0.3;
         g.add(handle); g.add(head);
         g.scale.setScalar(1.3);
@@ -7943,10 +8052,10 @@
         group.add(label);
         // papan paku di tangan (terlihat saat bersenjata)
         const wp = new THREE.Group();
-        const wb = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.035), new THREE.MeshStandardMaterial({ color: 0xb77a3b, roughness: 0.9 }));
+        const wb = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.035), new MatStd({ color: 0xb77a3b, roughness: 0.9 }));
         wb.position.y = -0.17;
         wp.add(wb);
-        const wnGeo = new THREE.ConeGeometry(0.014, 0.07, 5), wnMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.3 });
+        const wnGeo = new THREE.ConeGeometry(0.014, 0.07, 5), wnMat = new MatStd({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.3 });
         for (let j = 0; j < 3; j++) [-0.03, 0.03].forEach(nx => { const nl = new THREE.Mesh(wnGeo, wnMat); nl.rotation.x = Math.PI / 2; nl.position.set(nx, -0.05 - j * 0.12, 0.05); wp.add(nl); });
         wp.position.set(0, -0.78, 0.09);
         wp.rotation.x = -1.2;
@@ -8055,10 +8164,19 @@
         return Math.hypot(gx - n.x, gz - n.z) < arrive;
       }
 
+      const VIRTUAL_R = 70;
       function npcOpenStore(st) {
         if (st.isOpen) return;
         st.isOpen = true;
         markOpened(st);
+        if (st.outcome !== 'empty' && Math.hypot(st.doorX - playerGroup.position.x, st.doorZ - playerGroup.position.z) > VIRTUAL_R) {
+          // jauh dari pemain: catat isi saja, mesh interior dibangun nanti bila pemain mendekat
+          st.virtual = true;
+          st.interiorInitialized = true;
+          st.pickups = st.lootItems.map(id => ({ store: st, itemId: id, taken: false, virtual: true, mesh: null, x: st.interiorCenterX, z: st.interiorCenterZ }));
+          openedInteriors.push(st);
+          return;
+        }
         initializeStoreInterior(st);
         if (Math.hypot(st.doorX - playerGroup.position.x, st.doorZ - playerGroup.position.z) < 40) audio.play('shutter_open_sfx');
       }
@@ -8069,7 +8187,7 @@
 
       function npcCollect(n, p) {
         p.taken = true;
-        if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+        if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
         const i = allPickups.indexOf(p);
         if (i !== -1) allPickups.splice(i, 1);
         n.bag.push(p.itemId);
@@ -8366,6 +8484,14 @@
         const wg = new THREE.Group();
         const probe = new THREE.BoxGeometry(0.1, 0.1, 0.1);
         Object.keys(MAT).forEach(k => { const m = new THREE.Mesh(probe, MAT[k]); m.position.y = -50; wg.add(m); });
+        // monster, senjata lempar, jerat, suar panduan: kompilasi shader sekarang, bukan saat pertama muncul
+        try {
+          Object.keys(MTYPES).forEach(k => { const mm = createMonsterMesh(k); mm.group.position.set(0, -60, 0); wg.add(mm.group); });
+          [hammerTemplate, trapTemplate].forEach(t => { const c2 = t.clone(); c2.position.set(0, -60, 0); wg.add(c2); });
+          const sv0 = buildSurvivor({ skin: 0xffdbac, jacket: 0x0284c7, pants: 0x1e293b, hair: 0x3b2f2f, pack: 0xd97706, accent: 0x22d3ee, style: 'headband' });
+          sv0.group.position.set(0, -60, 0); wg.add(sv0.group);
+          ['roti', 'air', 'jerat', 'cetak_biru', 'ikan_putih'].forEach(id => { const im = buildItemMesh(id); im.position.set(0, -60, 0); wg.add(im); });
+        } catch (e) { console.warn('warmup', e); }
         scene.add(wg);
         const off = [];
         scene.traverse(o => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; off.push(o); } });
