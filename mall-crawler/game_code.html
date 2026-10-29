@@ -1019,7 +1019,7 @@
         <div class="status-panel hud-card">
           <div class="bar-row">
             <span class="bar-ico">❤️</span>
-            <div class="hunger-bar"><div class="hunger-fill hp" id="hp-fill"></div><span class="bar-txt" id="hp-txt">3/3</span></div>
+            <div class="hunger-bar" id="hp-track"><div class="hunger-fill hp" id="hp-fill"></div><span class="bar-txt" id="hp-txt">3/3</span></div>
             <div class="hud-stat" id="hud-armor-stat" style="display:none">🛡 <span id="hud-armor">0</span></div>
           </div>
           <div class="bar-row"><span class="bar-ico">🍽️</span><div class="hunger-bar"><div class="hunger-fill" id="hunger-fill"></div></div></div>
@@ -1309,7 +1309,7 @@
               <li>💧 Ada bar <b>HP</b>, <b>lapar</b>, dan <b>haus</b>. Makanan mengisi lapar, minuman mengisi haus. Mati = respawn di basecamp, waktu bertahan kembali ke 0 (progres lain tetap).</li>
               <li>🏆 Komputer punya tab <b>Peringkat</b>: 10 pemain dengan waktu bertahan hidup terlama. Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di layar judul.</li>
               <li>🧰 <b>Ruang perkakas</b> (langka): bahan langka (baja, bensin) + satu senjata: 🪵 papan paku, 🗡️ parang, 🪚 gergaji mesin (butuh ⛽ bensin), 🔨 palu lempar (kembali ke tangan, hancur setelah 5 lemparan) atau 📜 cetak biru palu lempar. Ganti senjata dengan tombol 🔄 / Q.</li>
-              <li>🎣 <b>Ruang memancing</b>: Pak Joko menyewakan pancingan (¢25 = 3 lemparan). 5 ikan: ⚪ putih, 🟡 kuning, 🔵 biru (buff sementara), 🟣 ungu (nyawa maks +1 permanen), 🔴 merah (damage +1 permanen). Makan ikan dari tas untuk mendapat efeknya.</li>
+              <li>🎣 <b>Ruang memancing</b>: Pak Joko menyewakan pancingan (¢25 = 3 lemparan). 5 ikan: ⚪ putih, 🟡 kuning, 🔵 biru (buff sementara), 🟣 ungu (+1 lapis health bar: oranye lalu emas, permanen), 🔴 merah (damage +1 permanen). Makan ikan dari tas untuk mendapat efeknya.</li>
               <li>🎰 <b>Vending machine</b>: jatah <b>3 kotak misteri gratis per hari</b>, lalu ¢500 per kotak (kredit didapat dari menjual barang lewat komputer).</li>
               <li>🔄 Ruang gudang, jebakan, monster &amp; bahan <b>tertutup lagi setelah 20 detik</b> dan isinya diacak ulang. Penyintas bisa mati dan respawn di basecamp mereka.</li>
               <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
@@ -1841,6 +1841,7 @@
       const hungerFill = document.getElementById('hunger-fill');
       const thirstFill = document.getElementById('thirst-fill');
       const hpFill = document.getElementById('hp-fill');
+      const hpTrack = document.getElementById('hp-track');
       const hpTxt = document.getElementById('hp-txt');
       const compassEl = document.getElementById('compass');
       const compassArrow = document.getElementById('compass-arrow');
@@ -2168,7 +2169,7 @@
         ikan_putih:  { name: 'Teri Perak', emoji: '🐟', cat: 'fish', rarity: 'putih', act: 'MAKAN', desc: 'Ikan biasa (putih). Buff sementara: napas pulih lebih cepat.' },
         ikan_kuning: { name: 'Mas Emas', emoji: '🐠', cat: 'fish', rarity: 'kuning', act: 'MAKAN', desc: 'Ikan langka (kuning). Buff sementara: kecepatan +15%.' },
         ikan_biru:   { name: 'Buntal Biru', emoji: '🐡', cat: 'fish', rarity: 'biru', act: 'MAKAN', desc: 'Ikan istimewa (biru). Buff sementara: monster sulit mendeteksimu.' },
-        ikan_ungu:   { name: 'Hiu Ungu', emoji: '🦈', cat: 'fish', rarity: 'ungu', act: 'MAKAN', desc: 'Ikan epik (ungu). Buff PERMANEN: nyawa maksimal +1.' },
+        ikan_ungu:   { name: 'Hiu Ungu', emoji: '🦈', cat: 'fish', rarity: 'ungu', act: 'MAKAN', desc: 'Ikan epik (ungu). Buff PERMANEN: menambah satu lapis health bar (oranye, lalu emas).' },
         ikan_merah:  { name: 'Naga Laut Merah', emoji: '🐲', cat: 'fish', rarity: 'merah', act: 'MAKAN', desc: 'Ikan legendaris (merah). Buff PERMANEN: damage senjata +1.' },
         cetak_biru: { name: 'Cetak Biru Palu Lempar', emoji: '📜', cat: 'tool', act: 'PELAJARI', desc: 'Pelajari untuk membuka resep palu lempar di meja crafting.' }
       };
@@ -2179,13 +2180,13 @@
       const BUILD_COST = { craft: { papan: 3, paku: 2 }, comp: { mobo: 1, cpu: 1, ram: 1, layar: 1, psu: 1 } };
       const WEAPON_COST = { papan: 1, paku: 1 };
       const NPC_MATS = ['papan', 'paku'];
-      const maxHp = () => config.player.health + state.perm.hp;
+      const maxHp = () => config.player.health * (1 + state.perm.hp); // tiap lapis health bar = satu bar HP penuh
       const FISH_RENT = 25, FISH_CASTS = 3, PERM_CAP = 2;
       const FISH = {
         ikan_putih:  { buff: 'segar', dur: 90, label: '🍃 SEGAR', text: 'Napas pulih +60%' },
         ikan_kuning: { buff: 'emas', dur: 75, label: '⚡ EMAS', text: 'Kecepatan +15%' },
         ikan_biru:   { buff: 'senyap', dur: 60, label: '🌑 SENYAP', text: 'Monster sulit mendeteksimu' },
-        ikan_ungu:   { perm: 'hp', text: 'Nyawa maksimal +1 (permanen)' },
+        ikan_ungu:   { perm: 'hp', text: 'Health bar +1 lapis (permanen)' },
         ikan_merah:  { perm: 'dmg', text: 'Damage senjata +1 (permanen)' }
       };
       const FISH_ODDS = [['ikan_putih', 0.45], ['ikan_kuning', 0.28], ['ikan_biru', 0.15], ['ikan_ungu', 0.08], ['ikan_merah', 0.04]];
@@ -5562,9 +5563,17 @@
 
       function updateHUD() {
         // Bar HP
-        const hpFrac = Math.max(0, Math.min(1, state.health / Math.max(1, maxHp())));
+        // health bar berlapis: merah (dasar) → oranye → emas (maks); lapis atas terkuras lebih dulu
+        const HP_LAYERS = ['linear-gradient(90deg, #dc2626, #f87171)', 'linear-gradient(90deg, #ea580c, #fb923c)', 'linear-gradient(90deg, #ca8a04, #fde047)'];
+        const HP_SOLID = ['#dc2626', '#ea580c', '#ca8a04'];
+        const hpBase = Math.max(1, config.player.health);
+        const hpLayer = state.health > 0 ? Math.min(state.perm.hp, Math.ceil(state.health / hpBase) - 1) : 0;
+        const hpFrac = Math.max(0, Math.min(1, (state.health - hpLayer * hpBase) / hpBase));
+        hpFill.style.background = HP_LAYERS[hpLayer];
+        hpTrack.style.background = hpLayer > 0 ? HP_SOLID[hpLayer - 1] : '';
+        hpTrack.style.boxShadow = hpLayer >= 2 ? '0 0 8px #fde047' : '';
         hpFill.style.transform = `scaleX(${hpFrac.toFixed(3)})`;
-        hpFill.classList.toggle('low', hpFrac <= 0.34);
+        hpFill.classList.toggle('low', hpLayer === 0 && hpFrac <= 0.34);
         hpTxt.textContent = `${state.health}/${maxHp()}`;
 
         hudArmorStat.style.display = state.armor > 0 ? '' : 'none';
@@ -5818,7 +5827,7 @@
           state.selectedSlot = -1;
           state.hunger = Math.min(1, state.hunger + 0.12);
           if (fx.buff) addBuff(fx.buff, fx.label, fx.dur);
-          if (fx.perm === 'hp') { state.perm.hp++; state.health = Math.min(maxHp(), state.health + 1); }
+          if (fx.perm === 'hp') { state.perm.hp++; state.health = maxHp(); }
           if (fx.perm === 'dmg') state.perm.dmg++;
           if (fx.perm) renderBuffs(true);
           audio.play('supply_pickup_sfx');
@@ -5935,7 +5944,7 @@
         diff = DIFFS[snap.diff] || diff;
         Object.assign(state, {
           perm: { hp: (snap.perm && snap.perm.hp) | 0, dmg: (snap.perm && snap.perm.dmg) | 0 },
-          health: Math.max(1, Math.min(config.player.health + ((snap.perm && snap.perm.hp) | 0), snap.hp | 0 || config.player.health)),
+          health: Math.max(1, Math.min(config.player.health * (1 + ((snap.perm && snap.perm.hp) | 0)), snap.hp | 0 || config.player.health)),
           hunger: Math.max(0.15, snap.hunger ?? 1), thirst: Math.max(0.15, snap.thirst ?? 1),
           lifeTime: snap.life || 0, gameTime: snap.game || 0, credits: snap.credits ?? 30,
           armor: Math.min(ARMOR_MAX, snap.armor || 0), kills: snap.kills || 0, deaths: snap.deaths || 0
@@ -7092,7 +7101,7 @@
         if (!force && key === buffKey) return;
         buffKey = key;
         let html = '';
-        if (state.perm.hp) html += `<span class="buff-chip perm">❤️ +${state.perm.hp}</span>`;
+        if (state.perm.hp) html += `<span class="buff-chip perm">${state.perm.hp >= 2 ? '🟡' : '🟠'} LAPIS ${1 + state.perm.hp}</span>`;
         if (state.perm.dmg) html += `<span class="buff-chip perm">🐲 +${state.perm.dmg}</span>`;
         state.buffs.forEach(b => { html += `<span class="buff-chip">${b.label} ${Math.ceil(b.t)}s</span>`; });
         buffRowEl.innerHTML = html;
