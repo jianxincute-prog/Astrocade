@@ -52,7 +52,6 @@
   }
   canvas { display: block; }
   /* Neutral color response: remove the extra brightness boost for more natural lighting. */
-  #game-world > canvas { filter: brightness(0.97) contrast(1.01) saturate(1.04); }
 
   .ui-overlay {
     position: absolute;
@@ -75,8 +74,6 @@
     font-family: 'Inter', sans-serif;
     font-size: 22px; font-weight: 600;
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     user-select: none;
     -webkit-user-select: none;
     transition: transform var(--transition-fast) var(--ease-out),
@@ -177,7 +174,7 @@
   #danger-banner.show { display: block; animation: dangerPulse 0.45s infinite alternate; }
   @keyframes dangerPulse {
     from { transform: translateX(-50%) scale(1); }
-    to { transform: translateX(-50%) scale(1.035); background: rgba(225,30,30,0.95); }
+    to { transform: translateX(-50%) scale(1.035); opacity: .88; }
   }
   #goal-hint {
     position: absolute;
@@ -253,8 +250,8 @@
   #item-slots.on { display: flex; }
   .item-slot {
     position: relative; width: 92px; height: 92px; padding: 0; border-radius: 22px; display: grid; place-items: center;
-    border: 2px solid rgba(180,225,235,.6); background: rgba(10,24,36,.8); color: #fff; cursor: pointer;
-    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); touch-action: none; user-select: none; -webkit-user-select: none;
+    border: 2px solid rgba(180,225,235,.6); background: rgba(10,24,36,.88); color: #fff; cursor: pointer;
+    touch-action: none; user-select: none; -webkit-user-select: none;
   }
   .item-slot svg { width: 48px; height: 48px; pointer-events: none; }
   .item-slot .is-key { position: absolute; top: 5px; left: 9px; font: 700 13px 'Inter', sans-serif; color: #9fc4cf; pointer-events: none; }
@@ -572,6 +569,14 @@ async function run(mode) {
   const runToken = (window.__dontTouchWaterRunToken || 0) + 1;
   window.__dontTouchWaterRunToken = runToken;
   const isCurrentRun = () => window.__dontTouchWaterRunToken === runToken;
+  // Event listeners that unhook themselves as soon as a newer run() has taken over the page.
+  function listen(target, type, fn, opts) {
+    const h = function (e) {
+      if (!isCurrentRun()) { target.removeEventListener(type, h, opts); return; }
+      return fn.call(this, e);
+    };
+    target.addEventListener(type, h, opts);
+  }
   const gameWorld = document.getElementById('game-world');
   const uiOverlay = document.getElementById('ui-overlay');
   const cfg = window.gameConfig;
@@ -616,7 +621,23 @@ async function run(mode) {
   const camera = new THREE.PerspectiveCamera(55, gameWorld.clientWidth / gameWorld.clientHeight, 0.05, 800);
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   renderer.setSize(gameWorld.clientWidth, gameWorld.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const PR_MAX = Math.min(window.devicePixelRatio || 1, 1.5);
+  let prCur = PR_MAX, perfAcc = 0, perfN = 0, perfT = 0, prCool = 4;
+  renderer.setPixelRatio(prCur);
+  // Adaptive resolution: sustained slow frames lower the render scale (down to 0.7x) instead of dropping frames.
+  function perfSample(dt) {
+    if (dt > 0.25 || loadingActive || document.visibilityState === 'hidden') return;
+    perfAcc += dt; perfN++; perfT += dt; prCool -= dt;
+    if (perfT < 1.5) return;
+    const avg = perfAcc / perfN * 1000;
+    perfAcc = 0; perfN = 0; perfT = 0;
+    if (avg > 21 && prCur > 0.7 && prCool <= 0) {
+      prCur = Math.max(0.7, prCur - 0.25);
+      renderer.setPixelRatio(prCur);
+      prCool = 3;
+      lib.log('render scale -> ' + prCur.toFixed(2) + ' (avg frame ' + avg.toFixed(1) + ' ms)');
+    }
+  }
   // Keep colors in a standard sRGB range and avoid dramatic tone shifts.
   renderer.shadowMap.enabled = false;
   renderer.outputEncoding = THREE.sRGBEncoding;
@@ -795,7 +816,7 @@ async function run(mode) {
     if (!isCurrentRun()) return;
   }
 
-  window.addEventListener('resize', () => {
+  listen(window, 'resize', () => {
     const w = gameWorld.clientWidth, h = gameWorld.clientHeight;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -825,10 +846,8 @@ async function run(mode) {
   // Ceiling soft point lights in corners
   const pLight1 = new THREE.PointLight(0xffedcf, 0.18, 12);
   pLight1.position.set(-1.5, 5.6, -1.5);
-  scene.add(pLight1);
   const pLight2 = new THREE.PointLight(0xe5f2df, 0.16, 12);
   pLight2.position.set(1.5, 5.6, 1.5);
-  scene.add(pLight2);
 
   // ─── PROCEDURAL TEXTURE GENERATORS (Instant fallback & seamless maps) ───
   function makeProceduralTileCanvas() {
@@ -912,12 +931,14 @@ async function run(mode) {
 
   // Texture Loader helper
   const texLoader = new THREE.TextureLoader();
+  let texPending = 0;   // CDN textures still downloading; the loading screen waits for them
 
   function createRepeatingTexture(assetId, fallbackCanvas, repeatX, repeatY) {
     let tex;
     const asset = lib.getAsset(assetId);
     if (asset && asset.url) {
-      tex = texLoader.load(asset.url);
+      texPending++;
+      tex = texLoader.load(asset.url, t => { texPending--; try { renderer.initTexture(t); } catch (e) {} }, undefined, () => { texPending--; });
     } else {
       tex = new THREE.CanvasTexture(fallbackCanvas);
     }
@@ -1025,6 +1046,7 @@ async function run(mode) {
     if (mode !== 'play') return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
+      if (!isCurrentRun()) return;
       try { await lib.saveUserGameState(save); } catch (e) { lib.log('save failed: ' + e); }
     }, 400);
   }
@@ -1136,9 +1158,9 @@ async function run(mode) {
 
   // ─── PORCELAIN & CONCRETE TEXTURES ───
   const floorTileTex = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), PATCH * 2, PATCH * 2);
-  const ceilingTileTex = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), PATCH * 2, PATCH * 2);
+  const ceilingTileTex = floorTileTex;   // same image and repeat: one GPU upload instead of two
   const wallTileTexX = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), RS * 2, 6);
-  const wallTileTexZ = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), RS * 2, 6);
+  const wallTileTexZ = wallTileTexX;
   const platformTileTex = createRepeatingTexture('porcelain_tile_texture', makeProceduralTileCanvas(), 2, 2);
   const concretePillarTex = createRepeatingTexture('concrete_pillar_texture', makeProceduralConcreteCanvas(), 1, 6);
   const waterTex = createRepeatingTexture('water_surface_texture', makeProceduralWaterCanvas(), PATCH, PATCH);
@@ -1898,7 +1920,9 @@ async function run(mode) {
     if (rbCache[key]) return rbCache[key];
     const hx = w / 2, hy = h / 2, hz = d / 2, half = [hx, hy, hz];
     r = Math.min(r, hx * 0.9, hy * 0.9, hz * 0.9);
-    const co = a => [-a, -a + r * 0.3, -a + r * 0.7, -a + r, a - r, a - r * 0.7, a - r * 0.3, a];
+    // fewer rings on small parts: a 1-segment chamfer with smooth normals reads as round at game scale
+    const fine = Math.min(w, h, d) >= 0.06 && r >= 0.014;
+    const co = fine ? (a => [-a, -a + r * 0.4, -a + r, a - r, a - r * 0.4, a]) : (a => [-a, -a + r, a - r, a]);
     const lists = [co(hx), co(hy), co(hz)], inner = [hx - r, hy - r, hz - r];
     const faces = [[2, 1, 0, 1], [2, -1, 0, 1], [0, 1, 2, 1], [0, -1, 2, 1], [1, 1, 0, 2], [1, -1, 0, 2]];
     const pos = [], nor = [], uvs = [], idx = [];
@@ -1932,6 +1956,59 @@ async function run(mode) {
     return g;
   }
   const g_groups = [];
+
+  // ─── CHEAP GLOW + STATIC MESH MERGING ───
+  let glowTexture = null;
+  // Additive halo sprite with an `intensity` property, a drop-in for the point lights it replaces.
+  function makeGlow(color, size, gain) {
+    if (!glowTexture) {
+      const [c, x] = mkCanvas(64), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+      glowTexture = new THREE.CanvasTexture(c);
+    }
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
+    sp.scale.set(size, size, 1);
+    Object.defineProperty(sp, 'intensity', { get() { return this.material.opacity; }, set(v) { this.material.opacity = Math.max(0, Math.min(1, v * gain)); } });
+    return sp;
+  }
+  // Merge the static child meshes of every pivot group that share a material into one mesh (one draw call each).
+  function bakeStatic(root, skip) {
+    root.traverse(node => {
+      if (!node.isGroup && node !== root) return;
+      const buckets = new Map();
+      for (const ch of node.children.slice()) {
+        if (!ch.isMesh || ch.isInstancedMesh || Array.isArray(ch.material) || !ch.visible || ch.userData.keep || (skip && skip.has(ch))) continue;
+        let b = buckets.get(ch.material);
+        if (!b) { b = []; buckets.set(ch.material, b); }
+        b.push(ch);
+      }
+      buckets.forEach((list, mat) => {
+        if (list.length < 2) return;
+        const pos = [], nor = [], uv = [];
+        let nv = 0;
+        for (const m of list) {
+          m.updateMatrix();
+          const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+          g.applyMatrix4(m.matrix);
+          const n = g.attributes.position.count;
+          pos.push(g.attributes.position.array);
+          nor.push(g.attributes.normal ? g.attributes.normal.array : new Float32Array(n * 3));
+          uv.push(g.attributes.uv ? g.attributes.uv.array : new Float32Array(n * 2));
+          nv += n;
+          node.remove(m);
+        }
+        const cat = (arrs, k) => { const out = new Float32Array(nv * k); let o = 0; for (const a of arrs) { out.set(a, o); o += a.length; } return out; };
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(cat(pos, 3), 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(cat(nor, 3), 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(cat(uv, 2), 2));
+        const merged = new THREE.Mesh(geo, mat);
+        merged.castShadow = true; merged.receiveShadow = true;
+        node.add(merged);
+      });
+    });
+  }
 
   // ─── FACE & EMBLEM TEXTURES ───
   function makeHeroFaceTex() {
@@ -2229,9 +2306,9 @@ async function run(mode) {
       g.add(pivot); arms.push(pivot);
     });
 
-    const eyeLight = new THREE.PointLight(0xff5636, 0.75, 1.6);
-    eyeLight.position.set(0, 0.25, 0.42); g.add(eyeLight);
-    const biolight = new THREE.PointLight(0x26e8cc, 0.42, 1.15);
+    const eyeLight = makeGlow(0xff5636, 0.55, 0.5);
+    eyeLight.position.set(0, 0.235, 0.4); g.add(eyeLight);
+    const biolight = makeGlow(0x26e8cc, 0.5, 0.42);
     biolight.position.set(0, 0.12, -0.02); g.add(biolight);
     g.eyeLight = eyeLight; g.biolight = biolight; g.arms = arms; g.haloMat = haloMat;
     g.glowMat = glowMat; g.body = body; g.tailFin = tailFin; g.eyes = eyes;
@@ -2242,6 +2319,7 @@ async function run(mode) {
   }
   const monster = createMonster();
   scene.add(monster);
+  bakeStatic(monster, new Set([monster.body, monster.tailFin, ...monster.eyes]));
 
   // ─── TWO DISTINCT HUMANOID WATER HUNTERS ───
   // Both are always present in the flooded room, but attack/catch logic is gated
@@ -2431,12 +2509,12 @@ async function run(mode) {
     }
 
     group.scale.setScalar(0.92);
-    const eyeLight = new THREE.PointLight(isWarden ? 0x48ffdd : 0xff5636, 1.0, 3.4);
-    eyeLight.position.set(0, 0.17, 0.3); head.add(eyeLight);
+    const eyeLight = makeGlow(isWarden ? 0x48ffdd : 0xff5636, isWarden ? 0.34 : 0.42, 0.45);
+    eyeLight.position.set(0, 0.165, 0.2); head.add(eyeLight);
     return { type, group, torso, head, jaw: jawPivot, arms, legs, eyeLight, pos: new THREE.Vector2(), vel: new THREE.Vector2(), target: new THREE.Vector2(), heading: Math.PI, lastDist: Infinity, stuck: 0, attacking: false, phase: isWarden ? 0.7 : 2.4, gaitPhase: isWarden ? 0.7 : 2.4, gaitBlend: 0, crawlBlend: 0, radius: isWarden ? 0.22 : 0.27, footBottom: 0, footH: isWarden ? 0.05 : 0.095, handY: 0.15 };
   }
   const humanoidMonsters = [createHumanoidMonster('warden'), createHumanoidMonster('diver')];
-  humanoidMonsters.forEach(h => { scene.add(h.group); h.dTarget = new THREE.Vector2(); h.distractT = 0; h.stunT = 0; });
+  humanoidMonsters.forEach(h => { bakeStatic(h.group); scene.add(h.group); h.dTarget = new THREE.Vector2(); h.distractT = 0; h.stunT = 0; });
 
   // ─── RIPPLE POOL ───
   const ripples = [];
@@ -2520,15 +2598,18 @@ async function run(mode) {
         const ctx = this.ensureContext();
         if (!ctx) return;
         this.buffers[id] = await ctx.decodeAudioData(arrayBuf);
+        // the drone fallback may already be playing: swap to the real loop once it is ready
+        if (id === 'room_ambience_loop' && this.isAmbiencePlaying && this.ambienceNode && !this.ambienceNode.buffer) { this.stopAmbience(); this.startAmbience(); }
       } catch (e) {
         // Procedural fallback will handle this gracefully
       }
     }
 
     preloadAll() {
-      ['room_ambience_loop', 'water_splash_sfx', 'monster_alert_sfx', 'exit_chime_sfx'].forEach(id => {
+      ['water_splash_sfx', 'monster_alert_sfx', 'exit_chime_sfx'].forEach(id => {
         this.loadAsset(id);
       });
+      setTimeout(() => this.loadAsset('room_ambience_loop'), 2500);
     }
 
     playBuffer(id, volume = 1.0, loop = false, bus = 'sfx') {
@@ -2610,11 +2691,12 @@ async function run(mode) {
       // Procedural crisp shallow water splash
       try {
         const now = ctx.currentTime;
-        const bufLen = Math.floor(ctx.sampleRate * 0.38);
-        const buffer = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufLen; i++) {
-          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.07));
+        let buffer = this._splashBuf;
+        if (!buffer) {
+          const bufLen = Math.floor(ctx.sampleRate * 0.38);
+          buffer = this._splashBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.07));
         }
         const noise = ctx.createBufferSource();
         noise.buffer = buffer;
@@ -3067,6 +3149,7 @@ async function run(mode) {
   // The spawn is clamped to its inset footprint after collision helpers are ready.
   character.position.set(startPlat.x, startPlat.top, startPlat.z);
   character.rotation.y = Math.PI / 4;
+  bakeStatic(character);
   scene.add(character);
 
   // ─── PLAYER STATE ───
@@ -3107,7 +3190,7 @@ async function run(mode) {
 
   // Keyboard
   if (mode === 'play') {
-    window.addEventListener('keydown', e => {
+    listen(window, 'keydown', e => {
       if (gameState === 'keypad') {
         e.preventDefault();
         if (/^(Digit|Numpad)[0-9]$/.test(e.code)) keypadPress(e.code.slice(-1));
@@ -3139,8 +3222,8 @@ async function run(mode) {
         if (e.code === 'Space') jumpRequested = true;
       }
     });
-    window.addEventListener('keyup', e => { keys[e.code] = false; });
-    window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+    listen(window, 'keyup', e => { keys[e.code] = false; });
+    listen(window, 'blur', () => { for (const k in keys) keys[k] = false; });
   }
 
   // ─── JOYSTICK ───
@@ -3185,7 +3268,7 @@ async function run(mode) {
   }
 
   if (mode === 'play') {
-    joystickArea.addEventListener('touchstart', e => {
+    listen(joystickArea, 'touchstart', e => {
       if (jsTouchId !== null) return;
       const t = e.changedTouches[0];
       jsTouchId = t.identifier;
@@ -3199,7 +3282,7 @@ async function run(mode) {
       e.preventDefault();
     }, { passive: false });
 
-    joystickArea.addEventListener('touchmove', e => {
+    listen(joystickArea, 'touchmove', e => {
       for (const t of e.changedTouches) {
         if (t.identifier === jsTouchId) {
           const rect = joystickArea.getBoundingClientRect();
@@ -3215,15 +3298,15 @@ async function run(mode) {
         if (t.identifier === jsTouchId) { jsReset(); break; }
       }
     };
-    joystickArea.addEventListener('touchend', jsEnd);
-    joystickArea.addEventListener('touchcancel', jsEnd);
+    listen(joystickArea, 'touchend', jsEnd);
+    listen(joystickArea, 'touchcancel', jsEnd);
 
     const jumpBtn = document.getElementById('jump-btn');
-    jumpBtn.addEventListener('touchstart', e => { jumpRequested = true; jumpBtn.classList.add('pressed'); e.preventDefault(); e.stopPropagation(); }, { passive: false });
+    listen(jumpBtn, 'touchstart', e => { jumpRequested = true; jumpBtn.classList.add('pressed'); e.preventDefault(); e.stopPropagation(); }, { passive: false });
     const jumpUp = () => jumpBtn.classList.remove('pressed');
-    jumpBtn.addEventListener('touchend', jumpUp);
-    jumpBtn.addEventListener('touchcancel', jumpUp);
-    jumpBtn.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') { jumpRequested = true; e.preventDefault(); } });
+    listen(jumpBtn, 'touchend', jumpUp);
+    listen(jumpBtn, 'touchcancel', jumpUp);
+    listen(jumpBtn, 'pointerdown', e => { if (e.pointerType !== 'touch') { jumpRequested = true; e.preventDefault(); } });
   }
 
   // ─── MINIMAP (EDIT MODE) & RADAR (PLAY MODE) LOGIC ───
@@ -3482,7 +3565,7 @@ async function run(mode) {
     radarCtx.strokeRect(1, 1, w - 2, h - 2);
   }
 
-  let goalHintTimer = 0;
+  let goalHintTimer = 0, radarSkip = false;
   function updateGoalHint(dt) {
     goalHintTimer -= dt;
     if (goalHintTimer > 0 || !goalHint) return;
@@ -3498,9 +3581,9 @@ async function run(mode) {
       }
       if (nearest) {
         const what = pzi.type === 'key' ? 'kunci' : pzi.type === 'fuse' ? `sekering ${runStats.pz}/${pzi.count}` : `digit kode ${runStats.pz}/${pzi.count}`;
-        goalHint.textContent = `Cari ${what} • ${Math.round(nd)} m`;
-      } else goalHint.textContent = `Ketik kode di pintu EXIT • ${Math.round(d)} m`;
-    } else goalHint.textContent = `Lompati pijakan menuju EXIT • ${Math.round(d)} m`;
+        setText(goalHint, `Cari ${what} • ${Math.round(nd)} m`);
+      } else setText(goalHint, `Ketik kode di pintu EXIT • ${Math.round(d)} m`);
+    } else setText(goalHint, `Lompati pijakan menuju EXIT • ${Math.round(d)} m`);
   }
 
   // Edit / Play Mode UI Initialization
@@ -3519,9 +3602,9 @@ async function run(mode) {
       soundSystem.ensureContext();
       soundSystem.startAmbience();
     };
-    window.addEventListener('pointerdown', unlockAudio, { once: true });
-    window.addEventListener('keydown', unlockAudio, { once: true });
-    window.addEventListener('touchstart', unlockAudio, { once: true });
+    listen(window, 'pointerdown', unlockAudio, { once: true });
+    listen(window, 'keydown', unlockAudio, { once: true });
+    listen(window, 'touchstart', unlockAudio, { once: true });
   }
 
   // ─── HUD / END SCREEN / MENU ───
@@ -3563,6 +3646,7 @@ async function run(mode) {
   const slotsEl = document.getElementById('item-slots');
   if (mode === 'play') { gameWorld.classList.add('in-menu'); hudEl.classList.add('on'); }
 
+  function setVig(v) { const q = Math.round(v * 20) / 20; if (setVig.last !== q) { setVig.last = q; dangerVignette.style.opacity = q; } }
   function showDanger(text) {
     dangerBanner.textContent = text;
     dangerBanner.classList.add('show');
@@ -3575,6 +3659,7 @@ async function run(mode) {
     return String(m).padStart(2, '0') + ':' + (r < 10 ? '0' : '') + r.toFixed(1);
   }
   function starStr(n) { n = Math.max(0, Math.min(3, n | 0)); return '★'.repeat(n) + '☆'.repeat(3 - n); }
+  function setText(el, v) { if (el._v !== v) { el._v = v; el.textContent = v; } }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
   let toastTimer = 0;
@@ -3592,16 +3677,16 @@ async function run(mode) {
     hudTimer = 0.1;
     if (!levelSpec) return;
     if (levelSpec.kind === 'tutorial') {
-      hudL1.textContent = 'LATIHAN';
+      setText(hudL1, 'LATIHAN');
       hudL1.classList.remove('over');
-      hudL2.textContent = `◆ ${runStats.got}/${crystals.length}`;
+      setText(hudL2, `◆ ${runStats.got}/${crystals.length}`);
     } else {
-      hudL1.textContent = `${levelSpec.title}  ·  ${fmtTime(runStats.t)}`;
+      setText(hudL1, `${levelSpec.title}  ·  ${fmtTime(runStats.t)}`);
       hudL1.classList.toggle('over', runStats.t > levelSpec.par);
-      hudL2.textContent = `◆ ${runStats.got}/${crystals.length}   ·   target ${fmtTime(levelSpec.par)}   ·   jatuh ${runStats.falls}`;
+      setText(hudL2, `◆ ${runStats.got}/${crystals.length}   ·   target ${fmtTime(levelSpec.par)}   ·   jatuh ${runStats.falls}`);
     }
     const pt = puzzleHudText();
-    hudL3.textContent = pt;
+    setText(hudL3, pt);
     hudL3.style.display = pt ? '' : 'none';
     hudL3.classList.toggle('done', !!pt && runStats.solved);
     updateSlots();
@@ -3690,7 +3775,7 @@ async function run(mode) {
       }, 220);
     }
   }
-  keypadCard.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) keypadPress(b.dataset.k); });
+  listen(keypadCard, 'click', e => { const b = e.target.closest('[data-k]'); if (b) keypadPress(b.dataset.k); });
 
   function collectCrystal(c) {
     c.got = true; c.g.visible = false; runStats.got++;
@@ -3762,7 +3847,7 @@ async function run(mode) {
   function showEnd(win) {
     setState(win ? 'won' : 'gameover');
     hideDanger();
-    dangerVignette.style.opacity = 0;
+    setVig(0);
     endScreen.classList.toggle('win', win);
     endRank.textContent = '';
     const row = (name, val, note, ok, cls) => `<div class="st-row${cls ? ' ' + cls : ''}"><span>${name}</span><b>${val}</b><i${ok ? ' class="ok"' : ''}>${note || ''}</i></div>`;
@@ -3843,7 +3928,7 @@ async function run(mode) {
     resetHumanoidMonsters();
     ripples.forEach(r => { r.active = false; r.mesh.visible = false; });
     hideDanger();
-    dangerVignette.style.opacity = 0;
+    setVig(0);
     endScreen.classList.remove('show');
     jumpRequested = false; jumpBuffer = 0; coyote = 0;
     pausedLevel = false;
@@ -4029,7 +4114,7 @@ async function run(mode) {
     if (!save.tut) { save.tut = 1; saveProgress(); }
   }
 
-  menuPanel.addEventListener('click', e => {
+  listen(menuPanel, 'click', e => {
     const b = e.target.closest('[data-act]');
     if (!b || b.disabled) return;
     soundSystem.ensureContext(); soundSystem.startAmbience();
@@ -4051,7 +4136,7 @@ async function run(mode) {
       else resetProgress();
     }
   });
-  menuPanel.addEventListener('input', e => {
+  listen(menuPanel, 'input', e => {
     const idx = e.target.dataset ? e.target.dataset.s : undefined;
     if (idx === undefined) return;
     save.snd[+idx] = +e.target.value;
@@ -4059,12 +4144,12 @@ async function run(mode) {
     soundSystem.ensureContext(); soundSystem.applyVolumes();
     saveProgress();
   });
-  menuPanel.addEventListener('change', e => {
+  listen(menuPanel, 'change', e => {
     const idx = e.target.dataset ? e.target.dataset.s : undefined;
     if (idx === undefined) return;
     if (+idx === 0) soundSystem.playPickup(); else { soundSystem.startAmbience(); }
   });
-  helpCard.addEventListener('click', e => {
+  listen(helpCard, 'click', e => {
     const b = e.target.closest('[data-h]');
     if (!b) return;
     if (b.dataset.h === 'prev') { helpIdx = Math.max(0, helpIdx - 1); renderHelp(); }
@@ -4072,12 +4157,12 @@ async function run(mode) {
     else closeHelp();
   });
   const endTap = fn => e => { e.preventDefault(); e.stopPropagation(); if (performance.now() >= endLockUntil) fn(); };
-  restartBtn.addEventListener('click', endTap(retryLevel));
-  nextBtn.addEventListener('click', endTap(goNext));
-  contBtn.addEventListener('click', endTap(continueFromCheckpoint));
-  endMenuBtn.addEventListener('click', endTap(() => openMenu(false)));
-  document.getElementById('end-shop-btn').addEventListener('click', endTap(() => openMenu(false, 'shop')));
-  menuBtn.addEventListener('click', e => { e.preventDefault(); pauseToMenu(); });
+  listen(restartBtn, 'click', endTap(retryLevel));
+  listen(nextBtn, 'click', endTap(goNext));
+  listen(contBtn, 'click', endTap(continueFromCheckpoint));
+  listen(endMenuBtn, 'click', endTap(() => openMenu(false)));
+  listen(document.getElementById('end-shop-btn'), 'click', endTap(() => openMenu(false, 'shop')));
+  listen(menuBtn, 'click', e => { e.preventDefault(); pauseToMenu(); });
 
   // ─── ITEMS: stone, acupuncture needle, chakra shoes (3 quick slots) ───
   let shoesT = 0, useCd = 0, shoeRippleT = 0;
@@ -4087,13 +4172,13 @@ async function run(mode) {
   function updateSlots() {
     slotEls.forEach((el, i) => {
       const n = save.inv[i], active = i === 2 && shoesT > 0;
-      el.querySelector('.is-count').textContent = active ? Math.ceil(shoesT) : n;
+      setText(el._cnt || (el._cnt = el.querySelector('.is-count')), String(active ? Math.ceil(shoesT) : n));
       el.classList.toggle('empty', n <= 0 && !active);
       el.classList.toggle('active', active);
       el.classList.toggle('blink', active && shoesT < 3);
     });
   }
-  slotEls.forEach(el => el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); useItem(+el.dataset.i); }));
+  slotEls.forEach(el => listen(el, 'pointerdown', e => { e.preventDefault(); e.stopPropagation(); useItem(+el.dataset.i); }));
   updateSlots();
 
   const stoneGeo = new THREE.DodecahedronGeometry(0.075, 0);
@@ -4486,7 +4571,7 @@ async function run(mode) {
     }
   }
   function markSeen(bit) { if (!(save.seen & bit)) { save.seen |= bit; saveProgress(); } }
-  skipBtn.addEventListener('click', e => {
+  listen(skipBtn, 'click', e => {
     e.preventDefault();
     if (save.ftue !== 1) save.ftue = 2;
     saveProgress();
@@ -4507,6 +4592,7 @@ async function run(mode) {
   const PITCH_MIN = 0.12;
   const PITCH_MAX = 0.82;
 
+  const _camT = new THREE.Vector3();
   function updateCamera() {
     const horizDist = CAM_DIST * Math.cos(camPitch);
     const vertDist = CAM_DIST * Math.sin(camPitch);
@@ -4522,7 +4608,8 @@ async function run(mode) {
       targetY = Math.max(waterY() + 0.30, Math.min(WH - 0.22, targetY));
     }
 
-    camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.25);
+    _camT.set(targetX, targetY, targetZ);
+    camera.position.lerp(_camT, 0.25);
     camera.lookAt(playerPos.x, playerPos.y + CAM_LOOK_HEIGHT, playerPos.z);
   }
 
@@ -4545,7 +4632,7 @@ async function run(mode) {
   let camTouchPrevX = 0;
   let camTouchPrevY = 0;
 
-  window.addEventListener('touchstart', e => {
+  listen(window, 'touchstart', e => {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i];
       if (t.identifier === jsTouchId) continue;
@@ -4559,7 +4646,7 @@ async function run(mode) {
     }
   }, { passive: false });
 
-  window.addEventListener('touchmove', e => {
+  listen(window, 'touchmove', e => {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i];
       if (t.identifier === camTouchId) {
@@ -4585,15 +4672,15 @@ async function run(mode) {
       }
     }
   };
-  window.addEventListener('touchend', endCamTouch);
-  window.addEventListener('touchcancel', endCamTouch);
+  listen(window, 'touchend', endCamTouch);
+  listen(window, 'touchcancel', endCamTouch);
 
   // ─── MOUSE DRAG CAMERA ROTATION (DESKTOP) ───
   let isMouseRotating = false;
   let mousePrevX = 0;
   let mousePrevY = 0;
 
-  window.addEventListener('mousedown', e => {
+  listen(window, 'mousedown', e => {
     if (e.button !== 0) return;
     if (isInteractiveElement(e.target) || (mode === 'edit' && minimapPanel && minimapPanel.contains(e.target))) return;
     isMouseRotating = true;
@@ -4601,7 +4688,7 @@ async function run(mode) {
     mousePrevY = e.clientY;
   });
 
-  window.addEventListener('mousemove', e => {
+  listen(window, 'mousemove', e => {
     if (!isMouseRotating) return;
     const dx = e.clientX - mousePrevX;
     const dy = e.clientY - mousePrevY;
@@ -4613,8 +4700,8 @@ async function run(mode) {
   });
 
   const endMouseRotation = () => { isMouseRotating = false; };
-  window.addEventListener('mouseup', endMouseRotation);
-  window.addEventListener('blur', () => { isMouseRotating = false; camTouchId = null; });
+  listen(window, 'mouseup', endMouseRotation);
+  listen(window, 'blur', () => { isMouseRotating = false; camTouchId = null; });
 
   // ─── COLLISION HELPERS & SOLID PLATFORM PHYSICS ───
   function getPlatformAt(x, z, margin = 0) {
@@ -5162,6 +5249,7 @@ async function run(mode) {
     if (!isCurrentRun()) return;
     let dt = (now - lastTime) / 1000;
     lastTime = now;
+    perfSample(dt);
     if (dt > 0.11) dt = 0.11;
     if (ftue.slowT > 0) { ftue.slowT -= dt; dt *= 0.5; }   // FTUE: slow motion on the first fall
 
@@ -5407,9 +5495,9 @@ async function run(mode) {
       if (mState === 'chase') {
         const d = Math.hypot(playerPos.x - mPos.x, playerPos.z - mPos.y);
         const prox = clampV(1.2 - d / 2.0, 0, 1);
-        dangerVignette.style.opacity = clampV(1.15 - d / 2.2, 0.25, 1).toFixed(2);
-        ambient.intensity = 0.70 - 0.07 * prox + Math.sin(waterAnimTime * 14) * 0.015 * prox;
-        fillLight.intensity = 0.27 - 0.04 * prox;
+        setVig(clampV(1.15 - d / 2.2, 0.25, 1));
+        ambient.intensity = 0.76 - 0.07 * prox + Math.sin(waterAnimTime * 14) * 0.015 * prox;
+        fillLight.intensity = 0.31 - 0.04 * prox;
 
         // Caught
         if (mState === 'chase' && mStunT <= 0 && shoesT <= 0 && !tutInvuln() && d < CATCH_DIST && playerPos.y < wY + 0.08) {
@@ -5424,9 +5512,9 @@ async function run(mode) {
           }
         }
       } else {
-        ambient.intensity = 0.70;
-        fillLight.intensity = 0.27;
-        dangerVignette.style.opacity = mState === 'alert' ? 0.4 : 0;
+        ambient.intensity = 0.76;
+        fillLight.intensity = 0.31;
+        setVig(mState === 'alert' ? 0.4 : 0);
       }
 
       // ─── EXIT TRIGGER ───
@@ -5462,7 +5550,7 @@ async function run(mode) {
     updateRipples(dt);
     updateSplashParticles(dt);
     updateVictoryParticles(dt);
-    if (mode === 'play') { renderRadar(); updateGoalHint(dt); }
+    if (mode === 'play') { radarSkip = !radarSkip; if (!radarSkip) renderRadar(); updateGoalHint(dt); }
 
     // Lights, shadows and floor/water patches follow the player across the big map
     dirLight.position.set(playerPos.x + 3, 5.5, playerPos.z + 2.5);
@@ -5474,7 +5562,7 @@ async function run(mode) {
     if (mode === 'play' && (gameState === 'menu' || gameState === 'boot')) camAngle += dt * 0.18;
     updateCamera();
     if (mode === 'play' && loadingActive) {
-      if (now - loadingStarted < 2000) {
+      if (now - loadingStarted < 2000 || (texPending > 0 && now - loadingStarted < 6000)) {
         if (updateLoadingPreview(now)) renderer.render(loadingPreviewScene, loadingPreviewCamera);
         else renderer.render(scene, camera);
       } else {
@@ -5519,8 +5607,23 @@ async function run(mode) {
       if (gameState === 'menu' && !pausedLevel) renderMenu();
       tryOpenMenu();
     })();
-    setTimeout(() => { saveReady = true; tryOpenMenu(); }, 3500);
+    setTimeout(() => { if (!isCurrentRun()) return; saveReady = true; tryOpenMenu(); }, 3500);
   }
+
+  // Warm-up: draw everything once (even normally hidden effects) so shader compiles and texture uploads
+  // happen now, behind the loading screen, not the first time a monster or splash appears.
+  function prewarmGPU() {
+    try {
+      const saved = [], tmp = [];
+      [[stoneGeo, stoneMat], [needleShaftGeo, needleMat], [needleHeadGeo, needleHeadMat]].forEach(([g, m]) => { const o = new THREE.Mesh(g, m); scene.add(o); tmp.push(o); });
+      scene.traverse(o => { if (!o.isLight) { saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; } });
+      renderer.compile(scene, camera);
+      renderer.render(scene, camera);
+      saved.forEach(([o, v, f]) => { o.visible = v; o.frustumCulled = f; });
+      tmp.forEach(o => scene.remove(o));
+    } catch (e) { lib.log('prewarm failed: ' + e); }
+  }
+  prewarmGPU();
 
   requestAnimationFrame(gameLoop);
 }
