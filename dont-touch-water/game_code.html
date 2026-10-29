@@ -296,6 +296,36 @@
   .set-row span { flex: 0 0 130px; }
   .set-row input[type=range] { flex: 1; height: 44px; accent-color: #34c98a; touch-action: pan-x; }
   .set-row b { flex: 0 0 36px; text-align: right; font-family: 'Orbitron', sans-serif; color: #ffd86b; }
+  #coach {
+    position: absolute; top: 330px; left: 50%; transform: translateX(-50%); display: none; align-items: center; gap: 14px;
+    max-width: 86%; box-sizing: border-box; padding: 12px 20px; border-radius: 22px; z-index: 84; pointer-events: none;
+    background: rgba(8,24,30,.92); border: 2px solid rgba(125,255,224,.9); color: #eafffa; box-shadow: 0 8px 30px #000a;
+    font: 700 22px 'Inter', sans-serif; line-height: 1.3; text-align: left;
+  }
+  #coach.show { display: flex; animation: coachPop .35s ease-out; }
+  @keyframes coachPop { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%); } }
+  #coach-arrow { flex: 0 0 auto; font-size: 38px; line-height: 1; color: #7dffe0; text-shadow: 0 0 12px rgba(125,255,224,.8); }
+  #ftue-skip {
+    position: absolute; bottom: 190px; left: 50%; transform: translateX(-50%); display: none; height: 64px; padding: 0 28px; border-radius: 32px;
+    background: rgba(10,24,36,.86); border: 2px solid rgba(180,225,235,.6); color: #e8fbff; font: 700 20px 'Orbitron', sans-serif;
+    z-index: 64; cursor: pointer; touch-action: manipulation;
+  }
+  #ftue-skip.on { display: block; }
+  #story-card {
+    position: absolute; left: 50%; top: 128px; transform: translateX(-50%); width: min(580px, 88%); text-align: center; color: #fff;
+    pointer-events: none; z-index: 83; opacity: 0; text-shadow: 0 3px 16px rgba(0,0,0,.9);
+  }
+  #story-card.show { animation: storyFade 5.2s ease forwards; }
+  @keyframes storyFade { 0% { opacity: 0; transform: translateX(-50%) translateY(14px); } 12% { opacity: 1; transform: translateX(-50%); } 78% { opacity: 1; } 100% { opacity: 0; } }
+  #story-card b { display: block; font: 700 34px 'Orbitron', sans-serif; letter-spacing: 1px; margin-bottom: 10px; }
+  #story-card span { font: 600 22px 'Inter', sans-serif; line-height: 1.4; color: #d6efee; }
+  @keyframes ftuePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(125,255,224,.95); } 60% { box-shadow: 0 0 0 24px rgba(125,255,224,0); } }
+  .ftue-pulse { animation: ftuePulse 1s infinite; outline: 3px solid #7dffe0; outline-offset: 2px; }
+  .mn-tile { position: relative; }
+  .mn-tile.locked { opacity: .5; background: linear-gradient(180deg, #46566a, #2c3744); }
+  .mn-tile.new::after { content: 'BARU'; position: absolute; top: -9px; right: -5px; padding: 3px 9px; border-radius: 10px; background: #ff5b4a; color: #fff; font: 700 12px 'Orbitron', sans-serif; animation: ftuePulse 1.2s infinite; }
+  .mn-btn.danger { background: linear-gradient(180deg, #a8453b, #762a24); }
+  .mn-btn.danger.armed { background: linear-gradient(180deg, #e0412e, #a21d12); }
   #hud-l3 { margin-top: 2px; font: 700 16px 'Inter', sans-serif; color: #ffe08a; white-space: nowrap; letter-spacing: .5px; }
   #hud-l3.done { color: #8dffbf; }
   #keypad-screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 100; background: rgba(4,12,18,.84); }
@@ -320,6 +350,7 @@
   }
   #toast.show { opacity: 1; }
   #game-world.in-menu #joystick-area, #game-world.in-menu #jump-btn, #game-world.in-menu #hud, #game-world.in-menu #item-slots,
+  #game-world.in-menu #coach, #game-world.in-menu #ftue-skip, #game-world.in-menu #story-card,
   #game-world.in-menu #radar-panel, #game-world.in-menu #goal-hint, #game-world.in-menu #danger-vignette,
   #game-world.in-menu #danger-banner, #game-world.in-menu #toast { display: none !important; }
 
@@ -504,6 +535,9 @@
       <div id="hud-info"><div id="hud-l1">LV 1 &middot; 00:00.0</div><div id="hud-l2"></div><div id="hud-l3"></div></div>
     </div>
     <div id="toast"></div>
+    <div id="coach"><div id="coach-arrow">▲</div><div id="coach-text"></div></div>
+    <button id="ftue-skip">LEWATI ›</button>
+    <div id="story-card"><b>RUANG KOLAM TERKUNCI</b><span>Ada sesuatu yang mengintai di bawah air.<br>Temukan pintu EXIT. Jangan sentuh air.</span></div>
     <div id="end-screen" class="ui-modal">
       <div id="end-title">TERTANGKAP!</div>
       <div id="end-stars"></div>
@@ -917,7 +951,8 @@ async function run(mode) {
     '<svg viewBox="0 0 48 48"><line x1="8" y1="40" x2="35" y2="13" stroke="#f1d27a" stroke-width="3.5" stroke-linecap="round"/><circle cx="38" cy="10" r="5.5" fill="#ff7b6b" stroke="#fff" stroke-width="2"/><line x1="8" y1="40" x2="5" y2="44" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
     '<svg viewBox="0 0 48 48"><path d="M14 7 H28 V23 L41 29 Q45 31 45 36 V40 H12 Z" fill="#3aa7d8" stroke="#d9f6ff" stroke-width="2.5" stroke-linejoin="round"/><path d="M12 34 H45" stroke="#d9f6ff" stroke-width="2"/><path d="M3 21 q6 -2 8 4 M2 29 q6 -2 8 4" stroke="#8fe8ff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>'
   ];
-  const save = { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0, coins: 50, inv: [3, 0, 0], snd: [8, 7] };
+  function freshSave() { return { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0, coins: 50, inv: [3, 0, 0], snd: [8, 7], ftue: 0, seen: 0, legacy: 0 }; }
+  const save = freshSave();
 
   function dateKey() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
   function alertFor(mult) { const a0 = Number(cfg.settings.alertTime) || 0; return a0 <= 0 ? 0 : Math.min(a0, Math.max(0.8, a0 * mult)); }
@@ -947,6 +982,12 @@ async function run(mode) {
       puzzle: [{ type: 'key', count: 1 }, { type: 'fuse', count: 4 }, { type: 'code', count: 4 }][k % 3], code: []
     };
   }
+  function tutorialSpec() {
+    return { kind: 'tutorial', n: 0, title: 'LATIHAN', seed: 424242, size: 32, dif: 0, crystals: 1, monsterMult: 0.8, alert: 1.6, par: 0, puzzle: { type: 'none', count: 0 }, code: [] };
+  }
+  // Features open up gradually as levels are cleared.
+  const FEATURES = [{ id: 'shop', at: 2, name: 'TOKO', bit: 1 }, { id: 'daily', at: 3, name: 'TANTANGAN HARIAN', bit: 2 }, { id: 'board', at: 5, name: 'PERINGKAT', bit: 4 }];
+  function featureOpen(id) { const f = FEATURES.find(x => x.id === id); return !!save.legacy || save.maxLv >= f.at; }
   function effSize() { return levelSpec ? levelSpec.size : cfg.settings.roomSize; }
   function effSeed() { return levelSpec ? levelSpec.seed : cfg.settings.mapSeed; }
   function mMult() { return levelSpec ? levelSpec.monsterMult : 1; }
@@ -972,6 +1013,11 @@ async function run(mode) {
     if (st.coins != null) save.coins = Math.max(0, Math.min(999999, st.coins | 0));
     if (Array.isArray(st.inv)) save.inv = ITEMS.map((it, i) => Math.max(0, Math.min(it.max, st.inv[i] | 0)));
     if (Array.isArray(st.snd)) save.snd = [Math.max(0, Math.min(10, st.snd[0] | 0)), Math.max(0, Math.min(10, st.snd[1] | 0))];
+    // FTUE state: saves from before the FTUE existed keep every feature open and skip the training level.
+    const old = st.ftue == null && (st.maxLv | 0) > 0;
+    save.ftue = st.ftue != null ? (st.ftue | 0) : (old ? 2 : 0);
+    save.seen = st.seen | 0;
+    save.legacy = (st.legacy || old) ? 1 : 0;
     if (typeof soundSystem !== 'undefined') soundSystem.applyVolumes();
   }
   let saveTimer = 0;
@@ -3491,6 +3537,7 @@ async function run(mode) {
   const nextBtn = document.getElementById('next-btn');
   const contBtn = document.getElementById('cont-btn');
   const endMenuBtn = document.getElementById('end-menu-btn');
+  const endShopBtn = document.getElementById('end-shop-btn');
   const hudEl = document.getElementById('hud');
   const hudL1 = document.getElementById('hud-l1');
   const hudL2 = document.getElementById('hud-l2');
@@ -3514,7 +3561,7 @@ async function run(mode) {
     gameWorld.classList.toggle('in-menu', mode === 'play' && st !== 'playing');
   }
   const slotsEl = document.getElementById('item-slots');
-  if (mode === 'play') { gameWorld.classList.add('in-menu'); hudEl.classList.add('on'); slotsEl.classList.add('on'); }
+  if (mode === 'play') { gameWorld.classList.add('in-menu'); hudEl.classList.add('on'); }
 
   function showDanger(text) {
     dangerBanner.textContent = text;
@@ -3544,9 +3591,15 @@ async function run(mode) {
     if (hudTimer > 0 && !force) return;
     hudTimer = 0.1;
     if (!levelSpec) return;
-    hudL1.textContent = `${levelSpec.title}  ·  ${fmtTime(runStats.t)}`;
-    hudL1.classList.toggle('over', runStats.t > levelSpec.par);
-    hudL2.textContent = `◆ ${runStats.got}/${crystals.length}   ·   target ${fmtTime(levelSpec.par)}   ·   jatuh ${runStats.falls}`;
+    if (levelSpec.kind === 'tutorial') {
+      hudL1.textContent = 'LATIHAN';
+      hudL1.classList.remove('over');
+      hudL2.textContent = `◆ ${runStats.got}/${crystals.length}`;
+    } else {
+      hudL1.textContent = `${levelSpec.title}  ·  ${fmtTime(runStats.t)}`;
+      hudL1.classList.toggle('over', runStats.t > levelSpec.par);
+      hudL2.textContent = `◆ ${runStats.got}/${crystals.length}   ·   target ${fmtTime(levelSpec.par)}   ·   jatuh ${runStats.falls}`;
+    }
     const pt = puzzleHudText();
     hudL3.textContent = pt;
     hudL3.style.display = pt ? '' : 'none';
@@ -3643,7 +3696,8 @@ async function run(mode) {
     c.got = true; c.g.visible = false; runStats.got++;
     soundSystem.playPickup();
     spawnVictoryBurst(c.pad.x, c.pad.top + 0.4, c.pad.z, 12);
-    toast(`◆ Kristal ${runStats.got}/${crystals.length}`, 1400);
+    toast((save.seen & 32) ? `◆ Kristal ${runStats.got}/${crystals.length}` : '◆ Kristal! Kumpulkan semuanya untuk bintang ke-3 dan lebih banyak koin', (save.seen & 32) ? 1400 : 3600);
+    markSeen(32);
     updateHud(0, true);
   }
   function reachCheckpoint(plat) {
@@ -3652,7 +3706,8 @@ async function run(mode) {
       paintCp(c, true);
       runStats.cp = plat;
       soundSystem.playCheckpoint();
-      toast('⚑ Checkpoint tersimpan', 1800);
+      toast((save.seen & 16) ? '⚑ Checkpoint tersimpan' : '⚑ Checkpoint! Kalau tertangkap, kamu lanjut dari sini', (save.seen & 16) ? 1800 : 3800);
+      markSeen(16);
     }
   }
   function animateLevelObjects(t) {
@@ -3676,6 +3731,7 @@ async function run(mode) {
     const stars = 1 + (stTime ? 1 : 0) + (stCry ? 1 : 0);
     const score = Math.max(100, Math.round(500 + Math.max(0, par * 2 - t) * 10 + got * 150 + stars * 300 - runStats.falls * 40 - runStats.deaths * 100 - runStats.wrong * 30));
     rollDaily();
+    const prevMax = save.maxLv;
     let prevScore = 0, prevSt = 0;
     if (L.kind === 'level') {
       const prev = save.lv[L.n - 1] || { s: 0, st: 0, t: 0 };
@@ -3694,7 +3750,8 @@ async function run(mode) {
     coins = first ? Math.round(coins * 1.5) : (stars > prevSt ? coins : Math.round(coins * 0.4));
     save.coins = Math.min(999999, save.coins + coins);
     saveProgress();
-    return { stars, score, stTime, stCry, newBest: score > prevScore, par, total, got, coins, first };
+    const unlocks = save.legacy ? [] : FEATURES.filter(f => prevMax < f.at && save.maxLv >= f.at).map(f => f.name);
+    return { stars, score, stTime, stCry, newBest: score > prevScore, par, total, got, coins, first, unlocks };
   }
 
   async function submitBoard() {
@@ -3709,6 +3766,23 @@ async function run(mode) {
     endScreen.classList.toggle('win', win);
     endRank.textContent = '';
     const row = (name, val, note, ok, cls) => `<div class="st-row${cls ? ' ' + cls : ''}"><span>${name}</span><b>${val}</b><i${ok ? ' class="ok"' : ''}>${note || ''}</i></div>`;
+    endShopBtn.style.display = featureOpen('shop') ? '' : 'none';
+    if (win && levelSpec.kind === 'tutorial') {
+      const reward = finishTutorial();
+      endShopBtn.style.display = 'none';
+      endTitle.textContent = 'LATIHAN SELESAI!';
+      endStars.textContent = '✔'; endStars.style.display = '';
+      endSub.textContent = 'Kamu sudah paham dasarnya: lompat antar pijakan, hindari air, dan kabur ke pijakan saat jatuh.';
+      endStats.innerHTML = row('Kristal', `${runStats.got}/${crystals.length}`, '') + row('Hadiah latihan', '🪙 +' + reward, reward ? '' : 'sudah diambil', true);
+      nextBtn.style.display = ''; nextBtn.textContent = 'MASUK LEVEL 1 ▶';
+      contBtn.style.display = 'none';
+      restartBtn.textContent = 'ULANGI LATIHAN';
+      endScreen.classList.add('show');
+      endLockUntil = performance.now() + 700;
+      jsReset();
+      for (const k in keys) keys[k] = false;
+      return;
+    }
     if (win) {
       const r = finishLevel();
       endTitle.textContent = 'KAMU LOLOS!';
@@ -3721,6 +3795,7 @@ async function run(mode) {
         (puzzleInfo() ? row('Puzzle pintu', puzzleInfo().type === 'key' ? 'Kunci' : puzzleInfo().type === 'fuse' ? 'Sekering' : 'Kode', runStats.wrong ? `salah kode ${runStats.wrong}×` : 'terpecahkan', !runStats.wrong) : '') +
         row('Jatuh ke air', runStats.falls, runStats.deaths ? `tertangkap ${runStats.deaths}×` : '') +
         row('Koin', '🪙 +' + r.coins, r.first ? 'pertama ×1,5' : '', true) +
+        (r.unlocks.length ? row('🔓 Fitur baru', r.unlocks.join(', '), 'terbuka!', true) : '') +
         row('SKOR', r.score.toLocaleString('id-ID'), r.newBest ? 'REKOR BARU!' : '', false, 'total');
       const canNext = levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL;
       nextBtn.style.display = canNext ? '' : 'none';
@@ -3788,10 +3863,17 @@ async function run(mode) {
     restartGame(false);
     updateHud(0, true);
     const pzi = puzzleInfo();
-    if (pzi) toast(pzi.type === 'key' ? '🔒 Pintu terkunci. Temukan KUNCI di pijakan samping rute (lihat radar kuning).'
+    if (pzi && levelSpec.kind !== 'tutorial') toast(pzi.type === 'key' ? '🔒 Pintu terkunci. Temukan KUNCI di pijakan samping rute (lihat radar kuning).'
       : pzi.type === 'fuse' ? `🔒 Pintu terkunci. Kumpulkan ${pzi.count} SEKERING di pijakan samping rute (radar kuning).`
       : `🔒 Pintu terkunci. Temukan ${pzi.count} DIGIT kode satu per satu; tercatat otomatis di HUD.`, 6500);
-    else if (levelSpec.kind === 'level' && levelSpec.n === 1 && !save.lv[0]) toast('Geser joystick untuk bergerak, tekan JUMP untuk melompat. Capai pintu EXIT! Slot item ada di tengah bawah.', 6500);
+    updateGating();
+    if (levelSpec.kind === 'tutorial') ftueBegin(); else { ftueEnd(); clearCoach(); levelCoach(); }
+  }
+  function startTutorial() {
+    menuScreen.classList.remove('show'); helpScreen.classList.remove('show');
+    levelSpec = tutorialSpec();
+    rebuildWorld(false);
+    retryLevel();
   }
   function continueFromCheckpoint() {
     if (!runStats.cp) { retryLevel(); return; }
@@ -3808,12 +3890,13 @@ async function run(mode) {
     retryLevel();
   }
   function goNext() {
-    if (levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL) beginLevel(levelSpecFor(levelSpec.n + 1));
+    if (levelSpec.kind === 'tutorial') beginLevel(levelSpecFor(1));
+    else if (levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL) beginLevel(levelSpecFor(levelSpec.n + 1));
     else openMenu(false);
   }
 
   // ── Menu: HOME (just PLAY) -> LIST (play / levels / daily / shop / leaderboard / how to play / settings) ──
-  let menuView = 'list', shopMsg = '';
+  let menuView = 'list', shopMsg = '', menuNote = '', resetArm = false;
   function renderLevels(next) {
     let cells = '';
     for (let i = 1; i <= MAX_LEVEL; i++) {
@@ -3833,7 +3916,7 @@ async function run(mode) {
   }
   function renderSettings() {
     const row = (label, idx) => `<div class="set-row"><span>${label}</span><input type="range" min="0" max="10" step="1" value="${save.snd[idx]}" data-s="${idx}"><b>${save.snd[idx]}</b></div>`;
-    return `<div class="mn-title sm">⚙ PENGATURAN</div><div class="mn-sub">Atur suara</div>${row('Efek suara', 0)}${row('Ambience', 1)}<button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+    return `<div class="mn-title sm">⚙ PENGATURAN</div><div class="mn-sub">Atur suara</div>${row('Efek suara', 0)}${row('Ambience', 1)}<button class="mn-btn sm" data-act="redo-ftue">↻ ULANGI LATIHAN</button><button class="mn-btn sm danger${resetArm ? ' armed' : ''}" data-act="reset">${resetArm ? 'TAP LAGI: HAPUS SEMUA PROGRES' : '⚠ RESET PROGRES'}</button><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
   }
   function renderMenu() {
     rollDaily();
@@ -3845,13 +3928,15 @@ async function run(mode) {
     let html;
     if (menuView === 'list') {
       const dTxt = d.k === dk && d.st > 0 ? starStr(d.st) : 'belum main';
-      html = `<div class="mn-title sm">DON'T TOUCH WATER</div>${stats}${resume}` +
+      const lockTile = (icon, label, at) => `<button class="mn-tile locked" data-act="locked" data-at="${at}"><i>🔒</i><b>${label}</b><small>Tamatkan level ${at}</small></button>`;
+      const isNew = bit => (save.seen & bit) ? '' : ' new';
+      html = `<div class="mn-title sm">DON'T TOUCH WATER</div>${stats}${menuNote ? `<div class="shop-msg">${menuNote}</div>` : ''}${resume}` +
         `<button class="mn-btn primary" data-act="level" data-n="${next}">▶ MAIN LEVEL ${next}</button>` +
         `<div class="mn-grid">` +
         `<button class="mn-tile" data-act="view" data-v="levels"><i>☰</i><b>PILIH LEVEL</b></button>` +
-        `<button class="mn-tile daily" data-act="daily"><i>☀</i><b>HARIAN</b><small>${dLabel} · ${dTxt}</small></button>` +
-        `<button class="mn-tile shop" data-act="view" data-v="shop"><i>🛍</i><b>TOKO</b><small>🪙 ${save.coins.toLocaleString('id-ID')}</small></button>` +
-        `<button class="mn-tile" data-act="view" data-v="board"><i>🏆</i><b>PERINGKAT</b></button>` +
+        (featureOpen('daily') ? `<button class="mn-tile daily${isNew(2)}" data-act="daily" data-bit="2"><i>☀</i><b>HARIAN</b><small>${dLabel} · ${dTxt}</small></button>` : lockTile('☀', 'HARIAN', 3)) +
+        (featureOpen('shop') ? `<button class="mn-tile shop${isNew(1)}" data-act="view" data-v="shop" data-bit="1"><i>🛍</i><b>TOKO</b><small>🪙 ${save.coins.toLocaleString('id-ID')}</small></button>` : lockTile('🛍', 'TOKO', 2)) +
+        (featureOpen('board') ? `<button class="mn-tile${isNew(4)}" data-act="view" data-v="board" data-bit="4"><i>🏆</i><b>PERINGKAT</b></button>` : lockTile('🏆', 'PERINGKAT', 5)) +
         `<button class="mn-tile" data-act="help"><i>?</i><b>CARA MAIN</b></button>` +
         `<button class="mn-tile slate" data-act="view" data-v="settings"><i>⚙</i><b>PENGATURAN</b></button>` +
         `</div>`;
@@ -3865,12 +3950,11 @@ async function run(mode) {
   function openMenu(paused, view) {
     pausedLevel = !!paused;
     menuView = view || 'list';
-    shopMsg = '';
+    shopMsg = ''; menuNote = ''; resetArm = false;
     endScreen.classList.remove('show');
     setState('menu');
     renderMenu();
     menuScreen.classList.add('show');
-    if (!save.tut) openHelp(0);
   }
   function pauseToMenu() {
     if (gameState !== 'playing') return;
@@ -3901,6 +3985,13 @@ async function run(mode) {
     }
     if (tok !== boardToken || gameState !== 'menu' || menuView !== 'board') return;
     menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-sub">Skor total semua level + tantangan harian</div>${body}<button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+  }
+  async function resetProgress() {
+    resetArm = false;
+    Object.assign(save, freshSave());
+    try { await lib.deleteUserGameState(); } catch (e) { lib.log('reset failed: ' + e); }
+    soundSystem.applyVolumes();
+    startTutorial();
   }
   function buyItem(i) {
     const it = ITEMS[i];
@@ -3943,6 +4034,8 @@ async function run(mode) {
     if (!b || b.disabled) return;
     soundSystem.ensureContext(); soundSystem.startAmbience();
     const act = b.dataset.act;
+    if (b.dataset.bit) markSeen(+b.dataset.bit);
+    if (act !== 'locked') menuNote = '';
     if (act === 'level') beginLevel(levelSpecFor(+b.dataset.n));
     else if (act === 'daily') beginLevel(dailySpec());
     else if (act === 'resume') resumeLevel();
@@ -3951,6 +4044,12 @@ async function run(mode) {
     else if (act === 'back') { boardToken++; menuView = 'list'; renderMenu(); }
     else if (act === 'buy') buyItem(+b.dataset.i);
     else if (act === 'help') openHelp(0);
+    else if (act === 'locked') { menuNote = `🔒 Terbuka setelah menamatkan Level ${b.dataset.at}`; renderMenu(); }
+    else if (act === 'redo-ftue') startTutorial();
+    else if (act === 'reset') {
+      if (!resetArm) { resetArm = true; renderMenu(); setTimeout(() => { if (resetArm) { resetArm = false; if (gameState === 'menu' && menuView === 'settings') renderMenu(); } }, 4000); }
+      else resetProgress();
+    }
   });
   menuPanel.addEventListener('input', e => {
     const idx = e.target.dataset ? e.target.dataset.s : undefined;
@@ -4081,6 +4180,7 @@ async function run(mode) {
     if (i === 2 && shoesT > 0) { toast('Sepatu chakra masih aktif', 1400); return; }
     if (save.inv[i] <= 0) { toast(`${ITEMS[i].name} habis. Beli di TOKO`, 1800); soundSystem.playClack(); return; }
     save.inv[i]--; useCd = 0.45;
+    if (i === 0 && !(save.seen & 8)) { markSeen(8); if (coach.key === 'c:stone') clearCoach(); }
     saveProgress();
     if (i === 0) throwStone(); else if (i === 1) throwNeedle(); else activateShoes();
     updateSlots();
@@ -4182,6 +4282,221 @@ async function run(mode) {
     updateProjectiles(dt);
   }
 
+  // ─── FTUE: guided training level, coach prompts and gradual feature reveal ───
+  // First launch drops the player straight into a tiny training level: show-don't-tell highlights, a world marker on the
+  // next platform, a scripted-but-fair first fall (monster crawls in, slow motion, cannot catch you) and a reward.
+  const coachEl = document.getElementById('coach'), coachText = document.getElementById('coach-text'), coachArrow = document.getElementById('coach-arrow');
+  const skipBtn = document.getElementById('ftue-skip'), storyEl = document.getElementById('story-card');
+  const joyBaseEl = document.getElementById('joystick-base'), jumpEl = document.getElementById('jump-btn');
+  const coach = { key: '', until: 0, target: null, pulse: [] };
+  const ftue = { active: false, cur: 0, moved: false, jumped: false, splashed: false, escaped: false, slowT: 0, t: 0, goT: -99, traps: [], startX: 0, startZ: 0 };
+
+  function setPulse(list) {
+    coach.pulse.forEach(el => el.classList.remove('ftue-pulse'));
+    coach.pulse = list;
+    list.forEach(el => el.classList.add('ftue-pulse'));
+  }
+  function setCoach(key, text, o) {
+    o = o || {};
+    coach.target = o.target || null;
+    if (coach.key !== key) { coach.key = key; coachText.textContent = text; coachEl.classList.add('show'); setPulse(o.pulse || []); }
+    coach.until = o.ms ? performance.now() + o.ms : 0;
+  }
+  function clearCoach() {
+    coach.key = ''; coach.until = 0; coach.target = null;
+    coachEl.classList.remove('show'); setPulse([]);
+  }
+
+  // marker on the platform the player should reach next
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x7dffe0, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
+  const beamMat2 = new THREE.MeshBasicMaterial({ color: 0x7dffe0, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+  const ringGeo2 = new THREE.RingGeometry(0.8, 1, 40); ringGeo2.rotateX(-Math.PI / 2);
+  const ftueRing = new THREE.Group();
+  const ringMesh = new THREE.Mesh(ringGeo2, ringMat); ftueRing.add(ringMesh);
+  const beamMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.8, 12, 1, true), beamMat2); beamMesh.position.y = 0.9; ftueRing.add(beamMesh);
+  ftueRing.visible = false; scene.add(ftueRing);
+  let ringBase = 0.5;
+  function placeRing(plat) {
+    if (!plat) { ftueRing.visible = false; return; }
+    ftueRing.visible = true;
+    ringBase = Math.max(0.3, Math.min(plat.hw, plat.hd) * 0.92);
+    ftueRing.position.set(plat.x, plat.top + 0.02, plat.z);
+  }
+
+  function updateCoach(dt) {
+    if (ftueRing.visible) {
+      const k = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
+      ringMesh.scale.set(ringBase * (0.92 + 0.12 * k), 1, ringBase * (0.92 + 0.12 * k));
+      ringMat.opacity = 0.5 + 0.45 * k;
+    }
+    if (!coach.key) return;
+    if (coach.until && performance.now() > coach.until) { clearCoach(); return; }
+    if (coach.target) {
+      const dx = coach.target.x - playerPos.x, dz = coach.target.z - playerPos.z;
+      const fx = Math.sin(camAngle), fz = Math.cos(camAngle);
+      coachArrow.style.display = '';
+      coachArrow.style.transform = `rotate(${Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz)}rad)`;
+    } else coachArrow.style.display = 'none';
+  }
+
+  function setPlatVisual(b, top, jx) {
+    const i = platformBoxes.indexOf(b);
+    if (i < 0) return;
+    _p3.set(b.x + jx, 0, b.z); _s3.set(b.hw * 2, Math.max(0.001, top), b.hd * 2);
+    _m4.compose(_p3, _q4, _s3);
+    platBodyInst.setMatrixAt(i, _m4); platTopInst.setMatrixAt(i, _m4);
+    platBodyInst.instanceMatrix.needsUpdate = true; platTopInst.instanceMatrix.needsUpdate = true;
+  }
+  function restoreTrap(T) {
+    T.plat.top = platTop();
+    setPlatVisual(T.plat, platTop(), 0);
+    T.state = 4;
+  }
+  function nearSpot(minR, maxR) {
+    for (let k = 0; k < 40; k++) {
+      const a = Math.random() * 6.2832, r = minR + Math.random() * (maxR - minR);
+      const x = playerPos.x + Math.sin(a) * r, z = playerPos.z + Math.cos(a) * r;
+      if (!pointBlocked(x, z, 0.34)) return { x, z };
+    }
+    return findRoamPoint(playerPos.x, playerPos.z, minR);
+  }
+  function nearestPlat() {
+    queryBoxes(playerPos.x, playerPos.z, 6, monsterNear);
+    let best = null, bd = 1e9;
+    for (const b of monsterNear) {
+      if (b.kind !== 'plat' || b.top < 0) continue;
+      const d = Math.hypot(Math.max(0, Math.abs(playerPos.x - b.x) - b.hw), Math.max(0, Math.abs(playerPos.z - b.z) - b.hd));
+      if (d < bd) { bd = d; best = b; }
+    }
+    return best;
+  }
+  function ftueSummon() {
+    humanoidMonsters.forEach((h, i) => {
+      const p = nearSpot(5.5 + i * 1.5, 8 + i * 1.5);
+      h.pos.set(p.x, p.z); h.vel.set(0, 0); h.heading = Math.atan2(playerPos.x - p.x, playerPos.z - p.z);
+    });
+    const p = nearSpot(8, 11); mPos.set(p.x, p.z); mVel.set(0, 0);
+  }
+  function tutInvuln() { return !!levelSpec && levelSpec.kind === 'tutorial'; }
+
+  function ftueBegin() {
+    const F = ftue;
+    F.traps.forEach(T => { if (T.state !== 4) restoreTrap(T); });
+    F.active = true; F.cur = 0; F.moved = false; F.jumped = false; F.splashed = false; F.escaped = false; F.slowT = 0; F.t = 0; F.goT = -99;
+    F.startX = playerPos.x; F.startZ = playerPos.z;
+    const n = routeBoxes.length;
+    F.traps = [Math.round(n * 0.5), Math.round(n * 0.78)].map(i => ({ plat: routeBoxes[clampV(i, 3, n - 3)], state: 0, t: 0 }));
+    // keep the monsters well away at the start; they show up when the player first falls
+    const mp = findRoamPoint(playerPos.x, playerPos.z, 14); mPos.set(mp.x, mp.z); mVel.set(0, 0);
+    humanoidMonsters.forEach((h, i) => { const p = findRoamPoint(playerPos.x, playerPos.z, 11 + i * 3); h.pos.set(p.x, p.z); h.vel.set(0, 0); chooseHumanoidPatrolTarget(h); });
+    skipBtn.classList.add('on');
+    storyEl.classList.remove('show'); void storyEl.offsetWidth; storyEl.classList.add('show');
+    clearCoach();
+  }
+  function ftueEnd() {
+    const F = ftue;
+    F.active = false;
+    F.traps.forEach(T => { if (T.state !== 4) restoreTrap(T); });
+    F.traps = [];
+    skipBtn.classList.remove('on'); storyEl.classList.remove('show');
+    placeRing(null);
+    if (coach.key && coach.key.indexOf('t:') === 0) clearCoach();
+  }
+  function finishTutorial() {
+    const reward = save.ftue === 1 ? 0 : 70;
+    save.ftue = 1;
+    save.coins = Math.min(999999, save.coins + reward);
+    saveProgress();
+    ftueEnd();
+    return reward;
+  }
+
+  function ftueUpdate(dt, activePlat, nowInWater, safe) {
+    const F = ftue;
+    if (!F.active || gameState !== 'playing') return;
+    F.t += dt;
+    const route = routeBoxes, n = route.length;
+    if (activePlat) { const ri = route.indexOf(activePlat); if (ri >= 0) F.cur = ri; }
+    if (!F.moved && Math.hypot(playerPos.x - F.startX, playerPos.z - F.startZ) > 1.2) F.moved = true;
+    if (F.jumped && F.goT < 0) F.goT = F.t;
+
+    // fragile platforms: a telegraphed, safe first fall
+    let shaking = false;
+    for (const T of F.traps) {
+      if (T.state === 0) {
+        if (activePlat === T.plat && !F.splashed) { T.state = 1; T.t = 0; soundSystem.playBlip([220, 180, 150], 0.07, 0.3, 0.2); }
+      } else if (T.state === 1) {
+        shaking = true; T.t += dt;
+        setPlatVisual(T.plat, platTop(), Math.sin(T.t * 70) * 0.025);
+        if (T.t >= 0.65) {
+          T.state = 2; T.t = 0; T.plat.top = -9;
+          spawnSplashBurst(T.plat.x, T.plat.z, 20); spawnRipple(T.plat.x, T.plat.z, 1.2, 0xffffff, 1.0); soundSystem.playSplash();
+        }
+      } else if (T.state === 2) {
+        T.t += dt;
+        setPlatVisual(T.plat, platTop() * (1 - Math.min(1, T.t / 0.25)), 0);
+        if (T.t >= 0.25) { T.state = 3; T.t = 0; }
+      } else if (T.state === 3) {
+        T.t += dt;
+        if ((safe && T.t > 0.9) || T.t > 4) restoreTrap(T);
+      }
+    }
+    // first time in the water: slow motion, the hunters crawl in, and nothing can catch you
+    if (!F.splashed && nowInWater) { F.splashed = true; F.slowT = 3.0; ftueSummon(); }
+    if (F.splashed && !F.escaped && safe) {
+      F.escaped = true;
+      toast('✅ Aman! Pijakan membuat monster kehilangan jejak', 3200);
+      soundSystem.playCheckpoint();
+    }
+
+    // coach prompt (highest priority first)
+    const nextIdx = Math.min(F.cur + 1, n - 1);
+    let nextPlat = route[nextIdx];
+    if (nextPlat.top < 0) nextPlat = route[Math.min(nextIdx + 1, n - 1)];
+    let crystalNear = null;
+    for (const c of crystals) if (!c.got && Math.hypot(c.pad.x - playerPos.x, c.pad.z - playerPos.z) < 5.5) { crystalNear = c; break; }
+    let ring = nextPlat;
+    if (nowInWater || (F.splashed && !F.escaped && !safe)) {
+      const np = nearestPlat();
+      setCoach('t:escape', 'Kamu jatuh ke air! Dekati pijakan lalu tekan JUMP', { target: np, pulse: [jumpEl] });
+      ring = np;
+    } else if (shaking) {
+      setCoach('t:trap', 'Pijakan runtuh! Lompat sekarang!', { target: nextPlat, pulse: [jumpEl] });
+    } else if (F.cur >= n - 4) {
+      setCoach('t:exit', 'Masuk ke pintu EXIT', { target: doorInfo });
+      ring = null;
+    } else if (crystalNear) {
+      setCoach('t:crystal', 'Ambil kristal ◆ untuk bonus bintang dan koin', { target: crystalNear.pad });
+    } else if (!F.moved) {
+      setCoach('t:move', 'Geser joystick untuk berjalan', { target: nextPlat, pulse: [joyBaseEl] });
+    } else if (!F.jumped && F.cur === 0) {
+      setCoach('t:jump', 'Tekan JUMP untuk melompat ke pijakan berikutnya', { target: nextPlat, pulse: [jumpEl] });
+    } else if (F.goT >= 0 && F.t - F.goT < 5 && F.cur < 3) {
+      setCoach('t:go', 'Lompati pijakan menuju pintu EXIT', { target: nextPlat });
+    } else if (coach.key.indexOf('t:') === 0) {
+      clearCoach();
+    }
+    placeRing(ring);
+  }
+
+  // short contextual coaches for features that open up later
+  function levelCoach() {
+    if (levelSpec.kind === 'level' && levelSpec.n === 4 && !(save.seen & 8) && save.inv[0] > 0) {
+      setCoach('c:stone', 'Ketuk slot ① untuk melempar batu. Monster akan mengejar suaranya, bukan kamu.', { pulse: [slotEls[0]], ms: 16000 });
+    }
+  }
+  function markSeen(bit) { if (!(save.seen & bit)) { save.seen |= bit; saveProgress(); } }
+  skipBtn.addEventListener('click', e => {
+    e.preventDefault();
+    if (save.ftue !== 1) save.ftue = 2;
+    saveProgress();
+    ftueEnd();
+    openMenu(false);
+  });
+  function updateGating() {
+    slotsEl.classList.toggle('on', mode === 'play' && featureOpen('shop'));
+  }
+
   // ─── CAMERA & ROTATION CONTROLS (SWIPE / DRAG ANYWHERE) ───
   let camAngle = Math.PI / 4;
   let camPitch = 0.38; // Radians above horizontal
@@ -4218,6 +4533,7 @@ async function run(mode) {
       elem.closest('#jump-btn') ||
       elem.closest('#joystick-area') ||
       elem.closest('#item-slots') ||
+      elem.closest('#ftue-skip') ||
       elem.closest('.ui-modal') ||
       elem.closest('#menu-btn') ||
       elem.closest('#minimap-panel')
@@ -4847,6 +5163,7 @@ async function run(mode) {
     let dt = (now - lastTime) / 1000;
     lastTime = now;
     if (dt > 0.11) dt = 0.11;
+    if (ftue.slowT > 0) { ftue.slowT -= dt; dt *= 0.5; }   // FTUE: slow motion on the first fall
 
     waterAnimTime += dt;
 
@@ -4956,6 +5273,7 @@ async function run(mode) {
       coyote = onGround ? 0.1 : Math.max(0, coyote - dt);
       if (jumpBuffer > 0 && (onGround || (coyote > 0 && velY <= 0))) {
         jumpBuffer = 0; coyote = 0;
+        ftue.jumped = true;
         velY = jumpVel;
         onGround = false;
         onPlatform = false;
@@ -5067,6 +5385,8 @@ async function run(mode) {
       updateMonsterLogic(dt);
       updateHumanoidMonsters(dt, nowInWater && mState === 'chase', safeEff);
       updateItems(dt, activePlat);
+      ftueUpdate(dt, activePlat, nowInWater, safe);
+      updateCoach(dt);
 
       // Crystals and checkpoints
       if (levelSpec) {
@@ -5092,11 +5412,11 @@ async function run(mode) {
         fillLight.intensity = 0.27 - 0.04 * prox;
 
         // Caught
-        if (mState === 'chase' && mStunT <= 0 && shoesT <= 0 && d < CATCH_DIST && playerPos.y < wY + 0.08) {
+        if (mState === 'chase' && mStunT <= 0 && shoesT <= 0 && !tutInvuln() && d < CATCH_DIST && playerPos.y < wY + 0.08) {
           showEnd(false);
         }
         // Humanoids can catch the player only while immersed, never on platforms.
-        if (nowInWater && !safe && gameState === 'playing') {
+        if (nowInWater && !safe && gameState === 'playing' && !tutInvuln()) {
           for (const h of humanoidMonsters) {
             if (h.attacking && Math.hypot(playerPos.x - h.pos.x, playerPos.z - h.pos.y) < 0.52) {
               showEnd(false); break;
@@ -5184,7 +5504,10 @@ async function run(mode) {
 
   // Play mode: once the intro is over and progress is loaded, show the menu.
   let loadingDone = false, saveReady = false;
-  function tryOpenMenu() { if (loadingDone && saveReady && gameState === 'boot') openMenu(false); }
+  function tryOpenMenu() {
+    if (!(loadingDone && saveReady && gameState === 'boot')) return;
+    if (!save.ftue) startTutorial(); else openMenu(false);   // first launch: no menu, no text cards, straight into play
+  }
   if (mode === 'play') {
     (async () => {
       try {
@@ -5192,6 +5515,7 @@ async function run(mode) {
         if (r && r.state) applySave(r.state);
       } catch (e) { lib.log('load failed: ' + e); }
       saveReady = true;
+      if (!save.ftue && !loadingDone) { levelSpec = tutorialSpec(); rebuildWorld(false); }   // build the training map behind the loading screen
       if (gameState === 'menu' && !pausedLevel) renderMenu();
       tryOpenMenu();
     })();
