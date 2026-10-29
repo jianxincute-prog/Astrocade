@@ -3169,7 +3169,7 @@ async function run(mode) {
   // ─── GAME / MONSTER STATE ───
   let gameState = mode === 'play' ? 'boot' : 'playing'; // boot | menu | playing | gameover | won
   let mState = 'patrol';     // patrol | alert | chase | search | preview; the monster stays present in the room
-  let mAlertT = 0, mChaseT = 0, mSearchT = 0, mStunT = 0, mDistractT = 0;
+  let mAlertT = 0, mChaseT = 0, mSearchT = 0, mStunT = 0, mDistractT = 0, mRestT = 0, mHunt = 0;
   const mLastKnown = new THREE.Vector2(0, 0);   // where the player last splashed
   let mRise = 1;             // keep the creature surfaced and visible while it swims
   let mHeading = 0;
@@ -3180,7 +3180,7 @@ async function run(mode) {
   const mPos = new THREE.Vector2(0, 0);
   const mVel = new THREE.Vector2(0, 0);
   const MONSTER_R = 0.22;
-  const CATCH_DIST = 0.36;
+  const CATCH_DIST = 0.5;   // must exceed the solid body distance (monster radius + player radius) or nothing could ever be caught
 
   // ─── INPUT STATE ───
   const keys = {};
@@ -4783,7 +4783,53 @@ async function run(mode) {
         }
       }
     }
+    // 4. Monsters are solid bodies too
+    syncBodies();
+    for (let k = 0; k < 2; k++) for (const b of bodies) {
+      if (b.kind === 'm' && py > waterY() + 0.55) continue;
+      const dx = x - b.x, dz = z - b.z, d = Math.hypot(dx, dz), min = b.r + PLAYER_R;
+      if (d < min) {
+        const nx = d > 1e-4 ? dx / d : Math.sin(facingAngle), nz = d > 1e-4 ? dz / d : Math.cos(facingAngle);
+        x = b.x + nx * min; z = b.z + nz * min;
+      }
+    }
+    x = Math.max(-RS / 2 + r, Math.min(RS / 2 - r, x));
+    z = Math.max(-RS / 2 + r, Math.min(RS / 2 - r, z));
     return { x, z };
+  }
+
+  // ─── SOLID CHARACTERS: player, aquatic monster and both humanoids occupy space (circles on the floor plane) ───
+  const PLAYER_R = 0.17;
+  const bodies = [{ x: 0, z: 0, r: 0.28, kind: 'm' }, { x: 0, z: 0, r: 0.26, kind: 'h' }, { x: 0, z: 0, r: 0.31, kind: 'h' }];
+  function syncBodies() {
+    bodies[0].x = mPos.x; bodies[0].z = mPos.y;
+    humanoidMonsters.forEach((h, i) => { const b = bodies[i + 1]; b.x = h.pos.x; b.z = h.pos.y; b.r = h.radius + 0.04; });
+  }
+  // Monsters never overlap each other and never sit inside the player. The player is never shoved by them; the player
+  // simply cannot walk through them (see resolvePlayerHorizontal).
+  function separateCharacters() {
+    syncBodies();
+    for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+      const a = bodies[i], b = bodies[j];
+      let dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+      const min = a.r + b.r;
+      if (d < min) {
+        if (d < 1e-4) { dx = 1; dz = 0; d = 1; }
+        const push = (min - d) / 2, nx = dx / d, nz = dz / d;
+        a.x -= nx * push; a.z -= nz * push; b.x += nx * push; b.z += nz * push;
+      }
+    }
+    for (const b of bodies) {
+      if (b.kind === 'm' && playerPos.y > waterY() + 0.55) continue;   // hopping over the swimmer
+      let dx = b.x - playerPos.x, dz = b.z - playerPos.z, d = Math.hypot(dx, dz);
+      const min = b.r + PLAYER_R;
+      if (d < min) {
+        if (d < 1e-4) { dx = Math.sin(facingAngle); dz = Math.cos(facingAngle); d = 1; }
+        b.x = playerPos.x + dx / d * min; b.z = playerPos.z + dz / d * min;
+      }
+    }
+    mPos.x = bodies[0].x; mPos.y = bodies[0].z; resolveMonster();
+    humanoidMonsters.forEach((h, i) => { h.pos.x = bodies[i + 1].x; h.pos.y = bodies[i + 1].z; resolveHumanoidPosition(h); });
   }
 
   function clampV(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -4937,7 +4983,7 @@ async function run(mode) {
     mVel.set(0, 0);
     mRise = 1;
     mState = 'patrol';
-    mAlertT = 0; mChaseT = 0; mSearchT = 0; mStunT = 0; mDistractT = 0;
+    mAlertT = 0; mChaseT = 0; mSearchT = 0; mStunT = 0; mDistractT = 0; mRestT = 0; mHunt = 0;
     mHeading = Math.random() * Math.PI * 2;
     mRippleTimer = 0;
     monster.visible = true;
@@ -5129,9 +5175,19 @@ async function run(mode) {
     });
   }
 
+  // A hunt lasts a limited time (shorter in the training level). When the monster tires it gives up, wanders off
+  // and ignores the player for a few seconds instead of chasing forever. It also only hears splashes within range.
+  function chaseLimit() { return tutInvuln() ? 3.2 : 6 + Math.min(4, (levelSpec && levelSpec.n ? levelSpec.n : 8) * 0.3); }
+  function hearRange() { return tutInvuln() ? 99 : Math.min(48, 26 + 2 * (levelSpec && levelSpec.n ? levelSpec.n : 8)); }
+  function giveUpChase() {
+    mState = 'patrol'; mRestT = 5; mHunt = 0;
+    hideDanger();
+    choosePatrolTarget();
+    toast('Monster kehilangan minat. Cepat naik ke pijakan!', 2600);
+  }
   function startChase() {
     mState = 'chase';
-    mChaseT = 0;
+    mChaseT = 0; mHunt = 0;
     showDanger('⚠ MONSTER MENGEJAR! LOMPAT KE PIJAKAN!');
   }
 
@@ -5139,6 +5195,7 @@ async function run(mode) {
     monster.visible = true;
     mRise = 1;
     const mult = mMult();
+    if (mRestT > 0) mRestT -= dt;
     if (mStunT > 0) { mStunT -= dt; mVel.set(0, 0); if (mStunT <= 0) mChaseT = 0; return; }
     if (mState === 'distract') {
       // A thrown stone: it swims to the noise and waits there until the timer runs out.
@@ -5156,7 +5213,8 @@ async function run(mode) {
     }
     if (mState === 'chase') {
       // A fall into the water triggers a very fast pursuit; it eases in over ~1.5 s so a quick hop back still saves you.
-      mChaseT += dt;
+      mChaseT += dt; mHunt += dt;
+      if (mHunt > chaseLimit()) { giveUpChase(); return; }
       const ramp = clampV(0.5 + 0.5 * mChaseT / 1.5, 0.5, 1);
       const chaseSpeed = Math.max(7, cfg.settings.monsterSpeed * 4.5) * mult * ramp;
       steerMonster(chaseSpeed, dt, playerPos.x, playerPos.z);
@@ -5450,7 +5508,7 @@ async function run(mode) {
       const safe = onGround && onPlatform && !!activePlat;
       const safeEff = safe || shoesT > 0;
       const alertTime = levelSpec ? levelSpec.alert : cfg.settings.alertTime;
-      if (nowInWater && mState !== 'chase' && mState !== 'alert' && mState !== 'distract') {
+      if (nowInWater && mState !== 'chase' && mState !== 'alert' && mState !== 'distract' && mRestT <= 0 && Math.hypot(playerPos.x - mPos.x, playerPos.z - mPos.y) <= hearRange()) {
         mLastKnown.set(playerPos.x, playerPos.z);
         spawnRipple(mPos.x, mPos.y, 0.9, 0xffc9bd, 1.0);
         soundSystem.playAlert();
@@ -5472,6 +5530,7 @@ async function run(mode) {
       }
       updateMonsterLogic(dt);
       updateHumanoidMonsters(dt, nowInWater && mState === 'chase', safeEff);
+      separateCharacters();
       updateItems(dt, activePlat);
       ftueUpdate(dt, activePlat, nowInWater, safe);
       updateCoach(dt);
