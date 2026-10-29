@@ -44,6 +44,7 @@ const check = (name, ok, extra = '') => {
   // 1. boot + start
   check('layar judul tampil', await page.evaluate(() => document.getElementById('title-overlay').classList.contains('active')));
   await page.click('#btn-start');
+  await page.click('#btn-diff-go');
   check('game mulai & audio dibuat setelah gestur', await page.evaluate(() => __dbg.state.started && !!__dbg.audio.ctx));
 
   // 2. draw call di beberapa posisi
@@ -194,6 +195,7 @@ const check = (name, ok, extra = '') => {
   await page.waitForTimeout(500);
   check('satu canvas setelah run() berulang', await page.evaluate(() => document.querySelectorAll('canvas#game-canvas').length) === 1);
   await page.click('#btn-start');
+  await page.click('#btn-diff-go');
   await page.click('#btn-mute');
   check('satu klik mute = satu toggle', await page.evaluate(() => __dbg.audio.isMuted === true));
 

@@ -944,6 +944,26 @@
     .tag-gear { background: rgba(52, 211, 153, 0.25); color: #6ee7b7; }
     #app-container.hc .trade-row { background: #111; border-color: #fff; }
 
+    /* ===== Menu utama, kesulitan, pengaturan ===== */
+    #howto-overlay { z-index: 70; }
+    #settings-overlay { z-index: 75; }
+    #diff-overlay { z-index: 60; }
+    .tsec-row { display: flex; gap: 10px; width: 100%; }
+    .tsec-row .btn-large { flex: 1; font-size: 20px; height: 64px; padding: 0 8px; }
+    #btn-start { font-size: 34px; height: 92px; }
+    .diff-cards { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .diff-card { text-align: left; padding: 14px 16px; border-radius: 16px; border: 2px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #e2e8f0; cursor: pointer; display: flex; flex-direction: column; gap: 4px; font-family: inherit; }
+    .diff-card b { font-family: var(--font-title); font-size: 26px; color: #fff; }
+    .diff-card span { font-size: 19px; line-height: 1.35; color: #cbd5e1; }
+    .diff-card.active { border-color: var(--color-cyan); background: rgba(0, 229, 255, 0.14); box-shadow: 0 0 16px rgba(0, 229, 255, 0.35); }
+    .diff-warn { color: #fbbf24; font-size: 20px; font-weight: 700; text-align: center; }
+    .vol-slider { width: 100%; height: 40px; accent-color: #00e5ff; }
+    .setting-label span { float: right; color: var(--color-cyan); }
+    .save-chip { position: absolute; top: 244px; right: 12px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(0, 230, 118, 0.6); border-radius: 12px; padding: 2px 10px; font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #86efac; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+    .save-chip.show { opacity: 1; }
+    #app-container.hc .diff-card { background: #111; border-color: #fff; }
+    #app-container.hc .diff-card.active { background: #fff; } #app-container.hc .diff-card.active b, #app-container.hc .diff-card.active span { color: #000; }
+
     /* ===== Cara bermain (tab + blok) ===== */
     #howto-overlay { z-index: 70; padding: 20px; }
     .ht-card { width: 680px; max-height: 1220px; background: var(--color-panel); border: 1px solid var(--color-panel-border); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -1027,6 +1047,7 @@
     <!-- UI Overlay Layer -->
     <div class="ui-layer" id="game-ui">
       <div class="buff-row" id="buff-row"></div>
+      <div class="save-chip" id="save-chip">💾 TERSIMPAN</div>
       <!-- Top HUD (ringkas) -->
       <div class="hud-header">
         <div class="status-panel hud-card">
@@ -1282,32 +1303,47 @@
       <div class="modal-card">
         <h2 class="modal-title win">JEDA</h2>
         <p class="desk-hint">⌨️ WASD/Panah gerak • Shift lari • E aksi • F sorot • I tas • M suara • P jeda</p>
-        <div class="setting-block">
-          <div class="setting-label">Ukuran teks</div>
-          <div class="chip-row">
-            <button class="chip active" data-pref="text" data-val="normal">NORMAL</button>
-            <button class="chip" data-pref="text" data-val="big">BESAR</button>
-          </div>
-        </div>
-        <div class="setting-block">
-          <div class="setting-label">Kontras</div>
-          <div class="chip-row">
-            <button class="chip active" data-pref="contrast" data-val="normal">BIASA</button>
-            <button class="chip" data-pref="contrast" data-val="high">TINGGI</button>
-          </div>
-        </div>
         <button class="btn-large" id="btn-resume">LANJUTKAN</button>
         <button class="btn-large btn-secondary" id="btn-pause-howto">📖 CARA BERMAIN</button>
+        <button class="btn-large btn-secondary" id="btn-pause-settings">⚙️ PENGATURAN</button>
         <button class="btn-large btn-secondary" id="btn-pause-restart">MULAI ULANG</button>
       </div>
     </div>
 
-    <!-- Layar judul (tutorial lengkap ada di CARA BERMAIN) -->
+    <!-- Layar judul: tombol utama di atas, sisanya di bawah -->
     <div class="modal-overlay active" id="title-overlay">
       <div class="modal-card">
         <h2 class="modal-title win">MALL CRAWLER</h2>
         <p class="modal-desc">Mal terbengkalai dengan 240 toko. Kumpulkan bekal, bangun basecamp, dan bertahan hidup selama mungkin!</p>
-        <button class="btn-large btn-secondary" id="btn-howto">📖 CARA BERMAIN</button>
+        <div class="best-line" id="title-best"></div>
+        <button class="btn-large" id="btn-start">MULAI</button>
+        <button class="btn-large btn-secondary" id="btn-new" style="display:none">MULAI BARU</button>
+        <div class="tsec-row">
+          <button class="btn-large btn-secondary" id="btn-howto">📖 CARA BERMAIN</button>
+          <button class="btn-large btn-secondary" id="btn-settings">⚙️ PENGATURAN</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pilih kesulitan (muncul setelah MULAI) -->
+    <div class="modal-overlay" id="diff-overlay">
+      <div class="modal-card">
+        <h2 class="modal-title win" style="font-size: 38px;">PILIH KESULITAN</h2>
+        <div class="diff-cards" id="diff-cards">
+          <button class="diff-card" data-diff="santai"><b>🌱 SANTAI</b><span>Monster lebih lambat dan kurang jeli, lapar &amp; haus lebih pelan. Skor ×0,8.</span></button>
+          <button class="diff-card active" data-diff="normal"><b>⚖️ NORMAL</b><span>Pengalaman standar. Skor ×1.</span></button>
+          <button class="diff-card" data-diff="sulit"><b>🔥 SULIT</b><span>Monster lebih cepat, lebih banyak, dan jeli; lapar &amp; haus lebih cepat. Skor ×1,4.</span></button>
+        </div>
+        <div class="diff-warn" id="diff-warn" style="display:none">⚠️ Simpanan lama akan dihapus.</div>
+        <button class="btn-large" id="btn-diff-go">MULAI</button>
+        <button class="btn-large btn-secondary" id="btn-diff-cancel">BATAL</button>
+      </div>
+    </div>
+
+    <!-- Pengaturan: teks, kontras, volume musik & efek -->
+    <div class="modal-overlay" id="settings-overlay">
+      <div class="modal-card">
+        <h2 class="modal-title win" style="font-size: 38px;">⚙️ PENGATURAN</h2>
         <div class="setting-block">
           <div class="setting-label">Ukuran teks</div>
           <div class="chip-row">
@@ -1322,15 +1358,15 @@
             <button class="chip" data-pref="contrast" data-val="high">TINGGI</button>
           </div>
         </div>
-        <div class="setting-label">Tingkat kesulitan</div>
-        <div class="chip-row" id="diff-row">
-          <button class="chip" data-diff="santai">SANTAI</button>
-          <button class="chip active" data-diff="normal">NORMAL</button>
-          <button class="chip" data-diff="sulit">SULIT</button>
+        <div class="setting-block">
+          <div class="setting-label">🎵 Musik <span id="vol-music-val">100%</span></div>
+          <input type="range" class="vol-slider" id="vol-music" min="0" max="100" step="5" value="100">
         </div>
-        <div class="best-line" id="title-best"></div>
-        <button class="btn-large btn-secondary" id="btn-continue" style="display:none; margin-bottom: 10px;">LANJUTKAN</button>
-        <button class="btn-large" id="btn-start">MULAI</button>
+        <div class="setting-block">
+          <div class="setting-label">🔊 Efek suara <span id="vol-sfx-val">100%</span></div>
+          <input type="range" class="vol-slider" id="vol-sfx" min="0" max="100" step="5" value="100">
+        </div>
+        <button class="btn-large" id="btn-settings-close">SELESAI</button>
       </div>
     </div>
 
@@ -1371,6 +1407,8 @@
         this.ambienceSource = null;
         this.ambienceGain = null;
         this.isMuted = false;
+        this.musicVol = 1;
+        this.sfxVol = 1;
         this.master = null;
         this.out = null;
         this.synthNodes = [];
@@ -1394,13 +1432,27 @@
             this.master = this.ctx.createGain();
             this.master.gain.value = this.isMuted ? 0 : 1;
             this.master.connect(this.ctx.destination);
-            this.out = this.master;
+            this.sfxBus = this.ctx.createGain();
+            this.musicBus = this.ctx.createGain();
+            this.sfxBus.gain.value = this.sfxVol;
+            this.musicBus.gain.value = this.musicVol;
+            this.sfxBus.connect(this.master);
+            this.musicBus.connect(this.master);
+            this.out = this.sfxBus;
             this.loadAssets();
             this.playAmbience();
           }
         }
         if (this.ctx && this.ctx.state === 'suspended') {
           this.ctx.resume().catch(() => {});
+        }
+      }
+
+      setVolumes(music, sfx) {
+        this.musicVol = music; this.sfxVol = sfx;
+        if (this.ctx && this.musicBus) {
+          this.musicBus.gain.setTargetAtTime(music, this.ctx.currentTime, 0.02);
+          this.sfxBus.gain.setTargetAtTime(sfx, this.ctx.currentTime, 0.02);
         }
       }
 
@@ -1468,7 +1520,7 @@
           const gain = this.ctx.createGain();
           gain.gain.value = 0.35;
           src.connect(gain);
-          gain.connect(this.out);
+          gain.connect(this.musicBus || this.out);
           src.start(0);
           this.ambienceSource = src;
           this.ambienceGain = gain;
@@ -1495,7 +1547,7 @@
           osc.connect(filter);
           osc2.connect(filter);
           filter.connect(gain);
-          gain.connect(this.out);
+          gain.connect(this.musicBus || this.out);
 
           osc.start();
           osc2.start();
@@ -1824,7 +1876,6 @@
       const titleOverlay = document.getElementById('title-overlay');
       const titleBest = document.getElementById('title-best');
       const btnStart = document.getElementById('btn-start');
-      const btnContinue = document.getElementById('btn-continue');
       const btnMute = document.getElementById('btn-mute');
       const hungerFill = document.getElementById('hunger-fill');
       const thirstFill = document.getElementById('thirst-fill');
@@ -5351,7 +5402,7 @@
       function vendFreeLeft() { vendRoll(); return Math.max(0, VEND_FREE - vend.used); }
 
       // Preferensi aksesibilitas (disimpan bersama skor tertinggi lewat saveUserGameState)
-      const prefs = { text: 'normal', contrast: window.matchMedia && window.matchMedia('(prefers-contrast: more)').matches ? 'high' : 'normal' };
+      const prefs = { music: 100, sfx: 100, diff: 'normal', text: 'normal', contrast: window.matchMedia && window.matchMedia('(prefers-contrast: more)').matches ? 'high' : 'normal' };
       let saveLoaded = false; // jangan menimpa simpanan sebelum simpanan lama berhasil dibaca
       function applyPrefs() {
         appContainer.classList.toggle('big-text', prefs.text === 'big');
@@ -5381,10 +5432,18 @@
         if (mode === 'play' && state.started && !state.isGameOver) return buildRunSnapshot();
         return state.started ? null : savedRun;
       }
+      let saveChipT = 0;
+      function flashSaved() {
+        const el = document.getElementById('save-chip');
+        el.classList.add('show');
+        clearTimeout(saveChipT);
+        saveChipT = setTimeout(() => el.classList.remove('show'), 1600);
+      }
       function persistSave() {
         if (!saveLoaded || typeof lib === 'undefined' || typeof lib.saveUserGameState !== 'function') return;
         try {
-          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, bestLife, prefs: { text: prefs.text, contrast: prefs.contrast }, vend: { day: vend.day, used: vend.used }, run: currentRunSave(), timestamp: Date.now() })).catch(() => {});
+          if (mode === 'play' && state.started && !state.isGameOver) flashSaved();
+          Promise.resolve(lib.saveUserGameState({ highScore: bestScore, bestLife, prefs: { text: prefs.text, contrast: prefs.contrast, music: prefs.music, sfx: prefs.sfx, diff: prefs.diff }, vend: { day: vend.day, used: vend.used }, run: currentRunSave(), timestamp: Date.now() })).catch(() => {});
         } catch (e) {}
       }
       document.querySelectorAll('[data-pref]').forEach(btn => {
@@ -5396,6 +5455,18 @@
         });
       });
       applyPrefs();
+      const volMusic = document.getElementById('vol-music'), volSfx = document.getElementById('vol-sfx');
+      function applyVolumes() {
+        audio.setVolumes(prefs.music / 100, prefs.sfx / 100);
+        volMusic.value = prefs.music; volSfx.value = prefs.sfx;
+        document.getElementById('vol-music-val').textContent = prefs.music + '%';
+        document.getElementById('vol-sfx-val').textContent = prefs.sfx + '%';
+      }
+      volMusic.addEventListener('input', () => { prefs.music = +volMusic.value; applyVolumes(); });
+      volSfx.addEventListener('input', () => { prefs.sfx = +volSfx.value; applyVolumes(); audio.play('supply_pickup_sfx'); });
+      volMusic.addEventListener('change', () => persistSave());
+      volSfx.addEventListener('change', () => persistSave());
+      applyVolumes();
 
       async function loadBest() {
         try {
@@ -5414,6 +5485,10 @@
             if (sp) {
               if (sp.text === 'big' || sp.text === 'normal') prefs.text = sp.text;
               if (sp.contrast === 'high' || sp.contrast === 'normal') prefs.contrast = sp.contrast;
+              if (typeof sp.music === 'number') prefs.music = Math.max(0, Math.min(100, sp.music));
+              if (typeof sp.sfx === 'number') prefs.sfx = Math.max(0, Math.min(100, sp.sfx));
+              if (DIFFS[sp.diff]) prefs.diff = sp.diff;
+              applyVolumes();
               applyPrefs();
             }
           }
@@ -5922,7 +5997,7 @@
           { t: '➕ Dua slot di lantai', l: ['<b>Meja Crafting</b>: 3 🪵 papan + 2 📌 paku.', '<b>Komputer</b>: 5 komponen (motherboard, CPU, RAM, monitor, PSU).'] },
           { t: '🔨 Resep meja crafting', l: ['⚔️ Papan paku: 1 papan + 1 paku', '🪤 Jerat monster: 2 besi + 2 paku', '🛡️ Rompi: 3 kain + 1 besi', '🧰 Med kit: 2 kain + 1 antiseptik', '🔨 Palu lempar: 2 baja + 2 besi + 1 papan (butuh cetak biru)'] },
           { t: '💻 Komputer', l: ['Tab <b>BELI / JUAL</b> dengan penyintas Rina & Bima.', 'Tab <b>🏆 PERINGKAT</b>: 10 pemain dengan waktu bertahan terlama.'] },
-          { t: '💾 Simpan otomatis', l: ['Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di layar judul.'] }
+          { t: '💾 Simpan otomatis', l: ['Game <b>tersimpan otomatis tiap 1 menit</b> (ikon 💾 sesaat muncul).', 'Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di menu utama.'] }
         ] },
         { icon: '⚔️', label: 'SENJATA', ac: '#fb923c', blocks: [
           { t: '🪵 Papan Paku', l: ['Damage 1, dibuat di meja crafting.'] },
@@ -5961,28 +6036,52 @@
       document.getElementById('btn-pause-howto').addEventListener('click', (e) => { e.stopPropagation(); openHowto(); });
       document.getElementById('howto-close').addEventListener('click', (e) => { e.stopPropagation(); closeHowto(); });
 
-      document.querySelectorAll('#diff-row .chip').forEach(ch => {
-        ch.addEventListener('click', (e) => {
+      // Alur MULAI: pilih kesulitan dulu; LANJUTKAN memakai kesulitan dari simpanan
+      const diffOverlay = document.getElementById('diff-overlay');
+      const settingsOverlay = document.getElementById('settings-overlay');
+      let diffSel = 'normal';
+      function openDiff() {
+        diffSel = DIFFS[prefs.diff] ? prefs.diff : 'normal';
+        document.querySelectorAll('#diff-cards .diff-card').forEach(c => c.classList.toggle('active', c.dataset.diff === diffSel));
+        document.getElementById('diff-warn').style.display = savedRun ? '' : 'none';
+        diffOverlay.classList.add('active');
+      }
+      document.querySelectorAll('#diff-cards .diff-card').forEach(c => {
+        c.addEventListener('click', (e) => {
           e.stopPropagation();
-          document.querySelectorAll('#diff-row .chip').forEach(c2 => c2.classList.remove('active'));
-          ch.classList.add('active');
-          diff = DIFFS[ch.dataset.diff] || DIFFS.normal;
+          diffSel = c.dataset.diff;
+          document.querySelectorAll('#diff-cards .diff-card').forEach(c2 => c2.classList.toggle('active', c2 === c));
         });
       });
-
+      document.getElementById('btn-diff-cancel').addEventListener('click', (e) => { e.stopPropagation(); diffOverlay.classList.remove('active'); });
+      document.getElementById('btn-diff-go').addEventListener('click', (e) => {
+        e.stopPropagation();
+        audio.init();
+        diff = DIFFS[diffSel] || DIFFS.normal;
+        prefs.diff = diffSel;
+        savedRun = null;
+        diffOverlay.classList.remove('active');
+        titleOverlay.classList.remove('active');
+        state.started = true;
+        persistSave();
+      });
+      document.getElementById('btn-new').addEventListener('click', (e) => { e.stopPropagation(); openDiff(); });
       btnStart.addEventListener('click', () => {
         audio.init();
-        savedRun = null;
-        state.started = true;
-        titleOverlay.classList.remove('active');
+        if (savedRun) {
+          try { resumeRun(savedRun); } catch (err) { console.error(err); savedRun = null; resetGame(); state.started = true; titleOverlay.classList.remove('active'); }
+        } else openDiff();
       });
+      const openSettings = () => settingsOverlay.classList.add('active');
+      document.getElementById('btn-settings').addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
+      document.getElementById('btn-pause-settings').addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
+      document.getElementById('btn-settings-close').addEventListener('click', (e) => { e.stopPropagation(); settingsOverlay.classList.remove('active'); persistSave(); });
 
       // Lanjutkan permainan yang terputus: pulihkan status pemain dan basecamp (isi mal diacak ulang)
       function showContinue() {
         if (!savedRun || state.started) return;
-        const m = Math.floor((Date.now() - (savedRun.at || Date.now())) / 60000);
-        btnContinue.textContent = `LANJUTKAN • ${fmtTime(savedRun.life)}${savedRun.base ? ' • BASECAMP' : ''}`;
-        btnContinue.style.display = '';
+        btnStart.textContent = `LANJUTKAN • ${fmtTime(savedRun.life)}${savedRun.base ? ' • BASECAMP' : ''}`;
+        document.getElementById('btn-new').style.display = '';
       }
       function resumeRun(snap) {
         resetGame();
@@ -6029,11 +6128,6 @@
         updateHUD();
         showToast('PERMAINAN DILANJUTKAN', '#00e676', true);
       }
-      btnContinue.addEventListener('click', () => {
-        if (!savedRun) return;
-        audio.init();
-        try { resumeRun(savedRun); } catch (err) { console.error(err); savedRun = null; resetGame(); state.started = true; titleOverlay.classList.remove('active'); }
-      });
       document.addEventListener('visibilitychange', () => { if (document.hidden) persistSave(); });
       window.addEventListener('pagehide', persistSave);
       refreshBestLabels();
@@ -6305,7 +6399,7 @@
           hudTimeEl.textContent = fmtTime(state.lifeTime);
           submitSurvival(state.lifeTime, false);
           saveT += dt;
-          if (saveT >= 10) { saveT = 0; persistSave(); }
+          if (saveT >= 60) { saveT = 0; persistSave(); }
         }
 
         // Cooldowns & Debuffs
