@@ -924,6 +924,18 @@
     .vend-btn:disabled { opacity: 0.45; cursor: default; }
     .inv-slot.cat-weapon { border-color: rgba(251, 146, 60, 0.95); }
     .inv-slot.cat-tool { border-color: rgba(96, 165, 250, 0.95); }
+    .inv-slot.cat-fish { border-color: rgba(34, 211, 238, 0.9); }
+    .tag-fish { background: rgba(34, 211, 238, 0.25); color: #67e8f9; }
+    .inv-slot.rar-putih { border-color: #e5e7eb; } .inv-slot.rar-kuning { border-color: #facc15; } .inv-slot.rar-biru { border-color: #3b82f6; }
+    .inv-slot.rar-ungu { border-color: #a855f7; } .inv-slot.rar-merah { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.7); }
+    .buff-row { position: absolute; top: 238px; left: 12px; display: flex; flex-wrap: wrap; gap: 6px; max-width: 420px; pointer-events: none; }
+    .buff-chip { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 12px; padding: 2px 10px; font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: #e2e8f0; }
+    .buff-chip.perm { border-color: #a855f7; color: #e9d5ff; }
+    .fish-stage { font-size: 110px; text-align: center; margin: 14px 0 4px; line-height: 1.1; }
+    .fish-stage.bite { animation: vendShake 0.35s ease-in-out infinite; }
+    .fish-msg { text-align: center; color: #e2e8f0; font-size: 22px; min-height: 64px; padding: 0 18px; }
+    .fish-legend { text-align: center; color: #94a3b8; font-size: 17px; padding: 0 14px; line-height: 1.4; }
+    .fish-btn.go { border-color: #fb7185; background: linear-gradient(160deg, rgba(127, 29, 29, 0.95), rgba(69, 10, 10, 0.95)); animation: barPulse 0.35s ease-in-out infinite alternate; }
     .tag-weapon { background: rgba(251, 146, 60, 0.25); color: #fdba74; }
     .tag-tool { background: rgba(96, 165, 250, 0.25); color: #93c5fd; }
     .swap-chip { position: absolute; top: -10px; left: -10px; width: 40px; height: 40px; border-radius: 20px; background: #0f172a; border: 2px solid #fb923c; display: none; align-items: center; justify-content: center; font-size: 20px; }
@@ -1001,6 +1013,7 @@
 
     <!-- UI Overlay Layer -->
     <div class="ui-layer" id="game-ui">
+      <div class="buff-row" id="buff-row"></div>
       <!-- Top HUD (ringkas) -->
       <div class="hud-header">
         <div class="status-panel hud-card">
@@ -1148,6 +1161,28 @@
     </div>
 
     <!-- Vending machine kotak misteri -->
+    <!-- Kolam memancing -->
+    <div class="inv-overlay" id="fish-overlay">
+      <div class="inv-panel">
+        <div class="inv-header">
+          <div class="inv-title">
+            <span style="font-size: 52px;">🎣</span>
+            <div>
+              <div class="inv-title-main">KOLAM MEMANCING</div>
+              <div class="inv-title-sub" id="fish-sub">Pak Joko menyewakan pancingan</div>
+            </div>
+          </div>
+          <div class="inv-cap" id="fish-credits">¢0</div>
+          <button class="inv-close" id="fish-close" aria-label="Tutup Kolam">✕</button>
+        </div>
+        <div class="fish-stage" id="fish-stage">🌊</div>
+        <div class="fish-msg" id="fish-msg"></div>
+        <button class="vend-btn fish-btn" id="fish-btn">LEMPAR PANCING</button>
+        <button class="vend-btn" id="fish-rent" style="font-size: 20px; padding: 12px 24px; border-color: #94a3b8;">SEWA PANCINGAN</button>
+        <div class="fish-legend">⚪ Teri 45% • 🟡 Mas 28% • 🔵 Buntal 15% • 🟣 Hiu 8% • 🔴 Naga 4%<br>Putih/kuning/biru = buff sementara • ungu/merah = buff permanen</div>
+      </div>
+    </div>
+
     <div class="inv-overlay" id="vend-overlay">
       <div class="inv-panel">
         <div class="inv-header">
@@ -1274,6 +1309,7 @@
               <li>💧 Ada bar <b>HP</b>, <b>lapar</b>, dan <b>haus</b>. Makanan mengisi lapar, minuman mengisi haus. Mati = respawn di basecamp, waktu bertahan kembali ke 0 (progres lain tetap).</li>
               <li>🏆 Komputer punya tab <b>Peringkat</b>: 10 pemain dengan waktu bertahan hidup terlama. Keluar di tengah permainan? Pilih <b>LANJUTKAN</b> di layar judul.</li>
               <li>🧰 <b>Ruang perkakas</b> (langka): bahan langka (baja, bensin) + satu senjata: 🪵 papan paku, 🗡️ parang, 🪚 gergaji mesin (butuh ⛽ bensin), 🔨 palu lempar (kembali ke tangan, hancur setelah 5 lemparan) atau 📜 cetak biru palu lempar. Ganti senjata dengan tombol 🔄 / Q.</li>
+              <li>🎣 <b>Ruang memancing</b>: Pak Joko menyewakan pancingan (¢25 = 3 lemparan). 5 ikan: ⚪ putih, 🟡 kuning, 🔵 biru (buff sementara), 🟣 ungu (nyawa maks +1 permanen), 🔴 merah (damage +1 permanen). Makan ikan dari tas untuk mendapat efeknya.</li>
               <li>🎰 <b>Vending machine</b>: jatah <b>3 kotak misteri gratis per hari</b>, lalu ¢500 per kotak (kredit didapat dari menjual barang lewat komputer).</li>
               <li>🔄 Ruang gudang, jebakan, monster &amp; bahan <b>tertutup lagi setelah 20 detik</b> dan isinya diacak ulang. Penyintas bisa mati dan respawn di basecamp mereka.</li>
               <li>🕹️ Joystick kiri untuk bergerak • geser sisi kanan layar untuk memutar kamera.</li>
@@ -1822,6 +1858,14 @@
       const craftList = document.getElementById('craft-list');
       const hudArmorStat = document.getElementById('hud-armor-stat');
       const hudArmorEl = document.getElementById('hud-armor');
+      const buffRowEl = document.getElementById('buff-row');
+      const fishOverlay = document.getElementById('fish-overlay');
+      const fishStage = document.getElementById('fish-stage');
+      const fishMsg = document.getElementById('fish-msg');
+      const fishBtn = document.getElementById('fish-btn');
+      const fishRentBtn = document.getElementById('fish-rent');
+      const fishSub = document.getElementById('fish-sub');
+      const fishCredits = document.getElementById('fish-credits');
       const vendOverlay = document.getElementById('vend-overlay');
       const vendStage = document.getElementById('vend-stage');
       const vendMsg = document.getElementById('vend-msg');
@@ -1903,7 +1947,8 @@
           monster: 0.19,
           materials: 0.10,
           vending: 0.09,
-          tools: 0.035
+          tools: 0.035,
+          fishing: 0.05
         },
         goal: {
           food: 4,
@@ -2120,15 +2165,30 @@
         parang:  { name: 'Parang Tajam', emoji: '🗡️', cat: 'weapon', wtype: 'parang', desc: 'Parang tebal yang tajam. Serangan kuat.' },
         gergaji: { name: 'Gergaji Mesin', emoji: '🪚', cat: 'weapon', wtype: 'gergaji', desc: 'Gergaji bermesin. Sangat kuat, tapi butuh bensin.' },
         palu:    { name: 'Palu Lempar', emoji: '🔨', cat: 'weapon', wtype: 'palu', desc: 'Dilempar lalu kembali ke tangan. Hancur setelah 5 lemparan.' },
+        ikan_putih:  { name: 'Teri Perak', emoji: '🐟', cat: 'fish', rarity: 'putih', act: 'MAKAN', desc: 'Ikan biasa (putih). Buff sementara: napas pulih lebih cepat.' },
+        ikan_kuning: { name: 'Mas Emas', emoji: '🐠', cat: 'fish', rarity: 'kuning', act: 'MAKAN', desc: 'Ikan langka (kuning). Buff sementara: kecepatan +15%.' },
+        ikan_biru:   { name: 'Buntal Biru', emoji: '🐡', cat: 'fish', rarity: 'biru', act: 'MAKAN', desc: 'Ikan istimewa (biru). Buff sementara: monster sulit mendeteksimu.' },
+        ikan_ungu:   { name: 'Hiu Ungu', emoji: '🦈', cat: 'fish', rarity: 'ungu', act: 'MAKAN', desc: 'Ikan epik (ungu). Buff PERMANEN: nyawa maksimal +1.' },
+        ikan_merah:  { name: 'Naga Laut Merah', emoji: '🐲', cat: 'fish', rarity: 'merah', act: 'MAKAN', desc: 'Ikan legendaris (merah). Buff PERMANEN: damage senjata +1.' },
         cetak_biru: { name: 'Cetak Biru Palu Lempar', emoji: '📜', cat: 'tool', act: 'PELAJARI', desc: 'Pelajari untuk membuka resep palu lempar di meja crafting.' }
       };
       // Nilai dasar untuk perdagangan (kredit ¢)
-      Object.entries({ roti: 8, sarden: 10, mi: 9, biskuit: 7, air: 6, soda: 7, jus: 8, kopi: 9, perban: 25, papan: 14, paku: 12, mobo: 90, cpu: 110, ram: 70, layar: 80, psu: 60, besi: 13, kain: 9, antiseptik: 11, jerat: 40, medkit: 55, baja: 30, bensin: 18, papan_paku: 30, parang: 70, gergaji: 150, palu: 100, cetak_biru: 120 })
+      Object.entries({ roti: 8, sarden: 10, mi: 9, biskuit: 7, air: 6, soda: 7, jus: 8, kopi: 9, perban: 25, papan: 14, paku: 12, mobo: 90, cpu: 110, ram: 70, layar: 80, psu: 60, besi: 13, kain: 9, antiseptik: 11, jerat: 40, medkit: 55, baja: 30, bensin: 18, ikan_putih: 12, ikan_kuning: 30, ikan_biru: 60, ikan_ungu: 140, ikan_merah: 300, papan_paku: 30, parang: 70, gergaji: 150, palu: 100, cetak_biru: 120 })
         .forEach(([k, v]) => { ITEM_DEFS[k].value = v; });
       const PART_IDS = ['mobo', 'cpu', 'ram', 'layar', 'psu'];
       const BUILD_COST = { craft: { papan: 3, paku: 2 }, comp: { mobo: 1, cpu: 1, ram: 1, layar: 1, psu: 1 } };
       const WEAPON_COST = { papan: 1, paku: 1 };
       const NPC_MATS = ['papan', 'paku'];
+      const maxHp = () => config.player.health + state.perm.hp;
+      const FISH_RENT = 25, FISH_CASTS = 3, PERM_CAP = 2;
+      const FISH = {
+        ikan_putih:  { buff: 'segar', dur: 90, label: '🍃 SEGAR', text: 'Napas pulih +60%' },
+        ikan_kuning: { buff: 'emas', dur: 75, label: '⚡ EMAS', text: 'Kecepatan +15%' },
+        ikan_biru:   { buff: 'senyap', dur: 60, label: '🌑 SENYAP', text: 'Monster sulit mendeteksimu' },
+        ikan_ungu:   { perm: 'hp', text: 'Nyawa maksimal +1 (permanen)' },
+        ikan_merah:  { perm: 'dmg', text: 'Damage senjata +1 (permanen)' }
+      };
+      const FISH_ODDS = [['ikan_putih', 0.45], ['ikan_kuning', 0.28], ['ikan_biru', 0.15], ['ikan_ungu', 0.08], ['ikan_merah', 0.04]];
       const ARMOR_MAX = 3, TRAP_MAX = 6, TRAP_STUN = 5, TRAP_DMG = 2;
       const FOOD_IDS = ['roti', 'sarden', 'mi', 'biskuit'];
       const DRINK_IDS = ['air', 'soda', 'jus', 'kopi'];
@@ -2311,6 +2371,13 @@
       ]) });
       MAT.toolRed = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.45, metalness: 0.5 });
       MAT.toolSteel = new THREE.MeshStandardMaterial({ color: 0x8b95a3, roughness: 0.3, metalness: 0.85 });
+      MAT.fishSign = new THREE.MeshBasicMaterial({ map: createTextTexture('#06293b', '#7dd3fc', '#38bdf8', [
+        { text: 'MEMANCING', font: 'bold 84px sans-serif', y: 105 },
+        { text: 'SEWA PANCING', font: 'bold 54px sans-serif', y: 190 }
+      ]) });
+      MAT.water = new THREE.MeshStandardMaterial({ color: 0x1e88c8, emissive: 0x0b4a78, emissiveIntensity: 0.8, roughness: 0.12, metalness: 0.3, transparent: true, opacity: 0.9 });
+      MAT.rim = new THREE.MeshStandardMaterial({ color: 0x59606e, roughness: 0.85 });
+      MAT.fishCols = [0xf1f5f9, 0xfacc15, 0x3b82f6, 0xa855f7, 0xef4444].map(c => new THREE.MeshBasicMaterial({ color: c }));
       MAT.vendBody = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.4, metalness: 0.5 });
       MAT.vendGlass = new THREE.MeshBasicMaterial({ color: 0x9be7ff });
       MAT.vendDark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.4 });
@@ -2329,7 +2396,7 @@
       MAT.shadow = new THREE.MeshBasicMaterial({ map: radialTexture('0,0,0', 0.55), transparent: true, depthWrite: false });
       const beamGeo = new THREE.CylinderGeometry(0.1, 0.2, 1.3, 10, 1, true);
       const beamMats = {};
-      [['food', 0xffc400], ['drink', 0x00e5ff], ['med', 0xff5252], ['mat', 0xcd853f], ['part', 0xb388ff], ['gear', 0x34d399], ['weapon', 0xfb923c], ['tool', 0x60a5fa]].forEach(([k, col]) => {
+      [['food', 0xffc400], ['drink', 0x00e5ff], ['med', 0xff5252], ['mat', 0xcd853f], ['part', 0xb388ff], ['gear', 0x34d399], ['weapon', 0xfb923c], ['tool', 0x60a5fa], ['fish', 0x22d3ee]].forEach(([k, col]) => {
         beamMats[k] = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false });
       });
       function slotTexture(label) {
@@ -2588,7 +2655,7 @@
       function rollStoreContents(doorX, doorZ, noEmpty = false, exclude = null) {
         // Tentukan isi toko berdasarkan bobot (noEmpty: pengacakan ulang tidak pernah menjadi toko kosong)
         const w = config.outcomeWeights;
-        const weights = [['supplies', w.supplies], ['empty', noEmpty ? 0 : w.empty], ['trap', w.trap], ['monster', w.monster], ['materials', w.materials ?? 0.1], ['vending', w.vending ?? 0.09], ['tools', w.tools ?? 0.035]]
+        const weights = [['supplies', w.supplies], ['empty', noEmpty ? 0 : w.empty], ['trap', w.trap], ['monster', w.monster], ['materials', w.materials ?? 0.1], ['vending', w.vending ?? 0.09], ['tools', w.tools ?? 0.035], ['fishing', w.fishing ?? 0.05]]
           .map(([k, v]) => [k, k === exclude ? 0 : v]);
         const totalW = weights.reduce((acc, [, v]) => acc + v, 0);
         let r = Math.random() * totalW;
@@ -3885,7 +3952,7 @@
       let heartCd = 0;
       function updateMonsters(dt, pX, pZ) {
         const safe = !!(state.currentBasecamp && state.currentBasecamp.isClaimed);
-        const dMul = state.blackoutT > 0 ? 1.35 : 1;
+        const dMul = (state.blackoutT > 0 ? 1.35 : 1) * (hasBuff('senyap') ? 0.6 : 1);
         const hearR = (state.moving ? (state.isSprinting ? TUNING.hearSprint : TUNING.hearWalk) : TUNING.hearIdle) * dMul;
         const detect = config.monster.detectRange * diff.detect * dMul;
         let threatD = 1e9;
@@ -4077,6 +4144,9 @@
         currentAction: null, // 'OPEN', 'PICKUP', 'CLAIM', 'STORE'
         started: false,
         credits: 30,
+        perm: { hp: 0, dmg: 0 },
+        buffs: [],
+        rodCasts: 0,
         weapons: { papan: 0, parang: 0, gergaji: 0, palu: 0 },
         weaponType: 'papan',
         fuel: 0,
@@ -4727,6 +4797,54 @@
         }
       }
 
+      // Ruang Memancing: kolam berisi 5 ikan berwarna (putih, kuning, biru, ungu, merah) + Pak Joko penyewa pancingan
+      function buildFishingRoom(store, g) {
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), MAT.fishSign);
+        sign.position.set(0, 3.1, -4.06);
+        g.add(sign);
+        // bibir kolam dari batu + air
+        addBox(g, 5.6, 0.3, 0.3, MAT.rim, 0, 0.15, -0.55);
+        addBox(g, 5.6, 0.3, 0.3, MAT.rim, 0, 0.15, -3.55);
+        addBox(g, 0.3, 0.3, 3.3, MAT.rim, -2.65, 0.15, -2.05);
+        addBox(g, 0.3, 0.3, 3.3, MAT.rim, 2.65, 0.15, -2.05);
+        addBox(g, 5.0, 0.04, 3.0, MAT.water, 0, 0.1, -2.05);
+        addRoomCollider(store, -2.85, -3.75, 2.85, -0.35);
+        store.fishSwim = MAT.fishCols.map((mat, i) => {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 0.16), mat);
+          g.add(m);
+          return { mesh: m, ph: i * 1.3, sp: 0.5 + i * 0.12, cx: 0, cz: -2.05, rx: 1.7 - (i % 2) * 0.4, rz: 0.95 - (i % 3) * 0.2 };
+        });
+        // dekor: ember, peti, rak pancing
+        const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.35, 10), MAT.toolRed);
+        bucket.position.set(3.2, 0.18, 0.8);
+        g.add(bucket);
+        addBox(g, 0.6, 0.45, 0.5, MAT.crate, 3.3, 0.23, 1.6);
+        addRoomCollider(store, 2.9, 0.5, 3.6, 1.95);
+        [-1.5, -1.8, -2.1].forEach((x, i) => addBox(g, 0.04, 2.2, 0.04, MAT.woodDark, 3.95, 1.1, -0.6 - i * 0.35, 0, 0, 0.12));
+        // Pak Joko
+        const sv = buildSurvivor({ skin: 0xd9a77b, jacket: 0xd97706, pants: 0x475569, hair: 0xd1d5db, pack: 0x92400e, accent: 0xfacc15, boot: 0x57534e, style: 'beanie' });
+        sv.group.position.set(-3.3, 0, -0.3);
+        sv.group.rotation.y = Math.PI / 2;
+        const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 1.7, 5), MAT.woodDark);
+        rod.position.set(0, -0.5, 0.45); rod.rotation.x = 1.0;
+        sv.armR.add(rod);
+        sv.armR.rotation.x = -0.9;
+        g.add(sv.group);
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 8, 256, 48);
+        ctx.fillStyle = '#7dd3fc'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('Pak Joko 🎣', 128, 33);
+        const tex = new THREE.CanvasTexture(c);
+        const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+        label.scale.set(1.5, 0.375, 1);
+        label.position.set(-3.3, 2.25, -0.3);
+        label.userData.own = true;
+        g.add(label);
+        addRoomCollider(store, -3.65, -0.65, -2.95, 0.05);
+      }
+
       // Ruang Perkakas (langka): rak gudang + meja kerja, kotak perkakas merah, landasan, drum bensin
       function buildToolRoom(store, g) {
         buildSupplyRoom(store, g);
@@ -4798,7 +4916,7 @@
         scene.add(g);
         store.interiorGroup = g;
 
-        const lightColor = { monster: 0xff2a3a, trap: 0xffe8c8, empty: 0xdde7ff, supplies: 0xffe8c8, materials: 0xffd9a0, vending: 0xbfe6ff, tools: 0xffc27a }[store.outcome];
+        const lightColor = { monster: 0xff2a3a, trap: 0xffe8c8, empty: 0xdde7ff, supplies: 0xffe8c8, materials: 0xffd9a0, vending: 0xbfe6ff, tools: 0xffc27a, fishing: 0xb6e8ff }[store.outcome];
         store.interiorLight = { intensity: 1.8, color: new THREE.Color(lightColor) };
         store.baseLightIntensity = 1.8;
 
@@ -4808,6 +4926,7 @@
         else if (store.outcome === 'materials') buildMaterialsRoom(store, g);
         else if (store.outcome === 'vending') buildVendingRoom(store, g);
         else if (store.outcome === 'tools') buildToolRoom(store, g);
+        else if (store.outcome === 'fishing') buildFishingRoom(store, g);
         else buildEmptyRoom(store, g);
 
         mergeInteriorStatics(g);
@@ -4830,6 +4949,11 @@
       function animateRoomDetails(dt) {
         for (let i = 0; i < openedInteriors.length; i++) {
           const s = openedInteriors[i];
+          if (s.fishSwim) s.fishSwim.forEach(f => {
+            f.ph += dt * f.sp;
+            f.mesh.position.set(f.cx + Math.cos(f.ph) * f.rx, 0.16, f.cz + Math.sin(f.ph) * f.rz);
+            f.mesh.rotation.y = -f.ph + Math.PI;
+          });
           const L = s.interiorLight;
           if (L) {
             if (s.outcome === 'monster') {
@@ -4911,6 +5035,8 @@
           } else {
             showToast('PINTU TOKO DIBUKA!', '#00e5ff');
           }
+        } else if (store.outcome === 'fishing') {
+          showToast('KOLAM MEMANCING! SEWA PANCINGAN DARI PAK JOKO', '#22d3ee', true);
         } else if (store.outcome === 'tools') {
           showToast(`RUANG PERKAKAS LANGKA! ${store.lootItems.length} BARANG, ADA SENJATA`, '#fb923c', true);
         } else if (store.outcome === 'vending') {
@@ -5065,7 +5191,7 @@
         submitSurvival(survived, true);
         state.deaths++;
         state.lifeTime = 0;
-        state.health = config.player.health;
+        state.health = maxHp();
         state.hunger = Math.max(state.hunger, 0.6);
         state.thirst = Math.max(state.thirst, 0.6);
         state.stamina = 1;
@@ -5122,7 +5248,7 @@
         thirstFill.classList.toggle('low', state.thirst < TUNING.hungerWarn);
 
         // Istirahat di basecamp memulihkan nyawa perlahan
-        if (safe && state.health < config.player.health) {
+        if (safe && state.health < maxHp()) {
           state.healTimer += dt;
           if (state.healTimer >= TUNING.healSeconds) {
             state.healTimer = 0;
@@ -5252,7 +5378,7 @@
           v: 1, at: Date.now(), diff: dk,
           life: Math.floor(state.lifeTime), game: Math.floor(state.gameTime), hp: state.health,
           hunger: +state.hunger.toFixed(3), thirst: +state.thirst.toFixed(3),
-          inv: state.inventory.slice(0, INV_CAPACITY), credits: state.credits, weapon: state.weapons.papan, wp: Object.assign({}, state.weapons), wt: state.weaponType, fuel: state.fuel, kr: { palu: !!state.knownRecipes.palu }, armor: state.armor,
+          inv: state.inventory.slice(0, INV_CAPACITY), credits: state.credits, perm: { hp: state.perm.hp, dmg: state.perm.dmg }, weapon: state.weapons.papan, wp: Object.assign({}, state.weapons), wt: state.weaponType, fuel: state.fuel, kr: { palu: !!state.knownRecipes.palu }, armor: state.armor,
           kills: state.kills, deaths: state.deaths, opened: state.openedStoresCount,
           base: base ? {
             id: base.id,
@@ -5383,7 +5509,7 @@
           isOpen: false, isClaimed: false, isTrapDisarmed: false, doorAnimProgress: 0,
           interiorInitialized: false, interiorGroup: null, trapPlateMesh: null, interiorLight: null,
           baseLightIntensity: 1.8, sparkMesh: null, spikesGroup: null, spikeTriggered: false, spikeAnim: 0,
-          rentSign: null, claimRing: null, stashCount: 0, stashItems: [], warnedSingle: false, slots: null, npcOwner: null, npcTarget: null,
+          rentSign: null, claimRing: null, stashCount: 0, stashItems: [], fishSwim: null, warnedSingle: false, slots: null, npcOwner: null, npcTarget: null,
           roomColliders: [], closing: false, openT: 0, npcTrapDone: false, warnedClose: false
         });
       }
@@ -5408,6 +5534,7 @@
         monsterGlow.intensity = 0;
         lightPool.forEach(l => { l.intensity = 0; });
 
+        fishCancel();
         clearPlayerTraps();
         if (state.hammer) scene.remove(state.hammer.mesh);
         Object.assign(state, makeState());
@@ -5435,10 +5562,10 @@
 
       function updateHUD() {
         // Bar HP
-        const hpFrac = Math.max(0, Math.min(1, state.health / Math.max(1, config.player.health)));
+        const hpFrac = Math.max(0, Math.min(1, state.health / Math.max(1, maxHp())));
         hpFill.style.transform = `scaleX(${hpFrac.toFixed(3)})`;
         hpFill.classList.toggle('low', hpFrac <= 0.34);
-        hpTxt.textContent = `${state.health}/${config.player.health}`;
+        hpTxt.textContent = `${state.health}/${maxHp()}`;
 
         hudArmorStat.style.display = state.armor > 0 ? '' : 'none';
         hudArmorEl.textContent = state.armor;
@@ -5583,6 +5710,8 @@
           openTrade();
         } else if (state.currentAction === 'VEND') {
           openVending();
+        } else if (state.currentAction === 'FISH') {
+          openFishing();
         }
       }
 
@@ -5629,7 +5758,7 @@
         for (let i = 0; i < INV_CAPACITY; i++) {
           const id = state.inventory[i];
           const el = slots[i];
-          el.className = 'inv-slot' + (id ? ' filled cat-' + ITEM_DEFS[id].cat : '') + (i === state.selectedSlot ? ' selected' : '');
+          el.className = 'inv-slot' + (id ? ' filled cat-' + ITEM_DEFS[id].cat + (ITEM_DEFS[id].rarity ? ' rar-' + ITEM_DEFS[id].rarity : '') : '') + (i === state.selectedSlot ? ' selected' : '');
           el.innerHTML = `<span class="slot-index">${i + 1}</span>` +
             (id ? `<span class="slot-emoji">${ITEM_DEFS[id].emoji}</span><span class="slot-name">${ITEM_DEFS[id].name}</span>` : '');
         }
@@ -5639,7 +5768,7 @@
         const sel = state.inventory[state.selectedSlot];
         if (sel) {
           const def = ITEM_DEFS[sel];
-          const catLabel = { food: 'MAKANAN', drink: 'MINUMAN', med: 'MEDIS', mat: 'BAHAN', part: 'KOMPONEN', gear: 'PERALATAN', weapon: 'SENJATA', tool: 'PERLENGKAPAN' }[def.cat];
+          const catLabel = { food: 'MAKANAN', drink: 'MINUMAN', med: 'MEDIS', mat: 'BAHAN', part: 'KOMPONEN', gear: 'PERALATAN', weapon: 'SENJATA', tool: 'PERLENGKAPAN', fish: 'IKAN ' + (def.rarity || '').toUpperCase() }[def.cat];
           invDetailEl.innerHTML = `<div class="inv-detail-emoji">${def.emoji}</div><div><div class="inv-detail-name">${def.name} <span class="inv-tag tag-${def.cat}">${catLabel}</span></div><div class="inv-detail-desc">${def.desc}${(def.cat === 'food' || def.cat === 'drink') ? ' Simpan di basecamp untuk target, atau konsumsi untuk memulihkan energi.' : ''}${def.cat === 'mat' ? ' Bahan crafting di meja basecamp. Bisa dijual.' : ''}${def.cat === 'gear' ? ' Pilih PASANG untuk menaruhnya di depanmu. Bisa dijual.' : ''}${def.cat === 'weapon' ? ' Pilih PAKAI untuk memasangnya sebagai senjata. Bisa dijual.' : ''}${def.cat === 'part' ? ' Komponen langka untuk membangun komputer. Bisa dijual.' : ''}</div></div>`;
           invUseBtn.style.display = (def.cat === 'mat' || def.cat === 'part') ? 'none' : 'flex';
           invUseBtn.textContent = def.act || { med: 'PAKAI', food: 'MAKAN', drink: 'MINUM', gear: 'PASANG', weapon: 'PAKAI' }[def.cat] || '';
@@ -5682,6 +5811,22 @@
           renderInventory();
           return;
         }
+        if (ITEM_DEFS[id].cat === 'fish') {
+          const fx = FISH[id];
+          if (fx.perm && state.perm[fx.perm] >= PERM_CAP) { showToast('EFEK PERMANEN SUDAH MAKSIMAL', '#94a3b8'); return; }
+          state.inventory.splice(state.selectedSlot, 1);
+          state.selectedSlot = -1;
+          state.hunger = Math.min(1, state.hunger + 0.12);
+          if (fx.buff) addBuff(fx.buff, fx.label, fx.dur);
+          if (fx.perm === 'hp') { state.perm.hp++; state.health = Math.min(maxHp(), state.health + 1); }
+          if (fx.perm === 'dmg') state.perm.dmg++;
+          if (fx.perm) renderBuffs(true);
+          audio.play('supply_pickup_sfx');
+          showToast(`${ITEM_DEFS[id].emoji} ${ITEM_DEFS[id].name.toUpperCase()}: ${fx.text.toUpperCase()}`, fx.perm ? '#c084fc' : '#22d3ee', true);
+          updateHUD();
+          renderInventory();
+          return;
+        }
         if (id === 'bensin') {
           if (!(state.weapons.gergaji > 0)) { showToast('BUTUH GERGAJI MESIN DULU', '#ff9100'); return; }
           if (state.fuel >= FUEL_MAX) { showToast('TANGKI GERGAJI PENUH', '#94a3b8'); return; }
@@ -5717,12 +5862,12 @@
           return;
         }
         if (ITEM_DEFS[id].cat === 'med') {
-          if (state.health >= config.player.health) {
+          if (state.health >= maxHp()) {
             showToast('NYAWA SUDAH PENUH!', '#94a3b8');
             return;
           }
           const heal = ITEM_DEFS[id].heal || 1;
-          state.health = Math.min(config.player.health, state.health + heal);
+          state.health = Math.min(maxHp(), state.health + heal);
           state.inventory.splice(state.selectedSlot, 1);
           state.selectedSlot = -1;
           audio.play('supply_pickup_sfx');
@@ -5789,7 +5934,8 @@
         resetGame();
         diff = DIFFS[snap.diff] || diff;
         Object.assign(state, {
-          health: Math.max(1, Math.min(config.player.health, snap.hp | 0 || config.player.health)),
+          perm: { hp: (snap.perm && snap.perm.hp) | 0, dmg: (snap.perm && snap.perm.dmg) | 0 },
+          health: Math.max(1, Math.min(config.player.health + ((snap.perm && snap.perm.hp) | 0), snap.hp | 0 || config.player.health)),
           hunger: Math.max(0.15, snap.hunger ?? 1), thirst: Math.max(0.15, snap.thirst ?? 1),
           lifeTime: snap.life || 0, gameTime: snap.game || 0, credits: snap.credits ?? 30,
           armor: Math.min(ARMOR_MAX, snap.armor || 0), kills: snap.kills || 0, deaths: snap.deaths || 0
@@ -5825,6 +5971,7 @@
         savedRun = null;
         titleOverlay.classList.remove('active');
         hudTimeEl.textContent = fmtTime(state.lifeTime);
+        renderBuffs(true);
         updateHUD();
         showToast('PERMAINAN DILANJUTKAN', '#00e676', true);
       }
@@ -6030,7 +6177,7 @@
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 3, originY + s.interiorCenterZ * scale - 3, 6, 6);
           } else if (s.isOpen) {
             const trapColor = s.isTrapDisarmed ? '#ef4444' : '#f59e0b';
-            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: trapColor, monster: '#a855f7', empty: '#e2e8f0', materials: '#cd853f', vending: '#38bdf8', tools: '#fb923c' }[s.outcome] || '#f59e0b';
+            minimapCtx.fillStyle = { supplies: '#f59e0b', trap: trapColor, monster: '#a855f7', empty: '#e2e8f0', materials: '#cd853f', vending: '#38bdf8', tools: '#fb923c', fishing: '#2dd4bf' }[s.outcome] || '#f59e0b';
             minimapCtx.fillRect(originX + s.interiorCenterX * scale - 2.5, originY + s.interiorCenterZ * scale - 2.5, 5, 5);
           }
         });
@@ -6169,7 +6316,7 @@
           }
         } else {
           // Diam memulihkan stamina ekstra cepat (1.35x), jalan santai tetap pulih dengan stabil (0.85x)
-          const regenRate = (state.moving ? 0.85 : 1.35) / config.player.staminaRecoverSeconds;
+          const regenRate = (state.moving ? 0.85 : 1.35) * (hasBuff('segar') ? 1.6 : 1) / config.player.staminaRecoverSeconds;
           state.stamina = Math.min(1, state.stamina + dt * regenRate);
           if (state.exhausted && state.stamina >= 0.25) state.exhausted = false;
         }
@@ -6200,6 +6347,7 @@
 
           let currentSpeed = state.isSprinting ? config.player.sprintSpeed : config.player.walkSpeed;
           if (state.slowDebuffTimer > 0) currentSpeed *= 0.5;
+          if (hasBuff('emas')) currentSpeed *= 1.15;
 
           // Analog speed scaling for joystick (capped at 1 for keyboard/full deflection)
           const speedFactor = Math.min(1, inputMag);
@@ -6393,6 +6541,12 @@
                   foundAction = 'EAT';
                   actionStore = s;
                 }
+              } else if (s.outcome === 'fishing') {
+                const fp = roomLocalToWorld(s, 0, 1.0), np = roomLocalToWorld(s, -3.3, -0.3);
+                if (Math.hypot(pX - fp.x, pZ - fp.z) < 2.6 || Math.hypot(pX - np.x, pZ - np.z) < 2.2) {
+                  foundAction = 'FISH';
+                  actionStore = s;
+                }
               } else if (s.outcome === 'vending') {
                 const mp = roomLocalToWorld(s, 0, -2.3);
                 if (Math.hypot(pX - mp.x, pZ - mp.z) < 2.0) {
@@ -6480,6 +6634,10 @@
             actionLabel.textContent = 'BUAT';
             actionSub.textContent = '🔨 RESEP';
             btnAction.classList.add('store-mode');
+          } else if (foundAction === 'FISH') {
+            actionLabel.textContent = 'MANCING';
+            actionSub.textContent = state.rodCasts > 0 ? `🎣 ${state.rodCasts}×` : `🎣 ¢${FISH_RENT}`;
+            btnAction.classList.add('store-mode');
           } else if (foundAction === 'VEND') {
             actionLabel.textContent = 'MESIN';
             actionSub.textContent = vendFreeLeft() > 0 ? `🎁 GRATIS ${vendFreeLeft()}` : `🎁 ¢${VEND_PRICE}`;
@@ -6528,6 +6686,7 @@
           updateMonsters(dt, pX, pZ);
           updatePlayerTraps();
           updateHammer(dt);
+          updateBuffs(dt);
           updateTraps(dt, pX, pZ);
           updateNpcs(dt, pX, pZ);
           heartCd -= dt;
@@ -6825,6 +6984,127 @@
       document.getElementById('craft-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
       craftOverlay.addEventListener('click', (e) => { if (e.target === craftOverlay) closeTrade(); });
 
+      // ================= MEMANCING =================
+      let fishPhase = 'idle', fishTimer = 0, fishTimer2 = 0;
+      const JOKO_LINES = ['Sabar, ikan besar butuh kesabaran.', 'Tarik saat pelampung tenggelam!', 'Kolam ini penuh kejutan, Nak.', 'Konon ada naga merah di dasar kolam…', 'Jangan buru-buru menarik, tunggu gigitannya.'];
+      function fishCancel() {
+        clearTimeout(fishTimer); clearTimeout(fishTimer2);
+        if (fishPhase === 'waiting' || fishPhase === 'bite') state.rodCasts++;
+        fishPhase = 'idle';
+      }
+      function openFishing() {
+        if (state.isGameOver || state.tradeOpen) return;
+        state.tradeOpen = true;
+        state.inventoryOpen = true;
+        inputs.moveX = 0;
+        inputs.moveZ = 0;
+        fishOverlay.classList.add('active');
+        fishPhase = 'idle';
+        fishStage.className = 'fish-stage';
+        fishStage.textContent = '🌊';
+        fishMsg.textContent = state.rodCasts > 0 ? 'Pak Joko: ' + pickRandom(JOKO_LINES) : `Pak Joko: Sewa pancinganku ¢${FISH_RENT}, dapat ${FISH_CASTS} lemparan!`;
+        renderFishing();
+      }
+      function renderFishing() {
+        fishCredits.textContent = `¢${state.credits}`;
+        fishSub.textContent = `Pancingan: ${state.rodCasts} lemparan tersisa`;
+        const busy = fishPhase === 'waiting';
+        fishBtn.classList.toggle('go', fishPhase === 'bite');
+        fishBtn.textContent = fishPhase === 'bite' ? 'TARIK!!' : busy ? 'MENUNGGU…' : 'LEMPAR PANCING';
+        fishBtn.disabled = busy || (fishPhase === 'idle' && state.rodCasts <= 0);
+        fishRentBtn.textContent = `SEWA PANCINGAN ¢${FISH_RENT} (+${FISH_CASTS})`;
+        fishRentBtn.disabled = busy || fishPhase === 'bite' || state.credits < FISH_RENT;
+      }
+      function fishRent() {
+        if (state.credits < FISH_RENT) { showToast(`KREDIT KURANG (BUTUH ¢${FISH_RENT})`, '#ff9100', true); return false; }
+        state.credits -= FISH_RENT;
+        state.rodCasts += FISH_CASTS;
+        audio.play('supply_pickup_sfx');
+        fishMsg.textContent = 'Pak Joko: Ini pancingannya. Selamat memancing!';
+        updateHUD();
+        renderFishing();
+        return true;
+      }
+      function rollFish() {
+        let r = Math.random();
+        for (const [id, w] of FISH_ODDS) { if (r <= w) return id; r -= w; }
+        return 'ikan_putih';
+      }
+      function fishAction() {
+        if (fishPhase === 'idle') {
+          if (state.rodCasts <= 0) { showToast('SEWA PANCINGAN DULU', '#ff9100'); return false; }
+          if (state.inventory.length >= INV_CAPACITY) { showToast('TAS PENUH! KOSONGKAN DULU', '#ff9100', true); return false; }
+          state.rodCasts--;
+          fishPhase = 'waiting';
+          fishStage.className = 'fish-stage';
+          fishStage.textContent = '🎣';
+          fishMsg.textContent = 'Pelampung dilempar… tunggu gigitan.';
+          audio.play('swing_sfx');
+          renderFishing();
+          fishTimer = setTimeout(() => {
+            fishPhase = 'bite';
+            fishStage.className = 'fish-stage bite';
+            fishStage.textContent = '❗';
+            fishMsg.textContent = 'Pelampung tenggelam! TARIK SEKARANG!';
+            audio.play('hit_sfx');
+            renderFishing();
+            fishTimer2 = setTimeout(() => {
+              fishPhase = 'idle';
+              fishStage.className = 'fish-stage';
+              fishStage.textContent = '💨';
+              fishMsg.textContent = 'Ikannya lepas… terlalu lambat!';
+              renderFishing();
+            }, 1100);
+          }, 1500 + Math.random() * 2500);
+          return true;
+        }
+        if (fishPhase === 'bite') {
+          clearTimeout(fishTimer2);
+          fishPhase = 'idle';
+          const id = rollFish();
+          if (state.inventory.length < INV_CAPACITY) state.inventory.push(id);
+          fishStage.className = 'fish-stage';
+          fishStage.textContent = ITEM_DEFS[id].emoji;
+          fishMsg.innerHTML = `<b>${ITEM_DEFS[id].name}</b> (${ITEM_DEFS[id].rarity})<br>${(FISH[id].text)}`;
+          audio.play('supply_pickup_sfx');
+          showToast(`TERTANGKAP: ${ITEM_DEFS[id].name.toUpperCase()} (${ITEM_DEFS[id].rarity.toUpperCase()})!`, id === 'ikan_merah' ? '#ef4444' : id === 'ikan_ungu' ? '#c084fc' : '#22d3ee', true);
+          updateHUD();
+          renderFishing();
+          return id;
+        }
+        return false;
+      }
+      fishBtn.addEventListener('click', (e) => { e.stopPropagation(); fishAction(); });
+      fishRentBtn.addEventListener('click', (e) => { e.stopPropagation(); fishRent(); });
+      document.getElementById('fish-close').addEventListener('click', (e) => { e.stopPropagation(); closeTrade(); });
+      fishOverlay.addEventListener('click', (e) => { if (e.target === fishOverlay) closeTrade(); });
+
+      // ================= BUFF IKAN =================
+      let buffKey = '';
+      const hasBuff = id => state.buffs.some(b => b.id === id);
+      function addBuff(id, label, dur) {
+        const e = state.buffs.find(b => b.id === id);
+        if (e) e.t = Math.max(e.t, dur); else state.buffs.push({ id, label, t: dur });
+        renderBuffs(true);
+      }
+      function renderBuffs(force) {
+        const key = state.buffs.map(b => b.id + Math.ceil(b.t)).join('|') + '#' + state.perm.hp + state.perm.dmg;
+        if (!force && key === buffKey) return;
+        buffKey = key;
+        let html = '';
+        if (state.perm.hp) html += `<span class="buff-chip perm">❤️ +${state.perm.hp}</span>`;
+        if (state.perm.dmg) html += `<span class="buff-chip perm">🐲 +${state.perm.dmg}</span>`;
+        state.buffs.forEach(b => { html += `<span class="buff-chip">${b.label} ${Math.ceil(b.t)}s</span>`; });
+        buffRowEl.innerHTML = html;
+      }
+      function updateBuffs(dt) {
+        for (let i = state.buffs.length - 1; i >= 0; i--) {
+          state.buffs[i].t -= dt;
+          if (state.buffs[i].t <= 0) { showToast(`EFEK ${state.buffs[i].label} HABIS`, '#94a3b8'); state.buffs.splice(i, 1); }
+        }
+        renderBuffs(false);
+      }
+
       // ================= VENDING MACHINE: KOTAK MISTERI =================
       let vendBusy = false;
       function rollVendReward() {
@@ -6978,7 +7258,7 @@
           const d = Math.hypot(dx, dz);
           if (d > wd.reach || d < 0.01 || (dx * fx + dz * fz) / d < 0.15) continue;
           hitAny = true;
-          m.hp -= wd.dmg;
+          m.hp -= wd.dmg + state.perm.dmg;
           if (m.hp <= 0) { killMonster(m, i); continue; }
           m.isStunned = true;
           m.stunTimer = Math.max(m.stunTimer, 0.6);
@@ -7036,7 +7316,7 @@
           if (h.hit.includes(m) || Math.hypot(m.x - h.x, m.z - h.z) > 1.3) continue;
           h.hit.push(m);
           audio.play('hit_sfx');
-          m.hp -= WEAPON_DEFS.palu.dmg;
+          m.hp -= WEAPON_DEFS.palu.dmg + state.perm.dmg;
           if (m.hp <= 0) { killMonster(m, i); continue; }
           m.isStunned = true;
           m.stunTimer = Math.max(m.stunTimer, 0.9);
@@ -7066,6 +7346,8 @@
         renderTrade();
       }
       function closeTrade() {
+        fishCancel();
+        fishOverlay.classList.remove('active');
         craftOverlay.classList.remove('active');
         vendOverlay.classList.remove('active');
         if (!state.tradeOpen) { tradeOverlay.classList.remove('active'); return; }
