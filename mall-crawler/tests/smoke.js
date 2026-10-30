@@ -11,7 +11,7 @@ const THREE = process.env.THREE_JS || path.join(__dirname, '..', 'node_modules',
 const DBG_FILE = path.join(__dirname, '.game_dbg.html');
 
 const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,npcs,buildSlot,craftWeapon,attackWithWeapon,npcHurt,setPaused,isPaused:()=>paused};\n';
-const ANCHOR = '      rafId = requestAnimationFrame(gameLoop);\n    }\n  </script>';
+const ANCHOR = '      i18nReady = true;\n      rafId = requestAnimationFrame(gameLoop);';
 
 let failures = 0;
 const check = (name, ok, extra = '') => {
@@ -42,6 +42,7 @@ const check = (name, ok, extra = '') => {
   await page.waitForFunction(() => window.__dbg, null, { timeout: 90000 });
 
   // 1. boot + start
+  await page.waitForFunction(() => document.getElementById('title-overlay').classList.contains('active'), null, { timeout: 90000 });
   check('layar judul tampil', await page.evaluate(() => document.getElementById('title-overlay').classList.contains('active')));
   // bahasa: default Inggris; pindah ke Arab & Indonesia lalu kembali ke Inggris
   const langs = [];
