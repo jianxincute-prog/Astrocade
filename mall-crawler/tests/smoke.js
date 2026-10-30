@@ -43,6 +43,15 @@ const check = (name, ok, extra = '') => {
 
   // 1. boot + start
   check('layar judul tampil', await page.evaluate(() => document.getElementById('title-overlay').classList.contains('active')));
+  // bahasa: default Inggris; pindah ke Arab & Indonesia lalu kembali ke Inggris
+  const langs = [];
+  for (const code of ['en', 'ar', 'id', 'en']) {
+    if (code !== 'en' || langs.length) await page.click(`#lang-row-title [data-lang="${code}"]`);
+    langs.push(await page.evaluate(() => ({ lang: document.documentElement.lang, start: document.getElementById('btn-start').textContent, ar: document.body.classList.contains('lang-ar') })));
+  }
+  check('bahasa default Inggris', langs[0].lang === 'en' && langs[0].start === 'START', JSON.stringify(langs[0]));
+  check('bahasa Arab (RTL font) & Indonesia', langs[1].lang === 'ar' && langs[1].ar && langs[1].start !== 'START' && langs[2].lang === 'id' && langs[2].start === 'MULAI' && !langs[2].ar);
+  check('bahasa kembali ke Inggris', langs[3].lang === 'en' && langs[3].start === 'START');
   await page.click('#btn-start');
   await page.click('#btn-diff-go');
   check('game mulai & audio dibuat setelah gestur', await page.evaluate(() => __dbg.state.started && !!__dbg.audio.ctx));
