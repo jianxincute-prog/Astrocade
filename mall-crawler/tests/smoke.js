@@ -10,7 +10,7 @@ const GAME = process.env.GAME_HTML || path.join(__dirname, '..', 'game_code.html
 const THREE = process.env.THREE_JS || path.join(__dirname, '..', 'node_modules', 'three', 'build', 'three.min.js');
 const DBG_FILE = path.join(__dirname, '.game_dbg.html');
 
-const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,npcs,buildSlot,craftWeapon,attackWithWeapon,npcHurt,setPaused,isPaused:()=>paused};\n';
+const HOOK = 'window.__dbg={state,playerGroup,stores,monsters,colliders,baseColliders,scene,renderer,camera,camState,openStore,resetGame,update,inputs,spawnMonster,segmentBlocked,openedInteriors,audio,lightPool,claimBasecamp,storeSupplies,eatAtBase,npcs,buildSlot,craftWeapon,attackWithWeapon,npcHurt,setPaused,isPaused:()=>paused,cargoPut,cargoTake,openGudang,openRack,rackPut,rackTake,drumAction,matCount,hasCost,spendCost,closeTrade,updateRackMeshes,buildRunSnapshot,resumeRun};\n';
 const ANCHOR = '      i18nReady = true;\n      rafId = requestAnimationFrame(gameLoop);';
 
 let failures = 0;
@@ -209,6 +209,34 @@ const check = (name, ok, extra = '') => {
   await page.click('#btn-mute');
   check('satu klik mute = satu toggle', await page.evaluate(() => __dbg.audio.isMuted === true));
 
+  // gudang basecamp: simpan non-makanan, bahan crafting dari gudang, rak senjata, drum bensin, simpan/lanjut
+  const gd = await page.evaluate(() => {
+    const d = __dbg, st = d.state, o = {};
+    d.resetGame(); st.started = true; st.isInvulnerable = true; st.invulnTimer = 1e9; st.blackoutNext = 1e9;
+    const e = d.stores.find(s => !s.isOpen && s.outcome === 'empty');
+    d.openStore(e); d.claimBasecamp(e);
+    const th = e.group.rotation.y, c = Math.cos(th), sn = Math.sin(th);
+    const go = (lx, lz) => { d.playerGroup.position.set(e.interiorCenterX + lx * c + lz * sn, 0, e.interiorCenterZ - lx * sn + lz * c); for (let i = 0; i < 4; i++) d.update(0.05); return st.currentAction; };
+    o.acts = [go(3.1, -0.4), go(-3.1, -0.1), go(3.0, 4.3)].join(',');
+    go(3.1, -0.4);
+    st.inventory = ['papan', 'paku', 'roti', 'bensin', 'bensin'];
+    d.openGudang(); d.cargoPut('papan', 1); d.cargoPut('paku', 1); d.cargoPut('roti', 1); d.closeTrade();
+    o.cargo = JSON.stringify(e.cargo); o.bag = st.inventory.join(',');
+    o.cost = d.hasCost({ papan: 1, paku: 1 }); d.spendCost({ papan: 1, paku: 1 }); o.spent = JSON.stringify(e.cargo);
+    d.drumAction(); o.drum = e.drumFuel;
+    st.weapons = { papan: 5, parang: 20, gergaji: 0, palu: 0 }; st.weaponType = 'parang';
+    d.openRack(); d.rackPut('parang'); o.rackPut = e.rack.parang + '/' + st.weapons.parang + '/' + st.weaponType; d.rackTake('parang'); o.rackTake = e.rack.parang + '/' + st.weapons.parang + '/' + st.weaponType; d.closeTrade();
+    e.cargo = { besi: 2 }; e.rack.palu = 3; e.drumFuel = 7;
+    const snap = JSON.parse(JSON.stringify(d.buildRunSnapshot())); d.resumeRun(snap);
+    const e2 = d.stores.find(s => s.isClaimed); o.resumed = JSON.stringify({ c: e2.cargo, p: e2.rack.palu, f: e2.drumFuel });
+    return o;
+  });
+  check('aksi GUDANG/RAK/DRUM muncul di dekat furnitur', gd.acts === 'GUDANG,RAK,DRUM', gd.acts);
+  check('gudang menyimpan non-makanan saja', gd.cargo === '{"papan":1,"paku":1}' && gd.bag === 'roti,bensin,bensin', gd.cargo + ' | ' + gd.bag);
+  check('crafting memakai bahan di gudang', gd.cost === true && gd.spent === '{}', gd.spent);
+  check('drum bensin menampung bensin dari tas', gd.drum === 16, String(gd.drum));
+  check('rak senjata simpan & pakai', gd.rackPut === '20/0/papan' && gd.rackTake === '0/20/parang', gd.rackPut + ' ' + gd.rackTake);
+  check('gudang, rak, dan drum ikut tersimpan & dilanjutkan', gd.resumed === '{"c":{"besi":2},"p":3,"f":7}', gd.resumed);
   check('tidak ada error konsol', errors.length === 0, errors.slice(0, 2).join(' | '));
   await browser.close();
   fs.unlinkSync(DBG_FILE);
