@@ -3,7 +3,7 @@
 <head>
 <title>Don't Touch Water</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;600;700&family=Cairo:wght@600;700&display=swap');
   :root {
     --transition-fast: 150ms;
     --transition-normal: 300ms;
@@ -320,7 +320,7 @@
   .ftue-pulse { animation: ftuePulse 1s infinite; outline: 3px solid #7dffe0; outline-offset: 2px; }
   .mn-tile { position: relative; }
   .mn-tile.locked { opacity: .5; background: linear-gradient(180deg, #46566a, #2c3744); }
-  .mn-tile.new::after { content: 'BARU'; position: absolute; top: -9px; right: -5px; padding: 3px 9px; border-radius: 10px; background: #ff5b4a; color: #fff; font: 700 12px 'Orbitron', sans-serif; animation: ftuePulse 1.2s infinite; }
+  .mn-tile.new::after { content: var(--new-label, 'NEW'); position: absolute; top: -9px; right: -5px; padding: 3px 9px; border-radius: 10px; background: #ff5b4a; color: #fff; font: 700 12px 'Orbitron', sans-serif; animation: ftuePulse 1.2s infinite; }
   .mn-btn.danger { background: linear-gradient(180deg, #a8453b, #762a24); }
   .mn-btn.danger.armed { background: linear-gradient(180deg, #e0412e, #a21d12); }
   #hud-l3 { margin-top: 2px; font: 700 16px 'Inter', sans-serif; color: #ffe08a; white-space: nowrap; letter-spacing: .5px; }
@@ -463,30 +463,41 @@
     width: 150px; height: 150px;
     display: block;
   }
+  /* ── Language switch + Arabic (RTL) ── */
+  .lang-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; direction: ltr; }
+  .lang-row > span { font: 700 18px 'Inter', sans-serif; color: #b8d0d8; margin-right: 4px; }
+  .lang-btn { min-width: 92px; min-height: 52px; padding: 0 14px; border-radius: 16px; border: 2px solid rgba(255,255,255,.28); background: rgba(255,255,255,.08); color: #d6e9ee; font: 700 17px 'Inter', sans-serif; cursor: pointer; touch-action: manipulation; }
+  .lang-btn.on { background: linear-gradient(180deg, #34c98a, #1a8f62); border-color: #fff; color: #fff; }
+  .lang-btn:active { transform: scale(.96); }
+  body.lang-ar, body.lang-ar * { letter-spacing: 0 !important; font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif !important; }
+  body.lang-ar .lv-grid, body.lang-ar .kp-grid, body.lang-ar .kp-disp, body.lang-ar .lang-row { direction: ltr; }
+  body.lang-ar .set-row input[type=range] { direction: ltr; }
+  body.lang-ar .set-row b { text-align: left; }
+  body.lang-ar .hp-btns, body.lang-ar #end-btns { direction: rtl; }
 </style>
 </head>
 <body>
 <div id="game-world" class="loading-startup loading-controls-hidden">
   <div class="ui-overlay" id="ui-overlay">
-    <div id="loading-screen" aria-label="Memuat permainan">
+    <div id="loading-screen" data-i18n-aria="load.aria" aria-label="Loading game">
       <div class="loading-topline">
-        <span class="loading-live">SIMULASI AKTIF</span>
+        <span class="loading-live" data-i18n="load.live">ACTIVE SIMULATION</span>
         <span class="loading-top-meta">EXPEDITION LOG&nbsp; / &nbsp;03</span>
       </div>
       <div class="loading-title-block">
-        <p class="loading-eyebrow">Jangan percaya permukaan air</p>
+        <p class="loading-eyebrow" data-i18n="load.eyebrow">Don't trust the surface of the water</p>
         <h1 class="loading-title">DON'T TOUCH WATER</h1>
-        <p class="loading-subtitle">Lompati pijakan. Sesuatu sedang mengintai di bawahmu.</p>
+        <p class="loading-subtitle" data-i18n="load.sub">Hop across the platforms. Something is lurking beneath you.</p>
       </div>
       <div class="loading-footer">
-        <div class="loading-progress-label"><span id="loading-status">Menyiapkan ruang porselen...</span><span>MEMUAT</span></div>
+        <div class="loading-progress-label"><span id="loading-status">Preparing the porcelain room...</span><span data-i18n="load.word">LOADING</span></div>
         <div class="loading-bar"><i id="loading-progress-fill"></i></div>
-        <p class="loading-tip">Petunjuk: jika jatuh ke air, segera lompat ke pijakan terdekat.</p>
+        <p class="loading-tip" data-i18n="load.tip">Tip: if you fall into the water, jump to the nearest platform right away.</p>
       </div>
     </div>
     <div id="danger-vignette"></div>
-    <div id="goal-hint">Lompati pijakan menuju pintu EXIT</div>
-    <div id="danger-banner">⚠ BAHAYA!</div>
+    <div id="goal-hint" data-i18n="goal.go0">Hop across the platforms to the EXIT door</div>
+    <div id="danger-banner" data-i18n="danger.banner">⚠ DANGER!</div>
 
     <!-- Minimap Panel for Edit Mode -->
     <div id="minimap-panel">
@@ -502,12 +513,12 @@
         <span class="map-corner-label">N ↑ &nbsp; / &nbsp; ROOM GRID</span>
       </div>
       <div class="map-legend">
-        <div class="map-legend-item"><i class="map-key route"></i>Rute aman</div>
-        <div class="map-legend-item"><i class="map-key platform"></i>Pijakan</div>
-        <div class="map-legend-item"><i class="map-key pillar"></i>Tiang beton</div>
+        <div class="map-legend-item"><i class="map-key route"></i><span data-i18n="map.safe">Safe route</span></div>
+        <div class="map-legend-item"><i class="map-key platform"></i><span data-i18n="map.plat">Platform</span></div>
+        <div class="map-legend-item"><i class="map-key pillar"></i><span data-i18n="map.pillar">Concrete pillar</span></div>
       </div>
       <div class="map-footer">
-        <div id="minimap-status">Peta dibuat otomatis</div>
+        <div id="minimap-status" data-i18n="map.auto">Map generated automatically</div>
         <div id="minimap-warning"></div>
       </div>
     </div>
@@ -521,11 +532,11 @@
       <div class="joystick-base" id="joystick-base"></div>
       <div class="joystick-knob" id="joystick-knob"></div>
     </div>
-    <div id="jump-btn">JUMP</div>
+    <div id="jump-btn" data-i18n="jump">JUMP</div>
     <div id="item-slots">
-      <button class="item-slot" data-i="0" aria-label="Batu"><span class="is-key">1</span><b class="is-count">0</b></button>
-      <button class="item-slot" data-i="1" aria-label="Jarum akupuntur"><span class="is-key">2</span><b class="is-count">0</b></button>
-      <button class="item-slot" data-i="2" aria-label="Sepatu chakra"><span class="is-key">3</span><b class="is-count">0</b></button>
+      <button class="item-slot" data-i="0" data-i18n-aria="item.stone" aria-label="Stone"><span class="is-key">1</span><b class="is-count">0</b></button>
+      <button class="item-slot" data-i="1" data-i18n-aria="item.needle" aria-label="Acupuncture Needle"><span class="is-key">2</span><b class="is-count">0</b></button>
+      <button class="item-slot" data-i="2" data-i18n-aria="item.shoes" aria-label="Chakra Shoes"><span class="is-key">3</span><b class="is-count">0</b></button>
     </div>
     <div id="hud">
       <button id="menu-btn" aria-label="Menu">&#9776;</button>
@@ -533,20 +544,20 @@
     </div>
     <div id="toast"></div>
     <div id="coach"><div id="coach-arrow">▲</div><div id="coach-text"></div></div>
-    <button id="ftue-skip">LEWATI ›</button>
-    <div id="story-card"><b>RUANG KOLAM TERKUNCI</b><span>Ada sesuatu yang mengintai di bawah air.<br>Temukan pintu EXIT. Jangan sentuh air.</span></div>
+    <button id="ftue-skip" data-i18n="skip">SKIP ›</button>
+    <div id="story-card"><b data-i18n="story.title">LOCKED POOL ROOM</b><span data-i18n="story.body">Something is lurking beneath the water.<br>Find the EXIT door. Don't touch the water.</span></div>
     <div id="end-screen" class="ui-modal">
-      <div id="end-title">TERTANGKAP!</div>
+      <div id="end-title">CAUGHT!</div>
       <div id="end-stars"></div>
       <div id="end-sub"></div>
       <div id="end-stats"></div>
       <div id="end-rank"></div>
       <div id="end-btns">
-        <button id="next-btn" class="end-btn primary">LEVEL BERIKUTNYA</button>
-        <button id="cont-btn" class="end-btn primary">LANJUT DARI CHECKPOINT</button>
-        <button id="restart-btn" class="end-btn">ULANGI</button>
-        <button id="end-shop-btn" class="end-btn ghost">🛍 TOKO</button>
-        <button id="end-menu-btn" class="end-btn ghost">MENU</button>
+        <button id="next-btn" class="end-btn primary">NEXT LEVEL</button>
+        <button id="cont-btn" class="end-btn primary">CONTINUE FROM CHECKPOINT</button>
+        <button id="restart-btn" class="end-btn">REPLAY</button>
+        <button id="end-shop-btn" class="end-btn ghost" data-i18n="end.shop">🛍 SHOP</button>
+        <button id="end-menu-btn" class="end-btn ghost" data-i18n="end.menu">MENU</button>
       </div>
     </div>
     <div id="keypad-screen" class="ui-modal"><div id="keypad-card" class="kp-card"></div></div>
@@ -564,6 +575,216 @@
   - Animated translucent water surface with ripples over submerged tiled floor
   - Final blocky character model with long straight legs and tight-fitting joint hierarchy
 */
+
+// ─── LANGUAGES (English default · Indonesia · العربية) ───
+// Each row: key, English, Indonesian, Arabic. {name} placeholders are filled by tr(key, {name: value}).
+const LANGS = ['en', 'id', 'ar'];
+const LANG_NAMES = { en: 'English', id: 'Indonesia', ar: 'العربية' };
+const TXT = [
+  ['load.aria', 'Loading game', 'Memuat permainan', 'جارٍ تحميل اللعبة'],
+  ['load.live', 'ACTIVE SIMULATION', 'SIMULASI AKTIF', 'محاكاة نشطة'],
+  ['load.eyebrow', "Don't trust the surface of the water", 'Jangan percaya permukaan air', 'لا تثق بسطح الماء'],
+  ['load.sub', 'Hop across the platforms. Something is lurking beneath you.', 'Lompati pijakan. Sesuatu sedang mengintai di bawahmu.', 'اقفز بين المنصات. شيء ما يتربص بك في الأعماق.'],
+  ['load.word', 'LOADING', 'MEMUAT', 'جارٍ التحميل'],
+  ['load.tip', 'Tip: if you fall into the water, jump to the nearest platform right away.', 'Petunjuk: jika jatuh ke air, segera lompat ke pijakan terdekat.', 'نصيحة: إذا سقطت في الماء فاقفز فورًا إلى أقرب منصة.'],
+  ['load.s0', 'Preparing the porcelain room...', 'Menyiapkan ruang porselen...', 'جارٍ تجهيز غرفة البورسلين...'],
+  ['load.s1', 'Building the porcelain room...', 'Membangun ruang porselen...', 'جارٍ بناء غرفة البورسلين...'],
+  ['load.s2', 'Mapping safe platforms...', 'Memetakan pijakan aman...', 'جارٍ رسم خريطة المنصات الآمنة...'],
+  ['load.s3', 'Detecting movement under the water...', 'Mendeteksi gerakan di bawah air...', 'جارٍ رصد الحركة تحت الماء...'],
+  ['load.ready', 'Route ready — good luck getting out.', 'Rute siap — semoga berhasil keluar.', 'المسار جاهز — بالتوفيق في الخروج.'],
+  ['map.safe', 'Safe route', 'Rute aman', 'المسار الآمن'],
+  ['map.plat', 'Platform', 'Pijakan', 'منصة'],
+  ['map.pillar', 'Concrete pillar', 'Tiang beton', 'عمود خرساني'],
+  ['map.auto', 'Map generated automatically', 'Peta dibuat otomatis', 'تم إنشاء الخريطة تلقائيًا'],
+  ['map.stat', '{a} platforms  •  {b} pillars  •  {c} route points', '{a} pijakan  •  {b} tiang  •  {c} titik rute', '{a} منصة  •  {b} عمود  •  {c} نقطة مسار'],
+  ['map.warn', 'S · START   /   E · EXIT', 'S · MULAI   /   E · EXIT', 'S · البداية   /   E · الخروج'],
+  ['goal.go0', 'Hop across the platforms to the EXIT door', 'Lompati pijakan menuju pintu EXIT', 'اقفز بين المنصات نحو باب الخروج'],
+  ['goal.go', 'Hop across the platforms to EXIT • {d} m', 'Lompati pijakan menuju EXIT • {d} m', 'اقفز بين المنصات نحو الخروج • {d} م'],
+  ['goal.find', 'Find {what} • {d} m', 'Cari {what} • {d} m', 'ابحث عن {what} • {d} م'],
+  ['goal.key', 'the key', 'kunci', 'المفتاح'],
+  ['goal.fuse', 'fuse {a}/{b}', 'sekering {a}/{b}', 'المصهر {a}/{b}'],
+  ['goal.digit', 'code digit {a}/{b}', 'digit kode {a}/{b}', 'رقم الكود {a}/{b}'],
+  ['goal.type', 'Type the code at the EXIT door • {d} m', 'Ketik kode di pintu EXIT • {d} m', 'أدخل الكود عند باب الخروج • {d} م'],
+  ['danger.banner', '⚠ DANGER!', '⚠ BAHAYA!', '⚠ خطر!'],
+  ['danger.chase', '⚠ MONSTER IS CHASING! JUMP TO A PLATFORM!', '⚠ MONSTER MENGEJAR! LOMPAT KE PIJAKAN!', '⚠ الوحش يطاردك! اقفز إلى منصة!'],
+  ['danger.hear', '⚠ MONSTER HEARD YOU! JUMP OUT!', '⚠ MONSTER MENDENGAR! LOMPAT KELUAR!', '⚠ الوحش سمعك! اقفز خارج الماء!'],
+  ['jump', 'JUMP', 'JUMP', 'قفز'],
+  ['skip', 'SKIP ›', 'LEWATI ›', '‹ تخطَّ'],
+  ['story.title', 'LOCKED POOL ROOM', 'RUANG KOLAM TERKUNCI', 'غرفة المسبح المقفلة'],
+  ['story.body', "Something is lurking beneath the water.<br>Find the EXIT door. Don't touch the water.", 'Ada sesuatu yang mengintai di bawah air.<br>Temukan pintu EXIT. Jangan sentuh air.', 'شيء ما يتربص تحت الماء.<br>اعثر على باب الخروج. لا تلمس الماء.'],
+  ['item.stone', 'Stone', 'Batu', 'حجر'],
+  ['item.needle', 'Acupuncture Needle', 'Jarum Akupuntur', 'إبرة الوخز'],
+  ['item.shoes', 'Chakra Shoes', 'Sepatu Chakra', 'حذاء تشاكرا'],
+  ['item.stone.d', 'Throw toward the camera (aim higher to throw farther). Monsters are drawn to where it lands for 6 seconds.', 'Lempar ke arah kamera (makin ke atas makin jauh). Monster teralihkan ke titik jatuhnya selama 6 detik.', 'ارمِه باتجاه الكاميرا (كلما رفعت التصويب ابتعد أكثر). تنجذب الوحوش إلى مكان سقوطه لمدة 6 ثوانٍ.'],
+  ['item.needle.d', 'Throw straight at a monster: stuns it for 5 seconds. If you miss, the needle is wasted.', 'Lempar lurus ke monster: tersengat 5 detik. Kalau meleset, jarumnya sia-sia.', 'ارمِها مباشرة نحو الوحش: تشلّه 5 ثوانٍ. إن أخطأت تضيع الإبرة.'],
+  ['item.shoes.d', 'Run on water for 15 seconds without alerting monsters.', 'Berlari di atas air selama 15 detik tanpa memancing monster.', 'اركض على الماء لمدة 15 ثانية دون أن تثير الوحوش.'],
+  ['item.distract', '🪨 Monsters were drawn to the sound of the stone', '🪨 Monster teralihkan ke suara batu', '🪨 انجذبت الوحوش إلى صوت الحجر'],
+  ['item.shoesOn2', 'Chakra shoes are still active', 'Sepatu chakra masih aktif', 'حذاء تشاكرا ما زال مفعّلًا'],
+  ['item.none', '{name} ran out. Buy more in the SHOP', '{name} habis. Beli di TOKO', 'نفد {name}. اشتر المزيد من المتجر'],
+  ['item.shoesOn', '👟 Chakra shoes on! Run on water for 15 seconds', '👟 Sepatu chakra aktif! Berlari di atas air 15 detik', '👟 تم تفعيل حذاء تشاكرا! اركض على الماء 15 ثانية'],
+  ['item.stun', '⚡ Monster stunned for {n} seconds!', '⚡ Monster tersengat {n} detik!', '⚡ تم شلّ الوحش لمدة {n} ثوانٍ!'],
+  ['item.shoesLow', '👟 Chakra shoes almost out!', '👟 Sepatu chakra hampir habis!', '👟 حذاء تشاكرا على وشك النفاد!'],
+  ['item.shoesEnd', 'Chakra shoes ran out', 'Sepatu chakra habis', 'انتهى مفعول حذاء تشاكرا'],
+  ['feat.shop', 'SHOP', 'TOKO', 'المتجر'],
+  ['feat.daily', 'DAILY CHALLENGE', 'TANTANGAN HARIAN', 'التحدي اليومي'],
+  ['feat.board', 'LEADERBOARD', 'PERINGKAT', 'المتصدرين'],
+  ['title.lv', 'LV {n}', 'LV {n}', 'م {n}'],
+  ['title.daily', 'DAILY', 'HARIAN', 'يومي'],
+  ['title.train', 'TRAINING', 'LATIHAN', 'تدريب'],
+  ['hud.l2', '◆ {got}/{tot}   ·   target {par}   ·   falls {f}', '◆ {got}/{tot}   ·   target {par}   ·   jatuh {f}', '◆ {got}/{tot}   ·   الهدف {par}   ·   سقوط {f}'],
+  ['pz.hud.codeOk', '🔓 Code correct', '🔓 Kode benar', '🔓 الكود صحيح'],
+  ['pz.hud.open', '🔓 Door unlocked', '🔓 Pintu terbuka', '🔓 الباب مفتوح'],
+  ['pz.hud.keyGot', '🔑 Key obtained', '🔑 Kunci didapat', '🔑 تم الحصول على المفتاح'],
+  ['pz.hud.keyFind', '🔒 Find the KEY', '🔒 Cari KUNCI', '🔒 ابحث عن المفتاح'],
+  ['pz.hud.fuse', '⚡ Fuse {a}/{b}', '⚡ Sekering {a}/{b}', '⚡ مصهر {a}/{b}'],
+  ['pz.hud.code', '🔒 Code: {c}', '🔒 Kode: {c}', '🔒 الكود: {c}'],
+  ['pz.t.key', '🔑 Key obtained! EXIT door unlocked', '🔑 Kunci didapat! Pintu EXIT terbuka', '🔑 حصلت على المفتاح! باب الخروج مفتوح'],
+  ['pz.t.fuseAll', '⚡ All fuses collected! EXIT door unlocked', '⚡ Semua sekering terkumpul! Pintu EXIT terbuka', '⚡ جمعت كل المصاهر! باب الخروج مفتوح'],
+  ['pz.t.fuse', '⚡ Fuse {a}/{b}', '⚡ Sekering {a}/{b}', '⚡ مصهر {a}/{b}'],
+  ['pz.t.codeAll', 'Code complete: {c}. Type it on the EXIT door keypad', 'Kode lengkap: {c}. Ketik di keypad pintu EXIT', 'اكتمل الكود: {c}. أدخله في لوحة أرقام باب الخروج'],
+  ['pz.t.digit', 'Digit {i} = {d}   ({a}/{b})', 'Digit ke-{i} = {d}   ({a}/{b})', 'الرقم {i} = {d}   ({a}/{b})'],
+  ['pz.lock.key', '🔒 Door locked: find the KEY first', '🔒 Pintu terkunci: cari KUNCI dulu', '🔒 الباب مقفل: ابحث عن المفتاح أولًا'],
+  ['pz.lock.fuse', '🔒 Door locked: fuses {a}/{b}', '🔒 Pintu terkunci: sekering {a}/{b}', '🔒 الباب مقفل: المصاهر {a}/{b}'],
+  ['pz.lock.code', '🔒 Code incomplete: {a}/{b} digits', '🔒 Kode belum lengkap: {a}/{b} digit', '🔒 الكود غير مكتمل: {a}/{b} أرقام'],
+  ['pz.open', '🔓 Door unlocked!', '🔓 Pintu terbuka!', '🔓 فُتح الباب!'],
+  ['pz.intro.key', '🔒 Door locked. Find the KEY on a side platform off the route (see the yellow on the radar).', '🔒 Pintu terkunci. Temukan KUNCI di pijakan samping rute (lihat radar kuning).', '🔒 الباب مقفل. ابحث عن المفتاح على منصة جانبية بعيدة عن المسار (انظر الأصفر على الرادار).'],
+  ['pz.intro.fuse', '🔒 Door locked. Collect {n} FUSES on side platforms off the route (yellow on the radar).', '🔒 Pintu terkunci. Kumpulkan {n} SEKERING di pijakan samping rute (radar kuning).', '🔒 الباب مقفل. اجمع {n} من المصاهر على المنصات الجانبية (الأصفر على الرادار).'],
+  ['pz.intro.code', '🔒 Door locked. Find the {n} code DIGITS one by one; they are recorded in the HUD automatically.', '🔒 Pintu terkunci. Temukan {n} DIGIT kode satu per satu; tercatat otomatis di HUD.', '🔒 الباب مقفل. اعثر على {n} أرقام للكود واحدًا تلو الآخر؛ تُسجَّل تلقائيًا في الواجهة.'],
+  ['kp.title', 'DOOR KEYPAD', 'KEYPAD PINTU', 'لوحة أرقام الباب'],
+  ['kp.hint', 'Recorded code:', 'Kode tercatat:', 'الكود المسجّل:'],
+  ['kp.wrong', 'Wrong code! +5 seconds', 'Kode salah! +5 detik', 'كود خاطئ! +5 ثوانٍ'],
+  ['cry.first', '◆ Crystal! Collect them all for the 3rd star and more coins', '◆ Kristal! Kumpulkan semuanya untuk bintang ke-3 dan lebih banyak koin', '◆ بلورة! اجمعها كلها للنجمة الثالثة وعملات أكثر'],
+  ['cry.n', '◆ Crystal {a}/{b}', '◆ Kristal {a}/{b}', '◆ بلورة {a}/{b}'],
+  ['cp.first', '⚑ Checkpoint! If you get caught, you continue from here', '⚑ Checkpoint! Kalau tertangkap, kamu lanjut dari sini', '⚑ نقطة حفظ! إن أُمسكت ستكمل من هنا'],
+  ['cp.n', '⚑ Checkpoint saved', '⚑ Checkpoint tersimpan', '⚑ تم حفظ نقطة الحفظ'],
+  ['end.trainTitle', 'TRAINING COMPLETE!', 'LATIHAN SELESAI!', 'اكتمل التدريب!'],
+  ['end.trainSub', 'You know the basics: hop between platforms, avoid the water, and escape to a platform when you fall.', 'Kamu sudah paham dasarnya: lompat antar pijakan, hindari air, dan kabur ke pijakan saat jatuh.', 'أتقنت الأساسيات: اقفز بين المنصات وتجنب الماء واهرب إلى منصة عند السقوط.'],
+  ['end.toLv1', 'GO TO LEVEL 1 ▶', 'MASUK LEVEL 1 ▶', 'إلى المستوى 1 ◀'],
+  ['end.retryTrain', 'REPEAT TRAINING', 'ULANGI LATIHAN', 'أعد التدريب'],
+  ['end.winTitle', 'YOU ESCAPED!', 'KAMU LOLOS!', 'لقد نجوت!'],
+  ['end.dailyDone', 'Daily challenge complete!', 'Tantangan harian selesai!', 'اكتمل التحدي اليومي!'],
+  ['end.lvDone', '{t} complete!', '{t} selesai!', 'اكتمل {t}!'],
+  ['end.nextLv', 'LEVEL {n} ▶', 'LEVEL {n} ▶', 'المستوى {n} ◀'],
+  ['end.replay', 'REPLAY', 'ULANGI', 'أعد المحاولة'],
+  ['end.loseTitle', 'CAUGHT!', 'TERTANGKAP!', 'أُمسكت!'],
+  ['end.loseSub', 'The water monster got you. As soon as you fall, jump to the nearest platform!', 'Monster air menangkapmu. Begitu jatuh, langsung lompat ke pijakan terdekat!', 'أمسك بك وحش الماء. بمجرد أن تسقط اقفز فورًا إلى أقرب منصة!'],
+  ['end.cont', '⚑ CONTINUE FROM CHECKPOINT (+{n} s)', '⚑ LANJUT DARI CHECKPOINT (+{n} dtk)', '⚑ تابع من نقطة الحفظ (+{n} ث)'],
+  ['end.restartAll', 'RESTART FROM THE BEGINNING', 'ULANGI DARI AWAL', 'ابدأ من البداية'],
+  ['end.shop', '🛍 SHOP', '🛍 TOKO', '🛍 المتجر'],
+  ['end.menu', 'MENU', 'MENU', 'القائمة'],
+  ['cont.toast', 'Continuing from checkpoint  (+{n} s)', 'Lanjut dari checkpoint  (+{n} dtk)', 'المتابعة من نقطة الحفظ  (+{n} ث)'],
+  ['st.time', 'Time', 'Waktu', 'الوقت'],
+  ['st.target', 'target {t}', 'target {t}', 'الهدف {t}'],
+  ['st.crystals', 'Crystals', 'Kristal', 'البلورات'],
+  ['st.all', 'all', 'semua', 'الكل'],
+  ['st.trainReward', 'Training reward', 'Hadiah latihan', 'مكافأة التدريب'],
+  ['st.claimed', 'already claimed', 'sudah diambil', 'تم استلامها'],
+  ['st.puzzle', 'Door puzzle', 'Puzzle pintu', 'لغز الباب'],
+  ['st.key', 'Key', 'Kunci', 'مفتاح'],
+  ['st.fuse', 'Fuses', 'Sekering', 'مصاهر'],
+  ['st.code', 'Code', 'Kode', 'كود'],
+  ['st.wrongCode', 'wrong code {n}×', 'salah kode {n}×', 'كود خاطئ {n}×'],
+  ['st.solved', 'solved', 'terpecahkan', 'تم الحل'],
+  ['st.falls', 'Falls into water', 'Jatuh ke air', 'السقوط في الماء'],
+  ['st.caught', 'caught {n}×', 'tertangkap {n}×', 'أُمسكت {n}×'],
+  ['st.coins', 'Coins', 'Koin', 'العملات'],
+  ['st.first', 'first clear ×1.5', 'pertama ×1,5', 'أول إنجاز ×1.5'],
+  ['st.newFeat', '🔓 New feature', '🔓 Fitur baru', '🔓 ميزة جديدة'],
+  ['st.opened', 'unlocked!', 'terbuka!', 'تم الفتح!'],
+  ['st.score', 'SCORE', 'SKOR', 'النتيجة'],
+  ['st.record', 'NEW RECORD!', 'REKOR BARU!', 'رقم قياسي جديد!'],
+  ['end.rank', 'World rank: #{r}  ·  total score {s}', 'Peringkat dunia: #{r}  ·  skor total {s}', 'الترتيب العالمي: #{r}  ·  مجموع النقاط {s}'],
+  ['mn.back', '‹ BACK', '‹ KEMBALI', '› رجوع'],
+  ['mn.levels', 'SELECT LEVEL', 'PILIH LEVEL', 'اختر المستوى'],
+  ['mn.pick', 'LEVELS', 'PILIH LEVEL', 'المستويات'],
+  ['mn.play', '▶ PLAY LEVEL {n}', '▶ MAIN LEVEL {n}', '▶ العب المستوى {n}'],
+  ['mn.resume', '⏸ RESUME {t}', '⏸ LANJUTKAN {t}', '⏸ استئناف {t}'],
+  ['mn.daily', 'DAILY', 'HARIAN', 'يومي'],
+  ['mn.notPlayed', 'not played', 'belum main', 'لم تُلعب'],
+  ['mn.shop', 'SHOP', 'TOKO', 'المتجر'],
+  ['mn.board', 'RANKING', 'PERINGKAT', 'الترتيب'],
+  ['mn.help', 'HOW TO PLAY', 'CARA MAIN', 'طريقة اللعب'],
+  ['mn.settings', 'SETTINGS', 'PENGATURAN', 'الإعدادات'],
+  ['mn.new', 'NEW', 'BARU', 'جديد'],
+  ['mn.unlockAt', 'Finish level {n}', 'Tamatkan level {n}', 'أنهِ المستوى {n}'],
+  ['mn.lockedNote', '🔒 Unlocks after finishing Level {n}', '🔒 Terbuka setelah menamatkan Level {n}', '🔒 يُفتح بعد إنهاء المستوى {n}'],
+  ['mn.lang', 'Language', 'Bahasa', 'اللغة'],
+  ['shop.title', '🛍 SHOP', '🛍 TOKO', '🛍 المتجر'],
+  ['shop.have', 'Owned {a}/{b}', 'Punya {a}/{b}', 'تملك {a}/{b}'],
+  ['shop.full', 'FULL', 'PENUH', 'ممتلئ'],
+  ['shop.note', 'Earn coins by finishing levels. A first clear gives a ×1.5 bonus.', 'Koin didapat dengan menamatkan level. Level pertama kali memberi bonus ×1,5.', 'تكسب العملات بإنهاء المستويات. أول إنهاء للمستوى يمنح مكافأة ×1.5.'],
+  ['shop.maxed', '{name} is already full', '{name} sudah penuh', '{name} ممتلئ بالفعل'],
+  ['shop.poor', 'Not enough coins. Finish levels to earn coins.', 'Koin tidak cukup. Tamatkan level untuk dapat koin.', 'العملات غير كافية. أنهِ المستويات لتكسب العملات.'],
+  ['shop.bought', '{name} purchased!', '{name} dibeli!', 'تم شراء {name}!'],
+  ['set.title', '⚙ SETTINGS', '⚙ PENGATURAN', '⚙ الإعدادات'],
+  ['set.sub', 'Adjust sound', 'Atur suara', 'اضبط الصوت'],
+  ['set.sfx', 'Sound effects', 'Efek suara', 'المؤثرات الصوتية'],
+  ['set.amb', 'Ambience', 'Ambience', 'الأجواء'],
+  ['set.redo', '↻ REPEAT TRAINING', '↻ ULANGI LATIHAN', '↻ أعد التدريب'],
+  ['set.resetArm', 'TAP AGAIN: DELETE ALL PROGRESS', 'TAP LAGI: HAPUS SEMUA PROGRES', 'اضغط مجددًا: حذف كل التقدم'],
+  ['set.reset', '⚠ RESET PROGRESS', '⚠ RESET PROGRES', '⚠ إعادة ضبط التقدم'],
+  ['board.title', '🏆 RANKING', '🏆 PERINGKAT', '🏆 الترتيب'],
+  ['board.loading', 'Loading…', 'Memuat…', 'جارٍ التحميل…'],
+  ['board.sub', 'Total score across all levels + the daily challenge', 'Skor total semua level + tantangan harian', 'مجموع النقاط في كل المستويات + التحدي اليومي'],
+  ['board.empty', 'No scores yet. Be the first!', 'Belum ada skor. Jadilah yang pertama!', 'لا توجد نتائج بعد. كن الأول!'],
+  ['board.you', 'Your rank', 'Peringkatmu', 'ترتيبك'],
+  ['board.na', 'The leaderboard is not available yet.', 'Papan peringkat belum tersedia.', 'لوحة المتصدرين غير متاحة بعد.'],
+  ['help.step', 'HOW TO PLAY  {a} / {b}', 'CARA MAIN  {a} / {b}', 'طريقة اللعب  {a} / {b}'],
+  ['help.ok', 'GOT IT', 'MENGERTI', 'فهمت'],
+  ['help.next', 'NEXT ›', 'LANJUT ›', '‹ التالي'],
+  ['help.prev', '‹', '‹', '›'],
+  ['help.0.t', 'MOVE & JUMP', 'GERAK & LOMPAT', 'الحركة والقفز'],
+  ['help.0.d', 'Drag the joystick (bottom left) to walk and press JUMP to hop between platforms. Swipe the screen to rotate the camera. On a keyboard: WASD / arrows and Space. The radar at the top right shows the direction of the EXIT door.', 'Geser joystick (kiri bawah) untuk berjalan dan tekan JUMP untuk melompat antar pijakan. Geser layar untuk memutar kamera. Di keyboard: WASD / panah dan Spasi. Radar kanan atas menunjukkan arah pintu EXIT.', 'حرّك عصا التحكم (أسفل اليسار) للمشي واضغط قفز للانتقال بين المنصات. اسحب على الشاشة لتدوير الكاميرا. على لوحة المفاتيح: WASD / الأسهم ومفتاح المسافة. يُظهر الرادار في أعلى اليمين اتجاه باب الخروج.'],
+  ['help.1.t', "DON'T TOUCH THE WATER", 'JANGAN SENTUH AIR', 'لا تلمس الماء'],
+  ['help.1.d', 'The floor is water. The moment you touch it, a monster hears you and comes. You have a few seconds to jump back onto a platform before it starts chasing. A safe platform makes it lose your trail.', 'Lantai adalah air. Begitu menyentuhnya, monster mendengar dan datang. Kamu punya beberapa detik untuk melompat kembali ke pijakan sebelum ia mengejar. Pijakan yang aman membuatnya kehilangan jejak.', 'الأرضية ماء. بمجرد أن تلمسه يسمعك الوحش ويأتي. لديك بضع ثوانٍ للقفز عائدًا إلى منصة قبل أن يبدأ مطاردتك. المنصة الآمنة تجعله يفقد أثرك.'],
+  ['help.2.t', 'CRYSTALS & CHECKPOINTS', 'KRISTAL & CHECKPOINT', 'البلورات ونقاط الحفظ'],
+  ['help.2.d', 'Crystals ◆ sit on side platforms with riskier jumps; the radar marks them. Green flags are checkpoints: if you get caught, you can continue from there (+15 seconds).', 'Kristal ◆ ada di pijakan samping rute dengan lompatan lebih berisiko; radar menandainya. Bendera hijau adalah checkpoint: kalau tertangkap, kamu bisa lanjut dari sana (+15 detik).', 'توجد البلورات ◆ على منصات جانبية بقفزات أخطر ويشير إليها الرادار. الأعلام الخضراء نقاط حفظ: إن أُمسكت يمكنك المتابعة منها (+15 ثانية).'],
+  ['help.3.t', 'DOOR PUZZLES', 'PUZZLE PINTU', 'ألغاز الباب'],
+  ['help.3.d', 'From level 3 the EXIT door is locked. Levels 3–5: find a key. Levels 6–9: collect fuses. Level 10 and up: find the code digits one by one (recorded automatically in the HUD), then type them on the door keypad. A wrong code adds 5 seconds. Puzzle items sit on side platforms off the route, marked yellow on the radar.', 'Mulai level 3 pintu EXIT terkunci. Level 3–5: temukan kunci. Level 6–9: kumpulkan sekering. Level 10 ke atas: temukan digit kode satu per satu (tercatat otomatis di HUD), lalu ketik di keypad pintu. Salah kode menambah 5 detik. Benda puzzle ada di pijakan samping rute, ditandai kuning di radar.', 'بدءًا من المستوى 3 يكون باب الخروج مقفلًا. المستويات 3–5: اعثر على مفتاح. المستويات 6–9: اجمع المصاهر. من المستوى 10 فما فوق: اعثر على أرقام الكود واحدًا تلو الآخر (تُسجَّل تلقائيًا في الواجهة) ثم أدخلها في لوحة أرقام الباب. الكود الخاطئ يضيف 5 ثوانٍ. عناصر اللغز على منصات جانبية بعيدة عن المسار وتظهر بالأصفر على الرادار.'],
+  ['help.4.t', 'COINS, SHOP & ITEMS', 'KOIN, TOKO & ITEM', 'العملات والمتجر والعناصر'],
+  ['help.4.d', 'Finish levels to earn coins 🪙, then spend them in the SHOP. Three item slots sit at the bottom center of the screen (keyboard: 1, 2, 3). ① Stone: throw toward the camera, monsters are distracted for 6 seconds. ② Acupuncture needle: throw straight at a monster to stun it for 5 seconds; a miss is wasted. ③ Chakra shoes: run on water for 15 seconds without being chased.', 'Tamatkan level untuk mendapat koin 🪙, lalu belanja di TOKO. Tiga slot item ada di tengah bawah layar (keyboard: 1, 2, 3). ① Batu: lempar ke arah kamera, monster teralihkan 6 detik. ② Jarum akupuntur: lempar lurus ke monster, tersengat 5 detik; kalau meleset sia-sia. ③ Sepatu chakra: berlari di atas air 15 detik tanpa dikejar.', 'أنهِ المستويات لتكسب العملات 🪙 ثم أنفقها في المتجر. توجد ثلاث خانات للعناصر في منتصف أسفل الشاشة (لوحة المفاتيح: 1 و2 و3). ① الحجر: ارمِه نحو الكاميرا فتنشغل الوحوش 6 ثوانٍ. ② إبرة الوخز: ارمِها مباشرة على الوحش لتشلّه 5 ثوانٍ؛ وإن أخطأت تضيع. ③ حذاء تشاكرا: اركض على الماء 15 ثانية دون أن تُطارد.'],
+  ['help.5.t', 'STARS & RANKING', 'BINTANG & PERINGKAT', 'النجوم والترتيب'],
+  ['help.5.d', '★ finish the level  ·  ★ time under the target  ·  ★ all crystals. Scores rise with fast times, crystals and few falls. Your total score across all levels + the daily challenge goes on the leaderboard.', '★ selesai level  ·  ★ waktu di bawah target  ·  ★ semua kristal. Skor makin tinggi untuk waktu cepat, kristal, dan sedikit jatuh. Skor total semua level + tantangan harian masuk papan peringkat.', '★ إنهاء المستوى  ·  ★ زمن أقل من الهدف  ·  ★ كل البلورات. تزيد النقاط مع السرعة والبلورات وقلة السقوط. مجموع نقاطك في كل المستويات + التحدي اليومي يدخل في لوحة المتصدرين.'],
+  ['coach.safe', '✅ Safe! The platform made the monster lose your trail', '✅ Aman! Pijakan membuat monster kehilangan jejak', '✅ بأمان! المنصة جعلت الوحش يفقد أثرك'],
+  ['coach.escape', 'You fell in the water! Get near a platform and press JUMP', 'Kamu jatuh ke air! Dekati pijakan lalu tekan JUMP', 'سقطت في الماء! اقترب من منصة ثم اضغط قفز'],
+  ['coach.trap', 'The platform is collapsing! Jump now!', 'Pijakan runtuh! Lompat sekarang!', 'المنصة تنهار! اقفز الآن!'],
+  ['coach.exit', 'Enter the EXIT door', 'Masuk ke pintu EXIT', 'ادخل من باب الخروج'],
+  ['coach.crystal', 'Grab the crystal ◆ for bonus stars and coins', 'Ambil kristal ◆ untuk bonus bintang dan koin', 'التقط البلورة ◆ لتحصل على نجوم وعملات إضافية'],
+  ['coach.move', 'Drag the joystick to walk', 'Geser joystick untuk berjalan', 'حرّك عصا التحكم للمشي'],
+  ['coach.jump', 'Press JUMP to hop to the next platform', 'Tekan JUMP untuk melompat ke pijakan berikutnya', 'اضغط قفز للانتقال إلى المنصة التالية'],
+  ['coach.stone', 'Tap slot ① to throw a stone. Monsters will chase the sound, not you.', 'Ketuk slot ① untuk melempar batu. Monster akan mengejar suaranya, bukan kamu.', 'المس الخانة ① لرمي حجر. ستطارد الوحوش الصوت وليس أنت.'],
+  ['mon.gaveup', 'The monster lost interest. Quickly climb onto a platform!', 'Monster kehilangan minat. Cepat naik ke pijakan!', 'فقد الوحش اهتمامه. اصعد بسرعة إلى منصة!']
+];
+const I18N = {};
+LANGS.forEach(l => { I18N[l] = {}; });
+TXT.forEach(r => { LANGS.forEach((l, i) => { I18N[l][r[0]] = r[i + 1]; }); });
+let LANG = 'en';
+function tr(key, p) {
+  let s = I18N[LANG][key];
+  if (s === undefined) s = I18N.en[key];
+  if (s === undefined) return key;
+  if (p) s = s.replace(/\{(\w+)\}/g, (m, k) => (p[k] === undefined ? m : p[k]));
+  return s;
+}
+function ltr(v) { return '\u2066' + v + '\u2069'; }   // keeps digit sequences in reading order inside Arabic text
+function fmtN(n) { return Math.round(n).toLocaleString(LANG === 'id' ? 'id-ID' : 'en-US'); }
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.documentElement.style.setProperty('--new-label', JSON.stringify(tr('mn.new')));
+  document.body.classList.toggle('lang-ar', LANG === 'ar');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = tr(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', tr(el.getAttribute('data-i18n-aria'))); });
+  const rtl = LANG === 'ar' ? 'rtl' : 'ltr';
+  ['menu-panel', 'help-card', 'keypad-card', 'end-screen', 'toast', 'coach-text', 'story-card', 'goal-hint', 'danger-banner', 'hud-info', 'loading-title-block', 'loading-footer', 'minimap-panel']
+    .forEach(id => { const el = document.getElementById(id) || document.querySelector('.' + id); if (el) el.setAttribute('dir', rtl); });
+}
+function setLang(l) {
+  if (!LANGS.includes(l)) l = 'en';
+  LANG = l;
+  applyLang();
+  if (window.__onLang) window.__onLang();
+}
+
 
 async function run(mode) {
   const runToken = (window.__dontTouchWaterRunToken || 0) + 1;
@@ -799,7 +1020,7 @@ async function run(mode) {
     loadingPreviewCamera.lookAt(0,0.95,0);
     const pct=Math.min(94,Math.round(12+(now-loadingStarted)/38));
     loadingProgressFill.style.width=pct+'%';
-    if (loadingStatus) loadingStatus.textContent = t<1.4 ? 'Membangun ruang porselen...' : t<3.2 ? 'Memetakan pijakan aman...' : 'Mendeteksi gerakan di bawah air...';
+    if (loadingStatus) loadingStatus.textContent = tr(t<1.4 ? 'load.s1' : t<3.2 ? 'load.s2' : 'load.s3');
     return true;
   }
 
@@ -966,13 +1187,17 @@ async function run(mode) {
     { id: 'needle', name: 'Jarum Akupuntur', price: 60, max: 5, desc: 'Lempar lurus ke monster: tersengat 5 detik. Kalau meleset, jarumnya sia-sia.' },
     { id: 'shoes', name: 'Sepatu Chakra', price: 120, max: 3, desc: 'Berlari di atas air selama 15 detik tanpa memancing monster.' }
   ];
+  ITEMS.forEach(it => {   // names/descriptions follow the selected language
+    Object.defineProperty(it, 'name', { get: () => tr('item.' + it.id) });
+    Object.defineProperty(it, 'desc', { get: () => tr('item.' + it.id + '.d') });
+  });
   const STUN_TIME = 5, DISTRACT_TIME = 6, SHOES_TIME = 15;
   const ITEM_ICONS = [
     '<svg viewBox="0 0 48 48"><path d="M7 31 L13 16 L27 9 L40 19 L38 34 L22 41 Z" fill="#9aa4ad" stroke="#e3eaef" stroke-width="2.5" stroke-linejoin="round"/><path d="M13 16 L22 24 L38 34 M27 9 L22 24" fill="none" stroke="#6f7a84" stroke-width="2"/></svg>',
     '<svg viewBox="0 0 48 48"><line x1="8" y1="40" x2="35" y2="13" stroke="#f1d27a" stroke-width="3.5" stroke-linecap="round"/><circle cx="38" cy="10" r="5.5" fill="#ff7b6b" stroke="#fff" stroke-width="2"/><line x1="8" y1="40" x2="5" y2="44" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
     '<svg viewBox="0 0 48 48"><path d="M14 7 H28 V23 L41 29 Q45 31 45 36 V40 H12 Z" fill="#3aa7d8" stroke="#d9f6ff" stroke-width="2.5" stroke-linejoin="round"/><path d="M12 34 H45" stroke="#d9f6ff" stroke-width="2"/><path d="M3 21 q6 -2 8 4 M2 29 q6 -2 8 4" stroke="#8fe8ff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>'
   ];
-  function freshSave() { return { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0, coins: 50, inv: [3, 0, 0], snd: [8, 7], ftue: 0, seen: 0, legacy: 0 }; }
+  function freshSave() { return { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0, coins: 50, inv: [3, 0, 0], snd: [8, 7], ftue: 0, seen: 0, legacy: 0, lang: 'en' }; }
   const save = freshSave();
 
   function dateKey() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
@@ -1008,6 +1233,8 @@ async function run(mode) {
   }
   // Features open up gradually as levels are cleared.
   const FEATURES = [{ id: 'shop', at: 2, name: 'TOKO', bit: 1 }, { id: 'daily', at: 3, name: 'TANTANGAN HARIAN', bit: 2 }, { id: 'board', at: 5, name: 'PERINGKAT', bit: 4 }];
+  FEATURES.forEach(f => Object.defineProperty(f, 'name', { get: () => tr('feat.' + f.id) }));
+  function specTitle(s) { return s.kind === 'level' ? tr('title.lv', { n: s.n }) : s.kind === 'daily' ? tr('title.daily') : tr('title.train'); }
   function featureOpen(id) { const f = FEATURES.find(x => x.id === id); return !!save.legacy || save.maxLv >= f.at; }
   function effSize() { return levelSpec ? levelSpec.size : cfg.settings.roomSize; }
   function effSeed() { return levelSpec ? levelSpec.seed : cfg.settings.mapSeed; }
@@ -1039,6 +1266,8 @@ async function run(mode) {
     save.ftue = st.ftue != null ? (st.ftue | 0) : (old ? 2 : 0);
     save.seen = st.seen | 0;
     save.legacy = (st.legacy || old) ? 1 : 0;
+    save.lang = LANGS.includes(st.lang) ? st.lang : 'en';
+    setLang(save.lang);
     if (typeof soundSystem !== 'undefined') soundSystem.applyVolumes();
   }
   let saveTimer = 0;
@@ -3429,8 +3658,8 @@ async function run(mode) {
 
     if (minimapTitle) minimapTitle.textContent = `TACTICAL MAP • ${RS} × ${RS} m`;
     if (minimapSeed) minimapSeed.textContent = `SEED ${cfg.settings.mapSeed}`;
-    if (minimapStatus) minimapStatus.textContent = `${platformBoxes.length} pijakan  •  ${pillarBoxes.length} tiang  •  ${routeBoxes.length} titik rute`;
-    if (minimapWarning) minimapWarning.textContent = 'S · MULAI   /   E · EXIT';
+    if (minimapStatus) minimapStatus.textContent = tr('map.stat', { a: platformBoxes.length, b: pillarBoxes.length, c: routeBoxes.length });
+    if (minimapWarning) minimapWarning.textContent = tr('map.warn');
   }
 
   // Play mode: local radar centered on the player (big map) + EXIT direction
@@ -3580,10 +3809,10 @@ async function run(mode) {
         if (dd < nd) { nd = dd; nearest = it; }
       }
       if (nearest) {
-        const what = pzi.type === 'key' ? 'kunci' : pzi.type === 'fuse' ? `sekering ${runStats.pz}/${pzi.count}` : `digit kode ${runStats.pz}/${pzi.count}`;
-        setText(goalHint, `Cari ${what} • ${Math.round(nd)} m`);
-      } else setText(goalHint, `Ketik kode di pintu EXIT • ${Math.round(d)} m`);
-    } else setText(goalHint, `Lompati pijakan menuju EXIT • ${Math.round(d)} m`);
+        const what = pzi.type === 'key' ? tr('goal.key') : pzi.type === 'fuse' ? tr('goal.fuse', { a: runStats.pz, b: pzi.count }) : tr('goal.digit', { a: runStats.pz, b: pzi.count });
+        setText(goalHint, tr('goal.find', { what, d: Math.round(nd) }));
+      } else setText(goalHint, tr('goal.type', { d: Math.round(d) }));
+    } else setText(goalHint, tr('goal.go', { d: Math.round(d) }));
   }
 
   // Edit / Play Mode UI Initialization
@@ -3677,13 +3906,13 @@ async function run(mode) {
     hudTimer = 0.1;
     if (!levelSpec) return;
     if (levelSpec.kind === 'tutorial') {
-      setText(hudL1, 'LATIHAN');
+      setText(hudL1, tr('title.train'));
       hudL1.classList.remove('over');
       setText(hudL2, `◆ ${runStats.got}/${crystals.length}`);
     } else {
-      setText(hudL1, `${levelSpec.title}  ·  ${fmtTime(runStats.t)}`);
+      setText(hudL1, `${specTitle(levelSpec)}  ·  ${fmtTime(runStats.t)}`);
       hudL1.classList.toggle('over', runStats.t > levelSpec.par);
-      setText(hudL2, `◆ ${runStats.got}/${crystals.length}   ·   target ${fmtTime(levelSpec.par)}   ·   jatuh ${runStats.falls}`);
+      setText(hudL2, tr('hud.l2', { got: runStats.got, tot: crystals.length, par: fmtTime(levelSpec.par), f: runStats.falls }));
     }
     const pt = puzzleHudText();
     setText(hudL3, pt);
@@ -3698,10 +3927,10 @@ async function run(mode) {
   function puzzleHudText() {
     const pz = puzzleInfo();
     if (!pz) return '';
-    if (runStats.solved) return pz.type === 'code' ? '🔓 Kode benar' : '🔓 Pintu terbuka';
-    if (pz.type === 'key') return runStats.pz ? '🔑 Kunci didapat' : '🔒 Cari KUNCI';
-    if (pz.type === 'fuse') return `⚡ Sekering ${runStats.pz}/${pz.count}`;
-    return '🔒 Kode: ' + Array.from({ length: pz.count }, (_, i) => runStats.slots[i] == null ? '_' : runStats.slots[i]).join(' ');
+    if (runStats.solved) return pz.type === 'code' ? tr('pz.hud.codeOk') : tr('pz.hud.open');
+    if (pz.type === 'key') return runStats.pz ? tr('pz.hud.keyGot') : tr('pz.hud.keyFind');
+    if (pz.type === 'fuse') return tr('pz.hud.fuse', { a: runStats.pz, b: pz.count });
+    return tr('pz.hud.code', { c: ltr(Array.from({ length: pz.count }, (_, i) => runStats.slots[i] == null ? '_' : runStats.slots[i]).join(' ')) });
   }
   function collectPuzzle(it) {
     const pz = levelSpec.puzzle;
@@ -3710,9 +3939,9 @@ async function run(mode) {
     soundSystem.playBlip([880, 1175, 1568], 0.07, 0.28, 0.45);
     spawnVictoryBurst(it.pad.x, it.pad.top + 0.45, it.pad.z, 14);
     const done = runStats.pz >= pz.count;
-    if (pz.type === 'key') toast('🔑 Kunci didapat! Pintu EXIT terbuka', 3000);
-    else if (pz.type === 'fuse') toast(done ? '⚡ Semua sekering terkumpul! Pintu EXIT terbuka' : `⚡ Sekering ${runStats.pz}/${pz.count}`, 2600);
-    else toast(done ? `Kode lengkap: ${runStats.slots.join(' ')}. Ketik di keypad pintu EXIT` : `Digit ke-${it.slot + 1} = ${it.digit}   (${runStats.pz}/${pz.count})`, done ? 4200 : 2600);
+    if (pz.type === 'key') toast(tr('pz.t.key'), 3000);
+    else if (pz.type === 'fuse') toast(done ? tr('pz.t.fuseAll') : tr('pz.t.fuse', { a: runStats.pz, b: pz.count }), 2600);
+    else toast(done ? tr('pz.t.codeAll', { c: ltr(runStats.slots.join(' ')) }) : tr('pz.t.digit', { i: it.slot + 1, d: it.digit, a: runStats.pz, b: pz.count }), done ? 4200 : 2600);
     if (done && pz.type !== 'code') { runStats.solved = true; setDoorLocked(false); soundSystem.playCheckpoint(); }
     updateHud(0, true);
   }
@@ -3722,15 +3951,15 @@ async function run(mode) {
     if (pz.type === 'code' && runStats.pz >= pz.count) { if (nowMs > keypadCooldown) openKeypad(); return; }
     if (nowMs - lockToastAt < 2600) return;
     lockToastAt = nowMs;
-    toast(pz.type === 'key' ? '🔒 Pintu terkunci: cari KUNCI dulu' : pz.type === 'fuse' ? `🔒 Pintu terkunci: sekering ${runStats.pz}/${pz.count}` : `🔒 Kode belum lengkap: ${runStats.pz}/${pz.count} digit`, 2200);
+    toast(pz.type === 'key' ? tr('pz.lock.key') : pz.type === 'fuse' ? tr('pz.lock.fuse', { a: runStats.pz, b: pz.count }) : tr('pz.lock.code', { a: runStats.pz, b: pz.count }), 2200);
   }
   function renderKeypad() {
     const n = levelSpec.puzzle.count;
     const boxes = Array.from({ length: n }, (_, i) => `<i>${kpBuf[i] || ''}</i>`).join('');
     const ks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✕'];
     keypadCard.innerHTML =
-      `<div class="kp-title">KEYPAD PINTU</div><div class="kp-hint">Kode tercatat: <b>${runStats.slots.join(' ')}</b></div>` +
-      `<div class="kp-disp${kpShake ? ' shake' : ''}">${boxes}</div><div class="kp-msg">${kpMsg}</div>` +
+      `<div class="kp-title">${tr('kp.title')}</div><div class="kp-hint">${tr('kp.hint')} <b>${ltr(runStats.slots.join(' '))}</b></div>` +
+      `<div class="kp-disp${kpShake ? ' shake' : ''}">${boxes}</div><div class="kp-msg">${kpMsg ? tr('kp.wrong') : ''}</div>` +
       `<div class="kp-grid">${ks.map(k => `<button data-k="${k}">${k}</button>`).join('')}</div>`;
     kpShake = false;
   }
@@ -3764,11 +3993,11 @@ async function run(mode) {
           setDoorLocked(false);
           soundSystem.playCheckpoint();
           closeKeypad();
-          toast('🔓 Pintu terbuka!', 2000);
+          toast(tr('pz.open'), 2000);
           updateHud(0, true);
         } else {
           runStats.wrong++; runStats.t += 5;
-          kpBuf = ''; kpMsg = 'Kode salah! +5 detik'; kpShake = true;
+          kpBuf = ''; kpMsg = 'wrong'; kpShake = true;
           soundSystem.playAlert();
           renderKeypad();
         }
@@ -3781,7 +4010,7 @@ async function run(mode) {
     c.got = true; c.g.visible = false; runStats.got++;
     soundSystem.playPickup();
     spawnVictoryBurst(c.pad.x, c.pad.top + 0.4, c.pad.z, 12);
-    toast((save.seen & 32) ? `◆ Kristal ${runStats.got}/${crystals.length}` : '◆ Kristal! Kumpulkan semuanya untuk bintang ke-3 dan lebih banyak koin', (save.seen & 32) ? 1400 : 3600);
+    toast((save.seen & 32) ? tr('cry.n', { a: runStats.got, b: crystals.length }) : tr('cry.first'), (save.seen & 32) ? 1400 : 3600);
     markSeen(32);
     updateHud(0, true);
   }
@@ -3791,7 +4020,7 @@ async function run(mode) {
       paintCp(c, true);
       runStats.cp = plat;
       soundSystem.playCheckpoint();
-      toast((save.seen & 16) ? '⚑ Checkpoint tersimpan' : '⚑ Checkpoint! Kalau tertangkap, kamu lanjut dari sini', (save.seen & 16) ? 1800 : 3800);
+      toast((save.seen & 16) ? tr('cp.n') : tr('cp.first'), (save.seen & 16) ? 1800 : 3800);
       markSeen(16);
     }
   }
@@ -3855,13 +4084,13 @@ async function run(mode) {
     if (win && levelSpec.kind === 'tutorial') {
       const reward = finishTutorial();
       endShopBtn.style.display = 'none';
-      endTitle.textContent = 'LATIHAN SELESAI!';
+      endTitle.textContent = tr('end.trainTitle');
       endStars.textContent = '✔'; endStars.style.display = '';
-      endSub.textContent = 'Kamu sudah paham dasarnya: lompat antar pijakan, hindari air, dan kabur ke pijakan saat jatuh.';
-      endStats.innerHTML = row('Kristal', `${runStats.got}/${crystals.length}`, '') + row('Hadiah latihan', '🪙 +' + reward, reward ? '' : 'sudah diambil', true);
-      nextBtn.style.display = ''; nextBtn.textContent = 'MASUK LEVEL 1 ▶';
+      endSub.textContent = tr('end.trainSub');
+      endStats.innerHTML = row(tr('st.crystals'), `${runStats.got}/${crystals.length}`, '') + row(tr('st.trainReward'), '🪙 +' + reward, reward ? '' : tr('st.claimed'), true);
+      nextBtn.style.display = ''; nextBtn.textContent = tr('end.toLv1');
       contBtn.style.display = 'none';
-      restartBtn.textContent = 'ULANGI LATIHAN';
+      restartBtn.textContent = tr('end.retryTrain');
       endScreen.classList.add('show');
       endLockUntil = performance.now() + 700;
       jsReset();
@@ -3870,40 +4099,40 @@ async function run(mode) {
     }
     if (win) {
       const r = finishLevel();
-      endTitle.textContent = 'KAMU LOLOS!';
+      endTitle.textContent = tr('end.winTitle');
       endStars.textContent = starStr(r.stars);
       endStars.style.display = '';
-      endSub.textContent = levelSpec.kind === 'daily' ? 'Tantangan harian selesai!' : `${levelSpec.title} selesai!`;
+      endSub.textContent = levelSpec.kind === 'daily' ? tr('end.dailyDone') : tr('end.lvDone', { t: specTitle(levelSpec) });
       endStats.innerHTML =
-        row('Waktu', fmtTime(runStats.t), (r.stTime ? '★ ' : '☆ ') + 'target ' + fmtTime(r.par), r.stTime) +
-        row('Kristal', `${r.got}/${r.total}`, r.total ? ((r.stCry ? '★ ' : '☆ ') + 'semua') : '—', r.stCry) +
-        (puzzleInfo() ? row('Puzzle pintu', puzzleInfo().type === 'key' ? 'Kunci' : puzzleInfo().type === 'fuse' ? 'Sekering' : 'Kode', runStats.wrong ? `salah kode ${runStats.wrong}×` : 'terpecahkan', !runStats.wrong) : '') +
-        row('Jatuh ke air', runStats.falls, runStats.deaths ? `tertangkap ${runStats.deaths}×` : '') +
-        row('Koin', '🪙 +' + r.coins, r.first ? 'pertama ×1,5' : '', true) +
-        (r.unlocks.length ? row('🔓 Fitur baru', r.unlocks.join(', '), 'terbuka!', true) : '') +
-        row('SKOR', r.score.toLocaleString('id-ID'), r.newBest ? 'REKOR BARU!' : '', false, 'total');
+        row(tr('st.time'), fmtTime(runStats.t), (r.stTime ? '★ ' : '☆ ') + tr('st.target', { t: fmtTime(r.par) }), r.stTime) +
+        row(tr('st.crystals'), `${r.got}/${r.total}`, r.total ? ((r.stCry ? '★ ' : '☆ ') + tr('st.all')) : '—', r.stCry) +
+        (puzzleInfo() ? row(tr('st.puzzle'), puzzleInfo().type === 'key' ? tr('st.key') : puzzleInfo().type === 'fuse' ? tr('st.fuse') : tr('st.code'), runStats.wrong ? tr('st.wrongCode', { n: runStats.wrong }) : tr('st.solved'), !runStats.wrong) : '') +
+        row(tr('st.falls'), runStats.falls, runStats.deaths ? tr('st.caught', { n: runStats.deaths }) : '') +
+        row(tr('st.coins'), '🪙 +' + r.coins, r.first ? tr('st.first') : '', true) +
+        (r.unlocks.length ? row(tr('st.newFeat'), r.unlocks.join(', '), tr('st.opened'), true) : '') +
+        row(tr('st.score'), fmtN(r.score), r.newBest ? tr('st.record') : '', false, 'total');
       const canNext = levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL;
       nextBtn.style.display = canNext ? '' : 'none';
-      nextBtn.textContent = canNext ? `LEVEL ${levelSpec.n + 1} ▶` : '';
+      nextBtn.textContent = canNext ? tr('end.nextLv', { n: levelSpec.n + 1 }) : '';
       contBtn.style.display = 'none';
-      restartBtn.textContent = 'ULANGI';
+      restartBtn.textContent = tr('end.replay');
       submitBoard().then(res => {
-        if (res && res.userRank && gameState === 'won') endRank.textContent = `Peringkat dunia: #${res.userRank}  ·  skor total ${totalScore().toLocaleString('id-ID')}`;
+        if (res && res.userRank && gameState === 'won') endRank.textContent = tr('end.rank', { r: res.userRank, s: fmtN(totalScore()) });
       });
     } else {
       runStats.deaths++;
-      endTitle.textContent = 'TERTANGKAP!';
+      endTitle.textContent = tr('end.loseTitle');
       endStars.textContent = '';
       endStars.style.display = 'none';
-      endSub.textContent = 'Monster air menangkapmu. Begitu jatuh, langsung lompat ke pijakan terdekat!';
+      endSub.textContent = tr('end.loseSub');
       endStats.innerHTML =
-        row('Waktu', fmtTime(runStats.t), '') +
-        row('Kristal', `${runStats.got}/${crystals.length}`, '') +
-        row('Jatuh ke air', runStats.falls, '');
+        row(tr('st.time'), fmtTime(runStats.t), '') +
+        row(tr('st.crystals'), `${runStats.got}/${crystals.length}`, '') +
+        row(tr('st.falls'), runStats.falls, '');
       nextBtn.style.display = 'none';
       contBtn.style.display = runStats.cp ? '' : 'none';
-      contBtn.textContent = `⚑ LANJUT DARI CHECKPOINT (+${CP_PENALTY} dtk)`;
-      restartBtn.textContent = 'ULANGI DARI AWAL';
+      contBtn.textContent = tr('end.cont', { n: CP_PENALTY });
+      restartBtn.textContent = tr('end.restartAll');
     }
     endScreen.classList.add('show');
     endLockUntil = performance.now() + 700;
@@ -3948,9 +4177,9 @@ async function run(mode) {
     restartGame(false);
     updateHud(0, true);
     const pzi = puzzleInfo();
-    if (pzi && levelSpec.kind !== 'tutorial') toast(pzi.type === 'key' ? '🔒 Pintu terkunci. Temukan KUNCI di pijakan samping rute (lihat radar kuning).'
-      : pzi.type === 'fuse' ? `🔒 Pintu terkunci. Kumpulkan ${pzi.count} SEKERING di pijakan samping rute (radar kuning).`
-      : `🔒 Pintu terkunci. Temukan ${pzi.count} DIGIT kode satu per satu; tercatat otomatis di HUD.`, 6500);
+    if (pzi && levelSpec.kind !== 'tutorial') toast(pzi.type === 'key' ? tr('pz.intro.key')
+      : pzi.type === 'fuse' ? tr('pz.intro.fuse', { n: pzi.count })
+      : tr('pz.intro.code', { n: pzi.count }), 6500);
     updateGating();
     if (levelSpec.kind === 'tutorial') ftueBegin(); else { ftueEnd(); clearCoach(); levelCoach(); }
   }
@@ -3965,7 +4194,7 @@ async function run(mode) {
     runStats.t += CP_PENALTY;
     restartGame(true);
     updateHud(0, true);
-    toast(`Lanjut dari checkpoint  (+${CP_PENALTY} dtk)`, 2200);
+    toast(tr('cont.toast', { n: CP_PENALTY }), 2200);
   }
   function beginLevel(spec) {
     menuScreen.classList.remove('show');
@@ -3988,43 +4217,44 @@ async function run(mode) {
       const e = save.lv[i - 1], locked = i > save.maxLv + 1;
       cells += `<button class="lv-cell${locked ? ' locked' : ''}${i === next ? ' next' : ''}" data-act="level" data-n="${i}"${locked ? ' disabled' : ''}><b>${locked ? '🔒' : i}</b><span>${e ? starStr(e.st) : (locked ? '' : '☆☆☆')}</span></button>`;
     }
-    return `<div class="mn-title sm">PILIH LEVEL</div><div class="lv-grid">${cells}</div><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+    return `<div class="mn-title sm">${tr('mn.levels')}</div><div class="lv-grid">${cells}</div><button class="mn-btn sm" data-act="back">${tr('mn.back')}</button>`;
   }
   function renderShop() {
     const cards = ITEMS.map((it, i) => {
       const full = save.inv[i] >= it.max, poor = save.coins < it.price;
-      return `<div class="shop-card"><div class="sh-ico">${ITEM_ICONS[i]}</div><div class="sh-info"><b>${it.name}</b><span>${it.desc}</span><em>Punya ${save.inv[i]}/${it.max}</em></div>` +
-        `<button class="sh-buy${full || poor ? ' off' : ''}" data-act="buy" data-i="${i}">${full ? 'PENUH' : '🪙 ' + it.price}</button></div>`;
+      return `<div class="shop-card"><div class="sh-ico">${ITEM_ICONS[i]}</div><div class="sh-info"><b>${it.name}</b><span>${it.desc}</span><em>${tr('shop.have', { a: save.inv[i], b: it.max })}</em></div>` +
+        `<button class="sh-buy${full || poor ? ' off' : ''}" data-act="buy" data-i="${i}">${full ? tr('shop.full') : '🪙 ' + it.price}</button></div>`;
     }).join('');
-    return `<div class="mn-title sm">🛍 TOKO</div><div class="mn-coins">🪙 ${save.coins.toLocaleString('id-ID')}</div><div class="shop-msg">${shopMsg}</div>${cards}` +
-      `<div class="mn-sub">Koin didapat dengan menamatkan level. Level pertama kali memberi bonus ×1,5.</div><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+    return `<div class="mn-title sm">${tr('shop.title')}</div><div class="mn-coins">🪙 ${fmtN(save.coins)}</div><div class="shop-msg">${shopMsg ? tr(shopMsg.k, shopMsg.p) : ''}</div>${cards}` +
+      `<div class="mn-sub">${tr('shop.note')}</div><button class="mn-btn sm" data-act="back">${tr('mn.back')}</button>`;
   }
   function renderSettings() {
     const row = (label, idx) => `<div class="set-row"><span>${label}</span><input type="range" min="0" max="10" step="1" value="${save.snd[idx]}" data-s="${idx}"><b>${save.snd[idx]}</b></div>`;
-    return `<div class="mn-title sm">⚙ PENGATURAN</div><div class="mn-sub">Atur suara</div>${row('Efek suara', 0)}${row('Ambience', 1)}<button class="mn-btn sm" data-act="redo-ftue">↻ ULANGI LATIHAN</button><button class="mn-btn sm danger${resetArm ? ' armed' : ''}" data-act="reset">${resetArm ? 'TAP LAGI: HAPUS SEMUA PROGRES' : '⚠ RESET PROGRES'}</button><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+    return `<div class="mn-title sm">${tr('set.title')}</div><div class="mn-sub">${tr('set.sub')}</div>${row(tr('set.sfx'), 0)}${row(tr('set.amb'), 1)}<button class="mn-btn sm" data-act="redo-ftue">${tr('set.redo')}</button><button class="mn-btn sm danger${resetArm ? ' armed' : ''}" data-act="reset">${resetArm ? tr('set.resetArm') : tr('set.reset')}</button><button class="mn-btn sm" data-act="back">${tr('mn.back')}</button>`;
   }
   function renderMenu() {
     rollDaily();
     const next = Math.max(1, Math.min(MAX_LEVEL, save.maxLv + 1));
     const dk = dateKey(), d = save.daily;
     const dLabel = `${dk % 100}/${Math.floor(dk / 100) % 100}`;
-    const resume = pausedLevel ? `<button class="mn-btn primary" data-act="resume">⏸ LANJUTKAN ${esc(levelSpec.title)}</button>` : '';
-    const stats = `<div class="mn-stats"><span>★ ${totalStars()}/${MAX_LEVEL * 3}</span><span>🪙 ${save.coins.toLocaleString('id-ID')}</span></div>`;
+    const resume = pausedLevel ? `<button class="mn-btn primary" data-act="resume">${tr('mn.resume', { t: esc(specTitle(levelSpec)) })}</button>` : '';
+    const stats = `<div class="mn-stats"><span>★ ${totalStars()}/${MAX_LEVEL * 3}</span><span>🪙 ${fmtN(save.coins)}</span></div>`;
     let html;
     if (menuView === 'list') {
-      const dTxt = d.k === dk && d.st > 0 ? starStr(d.st) : 'belum main';
-      const lockTile = (icon, label, at) => `<button class="mn-tile locked" data-act="locked" data-at="${at}"><i>🔒</i><b>${label}</b><small>Tamatkan level ${at}</small></button>`;
+      const dTxt = d.k === dk && d.st > 0 ? starStr(d.st) : tr('mn.notPlayed');
+      const lockTile = (icon, label, at) => `<button class="mn-tile locked" data-act="locked" data-at="${at}"><i>🔒</i><b>${label}</b><small>${tr('mn.unlockAt', { n: at })}</small></button>`;
       const isNew = bit => (save.seen & bit) ? '' : ' new';
-      html = `<div class="mn-title sm">DON'T TOUCH WATER</div>${stats}${menuNote ? `<div class="shop-msg">${menuNote}</div>` : ''}${resume}` +
-        `<button class="mn-btn primary" data-act="level" data-n="${next}">▶ MAIN LEVEL ${next}</button>` +
+      html = `<div class="mn-title sm">DON'T TOUCH WATER</div>${stats}${menuNote ? `<div class="shop-msg">${tr('mn.lockedNote', { n: menuNote })}</div>` : ''}${resume}` +
+        `<button class="mn-btn primary" data-act="level" data-n="${next}">${tr('mn.play', { n: next })}</button>` +
         `<div class="mn-grid">` +
-        `<button class="mn-tile" data-act="view" data-v="levels"><i>☰</i><b>PILIH LEVEL</b></button>` +
-        (featureOpen('daily') ? `<button class="mn-tile daily${isNew(2)}" data-act="daily" data-bit="2"><i>☀</i><b>HARIAN</b><small>${dLabel} · ${dTxt}</small></button>` : lockTile('☀', 'HARIAN', 3)) +
-        (featureOpen('shop') ? `<button class="mn-tile shop${isNew(1)}" data-act="view" data-v="shop" data-bit="1"><i>🛍</i><b>TOKO</b><small>🪙 ${save.coins.toLocaleString('id-ID')}</small></button>` : lockTile('🛍', 'TOKO', 2)) +
-        (featureOpen('board') ? `<button class="mn-tile${isNew(4)}" data-act="view" data-v="board" data-bit="4"><i>🏆</i><b>PERINGKAT</b></button>` : lockTile('🏆', 'PERINGKAT', 5)) +
-        `<button class="mn-tile" data-act="help"><i>?</i><b>CARA MAIN</b></button>` +
-        `<button class="mn-tile slate" data-act="view" data-v="settings"><i>⚙</i><b>PENGATURAN</b></button>` +
-        `</div>`;
+        `<button class="mn-tile" data-act="view" data-v="levels"><i>☰</i><b>${tr('mn.pick')}</b></button>` +
+        (featureOpen('daily') ? `<button class="mn-tile daily${isNew(2)}" data-act="daily" data-bit="2"><i>☀</i><b>${tr('mn.daily')}</b><small>${dLabel} · ${dTxt}</small></button>` : lockTile('☀', tr('mn.daily'), 3)) +
+        (featureOpen('shop') ? `<button class="mn-tile shop${isNew(1)}" data-act="view" data-v="shop" data-bit="1"><i>🛍</i><b>${tr('mn.shop')}</b><small>🪙 ${fmtN(save.coins)}</small></button>` : lockTile('🛍', tr('mn.shop'), 2)) +
+        (featureOpen('board') ? `<button class="mn-tile${isNew(4)}" data-act="view" data-v="board" data-bit="4"><i>🏆</i><b>${tr('mn.board')}</b></button>` : lockTile('🏆', tr('mn.board'), 5)) +
+        `<button class="mn-tile" data-act="help"><i>?</i><b>${tr('mn.help')}</b></button>` +
+        `<button class="mn-tile slate" data-act="view" data-v="settings"><i>⚙</i><b>${tr('mn.settings')}</b></button>` +
+        `</div>` +
+        `<div class="lang-row"><span>🌐</span>${LANGS.map(l => `<button class="lang-btn${l === LANG ? ' on' : ''}" data-act="lang" data-l="${l}" lang="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>`;
     } else if (menuView === 'levels') html = renderLevels(next);
     else if (menuView === 'shop') html = renderShop();
     else if (menuView === 'settings') html = renderSettings();
@@ -4056,35 +4286,37 @@ async function run(mode) {
   let boardToken = 0;
   async function openBoard() {
     const tok = ++boardToken;
-    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-note">Memuat…</div><button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+    menuPanel.innerHTML = `<div class="mn-title sm">${tr('board.title')}</div><div class="mn-note">${tr('board.loading')}</div><button class="mn-btn sm" data-act="back">${tr('mn.back')}</button>`;
     let body;
     try {
       const r = await lib.getTopNEntriesFromLeaderboard(10);
       const rows = (r && r.entries) || [];
       body = rows.length
-        ? rows.map((e, i) => `<div class="lb-row"><em>#${i + 1}</em><span>${esc(e.username)}</span><b>${Math.round(e.score).toLocaleString('id-ID')}</b></div>`).join('')
-        : `<div class="mn-note">Belum ada skor. Jadilah yang pertama!</div>`;
-      if (r && r.userRank) body += `<div class="lb-row me"><em>#${r.userRank}</em><span>Peringkatmu</span><b>${totalScore().toLocaleString('id-ID')}</b></div>`;
+        ? rows.map((e, i) => `<div class="lb-row"><em>#${i + 1}</em><span>${esc(e.username)}</span><b>${fmtN(e.score)}</b></div>`).join('')
+        : `<div class="mn-note">${tr('board.empty')}</div>`;
+      if (r && r.userRank) body += `<div class="lb-row me"><em>#${r.userRank}</em><span>${tr('board.you')}</span><b>${fmtN(totalScore())}</b></div>`;
     } catch (e) {
-      body = `<div class="mn-note">Papan peringkat belum tersedia.</div>`;
+      body = `<div class="mn-note">${tr('board.na')}</div>`;
     }
     if (tok !== boardToken || gameState !== 'menu' || menuView !== 'board') return;
-    menuPanel.innerHTML = `<div class="mn-title sm">🏆 PERINGKAT</div><div class="mn-sub">Skor total semua level + tantangan harian</div>${body}<button class="mn-btn sm" data-act="back">‹ KEMBALI</button>`;
+    menuPanel.innerHTML = `<div class="mn-title sm">${tr('board.title')}</div><div class="mn-sub">${tr('board.sub')}</div>${body}<button class="mn-btn sm" data-act="back">${tr('mn.back')}</button>`;
   }
   async function resetProgress() {
     resetArm = false;
+    const keepLang = save.lang;
     Object.assign(save, freshSave());
+    save.lang = keepLang;
     try { await lib.deleteUserGameState(); } catch (e) { lib.log('reset failed: ' + e); }
     soundSystem.applyVolumes();
     startTutorial();
   }
   function buyItem(i) {
     const it = ITEMS[i];
-    if (save.inv[i] >= it.max) { shopMsg = `${it.name} sudah penuh`; soundSystem.playClack(); }
-    else if (save.coins < it.price) { shopMsg = 'Koin tidak cukup. Tamatkan level untuk dapat koin.'; soundSystem.playClack(); }
+    if (save.inv[i] >= it.max) { shopMsg = { k: 'shop.maxed', p: { name: it.name } }; soundSystem.playClack(); }
+    else if (save.coins < it.price) { shopMsg = { k: 'shop.poor' }; soundSystem.playClack(); }
     else {
       save.coins -= it.price; save.inv[i]++;
-      shopMsg = `${it.name} dibeli!`;
+      shopMsg = { k: 'shop.bought', p: { name: it.name } };
       soundSystem.playPickup();
       saveProgress();
     }
@@ -4092,21 +4324,14 @@ async function run(mode) {
   }
 
   // ── How-to-play cards ──
-  const HELP = [
-    { t: 'GERAK & LOMPAT', d: 'Geser joystick (kiri bawah) untuk berjalan dan tekan JUMP untuk melompat antar pijakan. Geser layar untuk memutar kamera. Di keyboard: WASD / panah dan Spasi. Radar kanan atas menunjukkan arah pintu EXIT.' },
-    { t: 'JANGAN SENTUH AIR', d: 'Lantai adalah air. Begitu menyentuhnya, monster mendengar dan datang. Kamu punya beberapa detik untuk melompat kembali ke pijakan sebelum ia mengejar. Pijakan yang aman membuatnya kehilangan jejak.' },
-    { t: 'KRISTAL & CHECKPOINT', d: 'Kristal ◆ ada di pijakan samping rute dengan lompatan lebih berisiko; radar menandainya. Bendera hijau adalah checkpoint: kalau tertangkap, kamu bisa lanjut dari sana (+15 detik).' },
-    { t: 'PUZZLE PINTU', d: 'Mulai level 3 pintu EXIT terkunci. Level 3–5: temukan kunci. Level 6–9: kumpulkan sekering. Level 10 ke atas: temukan digit kode satu per satu (tercatat otomatis di HUD), lalu ketik di keypad pintu. Salah kode menambah 5 detik. Benda puzzle ada di pijakan samping rute, ditandai kuning di radar.' },
-    { t: 'KOIN, TOKO & ITEM', d: 'Tamatkan level untuk mendapat koin 🪙, lalu belanja di TOKO. Tiga slot item ada di tengah bawah layar (keyboard: 1, 2, 3). ① Batu: lempar ke arah kamera, monster teralihkan 6 detik. ② Jarum akupuntur: lempar lurus ke monster, tersengat 5 detik; kalau meleset sia-sia. ③ Sepatu chakra: berlari di atas air 15 detik tanpa dikejar.' },
-    { t: 'BINTANG & PERINGKAT', d: '★ selesai level  ·  ★ waktu di bawah target  ·  ★ semua kristal. Skor makin tinggi untuk waktu cepat, kristal, dan sedikit jatuh. Skor total semua level + tantangan harian masuk papan peringkat.' }
-  ];
+  const HELP_N = 6;
   let helpIdx = 0;
   function renderHelp() {
-    const h = HELP[helpIdx], last = helpIdx === HELP.length - 1;
+    const last = helpIdx === HELP_N - 1;
     helpCard.innerHTML =
-      `<div class="hp-step">CARA MAIN  ${helpIdx + 1} / ${HELP.length}</div><div class="hp-title">${h.t}</div><div class="hp-text">${h.d}</div>` +
-      `<div class="hp-dots">${HELP.map((_, i) => `<i class="${i === helpIdx ? 'cur' : ''}"></i>`).join('')}</div>` +
-      `<div class="hp-btns">${helpIdx ? '<button class="alt" data-h="prev">‹</button>' : ''}<button data-h="next">${last ? 'MENGERTI' : 'LANJUT ›'}</button></div>`;
+      `<div class="hp-step">${tr('help.step', { a: helpIdx + 1, b: HELP_N })}</div><div class="hp-title">${tr('help.' + helpIdx + '.t')}</div><div class="hp-text">${tr('help.' + helpIdx + '.d')}</div>` +
+      `<div class="hp-dots">${Array.from({ length: HELP_N }, (_, i) => `<i class="${i === helpIdx ? 'cur' : ''}"></i>`).join('')}</div>` +
+      `<div class="hp-btns">${helpIdx ? `<button class="alt" data-h="prev">${tr('help.prev')}</button>` : ''}<button data-h="next">${last ? tr('help.ok') : tr('help.next')}</button></div>`;
   }
   function openHelp(i) { helpIdx = i; renderHelp(); helpScreen.classList.add('show'); }
   function closeHelp() {
@@ -4129,7 +4354,8 @@ async function run(mode) {
     else if (act === 'back') { boardToken++; menuView = 'list'; renderMenu(); }
     else if (act === 'buy') buyItem(+b.dataset.i);
     else if (act === 'help') openHelp(0);
-    else if (act === 'locked') { menuNote = `🔒 Terbuka setelah menamatkan Level ${b.dataset.at}`; renderMenu(); }
+    else if (act === 'locked') { menuNote = b.dataset.at; renderMenu(); }
+    else if (act === 'lang') { save.lang = b.dataset.l; saveProgress(); setLang(save.lang); }
     else if (act === 'redo-ftue') startTutorial();
     else if (act === 'reset') {
       if (!resetArm) { resetArm = true; renderMenu(); setTimeout(() => { if (resetArm) { resetArm = false; if (gameState === 'menu' && menuView === 'settings') renderMenu(); } }, 4000); }
@@ -4153,7 +4379,7 @@ async function run(mode) {
     const b = e.target.closest('[data-h]');
     if (!b) return;
     if (b.dataset.h === 'prev') { helpIdx = Math.max(0, helpIdx - 1); renderHelp(); }
-    else if (helpIdx < HELP.length - 1) { helpIdx++; renderHelp(); }
+    else if (helpIdx < HELP_N - 1) { helpIdx++; renderHelp(); }
     else closeHelp();
   });
   const endTap = fn => e => { e.preventDefault(); e.stopPropagation(); if (performance.now() >= endLockUntil) fn(); };
@@ -4257,13 +4483,13 @@ async function run(mode) {
     humanoidMonsters.forEach(h => {
       if (Math.hypot(h.pos.x - x, h.pos.y - z) < R) { h.distractT = DISTRACT_TIME; h.dTarget.set(x, z); any = true; }
     });
-    if (any) toast('🪨 Monster teralihkan ke suara batu', 1800);
+    if (any) toast(tr('item.distract'), 1800);
   }
 
   function useItem(i) {
     if (gameState !== 'playing' || useCd > 0) return;
-    if (i === 2 && shoesT > 0) { toast('Sepatu chakra masih aktif', 1400); return; }
-    if (save.inv[i] <= 0) { toast(`${ITEMS[i].name} habis. Beli di TOKO`, 1800); soundSystem.playClack(); return; }
+    if (i === 2 && shoesT > 0) { toast(tr('item.shoesOn2'), 1400); return; }
+    if (save.inv[i] <= 0) { toast(tr('item.none', { name: ITEMS[i].name }), 1800); soundSystem.playClack(); return; }
     save.inv[i]--; useCd = 0.45;
     if (i === 0 && !(save.seen & 8)) { markSeen(8); if (coach.key === 'c:stone') clearCoach(); }
     saveProgress();
@@ -4309,7 +4535,7 @@ async function run(mode) {
     shoeRippleT = 0;
     soundSystem.playShoes();
     spawnRipple(playerPos.x, playerPos.z, 0.9, 0x9ff0ff, 1.0);
-    toast('👟 Sepatu chakra aktif! Berlari di atas air 15 detik', 2600);
+    toast(tr('item.shoesOn'), 2600);
   }
   function landStone(p) {
     const wY = waterY();
@@ -4336,7 +4562,7 @@ async function run(mode) {
         hit.hit();
         spawnVictoryBurst(hit.x, 0.7, hit.z, 10);
         soundSystem.playZap();
-        toast(`⚡ Monster tersengat ${STUN_TIME} detik!`, 2000);
+        toast(tr('item.stun', { n: STUN_TIME }), 2000);
         done = true;
       } else if (segBlocked(x0, z0, x1, z1)) { soundSystem.playClack(); done = true; }
       else {
@@ -4352,8 +4578,8 @@ async function run(mode) {
     if (shoesT > 0) {
       const was = shoesT;
       shoesT = Math.max(0, shoesT - dt);
-      if (was > 3 && shoesT <= 3) toast('👟 Sepatu chakra hampir habis!', 1800);
-      if (shoesT <= 0) toast('Sepatu chakra habis', 1500);
+      if (was > 3 && shoesT <= 3) toast(tr('item.shoesLow'), 1800);
+      if (shoesT <= 0) toast(tr('item.shoesEnd'), 1500);
       const wY = waterY();
       const onWater = shoesT > 0 && !activePlat && Math.abs(playerPos.y - wY) < 0.06;
       shoesGlow.visible = onWater;
@@ -4530,7 +4756,7 @@ async function run(mode) {
     if (!F.splashed && nowInWater) { F.splashed = true; F.slowT = 3.0; ftueSummon(); }
     if (F.splashed && !F.escaped && safe) {
       F.escaped = true;
-      toast('✅ Aman! Pijakan membuat monster kehilangan jejak', 3200);
+      toast(tr('coach.safe'), 3200);
       soundSystem.playCheckpoint();
     }
 
@@ -4543,21 +4769,21 @@ async function run(mode) {
     let ring = nextPlat;
     if (nowInWater || (F.splashed && !F.escaped && !safe)) {
       const np = nearestPlat();
-      setCoach('t:escape', 'Kamu jatuh ke air! Dekati pijakan lalu tekan JUMP', { target: np, pulse: [jumpEl] });
+      setCoach('t:escape', tr('coach.escape'), { target: np, pulse: [jumpEl] });
       ring = np;
     } else if (shaking) {
-      setCoach('t:trap', 'Pijakan runtuh! Lompat sekarang!', { target: nextPlat, pulse: [jumpEl] });
+      setCoach('t:trap', tr('coach.trap'), { target: nextPlat, pulse: [jumpEl] });
     } else if (F.cur >= n - 4) {
-      setCoach('t:exit', 'Masuk ke pintu EXIT', { target: doorInfo });
+      setCoach('t:exit', tr('coach.exit'), { target: doorInfo });
       ring = null;
     } else if (crystalNear) {
-      setCoach('t:crystal', 'Ambil kristal ◆ untuk bonus bintang dan koin', { target: crystalNear.pad });
+      setCoach('t:crystal', tr('coach.crystal'), { target: crystalNear.pad });
     } else if (!F.moved) {
-      setCoach('t:move', 'Geser joystick untuk berjalan', { target: nextPlat, pulse: [joyBaseEl] });
+      setCoach('t:move', tr('coach.move'), { target: nextPlat, pulse: [joyBaseEl] });
     } else if (!F.jumped && F.cur === 0) {
-      setCoach('t:jump', 'Tekan JUMP untuk melompat ke pijakan berikutnya', { target: nextPlat, pulse: [jumpEl] });
+      setCoach('t:jump', tr('coach.jump'), { target: nextPlat, pulse: [jumpEl] });
     } else if (F.goT >= 0 && F.t - F.goT < 5 && F.cur < 3) {
-      setCoach('t:go', 'Lompati pijakan menuju pintu EXIT', { target: nextPlat });
+      setCoach('t:go', tr('goal.go0'), { target: nextPlat });
     } else if (coach.key.indexOf('t:') === 0) {
       clearCoach();
     }
@@ -4567,7 +4793,7 @@ async function run(mode) {
   // short contextual coaches for features that open up later
   function levelCoach() {
     if (levelSpec.kind === 'level' && levelSpec.n === 4 && !(save.seen & 8) && save.inv[0] > 0) {
-      setCoach('c:stone', 'Ketuk slot ① untuk melempar batu. Monster akan mengejar suaranya, bukan kamu.', { pulse: [slotEls[0]], ms: 16000 });
+      setCoach('c:stone', tr('coach.stone'), { pulse: [slotEls[0]], ms: 16000 });
     }
   }
   function markSeen(bit) { if (!(save.seen & bit)) { save.seen |= bit; saveProgress(); } }
@@ -5183,12 +5409,12 @@ async function run(mode) {
     mState = 'patrol'; mRestT = 5; mHunt = 0;
     hideDanger();
     choosePatrolTarget();
-    toast('Monster kehilangan minat. Cepat naik ke pijakan!', 2600);
+    toast(tr('mon.gaveup'), 2600);
   }
   function startChase() {
     mState = 'chase';
     mChaseT = 0; mHunt = 0;
-    showDanger('⚠ MONSTER MENGEJAR! LOMPAT KE PIJAKAN!');
+    showDanger(tr('danger.chase'));
   }
 
   function updateMonsterLogic(dt) {
@@ -5515,7 +5741,7 @@ async function run(mode) {
         if (alertTime > 0.05) {
           mState = 'alert';
           mAlertT = alertTime;
-          showDanger('⚠ MONSTER MENDENGAR! LOMPAT KELUAR!');
+          showDanger(tr('danger.hear'));
         } else startChase();
       }
       if (mState === 'alert') {
@@ -5629,7 +5855,7 @@ async function run(mode) {
           loadingLeavingAt = now;
           loadingScreen.classList.add('fade-out');
           loadingProgressFill.style.width = '100%';
-          if (loadingStatus) loadingStatus.textContent = 'Rute siap — semoga berhasil keluar.';
+          if (loadingStatus) loadingStatus.textContent = tr('load.ready');
         }
         renderer.render(scene, camera);
         if (now - loadingLeavingAt > 650) {
@@ -5648,6 +5874,15 @@ async function run(mode) {
     }
     requestAnimationFrame(gameLoop);
   }
+
+  // Re-render everything that carries text when the language changes.
+  window.__onLang = () => {
+    if (!isCurrentRun()) return;
+    hudTimer = 0; goalHintTimer = 0;
+    if (levelSpec) updateHud(0, true);
+    if (gameState === 'menu' && menuView !== 'board') renderMenu();
+    if (ftue.active) coach.key = '';
+  };
 
   // Play mode: once the intro is over and progress is loaded, show the menu.
   let loadingDone = false, saveReady = false;
