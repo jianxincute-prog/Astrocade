@@ -4586,7 +4586,8 @@
           // rahang bergerak: meraung lebar saat windup, menggertak saat mengejar, terengah saat istirahat
           if (m.jaw) {
             const ju = m.jaw.userData;
-            const open = m.windup > 0 ? 0.5 + 0.12 * Math.sin(animTime * 34)
+            const open = m.mode === 'emerge' ? 0.34 + 0.16 * Math.sin(animTime * 10)
+              : m.windup > 0 ? 0.5 + 0.12 * Math.sin(animTime * 34)
               : m.isStunned ? 0.35
               : m.mode === 'chase' ? 0.12 + 0.3 * Math.max(0, Math.sin(animTime * 8 + k * 1.7))
               : m.mode === 'rest' ? 0.25 + 0.12 * Math.sin(animTime * 7)
@@ -4602,6 +4603,49 @@
             if (m.stunTimer <= 0) { m.isStunned = false; m.trapped = false; }
             continue;
           }
+
+          if (m.mode === 'emerge') {
+            m.emergeTimer -= dt;
+            const tFrac = Math.min(1, Math.max(0, 1 - (m.emergeTimer / m.emergeTotal)));
+            // Berjalan keluar dari dalam ruangan menuju lorong dalam 5 detik jeda
+            const walkFrac = Math.min(1, tFrac * 1.15);
+            const curX = m.emergeStartX + (m.emergeTargetX - m.emergeStartX) * walkFrac;
+            const curZ = m.emergeStartZ + (m.emergeTargetZ - m.emergeStartZ) * walkFrac;
+            const moved = Math.hypot(curX - m.x, curZ - m.z);
+            m.x = curX;
+            m.z = curZ;
+            m.group.position.set(m.x, 0, m.z);
+
+            const dx = m.emergeTargetX - m.emergeStartX;
+            const dz = m.emergeTargetZ - m.emergeStartZ;
+            if (Math.hypot(dx, dz) > 0.01) m.group.rotation.y = Math.atan2(dx, dz);
+
+            m.animTimer += (moved > 0.001 ? moved : dt * 1.2) * 2.6;
+            const amp = m.legAmp ?? 0.3;
+            m.legL.position.z = Math.sin(m.animTimer) * amp;
+            m.legR.position.z = -Math.sin(m.animTimer) * amp;
+
+            // Jeda 5 detik selesai: sekarang monster mulai mengejar
+            if (m.emergeTimer <= 0) {
+              m.mode = 'chase';
+              m.windup = 0.5;
+              m.repathT = 0;
+              m.path = [];
+              m.lastX = pX;
+              m.lastZ = pZ;
+              m.lostT = 0;
+              m.sees = !safe && dist < (detect * m.tp.detect) && !segmentBlocked(m.x, m.z, pX, pZ);
+              m.hears = !safe && dist < hearR;
+              audio.playGrowl(0.9);
+              if (dist < 40 && monsterAlertCd <= 0) {
+                monsterAlertCd = 5;
+                triggerScare(0.8);
+                showToast(_t('{0} MENDETEKSI KAMU!', m.tp.name.toUpperCase()), '#ff1744');
+              }
+            }
+            continue;
+          }
+
           if (m.windup > 0) { // meraung sebelum mengejar
             m.windup -= dt;
             m.group.rotation.y = Math.atan2(pX - m.x, pZ - m.z);
@@ -4743,19 +4787,14 @@
         m.tp = MTYPES[typeKey];
         m.group = mesh.group; m.legL = mesh.legL; m.legR = mesh.legR; m.armL = mesh.armL; m.armR = mesh.armR; m.jaw = mesh.jaw;
         m.speed = config.monster.speed * m.tp.speed * diff.monsterSpeed;
-        m.x = store.doorX + store.normalX * 2.5;
-        m.z = store.doorZ + store.normalZ * 2.5;
-        m.group.position.set(m.x, 0, m.z);
         m.isStunned = false;
         m.stunTimer = 0;
-        m.windup = TUNING.windupSeconds;
         m.hp = m.tp.hp;
-        m.mode = 'chase';
         m.lastX = playerGroup.position.x;
         m.lastZ = playerGroup.position.z;
         m.lostT = 0;
         m.senseT = 0;
-        m.sees = true;
+        m.sees = false;
         m.hears = false;
         m.path = [];
         m.repathT = 0;
@@ -4766,6 +4805,30 @@
         m.chaseLimit = TUNING.chaseMax[0] + Math.random() * TUNING.chaseMax[1];
         m.restT = 0;
         m.cool = 0;
+
+        if (store.outcome === 'monster') {
+          // Muncul dari dalam ruangan, berjalan keluar ke lorong dengan jeda 5 detik sebelum mengejar
+          const sp = roomLocalToWorld(store, 0, 1.2);
+          const ep = roomLocalToWorld(store, 0, 7.2);
+          m.x = sp.x;
+          m.z = sp.z;
+          m.emergeStartX = sp.x;
+          m.emergeStartZ = sp.z;
+          m.emergeTargetX = ep.x;
+          m.emergeTargetZ = ep.z;
+          m.emergeTimer = 5.0;
+          m.emergeTotal = 5.0;
+          m.mode = 'emerge';
+          m.windup = 0;
+          m.group.rotation.y = Math.atan2(ep.x - sp.x, ep.z - sp.z);
+        } else {
+          m.x = store.doorX + store.normalX * 4.5;
+          m.z = store.doorZ + store.normalZ * 4.5;
+          m.mode = 'chase';
+          m.windup = TUNING.windupSeconds;
+          m.group.rotation.y = Math.atan2(playerGroup.position.x - m.x, playerGroup.position.z - m.z);
+        }
+        m.group.position.set(m.x, 0, m.z);
         return m;
       }
 
@@ -5643,8 +5706,18 @@
         } else if (store.outcome === 'vending') {
           showToast(_t('VENDING MACHINE! GRATIS {0}× SEHARI, SELANJUTNYA ¢{1}', VEND_FREE, VEND_PRICE), '#7dd3fc');
         } else if (store.outcome === 'monster') {
-          showToast(_t('BAHAYA: MONSTER MUNCUL DARI TOKO!'), '#ff1744');
+          showToast(_t('BAHAYA: MONSTER MUNCUL DARI TOKO!'), '#ff1744', true);
           audio.play('monster_reveal_sfx');
+
+          // Beri jeda 5 detik bagi monster lain yang sedang aktif agar pemain/NPC sempat kabur
+          monsters.forEach(otherM => {
+            if (otherM.mode === 'chase') {
+              otherM.mode = 'rest';
+              otherM.restT = Math.max(otherM.restT || 0, 5.0);
+              otherM.cool = Math.max(otherM.cool || 0, 5.0);
+              otherM.path = [];
+            }
+          });
 
           spawnMonster(store);
           camShake = 1;
@@ -8973,7 +9046,7 @@
         const m = n.threat;
         const dx = m.x - n.x, dz = m.z - n.z;
         const d = Math.hypot(dx, dz);
-        const armed = n.weapon > 0 && n.hp >= 2;
+        const armed = n.weapon > 0 && n.hp >= 2 && m.mode !== 'emerge';
         if (armed) {
           if (d > 1.7) monsterStep(n, m.x, m.z, 3.4, dt);
           else n.group.rotation.y = Math.atan2(dx, dz);
@@ -9034,7 +9107,6 @@
             let best = null, bd = 12;
             if (!n.safe) {
               monsters.forEach(m => {
-                if (m.windup > 0) return;
                 const d = Math.hypot(m.x - n.x, m.z - n.z);
                 if (d < bd && !segmentBlocked(n.x, n.z, m.x, m.z)) { bd = d; best = m; }
               });
