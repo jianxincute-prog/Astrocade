@@ -271,6 +271,7 @@
   .mn-tile i { font-style: normal; font-size: 38px; line-height: 1; }
   .mn-tile b { font: 700 15px 'Orbitron', sans-serif; text-align: center; line-height: 1.15; }
   .mn-tile small { font: 600 13px 'Inter', sans-serif; opacity: .88; text-align: center; }
+  .mn-tile .mn-streak { color: #fff3b0; font-weight: 700; }
   .mn-tile.daily { background: linear-gradient(180deg, #e0a23d, #b0702a); }
   .mn-tile.shop { background: linear-gradient(180deg, #8a5fd0, #5c3a9c); }
   .mn-tile.slate { background: linear-gradient(180deg, #4b6a86, #2e4558); }
@@ -650,6 +651,28 @@ const TXT = [
   ['pz.intro.key', '🔒 Door locked. Find the KEY on a side platform off the route (see the yellow on the radar).', '🔒 Pintu terkunci. Temukan KUNCI di pijakan samping rute (lihat radar kuning).', '🔒 الباب مقفل. ابحث عن المفتاح على منصة جانبية بعيدة عن المسار (انظر الأصفر على الرادار).'],
   ['pz.intro.fuse', '🔒 Door locked. Collect {n} FUSES on side platforms off the route (yellow on the radar).', '🔒 Pintu terkunci. Kumpulkan {n} SEKERING di pijakan samping rute (radar kuning).', '🔒 الباب مقفل. اجمع {n} من المصاهر على المنصات الجانبية (الأصفر على الرادار).'],
   ['pz.intro.code', '🔒 Door locked. Find the {n} code DIGITS one by one; they are recorded in the HUD automatically.', '🔒 Pintu terkunci. Temukan {n} DIGIT kode satu per satu; tercatat otomatis di HUD.', '🔒 الباب مقفل. اعثر على {n} أرقام للكود واحدًا تلو الآخر؛ تُسجَّل تلقائيًا في الواجهة.'],
+  ['pz.hud.lever', '🔒 Levers: {o}', '🔒 Tuas: {o}', '🔒 الرافعات: {o}'],
+  ['pz.hud.plates', '🔒 Plates {a}/{b}', '🔒 Tombol {a}/{b}', '🔒 الأزرار {a}/{b}'],
+  ['pz.hud.platesT', '🔒 Plates {a}/{b}  ⏱ {s}s', '🔒 Tombol {a}/{b}  ⏱ {s}d', '🔒 الأزرار {a}/{b}  ⏱ {s}ث'],
+  ['pz.t.lever', '🔧 Lever {a}/{b} pulled', '🔧 Tuas {a}/{b} ditarik', '🔧 تم سحب الرافعة {a}/{b}'],
+  ['pz.t.leverAll', '🔧 All levers pulled in order! EXIT door unlocked', '🔧 Semua tuas ditarik berurutan! Pintu EXIT terbuka', '🔧 سُحبت كل الرافعات بالترتيب! باب الخروج مفتوح'],
+  ['pz.t.leverWrong', '❌ Wrong order! Levers reset (+3 s)', '❌ Urutan salah! Tuas direset (+3 dtk)', '❌ ترتيب خاطئ! أُعيدت الرافعات (+3 ث)'],
+  ['pz.t.plate', '⏱ Plate {a}/{b} — {s} s left for the rest!', '⏱ Tombol {a}/{b} — sisa {s} dtk untuk yang lain!', '⏱ الزر {a}/{b} — بقي {s} ث للباقي!'],
+  ['pz.t.plateAll', '✅ All plates pressed! EXIT door unlocked', '✅ Semua tombol tertekan! Pintu EXIT terbuka', '✅ ضُغطت كل الأزرار! باب الخروج مفتوح'],
+  ['pz.t.plateFail', '⌛ Time is up! Plates popped back up', '⌛ Waktu habis! Tombol naik kembali', '⌛ انتهى الوقت! عادت الأزرار للأعلى'],
+  ['pz.lock.lever', '🔒 Door locked: levers {a}/{b}', '🔒 Pintu terkunci: tuas {a}/{b}', '🔒 الباب مقفل: الرافعات {a}/{b}'],
+  ['pz.lock.plates', '🔒 Door locked: plates {a}/{b}', '🔒 Pintu terkunci: tombol {a}/{b}', '🔒 الباب مقفل: الأزرار {a}/{b}'],
+  ['pz.intro.lever', '🔒 Door locked. Pull the {n} colored levers in the order shown in the HUD.', '🔒 Pintu terkunci. Tarik {n} tuas berwarna sesuai urutan di HUD.', '🔒 الباب مقفل. اسحب {n} رافعات ملونة بالترتيب المعروض في الواجهة.'],
+  ['pz.intro.plates', '🔒 Door locked. Step on all {n} plates within the time limit that starts at the first one.', '🔒 Pintu terkunci. Injak semua {n} tombol sebelum waktu habis; waktu mulai dari tombol pertama.', '🔒 الباب مقفل. اضغط كل الأزرار ({n}) قبل انتهاء الوقت الذي يبدأ من أول زر.'],
+  ['goal.lever', 'lever {g}', 'tuas {g}', 'الرافعة {g}'],
+  ['goal.plate', 'plate {a}/{b}', 'tombol {a}/{b}', 'الزر {a}/{b}'],
+  ['st.lever', 'Levers', 'Tuas', 'رافعات'],
+  ['st.plates', 'Plates', 'Tombol', 'أزرار'],
+  ['st.wrongTry', 'mistakes {n}×', 'kesalahan {n}×', 'أخطاء {n}×'],
+  ['twist.crumble', '🧱 Fragile floor! Tiles that start shaking will collapse — keep moving.', '🧱 Lantai rapuh! Ubin yang mulai bergetar akan runtuh — terus bergerak.', '🧱 أرضية هشّة! البلاطات التي تبدأ بالاهتزاز ستنهار — واصل الحركة.'],
+  ['twist.dark', '💡 Lights out! The power flickers and cuts out — use the radar in the dark.', '💡 Lampu mati! Listrik berkedip lalu padam — andalkan radar saat gelap.', '💡 انقطاع الإضاءة! يومض التيار ثم ينطفئ — اعتمد على الرادار في الظلام.'],
+  ['twist.hunter', '👹 A third hunter prowls this level. Stay out of the water!', '👹 Pemburu ketiga berkeliaran di level ini. Jangan sentuh air!', '👹 صيّاد ثالث يتجول في هذا المستوى. ابتعد عن الماء!'],
+  ['twist.final', '☠ FINAL ESCAPE: collapsing floor, blackouts and three hunters!', '☠ PELARIAN TERAKHIR: lantai runtuh, lampu mati, dan tiga pemburu!', '☠ الهروب الأخير: أرضية تنهار وإظلام وثلاثة صيّادين!'],
   ['kp.title', 'DOOR KEYPAD', 'KEYPAD PINTU', 'لوحة أرقام الباب'],
   ['kp.hint', 'Recorded code:', 'Kode tercatat:', 'الكود المسجّل:'],
   ['kp.wrong', 'Wrong code! +5 seconds', 'Kode salah! +5 detik', 'كود خاطئ! +5 ثوانٍ'],
@@ -708,6 +731,12 @@ const TXT = [
   ['mn.new', 'NEW', 'BARU', 'جديد'],
   ['mn.unlockAt', 'Finish level {n}', 'Tamatkan level {n}', 'أنهِ المستوى {n}'],
   ['mn.lockedNote', '🔒 Unlocks after finishing Level {n}', '🔒 Terbuka setelah menamatkan Level {n}', '🔒 يُفتح بعد إنهاء المستوى {n}'],
+  ['st.streak', 'Daily streak', 'Rangkaian harian', 'سلسلة الأيام'],
+  ['st.streakDays', '🔥 Day {n}', '🔥 Hari ke-{n}', '🔥 اليوم {n}'],
+  ['st.streakBonus', '+{c} bonus coins', '+{c} koin bonus', '+{c} عملة مكافأة'],
+  ['st.streakGift', '+{c} coins + free {i}!', '+{c} koin + {i} gratis!', '+{c} عملة + {i} مجانًا!'],
+  ['mn.streak', '🔥 {n}-day streak', '🔥 Rangkaian {n} hari', '🔥 سلسلة {n} يوم'],
+  ['mn.streakNext', 'Play today: +{c} coins', 'Main hari ini: +{c} koin', 'العب اليوم: +{c} عملة'],
   ['mn.lang', 'Language', 'Bahasa', 'اللغة'],
   ['shop.title', '🛍 SHOP', '🛍 TOKO', '🛍 المتجر'],
   ['shop.have', 'Owned {a}/{b}', 'Punya {a}/{b}', 'تملك {a}/{b}'],
@@ -740,11 +769,13 @@ const TXT = [
   ['help.2.t', 'CRYSTALS & CHECKPOINTS', 'KRISTAL & CHECKPOINT', 'البلورات ونقاط الحفظ'],
   ['help.2.d', 'Crystals ◆ sit on side platforms with riskier jumps; the radar marks them. Green flags are checkpoints: if you get caught, you can continue from there (+15 seconds).', 'Kristal ◆ ada di pijakan samping rute dengan lompatan lebih berisiko; radar menandainya. Bendera hijau adalah checkpoint: kalau tertangkap, kamu bisa lanjut dari sana (+15 detik).', 'توجد البلورات ◆ على منصات جانبية بقفزات أخطر ويشير إليها الرادار. الأعلام الخضراء نقاط حفظ: إن أُمسكت يمكنك المتابعة منها (+15 ثانية).'],
   ['help.3.t', 'DOOR PUZZLES', 'PUZZLE PINTU', 'ألغاز الباب'],
-  ['help.3.d', 'From level 3 the EXIT door is locked. Levels 3–5: find a key. Levels 6–9: collect fuses. Level 10 and up: find the code digits one by one (recorded automatically in the HUD), then type them on the door keypad. A wrong code adds 5 seconds. Puzzle items sit on side platforms off the route, marked yellow on the radar.', 'Mulai level 3 pintu EXIT terkunci. Level 3–5: temukan kunci. Level 6–9: kumpulkan sekering. Level 10 ke atas: temukan digit kode satu per satu (tercatat otomatis di HUD), lalu ketik di keypad pintu. Salah kode menambah 5 detik. Benda puzzle ada di pijakan samping rute, ditandai kuning di radar.', 'بدءًا من المستوى 3 يكون باب الخروج مقفلًا. المستويات 3–5: اعثر على مفتاح. المستويات 6–9: اجمع المصاهر. من المستوى 10 فما فوق: اعثر على أرقام الكود واحدًا تلو الآخر (تُسجَّل تلقائيًا في الواجهة) ثم أدخلها في لوحة أرقام الباب. الكود الخاطئ يضيف 5 ثوانٍ. عناصر اللغز على منصات جانبية بعيدة عن المسار وتظهر بالأصفر على الرادار.'],
+  ['help.3.d', 'From level 3 the EXIT door is locked. Levels 3–5: find a key. Levels 6–9: collect fuses. From level 10 the puzzles get trickier: find code digits (recorded in the HUD, then typed on the door keypad), pull colored levers in the order shown in the HUD, or step on every plate before the timer runs out. Mistakes cost time. Puzzle items sit on side platforms off the route, marked yellow on the radar.', 'Mulai level 3 pintu EXIT terkunci. Level 3–5: temukan kunci. Level 6–9: kumpulkan sekering. Mulai level 10 puzzle makin rumit: temukan digit kode (tercatat di HUD, lalu ketik di keypad pintu), tarik tuas berwarna sesuai urutan di HUD, atau injak semua tombol sebelum waktu habis. Kesalahan menambah waktu. Benda puzzle ada di pijakan samping rute, ditandai kuning di radar.', 'بدءًا من المستوى 3 يكون باب الخروج مقفلًا. المستويات 3–5: اعثر على مفتاح. المستويات 6–9: اجمع المصاهر. من المستوى 10 تصبح الألغاز أصعب: اعثر على أرقام الكود (تُسجَّل في الواجهة ثم تُدخل في لوحة الباب)، أو اسحب رافعات ملونة بالترتيب المعروض في الواجهة، أو اضغط كل الأزرار قبل انتهاء المؤقت. الأخطاء تكلّف وقتًا. عناصر اللغز على منصات جانبية بعيدة عن المسار وتظهر بالأصفر على الرادار.'],
   ['help.4.t', 'COINS, SHOP & ITEMS', 'KOIN, TOKO & ITEM', 'العملات والمتجر والعناصر'],
   ['help.4.d', 'Finish levels to earn coins 🪙, then spend them in the SHOP. Three item slots sit at the bottom center of the screen (keyboard: 1, 2, 3). ① Stone: throw toward the camera, monsters are distracted for 6 seconds. ② Acupuncture needle: throw straight at a monster to stun it for 5 seconds; a miss is wasted. ③ Chakra shoes: run on water for 15 seconds without being chased.', 'Tamatkan level untuk mendapat koin 🪙, lalu belanja di TOKO. Tiga slot item ada di tengah bawah layar (keyboard: 1, 2, 3). ① Batu: lempar ke arah kamera, monster teralihkan 6 detik. ② Jarum akupuntur: lempar lurus ke monster, tersengat 5 detik; kalau meleset sia-sia. ③ Sepatu chakra: berlari di atas air 15 detik tanpa dikejar.', 'أنهِ المستويات لتكسب العملات 🪙 ثم أنفقها في المتجر. توجد ثلاث خانات للعناصر في منتصف أسفل الشاشة (لوحة المفاتيح: 1 و2 و3). ① الحجر: ارمِه نحو الكاميرا فتنشغل الوحوش 6 ثوانٍ. ② إبرة الوخز: ارمِها مباشرة على الوحش لتشلّه 5 ثوانٍ؛ وإن أخطأت تضيع. ③ حذاء تشاكرا: اركض على الماء 15 ثانية دون أن تُطارد.'],
   ['help.5.t', 'STARS & RANKING', 'BINTANG & PERINGKAT', 'النجوم والترتيب'],
   ['help.5.d', '★ finish the level  ·  ★ time under the target  ·  ★ all crystals. Scores rise with fast times, crystals and few falls. Your total score across all levels + the daily challenge goes on the leaderboard.', '★ selesai level  ·  ★ waktu di bawah target  ·  ★ semua kristal. Skor makin tinggi untuk waktu cepat, kristal, dan sedikit jatuh. Skor total semua level + tantangan harian masuk papan peringkat.', '★ إنهاء المستوى  ·  ★ زمن أقل من الهدف  ·  ★ كل البلورات. تزيد النقاط مع السرعة والبلورات وقلة السقوط. مجموع نقاطك في كل المستويات + التحدي اليومي يدخل في لوحة المتصدرين.'],
+  ['help.6.t', 'TWISTS & STREAKS', 'KEJUTAN & RANGKAIAN', 'مفاجآت وسلاسل'],
+  ['help.6.d', 'Levels 16–19: tiles that shake will collapse, keep moving. Levels 20–24: the lights flicker and cut out, trust the radar. Levels 25–29: a third hunter joins the chase. Level 30 mixes them all. Finish the daily challenge on consecutive days to build a streak: the bonus coins grow every day, and day 7 also gives free Chakra shoes.', 'Level 16–19: ubin yang bergetar akan runtuh, terus bergerak. Level 20–24: lampu berkedip lalu padam, andalkan radar. Level 25–29: pemburu ketiga ikut mengejar. Level 30 menggabungkan semuanya. Selesaikan tantangan harian berturut-turut untuk membangun rangkaian: koin bonus naik tiap hari, dan hari ke-7 memberi Sepatu Chakra gratis.', 'المستويات 16–19: البلاطات التي تهتز ستنهار، واصل الحركة. المستويات 20–24: تومض الأضواء ثم تنطفئ، اعتمد على الرادار. المستويات 25–29: ينضم صيّاد ثالث إلى المطاردة. المستوى 30 يجمعها كلها. أنهِ التحدي اليومي في أيام متتالية لبناء سلسلة: تزداد عملات المكافأة كل يوم، واليوم السابع يمنح حذاء تشاكرا مجانًا.'],
   ['coach.safe', '✅ Safe! The platform made the monster lose your trail', '✅ Aman! Pijakan membuat monster kehilangan jejak', '✅ بأمان! المنصة جعلت الوحش يفقد أثرك'],
   ['coach.escape', 'You fell in the water! Get near a platform and press JUMP', 'Kamu jatuh ke air! Dekati pijakan lalu tekan JUMP', 'سقطت في الماء! اقترب من منصة ثم اضغط قفز'],
   ['coach.trap', 'The platform is collapsing! Jump now!', 'Pijakan runtuh! Lompat sekarang!', 'المنصة تنهار! اقفز الآن!'],
@@ -1197,7 +1228,7 @@ async function run(mode) {
     '<svg viewBox="0 0 48 48"><line x1="8" y1="40" x2="35" y2="13" stroke="#f1d27a" stroke-width="3.5" stroke-linecap="round"/><circle cx="38" cy="10" r="5.5" fill="#ff7b6b" stroke="#fff" stroke-width="2"/><line x1="8" y1="40" x2="5" y2="44" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
     '<svg viewBox="0 0 48 48"><path d="M14 7 H28 V23 L41 29 Q45 31 45 36 V40 H12 Z" fill="#3aa7d8" stroke="#d9f6ff" stroke-width="2.5" stroke-linejoin="round"/><path d="M12 34 H45" stroke="#d9f6ff" stroke-width="2"/><path d="M3 21 q6 -2 8 4 M2 29 q6 -2 8 4" stroke="#8fe8ff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>'
   ];
-  function freshSave() { return { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0, coins: 50, inv: [3, 0, 0], snd: [8, 7], ftue: 0, seen: 0, legacy: 0, lang: 'en' }; }
+  function freshSave() { return { v: 1, maxLv: 0, lv: [], daily: { k: 0, s: 0, st: 0, t: 0 }, dailyTotal: 0, tut: 0, coins: 50, inv: [3, 0, 0], snd: [8, 7], ftue: 0, seen: 0, legacy: 0, lang: 'en', streak: { n: 0, last: 0, best: 0 } }; }
   const save = freshSave();
 
   function dateKey() { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
@@ -1207,14 +1238,27 @@ async function run(mode) {
     if (n < 3) return { type: 'none', count: 0 };
     if (n < 6) return { type: 'key', count: 1 };
     if (n < 10) return { type: 'fuse', count: n < 8 ? 3 : 4 };
+    if (n < 12) return { type: 'code', count: 3 };
+    // From level 12 the puzzles rotate: colored levers -> timed plates -> code
+    const k = (n - 12) % 3;
+    if (k === 0) return { type: 'lever', count: n < 21 ? 3 : 4 };
+    if (k === 1) return { type: 'plates', count: n < 25 ? 3 : 4 };
     return { type: 'code', count: n < 14 ? 3 : (n < 21 ? 4 : 5) };
   }
+  const LEVER_COLORS = [0xff5a4d, 0x4da6ff, 0x56e07a, 0xffd24d], LEVER_GLYPHS = ['🔴', '🔵', '🟢', '🟡'];
+  const PLATE_TIME = 30;   // seconds to press the remaining plates once the first one is down
   function levelSpecFor(n) {
     n = Math.max(1, Math.min(MAX_LEVEL, n | 0));
     const base = clampRoomSize(cfg.settings.roomSize);
-    const size = Math.max(40, Math.min(260, Math.round(base * (0.42 + 0.10 * (n - 1)) / 10) * 10));
+    let size = Math.max(40, Math.min(260, Math.round(base * (0.42 + 0.10 * (n - 1)) / 10) * 10));
+    if (n >= 16) size = n === MAX_LEVEL ? 240 : 190 + ((n - 16) % 5) * 12;   // the late game varies in length instead of staying at the 260 m cap
+    // Every five levels brings a new twist: 16-19 collapsing floor, 20-24 lights out, 25-29 a third hunter, 30 all of them.
+    const twist = n === MAX_LEVEL ? { name: 'final', crumble: 0.4, dark: true, hunters: 3, badge: '🧱💡👹' }
+      : n >= 25 ? { name: 'hunter', hunters: 3, badge: '👹' }
+      : n >= 20 ? { name: 'dark', dark: true, badge: '💡' }
+      : n >= 16 ? { name: 'crumble', crumble: 0.34, badge: '🧱' } : null;
     return {
-      kind: 'level', n, title: 'LV ' + n, seed: 1337 + n * 7919, size,
+      kind: 'level', n, title: 'LV ' + n, seed: 1337 + n * 7919, size, twist,
       dif: Math.min(1, (n - 1) / 12), crystals: Math.min(10, 4 + (n >> 1)),
       monsterMult: 1 + 0.025 * Math.min(12, n - 1), alert: alertFor(1 - 0.03 * (n - 1)), par: 0, puzzle: puzzleFor(n), code: []
     };
@@ -1225,7 +1269,7 @@ async function run(mode) {
     return {
       kind: 'daily', n: 0, title: 'HARIAN', seed: (Math.imul(k, 2654435761) ^ 0x5bd1e995) | 0, size,
       dif: 0.6, crystals: 8, monsterMult: 1.2, alert: alertFor(0.75), par: 0,
-      puzzle: [{ type: 'key', count: 1 }, { type: 'fuse', count: 4 }, { type: 'code', count: 4 }][k % 3], code: []
+      puzzle: [{ type: 'key', count: 1 }, { type: 'fuse', count: 4 }, { type: 'code', count: 4 }, { type: 'lever', count: 4 }, { type: 'plates', count: 3 }][k % 5], code: []
     };
   }
   function tutorialSpec() {
@@ -1240,6 +1284,21 @@ async function run(mode) {
   function effSeed() { return levelSpec ? levelSpec.seed : cfg.settings.mapSeed; }
   function mMult() { return levelSpec ? levelSpec.monsterMult : 1; }
 
+  // Daily streak: finishing the daily challenge on consecutive days pays a growing coin bonus (7-day cycle, free item on day 7).
+  const STREAK_COINS = [20, 30, 40, 55, 75, 100, 150];
+  function dayIndex(k) { return Math.round(Date.UTC(Math.floor(k / 10000), Math.floor(k / 100) % 100 - 1, k % 100) / 86400000); }
+  function streakNow() {      // streak still alive today? (played today or yesterday)
+    const s = save.streak, today = dayIndex(dateKey());
+    if (!s.n || !s.last) return 0;
+    const gap = today - dayIndex(s.last);
+    return gap <= 1 && gap >= 0 ? s.n : 0;
+  }
+  function streakBonusFor(n) { return STREAK_COINS[(Math.max(1, n) - 1) % 7]; }
+  function streakNextBonus() {   // coins the next daily clear would pay in streak bonus
+    const s = save.streak, today = dayIndex(dateKey());
+    if (s.last && dayIndex(s.last) === today) return 0;
+    return streakBonusFor(streakNow() + 1);
+  }
   function rollDaily() {
     const k = dateKey();
     if (!save.daily.k) save.daily.k = k;
@@ -1267,6 +1326,7 @@ async function run(mode) {
     save.seen = st.seen | 0;
     save.legacy = (st.legacy || old) ? 1 : 0;
     save.lang = LANGS.includes(st.lang) ? st.lang : 'en';
+    if (st.streak) save.streak = { n: Math.max(0, Math.min(9999, st.streak.n | 0)), last: st.streak.last | 0, best: Math.max(0, Math.min(9999, st.streak.best | 0)) };
     setLang(save.lang);
     if (typeof soundSystem !== 'undefined') soundSystem.applyVolumes();
   }
@@ -1337,10 +1397,38 @@ async function run(mode) {
     c.ringMat.color.set(col); c.flagMat.color.set(col); c.beamMat.color.set(col);
     c.ringMat.opacity = on ? 0.95 : 0.5; c.beamMat.opacity = on ? 0.22 : 0.08;
   }
+  const leverBaseGeo = new THREE.BoxGeometry(0.3, 0.07, 0.2);
+  const leverStickGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8); leverStickGeo.translate(0, 0.15, 0);
+  const leverKnobGeo = new THREE.SphereGeometry(0.06, 12, 10);
+  const plateGeo = new THREE.CylinderGeometry(0.2, 0.23, 0.05, 22);
+  const leverBaseMat = new THREE.MeshStandardMaterial({ color: 0x5b6670, roughness: 0.5, metalness: 0.6 });
+  let puzzleMats = [];
+  function makeLeverMesh(color) {
+    const g = new THREE.Group();
+    const base = new THREE.Mesh(leverBaseGeo, leverBaseMat); base.position.y = 0.035; g.add(base);
+    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.35, metalness: 0.2 });
+    const stick = new THREE.Group(); stick.position.y = 0.07;
+    const rod = new THREE.Mesh(leverStickGeo, leverBaseMat); stick.add(rod);
+    const knob = new THREE.Mesh(leverKnobGeo, mat); knob.position.y = 0.33; stick.add(knob);
+    g.add(stick); puzzleMats.push(mat);
+    return { obj: g, stick, mat };
+  }
+  function makePlateMesh(color) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, roughness: 0.4, metalness: 0.3 });
+    const disc = new THREE.Mesh(plateGeo, mat); disc.position.y = 0.04; g.add(disc); puzzleMats.push(mat);
+    return { obj: g, disc, mat };
+  }
+  // Levers / plates stay on the map once used; only their look changes.
+  function paintPuzzleItem(it, on) {
+    if (it.stick) { it.stick.rotation.z = on ? 0.6 : -0.6; it.mat.emissiveIntensity = on ? 1.5 : 0.35; }
+    else if (it.disc) { it.disc.position.y = on ? 0.012 : 0.04; it.mat.emissiveIntensity = on ? 1.6 : 0.3; }
+  }
   function buildLevelObjects() {
     while (levelObjGroup.children.length) levelObjGroup.remove(levelObjGroup.children[0]);
     cpObjs.forEach(c => c.mats.forEach(m => m.dispose()));
     crystals = []; cpObjs = []; puzzleItems = [];
+    puzzleMats.forEach(m => m.dispose()); puzzleMats = [];
     crystalPads.forEach((pad, i) => {
       const g = new THREE.Group(); g.position.set(pad.x, pad.top, pad.z);
       const gem = new THREE.Mesh(crystalGeo, crystalMat); gem.position.y = 0.42; g.add(gem);
@@ -1351,14 +1439,18 @@ async function run(mode) {
     const pzs = levelSpec && levelSpec.puzzle;
     puzzlePads.forEach((pad, i) => {
       const g = new THREE.Group(); g.position.set(pad.x, pad.top, pad.z);
-      let obj;
-      if (pzs.type === 'key') obj = makeKeyMesh();
+      let obj, extra = null;
+      if (pzs.type === 'lever') { extra = makeLeverMesh(LEVER_COLORS[i % 4]); obj = extra.obj; obj.userData.fixed = true; }
+      else if (pzs.type === 'plates') { extra = makePlateMesh(LEVER_COLORS[i % 4]); obj = extra.obj; obj.userData.fixed = true; }
+      else if (pzs.type === 'key') obj = makeKeyMesh();
       else if (pzs.type === 'fuse') obj = makeFuseMesh();
       else { obj = new THREE.Sprite(new THREE.SpriteMaterial({ map: digitTexture(levelSpec.code[i]), depthWrite: false })); obj.scale.set(0.44, 0.44, 1); }
-      obj.position.y = 0.46; g.add(obj);
+      obj.position.y = extra ? 0.0 : 0.46; g.add(obj);
       const halo = new THREE.Mesh(haloGeo, haloPzMat); halo.position.y = 0.012; halo.scale.setScalar(1.25); g.add(halo);
       levelObjGroup.add(g);
-      puzzleItems.push({ pad, g, obj, got: false, slot: i, digit: pzs.type === 'code' ? levelSpec.code[i] : null, ph: i * 2.3 });
+      const item = { pad, g, obj, got: false, slot: i, digit: pzs.type === 'code' ? levelSpec.code[i] : null, ph: i * 2.3, lockUntil: 0 };
+      if (extra) { item.stick = extra.stick; item.disc = extra.disc; item.mat = extra.mat; paintPuzzleItem(item, false); }
+      puzzleItems.push(item);
     });
     checkpointPlats.forEach(plat => {
       const g = new THREE.Group(); g.position.set(plat.x, plat.top, plat.z);
@@ -1746,8 +1838,9 @@ async function run(mode) {
       if (pz && pz.type !== 'none') {
         const zr = mulberry32((((effSeed() | 0) ^ 0x7f4a7c15) | 0) || 11);
         const wantP = Math.min(pz.count, Math.max(0, Math.floor((n - 8) / 4)));
+        const plateIdx0 = pz.type === 'plates' ? 8 + Math.floor((n - 24) * (0.15 + zr() * 0.6)) : 0;   // plates sit close together so the timer is fair
         for (let k = 0; k < wantP; k++) {
-          const idx = 6 + Math.floor((n - 12) * (k + 0.25 + zr() * 0.4) / wantP);
+          const idx = pz.type === 'plates' ? plateIdx0 + k * 3 : 6 + Math.floor((n - 12) * (k + 0.25 + zr() * 0.4) / wantP);
           for (let attempt = 0; attempt < 140; attempt++) {
             const base = routeBoxes[Math.max(2, Math.min(n - 3, idx + (attempt % 7) - 3))];
             const sepMin = attempt < 70 ? 0.6 : 0.45;
@@ -1765,6 +1858,11 @@ async function run(mode) {
         pz.count = puzzlePads.length;           // never demand more items than were placed
         if (pz.count === 0) pz.type = 'none';
         if (pz.type === 'code') levelSpec.code = puzzlePads.map(() => Math.floor(zr() * 10));
+        if (pz.type === 'lever') {   // the order the colored levers must be pulled in (Fisher-Yates)
+          const o = puzzlePads.map((_, i) => i);
+          for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(zr() * (i + 1)); const t = o[i]; o[i] = o[j]; o[j] = t; }
+          levelSpec.order = o;
+        }
       }
       for (let i = 20; i < n - 8; i += 20) checkpointPlats.push(routeBoxes[i]);
       levelSpec.par = Math.round(n * PAR_PER_HOP + PAR_BASE + crystalPads.length * PAR_PER_CRYSTAL + puzzlePads.length * 5 + (pz && pz.type === 'code' ? 8 : 0));
@@ -2569,11 +2667,12 @@ async function run(mode) {
   // ─── TWO DISTINCT HUMANOID WATER HUNTERS ───
   // Both are always present in the flooded room, but attack/catch logic is gated
   // strictly by immersion so neither can hurt a player standing on a platform.
+  const humanoidMatCache = {};   // one set of textures per hunter type, shared by every instance
   function createHumanoidMonster(type) {
     const group = new THREE.Group();
     const isWarden = type === 'warden';
     // Matte, textured surfaces (skin, cloth, bone, weathered metal) built by the procedural toolkit above.
-    const mats = isWarden ? (() => {
+    const mats = humanoidMatCache[type] || (humanoidMatCache[type] = isWarden ? (() => {
       const skinS = makeSkinSet({ base: '#7f9694', tones: ['110,130,140', '150,170,160', '90,100,130', '120,140,110'], pore: '24,34,38', vein: '64,70,130', veins: 18, scars: 3, scar: '206,200,184' });
       const clothS = makeClothSet({ base: '#1d3038', thread: '120,160,160', stain: '8,16,18', tears: 7 });
       const boneS = makeBoneSet({ base: '#cfc9ae', tones: ['180,150,90', '150,120,70', '232,228,204'], pit: '60,46,30' });
@@ -2600,7 +2699,7 @@ async function run(mode) {
         dark: setMat(rubberS, { bumpScale: 0.005 }),
         glow: new THREE.MeshStandardMaterial({ color: 0xff7545, emissive: 0xdf3515, emissiveIntensity: 2.25, roughness: 0.3 })
       };
-    })();
+    })());
     const add = (geo, mat, x, y, z, parent = group) => {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(x, y, z);
@@ -2758,8 +2857,9 @@ async function run(mode) {
     eyeLight.position.set(0, 0.165, 0.2); head.add(eyeLight);
     return { type, group, torso, head, jaw: jawPivot, arms, legs, eyeLight, pos: new THREE.Vector2(), vel: new THREE.Vector2(), target: new THREE.Vector2(), heading: Math.PI, lastDist: Infinity, stuck: 0, attacking: false, phase: isWarden ? 0.7 : 2.4, gaitPhase: isWarden ? 0.7 : 2.4, gaitBlend: 0, crawlBlend: 0, radius: isWarden ? 0.22 : 0.27, footBottom: 0, footH: isWarden ? 0.05 : 0.095, handY: 0.15 };
   }
-  const humanoidMonsters = [createHumanoidMonster('warden'), createHumanoidMonster('diver')];
-  humanoidMonsters.forEach(h => { bakeStatic(h.group); scene.add(h.group); h.dTarget = new THREE.Vector2(); h.distractT = 0; h.stunT = 0; });
+  const humanoidMonsters = [createHumanoidMonster('warden'), createHumanoidMonster('diver'), createHumanoidMonster('warden')];
+  humanoidMonsters.forEach(h => { bakeStatic(h.group); scene.add(h.group); h.dTarget = new THREE.Vector2(); h.distractT = 0; h.stunT = 0; h.off = false; });
+  humanoidMonsters[2].off = true; humanoidMonsters[2].group.visible = false;   // the third hunter only joins from level 25
 
   // ─── RIPPLE POOL ───
   const ripples = [];
@@ -3727,8 +3827,7 @@ async function run(mode) {
     // Door puzzle items (yellow) with a rim arrow to the nearest missing one
     if (levelSpec && puzzleLocked()) {
       let nearest = null, nd = 1e9;
-      for (const it of puzzleItems) {
-        if (it.got) continue;
+      for (const it of pzTargets()) {
         const dd = Math.hypot(it.pad.x - playerPos.x, it.pad.z - playerPos.z);
         if (dd < nd) { nd = dd; nearest = it; }
         const q = toR(it.pad.x, it.pad.z);
@@ -3800,8 +3899,9 @@ async function run(mode) {
       radarCtx.fill();
     }
     humanoidMonsters.forEach((h, i) => {
+      if (h.off) return;
       const p = toR(h.pos.x, h.pos.y);
-      radarCtx.fillStyle = i === 0 ? '#5fffe0' : '#ff9a54';
+      radarCtx.fillStyle = i === 0 ? '#5fffe0' : i === 1 ? '#ff9a54' : '#ff6fd8';
       radarCtx.beginPath(); radarCtx.arc(p.x, p.y, 4, 0, Math.PI * 2); radarCtx.fill();
       radarCtx.strokeStyle = '#07121b'; radarCtx.lineWidth = 1.5; radarCtx.stroke();
     });
@@ -3820,13 +3920,14 @@ async function run(mode) {
     const pzi = levelSpec && puzzleInfo();
     if (pzi && puzzleLocked()) {
       let nearest = null, nd = 1e9;
-      for (const it of puzzleItems) {
-        if (it.got) continue;
+      for (const it of pzTargets()) {
         const dd = Math.hypot(it.pad.x - playerPos.x, it.pad.z - playerPos.z);
         if (dd < nd) { nd = dd; nearest = it; }
       }
       if (nearest) {
-        const what = pzi.type === 'key' ? tr('goal.key') : pzi.type === 'fuse' ? tr('goal.fuse', { a: runStats.pz, b: pzi.count }) : tr('goal.digit', { a: runStats.pz, b: pzi.count });
+        const what = pzi.type === 'key' ? tr('goal.key') : pzi.type === 'fuse' ? tr('goal.fuse', { a: runStats.pz, b: pzi.count })
+          : pzi.type === 'lever' ? tr('goal.lever', { g: LEVER_GLYPHS[nearest.slot % 4] }) : pzi.type === 'plates' ? tr('goal.plate', { a: runStats.pz, b: pzi.count })
+          : tr('goal.digit', { a: runStats.pz, b: pzi.count });
         setText(goalHint, tr('goal.find', { what, d: Math.round(nd) }));
       } else setText(goalHint, tr('goal.type', { d: Math.round(d) }));
     } else setText(goalHint, tr('goal.go', { d: Math.round(d) }));
@@ -3881,7 +3982,7 @@ async function run(mode) {
   const helpCard = document.getElementById('help-card');
 
   const CP_PENALTY = 15;   // seconds added when continuing from a checkpoint
-  const runStats = { t: 0, falls: 0, got: 0, deaths: 0, cp: null, pz: 0, solved: false, wrong: 0, slots: [] };
+  const runStats = { t: 0, falls: 0, got: 0, deaths: 0, cp: null, pz: 0, solved: false, wrong: 0, slots: [], plateT: 0 };
   let endLockUntil = 0;    // ignore end-screen taps right after it appears (mashed JUMP)
   let pausedLevel = false;
 
@@ -3929,7 +4030,7 @@ async function run(mode) {
     } else {
       setText(hudL1, `${specTitle(levelSpec)}  ·  ${fmtTime(runStats.t)}`);
       hudL1.classList.toggle('over', runStats.t > levelSpec.par);
-      setText(hudL2, tr('hud.l2', { got: runStats.got, tot: crystals.length, par: fmtTime(levelSpec.par), f: runStats.falls }));
+      setText(hudL2, tr('hud.l2', { got: runStats.got, tot: crystals.length, par: fmtTime(levelSpec.par), f: runStats.falls }) + (levelSpec.twist ? '   ' + levelSpec.twist.badge : ''));
     }
     const pt = puzzleHudText();
     setText(hudL3, pt);
@@ -3940,6 +4041,11 @@ async function run(mode) {
 
   // ── Door puzzle (key / fuses / code) ──
   function puzzleInfo() { return levelSpec && levelSpec.puzzle && levelSpec.puzzle.type !== 'none' ? levelSpec.puzzle : null; }
+  function pzTargets() {
+    const pz = puzzleInfo();
+    if (pz && pz.type === 'lever') { const it = puzzleItems[levelSpec.order[runStats.pz]]; return it ? [it] : []; }
+    return puzzleItems.filter(it => !it.got);
+  }
   function puzzleLocked() { return !!puzzleInfo() && !runStats.solved; }
   function puzzleHudText() {
     const pz = puzzleInfo();
@@ -3947,10 +4053,57 @@ async function run(mode) {
     if (runStats.solved) return pz.type === 'code' ? tr('pz.hud.codeOk') : tr('pz.hud.open');
     if (pz.type === 'key') return runStats.pz ? tr('pz.hud.keyGot') : tr('pz.hud.keyFind');
     if (pz.type === 'fuse') return tr('pz.hud.fuse', { a: runStats.pz, b: pz.count });
+    if (pz.type === 'lever') return tr('pz.hud.lever', { o: ltr(levelSpec.order.map((s, i) => i < runStats.pz ? '✔' : LEVER_GLYPHS[s % 4]).join(' → ')) });
+    if (pz.type === 'plates') return runStats.plateT > 0 ? tr('pz.hud.platesT', { a: runStats.pz, b: pz.count, s: Math.ceil(runStats.plateT) }) : tr('pz.hud.plates', { a: runStats.pz, b: pz.count });
     return tr('pz.hud.code', { c: ltr(Array.from({ length: pz.count }, (_, i) => runStats.slots[i] == null ? '_' : runStats.slots[i]).join(' ')) });
+  }
+  function pullLever(it) {
+    const pz = levelSpec.puzzle, nowMs = performance.now();
+    if (nowMs < it.lockUntil) return;
+    if (it.slot === levelSpec.order[runStats.pz]) {
+      it.got = true; runStats.pz++; paintPuzzleItem(it, true);
+      soundSystem.playBlip([880, 1175, 1568], 0.07, 0.28, 0.45);
+      spawnVictoryBurst(it.pad.x, it.pad.top + 0.45, it.pad.z, 10);
+      const done = runStats.pz >= pz.count;
+      toast(done ? tr('pz.t.leverAll') : tr('pz.t.lever', { a: runStats.pz, b: pz.count }), done ? 3000 : 1800);
+      if (done) { runStats.solved = true; setDoorLocked(false); soundSystem.playCheckpoint(); }
+    } else {
+      runStats.wrong++; runStats.t += 3; it.lockUntil = nowMs + 2500; runStats.pz = 0;
+      puzzleItems.forEach(x => { if (x.got) { x.got = false; paintPuzzleItem(x, false); } });
+      soundSystem.playClack();
+      toast(tr('pz.t.leverWrong'), 2200);
+    }
+    updateHud(0, true);
+  }
+  function pressPlate(it) {
+    const pz = levelSpec.puzzle;
+    it.got = true; runStats.pz++; paintPuzzleItem(it, true);
+    soundSystem.playBlip([660, 880], 0.07, 0.28, 0.4);
+    spawnVictoryBurst(it.pad.x, it.pad.top + 0.2, it.pad.z, 8);
+    if (runStats.pz >= pz.count) {
+      runStats.plateT = 0; runStats.solved = true; setDoorLocked(false); soundSystem.playCheckpoint();
+      toast(tr('pz.t.plateAll'), 3000);
+    } else {
+      if (runStats.pz === 1) runStats.plateT = PLATE_TIME;
+      toast(tr('pz.t.plate', { a: runStats.pz, b: pz.count, s: Math.ceil(runStats.plateT) }), 2200);
+    }
+    updateHud(0, true);
+  }
+  function tickPlates(dt) {
+    if (!(runStats.plateT > 0) || runStats.solved) return;
+    runStats.plateT -= dt;
+    if (runStats.plateT <= 0) {
+      runStats.plateT = 0; runStats.pz = 0; runStats.wrong++;
+      puzzleItems.forEach(x => { x.got = false; paintPuzzleItem(x, false); });
+      soundSystem.playClack();
+      toast(tr('pz.t.plateFail'), 2400);
+      updateHud(0, true);
+    }
   }
   function collectPuzzle(it) {
     const pz = levelSpec.puzzle;
+    if (pz.type === 'lever') { pullLever(it); return; }
+    if (pz.type === 'plates') { pressPlate(it); return; }
     it.got = true; it.g.visible = false; runStats.pz++;
     if (pz.type === 'code') runStats.slots[it.slot] = it.digit;
     soundSystem.playBlip([880, 1175, 1568], 0.07, 0.28, 0.45);
@@ -3968,7 +4121,9 @@ async function run(mode) {
     if (pz.type === 'code' && runStats.pz >= pz.count) { if (nowMs > keypadCooldown) openKeypad(); return; }
     if (nowMs - lockToastAt < 2600) return;
     lockToastAt = nowMs;
-    toast(pz.type === 'key' ? tr('pz.lock.key') : pz.type === 'fuse' ? tr('pz.lock.fuse', { a: runStats.pz, b: pz.count }) : tr('pz.lock.code', { a: runStats.pz, b: pz.count }), 2200);
+    toast(pz.type === 'key' ? tr('pz.lock.key') : pz.type === 'fuse' ? tr('pz.lock.fuse', { a: runStats.pz, b: pz.count })
+      : pz.type === 'lever' ? tr('pz.lock.lever', { a: runStats.pz, b: pz.count }) : pz.type === 'plates' ? tr('pz.lock.plates', { a: runStats.pz, b: pz.count })
+      : tr('pz.lock.code', { a: runStats.pz, b: pz.count }), 2200);
   }
   function renderKeypad() {
     const n = levelSpec.puzzle.count;
@@ -4043,7 +4198,7 @@ async function run(mode) {
   }
   function animateLevelObjects(t) {
     for (const it of puzzleItems) {
-      if (it.got) continue;
+      if (it.got || it.obj.userData.fixed) continue;
       if (!it.obj.isSprite) it.obj.rotation.y = t * 2.0 + it.ph;
       it.obj.position.y = 0.46 + Math.sin(t * 2.4 + it.ph) * 0.05;
     }
@@ -4080,9 +4235,17 @@ async function run(mode) {
     let coins = Math.round((20 + stars * 20 + got * 10 + (puzzleInfo() ? 15 : 0)) * (1 + 0.04 * (L.n || 8)));
     coins = first ? Math.round(coins * 1.5) : (stars > prevSt ? coins : Math.round(coins * 0.4));
     save.coins = Math.min(999999, save.coins + coins);
+    let streak = null;
+    if (L.kind === 'daily' && save.streak.last !== dateKey()) {
+      const n = streakNow() + 1, bonus = streakBonusFor(n), gift = n % 7 === 0 && save.inv[2] < ITEMS[2].max;
+      save.streak = { n, last: dateKey(), best: Math.max(save.streak.best, n) };
+      save.coins = Math.min(999999, save.coins + bonus);
+      if (gift) save.inv[2]++;
+      streak = { n, bonus, gift };
+    }
     saveProgress();
     const unlocks = save.legacy ? [] : FEATURES.filter(f => prevMax < f.at && save.maxLv >= f.at).map(f => f.name);
-    return { stars, score, stTime, stCry, newBest: score > prevScore, par, total, got, coins, first, unlocks };
+    return { stars, score, stTime, stCry, newBest: score > prevScore, par, total, got, coins, first, unlocks, streak };
   }
 
   async function submitBoard() {
@@ -4123,9 +4286,10 @@ async function run(mode) {
       endStats.innerHTML =
         row(tr('st.time'), fmtTime(runStats.t), (r.stTime ? '★ ' : '☆ ') + tr('st.target', { t: fmtTime(r.par) }), r.stTime) +
         row(tr('st.crystals'), `${r.got}/${r.total}`, r.total ? ((r.stCry ? '★ ' : '☆ ') + tr('st.all')) : '—', r.stCry) +
-        (puzzleInfo() ? row(tr('st.puzzle'), puzzleInfo().type === 'key' ? tr('st.key') : puzzleInfo().type === 'fuse' ? tr('st.fuse') : tr('st.code'), runStats.wrong ? tr('st.wrongCode', { n: runStats.wrong }) : tr('st.solved'), !runStats.wrong) : '') +
+        (puzzleInfo() ? row(tr('st.puzzle'), puzzleInfo().type === 'key' ? tr('st.key') : puzzleInfo().type === 'fuse' ? tr('st.fuse') : puzzleInfo().type === 'lever' ? tr('st.lever') : puzzleInfo().type === 'plates' ? tr('st.plates') : tr('st.code'), runStats.wrong ? tr(puzzleInfo().type === 'code' ? 'st.wrongCode' : 'st.wrongTry', { n: runStats.wrong }) : tr('st.solved'), !runStats.wrong) : '') +
         row(tr('st.falls'), runStats.falls, runStats.deaths ? tr('st.caught', { n: runStats.deaths }) : '') +
         row(tr('st.coins'), '🪙 +' + r.coins, r.first ? tr('st.first') : '', true) +
+        (r.streak ? row(tr('st.streak'), tr('st.streakDays', { n: r.streak.n }), r.streak.gift ? tr('st.streakGift', { c: r.streak.bonus, i: ITEMS[2].name }) : tr('st.streakBonus', { c: r.streak.bonus }), true) : '') +
         (r.unlocks.length ? row(tr('st.newFeat'), r.unlocks.join(', '), tr('st.opened'), true) : '') +
         row(tr('st.score'), fmtN(r.score), r.newBest ? tr('st.record') : '', false, 'total');
       const canNext = levelSpec.kind === 'level' && levelSpec.n < MAX_LEVEL;
@@ -4163,6 +4327,7 @@ async function run(mode) {
 
   // Put the player on the start pad (or the last checkpoint) and reset the monsters.
   function restartGame(fromCp) {
+    if (fromCp) resetCrumbles();
     const plat = (fromCp && runStats.cp) ? runStats.cp : startPlat;
     resetItemEffects();
     placePlayerOnPlatform(plat);
@@ -4186,18 +4351,21 @@ async function run(mode) {
   // Fresh run of the current level
   function retryLevel() {
     runStats.t = 0; runStats.falls = 0; runStats.got = 0; runStats.deaths = 0; runStats.cp = null;
-    runStats.pz = 0; runStats.solved = false; runStats.wrong = 0; runStats.slots = [];
+    runStats.pz = 0; runStats.solved = false; runStats.wrong = 0; runStats.slots = []; runStats.plateT = 0;
     crystals.forEach(c => { c.got = false; c.g.visible = true; });
-    puzzleItems.forEach(it => { it.got = false; it.g.visible = true; });
+    puzzleItems.forEach(it => { it.got = false; it.g.visible = true; it.lockUntil = 0; paintPuzzleItem(it, false); });
     setDoorLocked(!!puzzleInfo());
     cpObjs.forEach(c => paintCp(c, false));
+    resetCrumbles();
     restartGame(false);
     updateHud(0, true);
     const pzi = puzzleInfo();
     if (pzi && levelSpec.kind !== 'tutorial') toast(pzi.type === 'key' ? tr('pz.intro.key')
       : pzi.type === 'fuse' ? tr('pz.intro.fuse', { n: pzi.count })
+      : pzi.type === 'lever' ? tr('pz.intro.lever', { n: pzi.count }) : pzi.type === 'plates' ? tr('pz.intro.plates', { n: pzi.count })
       : tr('pz.intro.code', { n: pzi.count }), 6500);
     updateGating();
+    if (levelSpec.twist) { const spec = levelSpec; setTimeout(() => { if (levelSpec === spec && gameState === 'playing') toast(tr('twist.' + spec.twist.name), 4500); }, pzi && levelSpec.kind !== 'tutorial' ? 6700 : 600); }
     if (levelSpec.kind === 'tutorial') ftueBegin(); else { ftueEnd(); clearCoach(); levelCoach(); }
   }
   function startTutorial() {
@@ -4259,13 +4427,15 @@ async function run(mode) {
     let html;
     if (menuView === 'list') {
       const dTxt = d.k === dk && d.st > 0 ? starStr(d.st) : tr('mn.notPlayed');
+      const sn = streakNow(), nb = streakNextBonus();
+      const dailyHint = sn || nb ? `<small class="mn-streak">${nb ? (sn ? tr('mn.streak', { n: sn }) + ' · ' : '') + tr('mn.streakNext', { c: nb }) : tr('mn.streak', { n: sn })}</small>` : '';
       const lockTile = (icon, label, at) => `<button class="mn-tile locked" data-act="locked" data-at="${at}"><i>🔒</i><b>${label}</b><small>${tr('mn.unlockAt', { n: at })}</small></button>`;
       const isNew = bit => (save.seen & bit) ? '' : ' new';
       html = `<div class="mn-title sm">DON'T TOUCH WATER</div>${stats}${menuNote ? `<div class="shop-msg">${tr('mn.lockedNote', { n: menuNote })}</div>` : ''}${resume}` +
         `<button class="mn-btn primary" data-act="level" data-n="${next}">${tr('mn.play', { n: next })}</button>` +
         `<div class="mn-grid">` +
         `<button class="mn-tile" data-act="view" data-v="levels"><i>☰</i><b>${tr('mn.pick')}</b></button>` +
-        (featureOpen('daily') ? `<button class="mn-tile daily${isNew(2)}" data-act="daily" data-bit="2"><i>☀</i><b>${tr('mn.daily')}</b><small>${dLabel} · ${dTxt}</small></button>` : lockTile('☀', tr('mn.daily'), 3)) +
+        (featureOpen('daily') ? `<button class="mn-tile daily${isNew(2)}" data-act="daily" data-bit="2"><i>☀</i><b>${tr('mn.daily')}</b><small>${dLabel} · ${dTxt}</small>${dailyHint}</button>` : lockTile('☀', tr('mn.daily'), 3)) +
         (featureOpen('shop') ? `<button class="mn-tile shop${isNew(1)}" data-act="view" data-v="shop" data-bit="1"><i>🛍</i><b>${tr('mn.shop')}</b><small>🪙 ${fmtN(save.coins)}</small></button>` : lockTile('🛍', tr('mn.shop'), 2)) +
         (featureOpen('board') ? `<button class="mn-tile${isNew(4)}" data-act="view" data-v="board" data-bit="4"><i>🏆</i><b>${tr('mn.board')}</b></button>` : lockTile('🏆', tr('mn.board'), 5)) +
         `<button class="mn-tile" data-act="help"><i>?</i><b>${tr('mn.help')}</b></button>` +
@@ -4341,7 +4511,7 @@ async function run(mode) {
   }
 
   // ── How-to-play cards ──
-  const HELP_N = 6;
+  const HELP_N = 7;
   let helpIdx = 0;
   function renderHelp() {
     const last = helpIdx === HELP_N - 1;
@@ -4445,12 +4615,12 @@ async function run(mode) {
     }
     return new THREE.CanvasTexture(c);
   })();
-  const stunSprites = [0, 1, 2].map(() => {
+  const stunSprites = [0, 1, 2, 3].map(() => {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: stunTex, transparent: true, depthWrite: false }));
     sp.scale.set(0.7, 0.7, 1); sp.visible = false; scene.add(sp); return sp;
   });
   function updateStunVisuals(t) {
-    const arr = [[mStunT, mPos.x, mPos.y, 0.95]].concat(humanoidMonsters.map(h => [h.stunT, h.pos.x, h.pos.y, 1.4]));
+    const arr = [[mStunT, mPos.x, mPos.y, 0.95]].concat(humanoidMonsters.map(h => [h.off ? 0 : h.stunT, h.pos.x, h.pos.y, 1.4]));
     arr.forEach((a, i) => {
       const sp = stunSprites[i];
       sp.visible = a[0] > 0;
@@ -4488,7 +4658,7 @@ async function run(mode) {
   }
   function monsterTargets() {
     const out = [{ x: mPos.x, z: mPos.y, r: 0.55, hit: () => { mStunT = STUN_TIME; mVel.set(0, 0); } }];
-    humanoidMonsters.forEach(h => out.push({ x: h.pos.x, z: h.pos.y, r: 0.6, hit: () => { h.stunT = STUN_TIME; h.vel.set(0, 0); h.attacking = false; } }));
+    humanoidMonsters.forEach(h => { if (!h.off) out.push({ x: h.pos.x, z: h.pos.y, r: 0.6, hit: () => { h.stunT = STUN_TIME; h.vel.set(0, 0); h.attacking = false; } }); });
     return out;
   }
   function distractMonsters(x, z) {
@@ -4498,7 +4668,7 @@ async function run(mode) {
       mState = 'distract'; mDistractT = DISTRACT_TIME; mLastKnown.set(x, z); hideDanger(); any = true;
     }
     humanoidMonsters.forEach(h => {
-      if (Math.hypot(h.pos.x - x, h.pos.y - z) < R) { h.distractT = DISTRACT_TIME; h.dTarget.set(x, z); any = true; }
+      if (!h.off && Math.hypot(h.pos.x - x, h.pos.y - z) < R) { h.distractT = DISTRACT_TIME; h.dTarget.set(x, z); any = true; }
     });
     if (any) toast(tr('item.distract'), 1800);
   }
@@ -4589,6 +4759,62 @@ async function run(mode) {
       }
       if (done) { scene.remove(p.mesh); projectiles.splice(i, 1); }
     }
+  }
+  // ── Level twist: crumbling floor (reuses the training-level trap visuals) ──
+  const CRUMBLE_DELAY = 1.1;
+  let crumbles = [];
+  function resetCrumbles() {
+    crumbles.forEach(C => { C.plat.top = platTop(); setPlatVisual(C.plat, platTop(), 0); });
+    crumbles = [];
+    const tw = levelSpec && levelSpec.twist;
+    if (!tw || !tw.crumble) return;
+    const n = routeBoxes.length;
+    for (let i = 4; i < n - 4; i++) {
+      const plat = routeBoxes[i];
+      if (checkpointPlats.includes(plat)) continue;
+      if ((Math.imul(i + 1, 2654435761) >>> 0) % 1000 / 1000 < tw.crumble) crumbles.push({ plat, state: 0, t: 0 });
+    }
+  }
+  function updateCrumbles(dt, activePlat, safe) {
+    for (const C of crumbles) {
+      if (C.state === 0) {
+        if (safe && activePlat === C.plat) { C.state = 1; C.t = 0; soundSystem.playBlip([220, 180, 150], 0.07, 0.3, 0.2); }
+      } else if (C.state === 1) {
+        C.t += dt;
+        setPlatVisual(C.plat, platTop(), Math.sin(C.t * 70) * 0.03 * Math.min(1, C.t * 2));
+        if (C.t >= CRUMBLE_DELAY) {
+          C.state = 2; C.t = 0; C.plat.top = -9;
+          spawnSplashBurst(C.plat.x, C.plat.z, 16); spawnRipple(C.plat.x, C.plat.z, 1.2, 0xffffff, 1.0); soundSystem.playSplash();
+        }
+      } else if (C.state === 2) {
+        C.t += dt;
+        setPlatVisual(C.plat, platTop() * (1 - Math.min(1, C.t / 0.25)), 0);
+        if (C.t >= 0.25) { C.state = 3; C.t = 0; }
+      } else {
+        C.t += dt;
+        if (C.t > 5 && Math.hypot(playerPos.x - C.plat.x, playerPos.z - C.plat.z) > 1.8) { C.plat.top = platTop(); setPlatVisual(C.plat, platTop(), 0); C.state = 0; }
+      }
+    }
+  }
+  // ── Level twist: lights out (dim all the time, flicker, then a short blackout) ──
+  const DIR_BASE = 0.48;
+  let darkMul = 1;
+  function darkTarget(t) {
+    const ph = t % 18;
+    if (ph < 11) return 0.5;
+    if (ph < 11.9 || (ph >= 14.9 && ph < 15.8)) return Math.floor(t * 14) % 2 ? 0.5 : 0.12;
+    if (ph < 14.9) return 0.1;
+    return 0.5;
+  }
+  function applyDarkness(dt) {
+    const on = !!(levelSpec && levelSpec.twist && levelSpec.twist.dark) && gameState === 'playing';
+    if (!on) {   // back to normal lighting the moment the level is left
+      if (darkMul !== 1) { darkMul = 1; ambient.intensity = 0.76; fillLight.intensity = 0.31; dirLight.intensity = DIR_BASE; scene.fog.density = Math.min(0.05, 1 / RS); }
+      return;
+    }
+    darkMul += (darkTarget(runStats.t) - darkMul) * Math.min(1, dt * 12);
+    ambient.intensity *= darkMul; fillLight.intensity *= darkMul; dirLight.intensity = DIR_BASE * darkMul;
+    scene.fog.density = Math.min(0.05, 1 / RS) * (1 + 1.8 * (1 - darkMul));
   }
   function updateItems(dt, activePlat) {
     useCd = Math.max(0, useCd - dt);
@@ -5043,10 +5269,10 @@ async function run(mode) {
 
   // ─── SOLID CHARACTERS: player, aquatic monster and both humanoids occupy space (circles on the floor plane) ───
   const PLAYER_R = 0.17;
-  const bodies = [{ x: 0, z: 0, r: 0.28, kind: 'm' }, { x: 0, z: 0, r: 0.26, kind: 'h' }, { x: 0, z: 0, r: 0.31, kind: 'h' }];
+  const bodies = [{ x: 0, z: 0, r: 0.28, kind: 'm' }, { x: 0, z: 0, r: 0.26, kind: 'h' }, { x: 0, z: 0, r: 0.31, kind: 'h' }, { x: 0, z: 0, r: 0.26, kind: 'h' }];
   function syncBodies() {
     bodies[0].x = mPos.x; bodies[0].z = mPos.y;
-    humanoidMonsters.forEach((h, i) => { const b = bodies[i + 1]; b.x = h.pos.x; b.z = h.pos.y; b.r = h.radius + 0.04; });
+    humanoidMonsters.forEach((h, i) => { const b = bodies[i + 1]; b.off = h.off; b.x = h.off ? 1e5 + i * 10 : h.pos.x; b.z = h.off ? 1e5 : h.pos.y; b.r = h.radius + 0.04; });
   }
   // Monsters never overlap each other and never sit inside the player. The player is never shoved by them; the player
   // simply cannot walk through them (see resolvePlayerHorizontal).
@@ -5072,7 +5298,7 @@ async function run(mode) {
       }
     }
     mPos.x = bodies[0].x; mPos.y = bodies[0].z; resolveMonster();
-    humanoidMonsters.forEach((h, i) => { h.pos.x = bodies[i + 1].x; h.pos.y = bodies[i + 1].z; resolveHumanoidPosition(h); });
+    humanoidMonsters.forEach((h, i) => { if (h.off) return; h.pos.x = bodies[i + 1].x; h.pos.y = bodies[i + 1].z; resolveHumanoidPosition(h); });
   }
 
   function clampV(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -5249,8 +5475,8 @@ async function run(mode) {
   }
 
   function findHumanoidSpawn(index) {
-    const base = Math.PI / 4 + (index === 0 ? -0.30 : 0.30);
-    const other = humanoidMonsters[1 - index];
+    const base = Math.PI / 4 + [-0.30, 0.30, 2.6][index];
+    const others = humanoidMonsters.slice(0, index);
     const offsets = [0, -0.22, 0.22, -0.48, 0.48, -0.78, 0.78, -1.1, 1.1, -1.55, 1.55, Math.PI];
     for (let radius = 2.8; radius <= 10; radius += 0.35) {
       for (const offset of offsets) {
@@ -5259,7 +5485,7 @@ async function run(mode) {
         const z = playerPos.z + Math.cos(a) * radius;
         if (Math.abs(x) > RS / 2 - 0.5 || Math.abs(z) > RS / 2 - 0.5) continue;
         if (pointBlocked(x, z, 0.34) || Math.hypot(x - mPos.x, z - mPos.y) < 1.7) continue;
-        if (index === 1 && Math.hypot(x - other.pos.x, z - other.pos.y) < 2.0) continue;
+        if (others.some(o => Math.hypot(x - o.pos.x, z - o.pos.y) < 2.0)) continue;
         return { x, z };
       }
     }
@@ -5267,7 +5493,10 @@ async function run(mode) {
   }
 
   function resetHumanoidMonsters() {
+    const hunters = levelSpec && levelSpec.twist && levelSpec.twist.hunters ? levelSpec.twist.hunters : 2;
     humanoidMonsters.forEach((h, i) => {
+      h.off = i >= hunters; h.group.visible = !h.off;
+      if (h.off) { h.attacking = false; h.vel.set(0, 0); return; }
       const p = findHumanoidSpawn(i);
       h.pos.set(p.x, p.z); h.vel.set(0, 0);
       h.heading = Math.atan2(playerPos.x - p.x, playerPos.z - p.z);
@@ -5329,6 +5558,7 @@ async function run(mode) {
 
   function updateHumanoidMonsters(dt, playerInWater, playerSafe) {
     humanoidMonsters.forEach(h => {
+      if (h.off) { h.attacking = false; return; }
       if (h.stunT > 0) { h.stunT -= dt; h.vel.set(0, 0); h.attacking = false; return; }
       if (h.distractT > 0) {
         h.distractT -= dt; h.attacking = false;
@@ -5404,7 +5634,8 @@ async function run(mode) {
 
   function updateHumanoidVisuals(dt, t) {
     humanoidMonsters.forEach(h => {
-      h.group.visible = true;
+      h.group.visible = !h.off;
+      if (h.off) return;
       const speed = h.vel.length();
       h.crawlBlend += ((h.attacking ? 1 : 0) - h.crawlBlend) * Math.min(1, dt * 7);
       const gaitTarget = clampV(speed / (h.attacking ? 3.5 : 0.8), 0, 1);
@@ -5763,6 +5994,7 @@ async function run(mode) {
 
           // Bring any distant lurking monster closer into the player's sector of the room
           humanoidMonsters.forEach((h, i) => {
+            if (h.off) return;
             const hd = Math.hypot(h.pos.x - playerPos.x, h.pos.y - playerPos.z);
             if (hd > 22) {
               const sp = nearSpot(8 + i * 3, 14 + i * 3);
@@ -5816,9 +6048,11 @@ async function run(mode) {
       updateHumanoidMonsters(dt, playerIsInWater, safeEff);
       separateCharacters();
       updateItems(dt, activePlat);
+      updateCrumbles(dt, activePlat, safe);
       ftueUpdate(dt, activePlat, playerIsInWater, safe);
       updateCoach(dt);
 
+      tickPlates(dt);
       // Crystals and checkpoints
       if (levelSpec) {
         for (const c of crystals) {
@@ -5829,7 +6063,9 @@ async function run(mode) {
         for (const it of puzzleItems) {
           if (it.got) continue;
           const ddx = playerPos.x - it.pad.x, ddz = playerPos.z - it.pad.z;
-          if (ddx * ddx + ddz * ddz < 0.6 * 0.6 && playerPos.y > it.pad.top - 0.1 && playerPos.y < it.pad.top + 0.9) collectPuzzle(it);
+          const inside = ddx * ddx + ddz * ddz < 0.6 * 0.6 && playerPos.y > it.pad.top - 0.1 && playerPos.y < it.pad.top + 0.9;
+          if (levelSpec.puzzle.type === 'lever' || levelSpec.puzzle.type === 'plates') { if (inside && !it.inside) collectPuzzle(it); it.inside = inside; }   // levers and plates trigger when you step onto them, not while you stand there
+          else if (inside) collectPuzzle(it);
         }
         if (safe && activePlat && cpObjs.length) reachCheckpoint(activePlat);
       }
@@ -5909,6 +6145,7 @@ async function run(mode) {
     dirLight.target.position.set(playerPos.x, 0, playerPos.z);
     pLight1.position.set(playerPos.x - 1.5, WH - 0.4, playerPos.z - 1.5);
     pLight2.position.set(playerPos.x + 1.5, WH - 0.4, playerPos.z + 1.5);
+    applyDarkness(dt);
     updatePatches(playerPos.x, playerPos.z);
 
     if (mode === 'play' && (gameState === 'menu' || gameState === 'boot')) camAngle += dt * 0.18;
