@@ -1643,7 +1643,7 @@ async function run(mode) {
     }
 
     routeBoxes.push(start);
-    let cur = start, guard = 0;
+    let cur = start, guard = 0, backUps = 0;
     while (gapBetween(cur, fin) > MAX_ROUTE_GAP && guard++ < 6000) {
       const desired = Math.atan2(fin.x - cur.x, fin.z - cur.z);
       let cand = null;
@@ -1678,15 +1678,31 @@ async function run(mode) {
         if (bad) continue;
         cand = c;
       }
-      if (!cand) break;
+      if (!cand) {
+        // Dead end (boxed in by earlier pads or the room wall): retry with the bunching/bend rules off,
+        // and if that fails too, back up one platform and branch off from there so the exit stays reachable.
+        for (let attempt = 0; attempt < 48 && !cand; attempt++) {
+          const c = placeAlong(cur, desired + (rng() - 0.5) * 3.4, 0.8, 0.8, 0.4 + rng() * 0.5);
+          if (!c) continue;
+          if (Math.abs(c.x) > half - c.hw - 0.3 || Math.abs(c.z) > half - c.hd - 0.3) continue;
+          if (gapBetween(c, fin) < 0.4) continue;
+          let near = false;
+          for (let k = Math.max(0, routeBoxes.length - 14); k < routeBoxes.length - 1; k++) if (gapBetween(c, routeBoxes[k]) < 0.3) { near = true; break; }
+          if (!near) cand = c;
+        }
+        if (!cand) {
+          if (routeBoxes.length > 3 && backUps++ < 80) { routeBoxes.pop(); cur = routeBoxes[routeBoxes.length - 1]; continue; }
+          break;
+        }
+      }
       routeBoxes.push(cand); cur = cand;
     }
     // Bridge any remaining gap to the exit platform
     let bg = 0;
-    while (gapBetween(cur, fin) > MAX_ROUTE_GAP && bg++ < 20) {
+    while (gapBetween(cur, fin) > MAX_ROUTE_GAP && bg++ < 120) {
       const g = gapBetween(cur, fin);
       const ang = Math.atan2(fin.x - cur.x, fin.z - cur.z);
-      const b = placeAlong(cur, ang, 0.8, 0.8, Math.max(0.2, (g - 0.8) / 2));
+      const b = placeAlong(cur, ang, 0.8, 0.8, Math.min(0.95, Math.max(0.2, (g - 0.8) / 2)));   // never hop farther than a jump can reach
       if (!b) break;
       routeBoxes.push(b); cur = b;
     }
@@ -3387,6 +3403,7 @@ async function run(mode) {
   let onGround = false;
   let onPlatform = true;
   let wasInWater = false;
+  let playerIsInWater = false;
   // Briefly latch the initial/respawn support so the first physics frames cannot
   // drop the player through a platform before contact state is established.
   let spawnSafetyTime = 0;
@@ -4149,7 +4166,7 @@ async function run(mode) {
     const plat = (fromCp && runStats.cp) ? runStats.cp : startPlat;
     resetItemEffects();
     placePlayerOnPlatform(plat);
-    velY = 0; onGround = true; onPlatform = true; wasInWater = false;
+    velY = 0; onGround = true; onPlatform = true; wasInWater = false; playerIsInWater = false;
     facingAngle = Math.atan2(doorInfo.x - playerPos.x, doorInfo.z - playerPos.z);
     character.rotation.y = facingAngle; camAngle = facingAngle; camPitch = 0.38;
     splashParticles.forEach(p => { p.active = false; p.mesh.visible = false; });
@@ -5197,7 +5214,11 @@ async function run(mode) {
   }
 
   function choosePatrolTarget() {
-    const p = findRoamPoint(mPos.x, mPos.y, Math.min(8, RS * 0.08));
+    const rad = 8 + Math.random() * 14;
+    const ang = Math.random() * Math.PI * 2;
+    const targetX = clampV(playerPos.x + Math.cos(ang) * rad, -RS / 2 + 1, RS / 2 - 1);
+    const targetZ = clampV(playerPos.z + Math.sin(ang) * rad, -RS / 2 + 1, RS / 2 - 1);
+    const p = findRoamPoint(targetX, targetZ, 2);
     mPatrolTarget.set(p.x, p.z);
     mPatrolLastDist = Math.hypot(p.x - mPos.x, p.z - mPos.y);
     mStuckTimer = 0;
@@ -5217,7 +5238,11 @@ async function run(mode) {
   }
 
   function chooseHumanoidPatrolTarget(h) {
-    const p = findRoamPoint(h.pos.x, h.pos.y, Math.min(9, RS * 0.04));
+    const rad = 7 + Math.random() * 14;
+    const ang = Math.random() * Math.PI * 2;
+    const targetX = clampV(playerPos.x + Math.cos(ang) * rad, -RS / 2 + 1, RS / 2 - 1);
+    const targetZ = clampV(playerPos.z + Math.sin(ang) * rad, -RS / 2 + 1, RS / 2 - 1);
+    const p = findRoamPoint(targetX, targetZ, 2);
     h.target.set(p.x, p.z);
     h.lastDist = Math.hypot(p.x - h.pos.x, p.z - h.pos.y);
     h.stuck = 0;
@@ -5310,10 +5335,13 @@ async function run(mode) {
         const dd = Math.hypot(h.dTarget.x - h.pos.x, h.dTarget.y - h.pos.y);
         if (dd > 1.0) steerHumanoid(h, Math.max(2.6, cfg.settings.monsterSpeed * 2.2) * mMult(), dt, h.dTarget.x, h.dTarget.y);
         else h.vel.multiplyScalar(0.85);
-        if (h.distractT <= 0) chooseHumanoidPatrolTarget(h);
+        if (h.distractT <= 0) {
+          if (playerInWater && !playerSafe) h.attacking = true;
+          else chooseHumanoidPatrolTarget(h);
+        }
         return;
       }
-      // Attacking and catching are disabled the instant the player is safe on a pad.
+      // Attacking and chasing toward player whenever player is in water and not on a safe platform
       h.attacking = playerInWater && !playerSafe;
       if (h.attacking) {
         steerHumanoid(h, Math.max(4.2, cfg.settings.monsterSpeed * 3.8) * mMult(), dt, playerPos.x, playerPos.z);
@@ -5324,7 +5352,7 @@ async function run(mode) {
       else {
         if (h.lastDist - dist < dt * 0.10) h.stuck += dt; else h.stuck = 0;
         if (h.stuck > 3.5) chooseHumanoidPatrolTarget(h);
-        else steerHumanoid(h, Math.max(0.55, cfg.settings.monsterSpeed * 0.72), dt, h.target.x, h.target.y);
+        else steerHumanoid(h, Math.max(0.65, cfg.settings.monsterSpeed * 0.8), dt, h.target.x, h.target.y);
         h.lastDist = dist;
       }
     });
@@ -5417,31 +5445,36 @@ async function run(mode) {
     showDanger(tr('danger.chase'));
   }
 
-  function updateMonsterLogic(dt) {
+  function updateMonsterLogic(dt, playerInWater) {
     monster.visible = true;
     mRise = 1;
     const mult = mMult();
-    if (mRestT > 0) mRestT -= dt;
+    if (mRestT > 0 && !playerInWater) mRestT -= dt;
     if (mStunT > 0) { mStunT -= dt; mVel.set(0, 0); if (mStunT <= 0) mChaseT = 0; return; }
-    if (mState === 'distract') {
+    if (mDistractT > 0) {
       // A thrown stone: it swims to the noise and waits there until the timer runs out.
       mDistractT -= dt;
       const dist = Math.hypot(mLastKnown.x - mPos.x, mLastKnown.y - mPos.y);
       if (dist > 1.0) steerMonster(Math.max(3.2, cfg.settings.monsterSpeed * 3) * mult, dt, mLastKnown.x, mLastKnown.y);
-      else mVel.multiplyScalar(0.8);
-      if (mDistractT <= 0) { mState = 'patrol'; choosePatrolTarget(); }
+      else mVel.multiplyScalar(0.85);
+      if (mDistractT <= 0) { mState = playerInWater ? 'chase' : 'patrol'; if (!playerInWater) choosePatrolTarget(); }
       return;
     }
     if (mState === 'alert') {
-      // The monster heard the splash: it creeps toward the spot while the warning timer runs down.
-      steerMonster(Math.max(1.0, cfg.settings.monsterSpeed * 1.8) * mult, dt, mLastKnown.x, mLastKnown.y);
+      // Alert mode: monster immediately heads towards the player while surfacing
+      steerMonster(Math.max(2.4, cfg.settings.monsterSpeed * 2.2) * mult, dt, playerPos.x, playerPos.z);
       return;
     }
     if (mState === 'chase') {
-      // A fall into the water triggers a very fast pursuit; it eases in over ~1.5 s so a quick hop back still saves you.
-      mChaseT += dt; mHunt += dt;
-      if (mHunt > chaseLimit()) { giveUpChase(); return; }
-      const ramp = clampV(0.5 + 0.5 * mChaseT / 1.5, 0.5, 1);
+      mChaseT += dt;
+      // As long as player is in the water, monsters never give up chase!
+      if (!playerInWater) {
+        mHunt += dt;
+        if (mHunt > chaseLimit()) { giveUpChase(); return; }
+      } else {
+        mHunt = 0;
+      }
+      const ramp = clampV(0.6 + 0.4 * mChaseT / 1.0, 0.6, 1);
       const chaseSpeed = Math.max(7, cfg.settings.monsterSpeed * 4.5) * mult * ramp;
       steerMonster(chaseSpeed, dt, playerPos.x, playerPos.z);
       return;
@@ -5462,7 +5495,7 @@ async function run(mode) {
         if (mPatrolLastDist - dist < dt * 0.12) mStuckTimer += dt;
         else mStuckTimer = 0;
         if (mStuckTimer > 3.5) choosePatrolTarget();
-        else steerMonster(Math.max(0.7, cfg.settings.monsterSpeed * 0.8) * mult, dt, mPatrolTarget.x, mPatrolTarget.y);
+        else steerMonster(Math.max(0.75, cfg.settings.monsterSpeed * 0.85) * mult, dt, mPatrolTarget.x, mPatrolTarget.y);
         mPatrolLastDist = dist;
       }
     }
@@ -5711,17 +5744,48 @@ async function run(mode) {
         }
       }
 
-      // Water contact detection + ripples & splash SFX
-      const nowInWater = playerPos.y < wY - 0.02;
-      if (nowInWater && !wasInWater) {
-        runStats.falls++;
-        spawnRipple(playerPos.x, playerPos.z, 0.9, 0xffffff, 1.2);
-        spawnRipple(playerPos.x, playerPos.z, 0.5, 0xffffff, 0.9);
-        spawnSplashBurst(playerPos.x, playerPos.z, 16);
-        soundSystem.playSplash();
+      // ─── WATER CONTACT & MONSTER CHASE LOGIC ───
+      const safe = onGround && onPlatform && !!activePlat;
+      const safeEff = safe || shoesT > 0;
+      const touchingWater = playerPos.y <= wY + 0.02;
+
+      // Track persistent in-water state: once touching water, player remains in water
+      // even when jumping or moving in water, until safely landing on a platform
+      if (!safeEff && touchingWater) {
+        if (!playerIsInWater) {
+          playerIsInWater = true;
+          runStats.falls++;
+          spawnRipple(playerPos.x, playerPos.z, 0.9, 0xffffff, 1.2);
+          spawnRipple(playerPos.x, playerPos.z, 0.5, 0xffffff, 0.9);
+          spawnSplashBurst(playerPos.x, playerPos.z, 16);
+          soundSystem.playSplash();
+          soundSystem.playAlert();
+
+          // Bring any distant lurking monster closer into the player's sector of the room
+          humanoidMonsters.forEach((h, i) => {
+            const hd = Math.hypot(h.pos.x - playerPos.x, h.pos.y - playerPos.z);
+            if (hd > 22) {
+              const sp = nearSpot(8 + i * 3, 14 + i * 3);
+              h.pos.set(sp.x, sp.z);
+              h.vel.set(0, 0);
+              h.heading = Math.atan2(playerPos.x - sp.x, playerPos.z - sp.z);
+            }
+          });
+          const md = Math.hypot(mPos.x - playerPos.x, mPos.y - playerPos.z);
+          if (md > 24) {
+            const mp = nearSpot(9, 16);
+            mPos.set(mp.x, mp.z);
+            mVel.set(0, 0);
+            mHeading = Math.atan2(playerPos.x - mp.x, playerPos.z - mp.z);
+          }
+        }
       }
-      wasInWater = nowInWater;
-      if (nowInWater && inputMag > 0.1) {
+      if (safeEff) {
+        playerIsInWater = false;
+      }
+      wasInWater = playerIsInWater;
+
+      if (playerIsInWater && touchingWater && inputMag > 0.1) {
         playerRippleTimer -= dt;
         if (playerRippleTimer <= 0) {
           playerRippleTimer = 0.32;
@@ -5730,35 +5794,29 @@ async function run(mode) {
         }
       }
 
-      // ─── MONSTER CHASE LOGIC ───
-      const safe = onGround && onPlatform && !!activePlat;
-      const safeEff = safe || shoesT > 0;
-      const alertTime = levelSpec ? levelSpec.alert : cfg.settings.alertTime;
-      if (nowInWater && mState !== 'chase' && mState !== 'alert' && mState !== 'distract' && mRestT <= 0 && Math.hypot(playerPos.x - mPos.x, playerPos.z - mPos.y) <= hearRange()) {
+      // Chase triggers: all monsters pursue the player whenever the player is in the water
+      if (playerIsInWater && !safeEff) {
+        mRestT = 0;
         mLastKnown.set(playerPos.x, playerPos.z);
-        spawnRipple(mPos.x, mPos.y, 0.9, 0xffc9bd, 1.0);
-        soundSystem.playAlert();
-        if (alertTime > 0.05) {
-          mState = 'alert';
-          mAlertT = alertTime;
-          showDanger(tr('danger.hear'));
-        } else startChase();
+        if (mState !== 'chase' && mState !== 'distract') {
+          startChase();
+          spawnRipple(mPos.x, mPos.y, 0.9, 0xffc9bd, 1.0);
+        } else if (mState === 'chase') {
+          showDanger(tr('danger.chase'));
+        }
       }
-      if (mState === 'alert') {
-        if (nowInWater) mLastKnown.set(playerPos.x, playerPos.z);
-        mAlertT -= dt;
-        if (mAlertT <= 0 && !safeEff) startChase();
-      }
-      if ((mState === 'chase' || mState === 'alert') && safeEff) {
+
+      if (safeEff && (mState === 'chase' || mState === 'alert')) {
         mState = 'search';
-        mSearchT = 5;
+        mSearchT = 4;
         hideDanger();
       }
-      updateMonsterLogic(dt);
-      updateHumanoidMonsters(dt, nowInWater && mState === 'chase', safeEff);
+
+      updateMonsterLogic(dt, playerIsInWater);
+      updateHumanoidMonsters(dt, playerIsInWater, safeEff);
       separateCharacters();
       updateItems(dt, activePlat);
-      ftueUpdate(dt, activePlat, nowInWater, safe);
+      ftueUpdate(dt, activePlat, playerIsInWater, safe);
       updateCoach(dt);
 
       // Crystals and checkpoints
@@ -5777,29 +5835,38 @@ async function run(mode) {
       }
 
       // Danger vignette & lighting tension feedback by proximity
-      if (mState === 'chase') {
-        const d = Math.hypot(playerPos.x - mPos.x, playerPos.z - mPos.y);
-        const prox = clampV(1.2 - d / 2.0, 0, 1);
-        setVig(clampV(1.15 - d / 2.2, 0.25, 1));
+      const anyChasing = (mState === 'chase' || mState === 'alert') || humanoidMonsters.some(h => h.attacking);
+      if (anyChasing) {
+        let nearestDist = Math.hypot(playerPos.x - mPos.x, playerPos.z - mPos.y);
+        for (const h of humanoidMonsters) {
+          if (h.attacking) {
+            const hd = Math.hypot(playerPos.x - h.pos.x, playerPos.z - h.pos.y);
+            if (hd < nearestDist) nearestDist = hd;
+          }
+        }
+        const prox = clampV(1.2 - nearestDist / 2.0, 0, 1);
+        setVig(clampV(1.15 - nearestDist / 2.2, 0.25, 1));
         ambient.intensity = 0.76 - 0.07 * prox + Math.sin(waterAnimTime * 14) * 0.015 * prox;
         fillLight.intensity = 0.31 - 0.04 * prox;
 
-        // Caught
-        if (mState === 'chase' && mStunT <= 0 && shoesT <= 0 && !tutInvuln() && d < CATCH_DIST && playerPos.y < wY + 0.08) {
+        // Caught by aquatic monster
+        const d = Math.hypot(playerPos.x - mPos.x, playerPos.z - mPos.y);
+        if (playerIsInWater && !safeEff && mState === 'chase' && mStunT <= 0 && shoesT <= 0 && !tutInvuln() && d < CATCH_DIST && playerPos.y < wY + 0.35) {
           showEnd(false);
         }
-        // Humanoids can catch the player only while immersed, never on platforms.
-        if (nowInWater && !safe && gameState === 'playing' && !tutInvuln()) {
+        // Caught by humanoid monsters while player is in water
+        if (playerIsInWater && !safeEff && gameState === 'playing' && !tutInvuln()) {
           for (const h of humanoidMonsters) {
-            if (h.attacking && Math.hypot(playerPos.x - h.pos.x, playerPos.z - h.pos.y) < 0.52) {
-              showEnd(false); break;
+            if (h.attacking && h.stunT <= 0 && Math.hypot(playerPos.x - h.pos.x, playerPos.z - h.pos.y) < 0.55 && playerPos.y < 1.1) {
+              showEnd(false);
+              break;
             }
           }
         }
       } else {
         ambient.intensity = 0.76;
         fillLight.intensity = 0.31;
-        setVig(mState === 'alert' ? 0.4 : 0);
+        setVig(0);
       }
 
       // ─── EXIT TRIGGER ───
