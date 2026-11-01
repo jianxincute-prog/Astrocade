@@ -4932,8 +4932,8 @@
             const assetCache = {};
             const avatarGltfs = {};
             const AVATAR_FALLBACK_URLS = {
-                avatar_banyu: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793545991946_01M6BTQXRAH3C3VG2B0349T89X.glb',
-                avatar_gantara: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793545994048_01M6BTQZT08DHD3460G5AYVKD6.glb'
+                avatar_banyu: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525000_01M6BW6PW8VH7ZK56Z90DSD3PZ.glb',
+                avatar_gantara: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525758_01M6BW6QKYVSPQQA262536PFJG.glb'
             };
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             const audioContext = AudioCtx ? new AudioCtx() : null;
@@ -5651,6 +5651,7 @@
             // neck, head and feet copy orientation, while arms and legs use a two-bone IK that
             // puts the avatar's hands and ankles on the voxel skeleton's hand and ankle targets.
             const AVATAR_SCALE = 4.09;      // voxel pelvis height 2.88 / avatar hips height 0.704
+            const AVATAR_HEAD_SCALE = 0.8;
             const AVATAR_ANKLE_DY = 0.08;   // avatar ankle sits a little higher over the sole than the voxel one
             const _ra = new THREE.Vector3(), _rb = new THREE.Vector3(), _rc = new THREE.Vector3();
             const _rRoot = new THREE.Vector3(), _rTgt = new THREE.Vector3(), _rPole = new THREE.Vector3();
@@ -5751,7 +5752,72 @@
                         capture(s + 'Leg', s + 'Foot');
                         capture(s + 'Foot');
                     });
+                    this.buildGear();
                     this.root.scale.setScalar(AVATAR_SCALE);
+                }
+
+                // Voxel armor that rides on the avatar's bones so each avatar reads as its fighter:
+                // Banyu in steel, cobalt and gold; Gantara in obsidian, crimson and bronze.
+                buildGear() {
+                    const gantara = this.assetKey === 'avatar_gantara';
+                    const C = gantara
+                        ? { plate: 0x27272a, trim: 0xdc2626, accent: 0xd97706, belt: 0x1c1917, bone: 0xe7dcc4 }
+                        : { plate: 0xcbd5e1, trim: 0x2563eb, accent: 0xf59e0b, belt: 0x78350f };
+                    // A mount is a group whose units are game units and whose axes follow the
+                    // avatar's rest-pose world axes (x = its left, y up, z forward), parented to a bone.
+                    const mount = name => {
+                        const bone = this.b[name];
+                        bone.matrixWorld.decompose(_rP, _rq1, _rS);
+                        const g = new THREE.Group();
+                        g.scale.setScalar(1 / (AVATAR_SCALE * _rS.x));
+                        g.quaternion.copy(this.rest[name].wq).invert();
+                        bone.add(g);
+                        return g;
+                    };
+                    const block = (g, w, h, d, x, y, z, color, metal = 0.35, rot) => {
+                        const m = createLowPolyBlock(w, h, d, color, 0.45, metal);
+                        m.position.set(x, y, z);
+                        if (rot) m.rotation.set(rot[0], rot[1], rot[2]);
+                        g.add(m);
+                        return m;
+                    };
+                    const zFront = gantara ? 0.66 : 0.78;
+                    const chest = mount('Spine2');
+                    block(chest, 1.95, 1.2, 0.24, 0, 0.42, zFront, C.plate);
+                    block(chest, 1.45, 0.16, 0.28, 0, 0.84, zFront + 0.02, C.trim);
+                    block(chest, 1.45, 0.16, 0.28, 0, 0.12, zFront + 0.02, C.trim);
+                    block(chest, 0.5, 0.5, 0.14, 0, 0.46, zFront + 0.17, C.accent, 0.6);
+                    if (gantara) {
+                        block(chest, 0.3, 0.9, 0.3, -0.62, 0.42, zFront + 0.03, C.trim);
+                        block(chest, 0.3, 0.9, 0.3, 0.62, 0.42, zFront + 0.03, C.trim);
+                    }
+                    const belt = mount('Hips');
+                    const beltW = gantara ? 2.1 : 2.6;
+                    block(belt, beltW, 0.3, gantara ? 1.35 : 1.6, 0, 0.32, 0, C.belt, 0.15);
+                    block(belt, 0.52, 0.36, 0.14, 0, 0.32, gantara ? 0.7 : 0.84, C.accent, 0.6);
+                    ['Left', 'Right'].forEach(side => {
+                        const sx = side === 'Left' ? 1 : -1;
+                        const sh = mount(side + 'Arm');
+                        block(sh, 1.05, 0.42, 1.2, sx * 0.1, 0.34, 0, C.plate);
+                        block(sh, 0.95, 0.16, 1.08, sx * 0.1, 0.6, 0, C.trim);
+                        block(sh, 0.22, 0.22, 0.22, sx * 0.18, 0.78, 0, C.accent, 0.6);
+                        if (gantara) {
+                            block(sh, 0.2, 0.62, 0.2, sx * 0.4, 0.95, 0.02, C.bone, 0.2, [0, 0, -sx * 0.45]);
+                        }
+                        const br = mount(side + 'ForeArm');
+                        block(br, 0.66, 0.74, 0.66, 0, -0.5, 0, C.plate);
+                        block(br, 0.72, 0.14, 0.72, 0, -0.18, 0, C.trim);
+                        block(br, 0.72, 0.14, 0.72, 0, -0.84, 0, C.accent, 0.6);
+                    });
+                    if (gantara) {
+                        const head = mount('Head');
+                        block(head, 0.42, 0.6, 0.42, -0.8, 1.32, 0.02, C.bone, 0.2, [0, 0, 0.5]);
+                        block(head, 0.42, 0.6, 0.42, 0.8, 1.32, 0.02, C.bone, 0.2, [0, 0, -0.5]);
+                        block(head, 0.26, 0.5, 0.26, -1.08, 1.74, 0.02, C.bone, 0.2, [0, 0, 0.95]);
+                        block(head, 0.26, 0.5, 0.26, 1.08, 1.74, 0.02, C.bone, 0.2, [0, 0, -0.95]);
+                    }
+                    // Slightly smaller head keeps the proportions closer to the arena's fighters.
+                    this.b.Head.scale.multiplyScalar(AVATAR_HEAD_SCALE);
                 }
 
                 // j supplies the voxel joints by name (a Character, or a name->node map for a clone).

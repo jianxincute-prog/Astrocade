@@ -334,13 +334,13 @@
   "animation": null
  },
  "avatar_banyu": {
-  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793545991946_01M6BTQXRAH3C3VG2B0349T89X.glb",
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525000_01M6BW6PW8VH7ZK56Z90DSD3PZ.glb",
   "type": "model_3d",
-  "description": "AstroKid avatar A (rigged Mixamo skeleton, 8 clips) used for the blue fighter Banyu."
+  "description": "AstroKid avatar A recolored to the Banyu theme (cobalt, steel, gold); rigged Mixamo skeleton."
  },
  "avatar_gantara": {
-  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793545994048_01M6BTQZT08DHD3460G5AYVKD6.glb",
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525758_01M6BW6QKYVSPQQA262536PFJG.glb",
   "type": "model_3d",
-  "description": "AstroKid avatar B (rigged Mixamo skeleton, 8 clips) used for the red fighter Gantara."
+  "description": "AstroKid avatar B recolored to the Gantara theme (crimson, obsidian, bronze); rigged Mixamo skeleton."
  }
 }
