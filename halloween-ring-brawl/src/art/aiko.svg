@@ -1,0 +1,72 @@
+<symbol id="art-aiko" viewBox="0 0 320 440">
+<defs>
+<radialGradient id="aiAura" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff3a66" stop-opacity=".55"/><stop offset=".6" stop-color="#b3144a" stop-opacity=".18"/><stop offset="1" stop-color="#b3144a" stop-opacity="0"/></radialGradient>
+<linearGradient id="aiSkin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e6ee"/><stop offset="1" stop-color="#cdb2c6"/></linearGradient>
+<linearGradient id="aiTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d7cbe0"/></linearGradient>
+<linearGradient id="aiMist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a0719" stop-opacity=".95"/><stop offset="1" stop-color="#2a0614" stop-opacity="0"/></linearGradient>
+<linearGradient id="aiBlade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#c9d4e6"/><stop offset="1" stop-color="#6c7a96"/></linearGradient>
+<linearGradient id="aiHair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2038"/><stop offset="1" stop-color="#07040c"/></linearGradient>
+</defs>
+<ellipse cx="170" cy="215" rx="165" ry="205" fill="url(#aiAura)"/>
+<!-- trailing mist where the legs should be -->
+<path d="M118 300 C110 340 70 360 40 400 C90 385 120 400 150 372 C175 405 215 392 250 408 C230 372 235 340 222 296Z" fill="url(#aiMist)"/>
+<g fill="#7a0a22" opacity=".9"><ellipse cx="128" cy="352" rx="3.2" ry="6"/><ellipse cx="170" cy="368" rx="2.6" ry="5"/><ellipse cx="205" cy="350" rx="3" ry="6"/><ellipse cx="148" cy="392" rx="2.2" ry="4"/></g>
+<!-- long hair behind -->
+<path d="M132 96 C98 112 82 178 94 250 C98 292 78 322 62 352 C100 340 118 322 126 296 C132 330 120 362 112 388 C142 366 154 330 156 296 L206 296 C212 330 226 358 252 380 C238 352 232 326 234 296 C250 262 258 198 236 120 C224 84 160 70 132 96Z" fill="url(#aiHair)"/>
+<path d="M98 240 C92 280 74 316 58 346" stroke="#4b3a63" stroke-width="2.5" fill="none" opacity=".6"/>
+<path d="M244 200 C250 244 242 280 238 312" stroke="#4b3a63" stroke-width="2.5" fill="none" opacity=".5"/>
+<!-- bracing arm (left) -->
+<g>
+<path d="M148 212 C128 232 116 258 112 286 L96 330" stroke="#3a2a4a" stroke-width="30" stroke-linecap="round" fill="none" opacity=".25"/>
+<path d="M150 206 C130 226 118 252 113 280" stroke="url(#aiSkin)" stroke-width="22" stroke-linecap="round" fill="none"/>
+<path d="M113 280 L98 328" stroke="url(#aiSkin)" stroke-width="18" stroke-linecap="round" fill="none"/>
+<path d="M150 206 C138 218 130 232 124 246" stroke="#fff" stroke-width="30" stroke-linecap="round" fill="none"/>
+<path d="M92 322 l-12 22 M99 326 l-6 26 M106 326 l2 26 M112 322 l10 22" stroke="#e5d2de" stroke-width="7" stroke-linecap="round"/>
+<g stroke="#14081c" stroke-width="2.4" stroke-linecap="round"><path d="M80 346 l-3 8"/><path d="M93 352 l-1 8"/><path d="M108 352 l1 8"/><path d="M122 344 l3 7"/></g>
+</g>
+<!-- torso -->
+<path d="M140 190 C148 182 200 180 222 190 C232 222 230 262 226 300 L146 300 C140 262 138 224 140 190Z" fill="url(#aiTop)"/>
+<path d="M146 300 L151 288 L158 304 L166 288 L174 306 L184 290 L192 306 L202 288 L210 304 L218 290 L226 300 L226 312 L146 312Z" fill="#5a0719"/>
+<path d="M150 296 L156 288 L162 300 L170 286 L178 302 L188 288 L196 304 L206 286 L214 300 L222 290" stroke="#c0183e" stroke-width="2.6" fill="none"/>
+<path d="M150 230 L222 238" stroke="#cbbfd8" stroke-width="2" opacity=".6"/>
+<path d="M146 262 C170 270 200 268 226 262" stroke="#cbbfd8" stroke-width="2" opacity=".5" fill="none"/>
+<g fill="#7a0a22"><path d="M170 300 l-3 20 l5 -4z"/><path d="M200 300 l-3 26 l6 -6z"/></g>
+<!-- sailor collar + ribbon -->
+<path d="M140 190 C160 186 200 184 222 190 L236 216 L196 250 L184 214 L172 252 L130 214Z" fill="#1d2a5c"/>
+<path d="M146 198 L134 214 M150 192 L178 216 M214 192 L190 216 M220 198 L232 214" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+<path d="M182 220 L160 232 L166 252 L182 238 L198 252 L204 232Z" fill="#d1163f"/><circle cx="182" cy="236" r="6" fill="#a30e2e"/>
+<!-- raised arm + sickle (right) -->
+<g>
+<path d="M214 202 C240 190 262 176 276 150" stroke="url(#aiSkin)" stroke-width="22" stroke-linecap="round" fill="none"/>
+<path d="M214 202 C228 196 238 190 248 182" stroke="#fff" stroke-width="30" stroke-linecap="round" fill="none"/>
+<path d="M250 180 L254 166" stroke="#1d2a5c" stroke-width="4" opacity=".0"/>
+<rect x="266" y="82" width="12" height="104" rx="5" fill="#4a2a1c" transform="rotate(8 272 134)"/>
+<path d="M270 84 C300 62 318 30 292 8 C296 36 280 52 258 60 C262 70 266 78 270 84Z" fill="url(#aiBlade)" stroke="#2c3550" stroke-width="2"/>
+<path d="M268 76 C290 60 302 40 292 20" stroke="#fff" stroke-width="2.2" fill="none" opacity=".85"/>
+<path d="M258 150 l16 -4 l2 8 l-16 4z M266 128 l14 -4 l2 7 l-14 4z" fill="#e5d2de"/>
+<circle cx="276" cy="146" r="10" fill="#f0dfe9"/>
+<path d="M268 140 l-8 -6 M272 138 l-4 -9 M278 138 l1 -10 M283 142 l8 -7" stroke="#e5d2de" stroke-width="5" stroke-linecap="round"/>
+</g>
+<!-- neck + head -->
+<rect x="170" y="156" width="22" height="34" rx="8" fill="#d7bfd0"/>
+<ellipse cx="181" cy="118" rx="42" ry="48" fill="url(#aiSkin)"/>
+<path d="M141 120 C142 160 168 170 181 166 C150 150 146 128 147 108Z" fill="#b99bb5" opacity=".35"/>
+<!-- bangs -->
+<path d="M139 108 C138 70 168 54 184 56 C212 54 228 76 223 112 C214 98 206 90 196 86 C192 100 184 108 176 108 C170 96 160 90 146 96 C142 100 140 104 139 108Z" fill="url(#aiHair)"/>
+<path d="M139 108 C136 134 142 160 150 176 C142 150 146 128 154 108Z" fill="url(#aiHair)"/>
+<path d="M223 112 C228 138 224 160 214 180 C220 156 218 132 210 108Z" fill="url(#aiHair)"/>
+<path d="M176 108 C172 128 168 142 160 152 C176 144 184 128 186 108Z" fill="url(#aiHair)"/>
+<!-- eyes -->
+<g>
+<ellipse cx="164" cy="124" rx="12" ry="8" fill="#f9f1f6"/><ellipse cx="164" cy="124" rx="7" ry="8" fill="#e5113a"/><ellipse cx="164" cy="124" rx="2" ry="8" fill="#140208"/><circle cx="162" cy="121" r="2" fill="#fff"/>
+<ellipse cx="204" cy="124" rx="12" ry="8" fill="#f9f1f6"/><ellipse cx="204" cy="124" rx="7" ry="8" fill="#e5113a"/><ellipse cx="204" cy="124" rx="2" ry="8" fill="#140208"/><circle cx="202" cy="121" r="2" fill="#fff"/>
+<path d="M150 118 C156 110 172 112 177 120" stroke="#1a0f26" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+<path d="M216 120 C210 110 194 112 191 120" stroke="#1a0f26" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+<ellipse cx="164" cy="136" rx="14" ry="4" fill="#5b3b62" opacity=".35"/><ellipse cx="204" cy="136" rx="14" ry="4" fill="#5b3b62" opacity=".35"/>
+</g>
+<path d="M178 140 l3 6 l3 -6" stroke="#b68ca8" stroke-width="2" fill="none" stroke-linecap="round"/>
+<!-- smile -->
+<path d="M160 150 C172 166 196 166 208 150" stroke="#2a0612" stroke-width="3.2" fill="#6b0a1f" stroke-linejoin="round"/>
+<path d="M166 154 l4 7 l4 -4 M194 158 l4 -5 l4 4" stroke="#fff" stroke-width="2.4" fill="none"/>
+<path d="M208 150 C212 160 210 172 208 182" stroke="#c0183e" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+</symbol>

@@ -1,0 +1,77 @@
+<symbol id="art-obaa" viewBox="0 0 320 440">
+<defs>
+<radialGradient id="obAura" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#6cf2ff" stop-opacity=".5"/><stop offset=".6" stop-color="#2a8cff" stop-opacity=".16"/><stop offset="1" stop-color="#2a8cff" stop-opacity="0"/></radialGradient>
+<linearGradient id="obKimono" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9a2ee"/><stop offset="1" stop-color="#6c52b4"/></linearGradient>
+<linearGradient id="obSkin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3dccb"/><stop offset="1" stop-color="#d1a98f"/></linearGradient>
+<linearGradient id="obObi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e33c6e"/><stop offset="1" stop-color="#8c1642"/></linearGradient>
+<linearGradient id="obStreak" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8ffaff" stop-opacity="0"/><stop offset="1" stop-color="#8ffaff" stop-opacity=".9"/></linearGradient>
+</defs>
+<ellipse cx="160" cy="220" rx="165" ry="205" fill="url(#obAura)"/>
+<!-- speed streaks -->
+<g stroke-linecap="round" stroke-width="5"><rect x="200" y="150" width="120" height="6" rx="3" fill="url(#obStreak)"/><rect x="230" y="190" width="90" height="5" rx="2.5" fill="url(#obStreak)"/><rect x="190" y="250" width="130" height="7" rx="3.5" fill="url(#obStreak)"/><rect x="226" y="300" width="94" height="5" rx="2.5" fill="url(#obStreak)"/><rect x="214" y="350" width="106" height="6" rx="3" fill="url(#obStreak)"/></g>
+<!-- dust -->
+<g fill="#cfeaff" opacity=".7"><circle cx="248" cy="394" r="18"/><circle cx="268" cy="402" r="13"/><circle cx="224" cy="406" r="14"/><circle cx="286" cy="392" r="9"/></g>
+<!-- streaming hair -->
+<path d="M148 80 C190 66 244 70 296 52 C262 82 232 92 206 100 C238 104 266 118 304 120 C262 136 226 126 196 118Z" fill="#f4f0ff"/>
+<path d="M150 98 C200 92 250 96 298 84" stroke="#bdb6d6" stroke-width="2" fill="none"/>
+<!-- back leg (stride) -->
+<g>
+<path d="M170 300 L206 352 L246 372" stroke="#e6cdbb" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M240 370 L276 376 L282 388 L236 388Z" fill="#fff"/><rect x="232" y="386" width="52" height="9" rx="4" fill="#3a2418"/>
+</g>
+<!-- cane arm back -->
+<g>
+<path d="M198 214 C222 224 244 232 262 224" stroke="url(#obSkin)" stroke-width="15" stroke-linecap="round" fill="none"/>
+<path d="M198 214 C210 220 220 224 228 226" stroke="#9680d6" stroke-width="26" stroke-linecap="round" fill="none"/>
+<path d="M262 224 L296 396" stroke="#6b3d1f" stroke-width="9" stroke-linecap="round"/>
+<path d="M262 224 C262 208 280 204 284 216" stroke="#6b3d1f" stroke-width="9" stroke-linecap="round" fill="none"/>
+<circle cx="262" cy="226" r="9" fill="#e6cdbb"/>
+</g>
+<!-- body: kimono, hunched forward -->
+<path d="M116 150 C136 140 186 150 210 188 C226 224 220 290 202 318 L112 318 C108 270 100 214 116 150Z" fill="url(#obKimono)"/>
+<path d="M112 318 L100 372 L206 372 L204 318Z" fill="url(#obKimono)"/>
+<!-- kimono pattern -->
+<g fill="#fff" opacity=".5"><circle cx="134" cy="342" r="6"/><circle cx="162" cy="352" r="5"/><circle cx="188" cy="340" r="6"/><circle cx="126" cy="214" r="5"/><circle cx="140" cy="260" r="6"/></g>
+<g fill="none" stroke="#f9dcff" stroke-width="2" opacity=".7"><path d="M122 214 q8 -8 16 0 M154 342 q6 -8 14 0 M178 346 q8 -8 16 0"/></g>
+<path d="M150 150 L208 200" stroke="#f3eaff" stroke-width="5" opacity=".8"/>
+<!-- obi -->
+<path d="M104 262 L208 270 L206 308 L106 300Z" fill="url(#obObi)"/>
+<path d="M104 262 L208 270" stroke="#ffd0e0" stroke-width="2.2"/>
+<path d="M108 290 L204 298" stroke="#ffd0e0" stroke-width="2"/>
+<path d="M100 270 C72 246 56 262 62 292 C78 290 96 286 104 282Z M104 288 C76 300 66 326 84 338 C92 322 100 306 108 300Z" fill="#c92a5a"/>
+<!-- front leg -->
+<g>
+<path d="M130 316 L96 360 L64 392" stroke="#e6cdbb" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M66 392 L26 388 L20 400 L72 404Z" fill="#fff"/><rect x="16" y="396" width="58" height="9" rx="4" fill="#3a2418"/>
+</g>
+<!-- front arm -->
+<g>
+<path d="M130 178 C108 206 96 224 86 248" stroke="url(#obSkin)" stroke-width="15" stroke-linecap="round" fill="none"/>
+<path d="M130 178 C118 196 110 208 106 220" stroke="#9680d6" stroke-width="26" stroke-linecap="round" fill="none"/>
+<circle cx="84" cy="252" r="9" fill="#e6cdbb"/>
+</g>
+<!-- neck/head -->
+<path d="M110 150 C118 138 134 136 142 150 L140 168 L118 168Z" fill="#d6b09a"/>
+<ellipse cx="108" cy="116" rx="40" ry="44" fill="url(#obSkin)" transform="rotate(-8 108 116)"/>
+<!-- bun + pins -->
+<circle cx="120" cy="66" r="28" fill="#f4f0ff"/>
+<path d="M104 52 C118 44 134 50 140 62" stroke="#bdb6d6" stroke-width="2.4" fill="none"/>
+<path d="M96 80 C112 70 150 72 160 92 C140 82 112 86 100 100Z" fill="#f4f0ff"/>
+<path d="M136 56 L168 36" stroke="#e9c46a" stroke-width="3.4" stroke-linecap="round"/><circle cx="170" cy="35" r="5" fill="#ff5d8f"/>
+<!-- wrinkles -->
+<g stroke="#a67a63" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"><path d="M92 92 q10 -5 20 0"/><path d="M96 98 q8 -4 16 0"/><path d="M84 142 q4 -4 8 -8"/><path d="M80 130 q3 -4 7 -6"/></g>
+<!-- glasses -->
+<g>
+<circle cx="90" cy="114" r="15" fill="#aef7ff" fill-opacity=".38" stroke="#e9ecff" stroke-width="4"/><circle cx="127" cy="110" r="15" fill="#aef7ff" fill-opacity=".38" stroke="#e9ecff" stroke-width="4"/>
+<path d="M105 113 q3 -5 7 -3" stroke="#e9ecff" stroke-width="4" fill="none"/>
+<path d="M76 112 L66 108" stroke="#e9ecff" stroke-width="4" stroke-linecap="round"/>
+<circle cx="90" cy="114" r="6" fill="#10202c"/><circle cx="127" cy="110" r="6" fill="#10202c"/><circle cx="92" cy="112" r="2" fill="#7cf6ff"/><circle cx="129" cy="108" r="2" fill="#7cf6ff"/>
+<path d="M76 96 q12 -8 24 -2" stroke="#f4f0ff" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M116 90 q12 -6 24 0" stroke="#f4f0ff" stroke-width="5" fill="none" stroke-linecap="round"/>
+</g>
+<path d="M104 118 q-6 12 2 16" stroke="#b58467" stroke-width="3" fill="none" stroke-linecap="round"/>
+<!-- grin -->
+<path d="M82 144 C96 168 130 166 140 140 C122 148 100 148 82 144Z" fill="#53101c" stroke="#35080f" stroke-width="2.2" stroke-linejoin="round"/>
+<g fill="#fff"><path d="M90 146 h7 v8 h-7z M100 148 h7 v10 h-7z M110 148 h7 v10 h-7z M120 146 h7 v8 h-7z"/></g>
+<ellipse cx="102" cy="162" rx="12" ry="4" fill="#d9567a"/>
+<ellipse cx="76" cy="130" rx="8" ry="5" fill="#ff7aa0" opacity=".45"/>
+</symbol>

@@ -1,0 +1,31 @@
+<g id="art-scene">
+<defs>
+<linearGradient id="scSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07021a"/><stop offset=".45" stop-color="#2b0b45"/><stop offset=".78" stop-color="#6a1650"/><stop offset="1" stop-color="#a1294b"/></linearGradient>
+<radialGradient id="scMoon" cx="42%" cy="38%" r="70%"><stop offset="0" stop-color="#ffd2c2"/><stop offset=".5" stop-color="#ff6e6e"/><stop offset="1" stop-color="#b3153c"/></radialGradient>
+<radialGradient id="scGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff4d6d" stop-opacity=".55"/><stop offset=".55" stop-color="#ff4d6d" stop-opacity=".14"/><stop offset="1" stop-color="#ff4d6d" stop-opacity="0"/></radialGradient>
+<linearGradient id="scFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a0c3b"/><stop offset="1" stop-color="#0a0314"/></linearGradient>
+<linearGradient id="scFog" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c93a6a" stop-opacity="0"/><stop offset="1" stop-color="#c93a6a" stop-opacity=".35"/></linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#scSky)"/>
+<g fill="#fff" opacity=".8"><circle cx="120" cy="90" r="1.8"/><circle cx="260" cy="170" r="1.2"/><circle cx="410" cy="60" r="1.6"/><circle cx="560" cy="130" r="1.2"/><circle cx="1040" cy="70" r="1.6"/><circle cx="1210" cy="150" r="1.2"/><circle cx="1380" cy="64" r="2"/><circle cx="1500" cy="190" r="1.4"/><circle cx="700" cy="40" r="1.4"/><circle cx="905" cy="110" r="1.2"/><circle cx="60" cy="260" r="1.4"/><circle cx="1560" cy="300" r="1.2"/></g>
+<circle cx="800" cy="350" r="420" fill="url(#scGlow)"/>
+<circle cx="800" cy="350" r="215" fill="url(#scMoon)"/>
+<g fill="#7d0f33" opacity=".35"><circle cx="740" cy="300" r="34"/><circle cx="860" cy="410" r="26"/><circle cx="820" cy="260" r="16"/><circle cx="728" cy="396" r="14"/></g>
+<g fill="#2b0b45" opacity=".4"><path d="M560 330 H1060 V348 H560Z"/><path d="M610 392 H1010 V404 H610Z"/><path d="M580 438 H1030 V446 H580Z"/></g>
+<!-- bats -->
+<g fill="#0b0316"><path d="M300 190 q18 -22 36 0 q-10 -6 -18 8 q-8 -14 -18 -8z"/><path d="M1200 120 q22 -26 44 0 q-12 -8 -22 10 q-10 -18 -22 -10z"/><path d="M1320 260 q14 -16 28 0 q-8 -4 -14 6 q-6 -10 -14 -6z"/><path d="M470 280 q12 -14 24 0 q-6 -3 -12 5 q-6 -8 -12 -5z"/></g>
+<!-- far mountains -->
+<path d="M0 560 L120 470 L220 540 L360 430 L500 540 L620 480 L760 560 L900 470 L1040 550 L1200 440 L1340 540 L1460 470 L1600 560 V900 H0Z" fill="#1a0830"/>
+<!-- torii -->
+<g fill="#1b0827" opacity=".55"><rect x="650" y="456" width="22" height="150"/><rect x="928" y="456" width="22" height="150"/><path d="M610 440 Q800 470 990 440 L982 464 Q800 492 618 464Z"/><rect x="632" y="500" width="336" height="14"/></g>
+<path d="M0 640 L180 560 L330 630 L480 570 L640 650 L800 600 L960 650 L1120 570 L1280 630 L1430 560 L1600 640 V900 H0Z" fill="#12051f"/>
+<!-- pines -->
+<g fill="#0a0314"><path d="M60 700 L110 560 L160 700Z M80 640 L110 520 L140 640Z"/><path d="M1440 700 L1490 540 L1540 700Z M1460 630 L1490 500 L1520 630Z"/><path d="M230 720 L270 620 L310 720Z"/><path d="M1290 720 L1330 610 L1370 720Z"/></g>
+<rect y="640" width="1600" height="260" fill="url(#scFog)"/>
+<!-- ring floor -->
+<ellipse cx="800" cy="860" rx="780" ry="150" fill="url(#scFloor)"/>
+<ellipse cx="800" cy="860" rx="780" ry="150" fill="none" stroke="#ff9a2a" stroke-width="4" opacity=".5"/>
+<ellipse cx="800" cy="830" rx="780" ry="140" fill="none" stroke="#ff4d6d" stroke-width="3" opacity=".45"/>
+<ellipse cx="800" cy="800" rx="780" ry="130" fill="none" stroke="#b46bff" stroke-width="2.5" opacity=".4"/>
+<g stroke="#ffcf7a" stroke-width="6" opacity=".7"><path d="M26 840 V740"/><path d="M1574 840 V740"/><path d="M420 960 V860" opacity="0"/></g>
+</g>
