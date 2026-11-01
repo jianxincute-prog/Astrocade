@@ -1,0 +1,13 @@
+{
+  "playerHP": 300,
+  "enemyHP": 300,
+  "ultDuration": 30,
+  "enemyAggression": 2,
+  "ringWidth": 26,
+  "ringDepth": 38,
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": true
+    }
+  }
+}
