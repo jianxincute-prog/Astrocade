@@ -4933,7 +4933,8 @@
             const avatarGltfs = {};
             const AVATAR_FALLBACK_URLS = {
                 avatar_banyu: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525000_01M6BW6PW8VH7ZK56Z90DSD3PZ.glb',
-                avatar_gantara: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525758_01M6BW6QKYVSPQQA262536PFJG.glb'
+                avatar_gantara: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525758_01M6BW6QKYVSPQQA262536PFJG.glb',
+                avatar_suster: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793548226798_01M6BWW47E8NKZQS02FAD08K10.glb'
             };
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             const audioContext = AudioCtx ? new AudioCtx() : null;
@@ -4974,7 +4975,7 @@
                     'torch_flame', 'hit_spark_particle', 'block_shield_effect', 'dust_particle',
                     'punch_impact_sound', 'block_sound', 'grunt_damage_sound',
                     'victory_fanfare', 'defeat_sound', 'ambient_arena_music',
-                    'avatar_banyu', 'avatar_gantara'
+                    'avatar_banyu', 'avatar_gantara', 'avatar_suster', 'avatar_suster_ghost_tex'
                 ];
 
                 let loadedCount = 0;
@@ -5652,6 +5653,35 @@
             // puts the avatar's hands and ankles on the voxel skeleton's hand and ankle targets.
             const AVATAR_SCALE = 4.09;      // voxel pelvis height 2.88 / avatar hips height 0.704
             const AVATAR_HEAD_SCALE = 0.8;
+            const AVATAR_KEYS = { banyu: 'avatar_banyu', gantara: 'avatar_gantara', suster: 'avatar_suster' };
+            let ghostTextureCache = null;
+            function getGhostTexture() {
+                if (ghostTextureCache) return ghostTextureCache;
+                const img = assetCache['avatar_suster_ghost_tex'];
+                if (!img) return null;
+                const tex = new THREE.Texture(img);
+                tex.flipY = false;
+                tex.encoding = THREE.LinearEncoding;
+                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                tex.anisotropy = 4;
+                tex.needsUpdate = true;
+                ghostTextureCache = tex;
+                return tex;
+            }
+            // Shared helpers for the procedural Suster Ngesot animations.
+            function kfInterp(frames, q) {
+                if (q <= frames[0][0]) return frames[0][1];
+                for (let i = 1; i < frames.length; i++) {
+                    if (q <= frames[i][0]) {
+                        const a = frames[i - 1], b = frames[i];
+                        let x = (q - a[0]) / (b[0] - a[0]);
+                        x = x * x * (3 - 2 * x);
+                        return a[1] + (b[1] - a[1]) * x;
+                    }
+                }
+                return frames[frames.length - 1][1];
+            }
+            const bloodDecals = [];
             const AVATAR_ANKLE_DY = 0.08;   // avatar ankle sits a little higher over the sole than the voxel one
             const _ra = new THREE.Vector3(), _rb = new THREE.Vector3(), _rc = new THREE.Vector3();
             const _rRoot = new THREE.Vector3(), _rTgt = new THREE.Vector3(), _rPole = new THREE.Vector3();
@@ -5715,7 +5745,9 @@
                         o.frustumCulled = false;
                         // The arena renders in linear output: use the baked colors as authored and
                         // avoid the near-black result of a full-metal factor without an env map.
-                        const m = o.material;
+                        const m = o.material = o.material.clone();
+                        this.skinMat = m;
+                        this.baseMap = m.map;
                         if (m) {
                             m.metalness = 0;
                             m.metalnessMap = null;
@@ -5756,10 +5788,19 @@
                     this.root.scale.setScalar(AVATAR_SCALE);
                 }
 
+                // Swaps the nurse's colors for the deathly pale, bloodstained Suster Ngesot skin.
+                setGhost(on) {
+                    if (!this.skinMat || this.assetKey !== 'avatar_suster') return;
+                    const tex = on ? getGhostTexture() : null;
+                    this.skinMat.map = tex || this.baseMap;
+                    this.skinMat.needsUpdate = true;
+                }
+
                 // Voxel armor that rides on the avatar's bones so each avatar reads as its fighter:
                 // Banyu in steel, cobalt and gold; Gantara in obsidian, crimson and bronze.
                 buildGear() {
                     const gantara = this.assetKey === 'avatar_gantara';
+                    const suster = this.assetKey === 'avatar_suster';
                     const C = gantara
                         ? { plate: 0x27272a, trim: 0xdc2626, accent: 0xd97706, belt: 0x1c1917, bone: 0xe7dcc4 }
                         : { plate: 0xcbd5e1, trim: 0x2563eb, accent: 0xf59e0b, belt: 0x78350f };
@@ -5781,6 +5822,34 @@
                         g.add(m);
                         return m;
                     };
+                    if (suster) {
+                        // Nurse kit: white apron plate with a red cross, teal belt and cuffs, cap, syringe.
+                        const WHITE = 0xf8fafc, TEAL = 0x14b8a6, RED = 0xdc2626, SILVER = 0xcbd5e1;
+                        const nChest = mount('Spine2');
+                        block(nChest, 1.8, 1.05, 0.2, 0, 0.42, 0.66, WHITE, 0.1);
+                        block(nChest, 1.85, 0.14, 0.24, 0, 0.9, 0.67, TEAL, 0.2);
+                        block(nChest, 0.2, 0.62, 0.1, -0.5, 0.5, 0.8, RED, 0.1);
+                        block(nChest, 0.62, 0.2, 0.1, -0.5, 0.5, 0.8, RED, 0.1);
+                        const nBelt = mount('Hips');
+                        block(nBelt, 2.1, 0.24, 1.35, 0, 0.32, 0, TEAL, 0.2);
+                        block(nBelt, 0.4, 0.3, 0.12, 0, 0.32, 0.7, SILVER, 0.6);
+                        ['Left', 'Right'].forEach(side => {
+                            const cuff = mount(side + 'ForeArm');
+                            block(cuff, 0.62, 0.16, 0.62, 0, -0.8, 0, TEAL, 0.2);
+                        });
+                        const nHead = mount('Head');
+                        block(nHead, 1.7, 0.42, 1.55, 0, 1.3, 0, WHITE, 0.1);
+                        block(nHead, 1.2, 0.16, 0.2, 0, 1.08, 0.72, TEAL, 0.2);
+                        block(nHead, 0.16, 0.36, 0.06, 0, 1.32, 0.8, RED, 0.1);
+                        block(nHead, 0.36, 0.16, 0.06, 0, 1.32, 0.8, RED, 0.1);
+                        const syringe = mount('RightHand');
+                        block(syringe, 0.24, 0.24, 1.5, 0, -0.2, 0.75, 0xbae6fd, 0.1);
+                        block(syringe, 0.3, 0.3, 0.18, 0, -0.2, 1.52, SILVER, 0.6);
+                        block(syringe, 0.07, 0.07, 0.8, 0, -0.2, 1.98, SILVER, 0.8);
+                        block(syringe, 0.5, 0.12, 0.12, 0, -0.2, -0.05, SILVER, 0.6);
+                        this.b.Head.scale.multiplyScalar(AVATAR_HEAD_SCALE);
+                        return;
+                    }
                     const zFront = gantara ? 0.66 : 0.78;
                     const chest = mount('Spine2');
                     block(chest, 1.95, 1.2, 0.24, 0, 0.42, zFront, C.plate);
@@ -5887,10 +5956,10 @@
             }
 
             class Character {
-                constructor(type, config) {
+                constructor(type, config, identity) {
                     this.type = type;
                     // Fighter identity follows the selected appearance, independently of player/AI control role.
-                    this.visualIdentity = type === 'player' ? 'banyu' : 'gantara';
+                    this.visualIdentity = identity || (type === 'player' ? 'banyu' : 'gantara');
                     this.group = new THREE.Group();
                     this.animation = {
                         state: 'idle',
@@ -5953,14 +6022,18 @@
                     this.createBodyParts();
                     // When the GLB avatar is available it replaces the blocky body: the voxel
                     // skeleton stays as an invisible driver, only its base meshes are hidden.
-                    this.avatarAssetKey = this.type === 'player' ? 'avatar_banyu' : 'avatar_gantara';
+                    this.avatarAssetKey = AVATAR_KEYS[this.visualIdentity];
+                    this.ngesotActive = false;
+                    this.ngesotTimer = 0;
+                    this.lastBloodPos = new THREE.Vector3(1e6, 0, 1e6);
                     this.avatarRig = null;
                     this.pocongOn = false;
                     this.cutsceneHideAvatar = false;
                     const useAvatar = !!avatarGltfs[this.avatarAssetKey];
                     if (useAvatar) this.group.traverse(o => { if (o.isMesh) o.visible = false; });
                     this.genderuwoActive = false;
-                    if (this.type === 'player') this.createPocongForm();
+                    if (this.visualIdentity === 'banyu') this.createPocongForm();
+                    else if (this.visualIdentity === 'suster') this.createNgesotForm();
                     else this.createGenderuwoForm();
                     if (useAvatar) {
                         this.headBaseMeshes = [];
@@ -5975,6 +6048,302 @@
                 refreshAvatar() {
                     if (!this.avatarRig) return;
                     this.avatarRig.root.visible = !(this.pocongOn || this.genderuwoActive || this.cutsceneHideAvatar);
+                }
+
+
+                // ===== SUSTER NGESOT FORM (Laras Wening's ultimate) =====
+                // The nurse collapses to the floor, her skin turns deathly pale, a curtain of black
+                // hair falls over her face with only two red eyes burning through, and she drags
+                // herself forward on her elbows with clawed hands. Parts ride on the animated skeleton.
+                createNgesotForm() {
+                    this.ngesotParts = [];
+                    this.ngesotTimer = 0;
+                    this.ngesotActive = false;
+                    const hair = new THREE.MeshStandardMaterial({ color: 0x050507, roughness: 0.96, metalness: 0, flatShading: true });
+                    const hairLight = new THREE.MeshStandardMaterial({ color: 0x0f1015, roughness: 0.96, metalness: 0, flatShading: true });
+                    const eyeGlow = new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xff0a0a, emissiveIntensity: 2.6, roughness: 0.3 });
+                    const nail = new THREE.MeshStandardMaterial({ color: 0xd6d3c9, roughness: 0.55, flatShading: true });
+                    const add = (parent, w, h2, d, x, y, z, mat = hair, rx = 0, ry = 0, rz = 0) => {
+                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h2, d), mat);
+                        mesh.position.set(x, y, z);
+                        mesh.rotation.set(rx, ry, rz);
+                        mesh.castShadow = true;
+                        mesh.visible = false;
+                        parent.add(mesh);
+                        this.ngesotParts.push(mesh);
+                        return mesh;
+                    };
+                    // Hair curtain: two long front locks leave a narrow gap for the glowing eyes.
+                    add(this.head, 0.4, 1.4, 0.18, -0.5, 0.42, 0.86);
+                    add(this.head, 0.4, 1.4, 0.18, 0.5, 0.42, 0.86);
+                    add(this.head, 0.26, 1.6, 0.14, -0.46, -0.9, 0.84, hairLight);
+                    add(this.head, 0.26, 1.4, 0.14, 0.48, -0.8, 0.84, hairLight);
+                    add(this.head, 0.2, 1.7, 1.3, -0.8, 0.4, 0.0);
+                    add(this.head, 0.2, 1.7, 1.3, 0.8, 0.4, 0.0);
+                    add(this.head, 1.6, 0.3, 1.5, 0, 1.3, 0.02);
+                    add(this.head, 1.5, 1.7, 0.26, 0, 0.3, -0.8, hairLight);
+                    // The rest of the hair spills down her back and lies along it.
+                    add(this.torso, 1.9, 2.3, 0.18, 0, 1.0, -0.85, hair);
+                    add(this.torso, 1.4, 1.5, 0.16, 0, 0.35, -0.9, hairLight);
+                    add(this.head, 0.2, 0.12, 0.06, -0.22, 0.62, 0.84, eyeGlow);
+                    add(this.head, 0.2, 0.12, 0.06, 0.22, 0.62, 0.84, eyeGlow);
+                    // Long clawed fingernails on both hands.
+                    [this.leftHand, this.rightHand].forEach(hand => {
+                        [-0.22, 0, 0.22].forEach(cx => add(hand, 0.09, 0.55, 0.09, cx, -0.66, 0.16, nail, 0.25));
+                    });
+                    // Grey-red mist and a dull crimson ground ring.
+                    this.ngesotMist = new THREE.Group();
+                    this.ngesotMist.visible = false;
+                    this.group.add(this.ngesotMist);
+                    this.ngesotMistPuffs = [];
+                    const puffGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                    for (let i = 0; i < 8; i++) {
+                        const puff = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({
+                            color: i % 2 ? 0x4b5563 : 0x7f1d1d, transparent: true, opacity: 0.3, depthWrite: false
+                        }));
+                        puff.userData = { phase: i / 8, angle: (i / 8) * Math.PI * 2, radius: 1.5 + (i % 3) * 0.35 };
+                        this.ngesotMist.add(puff);
+                        this.ngesotMistPuffs.push(puff);
+                    }
+                    this.ngesotAura = new THREE.Mesh(
+                        new THREE.TorusGeometry(2.3, 0.09, 6, 30),
+                        new THREE.MeshBasicMaterial({ color: 0xb91c1c, transparent: true, opacity: 0.55, depthWrite: false })
+                    );
+                    this.ngesotAura.rotation.x = -Math.PI / 2;
+                    this.ngesotAura.position.y = 0.08;
+                    this.ngesotAura.visible = false;
+                    this.group.add(this.ngesotAura);
+                }
+
+                setNgesotForm(active) {
+                    const on = !!active;
+                    this.ngesotActive = on && !!this.ngesotParts;
+                    if (!this.ngesotParts) return;
+                    this.ngesotParts.forEach(part => { part.visible = on; });
+                    if (this.ngesotMist) this.ngesotMist.visible = on;
+                    if (this.ngesotAura) this.ngesotAura.visible = on;
+                    if (this.avatarRig) this.avatarRig.setGhost(on);
+                    if (!on) this.hoverOffset = 0;
+                }
+
+                // Blends every limb joint toward a crawl pose. k = 1 snaps fully, smaller values
+                // ease out of whatever pose the standing animations just wrote this frame.
+                applyNgesotPose(P, k = 1) {
+                    const bl = (rot, x, y, z) => {
+                        rot.x += (x - rot.x) * k;
+                        rot.y += (y - rot.y) * k;
+                        rot.z += (z - rot.z) * k;
+                    };
+                    const d = (v, fallback) => (v === undefined ? fallback : v);
+                    this.pelvis.position.x += (d(P.px, 0) - this.pelvis.position.x) * k;
+                    this.pelvis.position.y += (d(P.py, 0.82) - this.pelvis.position.y) * k;
+                    this.pelvis.position.z += (d(P.pz, 0) - this.pelvis.position.z) * k;
+                    bl(this.pelvis.rotation, d(P.pitch, 1.22), d(P.yaw, 0), d(P.roll, 0));
+                    bl(this.torso.rotation, d(P.tx, -0.38), d(P.ty, 0), d(P.tz, 0));
+                    bl(this.neck.rotation, d(P.nx, -0.3), d(P.ny, 0), d(P.nz, 0));
+                    bl(this.head.rotation, d(P.hx, -0.5), d(P.hy, 0), d(P.hz, 0));
+                    bl(this.leftShoulder.rotation, d(P.lsx, -1.45), d(P.lsy, 0.15), d(P.lsz, -0.3));
+                    bl(this.rightShoulder.rotation, d(P.rsx, -1.45), d(P.rsy, -0.15), d(P.rsz, 0.3));
+                    bl(this.leftElbow.rotation, d(P.lex, -0.35), 0, 0);
+                    bl(this.rightElbow.rotation, d(P.rex, -0.35), 0, 0);
+                    bl(this.leftHand.rotation, d(P.lhx, 0.2), 0, 0);
+                    bl(this.rightHand.rotation, d(P.rhx, 0.2), 0, 0);
+                    bl(this.leftHip.rotation, d(P.lhipx, 0.2), d(P.lhipy, 0), d(P.lhipz, 0.12));
+                    bl(this.rightHip.rotation, d(P.rhipx, 0.2), d(P.rhipy, 0), d(P.rhipz, -0.12));
+                    bl(this.leftKnee.rotation, d(P.lkx, 0.12), 0, 0);
+                    bl(this.rightKnee.rotation, d(P.rkx, 0.12), 0, 0);
+                    bl(this.leftFoot.rotation, d(P.lfx, 0.5), 0, 0);
+                    bl(this.rightFoot.rotation, d(P.rfx, 0.5), 0, 0);
+                }
+
+                // Pose for the non-attack states, written on top of the standing animation's state machine.
+                animateNgesotState() {
+                    const t = this.animation.time;
+                    const state = this.animation.state;
+                    const now = performance.now() * 0.001;
+                    const breathe = Math.sin(now * 2.6);
+                    // Idle: propped on both elbows, head rolling slowly, sudden creepy head jerks.
+                    const jerkCycle = (now * 0.42) % 1;
+                    const jerk = jerkCycle > 0.93 ? Math.sin((jerkCycle - 0.93) / 0.07 * Math.PI) : 0;
+                    let P = {
+                        py: 0.84 + breathe * 0.02, pz: 0,
+                        hz: Math.sin(now * 1.3) * 0.12 + jerk * 0.5, hy: Math.sin(now * 0.8) * 0.18 + jerk * 0.35,
+                        lsx: -1.4 + breathe * 0.04, rsx: -1.5 - breathe * 0.04,
+                        lex: -0.4, rex: -0.3
+                    };
+                    if (state === 'walk') {
+                        // Drag-crawl: arms haul alternately, the body surges and the legs trail limp.
+                        const phi = t * 8.6;
+                        const a = Math.sin(phi), b = Math.sin(phi + Math.PI);
+                        const lerp = (lo, hi, v) => lo + (hi - lo) * (v * 0.5 + 0.5);
+                        P = {
+                            py: 0.84 + Math.abs(a) * 0.05, pz: -Math.cos(phi) * 0.18,
+                            yaw: a * 0.1, roll: a * 0.07, ty: a * 0.2, tz: -a * 0.05,
+                            hy: -a * 0.22, hz: a * 0.1, hx: -0.55,
+                            lsx: lerp(-0.85, -2.2, a), rsx: lerp(-0.85, -2.2, b),
+                            lsz: -0.3 - Math.max(0, -a) * 0.15, rsz: 0.3 + Math.max(0, -b) * 0.15,
+                            lex: lerp(-1.1, -0.15, a), rex: lerp(-1.1, -0.15, b),
+                            lhipx: 0.18 + a * 0.08, rhipx: 0.18 + b * 0.08,
+                            lhipy: a * 0.1, rhipy: b * 0.1, lhipz: 0.14 + Math.abs(a) * 0.05, rhipz: -0.14 - Math.abs(a) * 0.05,
+                            lkx: 0.1 + Math.max(0, a) * 0.15, rkx: 0.1 + Math.max(0, b) * 0.15
+                        };
+                    } else if (state === 'block') {
+                        // Curled low, both arms crossed over the hair-covered face.
+                        P = {
+                            py: 0.92, pitch: 1.0, tx: -0.2, hx: 0.25, nx: 0.1,
+                            lsx: -2.05, rsx: -2.05, lsz: 0.35, rsz: -0.35, lsy: 0.5, rsy: -0.5,
+                            lex: -2.0, rex: -2.0, lhx: 0.5, rhx: 0.5,
+                            lhipx: 0.1, rhipx: 0.1, lkx: 0.5, rkx: 0.5
+                        };
+                    } else if (state === 'jump') {
+                        // Pounce: body stretched flat, arms thrown forward, legs trailing.
+                        P = {
+                            py: 0.9, pitch: 1.36, tx: -0.15, hx: -0.8, nx: -0.2,
+                            lsx: -2.45, rsx: -2.45, lsz: -0.15, rsz: 0.15, lex: -0.1, rex: -0.1,
+                            lhipx: 0.1, rhipx: 0.1, lkx: 0.05, rkx: 0.05, lfx: 0.9, rfx: 0.9
+                        };
+                    } else if (state === 'hit') {
+                        const decay = Math.max(0, 1 - t / 0.5);
+                        P = {
+                            py: 0.84, pz: -0.45 * decay, pitch: 1.22 - decay * 0.35,
+                            tx: -0.38 - decay * 0.5, hx: -0.5 + decay * 0.9, hz: Math.sin(t * 34) * 0.35 * decay,
+                            hy: Math.sin(t * 26) * 0.4 * decay,
+                            lsx: -1.4 + decay * 0.9, rsx: -1.4 + decay * 0.9, lex: -0.4 - decay * 0.8, rex: -0.4 - decay * 0.8
+                        };
+                    }
+                    this.applyNgesotPose(P, 1);
+                }
+
+                animateNgesotAttack(t, duration, step) {
+                    const p = Math.min(1, t / duration);
+                    const PI = Math.PI;
+                    let P = {};
+                    if (step === 1) {
+                        // CAKARAN RAMBUT: twist back on one elbow, then rake the clawed hand across.
+                        const sx = kfInterp([[0, -1.45], [0.28, -0.7], [0.5, -2.45], [0.66, -2.2], [1, -1.45]], p);
+                        const sz = kfInterp([[0, 0.3], [0.28, 0.9], [0.5, -0.35], [1, 0.3]], p);
+                        const ex = kfInterp([[0, -0.35], [0.28, -1.7], [0.5, -0.05], [1, -0.35]], p);
+                        P = {
+                            py: 0.84, pz: kfInterp([[0, 0], [0.28, -0.3], [0.5, 0.75], [0.72, 0.5], [1, 0]], p),
+                            ty: kfInterp([[0, 0], [0.28, 0.45], [0.5, -0.5], [1, 0]], p),
+                            yaw: kfInterp([[0, 0], [0.28, 0.2], [0.5, -0.25], [1, 0]], p),
+                            hx: kfInterp([[0, -0.5], [0.28, -0.2], [0.5, -0.9], [1, -0.5]], p),
+                            hy: kfInterp([[0, 0], [0.28, 0.4], [0.5, -0.4], [1, 0]], p),
+                            rsx: sx, rsz: sz, rex: ex, rhx: 0.6,
+                            lsx: -1.2
+                        };
+                    } else if (step === 2) {
+                        // SERETAN HANTU: both arms spread wide, then sweep in and drag the prey toward her.
+                        const sz = kfInterp([[0, 0.3], [0.3, 1.05], [0.52, 0.05], [0.8, 0.05], [1, 0.3]], p);
+                        const sx = kfInterp([[0, -1.45], [0.3, -1.7], [0.52, -2.45], [0.8, -0.9], [1, -1.45]], p);
+                        P = {
+                            py: 0.84, pz: kfInterp([[0, 0], [0.3, -0.25], [0.52, 0.85], [0.8, 0.35], [1, 0]], p),
+                            pitch: kfInterp([[0, 1.22], [0.3, 1.1], [0.52, 1.32], [1, 1.22]], p),
+                            hx: kfInterp([[0, -0.5], [0.3, -0.9], [0.52, -0.3], [1, -0.5]], p),
+                            lsx: sx, rsx: sx, lsz: -sz, rsz: sz,
+                            lex: kfInterp([[0, -0.35], [0.3, -0.2], [0.52, -0.05], [0.8, -1.5], [1, -0.35]], p),
+                            rex: kfInterp([[0, -0.35], [0.3, -0.2], [0.52, -0.05], [0.8, -1.5], [1, -0.35]], p),
+                            lhx: 0.7, rhx: 0.7
+                        };
+                    } else {
+                        // JERITAN MAUT: rear up like a cobra, head thrown back, then slam forward with both hands.
+                        this.hoverOffset = kfInterp([[0, 0], [0.38, 0.5], [0.52, 0.65], [0.68, 0.1], [1, 0]], p);
+                        const rise = kfInterp([[0, 0], [0.4, 1], [0.52, 1], [0.68, 0], [1, 0]], p);
+                        P = {
+                            py: 0.84 + rise * 0.55, pz: kfInterp([[0, 0], [0.4, -0.35], [0.52, -0.2], [0.68, 1.15], [0.85, 0.7], [1, 0]], p),
+                            pitch: kfInterp([[0, 1.22], [0.4, 0.55], [0.52, 0.5], [0.68, 1.5], [1, 1.22]], p),
+                            tx: kfInterp([[0, -0.38], [0.4, -0.75], [0.52, -0.8], [0.68, 0.1], [1, -0.38]], p),
+                            nx: kfInterp([[0, -0.3], [0.4, -0.7], [0.68, 0.2], [1, -0.3]], p),
+                            hx: kfInterp([[0, -0.5], [0.4, -1.0], [0.52, -1.05], [0.68, 0.35], [1, -0.5]], p),
+                            hz: Math.sin(p * 55) * 0.18 * (p > 0.35 && p < 0.62 ? 1 : 0),
+                            lsx: kfInterp([[0, -1.45], [0.4, -0.1], [0.52, -0.15], [0.68, -2.6], [1, -1.45]], p),
+                            rsx: kfInterp([[0, -1.45], [0.4, -0.1], [0.52, -0.15], [0.68, -2.6], [1, -1.45]], p),
+                            lsz: kfInterp([[0, -0.3], [0.4, -1.2], [0.52, -1.2], [0.68, -0.1], [1, -0.3]], p),
+                            rsz: kfInterp([[0, 0.3], [0.4, 1.2], [0.52, 1.2], [0.68, 0.1], [1, 0.3]], p),
+                            lex: kfInterp([[0, -0.35], [0.4, -0.7], [0.68, -0.05], [1, -0.35]], p),
+                            rex: kfInterp([[0, -0.35], [0.4, -0.7], [0.68, -0.05], [1, -0.35]], p)
+                        };
+                    }
+                    this.applyNgesotPose(P, 1);
+                    if (t >= duration) {
+                        this.hoverOffset = 0;
+                        this.changeAnimation('idle');
+                        this.isAttacking = false;
+                    }
+                }
+
+                // ===== NGESOT MAUT: the ultimate. Blazing crawl-dash, hair-and-claw rake, a pull-back, then a
+                // face-first leap that ends in the finishing scream. Same beat timings as the other ultimates.
+                animateNgesotUltimate(t) {
+                    const duration = ULT_ATTACK_DURATION;
+                    const p = Math.min(1, t / duration);
+                    if (this.ultDashFrom && this.ultDashTo) {
+                        const d = THREE.MathUtils.clamp(p / 0.2, 0, 1);
+                        const e = 1 - Math.pow(1 - d, 3);
+                        this.position.x = THREE.MathUtils.lerp(this.ultDashFrom.x, this.ultDashTo.x, e);
+                        this.position.z = THREE.MathUtils.lerp(this.ultDashFrom.z, this.ultDashTo.z, e);
+                        clampToArena(this);
+                        this.group.position.x = this.position.x;
+                        this.group.position.z = this.position.z;
+                        if (d >= 1) { this.ultDashFrom = null; this.ultDashTo = null; }
+                    }
+                    const dashing = p < 0.2;
+                    const phi = t * 34;
+                    const a = dashing ? Math.sin(phi) : 0;
+                    const lerp = (lo, hi, v) => lo + (hi - lo) * (v * 0.5 + 0.5);
+                    this.hoverOffset = kfInterp([[0, 0], [0.5, 0], [0.64, 0.75], [0.74, 0.3], [0.86, 0], [1, 0]], p);
+                    const rise = kfInterp([[0, 0], [0.2, 0], [0.32, 1], [0.58, 1], [0.7, 0.2], [1, 0]], p);
+                    const arms = kfInterp([[0, -1.6], [0.2, -1.6], [0.32, -0.3], [0.4, -2.5], [0.52, -2.15], [0.64, -0.3], [0.74, -2.65], [0.86, -2.3], [1, -1.45]], p);
+                    const spread = kfInterp([[0, 0.25], [0.2, 0.25], [0.32, 1.15], [0.4, 0.1], [0.52, 0.3], [0.64, 1.1], [0.74, 0.05], [1, 0.3]], p);
+                    const P = {
+                        py: 0.78 + rise * 0.55 + (dashing ? Math.abs(a) * 0.06 : 0),
+                        pz: kfInterp([[0, 0], [0.2, 0.15], [0.32, -0.25], [0.4, 0.55], [0.52, -0.3], [0.64, -0.45], [0.74, 1.1], [0.86, 0.85], [1, 0]], p),
+                        pitch: kfInterp([[0, 1.36], [0.2, 1.4], [0.32, 0.6], [0.4, 0.78], [0.52, 0.55], [0.64, 0.62], [0.74, 1.52], [0.86, 1.4], [1, 1.22]], p),
+                        yaw: dashing ? a * 0.14 : 0,
+                        roll: dashing ? a * 0.1 : 0,
+                        tx: kfInterp([[0, -0.2], [0.32, -0.75], [0.52, -0.8], [0.74, 0.15], [1, -0.38]], p),
+                        hx: kfInterp([[0, -0.8], [0.32, -1.05], [0.64, -1.1], [0.74, 0.4], [1, -0.5]], p),
+                        hz: (p > 0.3 && p < 0.7) ? Math.sin(t * 52) * 0.2 : 0,
+                        lsx: dashing ? lerp(-1.1, -2.6, a) : arms,
+                        rsx: dashing ? lerp(-1.1, -2.6, -a) : arms,
+                        lsz: -spread, rsz: spread,
+                        lex: dashing ? lerp(-1.2, -0.1, a) : kfInterp([[0.2, -0.35], [0.4, -0.05], [0.64, -0.7], [0.74, -0.05], [1, -0.35]], p),
+                        rex: dashing ? lerp(-1.2, -0.1, -a) : kfInterp([[0.2, -0.35], [0.4, -0.05], [0.64, -0.7], [0.74, -0.05], [1, -0.35]], p),
+                        lhipx: 0.2 + (dashing ? a * 0.12 : 0), rhipx: 0.2 - (dashing ? a * 0.12 : 0),
+                        lkx: 0.1 + (dashing ? Math.max(0, a) * 0.3 : 0), rkx: 0.1 + (dashing ? Math.max(0, -a) * 0.3 : 0)
+                    };
+                    this.applyNgesotPose(P, 1);
+                    if (t >= duration) {
+                        this.hoverOffset = 0;
+                        this.ultDashFrom = null;
+                        this.ultDashTo = null;
+                        this.isUltimateAttack = false;
+                        this.isAttacking = false;
+                        this.changeAnimation('idle');
+                    }
+                }
+
+                // Leaves a fading blood smear behind every stretch of ground she drags herself over.
+                trailBlood() {
+                    const dx = this.position.x - this.lastBloodPos.x;
+                    const dz = this.position.z - this.lastBloodPos.z;
+                    if (dx * dx + dz * dz < 1.3) return;
+                    this.lastBloodPos.copy(this.position);
+                    const smear = new THREE.Mesh(
+                        new THREE.PlaneGeometry(0.9 + Math.random() * 0.8, 1.5 + Math.random() * 1.2),
+                        new THREE.MeshBasicMaterial({ color: 0x5b0a0a, transparent: true, opacity: 0.75, depthWrite: false })
+                    );
+                    smear.rotation.x = -Math.PI / 2;
+                    smear.rotation.z = this.rotation + (Math.random() - 0.5) * 0.7;
+                    smear.position.set(this.position.x - Math.sin(this.rotation) * 1.4, 0.04, this.position.z - Math.cos(this.rotation) * 1.4);
+                    scene.add(smear);
+                    bloodDecals.push({ mesh: smear, age: 0 });
+                    if (bloodDecals.length > 40) {
+                        const old = bloodDecals.shift();
+                        scene.remove(old.mesh);
+                        old.mesh.geometry.dispose();
+                        old.mesh.material.dispose();
+                    }
                 }
 
                 createPocongForm() {
@@ -6580,7 +6949,7 @@
                 }
 
                 createBodyParts() {
-                    const isP = this.type === 'player';
+                    const isP = this.visualIdentity !== 'gantara';
                     const palette = {
                         skin: isP ? 0xf3c4a2 : 0xd89f7f,
                         skinShadow: isP ? 0xddaa88 : 0xbe8264,
@@ -7322,6 +7691,15 @@
                             break;
                     }
 
+                    // Suster Ngesot crawls on the floor: her own poses replace the standing ones
+                    // (state timers above still run) and the upright balance/floor/limb IK is skipped.
+                    if (this.ngesotActive) {
+                        if (this.animation.state !== 'attack') this.animateNgesotState();
+                        if (!this.isJumping) {
+                            this.group.position.y = this.position.y + (this.hoverOffset || 0);
+                        }
+                        return;
+                    }
                     // Procedural spine balance follows movement and subtly tracks the opponent;
                     // floor correction then runs before the limb solvers so their targets use
                     // the final body transform for this frame.
@@ -7446,6 +7824,16 @@
                     // Genderuwo Ultimate: overhead double-fist ground slam.
                     if (this.isUltimateAttack && this.visualIdentity === 'gantara') {
                         this.animateGenderuwoSlam(t);
+                        return;
+                    }
+
+                    // Suster Ngesot Ultimate: Ngesot Maut (crawl-dash, claw rake, face-first leap).
+                    if (this.isUltimateAttack && this.visualIdentity === 'suster') {
+                        this.animateNgesotUltimate(t);
+                        return;
+                    }
+                    if (this.ngesotActive && this.visualIdentity === 'suster' && !this.isUltimateAttack) {
+                        this.animateNgesotAttack(t, step === 3 ? 0.44 : 0.38, step);
                         return;
                     }
 
@@ -8376,6 +8764,24 @@
                         });
                     }
 
+                    if (this.ngesotTimer > 0) {
+                        this.ngesotTimer = Math.max(0, this.ngesotTimer - deltaTime);
+                        if (this.ngesotTimer === 0) this.setNgesotForm(false);
+                    }
+                    if (this.ngesotActive) {
+                        this.trailBlood();
+                        const nt = performance.now() * 0.001;
+                        if (this.ngesotMistPuffs) this.ngesotMistPuffs.forEach(puff => {
+                            const d = puff.userData;
+                            const cyc = (nt * 0.4 + d.phase) % 1;
+                            const a = d.angle + nt * 0.5;
+                            puff.position.set(Math.cos(a) * d.radius, 0.2 + cyc * 2.6, Math.sin(a) * d.radius);
+                            puff.rotation.set(cyc * 2, cyc * 3, 0);
+                            puff.scale.setScalar(0.6 + cyc * 1.3);
+                            puff.material.opacity = 0.34 * (1 - cyc);
+                        });
+                        if (this.ngesotAura) this.ngesotAura.scale.setScalar(1 + Math.sin(nt * 4) * 0.07);
+                    }
                     if (this.genderuwoSmoke && this.genderuwoSmoke.visible) {
                         const st = performance.now() * 0.001;
                         this.genderuwoSmokePuffs.forEach(puff => {
@@ -8501,9 +8907,15 @@
             // ===== BATTLE LOBBY & FIGHTER PODIUM =====
             const fighterRoster = [
                 { name: 'Banyu Wisesa', identity: 'banyu', primary: 0x2563eb, dark: 0x1d4ed8, accent: 0xf59e0b, skin: 0xf3c4a2, hair: 0x4a2c16, eye: 0x0ea5e9 },
-                { name: 'Gantara Bara', identity: 'gantara', primary: 0xdc2626, dark: 0x991b1b, accent: 0xd97706, skin: 0xd89f7f, hair: 0x171717, eye: 0xf97316 }
+                { name: 'Gantara Bara', identity: 'gantara', primary: 0xdc2626, dark: 0x991b1b, accent: 0xd97706, skin: 0xd89f7f, hair: 0x171717, eye: 0xf97316 },
+                { name: 'Laras Wening', identity: 'suster', primary: 0x14b8a6, dark: 0x0f766e, accent: 0xdc2626, skin: 0xc58b5f, hair: 0x101018, eye: 0xef4444 }
             ];
-            let fighterVisualsSwapped = false;
+            // The third fighter's body waits on an off-stage holder until she is picked; visuals are
+            // exchanged between holders, so any two of the three can face each other.
+            const spare = new Character('spare', { maxHP: 1 }, 'suster');
+            spare.group.visible = false;
+            spare.setPosition(0, -60, 0);
+            const rivalIndex = () => (selectedFighterIndex + 1) % fighterRoster.length;
             const appearanceKeys = [
                 'pelvis', 'torso', 'neck', 'head', 'mouthMesh',
                 'leftShoulder', 'leftUpperArm', 'leftElbow', 'leftForearm', 'leftHand',
@@ -8513,33 +8925,40 @@
                 'headBaseMeshes', 'pocongParts', 'pocongCrownTails', 'pocongWraps',
                 'pocongBoundArms', 'pocongSpiritArms', 'pocongSpiritRoots', 'pocongAura',
                 'genderuwoParts', 'genderuwoStages', 'genderuwoEyeParts', 'genderuwoSmoke', 'genderuwoSmokePuffs', 'genderuwoAura',
-                'avatarRig', 'avatarAssetKey', 'pocongOn', 'cutsceneHideAvatar'
+                'ngesotParts', 'ngesotMist', 'ngesotMistPuffs', 'ngesotAura',
+                'avatarRig', 'avatarAssetKey', 'pocongOn', 'cutsceneHideAvatar', 'visualIdentity'
             ];
-            function swapFighterVisuals() {
-                const playerChildren = player.group.children.slice();
-                const opponentChildren = opponent.group.children.slice();
-                playerChildren.forEach(child => player.group.remove(child));
-                opponentChildren.forEach(child => opponent.group.remove(child));
-                playerChildren.forEach(child => opponent.group.add(child));
-                opponentChildren.forEach(child => player.group.add(child));
+            function swapVisualsBetween(a, b) {
+                const aChildren = a.group.children.slice();
+                const bChildren = b.group.children.slice();
+                aChildren.forEach(child => a.group.remove(child));
+                bChildren.forEach(child => b.group.remove(child));
+                aChildren.forEach(child => b.group.add(child));
+                bChildren.forEach(child => a.group.add(child));
                 appearanceKeys.forEach(key => {
-                    const temp = player[key];
-                    player[key] = opponent[key];
-                    opponent[key] = temp;
+                    const temp = a[key];
+                    a[key] = b[key];
+                    b[key] = temp;
                 });
-                player.visualIdentity = fighterRoster[selectedFighterIndex].identity;
-                opponent.visualIdentity = fighterRoster[1 - selectedFighterIndex].identity;
-                player.pocongFormTimer = 0;
-                opponent.pocongFormTimer = 0;
-                player.genderuwoActive = false;
-                opponent.genderuwoActive = false;
-                player.setPocongForm(false);
-                opponent.setPocongForm(false);
-                player.setGenderuwoForm(false);
-                opponent.setGenderuwoForm(false);
-                player.refreshAvatar();
-                opponent.refreshAvatar();
-                fighterVisualsSwapped = selectedFighterIndex === 1;
+                [a, b].forEach(c => {
+                    c.pocongFormTimer = 0;
+                    c.genderuwoActive = false;
+                    c.ngesotTimer = 0;
+                    c.ngesotActive = false;
+                    c.setPocongForm(false);
+                    c.setGenderuwoForm(false);
+                    c.setNgesotForm(false);
+                    c.refreshAvatar();
+                });
+            }
+            function swapFighterVisuals() {
+                // Put the selected fighter on the player and her rival on the AI slot.
+                const holders = [player, opponent, spare];
+                const holderOf = id => holders.find(c => c.visualIdentity === id);
+                const wantPlayer = fighterRoster[selectedFighterIndex].identity;
+                const wantOpponent = fighterRoster[rivalIndex()].identity;
+                if (player.visualIdentity !== wantPlayer) swapVisualsBetween(player, holderOf(wantPlayer));
+                if (opponent.visualIdentity !== wantOpponent) swapVisualsBetween(opponent, holderOf(wantOpponent));
             }
             const lobbyWorld = new THREE.Group();
             lobbyWorld.name = 'champions-lobby-world';
@@ -8651,11 +9070,11 @@
 
             function selectNextFighter() {
                 selectedFighterIndex = (selectedFighterIndex + 1) % fighterRoster.length;
-                if (fighterVisualsSwapped !== (selectedFighterIndex === 1)) swapFighterVisuals();
+                swapFighterVisuals();
                 buildPodiumPreview();
                 if (playerHPLabel) playerHPLabel.textContent = fighterRoster[selectedFighterIndex].name;
                 const rivalLabel = document.querySelector('.hp-container.opponent .hp-label');
-                if (rivalLabel) rivalLabel.textContent = `${fighterRoster[1 - selectedFighterIndex].name} · Rival`;
+                if (rivalLabel) rivalLabel.textContent = `${fighterRoster[rivalIndex()].name} · Rival`;
             }
 
             function createBattleLobby() {
@@ -9222,8 +9641,9 @@
                 const step = opponent.getCurrentComboStep();
                 // Genderuwo's distinct claw, sweep, and pounce each resolve near their visible strike apex.
                 const beastForm = opponent.genderuwoActive && opponent.visualIdentity === 'gantara';
-                opponent.attackCooldown = beastForm ? [0.34, 0.42, 0.54][step - 1] : 0.30;
-                ai.attackTimer = beastForm ? [0.22, 0.29, 0.37][step - 1] : (step === 3 ? 0.24 : 0.18);
+                const crawlForm = opponent.ngesotActive && opponent.visualIdentity === 'suster';
+                opponent.attackCooldown = beastForm ? [0.34, 0.42, 0.54][step - 1] : (crawlForm ? [0.4, 0.44, 0.6][step - 1] : 0.30);
+                ai.attackTimer = beastForm ? [0.22, 0.29, 0.37][step - 1] : (crawlForm ? [0.2, 0.22, 0.32][step - 1] : (step === 3 ? 0.24 : 0.18));
                 ai.attackPending = true;
                 ai.comboRemaining = Math.max(0, ai.comboRemaining - 1);
                 ai.wasAttacking = true;
@@ -9279,8 +9699,16 @@
                 // Transform into Genderuwo once the red fighter drops to half HP.
                 if (opponent.hp > 0 && opponent.hp <= opponent.maxHP * 0.5 &&
                     ((opponent.visualIdentity === 'gantara' && !opponent.genderuwoActive) ||
+                     (opponent.visualIdentity === 'suster' && !opponent.ngesotActive) ||
                      (opponent.visualIdentity === 'banyu' && !(opponent.pocongFormTimer > 0)))) {
-                    if (opponent.visualIdentity === 'gantara') {
+                    if (opponent.visualIdentity === 'suster') {
+                        opponent.setNgesotForm(true);
+                        opponent.ngesotTimer = 999;
+                        showComboCallout('SUSTER NGESOT BANGKIT! 🩸', '#f87171');
+                        if (opponentHPLabel) opponentHPLabel.textContent = 'Laras Wening · Suster Ngesot';
+                        flashScreen(0.6, 420);
+                        spawnSpiritBurst(opponent.position, 0xb91c1c, 6);
+                    } else if (opponent.visualIdentity === 'gantara') {
                         ai.slamCooldown = 1.2;
                         showComboCallout('GANTARA MENGAMUK! 👹', '#ef4444');
                         if (opponentHPLabel) opponentHPLabel.textContent = 'Gantara Bara · Genderuwo';
@@ -9667,6 +10095,7 @@
                 );
                 const verticalDistance = Math.abs(defender.position.y - attacker.position.y);
                 const pocongRange = attacker.isUltimateAttack ? 5.9 : 5.75;
+                const isNgesotStrike = attacker.visualIdentity === 'suster' && (attacker.ngesotActive || attacker.isUltimateAttack);
                 const genderuwoCombo = attacker.genderuwoActive && attacker.visualIdentity === 'gantara' && !attacker.isUltimateAttack;
                 const beastStep = attacker.getCurrentComboStep ? attacker.getCurrentComboStep() : 1;
                 const facingX = Math.sin(attacker.rotation);
@@ -9679,9 +10108,11 @@
                 const beastReach = [5.2, 5.6, 6.1][Math.max(0, Math.min(2, beastStep - 1))];
                 const inRange = genderuwoCombo
                     ? horizontalDistance <= beastReach && verticalDistance <= 4.8 && facingDot >= 0.15
-                    : isPocongStrike
-                        ? horizontalDistance <= pocongRange && verticalDistance <= 4.8
-                        : distance <= 4.7;
+                    : isNgesotStrike
+                        ? horizontalDistance <= (attacker.isUltimateAttack ? 6.4 : 5.5) && verticalDistance <= 4.8
+                        : isPocongStrike
+                            ? horizontalDistance <= pocongRange && verticalDistance <= 4.8
+                            : distance <= 4.7;
                 if (inRange) {
                     const step = attacker.getCurrentComboStep ? attacker.getCurrentComboStep() : 1;
                     let hitHeight = 2.9;
@@ -9713,6 +10144,21 @@
                         hitHeight = beastMoves[2];
                     }
 
+                    if (isNgesotStrike && !attacker.isUltimateAttack) {
+                        const crawlMoves = [
+                            ['CAKARAN RAMBUT! 🩸', '#fca5a5', 2.2],
+                            ['SERETAN HANTU! 💢', '#f87171', 2.4],
+                            ['JERITAN MAUT! 💀', '#ef4444', 3.0]
+                        ][Math.max(0, Math.min(2, step - 1))];
+                        calloutText = crawlMoves[0];
+                        calloutColor = crawlMoves[1];
+                        hitHeight = crawlMoves[2];
+                        if (step === 3) { cameraShake = Math.max(cameraShake, 0.28); playSynthSound('ground_slam', 0.8); }
+                        else if (step === 2) { cameraShake = Math.max(cameraShake, 0.14); playSynthSound('twin_palm', 0.7); }
+                        else { cameraShake = Math.max(cameraShake, 0.1); playSynthSound('astral_sickle', 0.7); }
+                    }
+                    // A crawling defender is hit near the floor.
+                    if (defender.ngesotActive) hitHeight = Math.min(hitHeight, 1.5);
                     const isUltimate = !!attacker.isUltimateAttack;
                     const damage = config.combat.attackDamage * (isUltimate ? 2 : 1) * damageScale;
                     const ultKnock = opts.knockback !== undefined ? opts.knockback : 0.12;
@@ -10056,6 +10502,9 @@
                 player.setPocongForm(false);
                 player.genderuwoActive = false;
                 player.setGenderuwoForm(false);
+                player.ngesotTimer = 0;
+                player.setNgesotForm(false);
+                if (player.visualIdentity === 'suster') setNgesotCutsceneTitle();
                 player.isUltimateAttack = true;
                 player.isAttacking = true;
                 player.isBlocking = false;
@@ -10073,7 +10522,90 @@
                 buildKafanWrap();
             }
 
+            function setNgesotCutsceneTitle() {
+                if (!cineTitleEl) return;
+                const name = cineTitleEl.querySelector('.cine-name');
+                const main = cineTitleEl.querySelector('.cine-main');
+                const move = cineTitleEl.querySelector('.cine-move');
+                if (name) name.textContent = 'LARAS WENING';
+                if (main) main.textContent = 'WUJUD SUSTER NGESOT';
+                if (move) move.textContent = 'NGESOT MAUT';
+                cineTitleEl.classList.remove('show');
+                cutscene.titleSwapped = true;
+            }
+
+            // Laras collapses, the curse takes hold with a red flash, and she wakes as the crawling ghost.
+            function updateNgesotCutscene(dt) {
+                cutscene.time += dt;
+                const t = cutscene.time;
+                cutscene.hover = 0;
+                player.update(dt);
+                player.group.position.y = player.position.y;
+                if (!cutscene.flashed) {
+                    const k = cineSmooth(0.2, CUTSCENE_FLASH_TIME, t);
+                    // Stagger on her feet first, then fold down onto the floor.
+                    player.animateIdle();
+                    player.torso.rotation.z = Math.sin(t * 9) * 0.1 * (1 - k);
+                    player.head.rotation.x = 0.35 * Math.min(1, t / 0.4) * (1 - k);
+                    player.applyNgesotPose({ py: 0.84, hz: Math.sin(t * 21) * 0.12 }, k);
+                    if (!cutscene.wrapSounded && t >= 0.25) {
+                        cutscene.wrapSounded = true;
+                        playSynthSound('kafan_wrap', 0.8);
+                    }
+                    if (t >= CUTSCENE_FLASH_TIME) {
+                        cutscene.flashed = true;
+                        player.setNgesotForm(true);
+                        player.ngesotTimer = 10;
+                        flashScreen(1, 520);
+                        cameraShake = 0.4;
+                        spawnSpiritBurst(player.position, 0xb91c1c, 7);
+                        playSynthSound('spirit_hammer', 1.0);
+                        playFighterScream('opponent');
+                        if (cineTitleEl) cineTitleEl.classList.add('show');
+                    }
+                } else {
+                    // The head snaps up and twitches as the burning eyes open behind the hair.
+                    const settle = 1 - cineSmooth(1.55, 2.25, t);
+                    player.head.rotation.z += Math.sin(t * 41) * 0.28 * settle;
+                    player.head.rotation.x += -0.35 * settle;
+                }
+                if (t >= CUTSCENE_DURATION) {
+                    endUltimateCutscene();
+                    beginUltimateAttack();
+                }
+            }
+
+            function beginNgesotUltimate() {
+                if (!player.ngesotActive) player.setNgesotForm(true);
+                player.ngesotTimer = 10;
+                player.isUltimateAttack = true;
+                player.isAttacking = true;
+                player.isBlocking = false;
+                player.lookAt(opponent.position);
+                player.changeAnimation('attack');
+                player.attackCooldown = ULT_ATTACK_DURATION;
+                const dx = opponent.position.x - player.position.x;
+                const dz = opponent.position.z - player.position.z;
+                const dist = Math.hypot(dx, dz);
+                const dashLen = Math.max(0, Math.min(dist - 3.4, 20));
+                player.ultDashFrom = player.position.clone();
+                player.ultDashTo = player.position.clone();
+                if (dist > 0.001) {
+                    player.ultDashTo.x += (dx / dist) * dashLen;
+                    player.ultDashTo.z += (dz / dist) * dashLen;
+                }
+                player.ultFlags = { cross: false, slow: false, finisher: false };
+                ai.blockTimer = 0;
+                opponent.isBlocking = false;
+                showComboCallout('NGESOT MAUT! 🩸', '#f87171');
+                if (dashLen > 0.5) {
+                    spawnStumbleDust(player.position);
+                    playSynthSound('astral_sickle', 0.6);
+                }
+            }
+
             function updateUltimateCutscene(dt) {
+                if (player.visualIdentity === 'suster') { updateNgesotCutscene(dt); return; }
                 cutscene.time += dt;
                 const t = cutscene.time;
                 if (!cutscene.wrapSounded && t >= 0.25) {
@@ -10134,7 +10666,7 @@
                 // the opponent, so the camera sits just beyond him on that forward axis;
                 // the opponent is hidden until the ultimate attack starts.
                 const forward = new THREE.Vector3(Math.sin(player.rotation), 0, Math.cos(player.rotation));
-                const focusY = 3.15 + cutscene.hover * 0.45;
+                const focusY = (player.visualIdentity === 'suster' ? 2.0 : 3.15) + cutscene.hover * 0.45;
                 const dist = 13.5;
                 const lim = arenaWallDistance - 1.2;
                 const tx = THREE.MathUtils.clamp(player.position.x + forward.x * dist, -lim, lim);
@@ -10196,7 +10728,10 @@
                 cutscene.active = false;
                 disposeKafanWrap();
                 if (uiOverlayEl) uiOverlayEl.classList.remove('cinematic');
-                if (cineTitleEl) cineTitleEl.classList.remove('show');
+                if (cineTitleEl) {
+                    cineTitleEl.classList.remove('show');
+                    if (cutscene.titleSwapped) { cineTitleEl.innerHTML = cineTitleOriginalHTML; cutscene.titleSwapped = false; }
+                }
                 player.group.position.y = player.position.y;
                 // Preserve a smooth handoff: the dedicated ultimate camera eases into its
                 // two-fighter slow-motion framing on the next render update.
@@ -10492,6 +11027,10 @@
             function beginUltimateAttack() {
                 // Reveal the opponent precisely as Banyu transitions from transformation to attack.
                 opponent.group.visible = true;
+                if (player.visualIdentity === 'suster') {
+                    beginNgesotUltimate();
+                    return;
+                }
                 if (player.visualIdentity === 'gantara' && !player.genderuwoActive) {
                     startGenderuwoCutscene(player, 'ultimate');
                     return;
@@ -10527,6 +11066,15 @@
 
             function resolveUltimateCross() {
                 playSynthSound('astral_sickle', 1.0);
+                if (player.visualIdentity === 'suster') {
+                    const clawHit = checkHit(player, opponent, 0.4, { knockback: 0.1, callout: 'CAKARAN RAMBUT SILANG! ✖️', color: '#fca5a5' });
+                    if (clawHit) {
+                        spawnCrossSlashEffect(player, opponent);
+                        spawnSpiritBurst(opponent.position, 0xb91c1c, 4);
+                        cameraShake = Math.max(cameraShake, 0.22);
+                    }
+                    return;
+                }
                 const hit = checkHit(player, opponent, 0.4, { knockback: 0.1, callout: 'SABETAN SILANG KAFAN! ✖️', color: '#67e8f9' });
                 if (hit) {
                     spawnCrossSlashEffect(player, opponent);
@@ -10536,6 +11084,17 @@
 
             function resolveUltimateFinisher() {
                 playSynthSound('spirit_hammer', 1.0);
+                if (player.visualIdentity === 'suster') {
+                    const scareHit = checkHit(player, opponent, 0.7, { knockback: 1.4, callout: 'JERITAN SUSTER NGESOT! 💀', color: '#ef4444' });
+                    if (scareHit) {
+                        spawnSpiritBurst(opponent.position, 0xdc2626, 6);
+                        playFighterScream('opponent');
+                        playSynthSound('ground_slam', 1.0);
+                        flashScreen(0.65, 420);
+                        cameraShake = Math.max(cameraShake, 0.55);
+                    }
+                    return;
+                }
                 const hit = checkHit(player, opponent, 0.6, { knockback: 1.6, callout: 'AMUKAN KAFAN ARWAH! 💥', color: '#facc15' });
                 if (hit) {
                     createPocongImpactEffect(player, opponent, 3.9);
@@ -10747,10 +11306,11 @@
                 opponent.isUltimateAttack = false;
                 opponent.setGenderuwoForm(false);
                 opponent.genderuwoActive = false;
+                [player, opponent].forEach(c => { c.ngesotTimer = 0; c.setNgesotForm(false); });
                 player.specialHitPending = false;
                 player.specialHitTimer = 0;
                 if (playerHPLabel) playerHPLabel.textContent = fighterRoster[selectedFighterIndex].name;
-                if (opponentHPLabel) opponentHPLabel.textContent = `${fighterRoster[1 - selectedFighterIndex].name} · Rival`;
+                if (opponentHPLabel) opponentHPLabel.textContent = `${fighterRoster[rivalIndex()].name} · Rival`;
                 ai.slamPending = false;
                 ai.slamTimer = 0;
                 ai.slamCooldown = 0;
@@ -11028,7 +11588,7 @@
                         ultimateBufferTimer = 0;
                         if (wantUltimate) {
                             ultimateCooldown = 10;
-                            if (player.visualIdentity === 'banyu') {
+                            if (player.visualIdentity === 'banyu' || player.visualIdentity === 'suster') {
                                 startUltimateCutscene();
                             } else {
                                 // Gantara's own ultimate now earns its power through the full staged awakening.
@@ -11043,7 +11603,10 @@
                         const curStep = player.getCurrentComboStep();
                         const pocongCombo = player.pocongFormTimer > 0 && !player.isUltimateAttack;
                         const genderuwoCombo = player.genderuwoActive && player.visualIdentity === 'gantara' && !player.isUltimateAttack;
-                        player.attackCooldown = genderuwoCombo
+                        const ngesotCombo = player.ngesotActive && player.visualIdentity === 'suster' && !player.isUltimateAttack;
+                        player.attackCooldown = ngesotCombo
+                            ? [0.44, 0.48, 0.66][curStep - 1]
+                            : genderuwoCombo
                             ? [0.48, 0.58, 0.72][curStep - 1]
                             : (pocongCombo
                                 ? ((curStep === 3) ? 0.66 : (curStep === 2 ? 0.44 : 0.42))
@@ -11055,7 +11618,7 @@
                             // before the Pocong hands have visibly reached the opponent.
                             const isPocongBasic = player.pocongFormTimer > 0;
                             const isGenderuwoBasic = player.genderuwoActive && player.visualIdentity === 'gantara';
-                            const hitDelay = isGenderuwoBasic
+                            const hitDelay = ngesotCombo ? [190, 210, 330][curStep - 1] : isGenderuwoBasic
                                 ? [220, 290, 370][curStep - 1]
                                 : (isPocongBasic
                                     ? ((curStep === 3) ? 330 : (curStep === 2 ? 185 : 190))
@@ -11173,6 +11736,17 @@
                 // Update scream speech bubbles tracking above fighters' heads
                 updateScreamBubbles();
 
+                for (let i = bloodDecals.length - 1; i >= 0; i--) {
+                    const decal = bloodDecals[i];
+                    decal.age += rawDelta;
+                    decal.mesh.material.opacity = Math.max(0, 0.75 * (1 - decal.age / 7));
+                    if (decal.age >= 7) {
+                        scene.remove(decal.mesh);
+                        decal.mesh.geometry.dispose();
+                        decal.mesh.material.dispose();
+                        bloodDecals.splice(i, 1);
+                    }
+                }
                 // Retarget the GLB avatars onto the (final) voxel skeleton pose, then render
                 if (player.avatarRig) player.avatarRig.sync(player);
                 if (opponent.avatarRig) opponent.avatarRig.sync(opponent);

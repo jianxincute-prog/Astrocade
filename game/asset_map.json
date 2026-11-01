@@ -342,5 +342,20 @@
   "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525758_01M6BW6QKYVSPQQA262536PFJG.glb",
   "type": "model_3d",
   "description": "AstroKid avatar B recolored to the Gantara theme (crimson, obsidian, bronze); rigged Mixamo skeleton."
+ },
+ "avatar_suster": {
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793548226798_01M6BWW47E8NKZQS02FAD08K10.glb",
+  "type": "model_3d",
+  "description": "AstroKid avatar B recolored as the nurse Laras Wening (white uniform, teal scrubs); rigged Mixamo skeleton."
+ },
+ "avatar_suster_ghost_tex": {
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793548227519_01M6BWW4XZWXC3PE4NYZVK96JR.png",
+  "type": "image",
+  "description": "Base color texture for the Suster Ngesot form: deathly pale skin, bloodstained uniform, black hair.",
+  "subtype": "character",
+  "aspect_ratio": [
+   1024,
+   4096
+  ]
  }
 }
