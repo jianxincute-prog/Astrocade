@@ -1291,6 +1291,370 @@
 
         const config = window.gameConfig;
 
+        // ===== Multiplayer (Supabase Realtime broadcast, 2-4 players + room chat) =====
+        const MP_MAX_PLAYERS = 4;
+        const MP_LANES = [2, 1, 3, 0];
+        const mp = {
+            ws: null, code: null, id: 'p' + Math.random().toString(36).slice(2, 9), name: '',
+            joinedAt: 0, inRoom: false, connected: false, intent: 'create', status: '',
+            roster: {}, chat: [], active: false, armed: false, order: [], seed: 1,
+            fins: {}, myFin: null, timers: [], ref: 0, resultsOpen: false, trackLength: null, diff: null
+        };
+        mp.name = supabaseSession.name;
+        function mpEsc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+        function mpSeededRandom(seed) {
+            let a = seed >>> 0;
+            return function () {
+                a = (a + 0x6D2B79F5) >>> 0;
+                let t = a;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+        function mpSend(event, payload) {
+            if (!mp.ws || mp.ws.readyState !== 1) return;
+            mp.ws.send(JSON.stringify({ topic: 'realtime:karung-room-' + mp.code, event: 'broadcast', ref: String(++mp.ref),
+                payload: { type: 'broadcast', event: event, payload: payload } }));
+        }
+        function mpFreshPlayers() {
+            const now = Date.now();
+            const list = [{ id: mp.id, name: mp.name, joinedAt: mp.joinedAt, me: true }];
+            Object.keys(mp.roster).forEach(id => {
+                const p = mp.roster[id];
+                if (now - p.seen < 5000) list.push({ id: id, name: p.name, joinedAt: p.joinedAt, racing: p.racing });
+            });
+            list.sort((a, b) => a.joinedAt - b.joinedAt || (a.id < b.id ? -1 : 1));
+            return list;
+        }
+        function mpHostId() { const l = mpFreshPlayers(); return l.length ? l[0].id : mp.id; }
+        function mpClearTimers() { mp.timers.forEach(t => clearInterval(t)); mp.timers = []; }
+        function mpLeave(msg) {
+            mpClearTimers();
+            try { if (mp.ws) { mp.ws.onclose = null; mp.ws.close(); } } catch (e) {}
+            mp.ws = null; mp.inRoom = false; mp.connected = false; mp.roster = {}; mp.chat = []; mp.active = false; mp.armed = false;
+            mp.status = msg || '';
+        }
+        function mpJoin(code, intent) {
+            mpLeave('');
+            mp.code = code; mp.intent = intent; mp.status = 'Menghubungkan...';
+            mpJoinChecked = false;
+            mp.joinedAt = Date.now();
+            let ws;
+            try {
+                ws = new WebSocket('wss://fkxpoxoopkbjywcbkrmi.supabase.co/realtime/v1/websocket?apikey=' + SUPABASE_ANON_KEY + '&vsn=1.0.0');
+            } catch (e) { mpFail('Tidak bisa terhubung ke server multiplayer.'); return; }
+            mp.ws = ws;
+            const joinTimeout = setTimeout(() => { if (!mp.connected) mpFail('Koneksi ke server multiplayer gagal / timeout.'); }, 8000);
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ topic: 'realtime:karung-room-' + code, event: 'phx_join', ref: '1', join_ref: '1',
+                    payload: { config: { broadcast: { ack: false, self: false }, presence: { key: '', enabled: false }, postgres_changes: [], private: false } } }));
+            };
+            ws.onerror = () => { if (!mp.connected) mpFail('Tidak bisa terhubung ke server multiplayer.'); };
+            ws.onclose = () => { clearTimeout(joinTimeout); if (mp.inRoom || mp.ws === ws) mpFail('Koneksi terputus.'); };
+            ws.onmessage = (ev) => {
+                let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+                if (m.event === 'phx_reply' && m.ref === '1') {
+                    if (m.payload && m.payload.status === 'ok') { clearTimeout(joinTimeout); mpOnJoined(); }
+                    else mpFail('Gagal masuk room.');
+                } else if (m.event === 'broadcast' && m.payload) {
+                    mpOnMessage(m.payload.event, m.payload.payload || {});
+                }
+            };
+        }
+        function mpFail(msg) {
+            const wasRacing = mp.active;
+            mpLeave(msg);
+            if (wasRacing && (gameState === 'racing' || gameState === 'countdown' || gameState === 'finished')) { gameState = 'start'; }
+            showMultiplayerRoom();
+        }
+        function mpOnJoined() {
+            mp.connected = true; mp.inRoom = true; mp.status = '';
+            const joinStart = Date.now();
+            mp.timers.push(setInterval(() => { if (mp.ws && mp.ws.readyState === 1) mp.ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++mp.ref) })); }, 20000));
+            mp.timers.push(setInterval(() => {
+                mpSend('hello', { id: mp.id, name: mp.name, joinedAt: mp.joinedAt, racing: mp.active, fin: mp.myFin });
+                mpTick(joinStart);
+            }, 1000));
+            mp.timers.push(setInterval(mpSendPos, 80));
+            mpSend('hello', { id: mp.id, name: mp.name, joinedAt: mp.joinedAt, racing: mp.active, fin: mp.myFin });
+            showMultiplayerRoom();
+        }
+        let mpJoinChecked = false;
+        function mpTick(joinStart) {
+            if (Date.now() - joinStart > 1600 && !mpJoinChecked) {
+                mpJoinChecked = true;
+                const others = mpFreshPlayers().filter(p => !p.me);
+                if (mp.intent === 'join' && others.length === 0) { mpFail('Room tidak ditemukan.'); return; }
+                if (others.length >= MP_MAX_PLAYERS) { mpFail('Room penuh (maksimal 4 pemain).'); return; }
+                if (others.some(p => p.racing)) { mpFail('Balapan sedang berlangsung, coba lagi nanti.'); return; }
+            }
+            if (mp.active && gameState === 'racing') {
+                const now = Date.now();
+                racers.forEach(r => {
+                    if (r.isRemote && !r.finished) {
+                        const p = mp.roster[r.mpId];
+                        if (!p || now - p.seen > 6000) { r.finished = true; r.dnf = true; r.state = 'idle'; mp.fins[r.mpId] = Infinity; }
+                    }
+                });
+            }
+            if (!mp.active) mpRenderLobby();
+            else if (mp.resultsOpen) mpRenderResults();
+        }
+        function mpOnMessage(ev, d) {
+            if (d.id === mp.id) return;
+            if (ev === 'hello') {
+                mp.roster[d.id] = { name: String(d.name || 'Player').slice(0, 12), joinedAt: d.joinedAt || 0, racing: !!d.racing, seen: Date.now() };
+                if (typeof d.fin === 'number' && mp.active) mpRemoteFinish(d.id, d.fin);
+            } else if (ev === 'chat') {
+                mp.chat.push({ name: String(d.name || '?').slice(0, 12), text: String(d.text || '').slice(0, 140) });
+                if (mp.chat.length > 50) mp.chat.shift();
+                mpRenderChat();
+            } else if (ev === 'start') {
+                if (!mp.active) mpStartRace(d);
+            } else if (ev === 'pos' && mp.active) {
+                mp.roster[d.id] = Object.assign(mp.roster[d.id] || { name: '?', joinedAt: 0 }, { seen: Date.now(), racing: true });
+                const r = racers.find(x => x.isRemote && x.mpId === d.id);
+                if (r && !r.finished) { r.tx = d.x; r.tdy = d.dy; r.tstate = d.st; r.tch = d.ch; r.ttype = d.tt; }
+            } else if (ev === 'finish' && mp.active) {
+                mpRemoteFinish(d.id, d.time);
+            }
+        }
+        function mpRemoteFinish(id, time) {
+            if (mp.fins[id] !== undefined) return;
+            mp.fins[id] = time;
+            const r = racers.find(x => x.isRemote && x.mpId === id);
+            if (r && !r.finished) {
+                r.finished = true; r.state = 'finished'; r.x = trackLength;
+                finishOrder.push(r); r.placement = finishOrder.length;
+            }
+            if (mp.resultsOpen) mpRenderResults();
+        }
+        function mpSendPos() {
+            if (!mp.active || !player || (gameState !== 'racing' && gameState !== 'countdown')) return;
+            mpSend('pos', { id: mp.id, x: Math.round(player.x), dy: Math.round(player.y - player.groundY), st: player.state,
+                ch: Math.round(player.chargeTime * 100) / 100, tt: player.tumbleType });
+        }
+        function mpSendChat(text) {
+            text = String(text || '').trim().slice(0, 140);
+            if (!text) return;
+            mp.chat.push({ name: mp.name, text: text, me: true });
+            if (mp.chat.length > 50) mp.chat.shift();
+            mpSend('chat', { id: mp.id, name: mp.name, text: text });
+            mpRenderChat();
+        }
+        function mpHostStart() {
+            const players = mpFreshPlayers();
+            if (mpHostId() !== mp.id || players.length < 2 || players.length > MP_MAX_PLAYERS) return;
+            if (players.some(p => p.racing)) return;
+            const payload = { id: mp.id, seed: (Math.random() * 4294967295) >>> 0, order: players.map(p => ({ id: p.id, name: p.name })),
+                trackLength: trackLength, diff: config.difficulty };
+            mpSend('start', payload);
+            mpStartRace(payload);
+        }
+        function mpStartRace(d) {
+            const me = d.order.find(p => p.id === mp.id);
+            if (!me) return;
+            mp.active = true; mp.armed = true; mp.order = d.order; mp.seed = d.seed;
+            mp.fins = {}; mp.myFin = null; mp.resultsOpen = false;
+            mp.trackLength = d.trackLength; mp.diff = d.diff;
+            unlimitedMode = false; challengeMode = null;
+            startCountdown();
+        }
+        // Called from startCountdown (replaces AI racers by the real players with a shared obstacle layout)
+        function mpInitRacers() {
+            const realRandom = Math.random;
+            Math.random = mpSeededRandom(mp.seed);
+            if (mp.trackLength) trackLength = mp.trackLength;
+            if (mp.diff) config.difficulty = mp.diff;
+            try { initRacers(); } finally { Math.random = realRandom; }
+            const imgs = ['opponent_character_1_hopping', 'opponent_character_2_hopping', 'opponent_character_3_hopping', 'opponent_character_4_hopping'];
+            const list = [];
+            let mine = null;
+            mp.order.forEach((p, i) => {
+                const lane = MP_LANES[i];
+                if (p.id === mp.id) {
+                    mine = new Racer(true, lane, 'player_character_hopping');
+                } else {
+                    const r = new Racer(false, lane, imgs[i % 4]);
+                    r.isRemote = true; r.mpId = p.id; r.mpName = p.name; r.tx = 50; r.tdy = 0; r.dy = 0; r.tstate = 'idle'; r.tch = 0;
+                    list.push(r);
+                }
+            });
+            player = mine;
+            racers = [mine].concat(list);
+        }
+        function mpUpdateRemote(r, dt) {
+            if (r.finished) return;
+            const k = 1 - Math.exp(-14 * dt);
+            r.x = Math.min(trackLength, r.x + (r.tx - r.x) * k);
+            r.dy = (r.dy || 0) + ((r.tdy || 0) - (r.dy || 0)) * k;
+            const st = r.tstate || 'idle';
+            if (st === 'tumbling' && r.state !== 'tumbling') { r.tumbleTimer = 0; r.triggerExpression('shocked', 1.2, 0.9); }
+            r.state = st;
+            r.tumbleType = r.ttype || r.tumbleType;
+            if (st === 'tumbling') r.tumbleTimer += dt;
+            r.chargeTime = r.tch || 0;
+            r.y = r.groundY + r.dy;
+            r.lastX = r.x;
+            r.breathTimer += dt * 3;
+            r.updateExpression(dt);
+        }
+        function mpOnLocalFinish() {
+            if (!mp.active || mp.myFin !== null) return;
+            mp.myFin = raceTime;
+            mpSend('finish', { id: mp.id, time: raceTime });
+        }
+        function mpStandings() {
+            const rows = mp.order.map(p => {
+                const t = p.id === mp.id ? mp.myFin : mp.fins[p.id];
+                return { id: p.id, name: p.name, me: p.id === mp.id, time: t === undefined ? null : t };
+            });
+            rows.sort((a, b) => {
+                const ka = a.time === null ? 1e9 : (a.time === Infinity ? 1e10 : a.time);
+                const kb = b.time === null ? 1e9 : (b.time === Infinity ? 1e10 : b.time);
+                return ka - kb;
+            });
+            return rows;
+        }
+        function mpRenderChat() {
+            const box = document.getElementById('mp-chat-log');
+            if (!box) return;
+            box.innerHTML = mp.chat.length ? mp.chat.map(c => '<div style="margin:3px 0;"><b style="color:' + (c.me ? '#FFD54F' : '#81D4FA') + ';">' + mpEsc(c.name) + ':</b> ' + mpEsc(c.text) + '</div>').join('')
+                : '<div style="opacity:.5;">Belum ada pesan. Sapa teman-temanmu! 👋</div>';
+            box.scrollTop = box.scrollHeight;
+        }
+        function mpRenderLobby() {
+            const el = document.getElementById('mp-slots');
+            if (!el) return;
+            const players = mpFreshPlayers();
+            const host = mpHostId();
+            let html = '';
+            for (let i = 0; i < MP_MAX_PLAYERS; i++) {
+                const p = players[i];
+                html += p
+                    ? '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:6px 0;border-radius:14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,200,100,0.25);font-family:Fredoka,sans-serif;font-size:22px;color:white;"><span>' + (p.id === host ? '👑' : '🥔') + '</span><span style="flex:1;text-align:left;">' + mpEsc(p.name) + (p.me ? ' (kamu)' : '') + '</span></div>'
+                    : '<div style="padding:10px 14px;margin:6px 0;border-radius:14px;border:2px dashed rgba(255,255,255,0.18);font-family:Fredoka,sans-serif;font-size:20px;color:rgba(255,255,255,0.35);">Menunggu pemain...</div>';
+            }
+            el.innerHTML = html;
+            const btn = document.getElementById('mp-start-btn');
+            if (btn) {
+                const isHost = host === mp.id;
+                const ok = isHost && players.length >= 2;
+                btn.textContent = isHost ? (players.length >= 2 ? '🏁 Mulai Balapan (' + players.length + ' pemain)' : 'Butuh min. 2 pemain') : 'Menunggu host memulai...';
+                btn.style.opacity = ok ? '1' : '0.5';
+                btn.dataset.ok = ok ? '1' : '0';
+            }
+        }
+        function showMultiplayerRoom() {
+            setEventScrollMode(false);
+            mp.resultsOpen = false;
+            if (mp.inRoom) return showMpLobby();
+            mpJoinChecked = false;
+            uiOverlay.innerHTML = `
+                <div class="menu-overlay" style="animation: fadeIn 0.35s var(--ease-bounce);">
+                    <div id="mp-wrap" style="width:100%;max-width:520px;text-align:center;">
+                        <div style="font-size:56px;line-height:1;margin-bottom:12px;">👥</div>
+                        <h1 style="font-family:Fredoka,sans-serif;font-size:42px;color:var(--gold);text-shadow:3px 3px 0 var(--red),0 5px 0 var(--red-dark);margin:0 0 10px;">Multiplayer Room</h1>
+                        <p style="font-family:Inter,sans-serif;font-size:16px;color:rgba(255,255,255,0.7);margin:0 0 14px;">Balapan 2-4 pemain + chat room</p>
+                        <input id="mp-name" maxlength="12" value="${mpEsc(mp.name)}" placeholder="Nama kamu" style="width:100%;max-width:340px;box-sizing:border-box;padding:14px;font-size:22px;font-family:Fredoka,sans-serif;text-align:center;border-radius:14px;border:2px solid rgba(255,200,100,0.4);background:rgba(0,0,0,0.4);color:white;margin-bottom:12px;">
+                        <button class="btn btn-main" id="mp-create-btn" style="width:100%;max-width:340px;">Buat Room</button>
+                        <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;">
+                            <input id="mp-code" maxlength="4" placeholder="KODE" style="width:140px;box-sizing:border-box;padding:14px;font-size:24px;font-family:Fredoka,sans-serif;text-align:center;text-transform:uppercase;border-radius:14px;border:2px solid rgba(129,212,250,0.5);background:rgba(0,0,0,0.4);color:white;">
+                            <button class="btn btn-secondary" id="mp-join-btn" style="margin:0;min-width:180px;">Gabung Room</button>
+                        </div>
+                        <p id="mp-status" style="min-height:22px;font-family:Inter,sans-serif;font-size:15px;color:#FFAB91;margin:14px 0 0;">${mpEsc(mp.status || '')}</p>
+                        <button class="btn btn-secondary" id="multiplayer-room-back-btn" style="width:100%;max-width:340px;margin-top:10px;">Back to Menu</button>
+                    </div>
+                </div>
+            `;
+            mpIsolateInputs();
+            const readName = () => { const v = document.getElementById('mp-name').value.trim().slice(0, 12); if (v) mp.name = v; };
+            document.getElementById('mp-create-btn').addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); playUIClick(); readName();
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let code = ''; for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+                document.getElementById('mp-status').textContent = 'Menghubungkan...';
+                mpJoin(code, 'create');
+            });
+            document.getElementById('mp-join-btn').addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); playUIClick(); readName();
+                const code = document.getElementById('mp-code').value.trim().toUpperCase();
+                if (code.length !== 4) { document.getElementById('mp-status').textContent = 'Masukkan kode room 4 karakter.'; return; }
+                document.getElementById('mp-status').textContent = 'Menghubungkan...';
+                mpJoin(code, 'join');
+            });
+            document.getElementById('multiplayer-room-back-btn').addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); playUIClick(); mpLeave(''); showStartScreen();
+            });
+        }
+        // Keep typing (incl. Space) away from the game's global key handlers
+        function mpIsolateInputs() {
+            document.querySelectorAll('#ui-overlay input').forEach(inp => {
+                ['keydown', 'keyup', 'keypress'].forEach(t => inp.addEventListener(t, ev => ev.stopPropagation()));
+                inp.addEventListener('pointerdown', ev => ev.stopPropagation());
+            });
+        }
+        function showMpLobby() {
+            uiOverlay.innerHTML = `
+                <div class="menu-overlay" style="animation: fadeIn 0.35s var(--ease-bounce);">
+                    <div style="width:100%;max-width:520px;text-align:center;">
+                        <h1 style="font-family:Fredoka,sans-serif;font-size:34px;color:var(--gold);text-shadow:3px 3px 0 var(--red);margin:0;">Room <span style="letter-spacing:6px;background:rgba(0,0,0,.4);padding:2px 14px;border-radius:12px;">${mpEsc(mp.code)}</span></h1>
+                        <p style="font-family:Inter,sans-serif;font-size:14px;color:rgba(255,255,255,0.6);margin:6px 0 10px;">Bagikan kode ini ke temanmu (maks. 4 pemain)</p>
+                        <div id="mp-slots"></div>
+                        <div id="mp-chat-log" style="height:190px;overflow-y:auto;text-align:left;margin:10px 0 8px;padding:10px 12px;box-sizing:border-box;border-radius:14px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,200,100,0.2);font-family:Inter,sans-serif;font-size:16px;color:white;"></div>
+                        <div style="display:flex;gap:8px;">
+                            <input id="mp-chat-input" maxlength="140" placeholder="Ketik pesan..." style="flex:1;min-width:0;box-sizing:border-box;padding:12px;font-size:18px;font-family:Inter,sans-serif;border-radius:12px;border:2px solid rgba(129,212,250,0.5);background:rgba(0,0,0,0.4);color:white;">
+                            <button class="btn btn-secondary" id="mp-chat-send" style="margin:0;min-width:90px;">Kirim</button>
+                        </div>
+                        <button class="btn btn-main" id="mp-start-btn" style="width:100%;margin-top:14px;">...</button>
+                        <button class="btn btn-secondary" id="mp-leave-btn" style="width:100%;margin-top:8px;">Keluar Room</button>
+                    </div>
+                </div>
+            `;
+            mpIsolateInputs();
+            mpRenderLobby(); mpRenderChat();
+            const send = () => { const i = document.getElementById('mp-chat-input'); mpSendChat(i.value); i.value = ''; };
+            document.getElementById('mp-chat-send').addEventListener('pointerdown', (e) => { e.stopPropagation(); send(); });
+            document.getElementById('mp-chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+            document.getElementById('mp-start-btn').addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); playUIClick();
+                if (e.currentTarget.dataset.ok === '1') mpHostStart();
+            });
+            document.getElementById('mp-leave-btn').addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); playUIClick(); mpLeave(''); showMultiplayerRoom();
+            });
+        }
+        function mpShowResults() {
+            mp.resultsOpen = true;
+            uiOverlay.innerHTML = `
+                <div class="menu-overlay" style="animation: fadeIn 0.35s var(--ease-bounce);">
+                    <div style="width:100%;max-width:520px;text-align:center;">
+                        <h1 style="font-family:Fredoka,sans-serif;font-size:40px;color:var(--gold);text-shadow:3px 3px 0 var(--red);margin:0 0 12px;">Hasil Balapan</h1>
+                        <div id="mp-results"></div>
+                        <button class="btn btn-main" id="mp-back-room" style="width:100%;margin-top:18px;">Kembali ke Room</button>
+                    </div>
+                </div>
+            `;
+            mpRenderResults();
+            document.getElementById('mp-back-room').addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); playUIClick();
+                mp.active = false; mp.armed = false; mp.resultsOpen = false;
+                stopSound('crowd'); stopSound('music');
+                gameState = 'start';
+                showMpLobby();
+            });
+        }
+        function mpRenderResults() {
+            const el = document.getElementById('mp-results');
+            if (!el) return;
+            const medals = ['🥇', '🥈', '🥉', '4.'];
+            el.innerHTML = mpStandings().map((r, i) => {
+                const t = r.time === null ? 'masih balapan...' : (r.time === Infinity ? 'keluar' : r.time.toFixed(1) + 's');
+                return '<div style="display:flex;gap:10px;align-items:center;padding:12px 16px;margin:6px 0;border-radius:14px;font-family:Fredoka,sans-serif;font-size:24px;color:white;background:' + (r.me ? 'rgba(255,213,79,0.22)' : 'rgba(255,255,255,0.08)') + ';border:1px solid rgba(255,200,100,0.25);"><span style="width:42px;">' + medals[i] + '</span><span style="flex:1;text-align:left;">' + mpEsc(r.name) + (r.me ? ' (kamu)' : '') + '</span><span style="font-size:20px;">' + t + '</span></div>';
+            }).join('');
+        }
+
         let playerData = {
             bestTimes: { easy: null, medium: null, hard: null },
             highestRanks: { easy: null, medium: null, hard: null },
@@ -1333,7 +1697,7 @@
             const puId = POWER_UP_SLOT_IDS[slotIndex];
             if (!playerData.powerUps[puId] || playerData.powerUps[puId] <= 0) return false;
             if (powerUpCooldowns[slotIndex] > 0) return false;
-            if (gameState !== 'racing' || challengeMode) return false;
+            if (gameState !== 'racing' || challengeMode || mp.active) return false;
 
             // Consume one use
             playerData.powerUps[puId]--;
@@ -4037,6 +4401,7 @@
         }
 
         function updateStrayChickens(dt) {
+            if (mp.active) return;
             // Update spawn timer
             chickenSpawnTimer += dt;
             
@@ -5123,7 +5488,8 @@
             // Reset daily challenge tracking for this race
             playerTumbleCount = 0;
             
-            initRacers();
+            if (mp.active && mp.armed) { mp.armed = false; mpInitRacers(); }
+            else { mp.active = false; initRacers(); }
             updateGroundY();
             transitionAmbientTo('racing');
             playSound('music_race_theme', { loop: true, trackAs: 'music', volume: 0.7 });
@@ -5428,6 +5794,7 @@
         }
 
         async function finishRace() {
+            mpOnLocalFinish();
             gameState = 'finished';
             finishCelebrationTimer = 0;
             finishShowResult = false;
@@ -5652,6 +6019,7 @@
 
         // Physics update
         function updateRacer(racer, dt) {
+            if (racer.isRemote) { mpUpdateRemote(racer, dt); return; }
             if (racer.finished) return;
             if (racer.isFrozen) {
                 // Frozen racer: don't move, just show ice particles occasionally
@@ -7418,6 +7786,20 @@
 
             // Draw facial expression overlays
             drawRacerExpression(racer, screenX + shakeX, screenY + bobOffset + shakeY, drawW, drawH);
+
+            // Multiplayer name tag
+            if (mp.active && (racer.mpName || racer.isPlayer)) {
+                ctx.save();
+                ctx.font = '600 22px Fredoka, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.lineWidth = 5;
+                ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillStyle = racer.isPlayer ? '#FFD54F' : '#FFFFFF';
+                const tag = racer.isPlayer ? mp.name : racer.mpName;
+                ctx.strokeText(tag, screenX, screenY - drawH - 8);
+                ctx.fillText(tag, screenX, screenY - drawH - 8);
+                ctx.restore();
+            }
         }
 
         // Draw procedural expression indicators on racers
@@ -8529,27 +8911,6 @@
             });
         }
 
-        function showMultiplayerRoom() {
-            setEventScrollMode(false);
-            uiOverlay.innerHTML = `
-                <div class="menu-overlay" style="animation: fadeIn 0.35s var(--ease-bounce);">
-                    <div style="width:100%;max-width:520px;text-align:center;">
-                        <div style="font-size:56px;line-height:1;margin-bottom:12px;">👥</div>
-                        <h1 style="font-family:Fredoka,sans-serif;font-size:42px;color:var(--gold);text-shadow:3px 3px 0 var(--red),0 5px 0 var(--red-dark);margin:0 0 10px;">Multiplayer Room</h1>
-                        <div style="height:260px;margin:18px 0 8px;border:2px dashed rgba(255,200,100,0.28);border-radius:24px;background:linear-gradient(160deg,rgba(93,58,26,0.32),rgba(25,15,8,0.48));display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
-                            <p style="font-family:Inter,sans-serif;font-size:18px;color:rgba(255,255,255,0.58);margin:0;padding:24px;">Room kosong</p>
-                        </div>
-                        <button class="btn btn-secondary" id="multiplayer-room-back-btn" style="width:100%;max-width:340px;margin-top:18px;">Back to Menu</button>
-                    </div>
-                </div>
-            `;
-            document.getElementById('multiplayer-room-back-btn').addEventListener('pointerdown', (e) => {
-                e.stopPropagation();
-                playUIClick();
-                showStartScreen();
-            });
-        }
-
         function showHowToPlay() {
             uiOverlay.innerHTML = `
                 <div class="onboarding-container">
@@ -9615,6 +9976,7 @@
         }
 
         function showResultScreen(leaderboardData = null, personalBestUpdate = null) {
+            if (mp.active) { mpShowResults(); return; }
             const pos = player.placement;
             const messages = {
                 1: '🏆 JUARA! Champion!',
@@ -11694,7 +12056,7 @@
                     updateStrayChickens(dt);
 
                     // Update banana throwing
-                    if (config.difficulty !== 'easy') {
+                    if (config.difficulty !== 'easy' && !mp.active) {
                         const interval = config.difficulty === 'hard' ? 9.0 : 14.0;
                         bananaPeelThrowTimer += dt;
                         if (bananaPeelThrowTimer >= interval) {
