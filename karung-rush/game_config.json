@@ -1,0 +1,16 @@
+{
+  "raceDistance": 800,
+  "numOpponents": 4,
+  "difficulty": "hard",
+  "playerSackColor": "#D2B48C",
+  "musicVolume": 100,
+  "sfxVolume": 80,
+  "settings": {
+    "difficulty": "easy"
+  },
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": true
+    }
+  }
+}

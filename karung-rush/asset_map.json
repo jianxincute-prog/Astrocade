@@ -1,0 +1,822 @@
+{
+  "player_character_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_character_hopping_6d820d01-9d86-4f2c-9a51-2827e319c8cb.webp",
+    "type": "image",
+    "prompt": "Modify the character from image 1: ensure the Indonesian boy's hands are firmly gripping the top edges of the burlap rice sack rim. The character is hopping forward, front-facing view, maintaining a consistent 2D chibi cartoon style, clean line art, and vibrant colors. The boy is wearing festive red and white clothing suitable for an Indonesian Independence Day festival. Transparent background.",
+    "description": "Front-facing Indonesian boy in a burlap rice sack, gripping the rim while hopping.",
+    "subtype": "character",
+    "aspect_ratio": [
+      571,
+      1169
+    ],
+    "compression_suggestion": "low",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "player_character_charging": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_character_charging_b4605895-8662-4ada-8804-8d563b81e89c.webp",
+    "type": "image",
+    "prompt": "Front-facing view of a chibi Indonesian boy character in a squatting charge position inside a burlap rice sack. The character's hands are visibly gripping the top edges of the sack, pulling it up slightly as he tenses for a jump. Maintain the 2D chibi cartoon style, matching the character design and colors of image 1. Clean linework, vibrant colors, transparent background, high-quality game asset.",
+    "description": "Front-facing chibi character squatting in a burlap sack, gripping the edges tightly while charging a jump.",
+    "subtype": "character",
+    "aspect_ratio": [
+      613,
+      1246
+    ],
+    "compression_suggestion": "low",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "player_character_tumbling": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_character_tumbling_8b4c31e2-fad8-469d-904d-d23eb35e912e.webp",
+    "type": "image",
+    "prompt": "Generate a front-facing 2D chibi cartoon illustration of the Indonesian boy from image 1, performing a comedic tumbling roll motion directly toward the camera. He should have a surprised facial expression with wide eyes, wearing his signature red t-shirt and still inside the burlap rice sack. The character should be upside down or mid-roll, maintaining a playful and humorous vibe. Clean lines, high resolution, professional game asset quality, transparent background.",
+    "description": "Front-facing comedic tumbling animation frame for the player character in a burlap sack.",
+    "subtype": "character",
+    "aspect_ratio": [
+      815,
+      1179
+    ],
+    "compression_suggestion": "low",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "player_character_balancing": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_character_balancing_2652c464-7cdb-49e4-aac1-544b07ad1a8f.webp",
+    "type": "image",
+    "prompt": "Transform the character in image 1 to change their arm and hand positions. Instead of arms out wide, the character should be gripping the top edges of the burlap rice sack firmly with both hands, pulling the sack up slightly. Hands must be clearly visible on the rim of the sack. Maintain the front-facing view, 2D chibi cartoon style, and the Indonesian boy's identity from image 1. High resolution, clean lines, transparent background.",
+    "description": "The player character wobbling for balance while firmly gripping the edges of the burlap sack.",
+    "subtype": "character",
+    "aspect_ratio": [
+      609,
+      1247
+    ],
+    "compression_suggestion": "low",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_character_1_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_character_1_hopping_cbaa623e-6708-4875-9c0c-f9034aa8654f.webp",
+    "type": "image",
+    "prompt": "Generate a full-body, side-view illustration of a cute chibi female racer hopping in a burlap rice sack, facing right. She is wearing a bright sporty blue short-sleeve shirt and has dark medium-length wavy hair. Her expression is a cheerful, confident, and elegant smile inspired by a friendly idol aesthetic. Both hands are firmly gripping the rim of the burlap sack. The art style is a clean, polished 2D arcade cartoon with soft shading and clear outlines. The burlap sack shows natural cloth folds. Side-scrolling game perspective, transparent background. Style must match the visual aesthetic of opponent_character_2_hopping, opponent_character_3_hopping, and opponent_character_4_hopping.",
+    "description": "A female racer in a blue shirt hopping in a burlap sack, designed with a friendly idol aesthetic for the racing competition.",
+    "subtype": "character",
+    "aspect_ratio": [
+      642,
+      1245
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_character_2_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_character_2_hopping_746b5bd8-095a-4543-b4c6-889a821730ad.webp",
+    "type": "image",
+    "prompt": "Generate a full-body, front-facing 2D chibi character of a cheerful young female teenager with a dark bob cut, wearing a bright sporty pink short-sleeve shirt. She is participating in a traditional Indonesian sack race, standing inside a tan burlap rice sack that covers her from the waist down. Her hands are clearly shown firmly gripping the top rim of the sack. She has big expressive eyes and a warm, energetic smile. Use a cozy arcade cartoon style with clean outlines, soft cel-shading, and cute proportions. The character should be in a hopping pose, similar in style and perspective to player_character_hopping. Transparent background, high resolution, professional game asset.",
+    "description": "A cheerful young female racer in a pink shirt hopping in a burlap sack, inspired by a friendly idol aesthetic.",
+    "subtype": "character",
+    "aspect_ratio": [
+      554,
+      1234
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_character_3_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_character_3_hopping_76e56a3d-eec1-436c-bb13-351bfcaa220a.webp",
+    "type": "image",
+    "prompt": "Modify the character in image 1: adjust the pose so the character's hands are clearly visible and firmly gripping the top edges of the burlap rice sack. Maintain the 2D chibi cartoon style, front-facing view, and the adult character's blue t-shirt. High resolution, clean lines, professional game asset on a transparent background.",
+    "description": "Adult AI opponent in a blue t-shirt hopping in a burlap sack, with hands firmly gripping the rim.",
+    "subtype": "character",
+    "aspect_ratio": [
+      596,
+      1176
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_character_4_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_character_4_hopping_7a1a9fa9-c7ca-4419-a53d-124711152bad.webp",
+    "type": "image",
+    "prompt": "Modify the character in image 1 to show their hands clearly gripping and holding the top rim of the burlap rice sack firmly. Maintain the front-facing view, competitive expression with headband, and the 2D chibi cartoon style. Ensure the character is shown in a hopping pose with a transparent background.",
+    "description": "Chibi competitive character with a headband, now clearly gripping the edges of their burlap rice sack while hopping.",
+    "subtype": "character",
+    "aspect_ratio": [
+      556,
+      1156
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "decoration_bunting": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/decoration_bunting_e2a7dc38-14e7-4803-b32a-0aebaaac9368.webp",
+    "type": "image",
+    "prompt": "Generate a horizontal string of triangular red-and-white bunting flags. 5-6 connected pennants alternating red and white hanging from a thin string. Colorful 2D cartoon style, clean lines, transparent background.",
+    "description": "String of triangular red-and-white bunting flags.",
+    "subtype": "other",
+    "aspect_ratio": [
+      1482,
+      450
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "decoration_indonesian_flag": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/decoration_indonesian_flag_452db3c6-9886-4ce4-8bb2-95aeb8e930ca.webp",
+    "type": "image",
+    "prompt": "Generate a side view of the Indonesian flag (Merah Putih) on a brown wooden pole. The flag has a red top half and white bottom half with a slight wave. 2D cartoon style, transparent background.",
+    "description": "Indonesian flag on a wooden pole.",
+    "subtype": "other",
+    "aspect_ratio": [
+      791,
+      968
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "decoration_balloons": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/decoration_balloons_a8cdabb2-8db5-4b2b-b2c3-58ed26613c15.webp",
+    "type": "image",
+    "prompt": "Generate a cluster of 4-5 festive balloons in red, white, and blue colors, tied together with strings. Colorful 2D cartoon style, round shapes with small highlights, transparent background.",
+    "description": "Cluster of festive balloons.",
+    "subtype": "other",
+    "aspect_ratio": [
+      833,
+      1318
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "track_surface": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/track_surface_8ee0e301-269f-47da-bf0e-b8963a07b541.webp",
+    "type": "image",
+    "prompt": "Generate a horizontally tileable dirt track texture for a 2D side-scrolling game. Warm brown dirt path with subtle pebbles. The top and bottom edges are lined with green grass. Top-down view, clean 2D cartoon style.",
+    "description": "Dirt track surface texture for racing.",
+    "subtype": "ground",
+    "aspect_ratio": [
+      1536,
+      1024
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "particle_dust_cloud": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/particle_dust_cloud_21c10024-8228-479c-b678-caf4fa96c4ec.webp",
+    "type": "image",
+    "prompt": "Generate a small, soft, puffy cloud of dust in a light tan color. 2D cartoon style, simplified and stylized, transparent background.",
+    "description": "Small dust cloud for hop and landing effects.",
+    "subtype": "effect",
+    "aspect_ratio": [
+      806,
+      669
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "ui_charging_meter_empty": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/ui_charging_meter_empty_e8a1c510-ff0d-4c00-9687-3a44b2e64fbb.webp",
+    "type": "image",
+    "prompt": "Generate a circular empty UI meter outline in light gray. Features a subtle Indonesian batik pattern in the center. Clean 2D graphic design, transparent background.",
+    "description": "Empty state of the hop charging meter.",
+    "subtype": "ui",
+    "aspect_ratio": [
+      870,
+      873
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "ui_charging_meter_fill": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/ui_charging_meter_fill_d070a127-c0d6-4284-ac45-8ee214b32c07.webp",
+    "type": "image",
+    "prompt": "Generate a circular UI fill segment that matches image 1. The segment has a color gradient from green at the start, to yellow in the middle, to red at the maximum. Clean 2D UI graphic, transparent background.",
+    "description": "Gradient fill indicator for the charging meter.",
+    "subtype": "ui",
+    "aspect_ratio": [
+      1020,
+      1023
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_hop_charge": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_hop_charge_86c08361-53bd-4a45-b324-2c4f46098be1.mp3",
+    "type": "audio",
+    "prompt": "A short, rising pitch sound effect for a cartoon game, 1.5 seconds long. It sounds like a spring being compressed or a tension-building synthesized slide. The pitch starts low and glides upward smoothly to represent a power meter filling. Light, whimsical, and non-threatening.",
+    "description": "Short, rising pitch sound effect for charging a hop, building tension and anticipation.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.0,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_hop_release": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_hop_release_37bbd825-bc36-490e-b07c-6555ccc73377.mp3",
+    "type": "audio",
+    "prompt": "A quick, energetic 'boing' and 'whoosh' sound effect combined. A satisfying spring release sound for a cartoon character jumping. Sharp attack, very short decay, conveying upward and forward momentum. Clean and snappy.",
+    "description": "Quick whoosh/spring release sound for when the player launches the sack hop.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.02,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_landing_good": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_landing_good_c2dc9b9e-b085-41b0-a084-688a7b761ad7.mp3",
+    "type": "audio",
+    "prompt": "A solid but muffled 'thud' sound effect on a dirt surface. It has a slight fabric rustle or burlap sack texture to the impact. Cartoony squash-and-stretch feel, satisfying and short, representing a successful landing in a sack race.",
+    "description": "Solid but soft thud sound for a successful controlled landing.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.38,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_landing_tumble": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_landing_tumble_9b722ae4-111a-4454-b2bd-703488373ada.mp3",
+    "type": "audio",
+    "prompt": "Comedic slapstick tumbling sound effect. A series of 3-4 rapid, soft 'oomph' and 'thud' sounds with a rolling burlap texture. Evokes a character clumsily rolling inside a sack on a dirt path. Lighthearted and funny.",
+    "description": "Comedic rolling and bouncing sound effect for when a character loses balance and falls.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.74,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_recovery": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_recovery_eb35912e-777e-4198-bcf2-0b540ce60d40.mp3",
+    "type": "audio",
+    "prompt": "A quick, upbeat 'pop' or 'blip' sound effect. Sounds like a spring-loaded character snapping back to an upright position. Bright, high-frequency, and resilient. Very short duration with a clean tail.",
+    "description": "Quick pop/spring sound for character getting back up after a tumble.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 0.52,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_crowd_cheer": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_crowd_cheer_30a566db-d8f4-48a9-a6ef-36daabf32f12.mp3",
+    "type": "audio",
+    "prompt": "Excited crowd ambiance for an outdoor festival. Sounds of a group of Indonesian people (men, women, and children) cheering, clapping hands, and shouting joyful encouragement. Not a stadium crowd, but a more intimate village street vibe. Natural, festive, and loopable.",
+    "description": "Ambient sound of a festive Indonesian village crowd cheering and clapping.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 10.0,
+    "loop": true,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_finish_celebration": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_finish_celebration_7f44ba45-e7a0-495b-bd3e-39e59906df90.mp3",
+    "type": "audio",
+    "prompt": "A triumphant victory sound effect for a finish line. Features a sudden surge in crowd cheering, a celebratory whistle, and a bright Gamelan or Angklung musical flourish. Joyful, festive Indonesian Independence Day celebration vibe.",
+    "description": "Triumphant victory fanfare with crowd surge and traditional accents.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.97,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "music_race_theme": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/music_race_theme_ad6d0183-7d8d-4d96-b323-3a1345931203.mp3",
+    "type": "audio",
+    "prompt": "Upbeat and energetic Indonesian fusion track for a racing game. 130 BPM. Features rhythmic Kendang percussion, bright Angklung melodies, and a light Gamelan metallophone ostinato layered with a modern upbeat bassline and acoustic guitar. Festive, competitive, and rhythmic to match a hopping motion. Instrumental only, high energy, loopable.",
+    "description": "Upbeat, energetic Indonesian-inspired background music for the sack race.",
+    "subtype": "music",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 30.0,
+    "loop": true,
+    "opus_url": null,
+    "animation": null
+  },
+  "music_menu_theme": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/music_menu_theme_7c8edbe9-2f3a-4178-99a6-81f38bcf8b97.mp3",
+    "type": "audio",
+    "prompt": "Cheerful and relaxed Indonesian village festival atmosphere music. 105 BPM. Gentle percussion, soft Suling flute or melodic Angklung, and warm acoustic textures. Nostalgic, welcoming, and sunny. Evokes a happy community gathering in a rural village. Instrumental only, smooth transitions, loopable.",
+    "description": "Warm, relaxed Indonesian village festival music for menus and results.",
+    "subtype": "music",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 30.0,
+    "loop": true,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_mud_splash": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_mud_splash_650b8fec-8403-4b1a-8144-f95b2db9db51.mp3",
+    "type": "audio",
+    "prompt": "A wet, squelchy mud splash sound effect. Thick, liquid impact with a comical 'splat' sound. High-fidelity recording of heavy viscous liquid movement, exaggerated and slightly cartoony. Features a messy, bubbling texture with a brief suction sound at the end. No background noise, clean and punchy for gameplay feedback.",
+    "description": "A wet, squelchy splash sound effect for landing in mud, designed with a comedic tone.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.59,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_slip_slide": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_slip_slide_9d948031-44ba-4aea-895e-c3133d7a1ab5.mp3",
+    "type": "audio",
+    "prompt": "A classic comedic cartoon slide whistle sound, starting with a quick high-to-low pitch drop followed by a wobbling high-pitched finish. It should sound rubbery and friction-based, representing a character losing their footing on slippery moss. Bright, whimsical, and exaggerated for a festive village atmosphere. High-fidelity, clean recording with no background noise.",
+    "description": "Comedic cartoon slide whistle sound for a character slipping on mossy surfaces.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.48,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_rock_impact": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_rock_impact_87c73649-56e5-44bf-9a7f-16dbc90c38b6.mp3",
+    "type": "audio",
+    "prompt": "A sharp, comedic cartoon 'clonk' or hollow 'thud' sound effect. Imagine a wooden or stone impact against a soft object. It should have a snappy attack, a slightly resonant wooden quality, and a very short decay. No metal sounds, no realistic bone breaking. Designed for a character tripping and losing balance in a lighthearted, playful sack race game. Clean and isolated for frequent in-game use.",
+    "description": "A sharp, comedic 'clonk' sound effect for tripping over a rock, consistent with the game's cartoonish Indonesian festival style.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.4,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "crowd_villager_1_cheering": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/crowd_villager_1_cheering_c6b1debe-b42a-466c-98e0-2991556068f9.webp",
+    "type": "image",
+    "prompt": "Generate a full-body, front-facing illustration of a cute 2D chibi cartoon Indonesian child villager cheering. The character is wearing festive red and white clothes, has rounded proportions, and an expressive happy face with arms raised in excitement. Professional quality game asset, clean outlines, bright daylight lighting, transparent background. Match the 2D chibi cartoon style of player_character_hopping.",
+    "description": "A cheering chibi Indonesian child villager in festive red and white clothing for the crowd.",
+    "subtype": "character",
+    "aspect_ratio": [
+      803,
+      1139
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "crowd_villager_2_waving": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/crowd_villager_2_waving_80872c7a-4ffb-49ba-9b46-6fd6b1ccc9ee.webp",
+    "type": "image",
+    "prompt": "Generate a full-body, front-facing 2D chibi cartoon Indonesian teenager villager waving a small red and white Indonesian flag. The character wears a yellow t-shirt and has a friendly, expressive face. Clean outlines, rounded proportions, high quality, professional game asset style. Match the artistic style and bright daylight lighting of image 1. Transparent background.",
+    "description": "A 2D chibi cartoon Indonesian teenager villager waving a small flag to cheer on the racers.",
+    "subtype": "character",
+    "aspect_ratio": [
+      832,
+      1170
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "crowd_villager_3_clapping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/crowd_villager_3_clapping_9dbc7a30-5af7-4194-b0ac-d7ef8535d03f.webp",
+    "type": "image",
+    "prompt": "Generate a full-body, front-facing 2D chibi cartoon Indonesian adult villager clapping and smiling. The character is wearing a simple blue batik-style shirt. Warm, cheerful expression, rounded proportions, clean outlines, and professional game-ready quality. Bright daylight lighting, transparent background.",
+    "description": "A 2D chibi cartoon Indonesian adult villager clapping and smiling for the festival crowd.",
+    "subtype": "character",
+    "aspect_ratio": [
+      565,
+      1156
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "crowd_villager_4_balloons": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/crowd_villager_4_balloons_196bf8f1-86db-4334-b758-dd057c3d2d29.webp",
+    "type": "image",
+    "prompt": "Generate a full-body, front-facing 2D chibi cartoon Indonesian girl villager holding a bunch of festive red and white balloons. She is wearing a white dress with a red sash. Excited and happy facial expression, rounded proportions, clean bold outlines. Consistent with the art style of image 1 and image 2. High resolution, professional game asset, transparent background, bright daylight lighting.",
+    "description": "A cute chibi Indonesian girl holding balloons, part of the cheering festival crowd.",
+    "subtype": "character",
+    "aspect_ratio": [
+      767,
+      1110
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "bg_cloud": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/bg_cloud_cc921316-4016-4945-9e72-af0436a76f25.webp",
+    "type": "image",
+    "prompt": "Generate a soft, white, fluffy 2D cartoon cloud with a clean vector-like style. Polished game-ready asset, simple shading, bright and friendly aesthetic for a sunny day. 2D chibi cartoon style consistent with a festive Indonesian race game. Transparent background.",
+    "description": "A fluffy white 2D cartoon cloud for the sunny festival sky.",
+    "subtype": "background",
+    "aspect_ratio": [
+      849,
+      559
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "bg_palm_tree": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/bg_palm_tree_24c8a798-1b63-4e99-b3e5-d8a9588a324f.webp",
+    "type": "image",
+    "prompt": "Generate a clean, 2D chibi cartoon style tropical palm tree. Features a slender brown trunk and vibrant green fronds. Simple, polished vector-like illustration, professional game asset quality, front-facing view, transparent background, suitable for a bright Indonesian village festival setting.",
+    "description": "A vibrant 2D cartoon tropical palm tree for the background of the village festival.",
+    "subtype": "background",
+    "aspect_ratio": [
+      938,
+      1233
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_ambient_wind": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_ambient_wind_a7870600-1fcf-4fde-9887-c3671a3789dd.mp3",
+    "type": "audio",
+    "prompt": "Soft, gentle tropical breeze through a village, very light wind rustling through leaves and open spaces, calm and relaxing atmosphere, low volume, warm tone, no harsh gusts or whistling, subtle and consistent background ambience, designed for seamless looping in a cozy Indonesian village setting, clean and high-fidelity.",
+    "description": "A gentle, soft tropical breeze loop for a cozy village atmosphere.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 10.0,
+    "loop": true,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_ambient_birds": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_ambient_birds_3d34a0bd-a40c-4698-930f-be8055124fde.mp3",
+    "type": "audio",
+    "prompt": "Ambient sound effect of soft, cheerful tropical songbirds chirping in an Indonesian village garden. Features 2-3 distinct, gentle bird calls with natural pauses. Warm, cozy, and relaxing atmosphere, not startling. High-quality field recording style, subtle and airy, suitable for a festive background layer. No wind or human noise.",
+    "description": "Gentle tropical bird chirping for a relaxing village background layer.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 8.0,
+    "loop": true,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_ui_click": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_ui_click_6de5ca94-d999-45bd-9e68-b63d4eeaff7d.mp3",
+    "type": "audio",
+    "prompt": "A soft, satisfying UI button click sound effect. Short, gentle, and warm, sounding like a soft wooden tap or a gentle organic pop. Not harsh, not metallic, and not mechanical. High-quality, clean, and crisp with a soft attack and no reverb tail. Designed to feel cozy and pleasant for repeated use in a tropical village festival menu. Very short duration with a high-frequency focus but warm mid-tones.",
+    "description": "A soft, satisfying wooden button click for UI navigation.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.14,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_ambient_crowd_soft": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_ambient_crowd_soft_c2150907-3149-4b94-b776-c7ad79d83224.mp3",
+    "type": "audio",
+    "prompt": "Soft, distant crowd murmur ambience for a rural village festival. Gentle chatter, muffled soft laughter, and warm community sounds without distinct words or voices. Create a cozy, inviting blanket of human presence as if heard from a neighboring garden. Low-pass filtered to sound non-intrusive and distant. Warm, relaxing tone, no sharp or sudden noises, designed for seamless looping.",
+    "description": "A very soft, distant murmur of a village festival crowd, providing a cozy and warm background layer.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 0.25,
+    "loop": true,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_hop_land_soft": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_hop_land_soft_a3595d63-2ded-47f0-8c69-3c99fc7e60bd.mp3",
+    "type": "audio",
+    "prompt": "Create a very soft, gentle landing sound effect on packed earth. A warm, muffled thud representing bare feet or cloth-covered feet touching dirt. It should have a natural, organic texture with no metallic or harsh high-frequency sounds. Suitable for a character hopping in a burlap sack in a cozy village setting. The sound should be quick, satisfying, and designed for frequent in-game use.",
+    "description": "A gentle, muffled footstep of a character in a sack landing softly on packed dirt.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.89,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_whoosh_soft": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_whoosh_soft_25fb5d3f-f098-4397-a26b-a4dc1bf1a0a8.mp3",
+    "type": "audio",
+    "prompt": "A very soft, gentle air whoosh sound effect. The sound of fabric or a burlap sack swishing through the air quickly. Minimalistic, light, and warm texture. Short duration with a smooth fade in and out. Not metallic, not aggressive, and no heavy low-end. Suitable for frequent character movement in a cozy village setting. High-quality, clean recording.",
+    "description": "A very soft, short air whoosh for character movement through the air during a hop, sounding like light fabric swishing.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.45,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "obstacle_mud_patch_new": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/obstacle_mud_patch_new_d9635ac3-3247-4979-9a88-1a9cf365364c.webp",
+    "type": "image",
+    "prompt": "Generate a 2D cozy arcade cartoon style mud puddle, top-down slightly angled perspective. The puddle has a soft, irregular organic shape with smooth rounded edges. Rich muddy brown color palette featuring dark chocolate centers and lighter caramel edges (#4b3621, #6d4c2e). Include subtle wet shine highlights, small white reflection specks, and tiny ripple rings on the surface. Add a few small mud splatter dots around the perimeter. Style should be a mix of soft watercolor and clean vector art, polished and friendly, matching a chibi festive aesthetic. Transparent background.",
+    "description": "A wet, glossy mud puddle obstacle with soft edges and subtle reflections for the race track.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1009,
+      634
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "obstacle_moss_patch_new": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/obstacle_moss_patch_new_9cb18df3-c87d-4664-a62d-53ad81a39fd8.webp",
+    "type": "image",
+    "prompt": "Generate a 2:1 wide aspect ratio image of a slippery green moss patch for a 2D side-view racing game. Top-down slightly angled perspective, soft organic irregular shape with feathered edges. Use rich green colors with natural variation from deep forest green to light lime. Features a subtle moisture sheen with tiny dew drops, a velvety texture, and tiny leaf details. Style: 2D cozy arcade cartoon, soft and polished like a botanical illustration meets clean game art. Warm and vibrant greens (#2E7D32, #4CAF50). High resolution, detailed, professional quality, transparent background.",
+    "description": "A slippery green moss patch obstacle for the racing track with a soft, velvety texture.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1397,
+      812
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "obstacle_rock_new": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/obstacle_rock_new_9b7186d1-c3ce-4d40-9c3b-7a8bea0f8755.webp",
+    "type": "image",
+    "prompt": "Generate a polished, aesthetic small rock obstacle for a 2D side-scrolling racing game. The rock features a smooth rounded shape with natural cracks, warm grey-brown tones, and subtle green moss patches on top. Includes soft highlights and shadows for a 3D feel in a cozy chibi cartoon style. Small pebbles are scattered around the base. Perspective is a top-down angled side view. Clean edges, professional game asset, high resolution, transparent background.",
+    "description": "A polished, aesthetic small rock obstacle with natural textures and moss details for the race track.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1181,
+      916
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "obstacle_stray_chicken": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/obstacle_stray_chicken_8aec2b90-2e4b-45e6-bc73-bb785cc3cc12.webp",
+    "type": "image",
+    "prompt": "Generate a high-quality 2D chibi cartoon Indonesian village chicken (ayam kampung) from a side view, facing right. The chicken has a plump round body with vibrant brown and orange feathers, a bright red comb, a small yellow beak, and expressive round black eyes. It is in an active running pose with yellow legs extended in a stride and short wings slightly raised as if flapping. Style: clean, polished cozy arcade aesthetic matching a village festival, consistent with a friendly chibi art style. Transparent background, side-view illustration, vibrant colors, sharp silhouette.",
+    "description": "A frantic cartoon Indonesian village chicken running across the track as a dynamic obstacle.",
+    "subtype": "object",
+    "aspect_ratio": [
+      891,
+      938
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_chicken_cluck": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_chicken_cluck_be58c9b1-59bb-4e37-9d2c-d1a6509ccdf3.mp3",
+    "type": "audio",
+    "prompt": "A high-pitched, comedic chicken clucking sound effect. Two quick, panicked 'bawk bawk!' vocalizations. Cartoonish, playful, and expressive tone. The sound should feel startled and energetic, suitable for a casual arcade game set in an Indonesian village. Clean recording with a very short decay, no background noise, dry acoustic.",
+    "description": "A short, panicked, and comedic chicken 'bawk bawk' cluck for a village race obstacle.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.98,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "obstacle_water_puddle": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/obstacle_water_puddle_e61874b3-1fc6-43d4-ac3e-9d126a8acddc.webp",
+    "type": "image",
+    "prompt": "Generate a shallow water puddle for a 2D side-view racing game. Top-down perspective showing a clear, shallow puddle of water designed to sit on a dirt track like image 'track_surface'. Light blue transparent water with subtle white ripples and soft edges that blend into the ground. Include small glints and reflections on the surface. Cozy arcade art style, clean cartoonish look, highly recognizable. Transparent background, game-ready asset.",
+    "description": "A shallow, rippling water puddle obstacle for the race track.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1014,
+      594
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "skin_merdeka_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/skin_merdeka_hopping_0f1f9871-4040-4619-b59e-4b66c43c2912.webp",
+    "type": "image",
+    "prompt": "Generate a high-quality 2D chibi character sprite of a front-facing Indonesian boy hopping in a burlap rice sack for a side-scrolling arcade game. The character is wearing a patriotic red-and-white outfit with a red headband. The burlap sack features subtle red-and-white decorative stripes. The boy is gripping the rim of the sack with a cheerful, festive expression. Maintain the same chibi proportions and hopping pose as player_character_hopping. Clean cartoon lines, vibrant colors, professional game-ready asset, transparent background.",
+    "description": "Indonesian Independence Day (Merdeka) themed skin for the player character, featuring patriotic red and white colors and a festive expression.",
+    "subtype": "character",
+    "aspect_ratio": [
+      608,
+      1248
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "skin_village_champion_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/skin_village_champion_hopping_24bff9e2-dca5-4f3a-81ba-4f40002f8682.webp",
+    "type": "image",
+    "prompt": "Transform the character in image 1 into a traditional Indonesian village champion. Add a tan/straw colored woven farmer hat (caping) on the head. Change the outfit colors to a clean white shirt with blue accents and trim. Maintain the chibi art style, the confident facial expression, and ensure the character is still front-facing and gripping the brown burlap rice sack while hopping. Remove gold-heavy elements and dark colors. Professional 2D arcade game asset, transparent background, high resolution.",
+    "description": "Updated Village Champion skin featuring a traditional farmer hat and a white-and-blue sporty outfit for the hopping character.",
+    "subtype": "character",
+    "aspect_ratio": [
+      705,
+      1247
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "obstacle_banana_peel": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/obstacle_banana_peel_f234f440-db46-454a-b9ec-52063508a150.webp",
+    "type": "image",
+    "prompt": "Generate a high-quality 2D cartoon yellow banana peel, slightly squashed with three peels splayed out. The style is playful chibi/cartoon matching an Indonesian village festival aesthetic. Vibrant colors, clean lines, professional game asset. View angle is a 3/4 top-down perspective to fit on a dirt racing track. Transparent background, high resolution.",
+    "description": "A vibrant 2D cartoon banana peel obstacle for the race track.",
+    "subtype": "object",
+    "aspect_ratio": [
+      1098,
+      828
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "sfx_car_horn": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/sfx_car_horn_a2c6165d-bbbb-40f6-a6f3-d5d6f44fb9d7.mp3",
+    "type": "audio",
+    "prompt": "A classic comedic car horn sound effect, two-tone 'honk honk' pattern. The sound should be bright, loud, and slightly nasal, reminiscent of a vintage or cartoonish vehicle. It should have a snappy attack and a brief, clean decay. Designed for an upbeat arcade environment, ensuring it is distinct and attention-grabbing without being harsh or realistic. High-quality, non-distorted, comical traffic warning.",
+    "description": "Comedic 'honk honk' car horn sound effect for an arcade-style traffic warning.",
+    "subtype": "effect",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.48,
+    "loop": false,
+    "opus_url": null,
+    "animation": null
+  },
+  "skin_halloween_village_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/skin_halloween_village_hopping_5d4339dc-373e-45df-be4c-11f342e882e3.webp",
+    "type": "image",
+    "prompt": "Generate a polished 2D chibi game sprite of an Indonesian boy hopping inside a burlap rice sack for a village festival. The character is wearing a cute Halloween costume: a bright orange pumpkin cap with a tiny green stem, a purple-and-orange accented outfit, and a small friendly ghost motif on the shirt. Cheerful and funny expression, front-facing standing illustration, gripping the rim of the sack. Match the pose and art style of image 1. Clean bold cartoon shapes, warm festive lighting, transparent background, high resolution, professional game asset.",
+    "description": "A Halloween-themed festive skin for the player character hopping in a sack, featuring a pumpkin cap and purple-orange outfit.",
+    "subtype": "character",
+    "aspect_ratio": [
+      616,
+      1263
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "decoration_halloween_village_festival": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/decoration_halloween_village_festival_e66bc8f9-463a-42e7-b3f3-151bcd3ca62a.webp",
+    "type": "image",
+    "prompt": "Generate a polished 2D game decoration asset featuring a cute Indonesian neighborhood Halloween festival arrangement. The asset should include a small smiling orange pumpkin lantern, a friendly white ghost cutout, and purple-and-orange pennant bunting, integrated with a tiny red-and-white Indonesian flag accent. Playful spooky-cute chibi cartoon style, clean bold silhouettes, vibrant colors, professional game-ready quality, transparent background, front-facing view, matching the festive aesthetic of image 1.",
+    "description": "A festive Halloween-themed Indonesian village decoration featuring pumpkins, ghosts, and red-white accents.",
+    "subtype": "other",
+    "aspect_ratio": [
+      827,
+      862
+    ],
+    "compression_suggestion": "high",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_halloween_witch_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_halloween_witch_hopping_1f5989f4-3e89-4371-a1d3-f92946aed02b.webp",
+    "type": "image",
+    "prompt": "Generate a front-facing 2D chibi game sprite of a cheerful Indonesian girl racer hopping inside a burlap rice sack for a village festival. She is wearing a cute purple witch hat with orange trim and a small friendly cape. High-quality polished cartoon style with clean lines and vibrant colors. Full body illustration from the top of the hat to the bottom of the sack, standing/hopping pose, centered, transparent background. The art style must match the friendly idol aesthetic of opponent_character_1_hopping and opponent_character_2_hopping.",
+    "description": "A cheerful Halloween witch-themed NPC opponent hopping in a burlap sack.",
+    "subtype": "character",
+    "aspect_ratio": [
+      568,
+      1246
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_halloween_vampire_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_halloween_vampire_hopping_1656a69e-955d-48a0-99eb-2bc6392c77b0.webp",
+    "type": "image",
+    "prompt": "Generate a front-facing 2D chibi game sprite of a funny, friendly Indonesian village boy dressed as a vampire for a sack-race. The character is hopping inside a rustic burlap rice sack, gripping the rim. He wears a tiny black vampire cape with a high collar, orange and purple festive accents, and has a playful, non-scary expression with two small cute fangs. Polished cartoon style with clean lines and vibrant colors, matching the aesthetic of image 1. Full body standing illustration, centered, readable silhouette, transparent background, high resolution, professional game asset.",
+    "description": "A funny Halloween-themed vampire NPC hopping in a burlap sack for the racing competition.",
+    "subtype": "character",
+    "aspect_ratio": [
+      613,
+      1264
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_halloween_frankenstein_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_halloween_frankenstein_hopping_aa0bd0c0-36b9-48ac-9294-fc38d9ae4270.webp",
+    "type": "image",
+    "prompt": "Generate a front-facing 2D chibi game sprite of a friendly Frankenstein-inspired Indonesian boy hopping inside a burlap rice sack. The character has light green skin, small stitched details on his cheeks, messy dark hair, and wears a t-shirt with orange and purple festival accents. He is gripping the rim of the burlap sack. High-quality polished cartoon style, vibrant colors, clear silhouette, full body from head to bottom of sack, transparent background, matching the aesthetic of image 1 and image 2.",
+    "description": "A silly Frankenstein-themed Indonesian village racer hopping in a burlap sack for the Halloween event.",
+    "subtype": "character",
+    "aspect_ratio": [
+      495,
+      1169
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "opponent_halloween_ghost_hopping": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_halloween_ghost_hopping_30100eab-5b27-4ba0-8aa9-90fdfaec9f23.webp",
+    "type": "image",
+    "prompt": "Generate a front-facing 2D chibi game sprite of a cute friendly ghost-themed Indonesian village racer. The character is inside a burlap rice sack, gripping the rim, while hopping. The character wears a white ghost-like hood and costume with playful orange and purple festive accents. Friendly and funny expression. Polished cartoon style, vibrant colors, clear silhouette, transparent background. Matches the style of existing game racers, high resolution, detailed illustration, full body visible.",
+    "description": "A cute ghost-themed Halloween racer hopping in a burlap sack for the village festival.",
+    "subtype": "character",
+    "aspect_ratio": [
+      611,
+      1241
+    ],
+    "compression_suggestion": "medium",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  }
+}
