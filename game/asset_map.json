@@ -1,0 +1,346 @@
+{
+ "player_head": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_head_5adad991-d41c-4efe-b0f1-cc208733dfe4.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid head, vibrant blue, heroic face.",
+  "description": "Vibrant blue Minecraft-style cuboid head for the player character with a heroic face.",
+  "subtype": "character",
+  "aspect_ratio": [
+   751,
+   727
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "player_torso": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_torso_6100534a-4e0c-4e46-8a70-0a36376b1022.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid torso, vibrant blue.",
+  "description": "Vibrant blue Minecraft-style cuboid torso for the player character.",
+  "subtype": "character",
+  "aspect_ratio": [
+   778,
+   986
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "player_arm": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_arm_ad49255b-cad6-4092-876b-c40cac3ba97b.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid arm segment, vibrant blue.",
+  "description": "Vibrant blue Minecraft-style cuboid arm segment for the player character.",
+  "subtype": "character",
+  "aspect_ratio": [
+   592,
+   1719
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "player_leg": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/player_leg_e048b6e4-a374-4189-8f0c-766500fc90b2.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid leg segment, vibrant blue.",
+  "description": "Vibrant blue Minecraft-style cuboid leg segment for the player character.",
+  "subtype": "character",
+  "aspect_ratio": [
+   460,
+   1445
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "opponent_head": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_head_939e1cfc-0397-4532-a034-f009728d9d09.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid head, vibrant red, aggressive face.",
+  "description": "Vibrant red Minecraft-style cuboid head for the opponent character with an aggressive face.",
+  "subtype": "character",
+  "aspect_ratio": [
+   1024,
+   990
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "opponent_torso": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_torso_3ef17297-4b3b-44aa-9d4f-feb0e0b7c970.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid torso, vibrant red.",
+  "description": "Vibrant red Minecraft-style cuboid torso for the opponent character.",
+  "subtype": "character",
+  "aspect_ratio": [
+   719,
+   1107
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "opponent_arm": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_arm_d3bd77e9-b803-496f-9f72-15747033f2a5.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid arm segment, vibrant red.",
+  "description": "Vibrant red Minecraft-style cuboid arm segment for the opponent character.",
+  "subtype": "character",
+  "aspect_ratio": [
+   592,
+   1776
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "opponent_leg": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/opponent_leg_954436e8-384f-4ca5-b2e5-b561fbb44f81.webp",
+  "type": "image",
+  "prompt": "Minecraft-style cuboid leg segment, vibrant red.",
+  "description": "Vibrant red Minecraft-style cuboid leg segment for the opponent character.",
+  "subtype": "character",
+  "aspect_ratio": [
+   463,
+   1188
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "arena_floor_texture": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/arena_floor_texture_da03a918-a225-4f4b-b3bf-b5eba8666a15.webp",
+  "type": "image",
+  "prompt": "Tileable stone floor texture for a fantasy arena.",
+  "description": "Seamless tileable stone floor texture for the fantasy arena.",
+  "subtype": "ground",
+  "aspect_ratio": [
+   1024,
+   1024
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "arena_wall_texture": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/arena_wall_texture_ad6d8f36-8431-4fb9-ad85-7b6e5f816ab3.webp",
+  "type": "image",
+  "prompt": "Tileable weathered stone wall texture.",
+  "description": "Seamless tileable weathered stone wall texture for arena boundaries.",
+  "subtype": "ground",
+  "aspect_ratio": [
+   1024,
+   1024
+  ],
+  "compression_suggestion": "medium",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "background_mountains": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/background_mountains_ce762fd9-3b6d-4327-aee6-a2d43d67a6fa.webp",
+  "type": "image",
+  "prompt": "Panoramic distant mountain ranges, late afternoon sky.",
+  "description": "Panoramic mountain background with late afternoon sky gradient.",
+  "subtype": "background",
+  "aspect_ratio": [
+   1536,
+   1024
+  ],
+  "compression_suggestion": "original",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "background_ruins": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/background_ruins_73942f16-f906-424d-b4b4-53893bd52c0e.webp",
+  "type": "image",
+  "prompt": "Ancient crumbling ruins background.",
+  "description": "Ancient ruins background elements to add depth to the arena.",
+  "subtype": "background",
+  "aspect_ratio": [
+   1264,
+   848
+  ],
+  "compression_suggestion": "low",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "torch_flame": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/torch_flame_2dfaf347-9e3d-4d78-9636-9128fa0998ce.webp",
+  "type": "image",
+  "prompt": "Stylized fantasy torch flame sprite.",
+  "description": "Animated torch flame sprite with a warm glow.",
+  "subtype": "effect",
+  "aspect_ratio": [
+   541,
+   1317
+  ],
+  "compression_suggestion": "high",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "hit_spark_particle": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/hit_spark_particle_aee1d6de-a8a8-40fd-a76f-c92e9e1cb62e.webp",
+  "type": "image",
+  "prompt": "Hit impact spark particle sprite.",
+  "description": "VFX particle for combat impact feedback.",
+  "subtype": "effect",
+  "aspect_ratio": [
+   725,
+   720
+  ],
+  "compression_suggestion": "high",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "block_shield_effect": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/block_shield_effect_0deb2c4e-7daa-484a-aa72-36075d79b16d.webp",
+  "type": "image",
+  "prompt": "Blue hexagonal energy shield sprite.",
+  "description": "Semi-transparent blue energy shield for blocking.",
+  "subtype": "effect",
+  "aspect_ratio": [
+   711,
+   884
+  ],
+  "compression_suggestion": "high",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "dust_particle": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/dust_particle_a59a1a5e-758b-4304-941c-fdaa5c8ee1c0.webp",
+  "type": "image",
+  "prompt": "Soft circular dust mote particle sprite.",
+  "description": "Soft atmospheric dust mote particle.",
+  "subtype": "effect",
+  "aspect_ratio": [
+   437,
+   433
+  ],
+  "compression_suggestion": "high",
+  "duration_secs": null,
+  "loop": null,
+  "opus_url": null,
+  "animation": null
+ },
+ "punch_impact_sound": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/punch_impact_sound_6ac12916-4aeb-4d38-af0f-288e58ba3293.mp3",
+  "type": "audio",
+  "prompt": "Sharp punchy fist impact thud.",
+  "description": "Short, meaty punch impact sound for successful combat hits.",
+  "subtype": "effect",
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "duration_secs": 0.47,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/punch_impact_sound_6ac12916-4aeb-4d38-af0f-288e58ba3293.ogg",
+  "animation": null
+ },
+ "block_sound": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/block_sound_707d8faa-44c6-4525-9e10-0b00df868e1d.mp3",
+  "type": "audio",
+  "prompt": "Metallic shield block clang.",
+  "description": "Metallic clinking sound for a blocked attack.",
+  "subtype": "effect",
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "duration_secs": 2.0,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/block_sound_707d8faa-44c6-4525-9e10-0b00df868e1d.ogg",
+  "animation": null
+ },
+ "grunt_damage_sound": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/grunt_damage_sound_4ff85776-d9e0-4dc4-b0f9-66215331dd68.mp3",
+  "type": "audio",
+  "prompt": "Short masculine grunt of pain.",
+  "description": "Brief masculine grunt indicating the character took damage.",
+  "subtype": "effect",
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "duration_secs": 1.74,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/grunt_damage_sound_4ff85776-d9e0-4dc4-b0f9-66215331dd68.ogg",
+  "animation": null
+ },
+ "victory_fanfare": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/victory_fanfare_a6cfc52a-5e10-4e5d-a60c-4eabf4c6b4a9.mp3",
+  "type": "audio",
+  "prompt": "Short triumphant victory fanfare.",
+  "description": "Triumphant brass fanfare for the victory screen.",
+  "subtype": "music",
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "duration_secs": 5.0,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/victory_fanfare_a6cfc52a-5e10-4e5d-a60c-4eabf4c6b4a9.ogg",
+  "animation": null
+ },
+ "defeat_sound": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/defeat_sound_868010ed-2745-4338-97b3-293b4cf47141.mp3",
+  "type": "audio",
+  "prompt": "Somber descending game over phrase.",
+  "description": "Somber descending phrase for the defeat screen.",
+  "subtype": "music",
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "duration_secs": 5.0,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/defeat_sound_868010ed-2745-4338-97b3-293b4cf47141.ogg",
+  "animation": null
+ },
+ "ambient_arena_music": {
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/ambient_arena_music_906e2b29-1385-4372-81a8-605d2f1bc366.mp3",
+  "type": "audio",
+  "prompt": "Epic fantasy arena combat music, 135 BPM, looping.",
+  "description": "Epic orchestral combat music for the main arena gameplay.",
+  "subtype": "music",
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "duration_secs": 30.0,
+  "loop": true,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/ambient_arena_music_906e2b29-1385-4372-81a8-605d2f1bc366.ogg",
+  "animation": null
+ },
+ "avatar_banyu": {
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793545991946_01M6BTQXRAH3C3VG2B0349T89X.glb",
+  "type": "model_3d",
+  "description": "AstroKid avatar A (rigged Mixamo skeleton, 8 clips) used for the blue fighter Banyu."
+ },
+ "avatar_gantara": {
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793545994048_01M6BTQZT08DHD3460G5AYVKD6.glb",
+  "type": "model_3d",
+  "description": "AstroKid avatar B (rigged Mixamo skeleton, 8 clips) used for the red fighter Gantara."
+ }
+}

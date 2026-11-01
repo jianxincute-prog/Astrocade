@@ -1,0 +1,1 @@
+{"combat": {"playerMaxHP": 150, "opponentMaxHP": 150, "attackDamage": 12, "movementSpeed": 1}, "camera": {"distance": 21, "height": 12.5, "smoothing": 0.1}, "arenaRadius": 36}
