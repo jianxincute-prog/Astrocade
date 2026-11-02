@@ -189,16 +189,16 @@
             position: absolute;
             bottom: 24px;
             right: 24px;
-            width: 232px;
-            height: 220px;
+            width: 304px;
+            height: 208px;
             pointer-events: none;
             z-index: 30;
         }
 
         .action-btn {
             position: absolute;
-            width: 88px;
-            height: 88px;
+            width: 96px;
+            height: 96px;
             border-radius: 50%;
             border: 3.5px solid rgba(255, 255, 255, 0.9);
             display: flex;
@@ -244,7 +244,7 @@
             pointer-events: none;
         }
 
-        /* Spaced 2x2 formation: ultimate / jump on top, block / attack below */
+        /* Compact 3-by-2 thumb layout: Banyu's skills follow Ultimate on the top row. */
         .btn-ultimate {
             top: 0;
             left: 0;
@@ -255,15 +255,27 @@
             box-shadow: 0 0 22px rgba(249, 115, 22, 0.65), 0 6px 16px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.4);
         }
 
-        .btn-jump {
+        .btn-skill-one, .btn-skill-two {
+            display: none;
             top: 0;
-            right: 0;
+            width: 96px;
+            height: 96px;
+            border-color: rgba(224, 242, 254, 0.95);
+        }
+        .btn-skill-one { left: 104px; background: linear-gradient(145deg, #22d3ee, #0369a1 72%, #082f49); box-shadow: 0 0 18px rgba(34, 211, 238, 0.48), 0 6px 16px rgba(0,0,0,.45), inset 0 2px 4px rgba(255,255,255,.35); }
+        .btn-skill-two { left: 208px; background: linear-gradient(145deg, #a78bfa, #6d28d9 72%, #2e1065); box-shadow: 0 0 18px rgba(167, 139, 250, 0.45), 0 6px 16px rgba(0,0,0,.45), inset 0 2px 4px rgba(255,255,255,.35); }
+        .banyu-skills-enabled .btn-skill-one, .banyu-skills-enabled .btn-skill-two { display: flex; }
+        .btn-skill-one .btn-text, .btn-skill-two .btn-text { font-size: 9px; letter-spacing: 0; }
+
+        .btn-jump {
+            bottom: 0;
+            right: 208px;
             background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
         }
 
         .btn-block {
             bottom: 0;
-            left: 0;
+            right: 104px;
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         }
 
@@ -296,6 +308,20 @@
             transform: translate(-50%, -50%) scale(1.15);
             opacity: 1;
         }
+
+        .skill-cinematic-caption {
+            position: absolute; top: 28%; left: 50%; width: min(540px, 82%);
+            transform: translate(-50%, 18px) scale(.94); opacity: 0; text-align: center;
+            pointer-events: none; z-index: 55; transition: opacity 220ms ease, transform 300ms cubic-bezier(.2,.8,.2,1);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,.85));
+        }
+        .skill-cinematic-caption.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        .skill-cinematic-caption .skill-kicker { color: #bae6fd; font-size: 16px; font-weight: 900; letter-spacing: 6px; }
+        .skill-cinematic-caption .skill-title { color: #fff; font-size: 48px; line-height: 1.08; font-weight: 1000; font-style: italic; letter-spacing: 2px; text-shadow: 0 0 18px #0891b2, 3px 3px 0 #082f49; }
+        .skill-cinematic-caption.spirit .skill-title { text-shadow: 0 0 18px #8b5cf6, 3px 3px 0 #2e1065; }
+        .skill-cinematic-caption .skill-track { height: 9px; margin: 14px auto 0; overflow: hidden; border: 1px solid rgba(255,255,255,.82); border-radius: 99px; background: rgba(2,6,23,.65); }
+        .skill-cinematic-caption .skill-progress { width: 0%; height: 100%; background: linear-gradient(90deg,#22d3ee,#f0fdff); box-shadow: 0 0 12px #67e8f9; }
+        .skill-cinematic-caption.spirit .skill-progress { background: linear-gradient(90deg,#8b5cf6,#e9d5ff); box-shadow: 0 0 12px #c4b5fd; }
 
         /* Scream Callout Overlays */
         .scream-bubble {
@@ -625,6 +651,24 @@
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
         }
 
+        .lobby-btn {
+            padding: 18px 48px;
+            min-width: 300px;
+            font-size: 24px;
+            font-weight: 800;
+            color: #f8fafc;
+            background: linear-gradient(135deg, #0e7490 0%, #164e63 100%);
+            border: 3px solid rgba(165, 243, 252, 0.9);
+            border-radius: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            box-shadow: 0 7px 22px rgba(0, 0, 0, 0.45), 0 0 18px rgba(34, 211, 238, 0.2);
+            transition: transform var(--transition-normal) var(--ease-out), filter var(--transition-normal) var(--ease-out);
+        }
+        .lobby-btn:hover { transform: translateY(-3px); filter: brightness(1.12); }
+        .lobby-btn:active { transform: translateY(-1px) scale(0.98); }
+
         /* ===== ANIMATIONS ===== */
         @keyframes scaleIn {
             0% {
@@ -664,8 +708,8 @@
         <div class="ui-overlay">
             <div class="lobby-hud" id="lobby-hud">
                 <div class="lobby-title">HALL OF CHAMPIONS</div>
-                <div class="lobby-hint" id="lobby-hint">Jelajahi arena. Podium fighter ada di sisi kanan; portal battle menunggu di ujung map.</div>
-                <div class="lobby-selection" id="lobby-selection">FIGHTER TERPILIH: BANYU WISESA</div>
+                <div class="lobby-hint" id="lobby-hint">Explore the hall and visit the five podiums to choose a fighter. The battle portal awaits at the end of the path.</div>
+                <div class="lobby-selection" id="lobby-selection">SELECTED FIGHTER: BANYU WISESA</div>
             </div>
             <button class="lobby-interact" id="lobby-interact" aria-label="Interact with podium or battle portal">
                 <span class="interact-icon">✦</span>
@@ -693,6 +737,11 @@
             </div>
 
             <div class="combo-callout" id="combo-callout"></div>
+            <div class="skill-cinematic-caption" id="skill-cinematic-caption" aria-hidden="true">
+                <div class="skill-kicker">BANYU WISESA · SPIRIT TECHNIQUE</div>
+                <div class="skill-title" id="skill-cinematic-title">TIDAL RUSH</div>
+                <div class="skill-track"><div class="skill-progress" id="skill-cinematic-progress"></div></div>
+            </div>
             <div class="scream-bubble scream-player" id="scream-player">Aaaaah! 💫</div>
             <div class="scream-bubble scream-opponent" id="scream-opponent">Aaaargh! 💢</div>
             <div class="cine-bar top"></div>
@@ -701,7 +750,7 @@
             <div class="cine-title" id="cine-title">
                 <div class="cine-name">BANYU WISESA</div>
                 <div class="cine-main">POCONG BANGKIT 👻</div>
-                <div class="cine-move">Amukan Kafan Arwah</div>
+                <div class="cine-move">Wrath of the Spirit Shroud</div>
             </div>
 
             <!-- Controls -->
@@ -722,17 +771,25 @@
                         <span class="btn-icon">💥</span>
                         <span class="btn-text">ULTIMATE</span>
                     </button>
+                    <button class="action-btn btn-skill-one" id="btn-skill-one" aria-label="Banyu skill: Tidal Rush">
+                        <span class="btn-icon">🌊</span>
+                        <span class="btn-text">TIDAL RUSH</span>
+                    </button>
+                    <button class="action-btn btn-skill-two" id="btn-skill-two" aria-label="Banyu skill: Spirit Tide">
+                        <span class="btn-icon">✦</span>
+                        <span class="btn-text">SPIRIT TIDE</span>
+                    </button>
                     <button class="action-btn btn-jump" id="btn-jump" aria-label="Jump">
                         <span class="btn-icon">↑</span>
-                        <span class="btn-text">LOMPAT</span>
+                        <span class="btn-text">JUMP</span>
                     </button>
                     <button class="action-btn btn-block" id="btn-block" aria-label="Block">
                         <span class="btn-icon">🛡</span>
-                        <span class="btn-text">TANGKIS</span>
+                        <span class="btn-text">BLOCK</span>
                     </button>
                     <button class="action-btn btn-attack" id="btn-attack" aria-label="Attack">
                         <span class="btn-icon">👊</span>
-                        <span class="btn-text">SERANG</span>
+                        <span class="btn-text">ATTACK</span>
                     </button>
                 </div>
             </div>
@@ -741,11 +798,13 @@
             <div class="game-over-screen" id="victory-screen">
                 <div class="game-over-text victory">VICTORY</div>
                 <button class="restart-btn" id="victory-restart">Restart</button>
+                <button class="lobby-btn" id="victory-lobby">Back to Lobby</button>
             </div>
 
             <div class="game-over-screen" id="defeat-screen">
                 <div class="game-over-text defeat">DEFEAT</div>
                 <button class="restart-btn" id="defeat-restart">Restart</button>
+                <button class="lobby-btn" id="defeat-lobby">Back to Lobby</button>
             </div>
         </div>
     </div>
@@ -4909,7 +4968,8 @@
             let selectedFighterIndex = 0;
             let lobbyInteractQueued = false;
             let lobbyNearby = null;
-            // Total length of Banyu's Amukan Kafan Arwah ultimate strike (after the cutscene).
+            let lobbyPodiumIndex = null;
+            // Total length of Banyu's Wrath of the Spirit Shroud ultimate strike (after the cutscene).
             const ULT_ATTACK_DURATION = 1.6;
 
             // ===== THREE.JS SETUP =====
@@ -4968,6 +5028,192 @@
                 }
             }
 
+            function stripHeadphonesFromModel(root) {
+                if (!root) return;
+                root.updateMatrixWorld(true);
+
+                const headphoneName = /headphones?|headsets?|earphones?|earbuds?|audio.?gear|ear.?cup|ear.?pad|earpiece|speakers?|headwear|accessory|accessories|props?/i;
+                const protectedStyle = /hair|face|eye|brow|nose|mouth|skin|body|cloth|shirt|pant|shoe|boot|glass|hat|cap|hood|crown|turban|udeng|peci|mask/i;
+
+                // 1. Remove separate objects / meshes matching headphone / accessory names
+                const toRemove = [];
+                root.traverse(o => {
+                    const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+                    const matLabels = mats.map(m => `${m.name || ''} ${m.map && m.map.name || ''}`).join(' ');
+                    const label = `${o.name || ''} ${o.userData && o.userData.name || ''} ${matLabels}`;
+                    if (headphoneName.test(label) && !protectedStyle.test(label)) {
+                        toRemove.push(o);
+                    }
+                });
+                toRemove.forEach(o => {
+                    o.visible = false;
+                    if (o.parent) o.parent.remove(o);
+                });
+
+                // 2. Identify the head bone
+                const headBone = root.getObjectByName('mixamorigHead') ||
+                                 root.getObjectByName('Head') ||
+                                 root.getObjectByName('head');
+                if (!headBone) return;
+
+                root.updateMatrixWorld(true);
+                const invHeadWorld = new THREE.Matrix4().copy(headBone.matrixWorld).invert();
+
+                // 3. Check for any separate accessory mesh localized to the ears / top of head
+                root.traverse(o => {
+                    if (!o.isMesh && !o.isSkinnedMesh) return;
+                    if (!o.geometry || !o.geometry.attributes.position) return;
+                    const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+                    const matLabels = mats.map(m => `${m.name || ''}`).join(' ');
+                    const label = `${o.name || ''} ${matLabels}`;
+                    if (protectedStyle.test(label)) return;
+
+                    const pos = o.geometry.attributes.position;
+                    let minX = Infinity, maxX = -Infinity;
+                    let minY = Infinity, maxY = -Infinity;
+                    let minZ = Infinity, maxZ = -Infinity;
+                    let allNearHead = true;
+                    const step = Math.max(1, Math.floor(pos.count / 80));
+                    for (let i = 0; i < pos.count; i += step) {
+                        const v = new THREE.Vector3().fromBufferAttribute(pos, i);
+                        if (o.boneTransform) {
+                            o.boneTransform(i, v);
+                            v.applyMatrix4(invHeadWorld);
+                        } else {
+                            v.applyMatrix4(o.matrixWorld).applyMatrix4(invHeadWorld);
+                        }
+                        if (v.y < -0.2 || v.y > 0.6) { allNearHead = false; break; }
+                        minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x);
+                        minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y);
+                        minZ = Math.min(minZ, v.z); maxZ = Math.max(maxZ, v.z);
+                    }
+
+                    // A separate headphone mesh spans across both ears (minX < -0.11 and maxX > 0.11)
+                    if (allNearHead && minX < -0.11 && maxX > 0.11 && (maxZ - minZ) < 0.22 && minZ < 0.02) {
+                        o.visible = false;
+                        if (o.parent) o.parent.remove(o);
+                    }
+                });
+
+                // 4. Collapse earcup and headband geometry baked into any SkinnedMesh
+                root.traverse(o => {
+                    if (!o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return;
+                    const mesh = o;
+                    const geo = mesh.geometry.clone ? mesh.geometry.clone() : mesh.geometry;
+                    const pos = geo.attributes.position;
+                    if (!pos || pos.count === 0) return;
+
+                    const isIndexed = !!geo.index;
+                    const indices = isIndexed ? Array.from(geo.index.array) : Array.from({ length: pos.count }, (_, i) => i);
+                    if (indices.length < 3) return;
+
+                    const headLocal = new Array(pos.count);
+                    const getHeadV = (idx) => {
+                        if (!headLocal[idx]) {
+                            const v = new THREE.Vector3();
+                            if (mesh.boneTransform) {
+                                mesh.boneTransform(idx, v);
+                                v.applyMatrix4(invHeadWorld);
+                            } else {
+                                v.fromBufferAttribute(pos, idx);
+                                v.applyMatrix4(mesh.matrixWorld).applyMatrix4(invHeadWorld);
+                            }
+                            headLocal[idx] = v;
+                        }
+                        return headLocal[idx];
+                    };
+
+                    // Compute head bounding box
+                    let hMinX = Infinity, hMaxX = -Infinity;
+                    let hMinY = Infinity, hMaxY = -Infinity;
+                    let hMinZ = Infinity, hMaxZ = -Infinity;
+                    let headVertCount = 0;
+                    for (let i = 0; i < pos.count; i++) {
+                        const v = getHeadV(i);
+                        if (v.y > -0.15 && v.y < 0.45 && Math.abs(v.x) < 0.35 && Math.abs(v.z) < 0.35) {
+                            hMinX = Math.min(hMinX, v.x); hMaxX = Math.max(hMaxX, v.x);
+                            hMinY = Math.min(hMinY, v.y); hMaxY = Math.max(hMaxY, v.y);
+                            hMinZ = Math.min(hMinZ, v.z); hMaxZ = Math.max(hMaxZ, v.z);
+                            headVertCount++;
+                        }
+                    }
+
+                    if (headVertCount < 10) return;
+
+                    const headCenterZ = (hMinZ + hMaxZ) * 0.5;
+                    const headHalfWidth = Math.max(0.12, (hMaxX - hMinX) * 0.5);
+                    const headHeight = Math.max(0.20, hMaxY - hMinY);
+
+                    const earThresholdX = Math.max(0.095, headHalfWidth * 0.65);
+                    const earMinY = hMinY - 0.05;
+                    const earMaxY = hMinY + headHeight * 0.68;
+                    const earMaxDistZ = Math.max(0.08, (hMaxZ - hMinZ) * 0.32);
+
+                    const bandMaxDistZ = Math.max(0.055, (hMaxZ - hMinZ) * 0.20);
+                    const bandTopMinY = hMinY + headHeight * 0.80;
+                    const bandSideMinY = hMinY + headHeight * 0.50;
+                    const bandSideThresholdX = Math.max(0.085, headHalfWidth * 0.58);
+
+                    const nextIndices = indices.slice();
+                    let changed = false;
+
+                    // Also check any material groups matching headphone
+                    const materialGroups = geo.groups || [];
+                    materialGroups.forEach(g => {
+                        const mat = Array.isArray(mesh.material) ? mesh.material[g.materialIndex] : mesh.material;
+                        const label = `${mat && mat.name || ''} ${mat && mat.map && mat.map.name || ''}`;
+                        if (headphoneName.test(label) && !protectedStyle.test(label)) {
+                            for (let j = g.start; j < g.start + g.count; j += 3) {
+                                nextIndices[j] = nextIndices[j + 1] = nextIndices[j + 2] = nextIndices[j];
+                                changed = true;
+                            }
+                        }
+                    });
+
+                    for (let i = 0; i + 2 < indices.length; i += 3) {
+                        const idx0 = indices[i], idx1 = indices[i + 1], idx2 = indices[i + 2];
+                        const v0 = getHeadV(idx0), v1 = getHeadV(idx1), v2 = getHeadV(idx2);
+
+                        if (v0.y < -0.15 || v0.y > 0.5) continue;
+
+                        const cx = (v0.x + v1.x + v2.x) / 3;
+                        const cy = (v0.y + v1.y + v2.y) / 3;
+                        const cz = (v0.z + v1.z + v2.z) / 3;
+                        const distZ = Math.abs(cz - headCenterZ);
+
+                        const isEarcup = (Math.abs(cx) > earThresholdX && cy > earMinY && cy < earMaxY && distZ < earMaxDistZ &&
+                                          Math.abs(v0.x) > earThresholdX * 0.85 &&
+                                          Math.abs(v1.x) > earThresholdX * 0.85 &&
+                                          Math.abs(v2.x) > earThresholdX * 0.85);
+
+                        const isBandSide = (Math.abs(cx) > bandSideThresholdX && cy >= bandSideMinY && cy < bandTopMinY && distZ < bandMaxDistZ);
+
+                        const isBandTop = (cy >= bandTopMinY && distZ < bandMaxDistZ && Math.abs(cx) < headHalfWidth * 0.82);
+
+                        if (isEarcup || isBandSide || isBandTop) {
+                            if (isIndexed) {
+                                nextIndices[i] = nextIndices[i + 1] = nextIndices[i + 2] = nextIndices[i];
+                            } else {
+                                pos.setXYZ(idx0, 0, 0, 0);
+                                pos.setXYZ(idx1, 0, 0, 0);
+                                pos.setXYZ(idx2, 0, 0, 0);
+                            }
+                            changed = true;
+                        }
+                    }
+
+                    if (changed) {
+                        mesh.geometry = geo;
+                        if (isIndexed) {
+                            geo.setIndex(nextIndices);
+                            if (geo.index) geo.index.needsUpdate = true;
+                        } else {
+                            pos.needsUpdate = true;
+                        }
+                    }
+                });
+            }
+
             async function preloadAssets() {
                 const assetIds = [
                     'player_head', 'player_torso', 'player_arm', 'player_leg',
@@ -4997,6 +5243,7 @@
                                 avatarGltfs[id] = await new Promise((resolve, reject) => {
                                     new THREE.GLTFLoader().parse(glbBuffer, '', resolve, reject);
                                 });
+                                stripHeadphonesFromModel(avatarGltfs[id].scene);
                             } catch (glbErr) {
                                 console.warn(`Avatar "${id}" could not be loaded, using voxel fighter:`, glbErr);
                                 delete avatarGltfs[id];
@@ -5402,6 +5649,13 @@
             rimLight.position.set(0, 5, -10);
             scene.add(rimLight);
 
+            // Colored spotlight is enabled only during Banyu's special-skill side shots.
+            const banyuSkillLight = new THREE.SpotLight(0x67e8f9, 0, 34, Math.PI / 4.2, 0.72, 1.4);
+            banyuSkillLight.castShadow = false;
+            const banyuSkillLightTarget = new THREE.Object3D();
+            scene.add(banyuSkillLight, banyuSkillLightTarget);
+            banyuSkillLight.target = banyuSkillLightTarget;
+
             // ===== ARENA CONFIG =====
             const arenaRadius = config.arenaRadius || 36;
             const arenaWallDistance = arenaRadius - 2;
@@ -5742,6 +5996,7 @@
                     this.root = new THREE.Group();
                     this.root.name = 'avatar-rig';
                     this.model = THREE.SkeletonUtils.clone(avatarGltfs[assetKey].scene);
+                    stripHeadphonesFromModel(this.model);
                     this.root.add(this.model);
                     this.model.traverse(o => {
                         if (!o.isSkinnedMesh) return;
@@ -5789,8 +6044,63 @@
                         capture(s + 'Leg', s + 'Foot');
                         capture(s + 'Foot');
                     });
+                    this.buildFace();
                     this.buildGear();
                     this.root.scale.setScalar(AVATAR_SCALE);
+                }
+
+                // Add dimensional facial details to every rigged roster face. Mouth and jaw
+                // animate with combat states; nose volume and expression are profile-specific.
+                buildFace() {
+                    const profiles = {
+                        avatar_banyu:   { skin: 0xf3c4a2, shadow: 0xc98261, lip: 0x873e36, iris: 0x168bd2, brow: 0x382315, female: false, nose: 0.16 },
+                        avatar_gantara: { skin: 0xd89f7f, shadow: 0x9b5d49, lip: 0x4b1717, iris: 0xf97316, brow: 0x191312, female: false, nose: 0.20 },
+                        avatar_suster:  { skin: 0xc58b5f, shadow: 0x986243, lip: 0xa43e52, iris: 0x7447a8, brow: 0x2b1c1b, female: true, nose: 0.14 },
+                        avatar_leak:    { skin: 0xa8734a, shadow: 0x75472f, lip: 0x9f3340, iris: 0x9d2727, brow: 0x1a1110, female: true, nose: 0.16 },
+                        avatar_buntung: { skin: 0xc58b5f, shadow: 0x93603f, lip: 0x66362d, iris: 0x79a52a, brow: 0x171512, female: false, nose: 0.19 }
+                    };
+                    const style = profiles[this.assetKey] || profiles.avatar_banyu;
+                    const face = new THREE.Group();
+                    face.name = 'fighter-face-details';
+                    face.scale.setScalar(1 / AVATAR_SCALE);
+                    face.quaternion.copy(this.rest.Head.wq).invert();
+                    this.b.Head.add(face);
+                    this.faceGroup = face;
+                    const mat = (color, roughness = 0.72) => new THREE.MeshStandardMaterial({ color, roughness, flatShading: true });
+                    const skin = mat(style.skin, 0.82), shadow = mat(style.shadow, 0.86);
+                    const lip = mat(style.lip, 0.64), white = mat(0xfff7ed, 0.54);
+                    const iris = mat(style.iris, 0.38), pupil = mat(0x101014, 0.32);
+                    const brow = mat(style.brow, 0.92), nostril = mat(0x50352d, 0.94);
+                    const box = (w, h, d, x, y, z, material, parent = face) => {
+                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+                        mesh.position.set(x, y, z);
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                        parent.add(mesh);
+                        return mesh;
+                    };
+                    // Inset eyes, layered brows and a small catchlight make the face readable in 3D.
+                    [-1, 1].forEach(side => {
+                        box(0.145, 0.09, 0.045, side * 0.17, 0.20, 0.30, white);
+                        box(0.074, 0.074, 0.035, side * 0.16, 0.20, 0.332, iris);
+                        box(0.036, 0.052, 0.025, side * 0.155, 0.20, 0.354, pupil);
+                        const browPiece = box(0.18, style.female ? 0.035 : 0.055, 0.055, side * 0.17, 0.275, 0.30, brow);
+                        browPiece.rotation.z = side * (style.female ? -0.06 : 0.12);
+                    });
+                    // Sculpted nose: a raised bridge, projecting tip and paired inset nostrils.
+                    this.faceNose = new THREE.Group();
+                    this.faceNose.position.set(0, 0.105, 0.31);
+                    face.add(this.faceNose);
+                    box(0.095, 0.19, 0.13, 0, 0.005, 0.035, skin, this.faceNose);
+                    box(style.nose, 0.105, 0.16, 0, -0.085, 0.09, shadow, this.faceNose);
+                    [-1, 1].forEach(side => box(0.032, 0.018, 0.022, side * 0.05, -0.128, 0.157, nostril, this.faceNose));
+                    this.faceMouth = box(0.29, 0.105, 0.045, 0, -0.105, 0.295, mat(0x321316, 0.96));
+                    this.faceTeeth = box(0.18, 0.026, 0.025, 0, -0.068, 0.323, white);
+                    this.faceJaw = new THREE.Group();
+                    this.faceJaw.position.set(0, -0.17, 0.30);
+                    face.add(this.faceJaw);
+                    box(0.27, 0.055, 0.07, 0, -0.012, 0.015, lip, this.faceJaw);
+                    box(0.34, 0.105, 0.08, 0, -0.085, 0, shadow, this.faceJaw);
                 }
 
                 // Detached-head fighters hide the avatar's own head; the voxel head floats free.
@@ -6006,6 +6316,19 @@
                         rigQuat(sj.foot, _rQfoot);
                         rigSetWorldQuat(foot, _rq1.copy(_rQfoot).multiply(R[side + 'Foot'].wq));
                     });
+                    if (j.animation && this.faceMouth && this.faceJaw) {
+                        const state = j.animation.state;
+                        const t = j.animation.time;
+                        let opening = 0.025;
+                        if (state === 'attack') opening = 0.07 + Math.max(0, Math.sin(t * 18)) * 0.22;
+                        else if (state === 'hit') opening = 0.12 + 0.78 * Math.max(0, 1 - t / 0.58);
+                        else if (state === 'jump') opening = 0.12;
+                        else if (state === 'block') opening = 0.01;
+                        this.faceMouth.scale.y = 0.72 + opening * 2.1;
+                        this.faceJaw.rotation.x = -opening * 0.48;
+                        this.faceNose.scale.y = 1 + (state === 'hit' ? 0.08 : (state === 'attack' ? 0.035 : 0));
+                        this.faceTeeth.visible = opening > 0.075;
+                    }
                 }
             }
 
@@ -6038,6 +6361,8 @@
                     this.staggerSpeed = 0;
                     this.specialHitPending = false;
                     this.specialHitTimer = 0;
+                    this.specialSkill = { active: 0, elapsed: 0, hit: false, from: new THREE.Vector3(), to: new THREE.Vector3() };
+                    this.skillGuardTimer = 0;
 
                     // Lightweight procedural IK state: smoothed trunk balance plus reusable
                     // vectors/quaternions for both arm and leg solvers.
@@ -6333,7 +6658,7 @@
                     }
                 }
 
-                // ===== NGESOT MAUT: the ultimate. Blazing crawl-dash, hair-and-claw rake, a pull-back, then a
+                // ===== DEATH CRAWL: the ultimate. Blazing crawl-dash, hair-and-claw rake, a pull-back, then a
                 // face-first leap that ends in the finishing scream. Same beat timings as the other ultimates.
                 animateNgesotUltimate(t) {
                     const duration = ULT_ATTACK_DURATION;
@@ -6410,7 +6735,7 @@
 
                 // ===== DETACHED-HEAD FIGHTERS =====
                 // LEAK: the head tears free and flies on its own, trailing its entrails.
-                // KEPALA BUNTUNG JERUK PURUT: a headless ghost carrying its own head, ringed by kaffir limes.
+                // KEPALA BUNTUNG KAFFIR LIME CURSE: a headless ghost carrying its own head, ringed by kaffir limes.
                 // The avatar's head is hidden and a voxel head floats in the character group, positioned
                 // every frame from the final skeleton pose (updateFloatingHead).
                 buildFloatingHead(kind) {
@@ -8131,8 +8456,16 @@
                     this.setRotation(targetRotation);
                 }
 
+                cancelSkill() {
+                    if (!this.specialSkill || !this.specialSkill.active) return;
+                    this.specialSkill.active = 0;
+                    this.skillGuardTimer = 0;
+                    stopBanyuSpecialFX();
+                }
+
                 changeAnimation(newState) {
                     if (this.animation.state !== newState) {
+                        if (newState !== 'attack') this.cancelSkill();
                         if (this.mouthMesh && newState !== 'hit') {
                             this.mouthMesh.scale.set(1, 1, 1);
                         }
@@ -8182,6 +8515,12 @@
                         case 'hit':
                             this.animateHit(deltaTime);
                             break;
+                    }
+                    if (this.mouthMesh && this.animation.state !== 'hit') {
+                        const mouthOpen = this.animation.state === 'attack'
+                            ? 1 + Math.max(0, Math.sin(this.animation.time * 18)) * 0.2
+                            : (this.animation.state === 'jump' ? 1.08 : 1);
+                        this.mouthMesh.scale.set(1, mouthOpen, 1);
                     }
 
                     if (this.leakActive || this.buntungActive) this.animateHeadFormBody();
@@ -8306,6 +8645,10 @@
 
                 animateAttack() {
                     const t = this.animation.time;
+                    if (this.specialSkill && this.specialSkill.active && this.visualIdentity === 'banyu') {
+                        this.animateBanyuSkill(t);
+                        return;
+                    }
                     const step = this.getCurrentComboStep();
                     const duration = this.isUltimateAttack ? 1.05 : ((step === 3) ? 0.44 : 0.38);
                     const p = Math.min(1, t / duration);
@@ -8343,7 +8686,7 @@
                         return;
                     }
 
-                    // Banyu's Pocong Ultimate: Amukan Kafan Arwah (dash, X cross slash, slow-motion finisher).
+                    // Banyu's Pocong Ultimate: Wrath of the Spirit Shroud (dash, X cross slash, slow-motion finisher).
                     if (this.isUltimateAttack && this.visualIdentity === 'banyu' && this.pocongSpiritRoots) {
                         this.animatePocongUltimate(t);
                         return;
@@ -8817,6 +9160,102 @@
                     }
                 }
 
+                animateBanyuSkill(t) {
+                    const skill = this.specialSkill;
+                    const duration = 5.0;
+                    // The choreography below is authored on a 5.0s timeline; play it at attack speed.
+                    t *= skill.active === 1 ? BANYU_SKILL_SPEED[1] : BANYU_SKILL_SPEED[2];
+                    const p = Math.min(1, t / duration);
+                    const smooth = x => x * x * (3 - 2 * x);
+                    const pose = frames => kfInterp(frames, p);
+                    if (skill.active === 1) {
+                        // Five-second side-shot: coil, water-charged dash, impact hold, follow-through, recovery.
+                        const dashStart = 0.72, dashDuration = 0.92;
+                        const dash = smooth(THREE.MathUtils.clamp((t - dashStart) / dashDuration, 0, 1));
+                        // Re-aim the lunge at the opponent's current position, then stop at striking distance.
+                        if (skill.from && skill.to && this.target && t >= dashStart && t <= dashStart + dashDuration) {
+                            const dx = this.target.position.x - skill.from.x;
+                            const dz = this.target.position.z - skill.from.z;
+                            const dist = Math.hypot(dx, dz);
+                            const travel = Math.max(0, dist - 2.15);
+                            if (dist > 0.001) skill.to.set(skill.from.x + dx / dist * travel, skill.from.y, skill.from.z + dz / dist * travel);
+                            this.position.x = THREE.MathUtils.lerp(skill.from.x, skill.to.x, dash);
+                            this.position.z = THREE.MathUtils.lerp(skill.from.z, skill.to.z, dash);
+                            clampToArena(this);
+                            this.group.position.x = this.position.x;
+                            this.group.position.z = this.position.z;
+                        }
+                        const hitPose = pose([[0, 0], [0.16, 0], [0.34, 1], [0.50, 1], [0.76, 0.22], [1, 0]]);
+                        const recover = smooth(THREE.MathUtils.clamp((t - 2.45) / 2.2, 0, 1));
+                        this.pelvis.position.set(0, 2.88 - pose([[0, 0], [0.12, 0.18], [0.34, 0.02], [0.58, 0.06], [1, 0]]),
+                            pose([[0, 0], [0.16, -0.18], [0.34, 0.48], [0.54, 0.34], [0.78, 0.08], [1, 0]]));
+                        this.pelvis.rotation.set(0, 0.1 + pose([[0, 0], [0.17, 0.22], [0.35, -0.28], [0.58, -0.12], [1, 0]]),
+                            pose([[0, 0], [0.16, -0.08], [0.35, 0.12], [0.64, 0.04], [1, 0]]));
+                        this.torso.rotation.set(0.30 * (1 - recover) - hitPose * 0.12,
+                            pose([[0, 0], [0.16, 0.28], [0.35, -0.36], [0.56, -0.22], [0.76, 0.12], [1, 0]]),
+                            pose([[0, 0], [0.16, -0.06], [0.35, 0.1], [0.58, 0.04], [1, 0]]));
+                        this.leftShoulder.rotation.set(pose([[0, -0.58], [0.12, -0.18], [0.34, -1.72], [0.5, -1.5], [0.72, -0.72], [1, -0.55]]), 0.12, -0.18);
+                        this.leftElbow.rotation.set(pose([[0, -1.45], [0.12, -1.72], [0.34, -0.12], [0.52, -0.25], [0.78, -1.1], [1, -1.45]]), 0, 0);
+                        this.rightShoulder.rotation.set(pose([[0, -0.55], [0.16, 0.08], [0.35, -1.15], [0.52, -0.92], [0.78, -0.68], [1, -0.65]]), -0.12, 0.22);
+                        this.rightElbow.rotation.set(pose([[0, -1.4], [0.16, -1.68], [0.35, -0.2], [0.56, -0.48], [0.82, -1.3], [1, -1.55]]), 0, 0);
+                        this.leftHip.rotation.set(-0.22 + recover * 0.1, 0.06, 0.06);
+                        this.rightHip.rotation.set(0.1 * (1 - recover) + 0.08 * recover, -0.06, -0.06);
+                        this.leftKnee.rotation.set(0.34 * (1 - recover) + 0.24 * recover, 0, 0);
+                        this.rightKnee.rotation.set(0.2 * (1 - recover) + 0.08 * recover, 0, 0);
+                        if (!skill.hit && t >= 1.64) {
+                            skill.hit = true;
+                            const rushDistance = this.target ? Math.hypot(this.target.position.x - this.position.x, this.target.position.z - this.position.z) : Infinity;
+                            const landed = this.target && rushDistance <= 5.6 && checkHit(this, this.target, 1.25, { anyRange: true, callout: 'TIDAL RUSH!', color: '#22d3ee', forceStep: 2 });
+                            if (landed) {
+                                cameraShake = Math.max(cameraShake, 0.34);
+                                playSynthSound('astral_sickle', 0.95);
+                                spawnSpiritBurst(this.target.position, 0x22d3ee, 2.4);
+                            } else {
+                                showComboCallout('TIDAL RUSH MISSED', '#67e8f9');
+                                spawnSpiritBurst(this.position, 0x22d3ee, 1.6);
+                            }
+                        }
+                    } else {
+                        // Spirit Tide charges a ward, releases a pulse, and settles back into guard.
+                        const charge = smooth(THREE.MathUtils.clamp(t / 2.0, 0, 1));
+                        const pulse = Math.max(0, 1 - Math.abs(t - 2.35) / 0.48);
+                        const recovery = smooth(THREE.MathUtils.clamp((t - 3.0) / 1.8, 0, 1));
+                        const thrust = pose([[0, 0], [0.40, 0], [0.47, 1], [0.56, 0.28], [0.72, 0], [1, 0]]);
+                        this.pelvis.position.set(0, 2.88 - 0.16 * (1 - charge) + pulse * 0.12, -0.10 * (1 - charge) + thrust * 0.30);
+                        this.torso.rotation.set(-0.12 * (1 - charge) + pulse * 0.30 + thrust * 0.18, 0, Math.sin(t * 2.8) * 0.035 * (1 - recovery));
+                        const open = pose([[0, 0], [0.24, 0.44], [0.40, 0.95], [0.47, 0.18], [0.62, 0.55], [0.80, 0.32], [1, 0]]);
+                        // Both palms visibly gather energy, then drive forward together on release.
+                        this.leftShoulder.rotation.set(-0.68 - open * 0.62 - thrust * 0.55, 0.16 + open * 0.15, -0.24 - open * 0.30);
+                        this.rightShoulder.rotation.set(-0.72 - open * 0.62 - thrust * 0.55, -0.16 - open * 0.15, 0.24 + open * 0.30);
+                        this.leftElbow.rotation.set(-1.42 + open * 0.45 + thrust * 0.82, 0, 0);
+                        this.rightElbow.rotation.set(-1.42 + open * 0.45 + thrust * 0.82, 0, 0);
+                        this.leftHand.rotation.set(0.12 - thrust * 0.18, 0, 0);
+                        this.rightHand.rotation.set(0.12 - thrust * 0.18, 0, 0);
+                        this.leftHip.rotation.set(-0.16 - pulse * 0.14, 0.06, 0.06);
+                        this.rightHip.rotation.set(0.08 - pulse * 0.14, -0.06, -0.06);
+                        this.leftKnee.rotation.set(0.28 + pulse * 0.22, 0, 0);
+                        this.rightKnee.rotation.set(0.18 + pulse * 0.22, 0, 0);
+                        if (!skill.hit && t >= 2.35) {
+                            skill.hit = true;
+                            this.skillGuardTimer = Math.max(this.skillGuardTimer, 2.6);
+                            createBanyuTideWave(this.position, this.target ? this.target.position : null);
+                            const distance = this.target ? Math.hypot(this.target.position.x - this.position.x, this.target.position.z - this.position.z) : Infinity;
+                            const landed = this.target && distance <= 7.0 && checkHit(this, this.target, 1.05, { anyRange: true, callout: 'SPIRIT TIDE!', color: '#a5f3fc', forceStep: 3 });
+                            showComboCallout(landed ? 'SPIRIT TIDE!' : 'SPIRIT WARD! 🛡️', '#67e8f9');
+                            cameraShake = Math.max(cameraShake, landed ? 0.24 : 0.1);
+                            playSynthSound('twin_palm', landed ? 1.0 : 0.65);
+                        }
+                    }
+                    if (skillCaptionProgress) skillCaptionProgress.style.width = `${p * 100}%`;
+                    if (t >= duration) {
+                        skill.active = 0;
+                        this.isAttacking = false;
+                        this.attackCooldown = Math.max(this.attackCooldown, 0.2);
+                        this.changeAnimation('idle');
+                        stopBanyuSpecialFX();
+                    }
+                }
+
                 animateBlock() {
                     // Firm braced defensive posture firmly rooted on the floor
                     this.pelvis.position.set(0, 2.82, 0);
@@ -9094,7 +9533,7 @@
                     // Walking already has an authored counter-swing pose. Do not let the
                     // combat hand-target solver pull each fist toward the guard position;
                     // that was twisting the wrists and making the hands look unstable.
-                    if (!isPocong && state !== 'walk' && !(this.isUltimateAttack && this.visualIdentity === 'gantara')) {
+                    if (!isPocong && state !== 'walk' && !(this.isUltimateAttack && this.visualIdentity === 'gantara') && !(this.specialSkill && this.specialSkill.active)) {
                         let attackWeight = 0;
                         let activeSide = '';
                         let attackTarget = null;
@@ -9177,16 +9616,18 @@
                     // Combo step damage scaling: 0.9x for gut, 1.0x for chest, 1.4x for uppercut
                     const damageMultiplier = [0.9, 1.0, 1.4][Math.max(0, Math.min(2, comboStep - 1))];
                     const scaledDamage = damage * damageMultiplier;
-                    const actualDamage = isBlocked ? scaledDamage * 0.3 : scaledDamage;
+                    const shielded = !!isBlocked || (this.skillGuardTimer || 0) > 0;
+                    const actualDamage = shielded ? scaledDamage * (isBlocked ? 0.3 : 0.35) : scaledDamage;
                     this.hp = Math.max(0, this.hp - actualDamage);
                     
                     // Super armor: a slamming Genderuwo takes damage but cannot be interrupted.
-                    if (!isBlocked && this.isUltimateAttack) {
+                    if (!isBlocked && (this.isUltimateAttack || (this.specialSkill && this.specialSkill.active))) {
                         playSound('grunt_damage_sound', 0.5);
+                        if (!this.isUltimateAttack && this.type === 'player') showComboCallout('UNSTOPPABLE! 🛡️', '#67e8f9');
                         return actualDamage;
                     }
 
-                    if (!isBlocked) {
+                    if (!shielded) {
                         // Interrupt an active attack cleanly so AI/players cannot remain locked in attack state.
                         this.isAttacking = false;
                         this.isBlocking = false;
@@ -9226,6 +9667,7 @@
                         }
                     } else {
                         playSound('block_sound', 0.6);
+                        if (!isBlocked) showComboCallout('SPIRIT WARD! 🛡️', '#67e8f9');
                     }
 
                     return actualDamage;
@@ -9237,6 +9679,7 @@
                     if (this.attackCooldown > 0) {
                         this.attackCooldown -= deltaTime;
                     }
+                    this.skillGuardTimer = Math.max(0, (this.skillGuardTimer || 0) - deltaTime);
 
                     if (this.pocongFormTimer > 0) {
                         this.pocongFormTimer = Math.max(0, this.pocongFormTimer - deltaTime);
@@ -9433,11 +9876,11 @@
 
             // ===== BATTLE LOBBY & FIGHTER PODIUM =====
             const fighterRoster = [
-                { name: 'Banyu Wisesa', identity: 'banyu', primary: 0x2563eb, dark: 0x1d4ed8, accent: 0xf59e0b, skin: 0xf3c4a2, hair: 0x4a2c16, eye: 0x0ea5e9 },
-                { name: 'Gantara Bara', identity: 'gantara', primary: 0xdc2626, dark: 0x991b1b, accent: 0xd97706, skin: 0xd89f7f, hair: 0x171717, eye: 0xf97316 },
-                { name: 'Laras Wening', identity: 'suster', primary: 0x14b8a6, dark: 0x0f766e, accent: 0xdc2626, skin: 0xc58b5f, hair: 0x101018, eye: 0xef4444 },
-                { name: 'Wayan Sudira', identity: 'leak', primary: 0xf8fafc, dark: 0xb91c1c, accent: 0xf59e0b, skin: 0xa8734a, hair: 0x0a0a0a, eye: 0xff2a2a },
-                { name: 'Bang Jali', identity: 'buntung', primary: 0x3a7d44, dark: 0x14532d, accent: 0x84cc16, skin: 0xc58b5f, hair: 0x0a0a0a, eye: 0x9be84a }
+                { name: 'Banyu Wisesa', gender: 'male', identity: 'banyu', primary: 0x2563eb, dark: 0x1d4ed8, accent: 0xf59e0b, skin: 0xf3c4a2, hair: 0x4a2c16, eye: 0x0ea5e9 },
+                { name: 'Gantara Bara', gender: 'male', identity: 'gantara', primary: 0xdc2626, dark: 0x991b1b, accent: 0xd97706, skin: 0xd89f7f, hair: 0x171717, eye: 0xf97316 },
+                { name: 'Laras Wening', gender: 'female', identity: 'suster', primary: 0x14b8a6, dark: 0x0f766e, accent: 0xdc2626, skin: 0xc58b5f, hair: 0x101018, eye: 0xef4444 },
+                { name: 'Ni Luh Sekar', gender: 'female', identity: 'leak', primary: 0xf8fafc, dark: 0xb91c1c, accent: 0xf59e0b, skin: 0xa8734a, hair: 0x0a0a0a, eye: 0xff2a2a },
+                { name: 'Jali Pratama', gender: 'male', identity: 'buntung', primary: 0x3a7d44, dark: 0x14532d, accent: 0x84cc16, skin: 0xc58b5f, hair: 0x0a0a0a, eye: 0x9be84a }
             ];
             // The third fighter's body waits on an off-stage holder until she is picked; visuals are
             // exchanged between holders, so any two of the three can face each other.
@@ -9503,7 +9946,7 @@
             const lobbyWorld = new THREE.Group();
             lobbyWorld.name = 'champions-lobby-world';
             scene.add(lobbyWorld);
-            const lobbyProps = { portalRing: null, portalCore: null, preview: null, previewParts: [] };
+            const lobbyProps = { portalGroup: null, portalCore: null, portalMaterial: null, portalAccents: [], previews: [], podiums: [] };
             const playerHPLabel = document.querySelector('.hp-container.player .hp-label');
             const lobbyHintEl = document.getElementById('lobby-hint');
             const lobbySelectionEl = document.getElementById('lobby-selection');
@@ -9536,20 +9979,19 @@
                 });
             }
 
-            function buildPodiumPreview() {
-                // Display a full-size copy of the actual selected fighter hierarchy rather
-                // than a simplified mannequin. Clone materials/geometries by reference so
-                // the showcase adds no duplicate texture or geometry memory on mobile.
-                if (lobbyProps.preview && lobbyProps.preview.parent) lobbyProps.preview.parent.remove(lobbyProps.preview);
-                const fighter = fighterRoster[selectedFighterIndex];
-                const root = player.group.clone(true);
+            function buildPodiumPreview(fighterIndex, position) {
+                // Display a lightweight, posed clone of each roster fighter. Skinned avatars
+                // get their own rig so lobby showcases never share live animation skeletons.
+                const fighter = fighterRoster[fighterIndex];
+                const source = [player, opponent, ...spares].find(c => c.visualIdentity === fighter.identity) || player;
+                const root = source.group.clone(true);
                 const sourceNodes = [];
                 const cloneNodes = [];
-                player.group.traverse(node => sourceNodes.push(node));
+                source.group.traverse(node => sourceNodes.push(node));
                 root.traverse(node => cloneNodes.push(node));
                 const cloneLookup = new Map();
                 sourceNodes.forEach((node, index) => cloneLookup.set(node, cloneNodes[index]));
-                const part = key => cloneLookup.get(player[key]);
+                const part = key => cloneLookup.get(source[key]);
 
                 // Give the showcase a stable, readable idle guard independent of what the
                 // playable fighter was doing when the podium interaction occurred.
@@ -9580,15 +10022,15 @@
                 // skeleton), so the showcase gets its own rig posed from the cloned voxel joints.
                 let previewRig = null;
                 const clonedRigRoot = root.children.find(child => child.name === 'avatar-rig');
-                if (clonedRigRoot && player.avatarRig) {
+                if (clonedRigRoot && source.avatarRig) {
                     root.remove(clonedRigRoot);
-                    previewRig = new AvatarRig(player.avatarRig.assetKey);
+                    previewRig = new AvatarRig(source.avatarRig.assetKey);
                     previewRig.root.visible = player.avatarRig.root.visible;
                     root.add(previewRig.root);
                 }
-                root.position.set(10.2, 1.55, -18.5);
-                root.rotation.set(0, -Math.PI / 2, 0);
-                root.scale.setScalar(1); // Exact gameplay scale: the fighter is shown 1:1.
+                root.position.set(position.x, 1.55, position.z);
+                root.rotation.set(0, Math.PI / 2, 0);
+                root.scale.setScalar(0.72); // Compact showcase scale allows all five podiums to read clearly.
                 root.visible = true;
                 root.traverse(node => {
                     if (node.isMesh) {
@@ -9604,17 +10046,19 @@
                     root.updateWorldMatrix(true, true);
                     previewRig.sync(joints);
                 }
-                lobbyProps.preview = root;
-                if (lobbySelectionEl) lobbySelectionEl.textContent = `FIGHTER TERPILIH: ${fighter.name.toUpperCase()}`;
+                lobbyProps.previews[fighterIndex] = root;
+                if (lobbySelectionEl && fighterIndex === selectedFighterIndex) lobbySelectionEl.textContent = `FIGHTER TERPILIH: ${fighter.name.toUpperCase()}`;
             }
 
-            function selectNextFighter() {
-                selectedFighterIndex = (selectedFighterIndex + 1) % fighterRoster.length;
+            function selectFighter(index) {
+                if (!Number.isInteger(index) || index < 0 || index >= fighterRoster.length) return;
+                selectedFighterIndex = index;
                 swapFighterVisuals();
-                buildPodiumPreview();
+                gameWorld.classList.toggle('banyu-skills-enabled', fighterRoster[selectedFighterIndex].identity === 'banyu');
                 if (playerHPLabel) playerHPLabel.textContent = fighterRoster[selectedFighterIndex].name;
                 const rivalLabel = document.querySelector('.hp-container.opponent .hp-label');
                 if (rivalLabel) rivalLabel.textContent = `${fighterRoster[rivalIndex()].name} · Rival`;
+                if (lobbySelectionEl) lobbySelectionEl.textContent = `SELECTED FIGHTER: ${fighterRoster[selectedFighterIndex].name.toUpperCase()}`;
             }
 
             function createBattleLobby() {
@@ -9658,41 +10102,119 @@
                     add(2.0, 0.35, 2.0, sx * 32, 8.65, sz * 32, lobbyTrim);
                 }));
 
-                // Enlarged champion dais: broad stepped platforms and a tall, open-backed
-                // frame make the true-scale fighter the clear focal point from the lobby.
-                add(10.2, 0.9, 8.6, 10.2, 0.45, -18.5, stone);
-                add(9.2, 0.34, 7.8, 10.2, 1.02, -18.5, gold);
-                add(8.4, 0.24, 7.0, 10.2, 1.31, -18.5, paleStone);
-                // Bronze inset rails and a rear display wall frame the model without
-                // blocking the view from the lobby approach (the fighter faces -X).
-                add(0.22, 0.1, 6.6, 5.85, 1.49, -18.5, gold);
-                add(0.22, 0.1, 6.6, 14.55, 1.49, -18.5, gold);
-                add(0.48, 10.8, 0.48, 10.2, 6.9, -22.25, gold);
-                add(0.48, 10.8, 0.48, 10.2, 6.9, -14.75, gold);
-                add(0.7, 0.58, 0.7, 10.2, 12.2, -22.25, paleStone);
-                add(0.7, 0.58, 0.7, 10.2, 12.2, -14.75, paleStone);
-                add(0.42, 0.52, 8.2, 14.7, 11.4, -18.5, gold);
-                add(0.5, 0.32, 8.8, 14.68, 12.0, -18.5, paleStone);
-                // Low front steps invite the player onto the enlarged showcase dais.
-                add(2.8, 0.24, 1.0, 4.9, 0.12, -18.5, stone);
-                add(2.2, 0.22, 0.8, 3.8, 0.34, -18.5, paleStone);
-                // Battle portal at the far end of the map.
-                add(1.05, 6.4, 1.0, -3.75, 3.2, 27, stone);
-                add(1.05, 6.4, 1.0, 3.75, 3.2, 27, stone);
-                add(9.1, 1.0, 1.0, 0, 6.55, 27, gold);
-                add(8.2, 0.28, 1.05, 0, 7.18, 27, paleStone);
-                lobbyProps.portalCore = new THREE.Mesh(new THREE.CircleGeometry(2.72, 32), new THREE.MeshBasicMaterial({
-                    color: 0x0e7490, transparent: true, opacity: 0.54, side: THREE.DoubleSide, depthWrite: false
-                }));
-                lobbyProps.portalCore.position.set(0, 4.05, 27.05);
-                lobbyWorld.add(lobbyProps.portalCore);
-                lobbyProps.portalRing = new THREE.Mesh(new THREE.TorusGeometry(3.05, 0.28, 8, 40), new THREE.MeshStandardMaterial({
-                    color: 0x67e8f9, emissive: 0x0891b2, emissiveIntensity: 1.05, metalness: 0.42, roughness: 0.24
-                }));
-                lobbyProps.portalRing.position.set(0, 4.05, 26.86);
-                lobbyWorld.add(lobbyProps.portalRing);
-                add(0.16, 0.12, 3.0, 0, 0.08, 23.7, gold);
-                buildPodiumPreview();
+                // A broad, level stone lane runs straight from the lobby entrance toward
+                // the portal. Its restrained inlays keep the route readable without
+                // putting raised obstacles in the player's path.
+                const laneMaterial = new THREE.MeshStandardMaterial({ color: 0x38485d, roughness: 0.9, metalness: 0.04, flatShading: true });
+                const lane = new THREE.Mesh(new THREE.PlaneGeometry(7.8, 58), laneMaterial);
+                lane.rotation.x = -Math.PI / 2;
+                lane.position.set(0, 0.012, -3.5);
+                lane.receiveShadow = true;
+                lobbyWorld.add(lane);
+                [-4.0, 4.0].forEach(x => add(0.12, 0.025, 58, x, 0.022, -3.5, lobbyTrim));
+                for (let z = -31; z <= 24; z += 5.5) {
+                    add(7.65, 0.018, 0.08, 0, 0.02, z, paleStone);
+                }
+
+                // All five podiums line the LEFT side of the portal approach. They are
+                // spaced along the route, leave the center lane open, and face inward
+                // so each champion looks toward the path and the portal.
+                const podiumX = -12.5;
+                const podiumZs = [-22, -11, 0, 11, 22];
+                fighterRoster.forEach((fighter, index) => {
+                    const x = podiumX, z = podiumZs[index];
+                    const accent = new THREE.MeshStandardMaterial({ color: fighter.accent, roughness: 0.48, metalness: 0.42, flatShading: true });
+                    add(6.6, 0.72, 5.2, x, 0.36, z, stone);
+                    add(6.0, 0.28, 4.7, x, 0.86, z, accent);
+                    add(5.5, 0.22, 4.25, x, 1.11, z, paleStone);
+                    // Front accent on the path-facing (right/east) edge of each plinth.
+                    add(0.16, 0.12, 4.4, x + 3.05, 1.29, z, accent);
+                    lobbyProps.podiums.push({ position: new THREE.Vector3(x, 0, z), fighterIndex: index });
+                    buildPodiumPreview(index, new THREE.Vector3(x, 1.25, z));
+                });
+                // Premium rectangular battle gateway: layered stone-and-bronze architecture
+                // frames a tall, animated energy aperture. All portal details share one group
+                // so its subtle ambient motion stays inexpensive and easy to maintain.
+                const portal = new THREE.Group();
+                portal.name = 'rectangular-battle-portal';
+                portal.position.set(0, 0, 27);
+                lobbyWorld.add(portal);
+                lobbyProps.portalGroup = portal;
+                const portalStone = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.62, metalness: 0.22, flatShading: true });
+                const portalEdge = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.48, metalness: 0.38, flatShading: true });
+                const portalBronze = new THREE.MeshStandardMaterial({ color: 0xc18b3d, roughness: 0.34, metalness: 0.72, flatShading: true });
+                const portalGold = new THREE.MeshStandardMaterial({ color: 0xf4d27b, emissive: 0x9a641d, emissiveIntensity: 0.24, roughness: 0.28, metalness: 0.68, flatShading: true });
+                const portalGlow = new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.88, depthWrite: false, blending: THREE.AdditiveBlending });
+                const portalDark = new THREE.MeshBasicMaterial({ color: 0x071525, transparent: true, opacity: 0.96, depthWrite: false });
+                const portalBlock = (w, h, d, x, y, z, mat) => {
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+                    mesh.position.set(x, y, z);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    portal.add(mesh);
+                    return mesh;
+                };
+                // Broad stepped threshold anchors the frame and clearly marks the portal approach.
+                portalBlock(11.2, 0.46, 3.2, 0, 0.20, 0.25, portalStone);
+                portalBlock(10.0, 0.22, 2.6, 0, 0.54, 0.12, portalBronze);
+                portalBlock(8.8, 0.20, 2.15, 0, 0.74, 0.04, portalEdge);
+                [-1, 1].forEach(side => {
+                    const x = side * 4.18;
+                    // Massive square-cut jambs with inset bronze channels and cyan edge lights.
+                    portalBlock(1.55, 8.55, 1.55, x, 4.95, 0, portalStone);
+                    portalBlock(1.22, 8.24, 1.26, x, 4.96, -0.12, portalEdge);
+                    portalBlock(0.24, 7.58, 0.16, x - side * 0.47, 4.96, -0.80, portalBronze);
+                    portalBlock(0.075, 6.86, 0.10, x - side * 0.50, 4.96, -0.91, portalGlow);
+                    // Stacked architectural bosses, metallic corner caps, and lit rune studs.
+                    [1.65, 3.0, 4.35, 5.7, 7.05].forEach((y, i) => {
+                        portalBlock(1.72, 0.18, 1.72, x, y, 0, i % 2 ? portalEdge : portalStone);
+                        portalBlock(0.32, 0.22, 0.22, x - side * 0.49, y, -0.91, portalGold);
+                    });
+                    portalBlock(1.88, 0.42, 1.88, x, 9.28, 0, portalBronze);
+                    portalBlock(1.42, 0.27, 1.48, x, 9.57, 0, portalGold);
+                });
+                // Flat lintel gives the opening a strong rectangular silhouette (no circular ring).
+                portalBlock(9.85, 1.35, 1.72, 0, 9.03, 0, portalStone);
+                portalBlock(9.5, 0.34, 1.88, 0, 9.83, 0, portalBronze);
+                portalBlock(8.45, 0.22, 1.96, 0, 10.10, 0, portalGold);
+                portalBlock(7.55, 0.10, 0.10, 0, 9.32, -0.94, portalGlow);
+                // A crest plaque and paired light bars enrich the lintel without cluttering the aperture.
+                portalBlock(1.36, 0.74, 0.22, 0, 9.64, -1.02, portalBronze);
+                portalBlock(0.78, 0.40, 0.12, 0, 9.66, -1.18, portalGlow);
+                [-1, 1].forEach(side => {
+                    portalBlock(0.12, 0.76, 0.12, side * 2.55, 9.67, -1.02, portalGold);
+                });
+                // Deep, dark rectangular backing creates a true doorway rather than a floating hoop.
+                const portalBacking = new THREE.Mesh(new THREE.PlaneGeometry(6.75, 7.48), portalDark);
+                portalBacking.position.set(0, 4.98, -0.63);
+                portal.add(portalBacking);
+                const portalCoreMaterial = new THREE.ShaderMaterial({
+                    uniforms: { uTime: { value: 0 } },
+                    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+                    fragmentShader: 'uniform float uTime; varying vec2 vUv; void main(){ float edge=max(abs(vUv.x-.5)*2.0,abs(vUv.y-.5)*2.0); float rim=1.0-smoothstep(.82,1.0,edge); float pulse=.5+.5*sin(uTime*2.2+vUv.y*10.0); float bands=.5+.5*sin(vUv.y*48.0-uTime*4.0+sin(vUv.x*18.0+uTime)*.35); float center=exp(-abs(vUv.x-.5)*5.0); vec3 deep=vec3(.015,.055,.12); vec3 teal=vec3(.025,.42,.56); vec3 ice=vec3(.42,.94,1.0); vec3 col=mix(deep,teal,center*.72+bands*.10); col=mix(col,ice,pow(max(0.0,1.0-edge),12.0)*(.25+.35*pulse)); float alpha=rim*(.68+.17*pulse+.08*bands); gl_FragColor=vec4(col,alpha); }',
+                    transparent: true,
+                    depthWrite: false,
+                    side: THREE.DoubleSide,
+                    blending: THREE.AdditiveBlending
+                });
+                lobbyProps.portalMaterial = portalCoreMaterial;
+                lobbyProps.portalCore = new THREE.Mesh(new THREE.PlaneGeometry(6.72, 7.44), portalCoreMaterial);
+                lobbyProps.portalCore.position.set(0, 4.98, -0.70);
+                portal.add(lobbyProps.portalCore);
+                // Angular inner bevels and segmented energy rails reinforce the rectangular frame.
+                portalBlock(0.16, 7.45, 0.18, -3.48, 4.98, -0.84, portalGold);
+                portalBlock(0.16, 7.45, 0.18, 3.48, 4.98, -0.84, portalGold);
+                portalBlock(6.95, 0.16, 0.18, 0, 8.72, -0.84, portalGold);
+                portalBlock(6.95, 0.16, 0.18, 0, 1.24, -0.84, portalGold);
+                [-2.55, -1.25, 0, 1.25, 2.55].forEach((x, i) => {
+                    const streak = new THREE.Mesh(new THREE.BoxGeometry(0.035 + (i % 2) * 0.025, 4.8 + (i % 3) * 0.6, 0.035), portalGlow.clone());
+                    streak.position.set(x, 4.95, -0.77);
+                    streak.userData.phase = i * 1.17;
+                    portal.add(streak);
+                    lobbyProps.portalAccents.push(streak);
+                });
+                // Slim luminous ground guide leads directly into the rectangular threshold.
+                portalBlock(0.16, 0.10, 3.0, 0, 0.08, 1.95, portalGold);
             }
             createBattleLobby();
             applyFighterStyle(player.group, 0);
@@ -9700,6 +10222,7 @@
             battleWorld.visible = mode !== 'play';
             lobbyWorld.visible = mode === 'play';
             if (mode === 'play') gameWorld.classList.add('lobby-mode');
+            gameWorld.classList.toggle('banyu-skills-enabled', fighterRoster[selectedFighterIndex].identity === 'banyu');
 
             // ===== CAMERA SETUP =====
             const cameraOffset = {
@@ -9715,21 +10238,35 @@
                 player.position.z - Math.cos(cameraOffset.angle) * cameraOffset.distance
             );
 
-            const lobbyPodiumPosition = new THREE.Vector3(10.2, 0, -18.5);
             const lobbyPortalPosition = new THREE.Vector3(0, 0, 27);
             function updateLobbyProximity() {
                 if (!inLobby || mode !== 'play') return;
-                const podiumDist = Math.hypot(player.position.x - lobbyPodiumPosition.x, player.position.z - lobbyPodiumPosition.z);
+                let nearestPodium = null;
+                let nearestDist = Infinity;
+                lobbyProps.podiums.forEach(podium => {
+                    const dist = Math.hypot(player.position.x - podium.position.x, player.position.z - podium.position.z);
+                    if (dist < nearestDist) { nearestDist = dist; nearestPodium = podium; }
+                });
                 const portalDist = Math.hypot(player.position.x - lobbyPortalPosition.x, player.position.z - lobbyPortalPosition.z);
-                lobbyNearby = podiumDist < 7.2 ? 'podium' : (portalDist < 5.7 ? 'portal' : null);
+                if (nearestPodium && nearestDist < 5.8) {
+                    lobbyNearby = 'podium';
+                    lobbyPodiumIndex = nearestPodium.fighterIndex;
+                } else if (portalDist < 5.7) {
+                    lobbyNearby = 'portal';
+                    lobbyPodiumIndex = null;
+                } else {
+                    lobbyNearby = null;
+                    lobbyPodiumIndex = null;
+                }
                 if (lobbyInteractBtn) lobbyInteractBtn.style.display = lobbyNearby ? 'flex' : 'none';
-                if (lobbyInteractLabel) lobbyInteractLabel.textContent = lobbyNearby === 'podium' ? 'GANTI FIGHTER' : 'MULAI BATTLE';
+                if (lobbyInteractLabel) lobbyInteractLabel.textContent = lobbyNearby === 'podium'
+                    ? `SELECT ${fighterRoster[lobbyPodiumIndex].name.toUpperCase()}` : 'START BATTLE';
                 if (lobbyHintEl) {
                     lobbyHintEl.textContent = lobbyNearby === 'podium'
-                        ? 'Kamu berada di podium fighter. Tekan E / ENTER atau tombol untuk memilih fighter lain.'
+                        ? `${fighterRoster[lobbyPodiumIndex].name}'s podium. Press E / ENTER or tap the button to select this fighter.`
                         : lobbyNearby === 'portal'
-                            ? 'Portal battle aktif. Tekan E / ENTER atau tombol untuk memulai duel.'
-                            : 'Jelajahi arena: podium fighter di sisi kanan, portal battle di ujung map. Dekati salah satunya untuk berinteraksi.';
+                            ? 'The battle portal is active. Press E / ENTER or tap the button to start the duel.'
+                            : 'Explore the hall and visit the five podiums to choose a fighter. The battle portal awaits at the end of the path.';
                 }
             }
 
@@ -9767,6 +10304,43 @@
             if (lobbyInteractBtn) lobbyInteractBtn.addEventListener('click', () => { lobbyInteractQueued = true; });
 
             let cameraShake = 0;
+            const BANYU_SKILL_SPEED = { 1: 5.0 / 1.7, 2: 5.0 / 1.9 };
+            let banyuSkillFx = null;
+            let banyuSkillCameraActive = false;
+            let banyuSkillCameraSnap = false;
+            let banyuSkillCameraSide = 1;
+            let banyuSkillCameraFov = camera.fov;
+            let banyuSkillCameraState = null;
+            const skillCaption = document.getElementById('skill-cinematic-caption');
+            const skillCaptionTitle = document.getElementById('skill-cinematic-title');
+            const skillCaptionProgress = document.getElementById('skill-cinematic-progress');
+
+            function updateBanyuSkillCamera(dt) {
+                const dx = opponent.position.x - player.position.x;
+                const dz = opponent.position.z - player.position.z;
+                const separation = Math.max(1, Math.hypot(dx, dz));
+                const forwardX = dx / separation, forwardZ = dz / separation;
+                const sideX = -forwardZ * banyuSkillCameraSide;
+                const sideZ = forwardX * banyuSkillCameraSide;
+                const midX = (player.position.x + opponent.position.x) * 0.5;
+                const midZ = (player.position.z + opponent.position.z) * 0.5;
+                // Close enough to read the actual strike, while leaving both fighters in frame.
+                const distance = THREE.MathUtils.clamp(15 + separation * 0.42, 18, 27);
+                const limit = arenaWallDistance - 1.5;
+                const tx = THREE.MathUtils.clamp(midX + sideX * distance, -limit, limit);
+                const tz = THREE.MathUtils.clamp(midZ + sideZ * distance, -limit, limit);
+                const targetY = 6.8 + Math.min(1.2, separation * 0.035);
+                const k = banyuSkillCameraSnap ? 1 : 1 - Math.exp(-Math.max(0, dt) * 5.5);
+                banyuSkillCameraSnap = false;
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, tx, k);
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY, k);
+                camera.position.z = THREE.MathUtils.lerp(camera.position.z, tz, k);
+                currentLookAt.x = THREE.MathUtils.lerp(currentLookAt.x, midX, k);
+                currentLookAt.y = THREE.MathUtils.lerp(currentLookAt.y, 2.7, k);
+                currentLookAt.z = THREE.MathUtils.lerp(currentLookAt.z, midZ, k);
+                camera.lookAt(currentLookAt);
+            }
+
             function updateCamera(snap = false) {
                 // When fighters are close, smoothly shift focus to their midpoint so both are centered in view
                 const fighterDist = inLobby ? 1000 : player.position.distanceTo(opponent.position);
@@ -9821,7 +10395,9 @@
                     attack: false,
                     block: false,
                     jump: false,
-                    ultimate: false
+                    ultimate: false,
+                    skillOne: false,
+                    skillTwo: false
                 }
             };
 
@@ -9832,6 +10408,10 @@
             let jumpBufferTimer = 0;
             let ultimateBufferTimer = 0;
             let ultimateCooldown = 0;
+            let skillOneBufferTimer = 0;
+            let skillTwoBufferTimer = 0;
+            let skillOneCooldown = 0;
+            let skillTwoCooldown = 0;
 
             function triggerAttack() {
                 if (inLobby) return;
@@ -9897,6 +10477,31 @@
                 if (bUltimate) bUltimate.classList.remove('active-press');
             }
 
+            function triggerBanyuSkill(which) {
+                if (inLobby || player.visualIdentity !== 'banyu') return;
+                const ready = which === 1 ? skillOneCooldown <= 0 : skillTwoCooldown <= 0;
+                if (!ready) return;
+                if (which === 1) {
+                    input.actions.skillOne = true;
+                    skillOneBufferTimer = 0.3;
+                    btnSkillOne?.classList.add('active-press');
+                } else {
+                    input.actions.skillTwo = true;
+                    skillTwoBufferTimer = 0.3;
+                    btnSkillTwo?.classList.add('active-press');
+                }
+            }
+
+            function releaseBanyuSkill(which) {
+                if (which === 1) {
+                    input.actions.skillOne = false;
+                    btnSkillOne?.classList.remove('active-press');
+                } else {
+                    input.actions.skillTwo = false;
+                    btnSkillTwo?.classList.remove('active-press');
+                }
+            }
+
             // Keyboard input
             window.addEventListener('keydown', (e) => {
                 const k = e.key.toLowerCase();
@@ -9916,6 +10521,8 @@
                 if (k === 'r') {
                     triggerUltimate();
                 }
+                if (k === '1') triggerBanyuSkill(1);
+                if (k === '2') triggerBanyuSkill(2);
                 if (k === 'k' || k === 'q' || k === 'shift') {
                     triggerBlock();
                 }
@@ -9933,6 +10540,8 @@
                 if (k === 'r') {
                     releaseUltimate();
                 }
+                if (k === '1') releaseBanyuSkill(1);
+                if (k === '2') releaseBanyuSkill(2);
                 if (k === 'k' || k === 'q' || k === 'shift') {
                     releaseBlock();
                 }
@@ -10103,6 +10712,10 @@
             const btnJump = document.getElementById('btn-jump');
             const btnUltimate = document.getElementById('btn-ultimate');
             const btnUltimateText = btnUltimate ? btnUltimate.querySelector('.btn-text') : null;
+            const btnSkillOne = document.getElementById('btn-skill-one');
+            const btnSkillTwo = document.getElementById('btn-skill-two');
+            const btnSkillOneText = btnSkillOne ? btnSkillOne.querySelector('.btn-text') : null;
+            const btnSkillTwoText = btnSkillTwo ? btnSkillTwo.querySelector('.btn-text') : null;
 
             function bindActionButton(btn, onDown, onUp) {
                 if (!btn) return;
@@ -10147,6 +10760,8 @@
             bindActionButton(btnBlock, triggerBlock, releaseBlock);
             bindActionButton(btnJump, triggerJump, releaseJump);
             bindActionButton(btnUltimate, triggerUltimate, releaseUltimate);
+            bindActionButton(btnSkillOne, () => triggerBanyuSkill(1), () => releaseBanyuSkill(1));
+            bindActionButton(btnSkillTwo, () => triggerBanyuSkill(2), () => releaseBanyuSkill(2));
 
             // ===== ADAPTIVE AI SYSTEM =====
             const ai = {
@@ -10210,7 +10825,7 @@
                 ai.slamTimer = 0.54;
                 ai.slamCooldown = 8.5 + Math.random() * 2;
                 ai.state = 'attack';
-                showComboCallout('HANTAMAN GENDERUWO! 👹', '#f87171');
+                showComboCallout('GENDERUWO SLAM! 👹', '#f87171');
             }
 
             function resolveGenderuwoSlam() {
@@ -10221,13 +10836,13 @@
                 const dist = Math.hypot(player.position.x - opponent.position.x, player.position.z - opponent.position.z);
                 if (dist > 8.5) return;
                 if (player.position.y > 0.7) {
-                    showComboCallout('LOLOS! 🦘', '#4ade80');
+                    showComboCallout('DODGED! 🦘', '#4ade80');
                     return;
                 }
                 const blocked = player.isBlocking;
                 player.takeDamage(config.combat.attackDamage * 1.4, blocked, 3, 1.35);
                 createHitEffect(player.position, 1.2, 3, false);
-                showComboCallout(blocked ? 'TERTANGKIS! 🛡️' : 'GELOMBANG KEJUT! 💢', blocked ? '#94a3b8' : '#ef4444');
+                showComboCallout(blocked ? 'TERBLOCK! 🛡️' : 'SHOCKWAVE! 💢', blocked ? '#94a3b8' : '#ef4444');
                 updateHPDisplay();
                 if (player.hp <= 0) endGame('defeat');
             }
@@ -10246,33 +10861,33 @@
                     if (opponent.visualIdentity === 'leak') {
                         opponent.setLeakForm(true);
                         opponent.leakTimer = 999;
-                        showComboCallout('LEAK TERBANG! 🔥', '#fb923c');
-                        if (opponentHPLabel) opponentHPLabel.textContent = 'Wayan Sudira · Leak';
+                        showComboCallout('FLYING LEAK! 🔥', '#fb923c');
+                        if (opponentHPLabel) opponentHPLabel.textContent = 'Ni Luh Sekar · Leak';
                         flashScreen(0.6, 420);
                         spawnSpiritBurst(opponent.position, 0xf97316, 6);
                     } else if (opponent.visualIdentity === 'buntung') {
                         opponent.setBuntungForm(true);
                         opponent.buntungTimer = 999;
-                        showComboCallout('KEPALA BUNTUNG BANGKIT! 🍋', '#a3e635');
-                        if (opponentHPLabel) opponentHPLabel.textContent = 'Bang Jali · Kepala Buntung';
+                        showComboCallout('HEADLESS GHOST AWAKENS! 🍋', '#a3e635');
+                        if (opponentHPLabel) opponentHPLabel.textContent = 'Jali Pratama · Kepala Buntung';
                         flashScreen(0.6, 420);
                         spawnSpiritBurst(opponent.position, 0x84cc16, 6);
                     } else if (opponent.visualIdentity === 'suster') {
                         opponent.setNgesotForm(true);
                         opponent.ngesotTimer = 999;
-                        showComboCallout('SUSTER NGESOT BANGKIT! 🩸', '#f87171');
+                        showComboCallout('THE CRAWLING NURSE AWAKENS! 🩸', '#f87171');
                         if (opponentHPLabel) opponentHPLabel.textContent = 'Laras Wening · Suster Ngesot';
                         flashScreen(0.6, 420);
                         spawnSpiritBurst(opponent.position, 0xb91c1c, 6);
                     } else if (opponent.visualIdentity === 'gantara') {
                         ai.slamCooldown = 1.2;
-                        showComboCallout('GANTARA MENGAMUK! 👹', '#ef4444');
+                        showComboCallout('GANTARA UNLEASHED! 👹', '#ef4444');
                         if (opponentHPLabel) opponentHPLabel.textContent = 'Gantara Bara · Genderuwo';
                         startGenderuwoCutscene(opponent, 'awakening');
                     } else {
                         opponent.setPocongForm(true);
                         opponent.pocongFormTimer = 999;
-                        showComboCallout('POCONG BANGKIT! 👻', '#67e8f9');
+                        showComboCallout('THE POCONG AWAKENS! 👻', '#67e8f9');
                         if (opponentHPLabel) opponentHPLabel.textContent = 'Banyu Wisesa · Pocong';
                     }
                     cameraShake = 0.25;
@@ -10641,6 +11256,160 @@
                 requestAnimationFrame(animatePocongImpact);
             }
 
+            function startBanyuSpecialFX(which, start, end) {
+                stopBanyuSpecialFX();
+                banyuSkillFx = { which, elapsed: 0, group: new THREE.Group(), nodes: [], trail: null };
+                const fx = banyuSkillFx;
+                const add = (geometry, material, position = [0, 0, 0]) => {
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(position[0], position[1], position[2]);
+                    fx.group.add(mesh); fx.nodes.push(mesh); return mesh;
+                };
+                const glow = (color, opacity = 0.72) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+                if (which === 1) {
+                    const outer = add(new THREE.TorusGeometry(1.3, 0.12, 6, 36), glow(0x22d3ee, 0.9), [0, 0.18, 0]);
+                    const inner = add(new THREE.TorusGeometry(0.78, 0.055, 5, 32), glow(0xe0f2fe, 0.95), [0, 0.22, 0]);
+                    outer.rotation.x = inner.rotation.x = Math.PI / 2; fx.rings = [outer, inner];
+                    [-1, 1].forEach(side => {
+                        const halo = add(new THREE.TorusGeometry(1.35, 0.065, 5, 28), glow(side < 0 ? 0x67e8f9 : 0x0ea5e9, 0.65), [0, 2.0, 0]);
+                        halo.rotation.set(Math.PI / 2 + side * 0.42, 0, side * 0.3);
+                    });
+                    for (let i = 0; i < 10; i++) {
+                        const drop = add(new THREE.OctahedronGeometry(0.16 + (i % 3) * 0.045, 0), glow(i % 2 ? 0x67e8f9 : 0xf0fdff, 0.88));
+                        drop.userData = { phase: i / 10, radius: 1.25 + (i % 3) * 0.2, rise: 1.1 + (i % 4) * 0.48 };
+                    }
+                    const from = new THREE.Vector3(0, 0.2, 0), to = new THREE.Vector3(end.x - start.x, 0.2, end.z - start.z);
+                    const mid = from.clone().lerp(to, 0.52); mid.y = 0.55;
+                    fx.trail = add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from, mid, to]), 20, 0.13, 6, false), glow(0x22d3ee, 0.55));
+                } else {
+                    const floor = add(new THREE.TorusGeometry(1.0, 0.08, 6, 36), glow(0xa78bfa, 0.78), [0, 0.18, 0]); floor.rotation.x = Math.PI / 2;
+                    const wardA = add(new THREE.TorusGeometry(1.05, 0.085, 6, 36), glow(0x67e8f9, 0.82), [0, 1.15, 0]); wardA.rotation.x = Math.PI / 2;
+                    const wardB = add(new THREE.TorusGeometry(1.35, 0.055, 5, 32), glow(0xc4b5fd, 0.72), [0, 2.45, 0]); wardB.rotation.set(Math.PI / 2, 0.25, 0.5);
+                    const veil = add(new THREE.CylinderGeometry(0.12, 1.35, 3.4, 16, 1, true), glow(0x67e8f9, 0.12), [0, 1.8, 0]);
+                    fx.rings = [floor, wardA, wardB]; fx.veil = veil;
+                    for (let i = 0; i < 12; i++) {
+                        const rune = add(new THREE.OctahedronGeometry(0.13 + (i % 3) * 0.035, 0), glow(i % 3 ? 0xc4b5fd : 0xe0f2fe, 0.9));
+                        rune.userData = { phase: i / 12, radius: 1.4 + (i % 4) * 0.12, rise: 0.55 + (i % 5) * 0.52 };
+                    }
+                }
+                scene.add(fx.group);
+                // Remember the player's current orbit so the side-shot never replaces their normal view.
+                banyuSkillCameraState = { angle: cameraOffset.angle, distance: cameraOffset.distance, height: cameraOffset.height, fov: camera.fov };
+                banyuSkillCameraActive = true; banyuSkillCameraSnap = true; banyuSkillCameraFov = camera.fov;
+                camera.fov = 74; camera.updateProjectionMatrix();
+                const dx = opponent.position.x - player.position.x, dz = opponent.position.z - player.position.z;
+                banyuSkillCameraSide = (Math.sin(player.rotation) * dz - Math.cos(player.rotation) * dx) >= 0 ? 1 : -1;
+                if (skillCaption) { skillCaption.classList.toggle('spirit', which === 2); skillCaption.classList.add('show'); }
+                if (skillCaptionTitle) skillCaptionTitle.textContent = which === 1 ? 'TIDAL RUSH' : 'SPIRIT TIDE';
+                if (skillCaptionProgress) skillCaptionProgress.style.width = '0%';
+                banyuSkillLight.color.setHex(which === 1 ? 0x22d3ee : 0xa78bfa);
+                banyuSkillLight.intensity = which === 1 ? 4.6 : 3.8;
+            }
+
+            function stopBanyuSpecialFX() {
+                if (banyuSkillFx) {
+                    scene.remove(banyuSkillFx.group);
+                    banyuSkillFx.group.traverse(object => {
+                        if (object.geometry) object.geometry.dispose();
+                        if (object.material) {
+                            if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
+                            else object.material.dispose();
+                        }
+                    });
+                    banyuSkillFx = null;
+                }
+                if (banyuSkillLight) banyuSkillLight.intensity = 0;
+                banyuSkillCameraActive = false;
+                const restore = banyuSkillCameraState;
+                banyuSkillCameraState = null;
+                if (restore) {
+                    cameraOffset.angle = restore.angle;
+                    cameraOffset.distance = restore.distance;
+                    cameraOffset.height = restore.height;
+                    if (camera) { camera.fov = restore.fov; camera.updateProjectionMatrix(); }
+                    // Return to the ordinary third-person framing immediately; the next frame resumes its follow smoothing.
+                    if (mode === 'play' && !inLobby) updateCamera(true);
+                } else if (camera && camera.fov !== banyuSkillCameraFov) {
+                    camera.fov = banyuSkillCameraFov;
+                    camera.updateProjectionMatrix();
+                }
+                if (skillCaption) skillCaption.classList.remove('show');
+            }
+
+            function updateBanyuSpecialFX(dt) {
+                const fx = banyuSkillFx;
+                if (!fx) return;
+                fx.elapsed += dt * BANYU_SKILL_SPEED[fx.which];
+                const t = fx.elapsed, p = Math.min(1, t / 5);
+                fx.group.position.set(player.position.x, 0, player.position.z);
+                fx.group.rotation.y = Math.sin(t * 2.2) * 0.08;
+                if (fx.rings) fx.rings.forEach((ring, i) => {
+                    const pulse = 1 + 0.12 * Math.sin(t * (i === 0 ? 5 : 3.4) + i);
+                    ring.scale.setScalar(pulse * (fx.which === 1 ? 0.9 + Math.min(t, 2) * 0.12 : 0.92 + 0.1 * Math.sin(t * 3)));
+                    ring.rotation.y += dt * (i % 2 ? -0.72 : 0.58);
+                    ring.material.opacity = (fx.which === 1 ? 0.84 : 0.76) * (t > 4.35 ? Math.max(0, (5 - t) / 0.65) : 1);
+                });
+                fx.nodes.forEach(mesh => {
+                    if (!mesh.userData || mesh.userData.phase === undefined) return;
+                    const d = mesh.userData, angle = t * (fx.which === 1 ? 3.0 : 1.8) + d.phase * Math.PI * 2;
+                    mesh.position.set(Math.cos(angle) * d.radius, 0.45 + (d.rise + t * (fx.which === 1 ? 1.1 : 0.72)) % 3.7, Math.sin(angle) * d.radius);
+                    mesh.rotation.set(t * 2.4 + d.phase, angle, t * 1.6);
+                    mesh.material.opacity = (0.55 + 0.35 * Math.sin(t * 5 + d.phase * 10)) * (t > 4.45 ? Math.max(0, (5 - t) / 0.55) : 1);
+                });
+                if (fx.veil) {
+                    const surge = Math.max(0, 1 - Math.abs(t - 2.35) / 0.7);
+                    fx.veil.scale.set(1 + surge * 2.7, 1, 1 + surge * 2.7);
+                    fx.veil.material.opacity = 0.10 + surge * 0.28 + (t < 2.3 ? 0.07 * Math.sin(t * 5) : 0);
+                }
+                const focusX = (player.position.x + opponent.position.x) * 0.5, focusZ = (player.position.z + opponent.position.z) * 0.5;
+                const dx = opponent.position.x - player.position.x, dz = opponent.position.z - player.position.z, len = Math.max(1, Math.hypot(dx, dz));
+                const sideX = -dz / len * banyuSkillCameraSide, sideZ = dx / len * banyuSkillCameraSide;
+                banyuSkillLight.position.set(focusX + sideX * 8, 13, focusZ + sideZ * 8);
+                banyuSkillLightTarget.position.set(focusX, 1.8, focusZ);
+                banyuSkillLight.intensity = (fx.which === 1 ? 4.6 : 3.8) * (0.82 + 0.18 * Math.sin(t * 5.2));
+                if (skillCaptionProgress) skillCaptionProgress.style.width = `${p * 100}%`;
+            }
+
+            function createBanyuTideWave(origin, target) {
+                // A forward-travelling pair of spirit rings makes Spirit Tide read as an attack,
+                // not just an aura around Banyu. Its travel distance matches the skill's hit radius.
+                const start = origin.clone();
+                start.y += 2.75;
+                const dx = target ? target.x - origin.x : Math.sin(player.rotation);
+                const dz = target ? target.z - origin.z : Math.cos(player.rotation);
+                const distance = Math.hypot(dx, dz);
+                const travel = Math.min(distance, 7.0);
+                const dirX = distance > 0.001 ? dx / distance : Math.sin(player.rotation);
+                const dirZ = distance > 0.001 ? dz / distance : Math.cos(player.rotation);
+                const yaw = Math.atan2(dirX, dirZ);
+                const rings = [
+                    new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.085, 6, 36), new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending })),
+                    new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.035, 5, 32), new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }))
+                ];
+                rings.forEach((ring, i) => {
+                    ring.rotation.y = yaw;
+                    ring.position.copy(start).add(new THREE.Vector3(dirX, 0, dirZ).multiplyScalar(-i * 0.38));
+                    scene.add(ring);
+                });
+                const startTime = performance.now();
+                function animateWave() {
+                    const p = Math.min(1, (performance.now() - startTime) / 700);
+                    const eased = 1 - Math.pow(1 - p, 2);
+                    rings.forEach((ring, i) => {
+                        const offset = i * 0.38;
+                        ring.position.set(start.x + dirX * Math.max(0, travel * eased - offset), start.y + Math.sin(p * Math.PI) * 0.25, start.z + dirZ * Math.max(0, travel * eased - offset));
+                        ring.scale.setScalar(0.72 + p * (1.2 + i * 0.22));
+                        ring.material.opacity = (0.95 - i * 0.12) * (1 - p);
+                    });
+                    if (p >= 1) {
+                        rings.forEach(ring => { scene.remove(ring); ring.geometry.dispose(); ring.material.dispose(); });
+                        return;
+                    }
+                    requestAnimationFrame(animateWave);
+                }
+                requestAnimationFrame(animateWave);
+            }
+
             function checkHit(attacker, defender, damageScale = 1, opts = {}) {
                 const distance = attacker.position.distanceTo(defender.position);
                 const isPocongStrike = attacker.visualIdentity === 'banyu' &&
@@ -10673,18 +11442,18 @@
                             ? horizontalDistance <= pocongRange && verticalDistance <= 4.8
                             : distance <= 4.7;
                 if (inRange || opts.anyRange) {
-                    const step = attacker.getCurrentComboStep ? attacker.getCurrentComboStep() : 1;
+                    const step = opts.forceStep || (attacker.getCurrentComboStep ? attacker.getCurrentComboStep() : 1);
                     let hitHeight = 2.9;
-                    let calloutText = 'PUKULAN DADA!';
+                    let calloutText = 'CHEST PUNCH!';
                     let calloutColor = '#38bdf8';
 
                     if (step === 1) {
                         hitHeight = 3.0; // Stomach / perut
-                        calloutText = 'PUKULAN PERUT!';
+                        calloutText = 'GUT PUNCH!';
                         calloutColor = '#facc15';
                     } else if (step === 2) {
                         hitHeight = 3.9; // Chest / dada
-                        calloutText = 'PUKULAN DADA!';
+                        calloutText = 'CHEST PUNCH!';
                         calloutColor = '#fb923c';
                     } else if (step === 3) {
                         hitHeight = 4.9; // Chin / uppercut
@@ -10695,8 +11464,8 @@
                     if (isGenderuwoCombo) {
                         const beastMoves = [
                             ['CAKAR BARA! 🔥', '#fb923c', 3.5],
-                            ['SABETAN RAKSASA! 💢', '#f87171', 4.0],
-                            ['TERJANGAN GENDERUWO! 👹', '#ef4444', 3.3]
+                            ['GIANT SWEEP! 💢', '#f87171', 4.0],
+                            ['GENDERUWO POUNCE! 👹', '#ef4444', 3.3]
                         ][Math.max(0, Math.min(2, step - 1))];
                         calloutText = beastMoves[0];
                         calloutColor = beastMoves[1];
@@ -10705,17 +11474,17 @@
 
                     if (isNgesotStrike && !attacker.isUltimateAttack) {
                         const moveTable = attacker.visualIdentity === 'leak' ? [
-                            ['GIGITAN LEAK! 🦷', '#fdba74', 3.4],
-                            ['LIDAH MAUT! 👅', '#fb923c', 3.6],
-                            ['TERKAMAN USUS! 🩸', '#ef4444', 3.0]
+                            ['LEAK BITE! 🦷', '#fdba74', 3.4],
+                            ['DEATH TONGUE! 👅', '#fb923c', 3.6],
+                            ['ENTRAIL GRAB! 🩸', '#ef4444', 3.0]
                         ] : (attacker.visualIdentity === 'buntung' ? [
-                            ['CENGKERAMAN BUTA! 🖐️', '#bef264', 3.4],
-                            ['BANTING KEPALA! 💀', '#a3e635', 3.9],
-                            ['LEMPAR KEPALA! 🍋', '#84cc16', 3.6]
+                            ['BLIND GRASP! 🖐️', '#bef264', 3.4],
+                            ['HEAD SLAM! 💀', '#a3e635', 3.9],
+                            ['HEAD THROW! 🍋', '#84cc16', 3.6]
                         ] : [
-                            ['CAKARAN RAMBUT! 🩸', '#fca5a5', 2.2],
-                            ['SERETAN HANTU! 💢', '#f87171', 2.4],
-                            ['JERITAN MAUT! 💀', '#ef4444', 3.0]
+                            ['HAIR CLAW! 🩸', '#fca5a5', 2.2],
+                            ['GHOST DRAG! 💢', '#f87171', 2.4],
+                            ['DEATH SCREAM! 💀', '#ef4444', 3.0]
                         ]);
                         const crawlMoves = moveTable[Math.max(0, Math.min(2, step - 1))];
                         calloutText = crawlMoves[0];
@@ -10749,7 +11518,7 @@
 
                     // Show combat callout badge for player strikes
                     if (isPocongStrike && !isUltimate) {
-                        calloutText = ['PECUTAN SABIT ASTRAL!', 'DORONGAN TELAPAK KEMBAR!', 'GODAM ARWAH MENUKIK! 💥'][Math.max(0, Math.min(2, step - 1))];
+                        calloutText = ['ASTRAL SICKLE WHIP!', 'TWIN PALM THRUST!', 'DIVING SPIRIT HAMMER! 💥'][Math.max(0, Math.min(2, step - 1))];
                         calloutColor = ['#67e8f9', '#a5f3fc', '#e0f2fe'][Math.max(0, Math.min(2, step - 1))];
                         if (step === 3) {
                             cameraShake = Math.max(cameraShake, 0.3);
@@ -10765,8 +11534,8 @@
                         }
                     }
                     if (attacker.type === 'player') {
-                        const playerCallout = isUltimate ? (opts.callout || 'ULTIMATE! 💥') : calloutText;
-                        showComboCallout(defender.isBlocking ? 'TERTANGKIS! 🛡️' : playerCallout, defender.isBlocking ? '#94a3b8' : (isUltimate ? (opts.color || '#facc15') : calloutColor));
+                        const playerCallout = opts.callout || (isUltimate ? 'ULTIMATE! 💥' : calloutText);
+                        showComboCallout(defender.isBlocking ? 'TERBLOCK! 🛡️' : playerCallout, defender.isBlocking ? '#94a3b8' : (isUltimate ? (opts.color || '#facc15') : calloutColor));
                     }
 
                     // Update HP display
@@ -11101,8 +11870,8 @@
                 const main = cineTitleEl.querySelector('.cine-main');
                 const move = cineTitleEl.querySelector('.cine-move');
                 if (name) name.textContent = 'LARAS WENING';
-                if (main) main.textContent = 'WUJUD SUSTER NGESOT';
-                if (move) move.textContent = 'NGESOT MAUT';
+                if (main) main.textContent = 'THE CRAWLING NURSE';
+                if (move) move.textContent = 'DEATH CRAWL';
                 cineTitleEl.classList.remove('show');
                 cutscene.titleSwapped = true;
             }
@@ -11154,8 +11923,8 @@
                 const main = cineTitleEl.querySelector('.cine-main');
                 const move = cineTitleEl.querySelector('.cine-move');
                 if (name) name.textContent = kind === 'leak' ? 'WAYAN SUDIRA' : 'BANG JALI';
-                if (main) main.textContent = kind === 'leak' ? 'WUJUD LEAK' : 'WUJUD KEPALA BUNTUNG';
-                if (move) move.textContent = kind === 'leak' ? 'LEAK TERBANG' : 'JERUK PURUT';
+                if (main) main.textContent = kind === 'leak' ? 'LEAK FORM' : 'HEADLESS GHOST FORM';
+                if (move) move.textContent = kind === 'leak' ? 'LEAK TERBANG' : 'KAFFIR LIME CURSE';
                 cineTitleEl.classList.remove('show');
                 cutscene.titleSwapped = true;
             }
@@ -11231,7 +12000,7 @@
                 player.ultFlags = { cross: false, slow: false, finisher: false };
                 ai.blockTimer = 0;
                 opponent.isBlocking = false;
-                showComboCallout(kind === 'leak' ? 'LEAK TERBANG! 🔥' : 'KEPALA BUNTUNG JERUK PURUT! 🍋', kind === 'leak' ? '#fb923c' : '#a3e635');
+                showComboCallout(kind === 'leak' ? 'FLYING LEAK! 🔥' : 'KEPALA BUNTUNG KAFFIR LIME CURSE! 🍋', kind === 'leak' ? '#fb923c' : '#a3e635');
                 playSynthSound('astral_sickle', 0.6);
             }
 
@@ -11257,7 +12026,7 @@
                 player.ultFlags = { cross: false, slow: false, finisher: false };
                 ai.blockTimer = 0;
                 opponent.isBlocking = false;
-                showComboCallout('NGESOT MAUT! 🩸', '#f87171');
+                showComboCallout('DEATH CRAWL! 🩸', '#f87171');
                 if (dashLen > 0.5) {
                     spawnStumbleDust(player.position);
                     playSynthSound('astral_sickle', 0.6);
@@ -11472,7 +12241,7 @@
                     const move = cineTitleEl.querySelector('.cine-move');
                     if (name) name.textContent = 'GANTARA BARA';
                     if (main) main.textContent = 'WUJUD GENDERUWO';
-                    if (move) move.textContent = purpose === 'ultimate' ? 'API BARA TERBANGKIT' : 'KEBANGKITAN SANG RAKSASA';
+                    if (move) move.textContent = purpose === 'ultimate' ? 'INFERNO UNLEASHED' : 'THE GIANT AWAKENS';
                     cineTitleEl.classList.remove('show');
                 }
                 cameraShake = Math.max(cameraShake, 0.12);
@@ -11586,7 +12355,7 @@
                 }
                 if (cineTitleEl) {
                     const move = cineTitleEl.querySelector('.cine-move');
-                    if (move) move.textContent = p < 0.22 ? 'AMARAH TERKUNCI' : p < 0.50 ? 'BARA MERETAKAN RAGA' : p < 0.75 ? 'MATA API MENYALA' : p < 0.92 ? 'RAUNGAN GENDERUWO' : 'HANTAMAN PENGHANCUR';
+                    if (move) move.textContent = p < 0.22 ? 'RAGE AWAKENS' : p < 0.50 ? 'FLAMES CRACK THE FLESH' : p < 0.75 ? 'INFERNAL EYES IGNITE' : p < 0.92 ? 'GENDERUWO ROARS' : 'DEVASTATING SLAM';
                     if (p >= 0.61) cineTitleEl.classList.add('show');
                 }
 
@@ -11682,7 +12451,7 @@
                 player.attackCooldown = 1.15;
                 player.specialHitPending = true;
                 player.specialHitTimer = 0.54;
-                showComboCallout('HANTAMAN GANTARA! 👹', '#f87171');
+                showComboCallout('GANTARA SLAM! 👹', '#f87171');
             }
 
             function beginUltimateAttack() {
@@ -11733,7 +12502,7 @@
                 playSynthSound('astral_sickle', 1.0);
                 if (player.visualIdentity === 'leak' || player.visualIdentity === 'buntung') {
                     const first = player.visualIdentity === 'leak';
-                    const passHit = checkHit(player, opponent, 0.4, { knockback: 0.1, anyRange: true, callout: first ? 'GIGITAN LEAK! 🦷' : 'LEMPAR KEPALA! 🍋', color: first ? '#fdba74' : '#bef264' });
+                    const passHit = checkHit(player, opponent, 0.4, { knockback: 0.1, anyRange: true, callout: first ? 'LEAK BITE! 🦷' : 'HEAD THROW! 🍋', color: first ? '#fdba74' : '#bef264' });
                     if (passHit) {
                         spawnSpiritBurst(opponent.position, first ? 0xf97316 : 0x84cc16, 4);
                         cameraShake = Math.max(cameraShake, 0.22);
@@ -11741,7 +12510,7 @@
                     return;
                 }
                 if (player.visualIdentity === 'suster') {
-                    const clawHit = checkHit(player, opponent, 0.4, { knockback: 0.1, callout: 'CAKARAN RAMBUT SILANG! ✖️', color: '#fca5a5' });
+                    const clawHit = checkHit(player, opponent, 0.4, { knockback: 0.1, callout: 'CROSSING HAIR CLAWS! ✖️', color: '#fca5a5' });
                     if (clawHit) {
                         spawnCrossSlashEffect(player, opponent);
                         spawnSpiritBurst(opponent.position, 0xb91c1c, 4);
@@ -11749,7 +12518,7 @@
                     }
                     return;
                 }
-                const hit = checkHit(player, opponent, 0.4, { knockback: 0.1, callout: 'SABETAN SILANG KAFAN! ✖️', color: '#67e8f9' });
+                const hit = checkHit(player, opponent, 0.4, { knockback: 0.1, callout: 'SHROUD CROSS SLASH! ✖️', color: '#67e8f9' });
                 if (hit) {
                     spawnCrossSlashEffect(player, opponent);
                     cameraShake = Math.max(cameraShake, 0.22);
@@ -11760,7 +12529,7 @@
                 playSynthSound('spirit_hammer', 1.0);
                 if (player.visualIdentity === 'leak' || player.visualIdentity === 'buntung') {
                     const first = player.visualIdentity === 'leak';
-                    const biteHit = checkHit(player, opponent, 0.7, { knockback: 1.4, anyRange: true, callout: first ? 'TERKAMAN LEAK! 💀' : 'KEPALA BUNTUNG MENGGIGIT! 💀', color: first ? '#fb923c' : '#a3e635' });
+                    const biteHit = checkHit(player, opponent, 0.7, { knockback: 1.4, anyRange: true, callout: first ? 'LEAK MAUL! 💀' : 'HEADLESS GHOST BITE! 💀', color: first ? '#fb923c' : '#a3e635' });
                     if (biteHit) {
                         spawnSpiritBurst(opponent.position, first ? 0xea580c : 0x65a30d, 6);
                         playFighterScream('opponent');
@@ -11771,7 +12540,7 @@
                     return;
                 }
                 if (player.visualIdentity === 'suster') {
-                    const scareHit = checkHit(player, opponent, 0.7, { knockback: 1.4, callout: 'JERITAN SUSTER NGESOT! 💀', color: '#ef4444' });
+                    const scareHit = checkHit(player, opponent, 0.7, { knockback: 1.4, callout: 'CRAWLING NURSE SCREAM! 💀', color: '#ef4444' });
                     if (scareHit) {
                         spawnSpiritBurst(opponent.position, 0xdc2626, 6);
                         playFighterScream('opponent');
@@ -11928,6 +12697,8 @@
 
             // ===== GAME OVER =====
             function endGame(result) {
+                stopBanyuSpecialFX();
+                if (player.specialSkill) player.specialSkill.active = 0;
                 gameOver = true;
                 isPaused = true;
 
@@ -11941,6 +12712,7 @@
             }
 
             function restartGame() {
+                stopBanyuSpecialFX();
                 gameOver = false;
                 isPaused = false;
 
@@ -11964,6 +12736,22 @@
                 player.attackCooldown = 0;
                 player.hitStun = 0;
                 player.isUltimateAttack = false;
+                player.specialSkill.active = 0;
+                player.skillGuardTimer = 0;
+                skillOneBufferTimer = 0;
+                skillTwoBufferTimer = 0;
+                skillOneCooldown = 0;
+                skillTwoCooldown = 0;
+                input.actions.skillOne = false;
+                input.actions.skillTwo = false;
+                if (btnSkillOne) btnSkillOne.classList.remove('active-press');
+                if (btnSkillTwo) btnSkillTwo.classList.remove('active-press');
+                player.specialSkill.active = 0;
+                player.skillGuardTimer = 0;
+                skillOneBufferTimer = 0;
+                skillTwoBufferTimer = 0;
+                skillOneCooldown = 0;
+                skillTwoCooldown = 0;
                 player.pocongFormTimer = 0;
                 player.setPocongForm(false);
                 player.setGenderuwoForm(false);
@@ -11976,6 +12764,18 @@
                 jumpBufferTimer = 0;
                 ultimateBufferTimer = 0;
                 ultimateCooldown = 0;
+                skillOneBufferTimer = 0;
+                skillTwoBufferTimer = 0;
+                skillOneCooldown = 0;
+                skillTwoCooldown = 0;
+                player.specialSkill.active = 0;
+                player.skillGuardTimer = 0;
+                input.actions.skillOne = false;
+                input.actions.skillTwo = false;
+                if (btnSkillOne) btnSkillOne.classList.remove('active-press', 'disabled');
+                if (btnSkillTwo) btnSkillTwo.classList.remove('active-press', 'disabled');
+                if (btnSkillOneText) btnSkillOneText.textContent = 'TIDAL RUSH';
+                if (btnSkillTwoText) btnSkillTwoText.textContent = 'SPIRIT TIDE';
                 input.actions.attack = false;
                 input.actions.block = false;
                 input.actions.jump = false;
@@ -12049,6 +12849,29 @@
 
             document.getElementById('victory-restart').addEventListener('click', restartGame);
             document.getElementById('defeat-restart').addEventListener('click', restartGame);
+
+            function returnToLobby() {
+                if (mode !== 'play') return;
+                restartGame();
+                gameOver = false;
+                isPaused = false;
+                inLobby = true;
+                battleWorld.visible = false;
+                lobbyWorld.visible = true;
+                gameWorld.classList.add('lobby-mode');
+                opponent.group.visible = false;
+                player.setPosition(0, 0, -22);
+                player.setRotation(0);
+                player.changeAnimation('idle');
+                cameraOffset.distance = 12;
+                cameraOffset.height = 8;
+                cameraOffset.angle = 0;
+                currentLookAt.set(0, 3.1, -22);
+                camera.position.set(0, 8, -34);
+                updateLobbyProximity();
+            }
+            document.getElementById('victory-lobby').addEventListener('click', returnToLobby);
+            document.getElementById('defeat-lobby').addEventListener('click', returnToLobby);
 
             // ===== EDIT MODE =====
             if (mode === 'edit') {
@@ -12252,7 +13075,7 @@
                         updateLobbyProximity();
                         if (lobbyInteractQueued) {
                             lobbyInteractQueued = false;
-                            if (lobbyNearby === 'podium') selectNextFighter();
+                            if (lobbyNearby === 'podium') selectFighter(lobbyPodiumIndex);
                             else if (lobbyNearby === 'portal') startBattleFromPortal();
                         }
                     }
@@ -12262,7 +13085,46 @@
                     if (attackBufferTimer > 0) attackBufferTimer -= deltaTime;
                     if (jumpBufferTimer > 0) jumpBufferTimer -= deltaTime;
                     if (ultimateBufferTimer > 0) ultimateBufferTimer -= deltaTime;
+                    if (skillOneBufferTimer > 0) skillOneBufferTimer -= deltaTime;
+                    if (skillTwoBufferTimer > 0) skillTwoBufferTimer -= deltaTime;
                     if (ultimateCooldown > 0) ultimateCooldown = Math.max(0, ultimateCooldown - deltaTime);
+                    if (skillOneCooldown > 0) skillOneCooldown = Math.max(0, skillOneCooldown - deltaTime);
+                    if (skillTwoCooldown > 0) skillTwoCooldown = Math.max(0, skillTwoCooldown - deltaTime);
+
+                    const wantSkillOne = player.visualIdentity === 'banyu' && (input.actions.skillOne || skillOneBufferTimer > 0) && skillOneCooldown <= 0;
+                    const wantSkillTwo = player.visualIdentity === 'banyu' && (input.actions.skillTwo || skillTwoBufferTimer > 0) && skillTwoCooldown <= 0;
+                    if ((wantSkillOne || wantSkillTwo) && !player.isAttacking && !player.isJumping && player.attackCooldown <= 0 && player.hitStun <= 0) {
+                        const which = wantSkillOne ? 1 : 2;
+                        input.actions.skillOne = false;
+                        input.actions.skillTwo = false;
+                        skillOneBufferTimer = 0;
+                        skillTwoBufferTimer = 0;
+                        attackBufferTimer = 0;
+                        input.actions.attack = false;
+                        if (which === 1) skillOneCooldown = 6;
+                        else skillTwoCooldown = 11;
+                        player.isBlocking = false;
+                        player.isAttacking = true;
+                        player.lookAt(opponent.position);
+                        player.specialSkill.active = which;
+                        player.specialSkill.elapsed = 0;
+                        player.specialSkill.hit = false;
+                        player.specialSkill.from.copy(player.position);
+                        player.specialSkill.to.copy(player.position);
+                        if (which === 1) {
+                            const dx = opponent.position.x - player.position.x;
+                            const dz = opponent.position.z - player.position.z;
+                            const dist = Math.hypot(dx, dz);
+                            const dash = Math.max(0, dist - 2.15);
+                            if (dist > 0.001) player.specialSkill.to.set(player.position.x + dx / dist * dash, player.position.y, player.position.z + dz / dist * dash);
+                            showComboCallout('TIDAL RUSH!', '#22d3ee');
+                        } else {
+                            showComboCallout('SPIRIT TIDE!', '#a5f3fc');
+                        }
+                        startBanyuSpecialFX(which, player.specialSkill.from, player.specialSkill.to);
+                        player.changeAnimation('attack');
+                        player.attackCooldown = which === 1 ? 0.82 : 0.92;
+                    }
 
                     // Player attack action (with input buffer for instant combo response)
                     const wantUltimate = (input.actions.ultimate || ultimateBufferTimer > 0) && ultimateCooldown <= 0;
@@ -12356,6 +13218,14 @@
                         btnUltimate.classList.toggle('disabled', ultimateCooldown > 0);
                         if (btnUltimateText) btnUltimateText.textContent = ultimateCooldown > 0 ? `${Math.ceil(ultimateCooldown)}s` : 'ULTIMATE';
                     }
+                    if (btnSkillOne) {
+                        btnSkillOne.classList.toggle('disabled', player.visualIdentity !== 'banyu' || skillOneCooldown > 0);
+                        if (btnSkillOneText) btnSkillOneText.textContent = skillOneCooldown > 0 ? `${Math.ceil(skillOneCooldown)}s` : 'TIDAL RUSH';
+                    }
+                    if (btnSkillTwo) {
+                        btnSkillTwo.classList.toggle('disabled', player.visualIdentity !== 'banyu' || skillTwoCooldown > 0);
+                        if (btnSkillTwoText) btnSkillTwoText.textContent = skillTwoCooldown > 0 ? `${Math.ceil(skillTwoCooldown)}s` : 'SPIRIT TIDE';
+                    }
 
                     // AI update
                     updateAI(deltaTime);
@@ -12368,7 +13238,7 @@
                             spawnGenderuwoShockwave(opponent.position);
                             const slamDistance = Math.hypot(player.position.x - opponent.position.x, player.position.z - opponent.position.z);
                             if (slamDistance <= 8.5 && opponent.hp > 0 && !gameOver) {
-                                checkHit(player, opponent, 0.7, { knockback: 1.35, callout: 'GELOMBANG GANTARA! 💥', color: '#ef4444' });
+                                checkHit(player, opponent, 0.7, { knockback: 1.35, callout: 'GANTARA SHOCKWAVE! 💥', color: '#ef4444' });
                             }
                         }
                     }
@@ -12388,7 +13258,7 @@
                         player.update(deltaTime);
                     }
 
-                    // Amukan Kafan Arwah hit timeline: X-slash, slow-motion, then the heavy finisher.
+                    // Wrath of the Spirit Shroud hit timeline: X-slash, slow-motion, then the heavy finisher.
                     if (player.ultFlags && player.isUltimateAttack && player.animation.state === 'attack') {
                         const up = player.animation.time / ULT_ATTACK_DURATION;
                         const f = player.ultFlags;
@@ -12405,19 +13275,29 @@
                     mesh.scale.set(0.9 + flicker * 0.1, flicker, 0.9 + flicker * 0.1);
                     mesh.rotation.y = Math.sin(arenaTime * 2 + phase) * 0.18;
                 });
-                if (lobbyProps.portalRing) {
-                    lobbyProps.portalRing.rotation.z = Math.sin(arenaTime * 0.65) * 0.035;
-                    lobbyProps.portalRing.material.emissiveIntensity = 0.85 + (Math.sin(arenaTime * 2.5) + 1) * 0.22;
+                if (lobbyProps.portalMaterial) lobbyProps.portalMaterial.uniforms.uTime.value = arenaTime;
+                if (lobbyProps.portalGroup) {
+                    lobbyProps.portalGroup.position.y = Math.sin(arenaTime * 1.2) * 0.035;
+                    lobbyProps.portalAccents.forEach((streak, index) => {
+                        const phase = arenaTime * 2.2 + streak.userData.phase;
+                        streak.material.opacity = 0.30 + (Math.sin(phase) + 1) * 0.22;
+                        streak.scale.y = 0.78 + (Math.sin(phase * 0.7) + 1) * 0.13;
+                    });
                 }
-                if (lobbyProps.portalCore) lobbyProps.portalCore.material.opacity = 0.43 + (Math.sin(arenaTime * 1.7) + 1) * 0.055;
-                if (lobbyProps.preview) lobbyProps.preview.rotation.y = -Math.PI / 2 + Math.sin(arenaTime * 0.55) * 0.09;
+                lobbyProps.previews.forEach((preview, index) => {
+                    if (preview) preview.rotation.y = Math.PI / 2 + Math.sin(arenaTime * 0.55 + index * 0.7) * 0.09;
+                });
 
                 // Update camera
                 if (cameraShake > 0) cameraShake = Math.max(0, cameraShake - rawDelta);
                 if (genderuwoCutscene.active) updateGenderuwoCutsceneCamera(rawDelta);
                 else if (cutscene.active) updateCutsceneCamera(rawDelta);
                 else if (mode === 'play' && player.isUltimateAttack && player.ultFlags) updateUltimateAttackCamera(rawDelta);
+                else if (mode === 'play' && banyuSkillCameraActive) updateBanyuSkillCamera(rawDelta);
                 else updateCamera();
+
+                // Special-skill water/spirit effects and colored side-shot lighting update once per frame.
+                if (banyuSkillFx) updateBanyuSpecialFX(rawDelta);
 
                 // Update scream speech bubbles tracking above fighters' heads
                 updateScreamBubbles();
