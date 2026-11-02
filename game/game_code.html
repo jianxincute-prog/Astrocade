@@ -10423,9 +10423,11 @@
                 })();
             }
             const fireOrb = (color, size = 0.55) => {
+                // Opaque hot core plus a soft glow, so the flame stays readable against the bright arena floor.
                 const g = new THREE.Group();
-                g.add(new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), additive(color, 0.95)));
-                g.add(new THREE.Mesh(new THREE.OctahedronGeometry(size * 1.6, 0), additive(color, 0.28)));
+                g.add(new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), new THREE.MeshBasicMaterial({ color: 0xffd36b })));
+                g.add(new THREE.Mesh(new THREE.OctahedronGeometry(size * 1.35, 0), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 })));
+                g.add(new THREE.Mesh(new THREE.OctahedronGeometry(size * 1.9, 0), additive(color, 0.25)));
                 return g;
             };
             const limeShape = () => {
@@ -10769,7 +10771,7 @@
                             const from = palms();
                             playSynthSound('spirit_hammer', 0.8);
                             fxProjectile({
-                                from, ms: 460, arc: 0.5,
+                                from, ms: 680, arc: 0.6,
                                 build: () => { const o = fireOrb(0xf97316, 0.8); o.scale.setScalar(1.4); return o; },
                                 target: () => new THREE.Vector3(opponent.position.x, 3.2, opponent.position.z),
                                 onArrive: at => {
@@ -10832,7 +10834,7 @@
                             const from = worldPoint(ch.leftHand, new THREE.Vector3(0, -0.4, 0.3));
                             playSynthSound('astral_sickle', 0.4);
                             fxProjectile({
-                                from, ms: 430, arc: 1.6 + i * 0.3, trail: true,
+                                from, ms: 620, arc: 1.7 + i * 0.3, trail: true,
                                 build: limeShape,
                                 target: () => new THREE.Vector3(opponent.position.x + (i - 1) * 0.7, 3.0, opponent.position.z),
                                 onArrive: pos => {
