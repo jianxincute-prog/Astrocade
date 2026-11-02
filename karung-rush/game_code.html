@@ -1075,6 +1075,9 @@
         }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
+        // Declare before registering the callback: visibilitychange can fire while
+        // run() is awaiting asset loading, before the main loop is initialized.
+        let lastTimestamp = 0;
         // Avoid a giant delta-time spike (and physics blowup) when returning to the tab
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) lastTimestamp = 0;
@@ -4803,7 +4806,6 @@
         }
         initBackgroundDecor();
 
-        let lastTimestamp = 0;
         let lastPlayerRank = 5;
 
         // Confetti particles
