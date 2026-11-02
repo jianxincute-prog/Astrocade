@@ -8457,6 +8457,7 @@
                 }
 
                 cancelSkill() {
+                    this.skillAirborne = false;
                     if (!this.specialSkill || !this.specialSkill.active) return;
                     this.specialSkill.active = 0;
                     this.skillGuardTimer = 0;
@@ -8547,7 +8548,7 @@
 
                 alignFeetToFloor() {
                     // Do not distort pelvis or foot orientation while airborne during jumping
-                    if (this.isJumping) {
+                    if (this.isJumping || this.skillAirborne) {
                         return;
                     }
 
@@ -8647,6 +8648,10 @@
                     const t = this.animation.time;
                     if (this.specialSkill && this.specialSkill.active && this.visualIdentity === 'banyu') {
                         this.animateBanyuSkill(t);
+                        return;
+                    }
+                    if (this.specialSkill && this.specialSkill.active) {
+                        this.animateFighterSkill(t);
                         return;
                     }
                     const step = this.getCurrentComboStep();
@@ -9157,6 +9162,25 @@
                         this.isUltimateAttack = false;
                         this.isAttacking = false;
                         this.changeAnimation('idle');
+                    }
+                }
+
+                animateFighterSkill(t) {
+                    const sk = this.specialSkill;
+                    const def = FIGHTER_SKILLS[this.visualIdentity] && FIGHTER_SKILLS[this.visualIdentity][sk.active - 1];
+                    if (!def || !SKILL_RUN[this.visualIdentity]) { this.cancelSkill(); this.isAttacking = false; this.changeAnimation('idle'); return; }
+                    const p = Math.min(1, t / def.dur);
+                    if (this.target) this.lookAt(this.target.position);
+                    SKILL_RUN[this.visualIdentity][sk.active - 1](this, t, p, sk, def);
+                    if (skillCaptionProgress) skillCaptionProgress.style.width = `${p * 100}%`;
+                    if (t >= def.dur) {
+                        sk.active = 0;
+                        this.isAttacking = false;
+                        this.hoverOffset = 0;
+                        this.skillAirborne = false;
+                        this.attackCooldown = Math.max(this.attackCooldown, 0.2);
+                        this.changeAnimation('idle');
+                        stopBanyuSpecialFX();
                     }
                 }
 
@@ -10054,7 +10078,7 @@
                 if (!Number.isInteger(index) || index < 0 || index >= fighterRoster.length) return;
                 selectedFighterIndex = index;
                 swapFighterVisuals();
-                gameWorld.classList.toggle('banyu-skills-enabled', fighterRoster[selectedFighterIndex].identity === 'banyu');
+                refreshSkillButtons();
                 if (playerHPLabel) playerHPLabel.textContent = fighterRoster[selectedFighterIndex].name;
                 const rivalLabel = document.querySelector('.hp-container.opponent .hp-label');
                 if (rivalLabel) rivalLabel.textContent = `${fighterRoster[rivalIndex()].name} · Rival`;
@@ -10222,7 +10246,7 @@
             battleWorld.visible = mode !== 'play';
             lobbyWorld.visible = mode === 'play';
             if (mode === 'play') gameWorld.classList.add('lobby-mode');
-            gameWorld.classList.toggle('banyu-skills-enabled', fighterRoster[selectedFighterIndex].identity === 'banyu');
+            gameWorld.classList.add('banyu-skills-enabled');
 
             // ===== CAMERA SETUP =====
             const cameraOffset = {
@@ -10305,6 +10329,524 @@
 
             let cameraShake = 0;
             const BANYU_SKILL_SPEED = { 1: 5.0 / 1.7, 2: 5.0 / 1.9 };
+            // ===== FIGHTER SKILLS (buttons 1 and 2 for every fighter) =====
+            // Every skill is a short, uninterruptible cinematic move built from the same cycle:
+            // ANTICIPATION -> ACTION -> IMPACT -> HOLD -> RECOVERY, starting and ending on the guard pose.
+            const FIGHTER_SKILLS = {
+                banyu: [
+                    { label: 'TIDAL RUSH', icon: '🌊', cd: 6, bg: 'linear-gradient(145deg, #22d3ee, #0369a1 72%, #082f49)' },
+                    { label: 'SPIRIT TIDE', icon: '✦', cd: 11, bg: 'linear-gradient(145deg, #a78bfa, #6d28d9 72%, #2e1065)' }
+                ],
+                gantara: [
+                    { label: 'EMBER SLAM', icon: '🔥', cd: 6, dur: 1.8, stopAt: 2.6, color: '#fb923c', glow: 0xfb923c, kicker: 'GANTARA BARA · EMBER TECHNIQUE', bg: 'linear-gradient(145deg, #fb923c, #b91c1c 72%, #450a0a)' },
+                    { label: 'BARA ROAR', icon: '👹', cd: 11, dur: 2.0, color: '#f87171', glow: 0xef4444, kicker: 'GANTARA BARA · BARA TECHNIQUE', bg: 'linear-gradient(145deg, #f87171, #991b1b 72%, #3f0a0a)' }
+                ],
+                suster: [
+                    { label: 'LETHAL DOSE', icon: '💉', cd: 6, dur: 1.7, stopAt: 2.5, color: '#4ade80', glow: 0x4ade80, kicker: 'LARAS WENING · TOXIN TECHNIQUE', bg: 'linear-gradient(145deg, #4ade80, #0f766e 72%, #052e2b)' },
+                    { label: 'HAIR SNARE', icon: '🕸️', cd: 11, dur: 2.0, color: '#c4b5fd', glow: 0x7c3aed, kicker: 'LARAS WENING · CURSE TECHNIQUE', bg: 'linear-gradient(145deg, #8b5cf6, #3b0764 72%, #0b0213)' }
+                ],
+                leak: [
+                    { label: 'KERIS STRIKE', icon: '🗡️', cd: 6, dur: 1.7, stopAt: 2.7, color: '#fbbf24', glow: 0xfbbf24, kicker: 'WAYAN SUDIRA · BLADE TECHNIQUE', bg: 'linear-gradient(145deg, #fbbf24, #b45309 72%, #451a03)' },
+                    { label: 'FIRE MANTRA', icon: '🔥', cd: 11, dur: 2.0, color: '#fb923c', glow: 0xf97316, kicker: 'WAYAN SUDIRA · MANTRA TECHNIQUE', bg: 'linear-gradient(145deg, #fdba74, #c2410c 72%, #431407)' }
+                ],
+                buntung: [
+                    { label: 'SILAT FLURRY', icon: '🥋', cd: 6, dur: 1.8, stopAt: 2.3, color: '#a3e635', glow: 0x84cc16, kicker: 'BANG JALI · SILAT TECHNIQUE', bg: 'linear-gradient(145deg, #a3e635, #3f6212 72%, #1a2e05)' },
+                    { label: 'LIME VOLLEY', icon: '🍋', cd: 11, dur: 2.0, color: '#bef264', glow: 0x65a30d, kicker: 'BANG JALI · JERUK PURUT TECHNIQUE', bg: 'linear-gradient(145deg, #d9f99d, #4d7c0f 72%, #1a2e05)' }
+                ]
+            };
+            function canUseFighterSkill() {
+                const id = player.visualIdentity;
+                if (!FIGHTER_SKILLS[id]) return false;
+                if (id === 'banyu') return true;
+                return !player.ngesotActive && !player.leakActive && !player.buntungActive && !player.genderuwoActive &&
+                    !(player.pocongFormTimer > 0) && !player.isUltimateAttack && !cutscene.active && !genderuwoCutscene.active;
+            }
+            let fighterSkillFx = null;
+
+            // ---- visual helpers ----
+            const additive = (color, opacity = 0.85) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+            function disposeTree(obj) {
+                obj.traverse(o => {
+                    if (o.geometry) o.geometry.dispose();
+                    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+                });
+            }
+            function fxRing(pos, color, maxR, ms, y = 0.15) {
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.1, 6, 40), additive(color, 0.9));
+                ring.rotation.x = Math.PI / 2;
+                ring.position.set(pos.x, y, pos.z);
+                scene.add(ring);
+                const start = performance.now();
+                (function step() {
+                    const p = Math.min(1, (performance.now() - start) / ms);
+                    ring.scale.setScalar(0.3 + (1 - Math.pow(1 - p, 2)) * maxR);
+                    ring.material.opacity = 0.9 * (1 - p);
+                    if (p < 1) requestAnimationFrame(step);
+                    else { scene.remove(ring); disposeTree(ring); }
+                })();
+            }
+            // A crescent slash that hangs in the air for a moment and fades.
+            function fxArc(pos, yaw, tilt, color, radius = 2.2, ms = 320) {
+                const arc = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.14, 5, 28, Math.PI * 0.85), additive(color, 0.95));
+                arc.position.set(pos.x, pos.y, pos.z);
+                arc.rotation.set(0, yaw + Math.PI / 2, tilt);
+                scene.add(arc);
+                const start = performance.now();
+                (function step() {
+                    const p = Math.min(1, (performance.now() - start) / ms);
+                    arc.scale.setScalar(0.85 + p * 0.35);
+                    arc.material.opacity = 0.95 * (1 - p);
+                    if (p < 1) requestAnimationFrame(step);
+                    else { scene.remove(arc); disposeTree(arc); }
+                })();
+            }
+            function fxProjectile(opts) {
+                const mesh = opts.build();
+                mesh.position.copy(opts.from);
+                scene.add(mesh);
+                const start = performance.now();
+                (function step() {
+                    const p = Math.min(1, (performance.now() - start) / opts.ms);
+                    const tgt = opts.target();
+                    mesh.position.set(
+                        THREE.MathUtils.lerp(opts.from.x, tgt.x, p),
+                        THREE.MathUtils.lerp(opts.from.y, tgt.y, p) + Math.sin(p * Math.PI) * (opts.arc || 0),
+                        THREE.MathUtils.lerp(opts.from.z, tgt.z, p));
+                    mesh.rotation.x += 0.35; mesh.rotation.z += 0.22;
+                    if (opts.trail) mesh.scale.setScalar(1 + Math.sin(p * 18) * 0.12);
+                    if (p < 1) requestAnimationFrame(step);
+                    else {
+                        const at = mesh.position.clone();
+                        scene.remove(mesh); disposeTree(mesh);
+                        if (!gameOver) opts.onArrive(at);
+                    }
+                })();
+            }
+            const fireOrb = (color, size = 0.55) => {
+                const g = new THREE.Group();
+                g.add(new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), additive(color, 0.95)));
+                g.add(new THREE.Mesh(new THREE.OctahedronGeometry(size * 1.6, 0), additive(color, 0.28)));
+                return g;
+            };
+            const limeShape = () => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), new THREE.MeshStandardMaterial({ color: 0x65a30d, emissive: 0x3f8a0a, emissiveIntensity: 0.9, roughness: 0.5, flatShading: true }));
+                const g = new THREE.Group(); g.add(m); g.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.95, 0), additive(0x84cc16, 0.22))); return g;
+            };
+            const worldPoint = (obj, local) => obj.localToWorld(local.clone());
+
+            // ---- cinematic (shared caption, side camera and spot light) ----
+            function beginSkillCinematic(def) {
+                stopBanyuSpecialFX();
+                banyuSkillCameraState = { angle: cameraOffset.angle, distance: cameraOffset.distance, height: cameraOffset.height, fov: camera.fov };
+                banyuSkillCameraActive = true; banyuSkillCameraSnap = true; banyuSkillCameraFov = camera.fov;
+                camera.fov = 74; camera.updateProjectionMatrix();
+                const dx = opponent.position.x - player.position.x, dz = opponent.position.z - player.position.z;
+                banyuSkillCameraSide = (Math.sin(player.rotation) * dz - Math.cos(player.rotation) * dx) >= 0 ? 1 : -1;
+                if (skillCaption) { skillCaption.classList.remove('spirit'); skillCaption.classList.add('show'); }
+                const kicker = skillCaption && skillCaption.querySelector('.skill-kicker');
+                if (kicker) kicker.textContent = def.kicker;
+                if (skillCaptionTitle) { skillCaptionTitle.textContent = def.label; skillCaptionTitle.style.textShadow = `0 0 18px ${def.color}, 3px 3px 0 #111827`; }
+                if (skillCaptionProgress) { skillCaptionProgress.style.width = '0%'; skillCaptionProgress.style.background = `linear-gradient(90deg, ${def.color}, #ffffff)`; skillCaptionProgress.style.boxShadow = `0 0 12px ${def.color}`; }
+                banyuSkillLight.color.setHex(def.glow);
+                banyuSkillLight.intensity = 4.0;
+            }
+            function stopFighterSkillFx() {
+                const live = player && player.specialSkill;
+                if (live && live.orb) { scene.remove(live.orb); disposeTree(live.orb); live.orb = null; }
+                if (fighterSkillFx) {
+                    scene.remove(fighterSkillFx.group);
+                    disposeTree(fighterSkillFx.group);
+                    fighterSkillFx = null;
+                }
+                if (skillCaptionTitle) skillCaptionTitle.style.textShadow = '';
+                if (skillCaptionProgress) { skillCaptionProgress.style.background = ''; skillCaptionProgress.style.boxShadow = ''; }
+                const kicker = skillCaption && skillCaption.querySelector('.skill-kicker');
+                if (kicker && kicker.dataset.base) kicker.textContent = kicker.dataset.base;
+            }
+            function updateFighterSkillFx(dt) {
+                const fx = fighterSkillFx;
+                if (!fx) return;
+                fx.elapsed += dt;
+                const t = fx.elapsed;
+                const fade = t > fx.def.dur - 0.35 ? Math.max(0, (fx.def.dur - t) / 0.35) : 1;
+                fx.group.position.set(player.position.x, 0, player.position.z);
+                fx.rings.forEach((ring, i) => {
+                    ring.scale.setScalar(1 + 0.12 * Math.sin(t * (i ? 3.4 : 5) + i));
+                    ring.rotation.z += dt * (i % 2 ? -0.7 : 0.6);
+                    ring.material.opacity = 0.75 * fade;
+                });
+                fx.motes.forEach(mote => {
+                    const d = mote.userData, a = t * 2.6 + d.phase * Math.PI * 2;
+                    mote.position.set(Math.cos(a) * d.radius, 0.4 + (d.rise + t * 1.0) % 3.6, Math.sin(a) * d.radius);
+                    mote.rotation.set(t * 2.2, a, t * 1.4);
+                    mote.material.opacity = (0.5 + 0.4 * Math.sin(t * 5 + d.phase * 9)) * fade;
+                });
+                const mx = (player.position.x + opponent.position.x) * 0.5, mz = (player.position.z + opponent.position.z) * 0.5;
+                const dx = opponent.position.x - player.position.x, dz = opponent.position.z - player.position.z, len = Math.max(1, Math.hypot(dx, dz));
+                banyuSkillLight.position.set(mx - dz / len * banyuSkillCameraSide * 8, 13, mz + dx / len * banyuSkillCameraSide * 8);
+                banyuSkillLightTarget.position.set(mx, 1.8, mz);
+                banyuSkillLight.intensity = 4.0 * (0.85 + 0.15 * Math.sin(t * 5.2));
+                if (fx.tick) fx.tick(t, dt);
+            }
+            function startFighterSkill(which) {
+                const def = FIGHTER_SKILLS[player.visualIdentity][which - 1];
+                const sk = player.specialSkill;
+                sk.flags = {};
+                sk.tendrils = null; sk.orb = null; sk.pullFrom = null;
+                sk.stopAt = def.stopAt;
+                if (def.stopAt !== undefined) {
+                    const dx = opponent.position.x - player.position.x, dz = opponent.position.z - player.position.z;
+                    const dist = Math.hypot(dx, dz);
+                    if (dist > 0.001) sk.to.set(player.position.x + dx / dist * Math.max(0, dist - def.stopAt), player.position.y, player.position.z + dz / dist * Math.max(0, dist - def.stopAt));
+                }
+                const kicker = skillCaption && skillCaption.querySelector('.skill-kicker');
+                if (kicker && !kicker.dataset.base) kicker.dataset.base = kicker.textContent;
+                showComboCallout(def.label + '!', def.color);
+                beginSkillCinematic(def);
+                const group = new THREE.Group();
+                const rings = [0, 1].map(i => {
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2 + i * 0.5, 0.08, 6, 36), additive(def.glow, 0.7));
+                    ring.rotation.x = Math.PI / 2; ring.position.y = 0.18 + i * 0.04; group.add(ring); return ring;
+                });
+                const motes = [];
+                for (let i = 0; i < 9; i++) {
+                    const mote = new THREE.Mesh(new THREE.OctahedronGeometry(0.15 + (i % 3) * 0.04, 0), additive(i % 2 ? def.glow : 0xffffff, 0.8));
+                    mote.userData = { phase: i / 9, radius: 1.2 + (i % 3) * 0.25, rise: 0.9 + (i % 4) * 0.5 };
+                    group.add(mote); motes.push(mote);
+                }
+                scene.add(group);
+                fighterSkillFx = { def, group, rings, motes, elapsed: 0, tick: null };
+            }
+
+            // ---- shared skill motion helpers ----
+            const smooth01 = x => x * x * (3 - 2 * x);
+            const off = (arr, d) => arr.map(([t, v]) => [t, v + d]);
+            const neg = arr => arr.map(([t, v]) => [t, -v]);
+            const bump = (p, c, w) => Math.max(0, 1 - Math.abs(p - c) / w);
+            // Writes the whole body from keyframe tracks. Missing tracks stay on the guard pose,
+            // so every skill starts and finishes in the same stance.
+            function skillPose(ch, F, p) {
+                const v = (k, d) => (F[k] ? kfInterp(F[k], p) : d);
+                ch.pelvis.position.set(v('px', 0), 2.88, v('pz', 0));
+                ch.pelvis.rotation.set(v('pitch', 0), 0.1 + v('pyaw', 0), v('proll', 0));
+                ch.torso.rotation.set(v('tx', 0.04), v('ty', 0.08), v('tz', 0));
+                ch.neck.rotation.set(v('nx', 0), -0.06, 0);
+                ch.head.rotation.set(v('hx', -0.02), v('hy', -0.12), v('hz', 0));
+                ch.leftShoulder.rotation.set(v('lsx', -0.55), v('lsy', 0.2), v('lsz', -0.28));
+                ch.leftElbow.rotation.set(v('lex', -1.45), 0, 0);
+                ch.leftHand.rotation.set(v('lhd', 0.1), 0, 0);
+                ch.rightShoulder.rotation.set(v('rsx', -0.65), v('rsy', -0.25), v('rsz', 0.28));
+                ch.rightElbow.rotation.set(v('rex', -1.55), 0, 0);
+                ch.rightHand.rotation.set(v('rhd', 0.1), 0, 0);
+                ch.leftHip.rotation.set(v('lhx', -0.12), v('lhy', 0.06), v('lhz', 0.06));
+                ch.leftKnee.rotation.set(v('lkn', 0.24), 0, 0);
+                ch.leftFoot.rotation.set(v('lft', -0.12), 0, 0);
+                ch.rightHip.rotation.set(v('rhx', 0.08), v('rhy', -0.06), v('rhz', -0.06));
+                ch.rightKnee.rotation.set(v('rkn', 0.08), 0, 0);
+                ch.rightFoot.rotation.set(v('rft', -0.16), 0, 0);
+                ch.hoverOffset = v('hover', 0);
+                ch.skillAirborne = ch.hoverOffset > 0.25;
+            }
+            // Slides the fighter from sk.from towards sk.to during p in [a, b], re-aiming at the opponent as it goes.
+            function skillAdvance(ch, sk, p, a, b, portion = 1) {
+                if (p < a || sk.stopAt === undefined || !ch.target || sk.flags['done' + a]) return;
+                const dx = ch.target.position.x - sk.from.x, dz = ch.target.position.z - sk.from.z;
+                const dist = Math.hypot(dx, dz);
+                const travel = Math.max(0, dist - sk.stopAt) * portion;
+                if (dist > 0.001) sk.to.set(sk.from.x + dx / dist * travel, sk.from.y, sk.from.z + dz / dist * travel);
+                const k = smooth01(THREE.MathUtils.clamp((p - a) / (b - a), 0, 1));
+                ch.position.x = THREE.MathUtils.lerp(sk.from.x, sk.to.x, k);
+                ch.position.z = THREE.MathUtils.lerp(sk.from.z, sk.to.z, k);
+                clampToArena(ch);
+                ch.group.position.x = ch.position.x;
+                ch.group.position.z = ch.position.z;
+                if (p >= b) { sk.flags['done' + a] = true; sk.from.copy(ch.position); }
+            }
+            // One-shot impact: returns true if the hit landed.
+            function skillStrike(ch, sk, key, p, at, scale, range, opts) {
+                if (sk.flags[key] || p < at) return false;
+                sk.flags[key] = true;
+                if (!ch.target) return false;
+                const d = Math.hypot(ch.target.position.x - ch.position.x, ch.target.position.z - ch.position.z);
+                const landed = d <= range && checkHit(ch, ch.target, scale, Object.assign({ anyRange: true }, opts));
+                sk.flags[key + 'L'] = !!landed;
+                return !!landed;
+            }
+            const once = (sk, key, p, at) => { if (sk.flags[key] || p < at) return false; sk.flags[key] = true; return true; };
+            const facing = ch => new THREE.Vector3(Math.sin(ch.rotation), 0, Math.cos(ch.rotation));
+
+            const SKILL_RUN = {
+                gantara: [
+                    // EMBER SLAM: crouch, leap, overhead double-fist slam, hold, rise.
+                    (ch, t, p, sk, def) => {
+                        const armsUp = [[0, -0.55], [0.2, 0.55], [0.34, -2.9], [0.54, -2.8], [0.62, -0.2], [0.76, -0.3], [1, -0.55]];
+                        const elbows = [[0, -1.45], [0.2, -1.9], [0.34, -0.25], [0.54, -0.2], [0.62, -0.6], [0.76, -0.9], [1, -1.45]];
+                        const hipsF = [[0, -0.12], [0.2, -0.9], [0.34, -1.1], [0.5, -0.6], [0.6, -0.5], [0.7, -0.7], [1, -0.12]];
+                        const knees = [[0, 0.24], [0.2, 1.5], [0.34, 1.3], [0.5, 0.7], [0.6, 1.1], [0.7, 1.2], [1, 0.24]];
+                        skillPose(ch, {
+                            pitch: [[0, 0], [0.2, 0.35], [0.34, -0.25], [0.56, 0.2], [0.62, 0.55], [0.76, 0.4], [1, 0]],
+                            tx: [[0, 0.04], [0.2, 0.5], [0.34, -0.3], [0.52, -0.1], [0.62, 0.85], [0.76, 0.6], [1, 0.04]],
+                            hx: [[0, -0.02], [0.2, 0.2], [0.4, -0.4], [0.62, 0.4], [1, -0.02]],
+                            lsx: armsUp, rsx: off(armsUp, -0.1), lex: elbows, rex: off(elbows, -0.1),
+                            lsz: [[0, -0.28], [0.2, -0.5], [0.4, -0.5], [0.62, -0.3], [1, -0.28]],
+                            rsz: [[0, 0.28], [0.2, 0.5], [0.4, 0.5], [0.62, 0.3], [1, 0.28]],
+                            lhx: hipsF, rhx: off(hipsF, 0.2), lkn: knees, rkn: off(knees, -0.16),
+                            hover: [[0, 0], [0.2, 0], [0.26, 0.15], [0.4, 2.6], [0.5, 2.2], [0.58, 0.15], [0.62, 0], [1, 0]]
+                        }, p);
+                        skillAdvance(ch, sk, p, 0.22, 0.58);
+                        if (once(sk, 'dust', p, 0.2)) spawnStumbleDust(ch.position);
+                        if (once(sk, 'cmd', p, 0.58)) {
+                            const landed = skillStrike(ch, sk, 'slam', p, 0, 1.35, 5.4, { callout: 'EMBER SLAM!', color: '#fb923c', forceStep: 3 });
+                            fxRing(ch.position.clone().add(facing(ch).multiplyScalar(1.6)), 0xfb923c, 5, 650);
+                            fxRing(ch.position.clone().add(facing(ch).multiplyScalar(1.6)), 0xfde68a, 3, 480, 0.3);
+                            spawnSpiritBurst(ch.position.clone().add(facing(ch).multiplyScalar(2.2)), 0xf97316, 3);
+                            cameraShake = Math.max(cameraShake, landed ? 0.4 : 0.22);
+                            playSynthSound('ground_slam', landed ? 1.0 : 0.7);
+                            if (!landed) showComboCallout('EMBER SLAM MISSED', '#fdba74');
+                        }
+                    },
+                    // BARA ROAR: inhale, chest beats, roar pulse, hold, recover.
+                    (ch, t, p, sk, def) => {
+                        const ls = [[0, -0.55], [0.25, -0.1], [0.3, -1.0], [0.34, -0.2], [0.38, -1.0], [0.43, -0.3], [0.46, -0.9], [0.62, -0.7], [1, -0.55]];
+                        const le = [[0, -1.45], [0.25, -0.6], [0.3, -1.9], [0.34, -0.7], [0.38, -1.9], [0.43, -0.4], [0.46, -0.2], [0.62, -0.6], [1, -1.45]];
+                        const lz = [[0, -0.28], [0.25, -1.1], [0.3, -0.2], [0.34, -0.9], [0.38, -0.2], [0.43, -1.2], [0.46, -1.4], [0.62, -0.9], [1, -0.28]];
+                        const lkn = [[0, 0.24], [0.25, 0.7], [0.46, 0.85], [0.66, 0.6], [1, 0.24]];
+                        skillPose(ch, {
+                            tx: [[0, 0.04], [0.25, -0.55], [0.34, -0.2], [0.42, -0.45], [0.46, 0.5], [0.56, 0.35], [0.66, 0.15], [1, 0.04]],
+                            hx: [[0, -0.02], [0.25, -0.7], [0.42, -0.8], [0.46, 0.15], [0.62, 0.1], [1, -0.02]],
+                            lsx: ls, rsx: off(ls, -0.1), lex: le, rex: off(le, -0.1), lsz: lz, rsz: neg(lz),
+                            lhx: [[0, -0.12], [0.25, -0.2], [0.46, -0.35], [0.66, -0.25], [1, -0.12]], rhx: [[0, 0.08], [0.25, 0.0], [0.46, -0.15], [0.66, -0.05], [1, 0.08]],
+                            lhz: [[0, 0.06], [0.25, 0.45], [0.66, 0.4], [1, 0.06]], rhz: [[0, -0.06], [0.25, -0.45], [0.66, -0.4], [1, -0.06]],
+                            lkn, rkn: off(lkn, -0.16)
+                        }, p);
+                        if (once(sk, 'inhale', p, 0.02)) playSynthSound('kafan_wrap', 0.6);
+                        if (once(sk, 'roar', p, 0.46)) {
+                            const landed = skillStrike(ch, sk, 'pulse', p, 0, 1.15, 7.5, { callout: 'BARA ROAR!', color: '#f87171', forceStep: 3 });
+                            [0xef4444, 0xfb923c, 0xfde68a].forEach((c, i) => setTimeout(() => fxRing(ch.position, c, 7 + i, 700 - i * 120, 0.2 + i * 0.1), i * 90));
+                            spawnSpiritBurst(ch.position, 0xef4444, 5);
+                            playFighterScream('opponent');
+                            flashScreen(0.35, 300);
+                            cameraShake = Math.max(cameraShake, landed ? 0.42 : 0.26);
+                            if (!landed) showComboCallout('BARA ROAR FADES', '#fca5a5');
+                        }
+                    }
+                ],
+                suster: [
+                    // LETHAL DOSE: coil, lunge, stab, twist, withdraw, recover. Poison ticks after a clean hit.
+                    (ch, t, p, sk, def) => {
+                        const ls = [[0, -0.55], [0.22, 0.25], [0.34, 0.1], [0.42, -1.65], [0.5, -1.7], [0.62, -1.55], [0.78, -0.9], [1, -0.55]];
+                        const le = [[0, -1.45], [0.22, -2.1], [0.34, -2.0], [0.42, -0.1], [0.5, -0.05], [0.62, -0.3], [0.78, -1.2], [1, -1.45]];
+                        const lhx = [[0, -0.12], [0.22, 0.2], [0.3, -1.0], [0.42, -0.8], [0.62, -0.6], [0.8, -0.3], [1, -0.12]];
+                        const lkn = [[0, 0.24], [0.22, 0.5], [0.3, 0.9], [0.42, 0.6], [0.62, 0.5], [1, 0.24]];
+                        skillPose(ch, {
+                            ty: [[0, 0.08], [0.22, 0.65], [0.42, -0.45], [0.5, -0.5], [0.62, -0.35], [0.78, 0.0], [1, 0.08]],
+                            tx: [[0, 0.04], [0.22, 0.1], [0.42, 0.5], [0.56, 0.55], [0.78, 0.25], [1, 0.04]],
+                            pyaw: [[0, 0], [0.22, 0.4], [0.42, -0.3], [0.62, -0.2], [1, 0]],
+                            lsx: ls, lex: le, lsy: [[0, 0.2], [0.22, 0.6], [0.42, -0.1], [1, 0.2]],
+                            lhd: [[0, 0.1], [0.5, 0.1], [0.56, 1.2], [0.62, 0.2], [1, 0.1]],
+                            rsx: [[0, -0.65], [0.22, -1.0], [0.42, -0.3], [0.78, -0.5], [1, -0.65]], rex: [[0, -1.55], [0.22, -1.7], [0.42, -1.2], [1, -1.55]],
+                            lhx, lkn, rhx: [[0, 0.08], [0.22, 0.5], [0.3, 0.7], [0.42, 0.5], [0.62, 0.3], [1, 0.08]], rkn: [[0, 0.08], [0.22, 0.6], [0.42, 0.4], [0.78, 0.3], [1, 0.08]]
+                        }, p);
+                        skillAdvance(ch, sk, p, 0.24, 0.44);
+                        if (skillStrike(ch, sk, 'stab', p, 0.46, 1.2, 4.6, { callout: 'LETHAL DOSE!', color: '#4ade80', forceStep: 2 })) {
+                            spawnSpiritBurst(ch.target.position, 0x4ade80, 2.5);
+                            cameraShake = Math.max(cameraShake, 0.28);
+                            playSynthSound('astral_sickle', 0.9);
+                        } else if (sk.flags.stab === true && !sk.flags.stabL && !sk.flags.missed) { sk.flags.missed = true; showComboCallout('LETHAL DOSE MISSED', '#86efac'); }
+                        if (sk.flags.stabL && skillStrike(ch, sk, 'toxin', p, 0.64, 0.5, 6.5, { callout: 'TOXIN!', color: '#86efac', forceStep: 1 })) {
+                            spawnSpiritBurst(ch.target.position, 0x22c55e, 1.8);
+                        }
+                    },
+                    // HAIR SNARE: gather, lash, snare, pull, slam, release.
+                    (ch, t, p, sk, def) => {
+                        const ls = [[0, -0.55], [0.12, -0.9], [0.25, -1.2], [0.32, -2.0], [0.45, -2.1], [0.55, -1.7], [0.7, -0.8], [0.78, -1.4], [1, -0.55]];
+                        const le = [[0, -1.45], [0.25, -1.5], [0.32, -0.1], [0.45, -0.05], [0.55, -0.6], [0.7, -1.6], [0.78, -0.4], [1, -1.45]];
+                        const lz = [[0, -0.28], [0.12, 0.3], [0.25, -0.9], [0.32, -0.25], [0.45, -0.2], [0.7, -0.3], [1, -0.28]];
+                        skillPose(ch, {
+                            tx: [[0, 0.04], [0.25, -0.25], [0.45, 0.35], [0.7, -0.15], [0.78, 0.5], [1, 0.04]],
+                            hx: [[0, -0.02], [0.25, 0.5], [0.45, -0.2], [0.7, 0.2], [1, -0.02]],
+                            lsx: ls, rsx: off(ls, -0.1), lex: le, rex: off(le, -0.1), lsz: lz, rsz: neg(lz),
+                            lhx: [[0, -0.12], [0.25, -0.2], [0.7, -0.25], [1, -0.12]], rhx: [[0, 0.08], [0.25, 0.0], [0.7, -0.05], [1, 0.08]],
+                            lkn: [[0, 0.24], [0.25, 0.5], [0.7, 0.6], [1, 0.24]], rkn: [[0, 0.08], [0.25, 0.34], [0.7, 0.44], [1, 0.08]]
+                        }, p);
+                        // Black tendrils from her hair to the opponent: grow, hold, retract.
+                        if (!sk.tendrils) {
+                            sk.tendrils = [];
+                            for (let i = 0; i < 6; i++) {
+                                const strand = [];
+                                for (let s = 0; s < 14; s++) {
+                                    const seg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.5), new THREE.MeshBasicMaterial({ color: i % 2 ? 0x0b0b12 : 0x4c1d95 }));
+                                    seg.visible = false; fighterSkillFx.group.add(seg); strand.push(seg);
+                                }
+                                sk.tendrils.push(strand);
+                            }
+                        }
+                        const reach = p < 0.25 ? 0 : p < 0.45 ? smooth01((p - 0.25) / 0.2) : p < 0.8 ? 1 : 1 - smooth01((p - 0.8) / 0.12);
+                        const root = worldPoint(ch.head, new THREE.Vector3(0, 0.7, 0));
+                        const tip = ch.target ? new THREE.Vector3(ch.target.position.x, 2.6, ch.target.position.z) : root.clone();
+                        sk.tendrils.forEach((strand, i) => {
+                            const lateral = (i - 2.5) * 0.28;
+                            strand.forEach((seg, s) => {
+                                const u = (s + 1) / strand.length;
+                                seg.visible = reach > 0.02;
+                                const k = u * reach;
+                                seg.position.lerpVectors(root, tip, k);
+                                seg.position.y += Math.sin(k * Math.PI) * 1.4 - 0.4 * k;
+                                seg.position.x += Math.sin(t * 9 + i + s * 0.5) * 0.18 * Math.sin(k * Math.PI) + lateral * Math.sin(k * Math.PI);
+                                seg.position.z += Math.cos(t * 8 + i + s * 0.4) * 0.18 * Math.sin(k * Math.PI);
+                                seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tip.clone().sub(root).normalize());
+                                seg.position.sub(fighterSkillFx.group.position);
+                            });
+                        });
+                        if (skillStrike(ch, sk, 'snare', p, 0.47, 0.9, 7.5, { callout: 'HAIR SNARE!', color: '#c4b5fd', forceStep: 2 })) {
+                            sk.pullFrom = ch.target.position.clone();
+                            spawnSpiritBurst(ch.target.position, 0x7c3aed, 2.4);
+                            cameraShake = Math.max(cameraShake, 0.2);
+                        }
+                        if (sk.pullFrom && p >= 0.47 && p <= 0.72 && ch.target) {
+                            const dir = facing(ch);
+                            const goal = ch.position.clone().add(dir.multiplyScalar(2.7));
+                            const k = smooth01(THREE.MathUtils.clamp((p - 0.5) / 0.2, 0, 1));
+                            ch.target.position.x = THREE.MathUtils.lerp(sk.pullFrom.x, goal.x, k);
+                            ch.target.position.z = THREE.MathUtils.lerp(sk.pullFrom.z, goal.z, k);
+                            clampToArena(ch.target);
+                            ch.target.group.position.x = ch.target.position.x;
+                            ch.target.group.position.z = ch.target.position.z;
+                        }
+                        if (sk.flags.snareL && skillStrike(ch, sk, 'slam', p, 0.74, 0.8, 5, { callout: 'CURSED SLAM!', color: '#a78bfa', forceStep: 3 })) {
+                            spawnSpiritBurst(ch.target.position, 0xa78bfa, 3);
+                            fxRing(ch.target.position, 0x7c3aed, 3.5, 500);
+                            cameraShake = Math.max(cameraShake, 0.34);
+                            playSynthSound('twin_palm', 0.9);
+                        }
+                    }
+                ],
+                leak: [
+                    // KERIS STRIKE: draw, dash-slash, reverse slash, sheath, recover.
+                    (ch, t, p, sk, def) => {
+                        const ls = [[0, -0.55], [0.12, 0.3], [0.22, 0.5], [0.36, -1.9], [0.4, -1.7], [0.46, -0.3], [0.5, -1.5], [0.56, -1.2], [0.74, -0.6], [1, -0.55]];
+                        const lz = [[0, -0.28], [0.22, -1.0], [0.36, 0.5], [0.4, 0.6], [0.46, -1.0], [0.5, 0.3], [0.56, 0.0], [0.74, -0.3], [1, -0.28]];
+                        const le = [[0, -1.45], [0.12, -1.0], [0.22, -0.7], [0.36, -0.15], [0.46, -0.9], [0.5, -0.2], [0.74, -1.3], [1, -1.45]];
+                        skillPose(ch, {
+                            ty: [[0, 0.08], [0.22, 0.7], [0.36, -0.7], [0.46, 0.6], [0.5, -0.55], [0.74, 0.1], [1, 0.08]],
+                            tx: [[0, 0.04], [0.22, 0.0], [0.36, 0.45], [0.5, 0.4], [0.74, 0.2], [1, 0.04]],
+                            lsx: ls, lsz: lz, lex: le,
+                            rsx: [[0, -0.65], [0.22, -0.9], [0.36, 0.2], [0.5, 0.1], [0.74, -0.5], [1, -0.65]], rsz: [[0, 0.28], [0.36, 0.9], [0.5, 0.7], [1, 0.28]],
+                            rex: [[0, -1.55], [0.22, -1.6], [0.36, -0.5], [1, -1.55]],
+                            lhx: [[0, -0.12], [0.22, 0.15], [0.3, -1.0], [0.5, -0.9], [0.74, -0.5], [1, -0.12]], lkn: [[0, 0.24], [0.22, 0.4], [0.3, 0.8], [0.5, 0.7], [1, 0.24]],
+                            rhx: [[0, 0.08], [0.22, 0.3], [0.5, 0.6], [0.74, 0.3], [1, 0.08]], rkn: [[0, 0.08], [0.22, 0.5], [0.5, 0.6], [1, 0.08]]
+                        }, p);
+                        skillAdvance(ch, sk, p, 0.22, 0.4);
+                        if (once(sk, 'draw', p, 0.1)) { spawnSpiritBurst(worldPoint(ch.group, new THREE.Vector3(0.9, 3, 0.6)), 0xfbbf24, 1.5); playSynthSound('astral_sickle', 0.5); }
+                        const at = () => ch.position.clone().add(facing(ch).multiplyScalar(2.4)).setY(3.4);
+                        if (skillStrike(ch, sk, 'cut1', p, 0.36, 0.9, 5.2, { callout: 'KERIS SLASH!', color: '#fbbf24', forceStep: 2 })) { cameraShake = Math.max(cameraShake, 0.22); playSynthSound('astral_sickle', 0.95); }
+                        if (once(sk, 'arc1', p, 0.36)) fxArc(at(), ch.rotation, 0.6, 0xfbbf24);
+                        if (skillStrike(ch, sk, 'cut2', p, 0.5, 1.05, 5.2, { callout: 'CROSS CUT!', color: '#fde68a', forceStep: 3 })) { cameraShake = Math.max(cameraShake, 0.3); playSynthSound('twin_palm', 0.8); spawnSpiritBurst(ch.target.position, 0xfbbf24, 2.5); }
+                        if (once(sk, 'arc2', p, 0.5)) fxArc(at(), ch.rotation, -0.6, 0xfff7d6);
+                    },
+                    // FIRE MANTRA: chant with palms together, charge an orb, release a fireball.
+                    (ch, t, p, sk, def) => {
+                        const ls = [[0, -0.55], [0.12, -1.0], [0.3, -1.15], [0.38, -0.9], [0.45, -0.6], [0.5, -1.85], [0.6, -1.8], [0.78, -1.0], [1, -0.55]];
+                        const le = [[0, -1.45], [0.12, -1.95], [0.3, -2.0], [0.38, -1.2], [0.45, -1.0], [0.5, -0.1], [0.6, -0.15], [0.78, -0.9], [1, -1.45]];
+                        const lz = [[0, -0.28], [0.12, 0.2], [0.3, 0.4], [0.38, -0.8], [0.45, -0.7], [0.5, 0.1], [0.6, 0.1], [1, -0.28]];
+                        skillPose(ch, {
+                            tx: [[0, 0.04], [0.12, 0.3], [0.3, 0.35], [0.4, -0.15], [0.5, 0.35], [0.6, 0.3], [1, 0.04]],
+                            hx: [[0, -0.02], [0.3, 0.4], [0.4, -0.3], [0.5, 0.1], [1, -0.02]],
+                            lsx: ls, rsx: off(ls, -0.1), lex: le, rex: off(le, -0.1), lsz: lz, rsz: neg(lz),
+                            lhx: [[0, -0.12], [0.3, -0.3], [0.6, -0.2], [1, -0.12]], rhx: [[0, 0.08], [0.3, 0.0], [0.6, 0.05], [1, 0.08]],
+                            lkn: [[0, 0.24], [0.3, 0.5], [0.6, 0.4], [1, 0.24]], rkn: [[0, 0.08], [0.3, 0.34], [0.6, 0.24], [1, 0.08]],
+                            hover: [[0, 0], [0.15, 0.4], [0.3, 0.7], [0.45, 0.7], [0.6, 0.3], [0.8, 0.05], [1, 0]]
+                        }, p);
+                        const palms = () => ch.position.clone().add(facing(ch).multiplyScalar(1.4)).setY(3.9 + ch.hoverOffset);
+                        if (!sk.orb) { sk.orb = fireOrb(0xfb923c, 0.5); sk.orb.visible = false; scene.add(sk.orb); fighterSkillFx.tick = () => { if (sk.orb && sk.orb.visible) sk.orb.rotation.y += 0.2; }; }
+                        if (p > 0.12 && p < 0.5) {
+                            sk.orb.visible = true;
+                            sk.orb.position.copy(palms());
+                            sk.orb.scale.setScalar(0.3 + smooth01(THREE.MathUtils.clamp((p - 0.12) / 0.3, 0, 1)) * 1.9);
+                        }
+                        if (once(sk, 'launch', p, 0.5)) {
+                            sk.orb.visible = false;
+                            const from = palms();
+                            playSynthSound('spirit_hammer', 0.8);
+                            fxProjectile({
+                                from, ms: 460, arc: 0.5,
+                                build: () => { const o = fireOrb(0xf97316, 0.8); o.scale.setScalar(1.4); return o; },
+                                target: () => new THREE.Vector3(opponent.position.x, 3.2, opponent.position.z),
+                                onArrive: at => {
+                                    if (opponent.hp <= 0 || player.hp <= 0) return;
+                                    const landed = checkHit(player, opponent, 1.45, { anyRange: true, callout: 'FIRE MANTRA!', color: '#fb923c', forceStep: 3 });
+                                    spawnSpiritBurst(at, 0xf97316, landed ? 5 : 3);
+                                    fxRing(at, 0xf97316, 4, 520, 0.3);
+                                    cameraShake = Math.max(cameraShake, landed ? 0.36 : 0.15);
+                                    playSynthSound('ground_slam', landed ? 0.9 : 0.5);
+                                }
+                            });
+                        }
+                    }
+                ],
+                buntung: [
+                    // SILAT FLURRY: stance, palm, elbow, high kick, land, recover (three impacts).
+                    (ch, t, p, sk, def) => {
+                        const lsx = [[0, -0.55], [0.18, -1.2], [0.3, -1.55], [0.38, -0.6], [0.44, -0.4], [0.58, -0.3], [0.7, -0.5], [1, -0.55]];
+                        const lex = [[0, -1.45], [0.18, -1.0], [0.3, -0.15], [0.38, -1.2], [0.58, -1.4], [1, -1.45]];
+                        const rsx = [[0, -0.65], [0.18, -0.9], [0.3, -0.6], [0.36, -0.8], [0.42, -0.7], [0.58, -1.2], [0.7, -0.7], [1, -0.65]];
+                        const rex = [[0, -1.55], [0.18, -1.2], [0.36, -1.8], [0.42, -2.3], [0.5, -1.6], [1, -1.55]];
+                        skillPose(ch, {
+                            tx: [[0, 0.04], [0.18, 0.1], [0.3, 0.3], [0.42, 0.3], [0.58, -0.35], [0.7, 0.1], [1, 0.04]],
+                            ty: [[0, 0.08], [0.18, 0.4], [0.3, -0.2], [0.42, 0.5], [0.58, 0.0], [0.72, 0.1], [1, 0.08]],
+                            lsx, lex, rsx, rex,
+                            lsz: [[0, -0.28], [0.18, -0.4], [0.58, -1.2], [0.74, -0.4], [1, -0.28]],
+                            rsz: [[0, 0.28], [0.18, 0.4], [0.42, 0.6], [0.58, 0.9], [0.74, 0.4], [1, 0.28]],
+                            lhx: [[0, -0.12], [0.18, -0.4], [0.3, -0.8], [0.5, -0.3], [0.62, -0.2], [1, -0.12]],
+                            lkn: [[0, 0.24], [0.18, 0.8], [0.3, 0.7], [0.5, 0.6], [0.62, 0.6], [0.72, 0.5], [1, 0.24]],
+                            rhx: [[0, 0.08], [0.18, 0.3], [0.44, 0.2], [0.58, -1.75], [0.64, -1.4], [0.72, -0.2], [1, 0.08]],
+                            rkn: [[0, 0.08], [0.18, 0.7], [0.44, 0.5], [0.58, 0.15], [0.64, 0.3], [0.72, 0.6], [1, 0.08]],
+                            rft: [[0, -0.16], [0.58, 0.7], [0.72, -0.1], [1, -0.16]],
+                            lhz: [[0, 0.06], [0.18, 0.3], [0.72, 0.3], [1, 0.06]], rhz: [[0, -0.06], [0.18, -0.3], [0.44, -0.3], [0.58, -0.1], [0.72, -0.3], [1, -0.06]]
+                        }, p);
+                        skillAdvance(ch, sk, p, 0.18, 0.3, 0.55);
+                        if (skillStrike(ch, sk, 'palm', p, 0.3, 0.75, 4.4, { callout: 'PALM STRIKE!', color: '#a3e635', forceStep: 1 })) { cameraShake = Math.max(cameraShake, 0.12); spawnSpiritBurst(ch.target.position, 0x84cc16, 1.6); }
+                        if (p >= 0.38) skillAdvance(ch, sk, p, 0.38, 0.46, 1);
+                        if (skillStrike(ch, sk, 'elbow', p, 0.42, 0.85, 4.4, { callout: 'ELBOW SMASH!', color: '#bef264', forceStep: 2 })) { cameraShake = Math.max(cameraShake, 0.18); spawnSpiritBurst(ch.target.position, 0xa3e635, 2); playSynthSound('twin_palm', 0.7); }
+                        if (skillStrike(ch, sk, 'kick', p, 0.58, 1.3, 4.8, { callout: 'SILAT KICK!', color: '#84cc16', forceStep: 3 })) {
+                            cameraShake = Math.max(cameraShake, 0.36); spawnSpiritBurst(ch.target.position, 0x65a30d, 3.4); playSynthSound('ground_slam', 0.8);
+                            fxArc(ch.position.clone().add(facing(ch).multiplyScalar(2.2)).setY(3.2), ch.rotation, 1.2, 0xbef264, 2.4, 360);
+                        }
+                    },
+                    // LIME VOLLEY: pluck limes, wind up, throw three in a row, recover.
+                    (ch, t, p, sk, def) => {
+                        const cock = 0.9, rel = -2.1;
+                        const lsx = [[0, -0.55], [0.12, 0.4], [0.18, 0.5], [0.25, -0.3], [0.38, cock], [0.44, rel], [0.48, 0.6], [0.52, rel], [0.56, 0.6], [0.6, rel], [0.72, -1.0], [0.86, -0.7], [1, -0.55]];
+                        const lex = [[0, -1.45], [0.12, -0.6], [0.18, -0.7], [0.25, -1.4], [0.38, -1.8], [0.44, -0.1], [0.48, -1.6], [0.52, -0.1], [0.56, -1.6], [0.6, -0.1], [0.72, -1.0], [1, -1.45]];
+                        skillPose(ch, {
+                            tx: [[0, 0.04], [0.25, 0.25], [0.38, -0.35], [0.44, 0.4], [0.48, -0.15], [0.52, 0.4], [0.56, -0.15], [0.6, 0.45], [0.82, 0.15], [1, 0.04]],
+                            ty: [[0, 0.08], [0.25, 0.2], [0.38, 0.55], [0.44, -0.4], [0.6, -0.4], [0.82, 0.0], [1, 0.08]],
+                            lsx, lex, lsz: [[0, -0.28], [0.38, -0.5], [0.44, -0.2], [0.72, -0.3], [1, -0.28]],
+                            rsx: [[0, -0.65], [0.25, -0.9], [0.38, -1.3], [0.6, -1.3], [0.82, -0.8], [1, -0.65]], rex: [[0, -1.55], [0.38, -0.7], [0.6, -0.7], [1, -1.55]],
+                            rsz: [[0, 0.28], [0.38, 0.2], [0.72, 0.2], [1, 0.28]],
+                            lhx: [[0, -0.12], [0.38, -0.05], [0.6, -0.3], [1, -0.12]], rhx: [[0, 0.08], [0.38, 0.35], [0.6, 0.15], [1, 0.08]],
+                            lkn: [[0, 0.24], [0.38, 0.3], [0.6, 0.5], [1, 0.24]], rkn: [[0, 0.08], [0.38, 0.5], [0.6, 0.3], [1, 0.08]]
+                        }, p);
+                        [0.44, 0.52, 0.6].forEach((at, i) => {
+                            if (!once(sk, 'throw' + i, p, at)) return;
+                            const from = worldPoint(ch.leftHand, new THREE.Vector3(0, -0.4, 0.3));
+                            playSynthSound('astral_sickle', 0.4);
+                            fxProjectile({
+                                from, ms: 430, arc: 1.6 + i * 0.3, trail: true,
+                                build: limeShape,
+                                target: () => new THREE.Vector3(opponent.position.x + (i - 1) * 0.7, 3.0, opponent.position.z),
+                                onArrive: pos => {
+                                    if (opponent.hp <= 0 || player.hp <= 0) return;
+                                    const landed = checkHit(player, opponent, i === 2 ? 0.95 : 0.6, { anyRange: true, callout: i === 2 ? 'JERUK PURUT!' : 'LIME!', color: '#bef264', forceStep: i + 1 });
+                                    spawnSpiritBurst(pos, 0x84cc16, landed ? 3 : 2);
+                                    fxRing(pos, 0x84cc16, 2.6 + i, 420, 0.3);
+                                    cameraShake = Math.max(cameraShake, landed ? 0.1 + i * 0.1 : 0.05);
+                                }
+                            });
+                        });
+                    }
+                ]
+            };
             let banyuSkillFx = null;
             let banyuSkillCameraActive = false;
             let banyuSkillCameraSnap = false;
@@ -10478,7 +11020,7 @@
             }
 
             function triggerBanyuSkill(which) {
-                if (inLobby || player.visualIdentity !== 'banyu') return;
+                if (inLobby || !FIGHTER_SKILLS[player.visualIdentity]) return;
                 const ready = which === 1 ? skillOneCooldown <= 0 : skillTwoCooldown <= 0;
                 if (!ready) return;
                 if (which === 1) {
@@ -10716,6 +11258,33 @@
             const btnSkillTwo = document.getElementById('btn-skill-two');
             const btnSkillOneText = btnSkillOne ? btnSkillOne.querySelector('.btn-text') : null;
             const btnSkillTwoText = btnSkillTwo ? btnSkillTwo.querySelector('.btn-text') : null;
+            function refreshSkillButtons() {
+                const defs = FIGHTER_SKILLS[fighterRoster[selectedFighterIndex].identity];
+                gameWorld.classList.toggle('banyu-skills-enabled', !!defs);
+                if (!defs) return;
+                try {
+                    [[btnSkillOne, 0], [btnSkillTwo, 1]].forEach(([btn, i]) => {
+                        if (!btn) return;
+                        const d = defs[i];
+                        const icon = btn.querySelector('.btn-icon');
+                        if (icon) icon.textContent = d.icon;
+                        const label = btn.querySelector('.btn-text');
+                        if (label) label.textContent = d.label;
+                        btn.style.background = d.bg;
+                        btn.setAttribute('aria-label', `${d.label} skill`);
+                    });
+                } catch (err) { /* buttons are not created yet during early setup */ }
+            }
+            function updateSkillHud() {
+                const defs = FIGHTER_SKILLS[player.visualIdentity];
+                const usable = canUseFighterSkill();
+                [[btnSkillOne, btnSkillOneText, skillOneCooldown, 0], [btnSkillTwo, btnSkillTwoText, skillTwoCooldown, 1]].forEach(([btn, label, cd, i]) => {
+                    if (!btn) return;
+                    btn.classList.toggle('disabled', !defs || !usable || cd > 0);
+                    if (label && defs) label.textContent = cd > 0 ? `${Math.ceil(cd)}s` : defs[i].label;
+                });
+            }
+            refreshSkillButtons();
 
             function bindActionButton(btn, onDown, onUp) {
                 if (!btn) return;
@@ -11307,6 +11876,7 @@
             }
 
             function stopBanyuSpecialFX() {
+                stopFighterSkillFx();
                 if (banyuSkillFx) {
                     scene.remove(banyuSkillFx.group);
                     banyuSkillFx.group.traverse(object => {
@@ -12774,8 +13344,7 @@
                 input.actions.skillTwo = false;
                 if (btnSkillOne) btnSkillOne.classList.remove('active-press', 'disabled');
                 if (btnSkillTwo) btnSkillTwo.classList.remove('active-press', 'disabled');
-                if (btnSkillOneText) btnSkillOneText.textContent = 'TIDAL RUSH';
-                if (btnSkillTwoText) btnSkillTwoText.textContent = 'SPIRIT TIDE';
+                refreshSkillButtons();
                 input.actions.attack = false;
                 input.actions.block = false;
                 input.actions.jump = false;
@@ -13091,8 +13660,8 @@
                     if (skillOneCooldown > 0) skillOneCooldown = Math.max(0, skillOneCooldown - deltaTime);
                     if (skillTwoCooldown > 0) skillTwoCooldown = Math.max(0, skillTwoCooldown - deltaTime);
 
-                    const wantSkillOne = player.visualIdentity === 'banyu' && (input.actions.skillOne || skillOneBufferTimer > 0) && skillOneCooldown <= 0;
-                    const wantSkillTwo = player.visualIdentity === 'banyu' && (input.actions.skillTwo || skillTwoBufferTimer > 0) && skillTwoCooldown <= 0;
+                    const wantSkillOne = canUseFighterSkill() && (input.actions.skillOne || skillOneBufferTimer > 0) && skillOneCooldown <= 0;
+                    const wantSkillTwo = canUseFighterSkill() && (input.actions.skillTwo || skillTwoBufferTimer > 0) && skillTwoCooldown <= 0;
                     if ((wantSkillOne || wantSkillTwo) && !player.isAttacking && !player.isJumping && player.attackCooldown <= 0 && player.hitStun <= 0) {
                         const which = wantSkillOne ? 1 : 2;
                         input.actions.skillOne = false;
@@ -13101,8 +13670,8 @@
                         skillTwoBufferTimer = 0;
                         attackBufferTimer = 0;
                         input.actions.attack = false;
-                        if (which === 1) skillOneCooldown = 6;
-                        else skillTwoCooldown = 11;
+                        if (which === 1) skillOneCooldown = FIGHTER_SKILLS[player.visualIdentity][0].cd;
+                        else skillTwoCooldown = FIGHTER_SKILLS[player.visualIdentity][1].cd;
                         player.isBlocking = false;
                         player.isAttacking = true;
                         player.lookAt(opponent.position);
@@ -13111,6 +13680,9 @@
                         player.specialSkill.hit = false;
                         player.specialSkill.from.copy(player.position);
                         player.specialSkill.to.copy(player.position);
+                        if (player.visualIdentity !== 'banyu') {
+                            startFighterSkill(which);
+                        } else {
                         if (which === 1) {
                             const dx = opponent.position.x - player.position.x;
                             const dz = opponent.position.z - player.position.z;
@@ -13122,6 +13694,7 @@
                             showComboCallout('SPIRIT TIDE!', '#a5f3fc');
                         }
                         startBanyuSpecialFX(which, player.specialSkill.from, player.specialSkill.to);
+                        }
                         player.changeAnimation('attack');
                         player.attackCooldown = which === 1 ? 0.82 : 0.92;
                     }
@@ -13218,14 +13791,7 @@
                         btnUltimate.classList.toggle('disabled', ultimateCooldown > 0);
                         if (btnUltimateText) btnUltimateText.textContent = ultimateCooldown > 0 ? `${Math.ceil(ultimateCooldown)}s` : 'ULTIMATE';
                     }
-                    if (btnSkillOne) {
-                        btnSkillOne.classList.toggle('disabled', player.visualIdentity !== 'banyu' || skillOneCooldown > 0);
-                        if (btnSkillOneText) btnSkillOneText.textContent = skillOneCooldown > 0 ? `${Math.ceil(skillOneCooldown)}s` : 'TIDAL RUSH';
-                    }
-                    if (btnSkillTwo) {
-                        btnSkillTwo.classList.toggle('disabled', player.visualIdentity !== 'banyu' || skillTwoCooldown > 0);
-                        if (btnSkillTwoText) btnSkillTwoText.textContent = skillTwoCooldown > 0 ? `${Math.ceil(skillTwoCooldown)}s` : 'SPIRIT TIDE';
-                    }
+                    updateSkillHud();
 
                     // AI update
                     updateAI(deltaTime);
@@ -13298,6 +13864,7 @@
 
                 // Special-skill water/spirit effects and colored side-shot lighting update once per frame.
                 if (banyuSkillFx) updateBanyuSpecialFX(rawDelta);
+                if (fighterSkillFx) updateFighterSkillFx(rawDelta);
 
                 // Update scream speech bubbles tracking above fighters' heads
                 updateScreamBubbles();
