@@ -6380,6 +6380,9 @@
                 }
             }
 
+            const easeIO = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+            const easeOutQ = (x) => { x = Math.min(1, Math.max(0, x)); return 1 - (1 - x) * (1 - x); };
+
             class Character {
                 constructor(type, config, identity) {
                     this.type = type;
@@ -8540,6 +8543,47 @@
                     }
                 }
 
+                smoothPose(dt) {
+                    // Post-process every pose written this frame: a critically-damped-style filter on
+                    // each joint removes pops at phase/state boundaries and gives limbs follow-through.
+                    if (!this._smJoints) {
+                        this._smJoints = [this.pelvis, this.torso, this.neck, this.head,
+                            this.leftShoulder, this.leftElbow, this.leftHand, this.rightShoulder, this.rightElbow, this.rightHand,
+                            this.leftHip, this.leftKnee, this.leftFoot, this.rightHip, this.rightKnee, this.rightFoot].filter(Boolean);
+                        this._smState = new Map();
+                    }
+                    const st = this.animation.state;
+                    let rate = 15;
+                    if (st === 'attack') rate = (this.isUltimateAttack || (this.specialSkill && this.specialSkill.active)) ? 24 : 30;
+                    else if (st === 'hit') rate = 26;
+                    else if (st === 'jump') rate = 20;
+                    else if (st === 'block') rate = 18;
+                    const snap = !(dt > 0) || dt > 0.12 || !!this._smSnap;
+                    this._smSnap = false;
+                    const a = snap ? 1 : 1 - Math.exp(-rate * dt);
+                    for (const j of this._smJoints) {
+                        let s = this._smState.get(j);
+                        const r = j.rotation, p = j.position;
+                        if (!s) {
+                            s = { x: r.x, y: r.y, z: r.z, px: p.x, py: p.y, pz: p.z };
+                            this._smState.set(j, s);
+                        }
+                        // Large jumps (spins resetting, form swaps) snap instead of unwinding on screen.
+                        s.x = Math.abs(r.x - s.x) > 2.2 ? r.x : s.x + (r.x - s.x) * a;
+                        s.y = Math.abs(r.y - s.y) > 2.2 ? r.y : s.y + (r.y - s.y) * a;
+                        s.z = Math.abs(r.z - s.z) > 2.2 ? r.z : s.z + (r.z - s.z) * a;
+                        r.set(s.x, s.y, s.z);
+                        if (j === this.pelvis) {
+                            const big = Math.abs(p.x - s.px) + Math.abs(p.z - s.pz) > 3 || Math.abs(p.y - s.py) > 2;
+                            if (big) { s.px = p.x; s.py = p.y; s.pz = p.z; }
+                            else {
+                                s.px += (p.x - s.px) * a; s.py += (p.y - s.py) * a; s.pz += (p.z - s.pz) * a;
+                            }
+                            p.set(s.px, s.py, s.pz);
+                        }
+                    }
+                }
+
                 updateAnimation(deltaTime) {
                     this.animation.time += deltaTime;
                     this.animation.blendTime = Math.min(1, this.animation.blendTime + deltaTime * 10);
@@ -8573,6 +8617,7 @@
                     }
 
                     if (this.leakActive || this.buntungActive) this.animateHeadFormBody();
+                    this.smoothPose(deltaTime);
                     // Suster Ngesot crawls on the floor: her own poses replace the standing ones
                     // (state timers above still run) and the upright balance/floor/limb IK is skipped.
                     if (this.ngesotActive) {
@@ -8626,8 +8671,9 @@
                     const breathe = Math.sin(t * 3.0);
 
                     // Boxer / Martial Artist Ready Stance - Balanced, rooted on floor
-                    this.pelvis.position.set(0, 2.88 + breathe * 0.02, 0);
-                    this.pelvis.rotation.set(0, 0.1, 0);
+                    const shift = Math.sin(t * 1.3);
+                    this.pelvis.position.set(shift * 0.035, 2.88 + breathe * 0.02 + Math.abs(shift) * 0.008, 0);
+                    this.pelvis.rotation.set(0, 0.1 + shift * 0.03, -shift * 0.025);
 
                     this.torso.rotation.set(0.04, 0.08 + breathe * 0.015, 0);
                     this.neck.rotation.set(0, -0.06, 0);
@@ -8645,12 +8691,13 @@
                     this.rightFoot.rotation.set(-0.16, 0, 0);
 
                     // High guard in FRONT of chin and chest
-                    this.leftShoulder.rotation.set(-0.55, 0.2, -0.28);
-                    this.leftElbow.rotation.set(-1.45, 0, 0);
+                    const guard = Math.sin(t * 2.6);
+                    this.leftShoulder.rotation.set(-0.55 + guard * 0.025, 0.2, -0.28);
+                    this.leftElbow.rotation.set(-1.45 - guard * 0.04, 0, 0);
                     this.leftHand.rotation.set(0.1, 0, 0);
 
-                    this.rightShoulder.rotation.set(-0.65, -0.25, 0.28);
-                    this.rightElbow.rotation.set(-1.55, 0, 0);
+                    this.rightShoulder.rotation.set(-0.65 - guard * 0.025, -0.25, 0.28);
+                    this.rightElbow.rotation.set(-1.55 + guard * 0.04, 0, 0);
                     this.rightHand.rotation.set(0.1, 0, 0);
                 }
 
@@ -8763,7 +8810,7 @@
                         // ===== GERAKAN 1: MEMUKUL PERUT (Low Gut Punch / Left Body Strike) =====
                         // Lower center of gravity, drive left fist forward directly into opponent's abdomen
                         if (p < 0.22) { // Windup & coil
-                            const s = p / 0.22;
+                            const s = easeIO(p / 0.22);
                             this.pelvis.position.set(-s * 0.05, 2.88 - s * 0.12, s * 0.1);
                             // Coil the hips and shoulders in opposite directions before the lead punch.
                             this.pelvis.rotation.set(0, 0.1 - s * 0.12, -s * 0.045);
@@ -8786,7 +8833,7 @@
                             this.rightShoulder.rotation.set(-0.65, -0.22, 0.28);
                             this.rightElbow.rotation.set(-1.6, 0, 0);
                         } else if (p < 0.54) { // Explosive forward strike into stomach
-                            const s = (p - 0.22) / 0.32;
+                            const s = easeOutQ((p - 0.22) / 0.32);
                             this.pelvis.position.set(-0.05 + s * 0.05, 2.76 + s * 0.06, 0.1 + s * 0.36);
                             // Drive from the planted stance: hips turn through the strike while the chest follows.
                             this.pelvis.rotation.set(0, -0.02 + s * 0.22, -0.045 + s * 0.045);
@@ -8810,7 +8857,7 @@
                             this.rightShoulder.rotation.set(-0.65, -0.22, 0.28);
                             this.rightElbow.rotation.set(-1.6, 0, 0);
                         } else { // Smooth return to ready guard
-                            const s = (p - 0.54) / 0.46;
+                            const s = easeIO((p - 0.54) / 0.46);
                             this.pelvis.position.set(0.05 * (1 - s), 2.82 * (1 - s) + 2.88 * s, 0.46 * (1 - s));
                             this.pelvis.rotation.set(0, 0.32 * (1 - s) + 0.1 * s, 0.10 * (1 - s));
                             this.torso.rotation.set(0.18 * (1 - s) + 0.04 * s, 0.36 * (1 - s) + 0.08 * s, 0);
@@ -8829,7 +8876,7 @@
                     } else if (step === 2) {
                         // ===== GERAKAN 2: MEMUKUL DADA (Chest Cross / Heavy Straight to Chest) =====
                         if (p < 0.22) { // Windup & coil right
-                            const s = p / 0.22;
+                            const s = easeIO(p / 0.22);
                             this.pelvis.position.set(s * 0.04, 2.88, s * 0.1);
                             // Load the rear hip and begin a compact pivot for the opposite-hand cross.
                             this.pelvis.rotation.set(0, 0.1 + s * 0.16, s * 0.06);
@@ -8848,7 +8895,7 @@
                             this.rightKnee.rotation.set(0.18, 0, 0);
                             this.rightFoot.rotation.set(-0.22, 0, 0);
                         } else if (p < 0.54) { // Explosive straight strike forward into chest
-                            const s = (p - 0.22) / 0.32;
+                            const s = easeOutQ((p - 0.22) / 0.32);
                             this.pelvis.position.set(0.04 - s * 0.04, 2.84, 0.1 + s * 0.4);
                             // Pivot through the hips as the right cross lands, with a counter-rotating chest.
                             this.pelvis.rotation.set(0, 0.26 - s * 0.34, 0.06 - s * 0.12);
@@ -8871,7 +8918,7 @@
                             this.rightKnee.rotation.set(0.18, 0, 0);
                             this.rightFoot.rotation.set(-0.2, 0, 0);
                         } else { // Return to guard
-                            const s = (p - 0.54) / 0.46;
+                            const s = easeIO((p - 0.54) / 0.46);
                             this.pelvis.position.set(-0.04 * (1 - s), 2.88, 0.5 * (1 - s));
                             this.pelvis.rotation.set(0, -0.08 * (1 - s) + 0.1 * s, -0.06 * (1 - s));
                             this.torso.rotation.set(0.1 * (1 - s) + 0.04 * s, -0.36 * (1 - s) + 0.08 * s, 0);
@@ -8890,7 +8937,7 @@
                     } else {
                         // ===== GERAKAN 3: UPPERCUT MUSUH (Rising Devastating Uppercut to Chin) =====
                         if (p < 0.25) { // Deep crouch & scoop windup
-                            const s = p / 0.25;
+                            const s = easeIO(p / 0.25);
                             // Deep athletic crouch with knees flexing, feet remaining planted on the floor
                             this.pelvis.position.set(-s * 0.035, 2.88 - s * 0.28, s * 0.1);
                             // Sink onto both legs and wind the hips for a distinctly rising finisher.
@@ -8910,7 +8957,7 @@
                             this.leftShoulder.rotation.set(-0.7, 0.25, -0.25);
                             this.leftElbow.rotation.set(-1.6, 0, 0);
                         } else if (p < 0.62) { // Devastating rising uppercut forward & upward!
-                            const s = (p - 0.25) / 0.37;
+                            const s = easeOutQ((p - 0.25) / 0.37);
                             // Surge upward driving through balls of feet on floor
                             this.pelvis.position.set(-0.035 + s * 0.035, 2.6 + s * 0.44, 0.1 + s * 0.42);
                             // Extend from the legs into a rising hip-and-spine drive; feet stay planted through the lift.
@@ -8932,7 +8979,7 @@
                             this.leftShoulder.rotation.set(-0.7, 0.25, -0.25);
                             this.leftElbow.rotation.set(-1.6, 0, 0);
                         } else { // Settle back down to ready stance
-                            const s = (p - 0.62) / 0.38;
+                            const s = easeIO((p - 0.62) / 0.38);
                             this.pelvis.position.set(0.035 * (1 - s), 3.04 * (1 - s) + 2.88 * s, 0.52 * (1 - s));
                             this.pelvis.rotation.set(0, -0.12 * (1 - s) + 0.1 * s, 0.055 * (1 - s));
                             this.torso.rotation.set(-0.16 * (1 - s) + 0.04 * s, -0.32 * (1 - s) + 0.08 * s, 0.08 * (1 - s));
