@@ -5003,7 +5003,7 @@
                 leak: [
                     { id: 'gantara', text: 'Win a battle as Gantara', goal: 1, stat: 'winsGantara' },
                     { id: 'skills6', text: 'Use your skills 6 times', goal: 6, stat: 'skillUses' },
-                    { id: 'strong', text: 'Win with 100+ HP left', goal: 1, stat: 'strongWins' }
+                    { id: 'strong', text: 'Win with 50+ HP left', goal: 1, stat: 'strongWins' }
                 ],
                 buntung: [
                     { id: 'banyu', text: 'Win a battle as Banyu', goal: 1, stat: 'winsBanyu' },
@@ -10151,7 +10151,7 @@
                 s.wins += 1;
                 if (player.visualIdentity === 'gantara') s.winsGantara += 1;
                 if (player.visualIdentity === 'banyu') s.winsBanyu += 1;
-                if (player.hp >= 100) s.strongWins += 1;
+                if (player.hp >= 50) s.strongWins += 1;
                 if (battleUltUsed) s.ultWins += 1;
                 onProgressChanged();
             }
