@@ -4934,6 +4934,8 @@
             const AVATAR_FALLBACK_URLS = {
                 avatar_banyu: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525000_01M6BW6PW8VH7ZK56Z90DSD3PZ.glb',
                 avatar_gantara: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525758_01M6BW6QKYVSPQQA262536PFJG.glb',
+                avatar_leak: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793590469438_01M6D558SY30734JNCX9TQ2M5Y.glb',
+                avatar_buntung: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793590470964_01M6D55A9MA4SK9D2R0070X88T.glb',
                 avatar_suster: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793548226798_01M6BWW47E8NKZQS02FAD08K10.glb'
             };
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -4975,7 +4977,7 @@
                     'torch_flame', 'hit_spark_particle', 'block_shield_effect', 'dust_particle',
                     'punch_impact_sound', 'block_sound', 'grunt_damage_sound',
                     'victory_fanfare', 'defeat_sound', 'ambient_arena_music',
-                    'avatar_banyu', 'avatar_gantara', 'avatar_suster', 'avatar_suster_ghost_tex'
+                    'avatar_banyu', 'avatar_gantara', 'avatar_suster', 'avatar_suster_ghost_tex', 'avatar_leak', 'avatar_buntung', 'avatar_buntung_ghost_tex'
                 ];
 
                 let loadedCount = 0;
@@ -5653,11 +5655,12 @@
             // puts the avatar's hands and ankles on the voxel skeleton's hand and ankle targets.
             const AVATAR_SCALE = 4.09;      // voxel pelvis height 2.88 / avatar hips height 0.704
             const AVATAR_HEAD_SCALE = 0.8;
-            const AVATAR_KEYS = { banyu: 'avatar_banyu', gantara: 'avatar_gantara', suster: 'avatar_suster' };
-            let ghostTextureCache = null;
-            function getGhostTexture() {
-                if (ghostTextureCache) return ghostTextureCache;
-                const img = assetCache['avatar_suster_ghost_tex'];
+            const AVATAR_KEYS = { banyu: 'avatar_banyu', gantara: 'avatar_gantara', suster: 'avatar_suster', leak: 'avatar_leak', buntung: 'avatar_buntung' };
+            const GHOST_TEX_IDS = { avatar_suster: 'avatar_suster_ghost_tex', avatar_buntung: 'avatar_buntung_ghost_tex' };
+            const ghostTextureCache = {};
+            function getGhostTexture(assetKey) {
+                if (ghostTextureCache[assetKey]) return ghostTextureCache[assetKey];
+                const img = assetCache[GHOST_TEX_IDS[assetKey]];
                 if (!img) return null;
                 const tex = new THREE.Texture(img);
                 tex.flipY = false;
@@ -5665,9 +5668,11 @@
                 tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
                 tex.anisotropy = 4;
                 tex.needsUpdate = true;
-                ghostTextureCache = tex;
+                ghostTextureCache[assetKey] = tex;
                 return tex;
             }
+            const _hfInv = new THREE.Matrix4(), _hfT = new THREE.Vector3(), _hfN = new THREE.Vector3(), _hfH = new THREE.Vector3(), _hfP = new THREE.Vector3(), _hfA = new THREE.Vector3(), _hfB = new THREE.Vector3(), _hfD = new THREE.Vector3();
+            const _hfQ = new THREE.Quaternion(), _hfZ = new THREE.Vector3(0, 0, 1);
             // Shared helpers for the procedural Suster Ngesot animations.
             function kfInterp(frames, q) {
                 if (q <= frames[0][0]) return frames[0][1];
@@ -5788,10 +5793,15 @@
                     this.root.scale.setScalar(AVATAR_SCALE);
                 }
 
+                // Detached-head fighters hide the avatar's own head; the voxel head floats free.
+                setHeadHidden(on) {
+                    this.b.Head.scale.setScalar(on ? 0.001 : AVATAR_HEAD_SCALE);
+                }
+
                 // Swaps the nurse's colors for the deathly pale, bloodstained Suster Ngesot skin.
                 setGhost(on) {
-                    if (!this.skinMat || this.assetKey !== 'avatar_suster') return;
-                    const tex = on ? getGhostTexture() : null;
+                    if (!this.skinMat || !GHOST_TEX_IDS[this.assetKey]) return;
+                    const tex = on ? getGhostTexture(this.assetKey) : null;
                     this.skinMat.map = tex || this.baseMap;
                     this.skinMat.needsUpdate = true;
                 }
@@ -5801,6 +5811,8 @@
                 buildGear() {
                     const gantara = this.assetKey === 'avatar_gantara';
                     const suster = this.assetKey === 'avatar_suster';
+                    const leakF = this.assetKey === 'avatar_leak';
+                    const buntungF = this.assetKey === 'avatar_buntung';
                     const C = gantara
                         ? { plate: 0x27272a, trim: 0xdc2626, accent: 0xd97706, belt: 0x1c1917, bone: 0xe7dcc4 }
                         : { plate: 0xcbd5e1, trim: 0x2563eb, accent: 0xf59e0b, belt: 0x78350f };
@@ -5822,6 +5834,48 @@
                         g.add(m);
                         return m;
                     };
+                    if (leakF) {
+                        // Balinese ceremonial kit: udeng headcloth, red-and-gold kamen sash, keris, gold armlets.
+                        const WHITE = 0xf8fafc, GOLD = 0xf59e0b, RED = 0xb91c1c, SILVER = 0xcbd5e1;
+                        const lChest = mount('Spine2');
+                        block(lChest, 1.9, 0.4, 0.2, 0, 0.78, 0.78, GOLD, 0.5);
+                        block(lChest, 0.5, 1.0, 0.16, 0, 0.3, 0.82, RED, 0.2);
+                        const lBelt = mount('Hips');
+                        block(lBelt, 2.7, 0.5, 1.7, 0, 0.28, 0, RED, 0.2);
+                        block(lBelt, 2.75, 0.12, 1.75, 0, 0.56, 0, GOLD, 0.5);
+                        block(lBelt, 0.18, 1.4, 0.18, 1.0, -0.15, 0.72, SILVER, 0.7, [0, 0, 0.25]);
+                        block(lBelt, 0.3, 0.4, 0.3, 1.16, 0.62, 0.72, GOLD, 0.6);
+                        ['Left', 'Right'].forEach(side => {
+                            const sx = side === 'Left' ? 1 : -1;
+                            const arm = mount(side + 'Arm');
+                            block(arm, 0.95, 0.2, 0.95, sx * 0.05, -0.15, 0, GOLD, 0.6);
+                        });
+                        const lHead = mount('Head');
+                        block(lHead, 1.75, 0.34, 1.6, 0, 0.95, 0, WHITE, 0.1);
+                        block(lHead, 1.78, 0.1, 1.62, 0, 0.78, 0, GOLD, 0.5);
+                        block(lHead, 0.5, 0.55, 0.35, 0.35, 1.22, 0.82, WHITE, 0.1, [0, 0, 0.3]);
+                        block(lHead, 0.28, 0.28, 0.2, -0.9, 0.5, 0.4, 0xfefce8, 0.1);
+                        this.b.Head.scale.multiplyScalar(AVATAR_HEAD_SCALE);
+                        return;
+                    }
+                    if (buntungF) {
+                        // Betawi look: black peci, green-trimmed koko, plaid sarong sash, kaffir limes on the belt.
+                        const GREEN = 0x3a7d44, LIME = 0x65a30d, GOLD = 0xd4a017;
+                        const bChest = mount('Spine2');
+                        block(bChest, 1.5, 0.18, 0.2, 0, 0.88, 0.7, GREEN, 0.2);
+                        [0.62, 0.38, 0.14].forEach(y => block(bChest, 0.12, 0.12, 0.08, 0, y, 0.74, GOLD, 0.6));
+                        const bBelt = mount('Hips');
+                        block(bBelt, 2.2, 0.5, 1.45, 0, 0.28, 0, 0x2f6f3a, 0.2);
+                        block(bBelt, 2.25, 0.1, 1.5, 0, 0.55, 0, GOLD, 0.5);
+                        block(bBelt, 0.38, 0.38, 0.38, 0.9, -0.05, 0.78, LIME, 0.1);
+                        block(bBelt, 0.34, 0.34, 0.34, 1.2, -0.3, 0.62, LIME, 0.1);
+                        block(bBelt, 0.36, 0.36, 0.36, 0.7, -0.4, 0.82, LIME, 0.1);
+                        const bHead = mount('Head');
+                        block(bHead, 1.65, 0.62, 1.5, 0, 1.1, 0, 0x0a0a0a, 0.1);
+                        block(bHead, 1.68, 0.08, 1.53, 0, 0.8, 0, GOLD, 0.5);
+                        this.b.Head.scale.multiplyScalar(AVATAR_HEAD_SCALE);
+                        return;
+                    }
                     if (suster) {
                         // Nurse kit: white apron plate with a red cross, teal belt and cuffs, cap, syringe.
                         const WHITE = 0xf8fafc, TEAL = 0x14b8a6, RED = 0xdc2626, SILVER = 0xcbd5e1;
@@ -6025,6 +6079,11 @@
                     this.avatarAssetKey = AVATAR_KEYS[this.visualIdentity];
                     this.ngesotActive = false;
                     this.ngesotTimer = 0;
+                    this.leakActive = false;
+                    this.leakTimer = 0;
+                    this.buntungActive = false;
+                    this.buntungTimer = 0;
+                    this.formStart = 0;
                     this.lastBloodPos = new THREE.Vector3(1e6, 0, 1e6);
                     this.avatarRig = null;
                     this.pocongOn = false;
@@ -6034,6 +6093,8 @@
                     this.genderuwoActive = false;
                     if (this.visualIdentity === 'banyu') this.createPocongForm();
                     else if (this.visualIdentity === 'suster') this.createNgesotForm();
+                    else if (this.visualIdentity === 'leak') this.createLeakForm();
+                    else if (this.visualIdentity === 'buntung') this.createBuntungForm();
                     else this.createGenderuwoForm();
                     if (useAvatar) {
                         this.headBaseMeshes = [];
@@ -6343,6 +6404,438 @@
                         scene.remove(old.mesh);
                         old.mesh.geometry.dispose();
                         old.mesh.material.dispose();
+                    }
+                }
+
+
+                // ===== DETACHED-HEAD FIGHTERS =====
+                // LEAK: the head tears free and flies on its own, trailing its entrails.
+                // KEPALA BUNTUNG JERUK PURUT: a headless ghost carrying its own head, ringed by kaffir limes.
+                // The avatar's head is hidden and a voxel head floats in the character group, positioned
+                // every frame from the final skeleton pose (updateFloatingHead).
+                buildFloatingHead(kind) {
+                    const g = new THREE.Group();
+                    g.visible = false;
+                    this.group.add(g);
+                    this.floatHead = g;
+                    this.floatKind = kind;
+                    const leak = kind === 'leak';
+                    const mat = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85, flatShading: true }, o || {}));
+                    const box = (parent, w, h2, d, x, y, z, m, rx = 0, ry = 0, rz = 0) => {
+                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h2, d), m);
+                        mesh.position.set(x, y, z);
+                        mesh.rotation.set(rx, ry, rz);
+                        mesh.castShadow = true;
+                        parent.add(mesh);
+                        return mesh;
+                    };
+                    const skin = mat(leak ? 0xd2b98d : 0xaebcaa);
+                    const dark = mat(0x0b0b0e, { roughness: 0.95 });
+                    const white = mat(0xf1f5f9, { roughness: 0.5 });
+                    const maw = mat(0x4a0505, { emissive: 0x7f1d1d, emissiveIntensity: 0.7 });
+                    const glow = mat(leak ? 0xff2a2a : 0x9be84a, { emissive: leak ? 0xff0a0a : 0x6fe01a, emissiveIntensity: 2.4, roughness: 0.3 });
+                    const flesh = mat(0x8a1c1c, { emissive: 0x3b0505, emissiveIntensity: 0.5 });
+                    box(g, 1.55, 1.4, 1.45, 0, 0.1, 0, skin);
+                    [-1, 1].forEach(sx => {
+                        if (leak) {
+                            box(g, 0.48, 0.44, 0.2, sx * 0.38, 0.32, 0.76, white);
+                            box(g, 0.2, 0.2, 0.08, sx * 0.38, 0.32, 0.88, glow);
+                            box(g, 0.62, 0.14, 0.14, sx * 0.38, 0.66, 0.78, dark, 0, 0, sx * -0.35);
+                        } else {
+                            box(g, 0.44, 0.38, 0.12, sx * 0.36, 0.3, 0.74, dark);
+                            box(g, 0.14, 0.14, 0.08, sx * 0.36, 0.3, 0.8, glow);
+                        }
+                    });
+                    box(g, 0.24, 0.34, 0.24, 0, 0, 0.8, skin);
+                    box(g, 1.0, 0.34, 0.34, 0, -0.42, 0.6, maw);
+                    [-0.34, -0.12, 0.12, 0.34].forEach(x => box(g, 0.12, leak ? 0.36 : 0.2, 0.1, x, -0.5, 0.76, white));
+                    const jaw = new THREE.Group();
+                    jaw.position.set(0, -0.5, 0.15);
+                    g.add(jaw);
+                    box(jaw, 1.3, 0.3, 1.15, 0, -0.15, 0.38, skin);
+                    [-0.3, 0.3].forEach(x => box(jaw, 0.12, leak ? 0.3 : 0.18, 0.1, x, 0.02, 0.9, white));
+                    this.floatJaw = jaw;
+                    const tongue = new THREE.Group();
+                    tongue.position.set(0, -0.1, 0.6);
+                    jaw.add(tongue);
+                    box(tongue, 0.3, 0.1, 1.0, 0, 0, 0.5, mat(0xe11d48, { emissive: 0x7f1d1d, emissiveIntensity: 0.4 }));
+                    tongue.visible = leak;
+                    this.floatTongue = tongue;
+                    if (leak) {
+                        box(g, 1.75, 0.5, 1.6, 0, 0.98, -0.05, dark);
+                        for (let i = 0; i < 9; i++) {
+                            const a = (i / 9) * Math.PI * 2;
+                            box(g, 0.22, 1.2 + (i % 3) * 0.35, 0.22, Math.cos(a) * 0.85, 0.9 + (i % 2) * 0.2, Math.sin(a) * 0.8 - 0.1, dark, Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.6);
+                        }
+                        box(g, 1.5, 2.4, 0.3, 0, -0.5, -0.95, dark);
+                        box(g, 1.78, 0.34, 1.62, 0, 0.82, 0, white);
+                        box(g, 0.5, 0.5, 0.3, 0.35, 1.12, 0.8, white, 0, 0, 0.3);
+                        // Lungs and a beating heart hang under the skull.
+                        [-1, 1].forEach(sx => box(g, 0.6, 0.62, 0.34, sx * 0.5, -1.1, 0.12, mat(0xf472b6, { emissive: 0x831843, emissiveIntensity: 0.4 }), 0.2, 0, sx * 0.25));
+                        this.floatHeart = box(g, 0.44, 0.44, 0.44, 0, -1.25, 0.28, mat(0xdc2626, { emissive: 0xff1a1a, emissiveIntensity: 1.2 }));
+                        // The rope of entrails runs from the skull back to the neck stump.
+                        const trail = new THREE.Group();
+                        trail.visible = false;
+                        this.group.add(trail);
+                        this.floatTrail = trail;
+                        this.floatTrailSegs = [];
+                        const cols = [0xbe123c, 0xf472b6, 0xe11d48, 0xfda4af];
+                        for (let i = 0; i < 16; i++) {
+                            const seg = box(trail, 0.36, 0.36, 0.66, 0, 0, 0, mat(cols[i % 4], { emissive: 0x4c0519, emissiveIntensity: 0.35 }));
+                            this.floatTrailSegs.push(seg);
+                        }
+                    } else {
+                        box(g, 1.65, 0.6, 1.5, 0, 1.0, 0, mat(0x0a0a0a, { roughness: 0.9 }));
+                        box(g, 1.68, 0.08, 1.53, 0, 0.7, 0, mat(0xd4a017, { metalness: 0.5, roughness: 0.4 }));
+                        // Six kaffir limes circle the headless body.
+                        const orbit = new THREE.Group();
+                        orbit.visible = false;
+                        this.group.add(orbit);
+                        this.limeOrbit = orbit;
+                        this.limes = [];
+                        for (let i = 0; i < 6; i++) {
+                            const lime = box(orbit, 0.5, 0.5, 0.5, 0, 0, 0, mat(0x65a30d, { emissive: 0x2f6f0a, emissiveIntensity: 0.6, roughness: 0.6 }));
+                            box(lime, 0.14, 0.2, 0.14, 0, 0.3, 0, mat(0x3f6212));
+                            this.limes.push(lime);
+                        }
+                    }
+                    box(g, 1.0, 0.36, 1.0, 0, -0.78, 0, flesh);
+                    box(g, 0.42, 0.4, 0.42, 0, -0.8, 0, white);
+                    // The open neck on the body.
+                    const stump = new THREE.Group();
+                    stump.position.set(0, 0.28, 0);
+                    stump.visible = false;
+                    this.neck.add(stump);
+                    box(stump, 0.9, 0.3, 0.9, 0, 0, 0, flesh);
+                    box(stump, 0.4, 0.34, 0.4, 0, 0.02, 0, white);
+                    if (leak) [-0.28, 0, 0.28].forEach((x, i) => box(stump, 0.18, 0.7 + i * 0.1, 0.18, x, -0.4, 0.15, mat(i % 2 ? 0xf472b6 : 0xbe123c)));
+                    this.neckStump = stump;
+                }
+
+                buildFormAura(c1, c2, ring) {
+                    this.formMist = new THREE.Group();
+                    this.formMist.visible = false;
+                    this.group.add(this.formMist);
+                    this.formMistPuffs = [];
+                    const puffGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                    for (let i = 0; i < 8; i++) {
+                        const puff = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({ color: i % 2 ? c1 : c2, transparent: true, opacity: 0.3, depthWrite: false }));
+                        puff.userData = { phase: i / 8, angle: (i / 8) * Math.PI * 2, radius: 1.6 + (i % 3) * 0.4 };
+                        this.formMist.add(puff);
+                        this.formMistPuffs.push(puff);
+                    }
+                    this.formAura = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.09, 6, 30), new THREE.MeshBasicMaterial({ color: ring, transparent: true, opacity: 0.55, depthWrite: false }));
+                    this.formAura.rotation.x = -Math.PI / 2;
+                    this.formAura.position.y = 0.08;
+                    this.formAura.visible = false;
+                    this.group.add(this.formAura);
+                }
+
+                createLeakForm() {
+                    this.leakTimer = 0;
+                    this.leakActive = false;
+                    this.buildFloatingHead('leak');
+                    this.buildFormAura(0xf97316, 0x7f1d1d, 0xea580c);
+                }
+
+                createBuntungForm() {
+                    this.buntungTimer = 0;
+                    this.buntungActive = false;
+                    this.buildFloatingHead('buntung');
+                    this.buildFormAura(0x65a30d, 0x14532d, 0x84cc16);
+                }
+
+                setHeadFormCommon(on) {
+                    if (on) this.formStart = performance.now() * 0.001;
+                    if (this.neckStump) this.neckStump.visible = on;
+                    if (this.formMist) this.formMist.visible = on;
+                    if (this.formAura) this.formAura.visible = on;
+                    if (this.avatarRig) this.avatarRig.setHeadHidden(on);
+                    if (!on) {
+                        this.hoverOffset = 0;
+                        if (this.floatHead) this.floatHead.visible = false;
+                        if (this.floatTrail) this.floatTrail.visible = false;
+                        if (this.limeOrbit) this.limeOrbit.visible = false;
+                    }
+                }
+
+                setLeakForm(active) {
+                    const on = !!active && this.floatKind === 'leak';
+                    this.leakActive = on;
+                    if (this.floatKind !== 'leak') return;
+                    this.setHeadFormCommon(on);
+                }
+
+                setBuntungForm(active) {
+                    const on = !!active && this.floatKind === 'buntung';
+                    this.buntungActive = on;
+                    if (this.floatKind !== 'buntung') return;
+                    this.setHeadFormCommon(on);
+                    if (this.avatarRig) this.avatarRig.setGhost(on);
+                }
+
+                applyPartialPose(P) {
+                    const S = (r, x, y, z) => { if (x !== undefined) r.x = x; if (y !== undefined) r.y = y; if (z !== undefined) r.z = z; };
+                    S(this.torso.rotation, P.tx, P.ty, P.tz);
+                    S(this.neck.rotation, P.nx, P.ny, P.nz);
+                    S(this.head.rotation, P.hx, P.hy, P.hz);
+                    S(this.leftShoulder.rotation, P.lsx, P.lsy, P.lsz);
+                    S(this.rightShoulder.rotation, P.rsx, P.rsy, P.rsz);
+                    S(this.leftElbow.rotation, P.lex);
+                    S(this.rightElbow.rotation, P.rex);
+                    S(this.leftHand.rotation, P.lhx);
+                    S(this.rightHand.rotation, P.rhx);
+                    S(this.leftHip.rotation, P.lhipx);
+                    S(this.rightHip.rotation, P.rhipx);
+                    S(this.leftKnee.rotation, P.lkx);
+                    S(this.rightKnee.rotation, P.rkx);
+                    S(this.leftFoot.rotation, P.lfx);
+                    S(this.rightFoot.rotation, P.rfx);
+                }
+
+                // Non-attack body poses for both detached-head fighters.
+                animateHeadFormBody() {
+                    const state = this.animation.state;
+                    if (state === 'attack') return;
+                    const now = performance.now() * 0.001;
+                    const t = this.animation.time;
+                    const decay = Math.max(0, 1 - t / 0.5);
+                    let P;
+                    if (this.leakActive) {
+                        // Floating headless body, arms drifting open like a puppet on strings.
+                        this.hoverOffset = 0.7 + Math.sin(now * 2.1) * 0.14;
+                        P = { tx: -0.12, lsx: -0.2, lsz: -0.55, lex: -0.35, rsx: -0.2, rsz: 0.55, rex: -0.35, lhx: 0.4, rhx: 0.4,
+                              lhipx: 0.14, rhipx: 0.1, lkx: 0.3, rkx: 0.22, lfx: 0.6, rfx: 0.55 };
+                        if (state === 'walk') { P.tx = 0.14; P.lsx = -0.5; P.rsx = -0.5; }
+                        else if (state === 'block') { P.lsx = -1.3; P.rsx = -1.3; P.lsz = 0.75; P.rsz = -0.75; P.lex = -1.8; P.rex = -1.8; }
+                        else if (state === 'hit') { P.tx = -0.12 - 0.4 * decay; P.lsx = 0.3 * decay; P.rsx = 0.3 * decay; P.lsz = -0.55 - decay * 0.9; P.rsz = 0.55 + decay * 0.9; }
+                    } else {
+                        // Headless Jeruk Purut ghost: stiff stagger, left arm carrying the head, right arm groping.
+                        const sway = Math.sin(now * 1.7);
+                        this.hoverOffset = 0;
+                        P = { tx: 0.05 + sway * 0.03, lsx: -0.75, lsy: 0.2, lsz: -0.3, lex: -1.5, lhx: 0.1, rsx: 0.05 + sway * 0.12, rsz: 0.22, rex: -0.15 };
+                        if (state === 'walk') { P.tx = 0.16; P.lsx = -1.55; P.lex = -0.35; P.rsx = -1.5 + Math.sin(t * 6) * 0.25; P.rex = -0.2; P.rsz = 0.12; }
+                        else if (state === 'block') { P.lsx = -1.4; P.rsx = -1.4; P.lsz = 0.5; P.rsz = -0.5; P.lex = -1.9; P.rex = -1.9; }
+                        else if (state === 'hit') { P.tx = 0.05 - 0.35 * decay; P.rsx = 0.5 * decay; P.rsz = 0.22 + 0.8 * decay; }
+                    }
+                    this.applyPartialPose(P);
+                }
+
+                animateHeadFormAttack(t, duration, step) {
+                    const p = Math.min(1, t / duration);
+                    let P;
+                    if (this.leakActive) {
+                        const lift = 0.7;
+                        if (step === 1) {
+                            this.hoverOffset = lift + kfInterp([[0, 0], [0.5, 0.2], [1, 0]], p);
+                            const a = kfInterp([[0, -0.2], [0.25, 0.4], [0.5, -1.1], [1, -0.2]], p);
+                            P = { tx: kfInterp([[0, -0.12], [0.25, -0.35], [0.5, 0.45], [1, -0.12]], p), lsx: a, rsx: a,
+                                  lsz: kfInterp([[0, -0.55], [0.5, -0.9], [1, -0.55]], p), rsz: kfInterp([[0, 0.55], [0.5, 0.9], [1, 0.55]], p) };
+                        } else if (step === 2) {
+                            this.hoverOffset = lift;
+                            P = { tx: -0.1, ty: kfInterp([[0, 0], [0.25, 0.5], [0.75, -0.5], [1, 0]], p),
+                                  lsx: -0.4, rsx: -0.4,
+                                  lsz: kfInterp([[0, -0.55], [0.3, -1.25], [0.7, 0.1], [1, -0.55]], p),
+                                  rsz: kfInterp([[0, 0.55], [0.3, 1.25], [0.7, -0.1], [1, 0.55]], p) };
+                        } else {
+                            this.hoverOffset = lift + kfInterp([[0, 0], [0.35, 0.7], [0.62, -0.1], [1, 0]], p);
+                            const a = kfInterp([[0, -0.2], [0.35, -2.6], [0.62, -0.4], [1, -0.2]], p);
+                            P = { tx: kfInterp([[0, -0.12], [0.35, -0.5], [0.62, 0.5], [1, -0.12]], p), lsx: a, rsx: a,
+                                  lsz: kfInterp([[0, -0.55], [0.35, -0.4], [1, -0.55]], p), rsz: kfInterp([[0, 0.55], [0.35, 0.4], [1, 0.55]], p) };
+                        }
+                    } else {
+                        this.hoverOffset = 0;
+                        if (step === 1) {
+                            // CENGKERAMAN BUTA: both arms flail forward, grabbing at nothing.
+                            P = { tx: kfInterp([[0, 0.05], [0.3, -0.1], [0.55, 0.35], [1, 0.05]], p),
+                                  lsx: kfInterp([[0, -0.75], [0.3, -0.3], [0.55, -1.75], [1, -0.75]], p), lex: kfInterp([[0, -1.5], [0.55, -0.15], [1, -1.5]], p),
+                                  rsx: kfInterp([[0, 0.05], [0.3, -0.4], [0.55, -1.85], [1, 0.05]], p), rex: kfInterp([[0, -0.15], [0.55, -0.1], [1, -0.15]], p),
+                                  rsz: kfInterp([[0, 0.22], [0.3, 0.7], [0.55, 0.1], [1, 0.22]], p) };
+                        } else if (step === 2) {
+                            // BANTING KEPALA: swing the held head like a flail.
+                            P = { tx: 0.05, ty: kfInterp([[0, 0], [0.25, 0.55], [0.55, -0.6], [1, 0]], p),
+                                  lsx: kfInterp([[0, -0.75], [0.25, -0.1], [0.55, -1.9], [0.8, -1.2], [1, -0.75]], p),
+                                  lsz: kfInterp([[0, -0.3], [0.25, -1.3], [0.55, 0.3], [1, -0.3]], p),
+                                  lex: kfInterp([[0, -1.5], [0.25, -0.8], [0.55, -0.1], [1, -1.5]], p) };
+                        } else {
+                            // LEMPAR KEPALA: wind back, then hurl the head at the opponent.
+                            P = { tx: kfInterp([[0, 0.05], [0.3, -0.35], [0.55, 0.35], [1, 0.05]], p),
+                                  lsx: kfInterp([[0, -0.75], [0.3, 0.7], [0.55, -2.3], [0.8, -1.5], [1, -0.75]], p),
+                                  lex: kfInterp([[0, -1.5], [0.3, -1.6], [0.55, -0.05], [1, -1.5]], p),
+                                  rsx: kfInterp([[0, 0.05], [0.55, -1.2], [1, 0.05]], p) };
+                        }
+                    }
+                    this.applyPartialPose(P);
+                    if (t >= duration) {
+                        this.hoverOffset = this.leakActive ? 0.7 : 0;
+                        this.changeAnimation('idle');
+                        this.isAttacking = false;
+                    }
+                }
+
+                animateLeakUltimate(t) {
+                    const p = Math.min(1, t / ULT_ATTACK_DURATION);
+                    this.hoverOffset = kfInterp([[0, 0.7], [0.14, 1.7], [0.5, 1.5], [0.74, 1.0], [1, 0.7]], p);
+                    const a = kfInterp([[0, -0.2], [0.14, -2.5], [0.5, -2.0], [0.74, -0.4], [1, -0.2]], p);
+                    const z = kfInterp([[0, 0.55], [0.14, 1.3], [0.5, 1.1], [0.74, 0.3], [1, 0.55]], p);
+                    this.applyPartialPose({
+                        tx: kfInterp([[0, -0.12], [0.14, -0.5], [0.6, -0.35], [0.74, 0.4], [1, -0.12]], p),
+                        ty: Math.sin(t * 9) * 0.12, lsx: a, rsx: a, lsz: -z, rsz: z, lex: -0.3, rex: -0.3,
+                        lhipx: 0.2, rhipx: 0.15, lkx: 0.4, rkx: 0.3, lfx: 0.6, rfx: 0.6
+                    });
+                    if (t >= ULT_ATTACK_DURATION) {
+                        this.hoverOffset = 0.7;
+                        this.isUltimateAttack = false;
+                        this.isAttacking = false;
+                        this.changeAnimation('idle');
+                    }
+                }
+
+                animateBuntungUltimate(t) {
+                    const duration = ULT_ATTACK_DURATION;
+                    const p = Math.min(1, t / duration);
+                    if (this.ultDashFrom && this.ultDashTo) {
+                        const d = THREE.MathUtils.clamp(p / 0.2, 0, 1);
+                        const e = 1 - Math.pow(1 - d, 3);
+                        this.position.x = THREE.MathUtils.lerp(this.ultDashFrom.x, this.ultDashTo.x, e);
+                        this.position.z = THREE.MathUtils.lerp(this.ultDashFrom.z, this.ultDashTo.z, e);
+                        clampToArena(this);
+                        this.group.position.x = this.position.x;
+                        this.group.position.z = this.position.z;
+                        if (d >= 1) { this.ultDashFrom = null; this.ultDashTo = null; }
+                    }
+                    this.hoverOffset = kfInterp([[0, 0], [0.2, 0.2], [0.64, 0], [0.74, 0.5], [0.86, 0], [1, 0]], p);
+                    const wob = Math.sin(t * 22) * 0.25;
+                    this.applyPartialPose({
+                        tx: kfInterp([[0, 0.05], [0.2, 0.35], [0.4, -0.2], [0.64, -0.4], [0.74, 0.5], [1, 0.05]], p),
+                        ty: kfInterp([[0, 0], [0.4, 0.5], [0.64, -0.4], [0.74, 0], [1, 0]], p),
+                        lsx: kfInterp([[0, -1.6], [0.26, 0.7], [0.4, -2.3], [0.64, -1.2], [0.74, -2.5], [0.86, -2.2], [1, -0.75]], p),
+                        lex: kfInterp([[0, -0.3], [0.26, -1.6], [0.4, -0.05], [0.74, -0.1], [1, -1.5]], p),
+                        rsx: kfInterp([[0, -1.6], [0.4, -1.0], [0.64, -0.3], [0.74, -2.6], [0.86, -2.3], [1, 0.05]], p) + (p < 0.2 ? wob : 0),
+                        rsz: 0.15, rex: -0.1
+                    });
+                    if (t >= duration) {
+                        this.hoverOffset = 0;
+                        this.ultDashFrom = null;
+                        this.ultDashTo = null;
+                        this.isUltimateAttack = false;
+                        this.isAttacking = false;
+                        this.changeAnimation('idle');
+                    }
+                }
+
+                // Places the free-flying / carried head (and the entrail rope or orbiting limes) from the final pose.
+                updateFloatingHead() {
+                    const fh = this.floatHead;
+                    if (!fh) return;
+                    const leakOn = this.leakActive && this.floatKind === 'leak';
+                    const buntOn = this.buntungActive && this.floatKind === 'buntung';
+                    const on = (leakOn || buntOn) && this.group.visible;
+                    fh.visible = on;
+                    if (this.floatTrail) this.floatTrail.visible = on && leakOn;
+                    if (this.limeOrbit) this.limeOrbit.visible = on && buntOn;
+                    if (!on) return;
+                    const g = this.group;
+                    g.updateMatrixWorld(true);
+                    _hfInv.copy(g.matrixWorld).invert();
+                    const now = performance.now() * 0.001;
+                    const st = this.animation.state, t = this.animation.time;
+                    const tgt = this.target;
+                    _hfT.set(tgt ? tgt.position.x : 0, 3.0, tgt ? tgt.position.z : 6).applyMatrix4(_hfInv);
+                    _hfN.setFromMatrixPosition(this.neck.matrixWorld).applyMatrix4(_hfInv);
+                    _hfH.setFromMatrixPosition(this.leftHand.matrixWorld).applyMatrix4(_hfInv);
+                    const reach = THREE.MathUtils.clamp(Math.hypot(_hfT.x, _hfT.z), 3.2, 7);
+                    const rise = THREE.MathUtils.clamp((now - this.formStart) / 0.7, 0, 1);
+                    const ease = rise * rise * (3 - 2 * rise);
+                    const atk = st === 'attack' && this.isAttacking;
+                    const step = this.getCurrentComboStep();
+                    const dur = this.isUltimateAttack ? ULT_ATTACK_DURATION : (step === 3 ? 0.44 : 0.38);
+                    const p = Math.min(1, t / dur);
+                    const bump = (c, w) => Math.max(0, 1 - Math.abs(p - c) / w);
+                    const P = _hfP;
+                    let jaw = 0.2 + Math.sin(now * 3.1) * 0.12, tongue = 0.7 + Math.sin(now * 2.3) * 0.3, spin = 0, roll = 0;
+                    const path = pts => {
+                        const ax = i => kfInterp(pts.map(a => [a[0], a[i]]), p);
+                        P.set(ax(1), ax(2), ax(3));
+                    };
+                    const hy = _hfN.y;
+                    if (leakOn) {
+                        if (this.isUltimateAttack && atk) {
+                            path([[0, 0, hy + 2.3, 0.55], [0.14, 0, hy + 4.8, 0.3], [0.28, -2.6, hy + 2.2, reach * 0.5], [0.4, _hfT.x * 0.9, 3.4, _hfT.z * 0.92],
+                                  [0.5, _hfT.x + 3.6, hy + 0.8, _hfT.z], [0.58, _hfT.x, hy + 1.6, _hfT.z + 3.6], [0.66, _hfT.x - 3.6, hy + 1.0, _hfT.z],
+                                  [0.74, _hfT.x, 3.2, _hfT.z - 0.2], [0.88, _hfT.x * 0.4, hy + 1.5, _hfT.z * 0.4], [1, 0, hy + 2.3, 0.55]]);
+                            jaw = 0.25 + 0.95 * bump(0.4, 0.1) + 1.0 * bump(0.74, 0.1);
+                            tongue = 1 + 2.2 * bump(0.4, 0.1) + 2.6 * bump(0.74, 0.1);
+                            spin = 1;
+                        } else if (atk && step === 1) {
+                            path([[0, 0, hy + 2.3, 0.55], [0.25, 0, hy + 2.6, -0.4], [0.5, 0, 3.6, reach * 0.95], [0.65, 0, 3.4, reach * 0.85], [1, 0, hy + 2.3, 0.55]]);
+                            jaw = 0.25 + 0.9 * bump(0.5, 0.14); tongue = 1 + 2 * bump(0.5, 0.14);
+                        } else if (atk && step === 2) {
+                            path([[0, 0, hy + 2.3, 0.55], [0.2, -3.2, hy + 2.0, reach * 0.5], [0.5, 0, 3.6, reach * 0.95], [0.75, 3.2, hy + 2.0, reach * 0.5], [1, 0, hy + 2.3, 0.55]]);
+                            jaw = 0.4 + 0.5 * bump(0.5, 0.2); tongue = 2.4; spin = 0.6;
+                        } else if (atk) {
+                            path([[0, 0, hy + 2.3, 0.55], [0.35, 0, hy + 4.6, 0.2], [0.62, 0, 3.0, reach * 0.95], [0.8, 0, 3.6, reach * 0.7], [1, 0, hy + 2.3, 0.55]]);
+                            jaw = 0.3 + 1.0 * bump(0.62, 0.14); tongue = 1 + 2.4 * bump(0.62, 0.14);
+                        } else {
+                            P.set(0, hy + (st === 'block' ? 1.4 : 2.3) + Math.sin(now * 2.1) * 0.25, st === 'block' ? 0.4 : 0.55);
+                            if (st === 'hit') { P.x += Math.sin(t * 40) * 0.25; P.y += 0.3; jaw = 1.0; }
+                        }
+                        P.y -= (1 - ease) * 2.4;
+                    } else {
+                        const hold = _hfA.set(_hfH.x, _hfH.y + 0.15, _hfH.z + 0.55);
+                        if (this.isUltimateAttack && atk) {
+                            path([[0, hold.x, hold.y, hold.z], [0.26, hold.x, hold.y + 0.4, hold.z - 0.4], [0.4, _hfT.x, 3.0, _hfT.z - 0.8], [0.52, _hfT.x - 1.6, 1.6, _hfT.z + 1.6],
+                                  [0.6, _hfT.x + 1.6, 0.9, _hfT.z + 3.0], [0.68, _hfT.x, 3.8, _hfT.z + 3.2], [0.74, _hfT.x, 3.2, _hfT.z + 0.3],
+                                  [0.88, _hfT.x * 0.4, 2.4, _hfT.z * 0.4], [1, hold.x, hold.y, hold.z]]);
+                            jaw = 0.3 + 0.9 * bump(0.4, 0.1) + 1.0 * bump(0.74, 0.1);
+                            spin = (p > 0.28 && p < 0.7) ? 1 : 0;
+                        } else if (atk && step === 3) {
+                            path([[0, hold.x, hold.y, hold.z], [0.3, hold.x, hold.y + 0.4, hold.z - 0.4], [0.52, _hfT.x * 0.35, hold.y + 0.8, _hfT.z * 0.45],
+                                  [0.64, _hfT.x * 0.9, 3.0, _hfT.z * 0.95], [0.82, _hfT.x * 0.5, 2.0, _hfT.z * 0.5], [1, hold.x, hold.y, hold.z]]);
+                            jaw = 0.3 + 0.9 * bump(0.64, 0.12);
+                            spin = (p > 0.4 && p < 0.9) ? 1 : 0;
+                        } else {
+                            P.copy(hold);
+                            roll = 0.25 + Math.sin(now * 2.2) * 0.1;
+                            if (atk && step === 2) { jaw = 0.8; roll = 0.9; }
+                            if (st === 'hit') { jaw = 1.0; P.x += Math.sin(t * 36) * 0.2; }
+                        }
+                        // After the transformation the head falls from the open neck into the hand.
+                        _hfB.set(_hfN.x, _hfN.y + 1.4, _hfN.z + 0.2);
+                        P.lerpVectors(_hfB, P, ease);
+                    }
+                    fh.position.copy(P);
+                    const yaw = Math.atan2(_hfT.x - P.x, _hfT.z - P.z);
+                    fh.rotation.set(spin ? now * 11 : Math.sin(now * 1.7) * 0.12, spin && !leakOn ? now * 7 : yaw, roll + (spin && leakOn ? Math.sin(now * 8) * 0.4 : 0));
+                    if (this.floatJaw) this.floatJaw.rotation.x = jaw;
+                    if (this.floatTongue && leakOn) this.floatTongue.scale.z = tongue;
+                    if (this.floatHeart) this.floatHeart.scale.setScalar(1 + Math.max(0, Math.sin(now * 7)) * 0.35);
+                    // Entrail rope from the skull to the neck stump.
+                    if (leakOn && this.floatTrailSegs) {
+                        const A = _hfA.copy(P).add(_hfD.set(0, -1.0, 0));
+                        const Bn = _hfB.copy(_hfN).add(_hfD.set(0, 0.35, 0));
+                        const n = this.floatTrailSegs.length;
+                        const slack = THREE.MathUtils.clamp(2.2 - A.distanceTo(Bn) * 0.12, 0.4, 2.0);
+                        this.floatTrailSegs.forEach((seg, i) => {
+                            const s = (i + 1) / (n + 1);
+                            const sag = Math.sin(Math.PI * s);
+                            seg.position.lerpVectors(A, Bn, s);
+                            seg.position.y -= sag * slack * 0.7;
+                            seg.position.x += Math.sin(now * 3.2 + i * 0.7) * 0.28 * sag;
+                            seg.position.z += Math.cos(now * 2.7 + i * 0.6) * 0.22 * sag;
+                            seg.scale.setScalar(1 - s * 0.25);
+                            _hfD.copy(Bn).sub(A).normalize();
+                            _hfQ.setFromUnitVectors(_hfZ, _hfD);
+                            seg.quaternion.copy(_hfQ);
+                            seg.rotateZ(i * 0.5 + Math.sin(now * 2 + i) * 0.3);
+                        });
+                    }
+                    if (buntOn && this.limes) {
+                        this.limes.forEach((lime, i) => {
+                            const ang = now * 1.4 + i * Math.PI / 3;
+                            lime.position.set(Math.cos(ang) * 2.7, 1.6 + (i % 3) * 1.5 + Math.sin(now * 2 + i) * 0.3, Math.sin(ang) * 2.7);
+                            lime.rotation.set(now * 1.3 + i, now * 0.9, 0);
+                        });
                     }
                 }
 
@@ -7691,6 +8184,7 @@
                             break;
                     }
 
+                    if (this.leakActive || this.buntungActive) this.animateHeadFormBody();
                     // Suster Ngesot crawls on the floor: her own poses replace the standing ones
                     // (state timers above still run) and the upright balance/floor/limb IK is skipped.
                     if (this.ngesotActive) {
@@ -7830,6 +8324,18 @@
                     // Suster Ngesot Ultimate: Ngesot Maut (crawl-dash, claw rake, face-first leap).
                     if (this.isUltimateAttack && this.visualIdentity === 'suster') {
                         this.animateNgesotUltimate(t);
+                        return;
+                    }
+                    if (this.isUltimateAttack && this.visualIdentity === 'leak') {
+                        this.animateLeakUltimate(t);
+                        return;
+                    }
+                    if (this.isUltimateAttack && this.visualIdentity === 'buntung') {
+                        this.animateBuntungUltimate(t);
+                        return;
+                    }
+                    if ((this.leakActive || this.buntungActive) && !this.isUltimateAttack) {
+                        this.animateHeadFormAttack(t, step === 3 ? 0.44 : 0.38, step);
                         return;
                     }
                     if (this.ngesotActive && this.visualIdentity === 'suster' && !this.isUltimateAttack) {
@@ -8581,7 +9087,7 @@
                     const forwardZ = Math.cos(this.rotation);
                     const rightX = Math.cos(this.rotation);
                     const rightZ = -Math.sin(this.rotation);
-                    const isPocong = this.visualIdentity === 'banyu' && this.pocongFormTimer > 0;
+                    const isPocong = (this.visualIdentity === 'banyu' && this.pocongFormTimer > 0) || this.leakActive || this.buntungActive;
 
                     // Hand targets blend between the authored pose, a readable guard, and a
                     // position-aware strike point on the opponent. Both arms use the same IK.
@@ -8764,6 +9270,27 @@
                         });
                     }
 
+                    if (this.leakTimer > 0) {
+                        this.leakTimer = Math.max(0, this.leakTimer - deltaTime);
+                        if (this.leakTimer === 0) this.setLeakForm(false);
+                    }
+                    if (this.buntungTimer > 0) {
+                        this.buntungTimer = Math.max(0, this.buntungTimer - deltaTime);
+                        if (this.buntungTimer === 0) this.setBuntungForm(false);
+                    }
+                    if (this.formMist && this.formMist.visible) {
+                        const ft = performance.now() * 0.001;
+                        this.formMistPuffs.forEach(puff => {
+                            const d = puff.userData;
+                            const cyc = (ft * 0.4 + d.phase) % 1;
+                            const a = d.angle + ft * 0.5;
+                            puff.position.set(Math.cos(a) * d.radius, 0.2 + cyc * 4.4, Math.sin(a) * d.radius);
+                            puff.rotation.set(cyc * 2, cyc * 3, 0);
+                            puff.scale.setScalar(0.6 + cyc * 1.3);
+                            puff.material.opacity = 0.34 * (1 - cyc);
+                        });
+                        if (this.formAura) this.formAura.scale.setScalar(1 + Math.sin(ft * 4) * 0.07);
+                    }
                     if (this.ngesotTimer > 0) {
                         this.ngesotTimer = Math.max(0, this.ngesotTimer - deltaTime);
                         if (this.ngesotTimer === 0) this.setNgesotForm(false);
@@ -8908,13 +9435,18 @@
             const fighterRoster = [
                 { name: 'Banyu Wisesa', identity: 'banyu', primary: 0x2563eb, dark: 0x1d4ed8, accent: 0xf59e0b, skin: 0xf3c4a2, hair: 0x4a2c16, eye: 0x0ea5e9 },
                 { name: 'Gantara Bara', identity: 'gantara', primary: 0xdc2626, dark: 0x991b1b, accent: 0xd97706, skin: 0xd89f7f, hair: 0x171717, eye: 0xf97316 },
-                { name: 'Laras Wening', identity: 'suster', primary: 0x14b8a6, dark: 0x0f766e, accent: 0xdc2626, skin: 0xc58b5f, hair: 0x101018, eye: 0xef4444 }
+                { name: 'Laras Wening', identity: 'suster', primary: 0x14b8a6, dark: 0x0f766e, accent: 0xdc2626, skin: 0xc58b5f, hair: 0x101018, eye: 0xef4444 },
+                { name: 'Wayan Sudira', identity: 'leak', primary: 0xf8fafc, dark: 0xb91c1c, accent: 0xf59e0b, skin: 0xa8734a, hair: 0x0a0a0a, eye: 0xff2a2a },
+                { name: 'Bang Jali', identity: 'buntung', primary: 0x3a7d44, dark: 0x14532d, accent: 0x84cc16, skin: 0xc58b5f, hair: 0x0a0a0a, eye: 0x9be84a }
             ];
             // The third fighter's body waits on an off-stage holder until she is picked; visuals are
             // exchanged between holders, so any two of the three can face each other.
-            const spare = new Character('spare', { maxHP: 1 }, 'suster');
-            spare.group.visible = false;
-            spare.setPosition(0, -60, 0);
+            const spares = ['suster', 'leak', 'buntung'].map(identity => {
+                const holder = new Character('spare', { maxHP: 1 }, identity);
+                holder.group.visible = false;
+                holder.setPosition(0, -60, 0);
+                return holder;
+            });
             const rivalIndex = () => (selectedFighterIndex + 1) % fighterRoster.length;
             const appearanceKeys = [
                 'pelvis', 'torso', 'neck', 'head', 'mouthMesh',
@@ -8926,6 +9458,8 @@
                 'pocongBoundArms', 'pocongSpiritArms', 'pocongSpiritRoots', 'pocongAura',
                 'genderuwoParts', 'genderuwoStages', 'genderuwoEyeParts', 'genderuwoSmoke', 'genderuwoSmokePuffs', 'genderuwoAura',
                 'ngesotParts', 'ngesotMist', 'ngesotMistPuffs', 'ngesotAura',
+                'floatHead', 'floatKind', 'floatJaw', 'floatTongue', 'floatHeart', 'floatTrail', 'floatTrailSegs', 'limeOrbit', 'limes', 'neckStump',
+                'formMist', 'formMistPuffs', 'formAura',
                 'avatarRig', 'avatarAssetKey', 'pocongOn', 'cutsceneHideAvatar', 'visualIdentity'
             ];
             function swapVisualsBetween(a, b) {
@@ -8948,12 +9482,18 @@
                     c.setPocongForm(false);
                     c.setGenderuwoForm(false);
                     c.setNgesotForm(false);
+                    c.leakTimer = 0;
+                    c.buntungTimer = 0;
+                    c.leakActive = false;
+                    c.buntungActive = false;
+                    c.setLeakForm(false);
+                    c.setBuntungForm(false);
                     c.refreshAvatar();
                 });
             }
             function swapFighterVisuals() {
                 // Put the selected fighter on the player and her rival on the AI slot.
-                const holders = [player, opponent, spare];
+                const holders = [player, opponent, ...spares];
                 const holderOf = id => holders.find(c => c.visualIdentity === id);
                 const wantPlayer = fighterRoster[selectedFighterIndex].identity;
                 const wantOpponent = fighterRoster[rivalIndex()].identity;
@@ -9641,7 +10181,7 @@
                 const step = opponent.getCurrentComboStep();
                 // Genderuwo's distinct claw, sweep, and pounce each resolve near their visible strike apex.
                 const beastForm = opponent.genderuwoActive && opponent.visualIdentity === 'gantara';
-                const crawlForm = opponent.ngesotActive && opponent.visualIdentity === 'suster';
+                const crawlForm = (opponent.ngesotActive && opponent.visualIdentity === 'suster') || opponent.leakActive || opponent.buntungActive;
                 opponent.attackCooldown = beastForm ? [0.34, 0.42, 0.54][step - 1] : (crawlForm ? [0.4, 0.44, 0.6][step - 1] : 0.30);
                 ai.attackTimer = beastForm ? [0.22, 0.29, 0.37][step - 1] : (crawlForm ? [0.2, 0.22, 0.32][step - 1] : (step === 3 ? 0.24 : 0.18));
                 ai.attackPending = true;
@@ -9700,8 +10240,24 @@
                 if (opponent.hp > 0 && opponent.hp <= opponent.maxHP * 0.5 &&
                     ((opponent.visualIdentity === 'gantara' && !opponent.genderuwoActive) ||
                      (opponent.visualIdentity === 'suster' && !opponent.ngesotActive) ||
+                     (opponent.visualIdentity === 'leak' && !opponent.leakActive) ||
+                     (opponent.visualIdentity === 'buntung' && !opponent.buntungActive) ||
                      (opponent.visualIdentity === 'banyu' && !(opponent.pocongFormTimer > 0)))) {
-                    if (opponent.visualIdentity === 'suster') {
+                    if (opponent.visualIdentity === 'leak') {
+                        opponent.setLeakForm(true);
+                        opponent.leakTimer = 999;
+                        showComboCallout('LEAK TERBANG! 🔥', '#fb923c');
+                        if (opponentHPLabel) opponentHPLabel.textContent = 'Wayan Sudira · Leak';
+                        flashScreen(0.6, 420);
+                        spawnSpiritBurst(opponent.position, 0xf97316, 6);
+                    } else if (opponent.visualIdentity === 'buntung') {
+                        opponent.setBuntungForm(true);
+                        opponent.buntungTimer = 999;
+                        showComboCallout('KEPALA BUNTUNG BANGKIT! 🍋', '#a3e635');
+                        if (opponentHPLabel) opponentHPLabel.textContent = 'Bang Jali · Kepala Buntung';
+                        flashScreen(0.6, 420);
+                        spawnSpiritBurst(opponent.position, 0x84cc16, 6);
+                    } else if (opponent.visualIdentity === 'suster') {
                         opponent.setNgesotForm(true);
                         opponent.ngesotTimer = 999;
                         showComboCallout('SUSTER NGESOT BANGKIT! 🩸', '#f87171');
@@ -10095,7 +10651,10 @@
                 );
                 const verticalDistance = Math.abs(defender.position.y - attacker.position.y);
                 const pocongRange = attacker.isUltimateAttack ? 5.9 : 5.75;
-                const isNgesotStrike = attacker.visualIdentity === 'suster' && (attacker.ngesotActive || attacker.isUltimateAttack);
+                const isHeadFighter = attacker.visualIdentity === 'leak' || attacker.visualIdentity === 'buntung';
+                const isNgesotStrike = (attacker.visualIdentity === 'suster' && attacker.ngesotActive) ||
+                    (isHeadFighter && (attacker.leakActive || attacker.buntungActive)) ||
+                    ((attacker.visualIdentity === 'suster' || isHeadFighter) && attacker.isUltimateAttack);
                 const genderuwoCombo = attacker.genderuwoActive && attacker.visualIdentity === 'gantara' && !attacker.isUltimateAttack;
                 const beastStep = attacker.getCurrentComboStep ? attacker.getCurrentComboStep() : 1;
                 const facingX = Math.sin(attacker.rotation);
@@ -10109,11 +10668,11 @@
                 const inRange = genderuwoCombo
                     ? horizontalDistance <= beastReach && verticalDistance <= 4.8 && facingDot >= 0.15
                     : isNgesotStrike
-                        ? horizontalDistance <= (attacker.isUltimateAttack ? 6.4 : 5.5) && verticalDistance <= 4.8
+                        ? horizontalDistance <= (attacker.isUltimateAttack ? 6.4 : (isHeadFighter ? 6.4 : 5.5)) && verticalDistance <= 4.8
                         : isPocongStrike
                             ? horizontalDistance <= pocongRange && verticalDistance <= 4.8
                             : distance <= 4.7;
-                if (inRange) {
+                if (inRange || opts.anyRange) {
                     const step = attacker.getCurrentComboStep ? attacker.getCurrentComboStep() : 1;
                     let hitHeight = 2.9;
                     let calloutText = 'PUKULAN DADA!';
@@ -10145,11 +10704,20 @@
                     }
 
                     if (isNgesotStrike && !attacker.isUltimateAttack) {
-                        const crawlMoves = [
+                        const moveTable = attacker.visualIdentity === 'leak' ? [
+                            ['GIGITAN LEAK! 🦷', '#fdba74', 3.4],
+                            ['LIDAH MAUT! 👅', '#fb923c', 3.6],
+                            ['TERKAMAN USUS! 🩸', '#ef4444', 3.0]
+                        ] : (attacker.visualIdentity === 'buntung' ? [
+                            ['CENGKERAMAN BUTA! 🖐️', '#bef264', 3.4],
+                            ['BANTING KEPALA! 💀', '#a3e635', 3.9],
+                            ['LEMPAR KEPALA! 🍋', '#84cc16', 3.6]
+                        ] : [
                             ['CAKARAN RAMBUT! 🩸', '#fca5a5', 2.2],
                             ['SERETAN HANTU! 💢', '#f87171', 2.4],
                             ['JERITAN MAUT! 💀', '#ef4444', 3.0]
-                        ][Math.max(0, Math.min(2, step - 1))];
+                        ]);
+                        const crawlMoves = moveTable[Math.max(0, Math.min(2, step - 1))];
                         calloutText = crawlMoves[0];
                         calloutColor = crawlMoves[1];
                         hitHeight = crawlMoves[2];
@@ -10504,7 +11072,12 @@
                 player.setGenderuwoForm(false);
                 player.ngesotTimer = 0;
                 player.setNgesotForm(false);
+                player.leakTimer = 0;
+                player.setLeakForm(false);
+                player.buntungTimer = 0;
+                player.setBuntungForm(false);
                 if (player.visualIdentity === 'suster') setNgesotCutsceneTitle();
+                if (player.visualIdentity === 'leak' || player.visualIdentity === 'buntung') setHeadFormCutsceneTitle(player.visualIdentity);
                 player.isUltimateAttack = true;
                 player.isAttacking = true;
                 player.isBlocking = false;
@@ -10575,6 +11148,93 @@
                 }
             }
 
+            function setHeadFormCutsceneTitle(kind) {
+                if (!cineTitleEl) return;
+                const name = cineTitleEl.querySelector('.cine-name');
+                const main = cineTitleEl.querySelector('.cine-main');
+                const move = cineTitleEl.querySelector('.cine-move');
+                if (name) name.textContent = kind === 'leak' ? 'WAYAN SUDIRA' : 'BANG JALI';
+                if (main) main.textContent = kind === 'leak' ? 'WUJUD LEAK' : 'WUJUD KEPALA BUNTUNG';
+                if (move) move.textContent = kind === 'leak' ? 'LEAK TERBANG' : 'JERUK PURUT';
+                cineTitleEl.classList.remove('show');
+                cutscene.titleSwapped = true;
+            }
+
+            // The body convulses, the head is thrown back, a flash, and the head comes off.
+            function updateHeadFormCutscene(dt) {
+                const kind = player.visualIdentity;
+                cutscene.time += dt;
+                const t = cutscene.time;
+                cutscene.hover = 0;
+                player.update(dt);
+                player.group.position.y = player.position.y + (player.hoverOffset || 0);
+                if (!cutscene.flashed) {
+                    const k = cineSmooth(0.2, CUTSCENE_FLASH_TIME, t);
+                    player.torso.rotation.set(0.04 - k * 0.4, Math.sin(t * 28) * 0.12 * k, Math.sin(t * 23) * 0.08 * k);
+                    player.neck.rotation.x = -k * 0.5;
+                    player.head.rotation.x = -k * 0.8;
+                    player.leftShoulder.rotation.set(-0.2, 0, -0.35 - k);
+                    player.rightShoulder.rotation.set(-0.2, 0, 0.35 + k);
+                    player.leftElbow.rotation.set(-0.25, 0, 0);
+                    player.rightElbow.rotation.set(-0.25, 0, 0);
+                    if (!cutscene.wrapSounded && t >= 0.25) {
+                        cutscene.wrapSounded = true;
+                        playSynthSound('kafan_wrap', 0.8);
+                    }
+                    if (t >= CUTSCENE_FLASH_TIME) {
+                        cutscene.flashed = true;
+                        if (kind === 'leak') { player.setLeakForm(true); player.leakTimer = 10; }
+                        else { player.setBuntungForm(true); player.buntungTimer = 10; }
+                        flashScreen(1, 520);
+                        cameraShake = 0.4;
+                        spawnSpiritBurst(player.position, kind === 'leak' ? 0xf97316 : 0x84cc16, 7);
+                        playSynthSound('spirit_hammer', 1.0);
+                        playFighterScream('opponent');
+                        if (cineTitleEl) cineTitleEl.classList.add('show');
+                    }
+                } else {
+                    const settle = 1 - cineSmooth(1.5, 2.25, t);
+                    player.torso.rotation.x -= 0.3 * settle;
+                    player.leftShoulder.rotation.z -= 0.6 * settle;
+                    player.rightShoulder.rotation.z += 0.6 * settle;
+                }
+                if (t >= CUTSCENE_DURATION) {
+                    endUltimateCutscene();
+                    beginUltimateAttack();
+                }
+            }
+
+            function beginHeadFormUltimate(kind) {
+                if (kind === 'leak') { if (!player.leakActive) player.setLeakForm(true); player.leakTimer = 10; }
+                else { if (!player.buntungActive) player.setBuntungForm(true); player.buntungTimer = 10; }
+                player.isUltimateAttack = true;
+                player.isAttacking = true;
+                player.isBlocking = false;
+                player.lookAt(opponent.position);
+                player.changeAnimation('attack');
+                player.attackCooldown = ULT_ATTACK_DURATION;
+                player.ultDashFrom = null;
+                player.ultDashTo = null;
+                if (kind === 'buntung') {
+                    const dx = opponent.position.x - player.position.x;
+                    const dz = opponent.position.z - player.position.z;
+                    const dist = Math.hypot(dx, dz);
+                    const dashLen = Math.max(0, Math.min(dist - 3.4, 16));
+                    player.ultDashFrom = player.position.clone();
+                    player.ultDashTo = player.position.clone();
+                    if (dist > 0.001) {
+                        player.ultDashTo.x += (dx / dist) * dashLen;
+                        player.ultDashTo.z += (dz / dist) * dashLen;
+                    }
+                    if (dashLen > 0.5) spawnStumbleDust(player.position);
+                }
+                player.ultFlags = { cross: false, slow: false, finisher: false };
+                ai.blockTimer = 0;
+                opponent.isBlocking = false;
+                showComboCallout(kind === 'leak' ? 'LEAK TERBANG! 🔥' : 'KEPALA BUNTUNG JERUK PURUT! 🍋', kind === 'leak' ? '#fb923c' : '#a3e635');
+                playSynthSound('astral_sickle', 0.6);
+            }
+
             function beginNgesotUltimate() {
                 if (!player.ngesotActive) player.setNgesotForm(true);
                 player.ngesotTimer = 10;
@@ -10606,6 +11266,7 @@
 
             function updateUltimateCutscene(dt) {
                 if (player.visualIdentity === 'suster') { updateNgesotCutscene(dt); return; }
+                if (player.visualIdentity === 'leak' || player.visualIdentity === 'buntung') { updateHeadFormCutscene(dt); return; }
                 cutscene.time += dt;
                 const t = cutscene.time;
                 if (!cutscene.wrapSounded && t >= 0.25) {
@@ -10666,7 +11327,7 @@
                 // the opponent, so the camera sits just beyond him on that forward axis;
                 // the opponent is hidden until the ultimate attack starts.
                 const forward = new THREE.Vector3(Math.sin(player.rotation), 0, Math.cos(player.rotation));
-                const focusY = (player.visualIdentity === 'suster' ? 2.0 : 3.15) + cutscene.hover * 0.45;
+                const focusY = (player.visualIdentity === 'suster' ? 2.0 : (player.visualIdentity === 'leak' ? 4.2 : 3.15)) + cutscene.hover * 0.45;
                 const dist = 13.5;
                 const lim = arenaWallDistance - 1.2;
                 const tx = THREE.MathUtils.clamp(player.position.x + forward.x * dist, -lim, lim);
@@ -11031,6 +11692,10 @@
                     beginNgesotUltimate();
                     return;
                 }
+                if (player.visualIdentity === 'leak' || player.visualIdentity === 'buntung') {
+                    beginHeadFormUltimate(player.visualIdentity);
+                    return;
+                }
                 if (player.visualIdentity === 'gantara' && !player.genderuwoActive) {
                     startGenderuwoCutscene(player, 'ultimate');
                     return;
@@ -11066,6 +11731,15 @@
 
             function resolveUltimateCross() {
                 playSynthSound('astral_sickle', 1.0);
+                if (player.visualIdentity === 'leak' || player.visualIdentity === 'buntung') {
+                    const first = player.visualIdentity === 'leak';
+                    const passHit = checkHit(player, opponent, 0.4, { knockback: 0.1, anyRange: true, callout: first ? 'GIGITAN LEAK! 🦷' : 'LEMPAR KEPALA! 🍋', color: first ? '#fdba74' : '#bef264' });
+                    if (passHit) {
+                        spawnSpiritBurst(opponent.position, first ? 0xf97316 : 0x84cc16, 4);
+                        cameraShake = Math.max(cameraShake, 0.22);
+                    }
+                    return;
+                }
                 if (player.visualIdentity === 'suster') {
                     const clawHit = checkHit(player, opponent, 0.4, { knockback: 0.1, callout: 'CAKARAN RAMBUT SILANG! ✖️', color: '#fca5a5' });
                     if (clawHit) {
@@ -11084,6 +11758,18 @@
 
             function resolveUltimateFinisher() {
                 playSynthSound('spirit_hammer', 1.0);
+                if (player.visualIdentity === 'leak' || player.visualIdentity === 'buntung') {
+                    const first = player.visualIdentity === 'leak';
+                    const biteHit = checkHit(player, opponent, 0.7, { knockback: 1.4, anyRange: true, callout: first ? 'TERKAMAN LEAK! 💀' : 'KEPALA BUNTUNG MENGGIGIT! 💀', color: first ? '#fb923c' : '#a3e635' });
+                    if (biteHit) {
+                        spawnSpiritBurst(opponent.position, first ? 0xea580c : 0x65a30d, 6);
+                        playFighterScream('opponent');
+                        playSynthSound('ground_slam', 1.0);
+                        flashScreen(0.65, 420);
+                        cameraShake = Math.max(cameraShake, 0.55);
+                    }
+                    return;
+                }
                 if (player.visualIdentity === 'suster') {
                     const scareHit = checkHit(player, opponent, 0.7, { knockback: 1.4, callout: 'JERITAN SUSTER NGESOT! 💀', color: '#ef4444' });
                     if (scareHit) {
@@ -11306,7 +11992,7 @@
                 opponent.isUltimateAttack = false;
                 opponent.setGenderuwoForm(false);
                 opponent.genderuwoActive = false;
-                [player, opponent].forEach(c => { c.ngesotTimer = 0; c.setNgesotForm(false); });
+                [player, opponent].forEach(c => { c.ngesotTimer = 0; c.setNgesotForm(false); c.leakTimer = 0; c.setLeakForm(false); c.buntungTimer = 0; c.setBuntungForm(false); });
                 player.specialHitPending = false;
                 player.specialHitTimer = 0;
                 if (playerHPLabel) playerHPLabel.textContent = fighterRoster[selectedFighterIndex].name;
@@ -11588,7 +12274,7 @@
                         ultimateBufferTimer = 0;
                         if (wantUltimate) {
                             ultimateCooldown = 10;
-                            if (player.visualIdentity === 'banyu' || player.visualIdentity === 'suster') {
+                            if (player.visualIdentity !== 'gantara') {
                                 startUltimateCutscene();
                             } else {
                                 // Gantara's own ultimate now earns its power through the full staged awakening.
@@ -11603,7 +12289,7 @@
                         const curStep = player.getCurrentComboStep();
                         const pocongCombo = player.pocongFormTimer > 0 && !player.isUltimateAttack;
                         const genderuwoCombo = player.genderuwoActive && player.visualIdentity === 'gantara' && !player.isUltimateAttack;
-                        const ngesotCombo = player.ngesotActive && player.visualIdentity === 'suster' && !player.isUltimateAttack;
+                        const ngesotCombo = ((player.ngesotActive && player.visualIdentity === 'suster') || player.leakActive || player.buntungActive) && !player.isUltimateAttack;
                         player.attackCooldown = ngesotCombo
                             ? [0.44, 0.48, 0.66][curStep - 1]
                             : genderuwoCombo
@@ -11750,6 +12436,8 @@
                 // Retarget the GLB avatars onto the (final) voxel skeleton pose, then render
                 if (player.avatarRig) player.avatarRig.sync(player);
                 if (opponent.avatarRig) opponent.avatarRig.sync(opponent);
+                player.updateFloatingHead();
+                opponent.updateFloatingHead();
                 // Render
                 renderer.render(scene, camera);
 

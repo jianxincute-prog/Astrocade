@@ -357,5 +357,25 @@
    1024,
    4096
   ]
+ },
+ "avatar_leak": {
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793590469438_01M6D558SY30734JNCX9TQ2M5Y.glb",
+  "type": "model_3d",
+  "description": "AstroKid avatar A recolored as Wayan Sudira (white kebaya, red sash, gold, poleng sarong); rigged Mixamo skeleton."
+ },
+ "avatar_buntung": {
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793590470964_01M6D55A9MA4SK9D2R0070X88T.glb",
+  "type": "model_3d",
+  "description": "AstroKid avatar B recolored as Bang Jali (white koko with green trim, lime-green sarong); rigged Mixamo skeleton."
+ },
+ "avatar_buntung_ghost_tex": {
+  "url": "https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793590472480_01M6D55BS0TYG6QS64TSCQB6RW.png",
+  "type": "image",
+  "description": "Base color texture for Bang Jali's Kepala Buntung form: grey-green pallor, bloodstained clothes, black hair.",
+  "subtype": "character",
+  "aspect_ratio": [
+   1024,
+   4096
+  ]
  }
 }
