@@ -7072,7 +7072,7 @@
                     const reach = THREE.MathUtils.clamp(Math.hypot(_hfT.x, _hfT.z), 3.2, 7);
                     const rise = THREE.MathUtils.clamp((now - this.formStart) / 0.7, 0, 1);
                     const ease = rise * rise * (3 - 2 * rise);
-                    const atk = st === 'attack' && this.isAttacking;
+                    const atk = st === 'attack' && this.isAttacking && !(this.specialSkill && this.specialSkill.active);
                     const step = this.getCurrentComboStep();
                     const dur = this.isUltimateAttack ? ULT_ATTACK_DURATION : (step === 3 ? 0.44 : 0.38);
                     const p = Math.min(1, t / dur);
@@ -10078,7 +10078,7 @@
                 if (!Number.isInteger(index) || index < 0 || index >= fighterRoster.length) return;
                 selectedFighterIndex = index;
                 swapFighterVisuals();
-                refreshSkillButtons();
+                lockFighterSkills();
                 if (playerHPLabel) playerHPLabel.textContent = fighterRoster[selectedFighterIndex].name;
                 const rivalLabel = document.querySelector('.hp-container.opponent .hp-label');
                 if (rivalLabel) rivalLabel.textContent = `${fighterRoster[rivalIndex()].name} · Rival`;
@@ -10246,7 +10246,7 @@
             battleWorld.visible = mode !== 'play';
             lobbyWorld.visible = mode === 'play';
             if (mode === 'play') gameWorld.classList.add('lobby-mode');
-            gameWorld.classList.add('banyu-skills-enabled');
+            gameWorld.classList.remove('banyu-skills-enabled');
 
             // ===== CAMERA SETUP =====
             const cameraOffset = {
@@ -10298,6 +10298,7 @@
                 if (!inLobby || mode !== 'play') return;
                 inLobby = false;
                 lobbyNearby = null;
+                lockFighterSkills();
                 // Switch complete environments before spawning the duel: no podium, portal,
                 // hall floor, walls, lights, or preview fighter can appear in the battle.
                 lobbyWorld.visible = false;
@@ -10355,13 +10356,36 @@
                 ]
             };
             function canUseFighterSkill() {
-                const id = player.visualIdentity;
-                if (!FIGHTER_SKILLS[id]) return false;
-                if (id === 'banyu') return true;
-                return !player.ngesotActive && !player.leakActive && !player.buntungActive && !player.genderuwoActive &&
-                    !(player.pocongFormTimer > 0) && !player.isUltimateAttack && !cutscene.active && !genderuwoCutscene.active;
+                // Skills belong to the phase after the ultimate: usable once unlocked, also while a transformed
+                // form is active, but never during the ultimate itself or its cutscenes.
+                return skillsUnlocked && !!FIGHTER_SKILLS[player.visualIdentity] && !player.isUltimateAttack &&
+                    !cutscene.active && !genderuwoCutscene.active;
             }
             let fighterSkillFx = null;
+            let skillsUnlocked = false;
+            // The two skills are a reward for using the ultimate: hidden until then, available for the rest of the battle.
+            function unlockFighterSkills() {
+                if (skillsUnlocked) return;
+                skillsUnlocked = true;
+                refreshSkillButtons();
+                if (!document.getElementById('skill-pop-style')) {
+                    const st = document.createElement('style');
+                    st.id = 'skill-pop-style';
+                    st.textContent = '@keyframes skillPop{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.28);opacity:1}100%{transform:scale(1)}} .skill-pop{animation:skillPop .65s cubic-bezier(.2,.9,.3,1.2)}';
+                    document.head.appendChild(st);
+                }
+                [btnSkillOne, btnSkillTwo].forEach(b => {
+                    if (!b) return;
+                    b.classList.remove('skill-pop');
+                    void b.offsetWidth;
+                    b.classList.add('skill-pop');
+                });
+                setTimeout(() => { if (!gameOver && skillsUnlocked) showComboCallout('SKILLS UNLOCKED! 🔓', '#facc15'); }, 2400);
+            }
+            function lockFighterSkills() {
+                skillsUnlocked = false;
+                refreshSkillButtons();
+            }
 
             // ---- visual helpers ----
             const additive = (color, opacity = 0.85) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
@@ -11022,7 +11046,7 @@
             }
 
             function triggerBanyuSkill(which) {
-                if (inLobby || !FIGHTER_SKILLS[player.visualIdentity]) return;
+                if (inLobby || !skillsUnlocked || !FIGHTER_SKILLS[player.visualIdentity]) return;
                 const ready = which === 1 ? skillOneCooldown <= 0 : skillTwoCooldown <= 0;
                 if (!ready) return;
                 if (which === 1) {
@@ -11161,11 +11185,14 @@
                 joystickStick.style.transform = 'translate(-50%, -50%)';
             }
 
-            // Touch events
+            // Touch events. Each control follows the finger that started on it (changedTouches), never
+            // touches[0]: that is the first finger on the whole screen, e.g. a thumb already holding the attack
+            // button, which used to pin the stick to the right and keep it there after release.
             joystickArea.addEventListener('touchstart', (e) => {
-                const touch = e.touches[0];
-                handleJoystickStart(touch.clientX, touch.clientY, touch.identifier);
                 e.preventDefault();
+                if (input.touch.joystick) return;
+                const touch = e.changedTouches[0];
+                if (touch) handleJoystickStart(touch.clientX, touch.clientY, touch.identifier);
             }, { passive: false });
 
             joystickArea.addEventListener('touchmove', (e) => {
@@ -11179,22 +11206,37 @@
                 e.preventDefault();
             }, { passive: false });
 
-            joystickArea.addEventListener('touchend', (e) => {
+            const joystickTouchLost = (e) => {
+                const j = input.touch.joystick;
+                if (!j || j.id === 'mouse') return;
                 for (let touch of e.changedTouches) {
-                    if (input.touch.joystick && touch.identifier === input.touch.joystick.id) {
-                        handleJoystickEnd();
-                        break;
-                    }
+                    if (touch.identifier === j.id) { handleJoystickEnd(); return; }
                 }
-                e.preventDefault();
-            }, { passive: false });
-
-            joystickArea.addEventListener('touchcancel', (e) => {
-                handleJoystickEnd();
+            };
+            joystickArea.addEventListener('touchend', (e) => { joystickTouchLost(e); e.preventDefault(); }, { passive: false });
+            joystickArea.addEventListener('touchcancel', joystickTouchLost);
+            // Safety nets: a finger that slid off the control, an OS gesture, or a lost event must never leave
+            // the stick (or a keyboard direction) latched.
+            window.addEventListener('touchend', (e) => {
+                const j = input.touch.joystick;
+                if (j && j.id !== 'mouse' && !Array.from(e.touches).some(t => t.identifier === j.id)) handleJoystickEnd();
             });
+            window.addEventListener('touchcancel', (e) => {
+                const j = input.touch.joystick;
+                if (j && j.id !== 'mouse' && !Array.from(e.touches).some(t => t.identifier === j.id)) handleJoystickEnd();
+                if (input.touch.camera && !Array.from(e.touches).some(t => t.identifier === input.touch.camera.id)) input.touch.camera = null;
+            });
+            const releaseAllMovement = () => {
+                isJoystickPointerDown = false;
+                handleJoystickEnd();
+                input.touch.camera = null;
+                Object.keys(input.keys).forEach(k => { input.keys[k] = false; });
+            };
+            window.addEventListener('blur', releaseAllMovement);
+            document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAllMovement(); });
 
             // Pointer events for desktop click-drag on joystick area
-            let isJoystickPointerDown = false;
+            var isJoystickPointerDown = false;
             joystickArea.addEventListener('pointerdown', (e) => {
                 if (e.pointerType === 'mouse' && e.button === 0) {
                     isJoystickPointerDown = true;
@@ -11219,12 +11261,10 @@
             // Touch input - Camera Control
             const cameraArea = document.getElementById('camera-area');
             cameraArea.addEventListener('touchstart', (e) => {
-                const touch = e.touches[0];
-                input.touch.camera = {
-                    id: touch.identifier,
-                    lastX: touch.clientX
-                };
                 e.preventDefault();
+                if (input.touch.camera) return;
+                const touch = e.changedTouches[0];
+                if (touch) input.touch.camera = { id: touch.identifier, lastX: touch.clientX };
             }, { passive: false });
 
             cameraArea.addEventListener('touchmove', (e) => {
@@ -11240,15 +11280,16 @@
                 e.preventDefault();
             }, { passive: false });
 
-            cameraArea.addEventListener('touchend', (e) => {
+            const cameraTouchLost = (e) => {
                 for (let touch of e.changedTouches) {
                     if (input.touch.camera && touch.identifier === input.touch.camera.id) {
                         input.touch.camera = null;
                         break;
                     }
                 }
-                e.preventDefault();
-            }, { passive: false });
+            };
+            cameraArea.addEventListener('touchend', (e) => { cameraTouchLost(e); e.preventDefault(); }, { passive: false });
+            cameraArea.addEventListener('touchcancel', cameraTouchLost);
 
             // Action Buttons - Highly Responsive Multi-Touch & Pointer Handling
             const btnAttack = document.getElementById('btn-attack');
@@ -11262,7 +11303,7 @@
             const btnSkillTwoText = btnSkillTwo ? btnSkillTwo.querySelector('.btn-text') : null;
             function refreshSkillButtons() {
                 const defs = FIGHTER_SKILLS[fighterRoster[selectedFighterIndex].identity];
-                gameWorld.classList.toggle('banyu-skills-enabled', !!defs);
+                gameWorld.classList.toggle('banyu-skills-enabled', !!defs && skillsUnlocked);
                 if (!defs) return;
                 try {
                     [[btnSkillOne, 0], [btnSkillTwo, 1]].forEach(([btn, i]) => {
@@ -13346,7 +13387,7 @@
                 input.actions.skillTwo = false;
                 if (btnSkillOne) btnSkillOne.classList.remove('active-press', 'disabled');
                 if (btnSkillTwo) btnSkillTwo.classList.remove('active-press', 'disabled');
-                refreshSkillButtons();
+                lockFighterSkills();
                 input.actions.attack = false;
                 input.actions.block = false;
                 input.actions.jump = false;
@@ -13711,6 +13752,7 @@
                         ultimateBufferTimer = 0;
                         if (wantUltimate) {
                             ultimateCooldown = 10;
+                            unlockFighterSkills();
                             if (player.visualIdentity !== 'gantara') {
                                 startUltimateCutscene();
                             } else {
