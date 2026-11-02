@@ -365,6 +365,29 @@
         #mic-meter.off { opacity: 0.55; }
         body.touch #mic-meter { bottom: auto; top: 170px; left: 24px; }
 
+        #mic-meter.tappable { pointer-events: auto; cursor: pointer; z-index: 9; padding: 16px 12px; margin: -16px -12px; }
+        #mic-banner {
+            position: absolute; top: 214px; left: 50%; transform: translateX(-50%);
+            width: min(640px, 90%); box-sizing: border-box;
+            display: none; align-items: center; gap: 14px;
+            padding: 14px 16px; border: 2px solid rgba(255,138,138,0.6); border-radius: 10px;
+            background: rgba(20,8,8,0.9); color: #F3D6D6;
+            font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.35;
+            z-index: 12; pointer-events: auto;
+        }
+        #mic-banner b { color: #FF9B9B; letter-spacing: 2px; }
+        #mic-banner button { flex: 0 0 auto; min-width: 72px; min-height: 72px; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; background: rgba(60,30,30,0.9); color: #fff; font-size: 15px; cursor: pointer; touch-action: manipulation; }
+        #shout-btn {
+            position: absolute; left: 24px; bottom: 372px; width: 112px; height: 112px;
+            display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+            border: 2px solid rgba(255,196,120,0.7); border-radius: 50%;
+            background: rgba(30,22,12,0.85); color: #FFD79A;
+            font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 2px;
+            z-index: 9; pointer-events: auto; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+        }
+        #shout-btn.held { background: rgba(120,40,20,0.95); box-shadow: 0 0 24px rgba(255,120,60,0.7); }
+        #shout-btn .sg { font-size: 30px; line-height: 1; }
+
         /* ---- Puzzle modal (notes, keypad, memory console) ---- */
         #puzzle-modal {
             position: absolute;
@@ -1103,6 +1126,8 @@
             <div class="mm-track"><div class="mm-fill" id="mic-fill"></div><div class="mm-thr" id="mic-thr"></div></div>
             <div class="mm-val" id="mic-state">--</div>
         </div>
+        <div id="mic-banner"><div><b>MIC OFF</b><br>The Listener can't hear your real voice. For the full experience, open HUSH in the <b>Astrocade app</b> and allow the microphone. Meanwhile you can hold <b>SHOUT</b> (or V) to make noise yourself.</div><button id="mic-banner-close" type="button">OK</button></div>
+        <button id="shout-btn" type="button"><span class="sg">&#128226;</span><span>SHOUT</span></button>
         <div id="key-hud">
             <div class="key-slot" id="key-slot-0"><svg viewBox="0 0 24 24"><path d="M7 14a5 5 0 1 1 4.6-6.9H22v3.4h-2.2v2.6h-3.2v-2.6h-5A5 5 0 0 1 7 14zm0-7.4a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></svg><span class="ks-n">I</span></div>
             <div class="key-slot" id="key-slot-1"><svg viewBox="0 0 24 24"><path d="M7 14a5 5 0 1 1 4.6-6.9H22v3.4h-2.2v2.6h-3.2v-2.6h-5A5 5 0 0 1 7 14zm0-7.4a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></svg><span class="ks-n">II</span></div>
@@ -1247,6 +1272,8 @@
         const micThrEl = document.getElementById('mic-thr');
         const micStateEl = document.getElementById('mic-state');
         const micLabelEl = document.getElementById('mic-label');
+        const micBannerEl = document.getElementById('mic-banner');
+        const shoutBtnEl = document.getElementById('shout-btn');
         const pmModalEl = document.getElementById('puzzle-modal');
         const pmPanelEl = document.getElementById('pm-panel');
         const pmKickerEl = document.getElementById('pm-kicker');
@@ -5278,10 +5305,29 @@
                 }).catch(() => { micState.status = 'unavailable'; });
             } catch (e) { micState.status = 'unavailable'; }
         }
+        let micUiOn = false, micBannerShown = false, shoutHeld = false;
         function setMicMeterVisible(v) {
+            micUiOn = !!v;
             if (!micMeterEl) return;
             micMeterEl.style.display = (v && micCfg().showMeter) ? 'flex' : 'none';
+            if (!v) {
+                if (shoutBtnEl) shoutBtnEl.style.display = 'none';
+                if (micBannerEl) micBannerEl.style.display = 'none';
+            }
         }
+        // Mic missing (web without mic access, denied, ...): explain once, and offer a manual SHOUT
+        function setShout(on) {
+            shoutHeld = on;
+            if (shoutBtnEl) shoutBtnEl.classList.toggle('held', on);
+        }
+        if (shoutBtnEl) {
+            shoutBtnEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); setShout(true); });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => shoutBtnEl.addEventListener(ev, () => setShout(false)));
+        }
+        if (micBannerEl) document.getElementById('mic-banner-close').addEventListener('click', (e) => { e.stopPropagation(); micBannerEl.style.display = 'none'; });
+        if (micMeterEl) micMeterEl.addEventListener('click', () => {
+            if (micState.status === 'denied' || micState.status === 'unavailable') openPuzzleUi('mic', null);
+        });
         function updateMic(dt, time) {
             const mc = micCfg();
             const live = mc.enabled && micState.status === 'granted';
@@ -5299,6 +5345,15 @@
                     emitNoise(0.9 + over * Math.max(0, mc.maxNoise - 0.9), playerPos.x, playerPos.z, time);
                 }
             }
+            // manual shout when the real mic is not available
+            const micMissing = mc.enabled && (micState.status === 'denied' || micState.status === 'unavailable');
+            if (micMissing && (shoutHeld || keys['KeyV'])) {
+                micState.hot = 1;
+                if (time - micState.lastEmit > 220) { micState.lastEmit = time; emitNoise(3.5, playerPos.x, playerPos.z, time); }
+            }
+            if (shoutBtnEl) shoutBtnEl.style.display = (micUiOn && micMissing && !uiOpen) ? 'flex' : 'none';
+            if (micMissing && micUiOn && !micBannerShown && micBannerEl) { micBannerShown = true; micBannerEl.style.display = 'flex'; setTimeout(() => { micBannerEl.style.display = 'none'; }, 14000); }
+            if (micMeterEl) micMeterEl.classList.toggle('tappable', micMissing);
             micState.hot = Math.max(0, micState.hot - dt * 2.2);
 
             if (micMeterEl && micMeterEl.style.display !== 'none') {
@@ -5659,6 +5714,13 @@
                         '<p style="margin:0">I kept count of the nights. Count with me:</p>' + tallyHtml(st.digit) +
                         '<p style="margin:10px 0 0;color:#6B1515">Digit ' + st.page + ' of the safe code.</p>';
                 }
+            } else if (kind === 'mic') {
+                pmKickerEl.textContent = 'MICROPHONE // OFF';
+                pmTitleEl.textContent = 'IT CAN\u2019T HEAR YOUR VOICE';
+                pmBodyEl.innerHTML = '<p style="margin:0 0 10px">HUSH reacts to your real voice, but the microphone is not reachable here (blocked or not available in this player).</p>' +
+                    '<p style="margin:0 0 10px">For the full experience, open HUSH in the <b>Astrocade app</b> and allow the microphone.</p>' +
+                    '<p style="margin:0">You can still play: hold <b>SHOUT</b> (or <b>V</b>) to make noise on purpose. Footsteps, thrown junk and wrong answers still count.</p>';
+                pmCloseEl.textContent = 'GOT IT';
             } else if (kind === 'safe') {
                 codeEntry = [];
                 pmKickerEl.textContent = 'SAFE // KEY II';
