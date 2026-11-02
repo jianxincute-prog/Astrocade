@@ -1861,6 +1861,12 @@
         mantis: { ram: 0.86, damageTaken: 0.98 }, gravemaw: { ram: 1.28, damageTaken: 0.9 }
       };
 
+      // Match pacing: longer fights so the shrinking ring matters (zone damage is NOT scaled).
+      const COMBAT_DAMAGE_SCALE = 0.42;
+      const MATCH_HEALTH_SCALE = 1.4;
+      const RING_PACING_SCALE = 1.5;   // stretches ring timeline (warnings, delays, shrink durations)
+      const RING_DAMAGE_SCALE = 0.75;  // softens zone damage per second
+
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
       const lerp = (a, b, t) => a + (b - a) * t;
       const sqr = (v) => v * v;
@@ -2763,7 +2769,7 @@
         effectiveStats(profile) {
           const tune = this.getTune(profile);
           return {
-            hp: profile.hp * tune.durability,
+            hp: profile.hp * tune.durability * MATCH_HEALTH_SCALE,
             topSpeedKmh: profile.topSpeedKmh * tune.engine,
             acceleration: profile.acceleration * tune.engine,
             steeringDeg: profile.steeringDeg * tune.handling,
@@ -3662,10 +3668,10 @@
 
           for (let i = 0; i < source.length; i++) {
             const phase = source[i];
-            const warningDelay = Math.max(0, phase.startAt - phase.warningAt);
-            const warningAt = i === 0 ? phase.warningAt : previousEnd;
+            const warningDelay = Math.max(0, phase.startAt - phase.warningAt) * RING_PACING_SCALE;
+            const warningAt = i === 0 ? phase.warningAt * RING_PACING_SCALE : previousEnd;
             const startAt = warningAt + warningDelay;
-            const baseDuration = phase.endAt - phase.startAt;
+            const baseDuration = (phase.endAt - phase.startAt) * RING_PACING_SCALE;
             const duration = baseDuration / speed;
             const item = {
               warningAt,
@@ -3673,7 +3679,7 @@
               endAt: startAt + duration,
               fromRadius: phase.fromRadius,
               toRadius: phase.toRadius,
-              damagePerSecond: phase.damagePerSecond
+              damagePerSecond: phase.damagePerSecond * RING_DAMAGE_SCALE
             };
             schedule.push(item);
             previousEnd = item.endAt;
@@ -3899,30 +3905,104 @@
         }
 
         createRingVisuals() {
+          // Thin glowing rim (slightly see-through).
           this.ringGlow = new THREE.Mesh(
-            new THREE.TorusGeometry(1, 0.12, 7, 128),
-            new THREE.MeshStandardMaterial({
-              color: 0x65eff0, emissive: 0x15aeb6, emissiveIntensity: 1.1,
-              metalness: 0.38, roughness: 0.24
-            })
+            new THREE.TorusGeometry(1, 0.07, 6, 160),
+            new THREE.MeshBasicMaterial({ color: 0x7ff6ff, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false })
           );
           this.ringGlow.rotation.x = Math.PI / 2;
-          this.ringGlow.position.y = 0.16;
+          this.ringGlow.position.y = 0.14;
           this.arenaGroup.add(this.ringGlow);
 
           this.ringHalo = new THREE.Mesh(
-            new THREE.TorusGeometry(1, 0.28, 5, 128),
-            new THREE.MeshBasicMaterial({ color: 0x4ce5e8, transparent: true, opacity: 0.15, depthWrite: false, toneMapped: false })
+            new THREE.TorusGeometry(1, 0.26, 5, 160),
+            new THREE.MeshBasicMaterial({ color: 0x4ce5e8, transparent: true, opacity: 0.12, depthWrite: false, toneMapped: false })
           );
           this.ringHalo.rotation.x = Math.PI / 2;
           this.ringHalo.position.y = 0.12;
           this.arenaGroup.add(this.ringHalo);
+
+          // Translucent energy wall: fades out toward the top, ripples gently, turns amber/red while closing.
+          this.ringUniforms = {
+            uTime: { value: 0 },
+            uClosing: { value: 0 },
+            uRadius: { value: this.ringRadius || 54 },
+            uColorSafe: { value: new THREE.Color(0x4ce5e8) },
+            uColorDanger: { value: new THREE.Color(0xff5a3c) }
+          };
+          const wallMaterial = new THREE.ShaderMaterial({
+            uniforms: this.ringUniforms,
+            transparent: true, depthWrite: false, side: THREE.DoubleSide,
+            vertexShader: `
+              varying vec2 vUv; varying vec3 vPos;
+              void main() { vUv = uv; vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+            `,
+            fragmentShader: `
+              uniform float uTime; uniform float uClosing; uniform vec3 uColorSafe; uniform vec3 uColorDanger;
+              varying vec2 vUv; varying vec3 vPos;
+              void main() {
+                float fade = pow(1.0 - vUv.y, 1.6);
+                float bands = 0.5 + 0.5 * sin(atan(vPos.z, vPos.x) * 36.0 + uTime * (1.2 + uClosing * 2.2) + vUv.y * 6.0);
+                float pulse = 0.85 + 0.15 * sin(uTime * (2.0 + uClosing * 4.0));
+                float alpha = fade * (0.16 + 0.12 * bands) * pulse + (1.0 - smoothstep(0.0, 0.07, vUv.y)) * 0.12;
+                vec3 color = mix(uColorSafe, uColorDanger, uClosing);
+                gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.5));
+              }
+            `
+          });
+          this.ringWall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 96, 1, true), wallMaterial);
+          this.ringWall.position.y = 0;
+          this.ringWall.renderOrder = 2;
+          this.arenaGroup.add(this.ringWall);
+
+          // Soft danger tint over everything outside the safe zone (single large plane, circle cut in the shader).
+          this.ringDangerMaterial = new THREE.ShaderMaterial({
+            uniforms: this.ringUniforms,
+            transparent: true, depthWrite: false, side: THREE.DoubleSide,
+            vertexShader: `
+              varying vec3 vWorld;
+              void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }
+            `,
+            fragmentShader: `
+              uniform float uRadius; uniform float uTime; uniform float uClosing; uniform vec3 uColorDanger;
+              varying vec3 vWorld;
+              void main() {
+                float d = length(vWorld.xz) - uRadius;
+                float edge = smoothstep(0.0, 3.0, d);
+                float pulse = 0.9 + 0.1 * sin(uTime * 3.0);
+                gl_FragColor = vec4(uColorDanger, edge * (0.16 + 0.07 * uClosing) * pulse);
+              }
+            `
+          });
+          this.ringDanger = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), this.ringDangerMaterial);
+          this.ringDanger.rotation.x = -Math.PI / 2;
+          this.ringDanger.position.y = 0.1;
+          this.ringDanger.renderOrder = 1;
+          this.arenaGroup.add(this.ringDanger);
+          this.updateRingGeometry();
         }
 
         updateRingGeometry() {
           if (!this.ringGlow || !this.ringHalo) return;
-          this.ringGlow.scale.set(this.ringRadius, this.ringRadius, this.ringRadius);
-          this.ringHalo.scale.set(this.ringRadius, this.ringRadius, this.ringRadius);
+          const r = this.ringRadius;
+          this.ringGlow.scale.set(r, r, r);
+          this.ringHalo.scale.set(r, r, r);
+          if (this.ringWall) {
+            const wallHeight = 16;
+            this.ringWall.scale.set(r, wallHeight, r);
+            this.ringWall.position.y = wallHeight * 0.5;
+            // Closing = a shrink phase is currently running.
+            const t = this.runtime ? this.runtime.elapsed : 0;
+            let closing = 0;
+            for (const phase of this.ringSchedule || []) {
+              if (t >= phase.startAt && t <= phase.endAt) closing = 1;
+              else if (t >= phase.warningAt && t < phase.startAt) closing = Math.max(closing, 0.5);
+            }
+            const u = this.ringUniforms;
+            u.uTime.value = this.gameElapsedForAnimation || 0;
+            u.uRadius.value = r;
+            u.uClosing.value += (closing - u.uClosing.value) * 0.08;
+          }
         }
 
         ringRadiusAt(time) {
@@ -5256,7 +5336,7 @@
 
         applyDamage(target, amount, attacker, source, sourcePosition) {
           if (!target || !target.alive || amount <= 0) return 0;
-          let finalAmount = amount;
+          let finalAmount = source === "zone" ? amount : amount * COMBAT_DAMAGE_SCALE;
           let incoming = sourcePosition;
           if (!incoming && attacker) incoming = { x: attacker.x, z: attacker.z };
 
