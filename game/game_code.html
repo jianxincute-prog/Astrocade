@@ -4991,6 +4991,53 @@
             // ===== ASSET PRELOADING & AUDIO =====
             const assetCache = {};
             const avatarGltfs = {};
+            // ===== FIGHTER UNLOCKS: missions and saved progress =====
+            // Banyu and Gantara are open from the start. Laras, Wayan and Bang Jali unlock once all three of their
+            // missions are complete. Progress is counted in real battles and stored with lib.saveUserGameState.
+            const FIGHTER_MISSIONS = {
+                suster: [
+                    { id: 'win3', text: 'Win 3 battles', goal: 3, stat: 'wins' },
+                    { id: 'hits30', text: 'Land 30 hits', goal: 30, stat: 'hits' },
+                    { id: 'ult2', text: 'Use your Ultimate 2 times', goal: 2, stat: 'ults' }
+                ],
+                leak: [
+                    { id: 'gantara', text: 'Win a battle as Gantara', goal: 1, stat: 'winsGantara' },
+                    { id: 'skills6', text: 'Use your skills 6 times', goal: 6, stat: 'skillUses' },
+                    { id: 'strong', text: 'Win with 100+ HP left', goal: 1, stat: 'strongWins' }
+                ],
+                buntung: [
+                    { id: 'banyu', text: 'Win a battle as Banyu', goal: 1, stat: 'winsBanyu' },
+                    { id: 'dmg400', text: 'Deal 400 damage', goal: 400, stat: 'damage' },
+                    { id: 'ultwin', text: 'Win after using your Ultimate', goal: 1, stat: 'ultWins' }
+                ]
+            };
+            const DEFAULT_STATS = { wins: 0, hits: 0, ults: 0, winsGantara: 0, winsBanyu: 0, skillUses: 0, strongWins: 0, damage: 0, ultWins: 0 };
+            const progress = { stats: Object.assign({}, DEFAULT_STATS), unlocked: ['banyu', 'gantara'] };
+            let progressSaveTimer = null;
+            function isFighterUnlocked(id) { return !FIGHTER_MISSIONS[id] || progress.unlocked.includes(id); }
+            function isFighterLocked(index) { return !isFighterUnlocked(fighterRoster[index].identity); }
+            async function loadProgress() {
+                if (mode !== 'play') return;
+                try {
+                    const res = await Promise.race([lib.getUserGameState(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))]);
+                    const saved = res && res.state;
+                    if (saved && saved.v === 1) {
+                        progress.stats = Object.assign({}, DEFAULT_STATS, saved.stats || {});
+                        progress.unlocked = Array.from(new Set(['banyu', 'gantara'].concat((saved.unlocked || []).filter(id => FIGHTER_MISSIONS[id]))));
+                    }
+                } catch (err) {
+                    console.warn('Saved progress could not be loaded; starting fresh.', err);
+                }
+            }
+            function saveProgressSoon() {
+                if (mode !== 'play') return;
+                clearTimeout(progressSaveTimer);
+                progressSaveTimer = setTimeout(() => {
+                    try {
+                        Promise.resolve(lib.saveUserGameState({ v: 1, stats: progress.stats, unlocked: progress.unlocked })).catch(() => {});
+                    } catch (err) { /* saving is best effort */ }
+                }, 1200);
+            }
             const AVATAR_FALLBACK_URLS = {
                 avatar_banyu: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525000_01M6BW6PW8VH7ZK56Z90DSD3PZ.glb',
                 avatar_gantara: 'https://d16qq0o35va7kz.cloudfront.net/images/Google_107426622563564022577/1793547525758_01M6BW6QKYVSPQQA262536PFJG.glb',
@@ -5287,6 +5334,7 @@
             }
 
             await preloadAssets();
+            await loadProgress();
 
             // ===== SYNTHETIC AUDIO FALLBACK =====
             function playSynthSound(id, volume = 1.0) {
@@ -9914,7 +9962,13 @@
                 holder.setPosition(0, -60, 0);
                 return holder;
             });
-            const rivalIndex = () => (selectedFighterIndex + 1) % fighterRoster.length;
+            const rivalIndex = () => {
+                for (let i = 1; i < fighterRoster.length; i++) {
+                    const idx = (selectedFighterIndex + i) % fighterRoster.length;
+                    if (!isFighterLocked(idx)) return idx;
+                }
+                return (selectedFighterIndex + 1) % fighterRoster.length;
+            };
             const appearanceKeys = [
                 'pelvis', 'torso', 'neck', 'head', 'mouthMesh',
                 'leftShoulder', 'leftUpperArm', 'leftElbow', 'leftForearm', 'leftHand',
@@ -10074,8 +10128,204 @@
                 if (lobbySelectionEl && fighterIndex === selectedFighterIndex) lobbySelectionEl.textContent = `FIGHTER TERPILIH: ${fighter.name.toUpperCase()}`;
             }
 
+            // ===== MISSIONS: tracking, unlocking, lobby UI =====
+            const missionDoneSet = new Set();
+            const endNotes = [];
+            let battleUltUsed = false;
+            const missionDone = m => (progress.stats[m.stat] || 0) >= m.goal;
+            const missionCounts = id => {
+                const list = FIGHTER_MISSIONS[id] || [];
+                return { done: list.filter(missionDone).length, total: list.length };
+            };
+            Object.keys(FIGHTER_MISSIONS).forEach(id => FIGHTER_MISSIONS[id].forEach(m => { if (missionDone(m)) missionDoneSet.add(id + ':' + m.id); }));
+
+            function fighterName(id) { return (fighterRoster.find(f => f.identity === id) || {}).name || id; }
+            function missionStat(name, amount = 1) {
+                if (mode !== 'play' || inLobby) return;
+                progress.stats[name] = (progress.stats[name] || 0) + amount;
+                onProgressChanged();
+            }
+            function recordVictory() {
+                if (mode !== 'play') return;
+                const s = progress.stats;
+                s.wins += 1;
+                if (player.visualIdentity === 'gantara') s.winsGantara += 1;
+                if (player.visualIdentity === 'banyu') s.winsBanyu += 1;
+                if (player.hp >= 100) s.strongWins += 1;
+                if (battleUltUsed) s.ultWins += 1;
+                onProgressChanged();
+            }
+            function onProgressChanged() {
+                const completed = [];
+                Object.keys(FIGHTER_MISSIONS).forEach(id => {
+                    if (isFighterUnlocked(id)) return;
+                    FIGHTER_MISSIONS[id].forEach(m => {
+                        const key = id + ':' + m.id;
+                        if (missionDone(m) && !missionDoneSet.has(key)) { missionDoneSet.add(key); completed.push({ id, m }); }
+                    });
+                });
+                completed.forEach((c, i) => {
+                    endNotes.push(`✔ ${fighterName(c.id)}: ${c.m.text}`);
+                    setTimeout(() => { if (!inLobby) showComboCallout(`MISSION COMPLETE: ${c.m.text}`, '#facc15'); }, 500 + i * 800);
+                });
+                Object.keys(FIGHTER_MISSIONS).forEach(id => {
+                    if (!isFighterUnlocked(id) && FIGHTER_MISSIONS[id].every(missionDone)) unlockFighter(id);
+                });
+                refreshLockLabels();
+                renderMissionPanel();
+                saveProgressSoon();
+            }
+            function unlockFighter(id) {
+                if (isFighterUnlocked(id)) return;
+                progress.unlocked.push(id);
+                const name = fighterName(id);
+                endNotes.push(`🔓 NEW FIGHTER UNLOCKED: ${name}`);
+                setTimeout(() => {
+                    if (!inLobby) showComboCallout(`NEW FIGHTER UNLOCKED: ${name.toUpperCase()}! 🔓`, '#4ade80');
+                    flashScreen(0.45, 500);
+                }, 1500);
+                const index = fighterRoster.findIndex(f => f.identity === id);
+                if (index >= 0) refreshPodiumLock(index);
+                saveProgressSoon();
+            }
+
+            // ---- lobby podium locks: dark silhouette plus a floating label ----
+            const lockDecor = {};
+            function drawLockLabel(index) {
+                const decor = lockDecor[index];
+                if (!decor) return;
+                const id = fighterRoster[index].identity;
+                const { done, total } = missionCounts(id);
+                const ctx = decor.canvas.getContext('2d');
+                ctx.clearRect(0, 0, 512, 220);
+                ctx.fillStyle = 'rgba(8, 12, 24, 0.9)';
+                ctx.strokeStyle = '#facc15';
+                ctx.lineWidth = 6;
+                const r = 28;
+                ctx.beginPath();
+                ctx.moveTo(r, 6); ctx.lineTo(506 - r, 6); ctx.quadraticCurveTo(506, 6, 506, 6 + r);
+                ctx.lineTo(506, 214 - r); ctx.quadraticCurveTo(506, 214, 506 - r, 214);
+                ctx.lineTo(r, 214); ctx.quadraticCurveTo(6, 214, 6, 214 - r);
+                ctx.lineTo(6, 6 + r); ctx.quadraticCurveTo(6, 6, r, 6);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#facc15';
+                ctx.font = '900 60px sans-serif';
+                ctx.fillText('🔒 LOCKED', 256, 78);
+                ctx.fillStyle = '#f8fafc';
+                ctx.font = '800 38px sans-serif';
+                ctx.fillText(fighterRoster[index].name, 256, 128);
+                ctx.fillStyle = '#67e8f9';
+                ctx.font = '800 32px sans-serif';
+                ctx.fillText(`${done}/${total} missions`, 256, 176);
+                decor.sprite.material.map.needsUpdate = true;
+            }
+            function refreshLockLabels() { Object.keys(lockDecor).forEach(i => drawLockLabel(Number(i))); }
+            function decoratePodiumLock(index, x, z) {
+                if (mode !== 'play' || !isFighterLocked(index)) return;
+                const root = lobbyProps.previews[index];
+                if (root) root.traverse(o => { if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ color: 0x0a0f1c }); });
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 220;
+                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthTest: false }));
+                sprite.scale.set(6.4, 2.75, 1);
+                sprite.position.set(x, 8.4, z);
+                sprite.renderOrder = 10;
+                lobbyWorld.add(sprite);
+                lockDecor[index] = { sprite, canvas };
+                drawLockLabel(index);
+            }
+            function refreshPodiumLock(index) {
+                const podium = lobbyProps.podiums.find(p => p.fighterIndex === index);
+                if (!podium) return;
+                const decor = lockDecor[index];
+                if (decor) { lobbyWorld.remove(decor.sprite); decor.sprite.material.map.dispose(); decor.sprite.material.dispose(); delete lockDecor[index]; }
+                const old = lobbyProps.previews[index];
+                if (old) lobbyWorld.remove(old);
+                buildPodiumPreview(index, new THREE.Vector3(podium.position.x, 1.25, podium.position.z));
+                decoratePodiumLock(index, podium.position.x, podium.position.z);
+            }
+
+            // ---- mission panel (opened from the lobby button or a locked podium) ----
+            let missionPanel = null;
+            let missionPanelFocus = null;
+            function buildMissionPanel() {
+                if (mode !== 'play' || missionPanel) return;
+                const style = document.createElement('style');
+                style.textContent = `
+                    #mission-panel{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:90;background:rgba(2,6,23,.78);pointer-events:auto}
+                    #mission-panel .mp-card{width:min(640px,92%);max-height:86%;overflow:auto;background:linear-gradient(160deg,#0f172a,#1e1b4b);border:3px solid #facc15;border-radius:18px;padding:20px 20px 16px;color:#f8fafc;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+                    #mission-panel h2{margin:0 0 4px;font-size:30px;letter-spacing:2px;color:#facc15}
+                    #mission-panel .mp-sub{margin:0 0 14px;color:#cbd5e1;font-size:16px;font-weight:700}
+                    #mission-panel .mp-fighter{margin:0 0 12px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.14)}
+                    #mission-panel .mp-fighter.focus{border-color:#67e8f9;box-shadow:0 0 16px rgba(103,232,249,.4)}
+                    #mission-panel .mp-name{display:flex;justify-content:space-between;font-size:22px;font-weight:900}
+                    #mission-panel .mp-state{font-size:15px;font-weight:900;letter-spacing:1px}
+                    #mission-panel .mp-state.locked{color:#facc15}#mission-panel .mp-state.open{color:#4ade80}
+                    #mission-panel .mp-row{margin-top:9px;font-size:16px;font-weight:700}
+                    #mission-panel .mp-bar{height:10px;margin-top:4px;border-radius:99px;background:rgba(0,0,0,.45);overflow:hidden;border:1px solid rgba(255,255,255,.25)}
+                    #mission-panel .mp-fill{height:100%;background:linear-gradient(90deg,#22d3ee,#a3e635)}
+                    #mission-panel .mp-row.done{color:#86efac}
+                    #mission-panel .mp-close{margin-top:6px;width:100%;padding:14px;font-size:20px;font-weight:900;border:3px solid #fde68a;border-radius:12px;background:linear-gradient(135deg,#b45309,#78350f);color:#fff;cursor:pointer}
+                    #lobby-missions-btn{pointer-events:auto;margin-top:10px;padding:10px 18px;font-size:18px;font-weight:900;letter-spacing:1px;color:#fff;background:linear-gradient(135deg,#0e7490,#164e63);border:2px solid #a5f3fc;border-radius:12px;cursor:pointer}
+                    #end-notes{margin:10px 0 0;text-align:center;font-size:20px;font-weight:800;color:#fde68a;text-shadow:0 2px 6px #000;line-height:1.5}
+                `;
+                document.head.appendChild(style);
+                missionPanel = document.createElement('div');
+                missionPanel.id = 'mission-panel';
+                missionPanel.innerHTML = '<div class="mp-card"><h2>MISSIONS</h2><p class="mp-sub">Finish every mission of a fighter to unlock them.</p><div id="mp-list"></div><button class="mp-close" id="mp-close">CLOSE</button></div>';
+                (document.querySelector('.ui-overlay') || document.body).appendChild(missionPanel);
+                missionPanel.querySelector('#mp-close').addEventListener('click', closeMissionPanel);
+                missionPanel.addEventListener('click', e => { if (e.target === missionPanel) closeMissionPanel(); });
+                const hud = document.getElementById('lobby-hud');
+                if (hud) {
+                    const btn = document.createElement('button');
+                    btn.id = 'lobby-missions-btn';
+                    btn.textContent = '🏆 MISSIONS';
+                    btn.addEventListener('click', () => openMissionPanel(null));
+                    hud.appendChild(btn);
+                }
+                window.addEventListener('keydown', e => { if (e.key === 'Escape') closeMissionPanel(); });
+            }
+            function renderMissionPanel() {
+                if (!missionPanel) return;
+                const list = missionPanel.querySelector('#mp-list');
+                list.innerHTML = Object.keys(FIGHTER_MISSIONS).map(id => {
+                    const open = isFighterUnlocked(id);
+                    const rows = FIGHTER_MISSIONS[id].map(m => {
+                        const value = Math.min(progress.stats[m.stat] || 0, m.goal);
+                        const done = missionDone(m);
+                        return `<div class="mp-row ${done ? 'done' : ''}">${done ? '✔' : '•'} ${m.text} <span style="float:right">${value}/${m.goal}</span><div class="mp-bar"><div class="mp-fill" style="width:${(value / m.goal) * 100}%"></div></div></div>`;
+                    }).join('');
+                    return `<div class="mp-fighter ${missionPanelFocus === id ? 'focus' : ''}"><div class="mp-name"><span>${fighterName(id)}</span><span class="mp-state ${open ? 'open' : 'locked'}">${open ? 'UNLOCKED ✔' : '🔒 LOCKED'}</span></div>${rows}</div>`;
+                }).join('');
+            }
+            function openMissionPanel(focusId) {
+                buildMissionPanel();
+                if (!missionPanel) return;
+                missionPanelFocus = focusId;
+                renderMissionPanel();
+                missionPanel.style.display = 'flex';
+            }
+            function closeMissionPanel() { if (missionPanel) missionPanel.style.display = 'none'; }
+            function renderEndNotes() {
+                if (!endNotes.length) return;
+                ['victory-screen', 'defeat-screen'].forEach(id => {
+                    const screen = document.getElementById(id);
+                    if (!screen) return;
+                    let box = screen.querySelector('#end-notes');
+                    if (!box) { box = document.createElement('div'); box.id = 'end-notes'; screen.insertBefore(box, screen.children[1] || null); }
+                    box.innerHTML = endNotes.map(t => `<div>${t}</div>`).join('');
+                });
+            }
+            function clearEndNotes() {
+                endNotes.length = 0;
+                document.querySelectorAll('#end-notes').forEach(el => el.remove());
+            }
+
             function selectFighter(index) {
                 if (!Number.isInteger(index) || index < 0 || index >= fighterRoster.length) return;
+                if (isFighterLocked(index)) { openMissionPanel(fighterRoster[index].identity); return; }
                 selectedFighterIndex = index;
                 swapFighterVisuals();
                 lockFighterSkills();
@@ -10155,6 +10405,7 @@
                     add(0.16, 0.12, 4.4, x + 3.05, 1.29, z, accent);
                     lobbyProps.podiums.push({ position: new THREE.Vector3(x, 0, z), fighterIndex: index });
                     buildPodiumPreview(index, new THREE.Vector3(x, 1.25, z));
+                    decoratePodiumLock(index, x, z);
                 });
                 // Premium rectangular battle gateway: layered stone-and-bronze architecture
                 // frames a tall, animated energy aperture. All portal details share one group
@@ -10283,11 +10534,14 @@
                     lobbyPodiumIndex = null;
                 }
                 if (lobbyInteractBtn) lobbyInteractBtn.style.display = lobbyNearby ? 'flex' : 'none';
+                const nearLocked = lobbyNearby === 'podium' && isFighterLocked(lobbyPodiumIndex);
                 if (lobbyInteractLabel) lobbyInteractLabel.textContent = lobbyNearby === 'podium'
-                    ? `SELECT ${fighterRoster[lobbyPodiumIndex].name.toUpperCase()}` : 'START BATTLE';
+                    ? (nearLocked ? `LOCKED · VIEW MISSIONS` : `SELECT ${fighterRoster[lobbyPodiumIndex].name.toUpperCase()}`) : 'START BATTLE';
                 if (lobbyHintEl) {
                     lobbyHintEl.textContent = lobbyNearby === 'podium'
-                        ? `${fighterRoster[lobbyPodiumIndex].name}'s podium. Press E / ENTER or tap the button to select this fighter.`
+                        ? (nearLocked
+                            ? `${fighterRoster[lobbyPodiumIndex].name} is locked. Complete its missions in battle to unlock. Press E / ENTER or tap the button to see them.`
+                            : `${fighterRoster[lobbyPodiumIndex].name}'s podium. Press E / ENTER or tap the button to select this fighter.`)
                         : lobbyNearby === 'portal'
                             ? 'The battle portal is active. Press E / ENTER or tap the button to start the duel.'
                             : 'Explore the hall and visit the five podiums to choose a fighter. The battle portal awaits at the end of the path.';
@@ -10298,6 +10552,9 @@
                 if (!inLobby || mode !== 'play') return;
                 inLobby = false;
                 lobbyNearby = null;
+                battleUltUsed = false;
+                clearEndNotes();
+                closeMissionPanel();
                 lockFighterSkills();
                 // Switch complete environments before spawning the duel: no podium, portal,
                 // hall floor, walls, lights, or preview fighter can appear in the battle.
@@ -12113,6 +12370,7 @@
                     const damage = config.combat.attackDamage * (isUltimate ? 2 : 1) * damageScale;
                     const ultKnock = opts.knockback !== undefined ? opts.knockback : 0.12;
                     const actualDamage = defender.takeDamage(damage, defender.isBlocking, step, isUltimate ? ultKnock : 1);
+                    if (attacker === player) { missionStat('hits', 1); missionStat('damage', Math.round(actualDamage)); }
                     
                     playSound('punch_impact_sound', step === 3 ? 0.9 : 0.7);
                     if (isGenderuwoCombo) {
@@ -13312,6 +13570,8 @@
             function endGame(result) {
                 stopBanyuSpecialFX();
                 if (player.specialSkill) player.specialSkill.active = 0;
+                if (result === 'victory' && !gameOver) recordVictory();
+                renderEndNotes();
                 gameOver = true;
                 isPaused = true;
 
@@ -13326,6 +13586,8 @@
 
             function restartGame() {
                 stopBanyuSpecialFX();
+                clearEndNotes();
+                battleUltUsed = false;
                 gameOver = false;
                 isPaused = false;
 
@@ -13719,6 +13981,7 @@
                         player.isAttacking = true;
                         player.lookAt(opponent.position);
                         player.specialSkill.active = which;
+                        missionStat('skillUses', 1);
                         player.specialSkill.elapsed = 0;
                         player.specialSkill.hit = false;
                         player.specialSkill.from.copy(player.position);
@@ -13753,6 +14016,8 @@
                         if (wantUltimate) {
                             ultimateCooldown = 10;
                             unlockFighterSkills();
+                            missionStat('ults', 1);
+                            battleUltUsed = true;
                             if (player.visualIdentity !== 'gantara') {
                                 startUltimateCutscene();
                             } else {
