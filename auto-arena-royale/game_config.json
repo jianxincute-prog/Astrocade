@@ -1,0 +1,562 @@
+{
+  "version": 1,
+  "game": "Auto Arena Royale",
+  "garage": {
+    "defaultVehicle": "razorback",
+    "availablePaints": [
+      {
+        "name": "Ember",
+        "color": "#e3493e"
+      },
+      {
+        "name": "Saffron",
+        "color": "#dda63b"
+      },
+      {
+        "name": "Tide",
+        "color": "#18b8c1"
+      },
+      {
+        "name": "Steel",
+        "color": "#7d909b"
+      },
+      {
+        "name": "Violet",
+        "color": "#8c4d9b"
+      }
+    ]
+  },
+  "rules": {
+    "competitors": 10,
+    "countdownSeconds": 3,
+    "wreckSeconds": 6
+  },
+  "arena": {
+    "name": "The Rust Bowl",
+    "radius": 63,
+    "coverDensity": "standard",
+    "ringSpeed": 1,
+    "props": [
+      {
+        "id": "core-wreck-a",
+        "x": -2.5,
+        "z": 1.5,
+        "radius": 2.1,
+        "kind": "wreck",
+        "coverLevel": 0
+      },
+      {
+        "id": "core-wreck-b",
+        "x": 3.2,
+        "z": -1.2,
+        "radius": 1.7,
+        "kind": "scrap",
+        "coverLevel": 0
+      },
+      {
+        "id": "core-wreck-c",
+        "x": 0.4,
+        "z": 4.6,
+        "radius": 1.5,
+        "kind": "crate",
+        "coverLevel": 0
+      },
+      {
+        "id": "mid-scrap-a",
+        "x": -19,
+        "z": -9,
+        "radius": 2.4,
+        "kind": "scrap",
+        "coverLevel": 1
+      },
+      {
+        "id": "mid-wreck-a",
+        "x": 22,
+        "z": 5,
+        "radius": 2.7,
+        "kind": "wreck",
+        "coverLevel": 1
+      },
+      {
+        "id": "mid-crate-a",
+        "x": -8,
+        "z": 26,
+        "radius": 2.2,
+        "kind": "crate",
+        "coverLevel": 1
+      },
+      {
+        "id": "mid-scrap-b",
+        "x": 11,
+        "z": -25,
+        "radius": 2.6,
+        "kind": "scrap",
+        "coverLevel": 1
+      },
+      {
+        "id": "mid-wreck-b",
+        "x": 28,
+        "z": -15,
+        "radius": 2.3,
+        "kind": "wreck",
+        "coverLevel": 1
+      },
+      {
+        "id": "light-cover-a",
+        "x": -24,
+        "z": 13,
+        "radius": 2,
+        "kind": "crate",
+        "coverLevel": 0
+      },
+      {
+        "id": "light-cover-b",
+        "x": 17,
+        "z": 21,
+        "radius": 2,
+        "kind": "scrap",
+        "coverLevel": 0
+      }
+    ],
+    "extraProps": [
+      {
+        "id": "heavy-cover-a",
+        "x": -29,
+        "z": -17,
+        "radius": 2.7,
+        "kind": "wreck",
+        "coverLevel": 2
+      },
+      {
+        "id": "heavy-cover-b",
+        "x": 30,
+        "z": 17,
+        "radius": 2.6,
+        "kind": "scrap",
+        "coverLevel": 2
+      },
+      {
+        "id": "heavy-cover-c",
+        "x": -12,
+        "z": -29,
+        "radius": 2.4,
+        "kind": "crate",
+        "coverLevel": 2
+      },
+      {
+        "id": "heavy-cover-d",
+        "x": 5,
+        "z": 30,
+        "radius": 2.5,
+        "kind": "wreck",
+        "coverLevel": 2
+      }
+    ]
+  },
+  "ring": {
+    "initialRadius": 54,
+    "phases": [
+      {
+        "warningAt": 25,
+        "startAt": 30,
+        "endAt": 70,
+        "fromRadius": 54,
+        "toRadius": 38,
+        "damagePerSecond": 5
+      },
+      {
+        "warningAt": 70,
+        "startAt": 75,
+        "endAt": 115,
+        "fromRadius": 38,
+        "toRadius": 23,
+        "damagePerSecond": 8
+      },
+      {
+        "warningAt": 115,
+        "startAt": 120,
+        "endAt": 155,
+        "fromRadius": 23,
+        "toRadius": 12,
+        "damagePerSecond": 12
+      },
+      {
+        "warningAt": 155,
+        "startAt": 175,
+        "endAt": 195,
+        "fromRadius": 12,
+        "toRadius": 5,
+        "damagePerSecond": 18
+      }
+    ]
+  },
+  "ai": {
+    "difficulty": "standard",
+    "aggressiveness": 1,
+    "reactionTime": 0.55,
+    "targetSwitchSeconds": 2.4,
+    "difficultyProfiles": {
+      "relaxed": {
+        "aggressiveness": 0.72,
+        "reactionTime": 0.82
+      },
+      "standard": {
+        "aggressiveness": 1,
+        "reactionTime": 0.55
+      },
+      "aggressive": {
+        "aggressiveness": 1.22,
+        "reactionTime": 0.34
+      }
+    }
+  },
+  "tuningByVehicle": {
+    "needle": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#d84738"
+    },
+    "razorback": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#e3493e"
+    },
+    "bulwark": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#65717c"
+    },
+    "dune-fox": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#d69a38"
+    },
+    "volt-fang": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#18b8c1"
+    },
+    "cinderjaw": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#b43b2d"
+    },
+    "longshot": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#557f58"
+    },
+    "wrecker": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#d0aa36"
+    },
+    "mantis": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#8c4d9b"
+    },
+    "gravemaw": {
+      "durability": 1,
+      "engine": 1,
+      "handling": 1,
+      "cooldown": 1,
+      "paint": "#554a62"
+    }
+  },
+  "assets": {
+    "ground": "rust_bowl_ground_albedo",
+    "audio": {
+      "music": "scrapyard_match_music",
+      "lightEngine": "light_vehicle_engine_loop",
+      "heavyEngine": "heavy_vehicle_engine_loop",
+      "collision": "metal_collision_sfx",
+      "destruction": "vehicle_destruction_sfx",
+      "emp": "emp_pulse_sfx",
+      "rocket": "rocket_launch_sfx",
+      "flame": "flame_burst_sfx",
+      "ringWarning": "zone_warning_sfx"
+    }
+  },
+  "roster": [
+    {
+      "id": "needle",
+      "name": "Needle",
+      "role": "Combat motorcycle",
+      "model": "motorcycle",
+      "length": 2.5,
+      "width": 0.9,
+      "height": 1.55,
+      "hp": 94,
+      "mass": 0.55,
+      "topSpeedKmh": 94,
+      "acceleration": 9,
+      "steeringDeg": 105,
+      "grip": 0.92,
+      "paint": "#d84738",
+      "accent": "#ff9d45",
+      "ability": {
+        "name": "Nitro Lance",
+        "type": "charge",
+        "cooldown": 8,
+        "range": 20,
+        "bonusDamage": 35,
+        "description": "Forward burst, frontal guard and +35 ram damage."
+      }
+    },
+    {
+      "id": "razorback",
+      "name": "Razorback",
+      "role": "Muscle combat coupe",
+      "model": "coupe",
+      "length": 4.4,
+      "width": 2,
+      "height": 1.65,
+      "hp": 120,
+      "mass": 1,
+      "topSpeedKmh": 82,
+      "acceleration": 7.1,
+      "steeringDeg": 82,
+      "grip": 0.86,
+      "paint": "#e3493e",
+      "accent": "#f3b844",
+      "ability": {
+        "name": "Twin Riveters",
+        "type": "riveters",
+        "cooldown": 7,
+        "range": 34,
+        "damage": 17,
+        "shots": 2,
+        "description": "Two auto-assisted bolts, 17 damage each, within 34 m."
+      }
+    },
+    {
+      "id": "bulwark",
+      "name": "Bulwark",
+      "role": "Six-wheel armored hauler",
+      "model": "six-wheel-hauler",
+      "length": 5.8,
+      "width": 2.55,
+      "height": 2.75,
+      "hp": 170,
+      "mass": 1.8,
+      "topSpeedKmh": 58,
+      "acceleration": 4.7,
+      "steeringDeg": 54,
+      "grip": 0.92,
+      "paint": "#65717c",
+      "accent": "#d9b15e",
+      "ability": {
+        "name": "Plow Charge",
+        "type": "charge",
+        "cooldown": 12,
+        "range": 20,
+        "bonusDamage": 40,
+        "description": "Armored forward charge with +40 impact damage."
+      }
+    },
+    {
+      "id": "dune-fox",
+      "name": "Dune Fox",
+      "role": "Off-road buggy",
+      "model": "buggy",
+      "length": 3.6,
+      "width": 1.95,
+      "height": 1.8,
+      "hp": 105,
+      "mass": 0.72,
+      "topSpeedKmh": 91,
+      "acceleration": 8.6,
+      "steeringDeg": 96,
+      "grip": 1.05,
+      "paint": "#d69a38",
+      "accent": "#ffe18a",
+      "ability": {
+        "name": "Gravel Mine",
+        "type": "mine",
+        "cooldown": 10,
+        "range": 4,
+        "damage": 30,
+        "armSeconds": 1,
+        "lifetime": 12,
+        "description": "Drop a mine; 30 damage within 4 m after it arms."
+      }
+    },
+    {
+      "id": "volt-fang",
+      "name": "Volt Fang",
+      "role": "Electric coupe",
+      "model": "electric-coupe",
+      "length": 4,
+      "width": 1.9,
+      "height": 1.5,
+      "hp": 105,
+      "mass": 0.9,
+      "topSpeedKmh": 86,
+      "acceleration": 8,
+      "steeringDeg": 92,
+      "grip": 0.98,
+      "paint": "#18b8c1",
+      "accent": "#55f5ff",
+      "ability": {
+        "name": "EMP Bloom",
+        "type": "emp",
+        "cooldown": 10,
+        "range": 7,
+        "damage": 20,
+        "stallSeconds": 0.8,
+        "description": "Pulse rivals within 7 m for 20 damage and stall engines."
+      }
+    },
+    {
+      "id": "cinderjaw",
+      "name": "Cinderjaw",
+      "role": "Armored hot rod",
+      "model": "hot-rod",
+      "length": 4.4,
+      "width": 2,
+      "height": 1.55,
+      "hp": 115,
+      "mass": 1.05,
+      "topSpeedKmh": 79,
+      "acceleration": 7.4,
+      "steeringDeg": 78,
+      "grip": 0.72,
+      "paint": "#b43b2d",
+      "accent": "#ff642e",
+      "ability": {
+        "name": "Flame Fan",
+        "type": "flame",
+        "cooldown": 9,
+        "range": 13,
+        "damage": 6,
+        "ticks": 4,
+        "description": "Forward cone with four 6-damage flame ticks."
+      }
+    },
+    {
+      "id": "longshot",
+      "name": "Longshot",
+      "role": "Armored rally SUV",
+      "model": "rally-suv",
+      "length": 4.6,
+      "width": 2.1,
+      "height": 2.1,
+      "hp": 115,
+      "mass": 1.15,
+      "topSpeedKmh": 76,
+      "acceleration": 6.8,
+      "steeringDeg": 75,
+      "grip": 0.9,
+      "paint": "#557f58",
+      "accent": "#c6d38d",
+      "ability": {
+        "name": "Lock-on Rocket",
+        "type": "rocket",
+        "cooldown": 8.5,
+        "range": 32,
+        "directDamage": 30,
+        "splashDamage": 12,
+        "splashRadius": 3.2,
+        "description": "Auto-assisted rocket: 30 direct, up to 12 splash."
+      }
+    },
+    {
+      "id": "wrecker",
+      "name": "Wrecker",
+      "role": "Six-wheel tow truck",
+      "model": "tow-truck",
+      "length": 5.2,
+      "width": 2.3,
+      "height": 2.7,
+      "hp": 150,
+      "mass": 1.65,
+      "topSpeedKmh": 64,
+      "acceleration": 5.2,
+      "steeringDeg": 60,
+      "grip": 0.84,
+      "paint": "#d0aa36",
+      "accent": "#ffdb62",
+      "ability": {
+        "name": "Tether Hook",
+        "type": "hook",
+        "cooldown": 10.5,
+        "range": 22,
+        "coneDeg": 20,
+        "damage": 18,
+        "pullMeters": 5,
+        "description": "Hook a rival within 22 m, deal 18 damage and reel it in."
+      }
+    },
+    {
+      "id": "mantis",
+      "name": "Mantis",
+      "role": "Armored combat trike",
+      "model": "combat-trike",
+      "length": 3.2,
+      "width": 1.25,
+      "height": 1.55,
+      "hp": 100,
+      "mass": 0.62,
+      "topSpeedKmh": 88,
+      "acceleration": 8.8,
+      "steeringDeg": 101,
+      "grip": 0.88,
+      "paint": "#8c4d9b",
+      "accent": "#e3ff6b",
+      "ability": {
+        "name": "Cyclone Blades",
+        "type": "blades",
+        "cooldown": 9,
+        "range": 4.5,
+        "duration": 1.2,
+        "damage": 7,
+        "interval": 0.3,
+        "description": "Side blades strike for 7 damage every 0.3 s."
+      }
+    },
+    {
+      "id": "gravemaw",
+      "name": "Gravemaw",
+      "role": "Armored monster truck",
+      "model": "monster-truck",
+      "length": 4.8,
+      "width": 2.8,
+      "height": 2.8,
+      "hp": 160,
+      "mass": 1.9,
+      "topSpeedKmh": 68,
+      "acceleration": 5.8,
+      "steeringDeg": 61,
+      "grip": 0.9,
+      "paint": "#554a62",
+      "accent": "#d079ff",
+      "ability": {
+        "name": "Quake Slam",
+        "type": "quake",
+        "cooldown": 12.5,
+        "range": 6.5,
+        "damage": 34,
+        "description": "Shockwave hits nearby rivals for 34 and knocks them back."
+      }
+    }
+  ]
+}

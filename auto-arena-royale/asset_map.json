@@ -1,0 +1,125 @@
+{
+  "rust_bowl_ground_albedo": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/rust_bowl_ground_albedo_04d8cfde-738d-42ec-aeab-d38ae8dd448a.webp",
+    "type": "image",
+    "subtype": "ground",
+    "description": "A seamless, top-down desert scrapyard ground texture for the 3D arena floor.",
+    "aspect_ratio": [
+      1024,
+      1024
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "scrapyard_match_music": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/scrapyard_match_music_1592542f-f8d0-4ae9-bf56-7e06656af094.mp3",
+    "type": "audio",
+    "subtype": "music",
+    "description": "Energetic industrial-electronic background music for vehicle combat.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 30.0,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/scrapyard_match_music_1592542f-f8d0-4ae9-bf56-7e06656af094.ogg",
+    "animation": null
+  },
+  "light_vehicle_engine_loop": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/light_vehicle_engine_loop_4305b3a4-5952-4091-9fa3-29aa0057afae.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "Engine loop for light vehicles like the Needle motorcycle or Mantis trike.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 3.0,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/light_vehicle_engine_loop_4305b3a4-5952-4091-9fa3-29aa0057afae.ogg",
+    "animation": null
+  },
+  "heavy_vehicle_engine_loop": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/heavy_vehicle_engine_loop_f1b9199b-838d-44cc-8a63-4df7f7323cf9.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "Engine loop for heavy armored trucks like Bulwark or Gravemaw.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 4.0,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/heavy_vehicle_engine_loop_f1b9199b-838d-44cc-8a63-4df7f7323cf9.ogg",
+    "animation": null
+  },
+  "metal_collision_sfx": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/metal_collision_sfx_254957f8-e2a9-4a25-913b-bb7c8b10f2b1.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "One-shot sound for vehicle-to-vehicle ramming impacts.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.0,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/metal_collision_sfx_254957f8-e2a9-4a25-913b-bb7c8b10f2b1.ogg",
+    "animation": null
+  },
+  "vehicle_destruction_sfx": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/vehicle_destruction_sfx_dc552db9-92b4-4d67-90f2-0795a3ca6645.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "Sound effect for when a vehicle is eliminated and explodes.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 3.01,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/vehicle_destruction_sfx_dc552db9-92b4-4d67-90f2-0795a3ca6645.ogg",
+    "animation": null
+  },
+  "emp_pulse_sfx": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/emp_pulse_sfx_6d91bf91-5102-4c7f-85aa-e2f6fefae1b4.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "Ability sound for the Volt Fang's EMP Bloom.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.32,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/emp_pulse_sfx_6d91bf91-5102-4c7f-85aa-e2f6fefae1b4.ogg",
+    "animation": null
+  },
+  "rocket_launch_sfx": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/rocket_launch_sfx_11fb8735-bb91-47ea-9efd-a5bad76183a5.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "Weapon launch sound for the Longshot rocket pods.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 1.81,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/rocket_launch_sfx_11fb8735-bb91-47ea-9efd-a5bad76183a5.ogg",
+    "animation": null
+  },
+  "flame_burst_sfx": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/flame_burst_sfx_068a196e-b22d-40d9-a035-9ff8915bc26b.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "Ability sound for the Cinderjaw flamethrower.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.92,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/flame_burst_sfx_068a196e-b22d-40d9-a035-9ff8915bc26b.ogg",
+    "animation": null
+  },
+  "zone_warning_sfx": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/zone_warning_sfx_ec268dec-31e7-4069-acc3-417961234322.mp3",
+    "type": "audio",
+    "subtype": "effect",
+    "description": "UI/Environment warning cue for the shrinking ring.",
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": 2.97,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/zone_warning_sfx_ec268dec-31e7-4069-acc3-417961234322.ogg",
+    "animation": null
+  }
+}
