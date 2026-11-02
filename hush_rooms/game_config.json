@@ -1,0 +1,104 @@
+{
+  "player": {
+    "walkSpeed": 3,
+    "runSpeed": 6,
+    "crouchSpeed": 1.5,
+    "jumpHeight": 1.5,
+    "mouseSensitivity": 1,
+    "touchSensitivity": 1.1
+  },
+  "room": {
+    "roomCount": 22,
+    "seed": 17,
+    "cellSize": 22,
+    "height": 4.5,
+    "lightIntensity": 0.45,
+    "propDensity": 0.6,
+    "fogDistance": 32,
+    "wallColor": "#D9CCA5",
+    "floorColor": "#B3A281",
+    "ceilingColor": "#DCD5BE"
+  },
+  "audio": {
+    "masterVolume": 0.75,
+    "sfxVolume": 0.65,
+    "footstepVolume": 0.45,
+    "ambienceVolume": 0.28,
+    "dreadVolume": 0.55,
+    "bgmVolume": 0.26
+  },
+  "noise": {
+    "crouch": 0.2,
+    "walk": 1,
+    "run": 3,
+    "jump": 4,
+    "land": 4,
+    "radiusPerUnit": 8,
+    "decayRate": 2.5,
+    "showDebug": true
+  },
+  "mic": {
+    "enabled": true,
+    "threshold": 0.28,
+    "peakThreshold": 0.55,
+    "maxNoise": 5,
+    "showMeter": true
+  },
+  "listener": {
+    "enabled": true,
+    "patrolSpeed": 2.4,
+    "investigateSpeed": 3.1,
+    "chaseSpeed": 5.2,
+    "detectionMultiplier": 1,
+    "sightRange": 22,
+    "fovDegrees": 115,
+    "searchDuration": 9,
+    "loseDelay": 2.5,
+    "footstepVolume": 0.6,
+    "startDistance": 5,
+    "restlessness": 0.45
+  },
+  "puzzle": {
+    "correctNoise": 0.5,
+    "wrongNoise": 6,
+    "codeWrongNoise": 5.5,
+    "simonWrongNoise": 4.5,
+    "simonLength": 5,
+    "hintMode": "off",
+    "interactRange": 2.4
+  },
+  "intro": {
+    "enabled": true
+  },
+  "ui": {
+    "touchControls": "always"
+  },
+  "blackout": {
+    "enabled": true,
+    "firstDelay": 60,
+    "duration": 5,
+    "interval": 300
+  },
+  "items": {
+    "enabled": true,
+    "perRoom": 1.8,
+    "grabRange": 2.4,
+    "throwSpeed": 13,
+    "throwNoise": 0.6,
+    "impactNoise": 4.5
+  },
+  "flashlight": {
+    "enabled": true,
+    "intensity": 2.4,
+    "range": 26,
+    "angle": 32,
+    "flickerInterval": 10,
+    "flickerChance": 0.5,
+    "deadDuration": 1,
+    "deadScareVolume": 0.5
+  },
+  "graphics": {
+    "quality": "auto",
+    "adaptive": true
+  }
+}
