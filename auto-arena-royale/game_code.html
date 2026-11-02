@@ -2588,6 +2588,22 @@
         }
       }
 
+      // Lightweight AI personalities. They only tune decisions inside computeAI/chooseAITarget.
+      const AI_PERSONALITIES = {
+        aggressive: { fleeHealth: 0,    weakBonus: 0.88, healthWeight: 0.10, abilityChance: 1.15, avoidOthers: 0.8, defenseHealth: 0.40, nitroDistance: 9,  hitRun: false },
+        defensive:  { fleeHealth: 0.55, weakBonus: 0.92, healthWeight: 0.05, abilityChance: 0.9,  avoidOthers: 1.2, defenseHealth: 0.70, nitroDistance: 14, hitRun: false },
+        tactical:   { fleeHealth: 0.30, weakBonus: 0.55, healthWeight: 0.45, abilityChance: 1.0,  avoidOthers: 1.0, defenseHealth: 0.50, nitroDistance: 11, hitRun: false },
+        speed:      { fleeHealth: 0.35, weakBonus: 0.88, healthWeight: 0.15, abilityChance: 0.95, avoidOthers: 1.0, defenseHealth: 0.45, nitroDistance: 6,  hitRun: true },
+        heavy:      { fleeHealth: 0,    weakBonus: 0.90, healthWeight: 0.10, abilityChance: 1.1,  avoidOthers: 0.25, defenseHealth: 0.35, nitroDistance: 16, hitRun: false }
+      };
+      const AI_PERSONALITY_BY_VEHICLE = {
+        "needle": "speed", "mantis": "speed",
+        "razorback": "aggressive", "cinderjaw": "aggressive",
+        "volt-fang": "tactical",
+        "dune-fox": "defensive", "longshot": "defensive",
+        "bulwark": "heavy", "wrecker": "heavy", "gravemaw": "heavy"
+      };
+
       class AutoArenaGame {
         constructor(mode) {
           this.hostMode = mode === "edit" ? "edit" : "play";
@@ -3760,6 +3776,12 @@
               targetId: null,
               aiRepath: Math.random() * 0.5,
               aiAbilityTimer: Math.random() * 0.6,
+              aiPersonality: AI_PERSONALITY_BY_VEHICLE[profile.id] || "aggressive",
+              aiRetreatTimer: 0,
+              aiRetreatCd: 1 + Math.random() * 2,
+              aiStuckTimer: 0,
+              aiUnstickTimer: 0,
+              aiUnstickDir: 1,
               steerVisual: 0
             };
             this.entities.push(entity);
@@ -4350,6 +4372,24 @@
         computeAI(entity, dt) {
           entity.aiRepath -= dt;
           entity.aiAbilityTimer -= dt;
+          const persona = AI_PERSONALITIES[entity.aiPersonality] || AI_PERSONALITIES.aggressive;
+          entity.aiRetreatTimer = Math.max(0, entity.aiRetreatTimer - dt);
+          entity.aiRetreatCd = Math.max(0, entity.aiRetreatCd - dt);
+
+          // Anti-stuck: if barely moving while trying to drive, back out and turn for a moment.
+          if (entity.aiUnstickTimer > 0) {
+            entity.aiUnstickTimer -= dt;
+            return { steer: entity.aiUnstickDir, throttle: 0, brake: 1, handbrake: false, nitro: false };
+          }
+          if (entity.stallTimer <= 0 && Math.hypot(entity.vx, entity.vz) < 1.4) entity.aiStuckTimer += dt;
+          else entity.aiStuckTimer = Math.max(0, entity.aiStuckTimer - dt * 2);
+          if (entity.aiStuckTimer > 1.3) {
+            entity.aiStuckTimer = 0;
+            entity.aiUnstickTimer = 0.9 + Math.random() * 0.5;
+            entity.aiUnstickDir = Math.random() < 0.5 ? -1 : 1;
+            entity.aiRepath = 0;
+          }
+
           let target = entity.targetId ? this.getEntity(entity.targetId) : null;
           if (!target || !target.alive || entity.aiRepath <= 0) {
             target = this.chooseAITarget(entity);
@@ -4371,10 +4411,34 @@
             desiredZ = -entity.z;
             targetDistance = radiusFromCenter;
             throttle = 1;
+          } else if (target && persona.fleeHealth > 0 && entity.health / entity.maxHealth < persona.fleeHealth &&
+            dist2(entity.x, entity.z, target.x, target.z) < 26) {
+            // Badly hurt and an enemy is close: run away, drifting back toward the ring centre.
+            const dx = entity.x - target.x;
+            const dz = entity.z - target.z;
+            const away = Math.max(0.01, Math.hypot(dx, dz));
+            const center = Math.max(0.01, radiusFromCenter);
+            desiredX = dx / away - entity.x / center * 0.6;
+            desiredZ = dz / away - entity.z / center * 0.6;
+            targetDistance = away;
+            throttle = 1;
+          } else if (target && entity.aiRetreatTimer > 0) {
+            // Hit-and-run: peel away sideways after a clash.
+            const dx = target.x - entity.x;
+            const dz = target.z - entity.z;
+            const away = Math.max(0.01, Math.hypot(dx, dz));
+            desiredX = -dx / away - dz / away * 0.7;
+            desiredZ = -dz / away + dx / away * 0.7;
+            targetDistance = away;
+            throttle = 1;
           } else if (target) {
             const dx = target.x - entity.x;
             const dz = target.z - entity.z;
             targetDistance = Math.hypot(dx, dz);
+            if (persona.hitRun && targetDistance < 5.5 && entity.aiRetreatCd <= 0) {
+              entity.aiRetreatTimer = 1.0 + Math.random() * 0.6;
+              entity.aiRetreatCd = 3.2 + Math.random() * 1.5;
+            }
             const profileId = entity.profile.id;
             const ranged = ["razorback", "volt-fang", "longshot", "cinderjaw"].includes(profileId);
             if (ranged && targetDistance < 12) {
@@ -4424,7 +4488,7 @@
             const dz = entity.z - other.z;
             const distance = Math.hypot(dx, dz);
             if (distance > 0.01 && distance < 5) {
-              const strength = (5 - distance) / 5 * 0.75;
+              const strength = (5 - distance) / 5 * 0.75 * persona.avoidOthers;
               desiredX += dx / distance * strength;
               desiredZ += dz / distance * strength;
             }
@@ -4441,30 +4505,33 @@
             throttle = Math.min(throttle, 0.72);
           }
 
-          if (target && entity.health / entity.maxHealth < 0.48 && entity.defenseCd <= 0 && Math.random() < dt * 0.16) {
+          if (target && entity.health / entity.maxHealth < persona.defenseHealth && entity.defenseCd <= 0 && Math.random() < dt * 0.16) {
             this.triggerDefense(entity);
           }
           if (target && entity.aiAbilityTimer <= 0) {
             const aggressiveness = clamp(Number(this.config.ai.aggressiveness) || 1, 0.45, 1.35);
-            if (Math.random() < clamp(0.72 * aggressiveness, 0.3, 0.98) && this.aiWantsAbility(entity, target, targetDistance)) {
+            if (Math.random() < clamp(0.72 * aggressiveness * persona.abilityChance, 0.3, 0.98) && this.aiWantsAbility(entity, target, targetDistance)) {
               this.triggerAbility(entity, true);
             }
             entity.aiAbilityTimer = Math.max(0.22, (Number(this.config.ai.reactionTime) || 0.55) * (0.65 + Math.random() * 0.8));
           }
 
-          const nitro = entity.nitro > 12 && (targetDistance > 10 || radiusFromCenter > this.ringRadius - 5);
+          const nitro = entity.nitro > 12 && (targetDistance > persona.nitroDistance || radiusFromCenter > this.ringRadius - 5 || entity.aiRetreatTimer > 0);
           return { steer, throttle, brake: 0, handbrake, nitro };
         }
 
         chooseAITarget(entity) {
           let best = null;
           let bestScore = Infinity;
+          const persona = AI_PERSONALITIES[entity.aiPersonality] || AI_PERSONALITIES.aggressive;
           for (const candidate of this.entities) {
             if (!candidate.alive || candidate.id === entity.id) continue;
             const distance = dist2(entity.x, entity.z, candidate.x, candidate.z);
-            const lowHealthBonus = candidate.health / candidate.maxHealth < 0.35 ? 0.86 : 1;
+            const healthRatio = candidate.health / candidate.maxHealth;
+            const lowHealthBonus = healthRatio < 0.35 ? persona.weakBonus : 1;
+            const weaknessBonus = 1 - persona.healthWeight * (1 - healthRatio);
             const playerBias = candidate.player ? 0.98 : 1;
-            const score = distance * lowHealthBonus * playerBias * (0.9 + Math.random() * 0.18);
+            const score = distance * lowHealthBonus * weaknessBonus * playerBias * (0.9 + Math.random() * 0.18);
             if (score < bestScore) {
               best = candidate;
               bestScore = score;
