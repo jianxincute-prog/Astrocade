@@ -37,6 +37,30 @@
   #play b{color:#fff;font-size:calc(var(--u)*54);-webkit-text-stroke:calc(var(--u)*8) #3b2d5c;paint-order:stroke fill}
   @keyframes wob{0%,100%{transform:rotate(-3deg) scale(1)}50%{transform:rotate(2deg) scale(1.03)}}
   @keyframes bounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(calc(var(--u)*-12)) scale(1.05)}}
+
+  #loading{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:linear-gradient(#3fb4ff,#9fe0ff 55%,#ffe9c4);transition:opacity .5s}
+  #loading.hide{opacity:0;pointer-events:none}
+  #loading .ld-cloud{position:absolute;width:calc(var(--u)*220);height:calc(var(--u)*90);border-radius:calc(var(--u)*60);background:rgba(255,255,255,.75);
+    box-shadow:calc(var(--u)*70) calc(var(--u)*-30) 0 calc(var(--u)*-6) rgba(255,255,255,.75),calc(var(--u)*-60) calc(var(--u)*-26) 0 calc(var(--u)*-14) rgba(255,255,255,.75)}
+  #loading .c1{top:12%;left:-8%;animation:drift 14s linear infinite}
+  #loading .c2{top:70%;right:-12%;animation:drift 18s linear infinite reverse;opacity:.8}
+  .ld-sun{width:calc(var(--u)*240);height:calc(var(--u)*240);animation:ldb 1.1s ease-in-out infinite;filter:drop-shadow(0 calc(var(--u)*10) 0 rgba(59,45,92,.25))}
+  .ld-sun .rays{transform-origin:0 0;animation:spin 9s linear infinite}
+  .ld-title{margin-top:calc(var(--u)*46);font-weight:900;line-height:1;text-align:center;color:#fff;font-size:calc(var(--u)*62);
+    -webkit-text-stroke:calc(var(--u)*11) #3b2d5c;paint-order:stroke fill;text-shadow:0 calc(var(--u)*7) 0 #3b2d5c;letter-spacing:calc(var(--u)*1)}
+  .ld-title span{display:block}.ld-title .b{color:#ffd23f}.ld-title .c{color:#ff7ab8}
+  .ld-bar{margin-top:calc(var(--u)*86);width:calc(var(--u)*480);height:calc(var(--u)*46);border:calc(var(--u)*6) solid #3b2d5c;border-radius:calc(var(--u)*30);
+    background:#fff;box-shadow:0 calc(var(--u)*7) 0 #3b2d5c;overflow:hidden}
+  .ld-fill{height:100%;width:0;border-radius:calc(var(--u)*30);transition:width .12s linear;
+    background:repeating-linear-gradient(-45deg,#ff7ab8 0 calc(var(--u)*18),#ffd23f calc(var(--u)*18) calc(var(--u)*36));animation:stripes .8s linear infinite}
+  .ld-text{margin-top:calc(var(--u)*26);font-weight:900;font-size:calc(var(--u)*34);color:#fff;-webkit-text-stroke:calc(var(--u)*7) #3b2d5c;paint-order:stroke fill;letter-spacing:calc(var(--u)*2)}
+  .ld-text::after{content:'';animation:dots 1.2s steps(1) infinite}
+  @keyframes ldb{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(calc(var(--u)*-18)) scale(1.04)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes stripes{to{background-position:calc(var(--u)*51) 0}}
+  @keyframes drift{from{transform:translateX(-30%)}to{transform:translateX(160%)}}
+  @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
 </style>
 </head>
 <body>
@@ -54,7 +78,23 @@
       <b>PLAY</b>
     </button>
   </div>
+  <div id="loading">
+    <div class="ld-cloud c1"></div><div class="ld-cloud c2"></div>
+    <svg class="ld-sun" viewBox="-145 -145 290 290" aria-hidden="true">
+      <g class="rays"><polygon points="-14,-92 0,-136 14,-92" transform="rotate(0)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(30)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(60)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(90)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(120)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(150)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(180)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(210)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(240)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(270)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(300)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/><polygon points="-14,-92 0,-136 14,-92" transform="rotate(330)" fill="#ffb52e" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/></g>
+      <circle r="84" fill="#ffe14d" stroke="#3b2d5c" stroke-width="6"/>
+      <ellipse cx="-28" cy="-38" rx="22" ry="12" transform="rotate(-35 -28 -38)" fill="rgba(255,255,255,.5)"/>
+      <circle cx="-28" cy="-8" r="9" fill="#3b2d5c"/><circle cx="28" cy="-8" r="9" fill="#3b2d5c"/>
+      <circle cx="-25" cy="-11" r="3" fill="#fff"/><circle cx="31" cy="-11" r="3" fill="#fff"/>
+      <ellipse cx="-50" cy="14" rx="12" ry="8" fill="#ff7ab8" opacity=".5"/><ellipse cx="50" cy="14" rx="12" ry="8" fill="#ff7ab8" opacity=".5"/>
+      <path d="M-26 20 Q0 54 26 20 Z" fill="#7a1f3d" stroke="#3b2d5c" stroke-width="5" stroke-linejoin="round"/>
+    </svg>
+    <div class="ld-title"><span>THE WORLD</span><span class="b">IS YOUR</span><span class="c">PLAYGROUND</span></div>
+    <div class="ld-bar"><div class="ld-fill" id="ldFill"></div></div>
+    <div class="ld-text">LOADING</div>
+  </div>
 </div>
+<script>(function(){var w=document.getElementById('wrap');function f(){w.style.setProperty('--u',(w.getBoundingClientRect().width/720)+'px')}f();addEventListener('resize',f)})();</script>
 
 <script>
 /*
@@ -213,15 +253,17 @@ const SFX = {
 };
 const JITTER = { pop: 1, tick: 1, stomp: 1, coin: 1, squeak: 1, berry: 1 };   // tiny pitch variation so repeats don't sound identical
 Snd.raw = {}; Snd.buf = {}; Snd.info = {}; Snd.musicOn = false; Snd.musicSrc = null;
-Snd.preload = function () {
+Snd.preload = function (onProgress) {
   const ids = [...new Set(Object.values(SFX).map(v => v[0]).concat(['music_bgm']))];
-  ids.forEach(id => {
+  let done = 0;
+  const tick = () => { done++; if (onProgress) onProgress(done / ids.length); };
+  return Promise.all(ids.map(id => new Promise(res => {
     try {
       const a = typeof lib !== 'undefined' && lib.getAsset ? lib.getAsset(id) : null;
-      if (!a || !a.url) return;
-      fetch(a.url).then(r => r.arrayBuffer()).then(ab => { Snd.raw[id] = ab; if (Snd.ctx) Snd.decode(id); }).catch(() => {});
-    } catch (e) {}
-  });
+      if (!a || !a.url) { tick(); return res(); }
+      fetch(a.url).then(r => r.arrayBuffer()).then(ab => { Snd.raw[id] = ab; if (Snd.ctx) Snd.decode(id); }).catch(() => {}).then(() => { tick(); res(); });
+    } catch (e) { tick(); res(); }
+  })));
 };
 Snd.decode = function (id) {
   const ab = this.raw[id]; if (!ab || this.buf[id] || !this.ctx) return;
@@ -1476,6 +1518,27 @@ function frame(ts) {
 }
 
 /* ============================ BOOT ============================ */
+function startLoading() {
+  const t0 = performance.now(), fill = document.getElementById('ldFill'), box = document.getElementById('loading');
+  let bgPart = 0, audPart = 0, shown = 0, finished = false;
+  const setP = p => { if (fill) fill.style.width = Math.round(p * 100) + '%'; };
+  const finish = () => {
+    if (finished) return; finished = true; clearInterval(iv); setP(1);
+    setTimeout(() => { if (box) { box.classList.add('hide'); setTimeout(() => { box.style.display = 'none'; }, 600); } }, 250);
+  };
+  const iv = setInterval(() => {                       // smooth the bar towards the real progress
+    const target = bgPart * 0.25 + audPart * 0.75;
+    shown += (target - shown) * 0.25; if (target >= 1 && shown > 0.985) shown = 1;
+    setP(shown);
+    const elapsed = performance.now() - t0;
+    if ((shown >= 1 && elapsed > 900) || elapsed > 9000) finish();   // never block the game on slow audio
+  }, 50);
+  requestAnimationFrame(() => setTimeout(() => {       // let the loading screen paint before the heavy art build
+    try { buildBG(); } catch (e) {}
+    bgPart = 1; requestAnimationFrame(ts => { last = ts; frame(ts); });
+  }, 40));
+  Snd.preload(p => { audPart = p; }).then(() => { audPart = 1; });
+}
 let inited = false;
 function soundIcon() {
   const b = document.getElementById('sound');
@@ -1487,7 +1550,7 @@ function fit() { const r = wrap.getBoundingClientRect(); wrap.style.setProperty(
 function run(mode) {
   if (inited) return; inited = true;
   cv = document.getElementById('cv'); ctx = cv.getContext('2d'); wrap = document.getElementById('wrap');
-  buildBG(); fit(); window.addEventListener('resize', fit); soundIcon(); Snd.preload();
+  fit(); window.addEventListener('resize', fit); soundIcon(); startLoading();
   cv.addEventListener('pointerdown', e => { e.preventDefault(); Snd.init(); if (state !== 'play') return; const [x, y] = toWorld(e); hover = null; tap(x, y); });
   cv.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || state !== 'play') return; const [x, y] = toWorld(e); const o = findObj(x, y); hover = o ? o.id : null; cv.style.cursor = o ? 'pointer' : 'default'; });
   cv.addEventListener('pointerleave', () => { hover = null; });
@@ -1498,7 +1561,6 @@ function run(mode) {
   document.getElementById('reset').addEventListener('click', () => { Snd.init(); if (state === 'play') resetWorld(); });
   document.getElementById('sound').addEventListener('click', () => { Snd.init(); Snd.setMuted(!Snd.muted); soundIcon(); if (!Snd.muted) Snd.pop(); });
   window.__game = { OBJ, trigger, tap, resetWorld, get parts() { return parts; }, get state() { return state; }, discovered };
-  requestAnimationFrame(ts => { last = ts; frame(ts); });
 }
 window.run = run;
 // Standalone fallback (outside the Astrocade host, `lib` is absent)

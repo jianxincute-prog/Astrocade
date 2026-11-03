@@ -33,3 +33,8 @@ just open `game_code.html` in a browser.
 - Butterflies (x3): tap one and it bursts into a rainbow swarm
 - Waterfall (flows off the plateau cliff into the pond): geyser + rainbow, then fills the pond (chain)
 - Crystals (x3, hanging under the meadow): a tiny xylophone; tap left to right for a confetti surprise
+
+## Loading screen
+- Shown immediately on open (sun mascot, title, striped progress bar); real progress = island art build + audio file downloads
+- PLAY becomes available once everything is ready; hard cap of 9 s so a slow connection never blocks the game
+  (late audio still joins in; missing audio falls back to the synth sounds)
