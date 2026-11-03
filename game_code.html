@@ -134,11 +134,13 @@ const bufs = {}, raws = {}, lastPlay = {};
 let mGain = null, mSrc = null;
 const MUSIC_VOL = .2;
 function loadAudio() {
+  loadTotal = 0; loadDone = 0;
   if (!window.lib || !lib.getAsset) return;
   AUDIO_IDS.forEach(id => {
     try {
       const a = lib.getAsset(id); if (!a || !a.url) return;
-      fetch(a.url).then(r => r.arrayBuffer()).then(buf => { raws[id] = buf; decodeAudio(); }).catch(() => {});
+      loadTotal++;
+      fetch(a.url).then(r => r.arrayBuffer()).then(buf => { raws[id] = buf; decodeAudio(); }).catch(() => {}).then(() => { loadDone++; });
     } catch (e) { /* ignore */ }
   });
 }
@@ -244,7 +246,8 @@ function baseInner(c, L) {
 }
 
 /* ---------------------------------------------------------- global state */
-let cv, ctx, started = false, T = 0, stT = 0, state = 'title', speed = 1;
+let cv, ctx, started = false, T = 0, stT = 0, state = 'loading', speed = 1;
+let loadTotal = 0, loadDone = 0, loadShown = 0;
 let L = null;                       // current creature look (per-frame)
 const fxp = [];                     // particles (capped)
 let S = { acc: {} };                // per-transformation scratch
@@ -1390,7 +1393,7 @@ function updateIdle(L_, dt, hungry) {
 }
 function buildL(dt) {
   const n = neutralL();
-  if (state === 'title' || state === 'ready') {
+  if (state === 'title' || state === 'ready' || state === 'loading') {
     updateIdle(n, dt, true);
     if (state === 'ready' && drag.on && drag.moved) {
       const dd = Math.hypot(drag.x - 360, drag.y - (GY - crCy()));
@@ -1442,8 +1445,15 @@ function buildL(dt) {
   }
   return n;
 }
+function updateLoading(dt) {
+  const real = loadTotal ? loadDone / loadTotal : 1;
+  const target = stT > 8 ? 1 : Math.min(real, stT / 1.6);
+  loadShown += (target - loadShown) * Math.min(1, dt * 6);
+  if ((stT > 8 || (loadDone >= loadTotal && stT > 1.6)) && loadShown > .985) { loadShown = 1; state = 'title'; stT = 0; }
+}
 function update(dt) {
   T += dt; stT += dt;
+  if (state === 'loading') updateLoading(dt);
   blinkT -= dt; if (blinkT <= 0) { blinkV = .22; blinkT = rnd(2.2, 4.2); }
   if (blinkV > 0) blinkV -= dt;
   growlT -= dt; if (growlT <= 0 && state === 'ready') { growlT = rnd(4.5, 7); growlV = .7; sfx('growl'); }
@@ -1551,6 +1561,21 @@ function drawTitleLine(c, str, cx, y, maxW, size) {
     x += cw;
   }
 }
+function drawLoadBar(c) {
+  const x = 100, w = 520, y = 1060, h = 58, f = clamp(loadShown, 0, 1), fw = Math.max(h, w * f);
+  c.save();
+  rr(c, x, y + 8, w, h, h / 2); c.fillStyle = 'rgba(80,30,60,.28)'; c.fill();
+  rr(c, x, y, w, h, h / 2); fo(c, 'rgba(255,255,255,.7)', 8);
+  c.save(); rr(c, x + 5, y + 5, Math.max(0, fw - 10), h - 10, (h - 10) / 2); c.clip();
+  c.fillStyle = lg(c, 0, y, 0, y + h, '#8cf29a', '#2fb85a'); c.fillRect(x, y, fw, h);
+  c.fillStyle = 'rgba(255,255,255,.25)'; for (let k = -2; k < 24; k++) { const sx = x + k * 48 + (T * 60) % 48; c.beginPath(); c.moveTo(sx, y + h); c.lineTo(sx + 22, y + h); c.lineTo(sx + 46, y); c.lineTo(sx + 24, y); c.closePath(); c.fill(); }
+  c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(x, y + 6, fw, 12);
+  c.restore();
+  const foods = ['chili', 'donut', 'lemon', 'candy', 'pizza'], fk = foods[Math.floor(T * 1.4) % foods.length];
+  c.translate(x + fw - 8, y + h / 2 - 6 - Math.abs(Math.sin(T * 7)) * 16); c.rotate(Math.sin(T * 5) * .25); c.scale(.55, .55); FOODDRAW[FOODDRAWMAP[fk]](c);
+  c.restore();
+  for (let i = 0; i < 3; i++) { circ(c, 322 + i * 38, y + h + 46 - Math.abs(Math.sin(T * 5 - i * .7)) * 14, 9); fo(c, '#fff', 4); }
+}
 function drawTitleDecor(c) {
   ['chili', 'donut', 'lemon', 'candy', 'melon', 'pizza'].forEach((f, i) => {
     const side = i % 2 ? 1 : -1, x = 360 + side * (262 + (i >> 1) * 10), yy = 470 + (i >> 1) * 112 + Math.sin(T * 1.5 + i) * 10;
@@ -1594,11 +1619,12 @@ function render() {
     drawBtn(c, BTN.neu, 'NEW CREATURE', ['#a58bff', '#6a45e8'], 'new', btnIn, pressed === 'neu');
   }
   // title
-  if (state === 'title') {
+  if (state === 'title' || state === 'loading') {
     drawTitleDecor(c);
     drawTitleLine(c, 'WHAT DID I', 360, 168, 600, 110);
     drawTitleLine(c, 'JUST EAT?!', 360, 272, 600, 118);
-    drawBtn(c, BTN.play, 'PLAY', ['#ffb23d', '#ff7a1a'], null, 1, pressed === 'play');
+    if (state === 'title') drawBtn(c, BTN.play, 'PLAY', ['#ffb23d', '#ff7a1a'], null, eo3(stT * 2.5), pressed === 'play');
+    else drawLoadBar(c);
   }
   // sound toggle
   c.save(); c.translate(SND.x, SND.y);
