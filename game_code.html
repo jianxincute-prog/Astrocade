@@ -200,13 +200,13 @@ function star(x, y, r, rot) {
 
 /* ------------------------------------------------------------------ characters */
 var STY = {
-  player: { key: 'player', name: 'Bean', legH: 30, bodyW: 86, bodyH: 92, headR: 48, skin: '#ffcf9f', cloth: '#3a86ff', cloth2: '#2763c9', pants: '#2b3a67', hair: '#8a4b1f', hat: '#ff7a1a', ph: 0 },
-  gus: { key: 'gus', name: 'Gus', legH: 46, bodyW: 70, bodyH: 128, headR: 40, skin: '#d9a066', cloth: '#f6f6fb', cloth2: '#8a4fff', pants: '#3b3b5c', hair: '#241a1a', ph: 1.3 },
-  mimi: { key: 'mimi', name: 'Mimi', legH: 22, bodyW: 80, bodyH: 70, headR: 44, skin: '#ffd9b8', cloth: '#ff7eb6', cloth2: '#ff4f9a', pants: '#ffd9b8', hair: '#6b3a1e', ph: 2.6 }
+  player: { key: 'player', name: 'Bean', legH: 38, bodyW: 86, bodyH: 92, headR: 48, skin: '#ffcf9f', cloth: '#3a86ff', cloth2: '#2763c9', pants: '#2b3a67', hair: '#8a4b1f', hat: '#ff7a1a', shoe: '#ffffff', sleeveSkin: false, ph: 0 },
+  gus: { key: 'gus', name: 'Gus', legH: 50, bodyW: 70, bodyH: 128, headR: 40, skin: '#d9a066', cloth: '#f6f6fb', cloth2: '#8a4fff', pants: '#3b3b5c', hair: '#241a1a', shoe: '#3a2f4d', sleeveSkin: true, ph: 1.3 },
+  mimi: { key: 'mimi', name: 'Mimi', legH: 30, bodyW: 80, bodyH: 70, headR: 44, skin: '#ffd9b8', cloth: '#ff7eb6', cloth2: '#ff4f9a', pants: '#ffd9b8', hair: '#6b3a1e', shoe: '#ff4f9a', sleeveSkin: true, ph: 2.6 }
 };
 ['#35c46a', '#b05cff', '#ffcf33'].forEach(function (c, i) {
   var p = STY.player;
-  STY['clone' + i] = { key: 'player', name: 'Bean', legH: p.legH, bodyW: p.bodyW, bodyH: p.bodyH, headR: p.headR, skin: p.skin, cloth: c, cloth2: INK, pants: '#2b3a67', hair: p.hair, hat: ['#ff4d6d', '#3a86ff', '#35c46a'][i], ph: i + 3 };
+  STY['clone' + i] = { key: 'player', name: 'Bean', legH: p.legH, bodyW: p.bodyW, bodyH: p.bodyH, headR: p.headR, skin: p.skin, cloth: c, cloth2: INK, pants: '#2b3a67', hair: p.hair, hat: ['#ff4d6d', '#3a86ff', '#35c46a'][i], shoe: p.shoe, sleeveSkin: false, ph: i + 3 };
 });
 Object.keys(STY).forEach(function (k) { var S = STY[k]; S.h = S.legH + S.bodyH + S.headR * 1.6; S.headCY = S.legH + S.bodyH + S.headR * 0.6; });
 
@@ -221,6 +221,7 @@ function armAng(mood, t, s, ph) {
     case 'confused': return s < 0 ? 0.3 : 2.3 + Math.sin(t * 3) * 0.15;
     case 'sad': return 0.12 + Math.sin(t * 2) * 0.03;
     case 'relief': return 0.55 + Math.sin(t * 2.2) * 0.05;
+    case 'dizzy': return 1.1 + Math.sin(t * 3 + s) * 0.1;
     case 'ready': return -0.45 + Math.sin(t * 11 + (s > 0 ? 0 : 1.2)) * 0.18;
     default: return 0.2 + Math.sin(t * 2 + ph + s) * 0.05;
   }
@@ -244,6 +245,11 @@ function drawFace(HS, mood, t, gaze, ph) {
     g.moveTo(ex - R * 0.14, ey - R * 0.08); g.lineTo(ex - R * 0.04, ey - R * 0.08); g.stroke();
   } else {
     for (s = -1; s <= 1; s += 2) {
+      if (mood === 'dizzy') {
+        g.beginPath(); g.arc(s * ex, ey, R * 0.24, 0, TAU); fs('#fff', 3);
+        g.beginPath(); for (var kk = 0; kk <= 26; kk++) { var an = kk * 0.55 + t * 6 * s, rd = kk / 26 * R * 0.2; g.lineTo(s * ex + Math.cos(an) * rd, ey + Math.sin(an) * rd); }
+        g.lineWidth = 3.5; g.strokeStyle = INK; g.stroke(); continue;
+      }
       if (closed) { g.beginPath(); g.arc(s * ex, ey + R * 0.08, R * 0.15, Math.PI * 1.1, Math.PI * 1.9); g.lineWidth = 6; g.strokeStyle = INK; g.stroke(); }
       else if (blink) { g.beginPath(); g.moveTo(s * ex - rx, ey); g.lineTo(s * ex + rx, ey); g.lineWidth = 6; g.strokeStyle = INK; g.stroke(); }
       else {
@@ -286,7 +292,7 @@ function drawFace(HS, mood, t, gaze, ph) {
   else if (mood === 'ready') {
     g.beginPath(); g.moveTo(-R * 0.3, my - R * 0.14); g.lineTo(R * 0.3, my - R * 0.14); g.arc(0, my - R * 0.14, R * 0.3, 0, Math.PI); g.closePath(); fs('#fff', 4);
   }
-  else if (mood === 'confused') {
+  else if (mood === 'confused' || mood === 'dizzy') {
     g.beginPath(); for (var k = -10; k <= 10; k++) { var xx = k / 10 * R * 0.26; g.lineTo(xx, my + Math.sin(k * 0.9) * R * 0.05); } g.stroke();
   }
   else if (mood === 'cool') { g.beginPath(); g.moveTo(-R * 0.2, my); g.lineTo(R * 0.2, my); g.stroke(); }
@@ -344,47 +350,107 @@ function drawHead(HS, mood, t, gaze, hs) {
   g.restore();
 }
 
+function bone2(x1, y1, tx, ty, l1, l2, px, py) {
+  var dx = tx - x1, dy = ty - y1, d = Math.sqrt(dx * dx + dy * dy) || 0.01, md = l1 + l2 - 0.5;
+  if (d > md) { var k = md / d; dx *= k; dy *= k; d = md; tx = x1 + dx; ty = y1 + dy; }
+  var a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  var mx = x1 + dx * a / d, my = y1 + dy * a / d, nx = -dy / d, ny = dx / d;
+  if (nx * px + ny * py < 0) { nx = -nx; ny = -ny; }
+  return { ex: mx + nx * h, ey: my + ny * h, hx: tx, hy: ty };
+}
+function poly3(x1, y1, x2, y2, x3, y3, w, col) {
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.lineWidth = w; g.strokeStyle = col; g.stroke();
+}
+function limbHand(x, y, fx, fy, side, skin) {
+  var fl = Math.sqrt(fx * fx + fy * fy) || 1; fx /= fl; fy /= fl;
+  var px = -fy, py = fx; if (px * -side < 0) { px = -px; py = -py; }
+  g.beginPath(); g.arc(x + px * 8.5 + fx * 3, y + py * 8.5 + fy * 3, 5.5, 0, TAU); fs(skin, 3.5);
+  g.beginPath(); g.arc(x + fx * 4, y + fy * 4, 11.5, 0, TAU); fs(skin, 4);
+  g.beginPath(); g.moveTo(x + fx * 8 - px * 4, y + fy * 8 - py * 4); g.lineTo(x + fx * 13 - px * 4, y + fy * 13 - py * 4);
+  g.moveTo(x + fx * 8 + px * 1, y + fy * 8 + py * 1); g.lineTo(x + fx * 13 + px * 1, y + fy * 13 + py * 1);
+  g.lineWidth = 2.5; g.strokeStyle = shade(skin, -0.35); g.stroke();
+}
+function armReach(mood, s) {
+  switch (mood) { case 'ready': return 0.58; case 'laugh': return 0.62; case 'confused': return s < 0 ? 0.97 : 0.7; default: return 0.96; }
+}
+
 function charDraw(S, o) {
-  var t = o.t, bw = S.bodyW, s;
+  var t = o.t, bw = S.bodyW, s, R = S.headR, mood = o.mood;
   g.save(); gradY0 = -S.h; gradY1 = 0;
   if (o.alpha != null) g.globalAlpha *= o.alpha;
   g.translate(o.x, o.y);
   g.translate(0, -S.h / 2); g.rotate(o.rot); g.scale(o.sx, o.sy); g.translate(0, S.h / 2);
-  if (o.mood === 'fear') g.translate(Math.sin(t * 50) * 2.5, 0);
+  if (mood === 'fear') g.translate(Math.sin(t * 50) * 2.5, 0);
   var br = Math.sin(t * 2.4 + S.ph) * 2, y0 = -(S.legH + S.bodyH) + br * 0.5;
   g.lineCap = 'round'; g.lineJoin = 'round';
-  // legs + shoes
+  var dancing = (mood === 'dance' || mood === 'cool'), rest = S.legH - 17;
+  // ---- legs (hip -> knee -> ankle) + shoes
   for (s = -1; s <= 1; s += 2) {
-    rr(s * bw * 0.22 - 9, -S.legH, 18, S.legH, 7); fs(S.pants, 4);
-    g.beginPath(); g.ellipse(s * bw * 0.25, -3, 19, 10, 0, 0, TAU); fs(S.key === 'mimi' ? '#ff4f9a' : '#fff', 4);
+    var f = s > 0 ? 0 : Math.PI, lift = dancing ? Math.max(0, Math.sin(t * 8 + f)) * (mood === 'dance' ? 13 : 9) : 0;
+    var spread = mood === 'dizzy' ? 15 : (mood === 'fear' ? Math.sin(t * 45 + s) * 2 : 0);
+    var hx = s * bw * 0.2, hy = -S.legH + 8, tx = s * bw * 0.24 + s * spread, ty = -10 - lift, L = rest * 0.53;
+    var lb = bone2(hx, hy, tx, ty, L, L, s, -0.2);
+    poly3(hx, hy, lb.ex, lb.ey, lb.hx, lb.hy, 27, INK);
+    poly3(hx, hy, lb.ex, lb.ey, lb.hx, lb.hy, 19, S.pants);
+    if (S.key === 'mimi') { g.beginPath(); g.moveTo(lb.hx, lb.hy); g.lineTo(lerp(lb.hx, lb.ex, 0.55), lerp(lb.hy, lb.ey, 0.55)); g.lineWidth = 19; g.strokeStyle = '#ffffff'; g.stroke(); }
+    var fx0 = lb.hx + s * 5, fy0 = lb.hy + 6;
+    g.beginPath(); g.ellipse(fx0, fy0, 21, 11.5, s * -0.08, 0, TAU); fs(S.shoe, 4.5);
+    g.beginPath(); g.ellipse(fx0 + s * 8, fy0 - 2, 8, 5, 0, 0, TAU); g.fillStyle = 'rgba(255,255,255,0.28)'; g.fill();
+    g.beginPath(); g.moveTo(fx0 - 17, fy0 + 7); g.lineTo(fx0 + 17, fy0 + 7); g.lineWidth = 3.5; g.strokeStyle = INK; g.stroke();
+    if (S.key === 'player') { g.lineWidth = 2.5; g.beginPath(); g.moveTo(fx0 - 4, fy0 - 7); g.lineTo(fx0 + 2, fy0 - 3); g.moveTo(fx0 + 3, fy0 - 8); g.lineTo(fx0 + 9, fy0 - 4); g.stroke(); }
+    if (S.key === 'mimi') { g.beginPath(); g.moveTo(fx0 - 9, fy0 - 5); g.lineTo(fx0 + 9, fy0 - 5); g.lineWidth = 3; g.strokeStyle = INK; g.stroke(); }
   }
-  // body
+  // ---- body
   if (S.key === 'mimi') {
     g.beginPath(); g.moveTo(-bw * 0.34, y0); g.lineTo(bw * 0.34, y0); g.lineTo(bw * 0.56, y0 + S.bodyH); g.lineTo(-bw * 0.56, y0 + S.bodyH); g.closePath(); fs(S.cloth, 5);
-    g.beginPath(); g.moveTo(-bw * 0.5, y0 + S.bodyH - 14); g.lineTo(bw * 0.5, y0 + S.bodyH - 14); g.lineWidth = 5; g.strokeStyle = S.cloth2; g.stroke();
+    g.beginPath(); for (var sc = 0; sc < 6; sc++) { var scx = -bw * 0.56 + sc * bw * 1.12 / 6; g.arc(scx + bw * 0.093, y0 + S.bodyH - 2, bw * 0.093, Math.PI, 0, true); }
+    g.lineWidth = 4; g.strokeStyle = S.cloth2; g.stroke();
+    g.beginPath(); g.moveTo(-bw * 0.3, y0 + 26); g.lineTo(bw * 0.3, y0 + 26); g.lineWidth = 6; g.strokeStyle = S.cloth2; g.stroke();
   } else {
     rr(-bw / 2, y0, bw, S.bodyH + 6, S.key === 'gus' ? 18 : 28); fs(S.cloth, 5);
     if (S.key === 'gus') {
-      g.beginPath(); g.moveTo(-9, y0 + 2); g.lineTo(9, y0 + 2); g.lineTo(6, y0 + 22); g.lineTo(0, y0 + S.bodyH * 0.55); g.lineTo(-6, y0 + 22); g.closePath(); fs(S.cloth2, 3);
+      rr(-bw / 2 + 2, y0 + S.bodyH - 14, bw - 4, 14, 6); fs('#2b2438', 3);
+      rr(-8, y0 + S.bodyH - 12, 16, 10, 3); fs('#ffd23f', 2.5);
     } else {
-      rr(-bw * 0.3, y0 + S.bodyH * 0.5, bw * 0.6, S.bodyH * 0.32, 10); fs(S.cloth2, 4);
+      rr(-bw / 2 + 2, y0 + S.bodyH - 8, bw - 4, 16, 10); fs(S.cloth2, 4);
+      rr(-bw * 0.3, y0 + S.bodyH * 0.45, bw * 0.6, S.bodyH * 0.3, 10); fs(S.cloth2, 4);
     }
+    rr(-bw * 0.36, y0 + 10, bw * 0.1, S.bodyH * 0.5, 6); g.fillStyle = 'rgba(255,255,255,0.22)'; g.fill();
   }
-  if (S.key !== 'mimi') { rr(-bw * 0.36, y0 + 10, bw * 0.1, S.bodyH * 0.55, 6); g.fillStyle = 'rgba(255,255,255,0.22)'; g.fill(); }
-  // arms
-  var L = S.key === 'gus' ? 64 : S.key === 'mimi' ? 48 : 58;
+  // ---- neck + collar
+  rr(-R * 0.21, y0 - R * 0.3 + br, R * 0.42, R * 0.5, 6); fs(S.skin, 4);
+  if (S.key === 'gus') {
+    g.beginPath(); g.moveTo(-14, y0 - 2); g.lineTo(0, y0 + 10); g.lineTo(-2, y0 + 20); g.lineTo(-22, y0 + 8); g.closePath(); fs('#ffffff', 3);
+    g.beginPath(); g.moveTo(14, y0 - 2); g.lineTo(0, y0 + 10); g.lineTo(2, y0 + 20); g.lineTo(22, y0 + 8); g.closePath(); fs('#ffffff', 3);
+    g.beginPath(); g.moveTo(-8, y0 + 8); g.lineTo(8, y0 + 8); g.lineTo(5, y0 + 26); g.lineTo(0, y0 + S.bodyH * 0.55); g.lineTo(-5, y0 + 26); g.closePath(); fs(S.cloth2, 3);
+  } else if (S.key === 'mimi') {
+    g.beginPath(); g.ellipse(0, y0 + 4, bw * 0.26, 12, 0, 0, Math.PI); fs('#ffffff', 3.5);
+  } else {
+    g.beginPath(); g.ellipse(0, y0 + 2, bw * 0.34, 14, 0, 0, Math.PI); fs(S.cloth2, 4);
+    g.lineWidth = 3; g.strokeStyle = '#ffffff'; g.beginPath(); g.moveTo(-8, y0 + 12); g.lineTo(-8, y0 + 34); g.moveTo(8, y0 + 12); g.lineTo(8, y0 + 34); g.stroke();
+  }
+  // ---- arms (shoulder -> elbow -> hand) with shoulder caps
+  var L2 = S.key === 'gus' ? 64 : S.key === 'mimi' ? 50 : 60, arms = [];
   for (s = -1; s <= 1; s += 2) {
-    var sx0 = s * bw * 0.46, sy0 = y0 + 24, a;
-    if (o.pose) a = s < 0 ? o.pose.l : o.pose.r; else a = armAng(o.mood, t, s, S.ph);
-    var exx = sx0 + s * Math.sin(a) * L, eyy = sy0 + Math.cos(a) * L;
-    g.beginPath(); g.moveTo(sx0, sy0); g.lineTo(exx, eyy);
-    g.lineWidth = 24; g.strokeStyle = INK; g.stroke(); g.lineWidth = 15; g.strokeStyle = S.cloth; g.stroke();
-    g.beginPath(); g.arc(exx, eyy, 12, 0, TAU); fs(S.skin, 4);
+    var sx0 = s * bw * 0.44, sy0 = y0 + 26, a, rch;
+    if (o.pose) { a = s < 0 ? o.pose.l : o.pose.r; rch = 0.97; } else { a = armAng(mood, t, s, S.ph); rch = armReach(mood, s); }
+    var ax = sx0 + s * Math.sin(a) * L2 * rch, ay = sy0 + Math.cos(a) * L2 * rch;
+    arms.push({ s: s, sx: sx0, sy: sy0, b: bone2(sx0, sy0, ax, ay, L2 * 0.52, L2 * 0.52, s * 0.5, 0.9) });
   }
-  // head
+  arms.forEach(function (A) { poly3(A.sx, A.sy, A.b.ex, A.b.ey, A.b.hx, A.b.hy, 26, INK); });
+  arms.forEach(function (A) {
+    var b = A.b;
+    g.beginPath(); g.moveTo(A.sx, A.sy); g.lineTo(b.ex, b.ey); g.lineWidth = 18; g.strokeStyle = S.cloth; g.stroke();
+    g.beginPath(); g.moveTo(b.ex, b.ey); g.lineTo(b.hx, b.hy); g.lineWidth = S.sleeveSkin ? 13 : 18; g.strokeStyle = S.sleeveSkin ? S.skin : S.cloth; g.stroke();
+    if (!S.sleeveSkin) { var cx2 = lerp(b.hx, b.ex, 0.22), cy2 = lerp(b.hy, b.ey, 0.22); g.beginPath(); g.arc(cx2, cy2, 10, 0, TAU); g.fillStyle = S.cloth2; g.fill(); }
+    else { g.beginPath(); g.arc(b.ex, b.ey, 9.5, 0, TAU); g.fillStyle = S.cloth; g.fill(); g.lineWidth = 2.5; g.strokeStyle = INK; g.stroke(); }
+  });
+  arms.forEach(function (A) { var b = A.b; limbHand(b.hx, b.hy, b.hx - b.ex, b.hy - b.ey, A.s, S.skin); });
+  arms.forEach(function (A) { g.beginPath(); g.arc(A.sx, A.sy, S.key === 'gus' ? 11.5 : 13.5, 0, TAU); fs(S.cloth, 4); });
+  // ---- head
   if (!o.headHidden) {
-    g.save(); g.translate(0, y0 - S.headR * 0.6 + br);
-    drawHead(o.headStyle || S, o.mood, t, o.gaze, o.hs || 1);
+    g.save(); g.translate(0, y0 - R * 0.6 + br);
+    drawHead(o.headStyle || S, mood, t, o.gaze, o.hs || 1);
     g.restore();
   }
   gradY0 = null; gradY1 = null;
@@ -467,7 +533,7 @@ var CHARS = ['player', 'gus', 'mimi'];
 
 /* ------------------------------------------------------------------ global state */
 var state = 'START', stateT = 0, presses = 0, realClock = 0, animClock = 0, poseClock = 0;
-var ringT = 9, btnPress = 0, pressT = 9, reliefT = 0, shakeAmp = 0, resultT = 0, settleT = 0, idleT = 0, soundHeld = 0;
+var hudT = 9, ringT = 9, btnPress = 0, pressT = 9, reliefT = 0, shakeAmp = 0, resultT = 0, settleT = 0, idleT = 0, soundHeld = 0;
 var run = null, lastFirst = null, curPlan = null, active = [], planT = 0;
 var flags = { jelly: 0, disco: 0, freeze: 0, unfrozen: null, playerPose: null };
 var shared = { giant: null, freezeWho: null };
@@ -913,7 +979,7 @@ EVENTS.banana = {
     }
   },
   mood: function (fx, t, id) {
-    if (id === fx.d.tid) return t < 0.6 ? null : t < 1.3 ? 'idle' : t < 2.3 ? 'fear' : t < fx.dur - 0.9 ? 'confused' : 'sad';
+    if (id === fx.d.tid) return t < 0.6 ? null : t < 1.3 ? 'idle' : t < 2.3 ? 'fear' : t < fx.dur - 0.9 ? 'dizzy' : 'sad';
     return t < 1.3 ? null : 'laugh';
   }
 };
@@ -1073,12 +1139,12 @@ function startPlan(plan) {
 function newRun() {
   clearFx();
   run = { events: [], used: {}, usedCombos: {} };
-  presses = 0; state = 'PLAYING'; stateT = 0; settleT = 0; reliefT = 0; idleT = 0; caption.text = ''; resultCard = null;
+  presses = 0; hudT = 9; state = 'PLAYING'; stateT = 0; settleT = 0; reliefT = 0; idleT = 0; caption.text = ''; resultCard = null;
   flags.freeze = 0; shakeAmp = 0; pressT = 9; btnPress = 0;
 }
 function pressButton() {
   if (state !== 'PLAYING') return;
-  presses++; state = 'EVENT'; stateT = 0; btnPress = 1; pressT = 0; ringT = 0; idleT = 0; reliefT = 0;
+  presses++; state = 'EVENT'; stateT = 0; btnPress = 1; pressT = 0; ringT = 0; hudT = 0; idleT = 0; reliefT = 0;
   SFX.click(); hap('tap');
   for (var i = 0; i < 12; i++) { var a = rnd(-Math.PI * 0.95, -Math.PI * 0.05); spawnPart(360, 1000, Math.cos(a) * rnd(120, 340), Math.sin(a) * rnd(160, 420), rnd(0.5, 0.9), rnd(9, 17), pick(['#ffd23f', '#ff6bd6', '#6ec3ff', '#fff']), 0); }
   startPlan(planNext(presses));
@@ -1166,7 +1232,7 @@ function update(dt) {
     c.pose = null;
   }
   var pl = ENTS.player;
-  ringT += dt; pressT += dt; btnPress = Math.max(0, btnPress - dt * 5); reliefT = Math.max(0, reliefT - dt);
+  hudT += dt; ringT += dt; pressT += dt; btnPress = Math.max(0, btnPress - dt * 5); reliefT = Math.max(0, reliefT - dt);
   if (flags.playerPose) pl.pose = flags.playerPose;
   else if (pressT < 0.3) {
     var pq = Math.sin(pressT / 0.3 * Math.PI); pl.pose = { l: 0.3, r: 0.05 }; pl.m.sy *= 1 - 0.08 * pq; pl.m.sx *= 1 + 0.05 * pq; pl.m.rot += 0.08 * pq;
@@ -1404,9 +1470,14 @@ function drawCaption() {
   txt(s, 0, 2, z, '#ffd23f', INK, 8); g.restore();
 }
 function drawHUD() {
-  var hgd = g.createLinearGradient(0, 22, 0, 100); hgd.addColorStop(0, '#5a2fb0'); hgd.addColorStop(1, '#2a1260');
-  rr(20, 22, 270, 78, 39); g.fillStyle = hgd; g.fill(); g.lineWidth = 4; g.strokeStyle = '#fff'; g.stroke();
-  txt('CHAOS ' + presses + '/3', 155, 62, 40, '#ffd23f', INK, 6);
+  var n = clamp(presses, 0, 3), hgd = g.createLinearGradient(0, 22, 0, 100); hgd.addColorStop(0, '#5a2fb0'); hgd.addColorStop(1, '#2a1260');
+  rr(20, 22, 360, 78, 39); g.fillStyle = hgd; g.fill(); g.lineWidth = 4; g.strokeStyle = '#fff'; g.stroke();
+  for (var i = 0; i < 3; i++) {
+    var on = i < n, pk = (on && i === n - 1) ? 1 + 0.5 * Math.max(0, 1 - hudT / 0.35) : 1;
+    g.beginPath(); g.arc(60 + i * 34, 61, 13 * pk, 0, TAU); g.fillStyle = on ? '#ffd23f' : 'rgba(255,255,255,0.18)'; g.fill(); g.lineWidth = 3; g.strokeStyle = on ? INK : 'rgba(255,255,255,0.5)'; g.stroke();
+  }
+  var pz = 1 + 0.35 * Math.max(0, 1 - hudT / 0.35);
+  g.save(); g.translate(268, 62); g.scale(pz, pz); txt('CHAOS ' + n + '/3', 0, 0, 36, '#ffd23f', INK, 6); g.restore();
   drawSoundBtn();
 }
 function drawTitle() {
