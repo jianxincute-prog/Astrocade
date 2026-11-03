@@ -271,5 +271,57 @@
   "subtype": "effect",
   "type": "audio",
   "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FHMK78Y756XN4TBDTZ72DB_eb04dfa5-01d6-4c7f-a8eb-74e43a3cdaed_8cbdc00c-7691-41e3-8a2a-46c5e80a0860.mp3"
+ },
+ "sfx_berry": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Cute juicy berry pop and soft squishy splat, short playful cartoon fruit pop, clean, no music",
+  "duration_secs": 0.68,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSA506D6XTN5WGXF6R9V1_def936e4-4ebd-47bc-86f6-f98db90e428a_c1349177-8332-4f51-bc03-7883c27594b2.ogg",
+  "prompt": "Cute juicy berry pop and soft squishy splat, short playful cartoon fruit pop, clean, no music",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSA506D6XTN5WGXF6R9V1_def936e4-4ebd-47bc-86f6-f98db90e428a_c1349177-8332-4f51-bc03-7883c27594b2.mp3"
+ },
+ "sfx_geyser": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Cartoon water geyser bursting upward, rushing whoosh of a fountain shooting up then splashing, playful, not too loud, clean, no music",
+  "duration_secs": 2.42,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSAV0N6HC3ED2BJS2TZMT_8ea9a1f5-33ea-40c6-9129-f00bffa86b99_1d8d7cc8-e37d-416f-8729-8229708be514.ogg",
+  "prompt": "Cartoon water geyser bursting upward, rushing whoosh of a fountain shooting up then splashing, playful, not too loud, clean, no music",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSAV0N6HC3ED2BJS2TZMT_8ea9a1f5-33ea-40c6-9129-f00bffa86b99_1d8d7cc8-e37d-416f-8729-8229708be514.mp3"
+ },
+ "sfx_flutter": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Magical butterflies fluttering wings swarm with soft glittering sparkles, delicate flutter, gentle and whimsical, clean, no music",
+  "duration_secs": 1.17,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSBHGYNKGY7JA34V29RF9_5c227419-3298-4415-9f61-b0ad0b02f732_d8e42708-dca2-47e8-86fd-13d1e3b4cb7d.ogg",
+  "prompt": "Magical butterflies fluttering wings swarm with soft glittering sparkles, delicate flutter, gentle and whimsical, clean, no music",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSBHGYNKGY7JA34V29RF9_5c227419-3298-4415-9f61-b0ad0b02f732_d8e42708-dca2-47e8-86fd-13d1e3b4cb7d.mp3"
+ },
+ "sfx_crystal": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Single pure glass crystal chime note, clear bell-like ringing tone like a glockenspiel or xylophone bar, one note with soft decay, clean, no music",
+  "duration_secs": 0.98,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSC4W90APCETARA4F7DD4_a99adab2-3662-45f7-b08f-12b97a81d65f_4010294c-b3be-40e9-bba8-8959d861b4b3.ogg",
+  "prompt": "Single pure glass crystal chime note, clear bell-like ringing tone like a glockenspiel or xylophone bar, one note with soft decay, clean, no music",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJSC4W90APCETARA4F7DD4_a99adab2-3662-45f7-b08f-12b97a81d65f_4010294c-b3be-40e9-bba8-8959d861b4b3.mp3"
  }
 }

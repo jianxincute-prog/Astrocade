@@ -24,6 +24,12 @@ just open `game_code.html` in a browser.
 
 ## Audio
 - Music: looping ukulele track (`music_bgm`), generated with Astrocade, starts on PLAY
-- 20 sound effects (`sfx_*`), generated with Astrocade; trimmed/normalised at load time
+- 24 sound effects (`sfx_*`), generated with Astrocade; trimmed/normalised at load time (crystal chime is pitch-shifted to do-mi-sol)
 - One sound toggle mutes music and effects together
 - If an audio file fails to load, the original WebAudio synth sounds play instead (and when running outside Astrocade)
+
+## Interactive scenery (added later)
+- Berry bushes (x3): shake, then pelt the nearest object with berries (chain)
+- Butterflies (x3): tap one and it bursts into a rainbow swarm
+- Waterfall: geyser + rainbow, then fills the pond (chain)
+- Crystals (x3, hanging under the island): a tiny xylophone; tap left to right for a confetti surprise
