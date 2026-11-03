@@ -61,7 +61,7 @@ function ensureAudio() {
     if (!AC) {
       var Ctor = window.AudioContext || window.webkitAudioContext;
       if (!Ctor) return;
-      AC = new Ctor(); master = AC.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(AC.destination);
+      AC = new Ctor(); master = AC.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(AC.destination); setTimeout(loadAssets, 0);
       noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
       var d = noiseBuf.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
@@ -70,6 +70,46 @@ function ensureAudio() {
 }
 function audible() { return !!AC && !muted; }
 function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.5; }
+/* ---- generated audio assets (decoded once; synth below is the fallback) */
+var AUDIO_IDS = ['sfx_click', 'sfx_boing', 'sfx_thud', 'sfx_whoosh', 'sfx_ufo', 'sfx_laugh', 'sfx_rain', 'sting_result', 'bgm_play'];
+var bufs = {}, bgmSrc = null, bgmGain = null, bgmWanted = false, bgmLevel = -1, assetsRequested = false;
+function loadAssets() {
+  if (assetsRequested || !AC) return; assetsRequested = true;
+  AUDIO_IDS.forEach(function (id) {
+    try {
+      var info = lib.getAsset(id); if (!info || !info.url) return;
+      fetch(info.url).then(function (r) { return r.arrayBuffer(); }).then(function (ab) {
+        return new Promise(function (res, rej) { AC.decodeAudioData(ab, res, rej); });
+      }).then(function (b) { bufs[id] = b; if (id === 'bgm_play' && bgmWanted) startBgm(); }).catch(function () { log('asset load failed: ' + id); });
+    } catch (e) {}
+  });
+}
+function playBuf(id, vol, delay, rate) {
+  if (!audible() || !bufs[id]) return false;
+  try {
+    var t = AC.currentTime + (delay || 0), src = AC.createBufferSource(), gn = AC.createGain();
+    src.buffer = bufs[id]; if (rate) src.playbackRate.value = rate; gn.gain.value = vol == null ? 1 : vol;
+    src.connect(gn); gn.connect(master); src.start(t); return true;
+  } catch (e) { return false; }
+}
+function startBgm() {
+  bgmWanted = true;
+  if (bgmSrc || !AC || !bufs.bgm_play) return;
+  try {
+    bgmSrc = AC.createBufferSource(); bgmGain = AC.createGain(); bgmSrc.buffer = bufs.bgm_play; bgmSrc.loop = true;
+    bgmGain.gain.value = 0.0001; bgmSrc.connect(bgmGain); bgmGain.connect(master); bgmSrc.start(); bgmLevel = -1; setBgmLevel(0.3);
+  } catch (e) { bgmSrc = null; }
+}
+function setBgmLevel(v) {
+  if (!bgmGain || v === bgmLevel) return; bgmLevel = v;
+  try { bgmGain.gain.setTargetAtTime(Math.max(0.0001, v), AC.currentTime, 0.25); } catch (e) {}
+}
+function stopBgm() {
+  bgmWanted = false; if (!bgmSrc) return;
+  try { bgmGain.gain.setTargetAtTime(0.0001, AC.currentTime, 0.2); var s0 = bgmSrc; setTimeout(function () { try { s0.stop(); } catch (e) {} }, 900); } catch (e) {}
+  bgmSrc = null; bgmGain = null;
+}
+
 function tone(f0, dur, type, vol, f1, delay, f2) {
   if (!audible()) return;
   try {
@@ -141,7 +181,19 @@ var SFX = {
   }
 };
 
-SFX.ufo = function () { wob(170, 1.4, 0.12, 6, 40); tone(300, 1.4, 'sine', 0.1, 900, 1.2); tone(900, 0.6, 'sine', 0.12, 200, 3.2); SFX.pop(3.2); SFX.thud(3.8); };
+(function () {
+  var base = { click: SFX.click, boing: SFX.boing, thud: SFX.thud, whoosh: SFX.whoosh, haha: SFX.haha, rain: SFX.rain, sting: SFX.sting };
+  SFX.click = function () { if (!playBuf('sfx_click', 0.9)) base.click(); };
+  SFX.boing = function (d) { if (!playBuf('sfx_boing', 0.8, d)) base.boing(d); };
+  SFX.thud = function (d) { if (!playBuf('sfx_thud', 0.9, d)) base.thud(d); };
+  SFX.whoosh = function (d) { if (!playBuf('sfx_whoosh', 0.7, d)) base.whoosh(d); };
+  SFX.haha = function (d) { if (!playBuf('sfx_laugh', 0.7, d)) base.haha(d); };
+  SFX.rain = function (dur) { if (!playBuf('sfx_rain', 0.7)) base.rain(dur); };
+  SFX.sting = function () { if (!playBuf('sting_result', 0.8)) base.sting(); };
+})();
+SFX.ufo = function () {
+  if (playBuf('sfx_ufo', 0.75, 0.9)) { SFX.pop(3.2); SFX.thud(3.8); return; } wob(170, 1.4, 0.12, 6, 40); tone(300, 1.4, 'sine', 0.1, 900, 1.2); tone(900, 0.6, 'sine', 0.12, 200, 3.2); SFX.pop(3.2); SFX.thud(3.8);
+};
 SFX.bounce = function () { for (var i = 0; i < 7; i++) tone(240 + (i % 3) * 60, 0.18, 'sine', 0.2, 560, i * 0.56); };
 SFX.slip = function () { tone(1000, 0.4, 'sine', 0.14, 220, 1.3); SFX.eek(1.3); SFX.thud(2.3); SFX.boing(3.4); };
 SFX.poke = function () { tone(500, 0.12, 'square', 0.14, 120, 1.1); SFX.boing(1.25); SFX.boing(2.4); };
@@ -1139,6 +1191,7 @@ function startPlan(plan) {
 function newRun() {
   clearFx();
   run = { events: [], used: {}, usedCombos: {} };
+  startBgm();
   presses = 0; hudT = 9; state = 'PLAYING'; stateT = 0; settleT = 0; reliefT = 0; idleT = 0; caption.text = ''; resultCard = null;
   flags.freeze = 0; shakeAmp = 0; pressT = 9; btnPress = 0;
 }
@@ -1157,7 +1210,7 @@ function showResult() {
   var last = run.events[run.events.length - 1];
   resultCard = { title: last.title, desc: last.text, list: run.events.map(function (e, i) { return (i + 1) + '. ' + e.label; }) };
   state = 'RESULT'; resultT = 0; caption.text = '';
-  SFX.sting(); hap('success');
+  stopBgm(); SFX.sting(); hap('success');
   for (var i = 0; i < 40; i++) spawnPart(rnd(40, W - 40), rnd(-60, -10), rnd(-40, 40), rnd(120, 300), rnd(2.5, 4), rnd(8, 14), pick(['#ffd23f', '#ff6bd6', '#6ec3ff', '#35c46a', '#fff']), 1);
 }
 function titleCase(s) { return s.toLowerCase().replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
@@ -1239,6 +1292,7 @@ function update(dt) {
   }
   for (i = 0; i < 3; i++) { var ce = ENTS['clone' + i]; ce.mood = pl.mood; ce.animT = animClock; }
   caption.t += dt;
+  if (bgmGain) setBgmLevel(flags.disco > 0.2 ? 0.06 : 0.3);
   shakeAmp = Math.max(0, shakeAmp - dt * 22);
 
   for (i = 0; i < parts.length; i++) {
@@ -1558,7 +1612,7 @@ window.run = runGame;
 
 if (window.__CB_TEST) {   // hooks for automated QA only
   window.__cb = {
-    state: function () { return state; }, presses: function () { return presses; },
+    audio: function () { return { bufs: Object.keys(bufs), bgm: !!bgmSrc, lvl: bgmLevel }; }, state: function () { return state; }, presses: function () { return presses; },
     plan: function (ids) { run = run || { events: [], used: {}, usedCombos: {} }; presses++; state = 'EVENT'; btnPress = 1;
       var specs = ids.map(function (id, i) { var c = COMBOS.filter(function (c) { return c.specs.some(function (s) { return s.id === id; }); })[0]; return { id: id, dur: EVENTS[id].dur, delay: 0 }; });
       var combo = ids.length > 1 ? COMBOS.filter(function (c) { return c.specs[0].id === ids[0] && c.specs[1].id === ids[1]; })[0] : null;
