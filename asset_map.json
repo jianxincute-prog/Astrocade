@@ -115,5 +115,31 @@
   "subtype": "effect",
   "type": "audio",
   "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FHFZ20VXD05K4ZWTA1HZCY_59fa0ad9-3d22-4049-9b78-ee07a205e356_f140d74b-f974-416b-97d1-1752348775a5.mp3"
+ },
+ "sfx_buildup": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Rising cartoon tension build-up riser, ascending whoosh with rumbling bass and rattling shake, ends abruptly at peak, comedic suspense",
+  "duration_secs": 2.44,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJDNZEG4AFM908WRRD8JQW_ec62b611-f5a8-4113-b85a-ad8144c7f65c_79e2bf13-46da-414d-b032-92ba83fd7b68.ogg",
+  "prompt": "Rising cartoon tension build-up riser, ascending whoosh with rumbling bass and rattling shake, ends abruptly at peak, comedic suspense",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJDNZEG4AFM908WRRD8JQW_ec62b611-f5a8-4113-b85a-ad8144c7f65c_79e2bf13-46da-414d-b032-92ba83fd7b68.mp3"
+ },
+ "sfx_boom": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Huge comedic cartoon explosion boom with falling debris and a sparkly confetti pop, big but not harsh, short",
+  "duration_secs": 2.33,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJDQ1H9BRJGGQAG3DCEZHE_2e9216d6-0856-45bf-9647-e5735080413c_c64fdac3-d361-416e-a95d-b155819fcd80.ogg",
+  "prompt": "Huge comedic cartoon explosion boom with falling debris and a sparkly confetti pop, big but not harsh, short",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6FJDQ1H9BRJGGQAG3DCEZHE_2e9216d6-0856-45bf-9647-e5735080413c_c64fdac3-d361-416e-a95d-b155819fcd80.mp3"
  }
 }
