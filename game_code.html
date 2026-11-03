@@ -198,6 +198,74 @@ const Snd = {
   launch() { this.noise(1.6, 250, 1400, { v: 0.16, q: 0.6 }); this.tone(80, 220, 1.2, { type: 'sawtooth', v: 0.07 }); },
   whistle() { this.tone(1400, 700, 0.6, { v: 0.07 }); },
 };
+// ---- sample layer: Astrocade-generated audio (falls back to the synth above if a file is unavailable) ----
+const SFX = {
+  pop: ['sfx_pop', 0.7], tick: ['sfx_pop', 0.35], boing: ['sfx_boing', 0.7], whoosh: ['sfx_whoosh', 0.6], plop: ['sfx_plop', 0.8],
+  splash: ['sfx_splash', 0.7], sneeze: ['sfx_sneeze', 0.9], sparkle: ['sfx_sparkle', 0.6], sizzle: ['sfx_sizzle', 0.5],
+  rumble: ['sfx_rumble', 0.7], stomp: ['sfx_stomp', 0.8], squeak: ['sfx_squeak', 0.6], rustle: ['sfx_rustle', 0.6],
+  grow: ['sfx_grow', 0.7], moo: ['sfx_moo', 0.85], coin: ['sfx_coin', 0.6], creak: ['sfx_creak', 0.7], burp: ['sfx_burp', 0.8],
+  beep: ['sfx_beep', 0.5], launch: ['sfx_launch', 0.8], whistle: ['sfx_whistle', 0.6],
+};
+const JITTER = { pop: 1, tick: 1, stomp: 1, coin: 1, squeak: 1 };   // tiny pitch variation so repeats don't sound identical
+Snd.raw = {}; Snd.buf = {}; Snd.info = {}; Snd.musicOn = false; Snd.musicSrc = null;
+Snd.preload = function () {
+  const ids = [...new Set(Object.values(SFX).map(v => v[0]).concat(['music_bgm']))];
+  ids.forEach(id => {
+    try {
+      const a = typeof lib !== 'undefined' && lib.getAsset ? lib.getAsset(id) : null;
+      if (!a || !a.url) return;
+      fetch(a.url).then(r => r.arrayBuffer()).then(ab => { Snd.raw[id] = ab; if (Snd.ctx) Snd.decode(id); }).catch(() => {});
+    } catch (e) {}
+  });
+};
+Snd.decode = function (id) {
+  const ab = this.raw[id]; if (!ab || this.buf[id] || !this.ctx) return;
+  this.raw[id] = null;
+  try {
+    this.ctx.decodeAudioData(ab, b => {
+      let peak = 0;
+      for (let c = 0; c < b.numberOfChannels; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > peak) peak = v; } }
+      const d0 = b.getChannelData(0), th = peak * 0.03; let first = 0, last = d0.length - 1;
+      if (id !== 'music_bgm') {   // trim leading/trailing silence of one-shots
+        while (first < d0.length && Math.abs(d0[first]) < th) first++;
+        while (last > first && Math.abs(d0[last]) < th) last--;
+      }
+      const sr = b.sampleRate;
+      this.info[id] = { gain: peak > 0 ? 0.85 / peak : 1, start: Math.max(0, first / sr - 0.01), dur: Math.max(0.15, (last - first) / sr + 0.12) };
+      this.buf[id] = b;
+      if (id === 'music_bgm' && this.musicOn) this.startMusic();
+    }, () => {});
+  } catch (e) {}
+};
+Snd.playSample = function (name, d) {
+  const m = SFX[name]; if (!m || !this.ctx) return false;
+  const b = this.buf[m[0]], inf = this.info[m[0]]; if (!b) return false;
+  if (this.muted) return true;
+  try {
+    const c = this.ctx, t0 = c.currentTime + (d || 0), s = c.createBufferSource(), g = c.createGain();
+    s.buffer = b; if (JITTER[name]) s.playbackRate.value = 0.94 + Math.random() * 0.12;
+    const dur = Math.min(inf.dur, 4.5), vol = m[1] * inf.gain;
+    g.gain.setValueAtTime(vol, t0); g.gain.setValueAtTime(vol, t0 + Math.max(0.05, dur - 0.08)); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(g); g.connect(this.master); s.start(t0, inf.start, dur);
+  } catch (e) { return false; }
+  return true;
+};
+Snd.startMusic = function () {
+  this.musicOn = true;
+  if (!this.ctx || !this.buf.music_bgm || this.musicSrc) return;
+  try {
+    const c = this.ctx, s = c.createBufferSource(), g = c.createGain();
+    s.buffer = this.buf.music_bgm; s.loop = true;
+    g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.linearRampToValueAtTime(this.info.music_bgm.gain * 0.32, c.currentTime + 1.5);
+    s.connect(g); g.connect(this.master); s.start(0); this.musicSrc = s;
+  } catch (e) {}
+};
+(function () {
+  const _init = Snd.init;
+  Snd.init = function () { _init.call(this); if (this.ctx) Object.keys(this.raw).forEach(id => this.decode(id)); };
+  Object.keys(SFX).forEach(name => { const syn = Snd[name]; Snd[name] = function (d) { if (this.playSample(name, d)) return; if (syn) syn.call(this, d); }; });
+})();
+
 function hap(p) { try { if (typeof lib !== 'undefined' && lib.haptics) lib.haptics.play(p); } catch (e) {} }
 
 // ---------- drawing primitives ----------
@@ -1243,12 +1311,13 @@ function fit() { const r = wrap.getBoundingClientRect(); wrap.style.setProperty(
 function run(mode) {
   if (inited) return; inited = true;
   cv = document.getElementById('cv'); ctx = cv.getContext('2d'); wrap = document.getElementById('wrap');
-  buildBG(); fit(); window.addEventListener('resize', fit); soundIcon();
+  buildBG(); fit(); window.addEventListener('resize', fit); soundIcon(); Snd.preload();
   cv.addEventListener('pointerdown', e => { e.preventDefault(); Snd.init(); if (state !== 'play') return; const [x, y] = toWorld(e); hover = null; tap(x, y); });
   cv.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || state !== 'play') return; const [x, y] = toWorld(e); const o = findObj(x, y); hover = o ? o.id : null; cv.style.cursor = o ? 'pointer' : 'default'; });
   cv.addEventListener('pointerleave', () => { hover = null; });
+  window.addEventListener('pointerdown', () => Snd.init(), { once: true });   // start decoding audio on the first touch
   document.getElementById('play').addEventListener('click', () => {
-    Snd.init(); state = 'play'; lastTap = time; document.getElementById('title').classList.add('hide'); Snd.pop(); Snd.sparkle(0.05); hap('tap');
+    Snd.init(); Snd.startMusic(); state = 'play'; lastTap = time; document.getElementById('title').classList.add('hide'); Snd.pop(); Snd.sparkle(0.05); hap('tap');
   });
   document.getElementById('reset').addEventListener('click', () => { Snd.init(); if (state === 'play') resetWorld(); });
   document.getElementById('sound').addEventListener('click', () => { Snd.init(); Snd.setMuted(!Snd.muted); soundIcon(); if (!Snd.muted) Snd.pop(); });

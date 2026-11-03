@@ -21,3 +21,9 @@ Tap anything on a tiny floating island and watch it do something weird.
 
 Portrait 720x1280; works with touch and mouse. Outside Astrocade (no `lib`) it auto-starts for local testing:
 just open `game_code.html` in a browser.
+
+## Audio
+- Music: looping ukulele track (`music_bgm`), generated with Astrocade, starts on PLAY
+- 20 sound effects (`sfx_*`), generated with Astrocade; trimmed/normalised at load time
+- One sound toggle mutes music and effects together
+- If an audio file fails to load, the original WebAudio synth sounds play instead (and when running outside Astrocade)
