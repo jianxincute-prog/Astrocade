@@ -14,7 +14,7 @@ Tap anything on a tiny floating island and watch it do something weird.
 - 10 curated chain reactions, depth-limited to 3 linked reactions (sun->pond, cloud->pond, mountain->tree,
   windmill->both clouds, flower->house, Pip->flower/bridge/house, rocket->sun, cow->Pip, mushroom->Pip bounce,
   chest->pond). Mode-specific (chained) reactions never chain further.
-- Wide floating island (camera zoomed out to 0.76x so everything fits) that gently bobs, waterfall, butterflies, drifting far clouds, glowing crystals,
+- Two-tier floating island (raised plateau with cliff and stone stairs at the back, meadow in front; camera zoomed out to 0.76x) that gently bobs; objects use a depth scale (back smaller, front larger), waterfall, butterflies, drifting far clouds, glowing crystals,
   vines, lighting/vignette overlay; canvas rendered at 1.5x for crisp visuals
 - No score / fail state / reading; RESET button, sound toggle, hint hand + idle discovery cue
 - Busy-lock per object, capped particle pool, safe fallback if a draw/reaction throws, reset cancels all timers
@@ -31,5 +31,5 @@ just open `game_code.html` in a browser.
 ## Interactive scenery (added later)
 - Berry bushes (x3): shake, then pelt the nearest object with berries (chain)
 - Butterflies (x3): tap one and it bursts into a rainbow swarm
-- Waterfall: geyser + rainbow, then fills the pond (chain)
-- Crystals (x3, hanging under the island): a tiny xylophone; tap left to right for a confetti surprise
+- Waterfall (flows off the plateau cliff into the pond): geyser + rainbow, then fills the pond (chain)
+- Crystals (x3, hanging under the meadow): a tiny xylophone; tap left to right for a confetti surprise
