@@ -74,6 +74,11 @@
 const W = 720, H = 1280, TAU = Math.PI * 2, OUT = '#3b2d5c';
 const MAXP = 240;
 const S = 1.5;   // backing-store scale for crisp rendering
+// World camera: the diorama is larger than the 720x1280 screen and is zoomed out to fit.
+const Z = 0.76, TX = 360 * (1 - 0.76), TY = 60;           // screen = Z * world + (TX, TY)
+const KX = 1.33, KY = 1.25, CX = 360, CY = 845;           // island/layout spread about its centre
+const fx = x => CX + (x - CX) * KX, fy = y => CY + (y - CY) * KY;
+const IOX = -140, IOY = 490, IW = 1000, IH = 950;           // world rect covered by the island layer
 
 // ---------- helpers ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -351,7 +356,7 @@ def('sun', {
   start(o) { if (o.mode === 'startle') { o.dur = 1.8; Snd.squeak(); Snd.boing(0.05); } else { o.dur = 3.4; Snd.sizzle(); } hap('tap'); },
   upd(o, p, dt) {
     if (o.mode === 'startle') return;
-    o.acc += dt; if (p > 0.15 && p < 0.85 && o.acc > 0.14) { o.acc = 0; spawn('puff', 570 + rnd(-90, 90), 190 + rnd(-60, 70), { vy: -60, life: 0.7, size: rnd(5, 9), col: '#fff' }); }
+    o.acc += dt; if (p > 0.15 && p < 0.85 && o.acc > 0.14) { o.acc = 0; spawn('puff', o.x + rnd(-90, 90), o.y + rnd(-60, 70), { vy: -60, life: 0.7, size: rnd(5, 9), col: '#fff' }); }
   },
   draw(o, p) {
     const st = (o.mode === 'startle' && p >= 0) ? env(p, 0.04, 0.14, 0.78, 1) : 0;
@@ -399,7 +404,7 @@ function makeCloud(id, hx, hy, scale, ph) {
       o.acc += dt;
       if (p > 0.14 && p < 0.86 && o.acc > 0.05) {
         o.acc = 0;
-        spawn('drop', o.x + rnd(-45, 45) * o.sc, o.y + 40 * o.sc, { vy: rnd(150, 300), g: 900, life: 3, size: rnd(6, 9), col: pick(RAINBOW), gy: rnd(930, 1040) });
+        spawn('drop', o.x + rnd(-45, 45) * o.sc, o.y + 40 * o.sc, { vy: rnd(150, 300), g: 900, life: 3, size: rnd(6, 9), col: pick(RAINBOW), gy: rnd(OBJ.pond.y - 20, OBJ.char.by - 20) });
       }
     },
     pos(o, p) {
@@ -988,17 +993,32 @@ def('rocket', {
   },
 });
 
+// ---- spread the layout over the larger island ----
+(function layout() {
+  const EXTRA = { chest: [-70, 25], cow: [-30, -10] };   // fine-tune to avoid overlaps
+  for (const id of ORDER) {
+    const o = OBJ[id], sky = id === 'sun' || id.indexOf('cloud') === 0;
+    const ay = o.by != null ? o.by : o.y, ex = EXTRA[id] || [0, 0];
+    const dx = fx(o.x) - o.x + ex[0], dy = sky ? 0 : fy(ay) - ay + ex[1];
+    o.x += dx; if (o.by != null) o.by += dy; if (o.y != null) o.y += dy;
+    o.hit.cx += dx; o.hit.cy += dy; if (o.hx != null) { o.hx += dx; o.hy += dy; }
+    if (id === 'windmill') { WM.x += dx; WM.by += dy; WM.hubY += dy; }
+  }
+  const R = OBJ.rocket, sn = OBJ.sun;
+  R.P = [[R.x, R.by - 70], [R.x - 65, R.by - 450], [sn.x - 240, sn.y + 110], [sn.x - 70, sn.y + 55]];
+})();
+
 // draw order (back to front)
 const DRAW_ORDER = ['sun', 'cloudA', 'cloudB', 'mountain', 'windmill', 'tree', 'house', 'cow', 'pond', 'bridge', 'rocket', 'mushroom', 'chest', 'char', 'flower'];
 const DISCOVER_TOTAL = ['sun', 'cloud', 'mountain', 'windmill', 'house', 'tree', 'pond', 'bridge', 'char', 'flower', 'rocket', 'cow', 'mushroom', 'chest'].length;
 
 /* ============================ BACKGROUND (pre-rendered) ============================ */
-function mkLayer() { const c = document.createElement('canvas'); c.width = W * S; c.height = H * S; const g = c.getContext('2d'); g.setTransform(S, 0, 0, S, 0, 0); return [c, g]; }
+function mkLayer(ox, oy, w, h) { const c = document.createElement('canvas'); c.width = w * S; c.height = h * S; const g = c.getContext('2d'); g.setTransform(S, 0, 0, S, -ox * S, -oy * S); return [c, g]; }
 function buildBG() {
   let sd = 11; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
   const saved = ctx; let L;
   // ---------- sky ----------
-  L = mkLayer(); bgSky = L[0]; ctx = L[1];
+  L = mkLayer(0, 0, W, H); bgSky = L[0]; ctx = L[1];
   const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#3fb4ff'); sky.addColorStop(0.35, '#7fd3ff'); sky.addColorStop(0.62, '#c3ecff'); sky.addColorStop(0.92, '#ffe9c4'); sky.addColorStop(1, '#ffdcae');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = 'rgba(255,255,255,.55)';
@@ -1015,10 +1035,11 @@ function buildBG() {
   }
   ctx.fillStyle = 'rgba(255,255,255,.72)';
   for (const s of [[40, 1250, 110], [190, 1270, 120], [360, 1290, 140], [540, 1262, 120], [690, 1250, 110], [100, 1180, 60], [640, 1190, 66], [270, 1215, 54], [460, 1225, 60]]) { ctx.beginPath(); ctx.arc(s[0], s[1], s[2] * 0.62, 0, TAU); ctx.fill(); }
-  ctx.fillStyle = 'rgba(40,90,160,.14)'; ctx.beginPath(); ctx.ellipse(360, 1262, 240, 28, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(40,90,160,.14)'; ctx.beginPath(); ctx.ellipse(360, 1095, 250, 26, 0, 0, TAU); ctx.fill();
 
   // ---------- island ----------
-  L = mkLayer(); bgIsl = L[0]; ctx = L[1];
+  L = mkLayer(IOX, IOY, IW, IH); bgIsl = L[0]; ctx = L[1];
+  ctx.save(); ctx.translate(CX, CY); ctx.scale(KX, KY); ctx.translate(-CX, -CY);   // widen/stretch island art
   const under = () => { ctx.beginPath(); ctx.moveTo(14, 872); ctx.bezierCurveTo(30, 1040, 250, 1095, 360, 1248); ctx.bezierCurveTo(470, 1095, 690, 1040, 706, 872); ctx.closePath(); };
   under(); const rg = ctx.createLinearGradient(0, 880, 0, 1248); rg.addColorStop(0, '#c78e58'); rg.addColorStop(0.55, '#a56d43'); rg.addColorStop(1, '#6f4529'); fs(rg, 6);
   ctx.save(); under(); ctx.clip();
@@ -1072,15 +1093,16 @@ function buildBG() {
   const stream = () => { ctx.beginPath(); ctx.moveTo(664, 925); ctx.quadraticCurveTo(684, 955, 655, 995); };
   stream(); ctx.lineWidth = 30; ctx.strokeStyle = OUT; ctx.lineCap = 'round'; ctx.stroke(); stream(); ctx.lineWidth = 21; ctx.strokeStyle = '#7fd6ff'; ctx.stroke(); stream(); ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.stroke();
 
+  ctx.restore();
   // ---------- light overlay ----------
-  L = mkLayer(); bgLight = L[0]; ctx = L[1];
+  L = mkLayer(0, 0, W, H); bgLight = L[0]; ctx = L[1];
   const vg = ctx.createRadialGradient(360, 620, 380, 360, 640, 900); vg.addColorStop(0, 'rgba(40,30,110,0)'); vg.addColorStop(1, 'rgba(40,30,110,.26)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   const wl = ctx.createLinearGradient(0, 0, 520, 520); wl.addColorStop(0, 'rgba(255,238,185,.22)'); wl.addColorStop(1, 'rgba(255,238,185,0)'); ctx.fillStyle = wl; ctx.fillRect(0, 0, W, H);
   ctx = saved;
 }
 
 function drawFalls() {
-  const x0 = 655, y0 = 994, len = 150;
+  const x0 = fx(655), y0 = fy(994), len = 150;
   ctx.save(); ctx.beginPath(); ctx.rect(x0 - 22, y0 - 6, 44, len + 6); ctx.clip();
   const g = ctx.createLinearGradient(0, y0, 0, y0 + len); g.addColorStop(0, 'rgba(127,214,255,.95)'); g.addColorStop(1, 'rgba(127,214,255,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x0 - 15, y0); ctx.lineTo(x0 + 15, y0); ctx.lineTo(x0 + 11, y0 + len); ctx.lineTo(x0 - 11, y0 + len); ctx.closePath(); ctx.fill();
@@ -1090,6 +1112,7 @@ function drawFalls() {
   ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.beginPath(); ctx.ellipse(x0, y0 + 1, 19, 6, 0, 0, TAU); ctx.fill();
 }
 const BF = [{ cx: 200, cy: 780, r: 70, s: 0.7, c: '#ff7ab8', ph: 0 }, { cx: 470, cy: 840, r: 60, s: 0.9, c: '#ffd23f', ph: 2 }, { cx: 620, cy: 680, r: 50, s: 0.8, c: '#8aa4ff', ph: 4 }];
+BF.forEach(b => { b.cx = fx(b.cx); b.cy = fy(b.cy); b.r *= 1.2; });
 function drawButterflies() {
   for (const b of BF) {
     const t = time * b.s + b.ph, x = b.cx + Math.sin(t * 1.3) * b.r, y = b.cy + Math.sin(t * 2.1) * b.r * 0.4 + bob, fl = 0.25 + Math.abs(Math.sin(time * 14 + b.ph)) * 0.75;
@@ -1121,7 +1144,7 @@ function hand(x, y) {
 }
 
 /* ============================ INPUT / GAME FLOW ============================ */
-function toWorld(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
+function toWorld(e) { const r = cv.getBoundingClientRect(); const sx = (e.clientX - r.left) * W / r.width, sy = (e.clientY - r.top) * H / r.height; return [(sx - TX) / Z, (sy - TY) / Z]; }
 function findObj(x, y) {
   let best = null, bn = 1;
   for (const id of ORDER) { const o = OBJ[id], n = hitN(o, x, y - (isFloat(o) ? bob : 0)); if (n <= bn) { bn = n; best = o; } }
@@ -1162,8 +1185,8 @@ function update(dt) {
   updateParts(dt);
   camKick = Math.max(0, camKick - dt * 3); flash = Math.max(0, flash - dt * 2.4);
   // idle sparkle of life
-  if (state === 'play' && Math.random() < dt * 0.9) spawn('spark', rnd(60, 660), rnd(120, 640), { life: 1.1, size: rnd(5, 9), col: '#fff', vy: -12 });
-  if (Math.random() < dt * 0.8) spawn('puff', 350 + 40, 850 - 186, { vx: 14, vy: -34, life: 1.8, size: 7, col: '#fff' });
+  if (state === 'play' && Math.random() < dt * 0.9) spawn('spark', rnd(-40, 760), rnd(60, 700), { life: 1.1, size: rnd(5, 9), col: '#fff', vy: -12 });
+  if (Math.random() < dt * 0.8) spawn('puff', OBJ.house.x + 40, OBJ.house.by - 186, { vx: 14, vy: -34, life: 1.8, size: 7, col: '#fff' });
   // idle discovery cue
   if (state === 'play' && firstTapDone && time - lastTap > 7 && !cue) {
     const left = ORDER.filter(id => OBJ[id].t < 0 && !discovered.has(id.indexOf('cloud') === 0 ? 'cloud' : id));
@@ -1178,8 +1201,8 @@ function render() {
   ctx.clearRect(0, 0, W, H);
   ctx.drawImage(bgSky, 0, 0, W, H);
   drawFarClouds();
-  ctx.save(); ctx.translate(0, Math.sin(time * 40) * camKick * 5);
-  ctx.save(); ctx.translate(0, bob); ctx.drawImage(bgIsl, 0, 0, W, H); drawFalls(); ctx.restore();
+  ctx.save(); ctx.setTransform(S * Z, 0, 0, S * Z, S * TX, S * TY); ctx.translate(0, Math.sin(time * 40) * camKick * 5);
+  ctx.save(); ctx.translate(0, bob); ctx.drawImage(bgIsl, IOX, IOY, IW, IH); drawFalls(); ctx.restore();
   const fl = o => isFloat(o) ? bob : 0;
   const glowAt = (o, a) => { if (a <= 0) return; const h = o.hit, r = Math.max(h.rx, h.ry); const g = ctx.createRadialGradient(h.cx, h.cy, 0, h.cx, h.cy, r); g.addColorStop(0, 'rgba(255,255,255,' + 0.55 * a + ')'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(h.cx, h.cy, h.rx * 1.05, h.ry * 1.05, 0, 0, TAU); ctx.fill(); };
   for (const id of ORDER) { const o = OBJ[id]; const a = Math.max(o.glow, hover === o.id ? 0.55 : 0); if (a > 0) { ctx.save(); ctx.translate(0, fl(o)); glowAt(o, a); ctx.restore(); } }
@@ -1195,9 +1218,10 @@ function render() {
   for (const id of DRAW_ORDER) { const o = OBJ[id]; if (o.over) { ctx.save(); ctx.translate(0, fl(o)); try { o.over(o, progress(o)); } catch (e) { if (window.__dbg) console.error(o.id, e.message); o.t = -1; } ctx.restore(); } }
   drawButterflies();
   drawParts();
+  if (state === 'play' && !firstTapDone) hand(OBJ.sun.x + 34, OBJ.sun.y + 135);
   ctx.restore();
+  ctx.setTransform(S, 0, 0, S, 0, 0);
   ctx.drawImage(bgLight, 0, 0, W, H);
-  if (state === 'play' && !firstTapDone) hand(604, 325);
   if (flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + 0.38 * flash + ')'; ctx.fillRect(0, 0, W, H); }
 }
 
