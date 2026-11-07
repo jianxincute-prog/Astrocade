@@ -1719,16 +1719,94 @@
             texExitSign = new THREE.CanvasTexture(cv);
             return texExitSign;
         }
+        // ---- Seal sigils: occult sealing circles drawn on canvas (glowing strokes, rune rings) ----
+        function drawSigil(kind, color) {
+            const S = 512, c = S / 2;
+            const cv = document.createElement('canvas');
+            cv.width = S; cv.height = S;
+            const g = cv.getContext('2d');
+            g.lineCap = 'round'; g.lineJoin = 'round';
+            const rnd = mulberry32(kind === 'circle' ? 11 : (kind === 'triangle' ? 22 : 33));
+            // Each shape is stroked twice: a wide coloured glow, then a thin hot white core
+            function stroke(fn, lw) {
+                g.shadowColor = color; g.shadowBlur = 26; g.strokeStyle = color; g.lineWidth = lw;
+                g.beginPath(); fn(); g.stroke();
+                g.shadowBlur = 0; g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = Math.max(1.5, lw * 0.32);
+                g.beginPath(); fn(); g.stroke();
+            }
+            const ring = (r, lw) => stroke(() => g.arc(c, c, r, 0, Math.PI * 2), lw);
+            const poly = (n, r, rot, lw) => stroke(() => {
+                for (let i = 0; i <= n; i++) {
+                    const a = rot + (i % n) / n * Math.PI * 2;
+                    const x = c + Math.cos(a) * r, y = c + Math.sin(a) * r;
+                    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+                }
+            }, lw);
+            const dot = (x, y, r) => { g.shadowColor = color; g.shadowBlur = 18; g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0; };
+            // outer double ring + a band of pseudo-runes between two inner rings
+            ring(238, 6); ring(218, 2.5); ring(176, 3);
+            const slots = 28;
+            stroke(() => {
+                for (let i = 0; i < slots; i++) {
+                    const a = i / slots * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+                    const r1 = 182, r2 = 212, rm = r1 + (r2 - r1) * (0.35 + rnd() * 0.3);
+                    g.moveTo(c + ca * r1, c + sa * r1); g.lineTo(c + ca * r2, c + sa * r2);       // stem
+                    const side = rnd() < 0.5 ? -1 : 1, tx = -sa * side, ty = ca * side, br = 11 + rnd() * 6;
+                    const k = Math.floor(rnd() * 3);
+                    if (k === 0) { g.moveTo(c + ca * rm, c + sa * rm); g.lineTo(c + ca * (rm + 12) + tx * br, c + sa * (rm + 12) + ty * br); }
+                    if (k === 1) { g.moveTo(c + ca * r2, c + sa * r2); g.lineTo(c + ca * (r2 - 14) + tx * br, c + sa * (r2 - 14) + ty * br); g.moveTo(c + ca * rm, c + sa * rm); g.lineTo(c + ca * (rm + 12) + tx * br, c + sa * (rm + 12) + ty * br); }
+                    if (k === 2) { g.moveTo(c + ca * (rm - 8) - tx * br, c + sa * (rm - 8) - ty * br); g.lineTo(c + ca * (rm + 8) + tx * br, c + sa * (rm + 8) + ty * br); }
+                }
+            }, 3);
+            for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; dot(c + Math.cos(a) * 228, c + Math.sin(a) * 228, 6); }
+            if (kind === 'circle') {
+                // the all-seeing eye with radiating spikes
+                stroke(() => { g.moveTo(c - 112, c); g.quadraticCurveTo(c, c - 92, c + 112, c); g.quadraticCurveTo(c, c + 92, c - 112, c); }, 5);
+                ring(36, 4); dot(c, c, 13);
+                stroke(() => {
+                    for (let i = 0; i < 16; i++) {
+                        const a = i / 16 * Math.PI * 2, r1 = 62, r2 = (i % 2 ? 128 : 150);
+                        if (Math.abs(Math.sin(a)) < 0.32 && false) continue;
+                        g.moveTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1 * 0.9); g.lineTo(c + Math.cos(a) * r2, c + Math.sin(a) * r2);
+                    }
+                }, 2.5);
+            } else if (kind === 'triangle') {
+                // triangle within triangle, vertex orbs and a core
+                poly(3, 168, -Math.PI / 2, 6);
+                poly(3, 84, Math.PI / 2, 4);
+                for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 3; ring(15, 3); dot(c + Math.cos(a) * 168, c + Math.sin(a) * 168, 11); }
+                stroke(() => { for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 3; g.moveTo(c, c); g.lineTo(c + Math.cos(a) * 168, c + Math.sin(a) * 168); } }, 2);
+                ring(24, 3); dot(c, c, 9);
+            } else {
+                // nested squares (one turned 45 degrees), a cross and corner stars
+                poly(4, 170, Math.PI / 4, 6);
+                poly(4, 170, 0, 4);
+                poly(4, 92, Math.PI / 4, 3);
+                stroke(() => { g.moveTo(c - 150, c); g.lineTo(c + 150, c); g.moveTo(c, c - 150); g.lineTo(c, c + 150); }, 2.5);
+                for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; dot(c + Math.cos(a) * 170, c + Math.sin(a) * 170, 10); }
+                ring(30, 4); dot(c, c, 10);
+            }
+            const t = new THREE.CanvasTexture(cv);
+            t.anisotropy = 4;
+            return t;
+        }
         const texSymbol = {
-            circle: loadTexture('symbol_circle_glow', true),
-            triangle: loadTexture('symbol_triangle_glow', true),
-            square: loadTexture('symbol_square_glow', true)
+            circle: drawSigil('circle', '#2FB8FF'),
+            triangle: drawSigil('triangle', '#2BFF9A'),
+            square: drawSigil('square', '#FF4A74')
         };
-        const symbolAspect = {};
-        ['circle', 'triangle', 'square'].forEach(k => {
-            const info = lib.getAsset('symbol_' + k + '_glow');
-            symbolAspect[k] = (info && info.aspect_ratio) ? (info.aspect_ratio[0] / info.aspect_ratio[1]) : 1;
-        });
+        const symbolAspect = { circle: 1, triangle: 1, square: 1 };
+        // All textures are drawn in code now, so there is nothing left to download: release the loading gate
+        textureLoadResolve();
+        // Simplified inline-SVG version of each sigil for notes and prompts
+        function sigilSvg(key, size, color) {
+            const rings = '<circle cx="50" cy="50" r="46" fill="none" stroke="' + color + '" stroke-width="3"/><circle cx="50" cy="50" r="38" fill="none" stroke="' + color + '" stroke-width="1.4"/>';
+            let inner = '';
+            if (key === 'circle') inner = '<path d="M20 50 Q50 26 80 50 Q50 74 20 50Z" fill="none" stroke="' + color + '" stroke-width="3"/><circle cx="50" cy="50" r="9" fill="none" stroke="' + color + '" stroke-width="3"/><circle cx="50" cy="50" r="3.5" fill="' + color + '"/>';
+            else if (key === 'triangle') inner = '<path d="M50 17 L79 67 L21 67Z" fill="none" stroke="' + color + '" stroke-width="3.5"/><path d="M50 62 L65 36 L35 36Z" fill="none" stroke="' + color + '" stroke-width="2.4"/><circle cx="50" cy="48" r="3" fill="' + color + '"/>';
+            else inner = '<rect x="26" y="26" width="48" height="48" fill="none" stroke="' + color + '" stroke-width="3.5"/><rect x="26" y="26" width="48" height="48" transform="rotate(45 50 50)" fill="none" stroke="' + color + '" stroke-width="2.4"/><circle cx="50" cy="50" r="5" fill="none" stroke="' + color + '" stroke-width="2.4"/>';
+            return '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" style="display:block">' + rings + inner + '</svg>';
+        }
 
         // ================= AUDIO =================
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -2317,8 +2395,13 @@
                 s.rimMat.emissiveIntensity = flashing ? 1.8 : (s.activated ? 1.5 : 0.35 + pulse * 0.3);
                 s.light.color.setHex(hex);
                 s.light.intensity = flashing ? 2.2 : (s.activated ? 1.5 : 0.45 + pulse * 0.25);
-                s.plate.position.y = 1.85 + Math.sin(time * 0.0016 + s.x) * 0.05;
+                s.plate.position.y = 1.9 + Math.sin(time * 0.0016 + s.x) * 0.05;
                 s.plate.rotation.y = Math.atan2(camera.position.x - s.x, camera.position.z - s.z);
+                if (s.decalG) {
+                    s.decalG.rotation.y += dt * (s.activated ? 0.55 : 0.12);
+                    s.decalMat.opacity = flashing ? 0.95 : (s.activated ? 0.95 : 0.42 + pulse * 0.2);
+                    s.decalMat.color.setHex(flashing ? 0xFF3333 : 0xFFFFFF);
+                }
             });
 
             const mode = cfg.puzzle.hintMode;
@@ -3644,11 +3727,20 @@
                     blending: THREE.AdditiveBlending
                 });
                 const ar = symbolAspect[spec.key] || 1;
-                const plate = new THREE.Mesh(new THREE.PlaneGeometry(
-                    ar >= 1 ? 1.18 : 1.18 * ar,
-                    ar >= 1 ? 1.18 / ar : 1.18), plateMat);
-                plate.position.y = 1.85;
+                const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), plateMat);
+                plate.position.y = 1.9;
                 g.add(plate);
+                // the same sigil burns into the floor around the altar and slowly turns
+                const decalMat = new THREE.MeshBasicMaterial({
+                    map: texSymbol[spec.key], transparent: true, opacity: 0.5, depthWrite: false,
+                    blending: THREE.AdditiveBlending, side: THREE.DoubleSide
+                });
+                const decalG = new THREE.Group();
+                decalG.position.y = 0.025;
+                const decal = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4), decalMat);
+                decal.rotation.x = -Math.PI / 2;
+                decalG.add(decal);
+                g.add(decalG);
 
                 const light = new THREE.PointLight(meta.color, 0.55, 7.5, 2);
                 light.position.set(0, 1.7, 0);
@@ -3656,7 +3748,7 @@
 
                 symbols.push({
                     key: spec.key, x: spec.x, z: spec.z,
-                    group: g, plate, plateMat, rimMat, light,
+                    group: g, plate, plateMat, rimMat, light, decalG, decalMat,
                     activated: false, flash: 0
                 });
             }
@@ -5735,7 +5827,7 @@
                 const meta = SYMBOL_META[t.obj.key];
                 color = '#' + meta.color.toString(16).padStart(6, '0');
                 label = 'ACTIVATE ' + meta.label;
-                glyph = meta.glyph;
+                glyph = sigilSvg(t.obj.key, 34, color);
             } else if (t.type === 'note') {
                 color = '#F2E9C9'; label = t.obj.read ? 'READ AGAIN' : 'READ NOTE'; glyph = '&#9998;';
             } else if (t.type === 'safe') {
@@ -5914,7 +6006,7 @@
                 if (st.note === 'order') {
                     pmKickerEl.textContent = 'NAILED TO THE STAND // NEAR WHERE YOU WOKE';
                     pmTitleEl.textContent = 'THREE KEYS';
-                    const glyphs = SYMBOL_ORDER.map(k => '<span style="color:' + SYMBOL_META[k].css + '">' + SYMBOL_META[k].glyph + '</span>');
+                    const glyphs = SYMBOL_ORDER.map(k => sigilSvg(k, 84, SYMBOL_META[k].css));
                     pmBodyEl.innerHTML =
                         '<p style="margin:0 0 6px">KEY I &mdash; wake the three seals in THIS order, or the walls scream:</p>' +
                         '<div class="glyph-row">' + glyphs.join('<span class="arr">&rsaquo;</span>') + '</div>' +

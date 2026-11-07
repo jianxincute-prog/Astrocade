@@ -35,48 +35,6 @@
     "loop": false,
     "animation": null
   },
-  "symbol_circle_glow": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/symbol_circle_glow_fa05f4b5-99c6-4280-bbe1-6e508e1b7eb1.webp",
-    "type": "image",
-    "description": "symbol circle glow",
-    "subtype": "ui",
-    "aspect_ratio": [
-      643,
-      665
-    ],
-    "compression_suggestion": "high",
-    "duration_secs": null,
-    "loop": null,
-    "animation": null
-  },
-  "symbol_triangle_glow": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/symbol_triangle_glow_3d6203f1-1f8a-4e09-806d-3f10bc07e804.webp",
-    "type": "image",
-    "description": "symbol triangle glow",
-    "subtype": "ui",
-    "aspect_ratio": [
-      689,
-      584
-    ],
-    "compression_suggestion": "high",
-    "duration_secs": null,
-    "loop": null,
-    "animation": null
-  },
-  "symbol_square_glow": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/symbol_square_glow_71a5ff59-729b-4ee0-b417-532ae18979d3.webp",
-    "type": "image",
-    "description": "symbol square glow",
-    "subtype": "ui",
-    "aspect_ratio": [
-      685,
-      687
-    ],
-    "compression_suggestion": "high",
-    "duration_secs": null,
-    "loop": null,
-    "animation": null
-  },
   "symbol_correct_chime_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/symbol_correct_chime_sfx_461e85c3-4d2b-415e-a07e-e5b67e3325bf.mp3",
     "type": "audio",
