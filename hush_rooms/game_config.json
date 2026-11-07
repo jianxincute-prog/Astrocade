@@ -15,9 +15,9 @@
     "lightIntensity": 0.45,
     "propDensity": 0.6,
     "fogDistance": 32,
-    "wallColor": "#D9CCA5",
-    "floorColor": "#B3A281",
-    "ceilingColor": "#DCD5BE"
+    "wallColor": "#F2F7F4",
+    "floorColor": "#E6ECE9",
+    "ceilingColor": "#C9D2CE"
   },
   "audio": {
     "masterVolume": 0.75,
@@ -37,19 +37,12 @@
     "decayRate": 2.5,
     "showDebug": true
   },
-  "mic": {
-    "enabled": true,
-    "threshold": 0.28,
-    "peakThreshold": 0.55,
-    "maxNoise": 5,
-    "showMeter": true
-  },
   "listener": {
     "enabled": true,
     "patrolSpeed": 2.4,
     "investigateSpeed": 3.1,
     "chaseSpeed": 5.2,
-    "detectionMultiplier": 1,
+    "detectionMultiplier": 1.6,
     "sightRange": 22,
     "fovDegrees": 115,
     "searchDuration": 9,

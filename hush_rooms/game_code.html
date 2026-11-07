@@ -31,6 +31,82 @@
             height: 100%;
         }
 
+        /* ---- Pre-menu loading screen ---- */
+        #loading-screen {
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: radial-gradient(ellipse at 50% 42%, #191711 0%, #090907 48%, #020202 100%);
+            color: #D4EBE3;
+            text-align: center;
+            transition: opacity 650ms ease, visibility 650ms ease;
+        }
+        #loading-screen::before, #loading-screen::after {
+            content: '';
+            position: absolute;
+            left: 8%; right: 8%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(134,195,177,0.34), transparent);
+        }
+        #loading-screen::before { top: 24%; }
+        #loading-screen::after { bottom: 24%; }
+        #loading-screen.loaded { opacity: 0; visibility: hidden; }
+        #loading-screen .load-kicker {
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            letter-spacing: 7px;
+            color: rgba(212,235,227,0.55);
+            margin-bottom: 20px;
+        }
+        #loading-screen .load-title {
+            margin: 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 76px;
+            font-weight: 700;
+            letter-spacing: 15px;
+            padding-left: 15px;
+            color: #D4EBE3;
+            text-shadow: 0 0 34px rgba(212,235,227,0.26);
+            animation: loadPulse 2.8s ease-in-out infinite;
+        }
+        @keyframes loadPulse { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
+        #loading-screen .load-message {
+            margin-top: 26px;
+            font-family: 'Special Elite', monospace;
+            font-size: 21px;
+            letter-spacing: 1px;
+            color: rgba(134,195,177,0.68);
+        }
+        #loading-screen .load-track {
+            width: min(390px, 68%);
+            height: 5px;
+            margin-top: 34px;
+            overflow: hidden;
+            border: 1px solid rgba(212,235,227,0.24);
+            background: rgba(212,235,227,0.07);
+        }
+        #loading-screen .load-progress {
+            width: 38%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #86C3B1, #F0E3C0, transparent);
+            box-shadow: 0 0 14px rgba(212,235,227,0.5);
+            animation: loadSweep 1.35s ease-in-out infinite;
+        }
+        @keyframes loadSweep { from { transform: translateX(-110%); } to { transform: translateX(280%); } }
+        #loading-screen .load-foot {
+            margin-top: 18px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            letter-spacing: 4px;
+            color: rgba(255,255,255,0.28);
+        }
+        body.touch #loading-screen .load-title { font-size: 68px; }
+
         canvas {
             display: block;
             width: 100%;
@@ -56,14 +132,14 @@
         #overlay h1 {
             font-family: 'Orbitron', sans-serif;
             font-size: 56px;
-            color: #E6D9B8;
+            color: #D4EBE3;
             letter-spacing: 8px;
             margin: 0 0 14px;
-            text-shadow: 0 0 20px rgba(230,217,184,0.3);
+            text-shadow: 0 0 20px rgba(212,235,227,0.3);
             animation: titleFlicker 7s infinite steps(1);
         }
         @keyframes titleFlicker {
-            0%, 16%, 18%, 53%, 55%, 88%, 90%, 100% { opacity: 1; text-shadow: 0 0 22px rgba(230,217,184,0.34); }
+            0%, 16%, 18%, 53%, 55%, 88%, 90%, 100% { opacity: 1; text-shadow: 0 0 22px rgba(212,235,227,0.34); }
             17% { opacity: 0.35; text-shadow: none; }
             54% { opacity: 0.68; text-shadow: none; }
             89% { opacity: 0.5; text-shadow: none; }
@@ -86,7 +162,7 @@
         }
 
         #overlay .controls-hint span {
-            color: #E6D9B8;
+            color: #D4EBE3;
             font-weight: 600;
         }
 
@@ -95,7 +171,7 @@
             font-family: 'Inter', sans-serif;
             font-size: 15px;
             letter-spacing: 6px;
-            color: rgba(230,217,184,0.5);
+            color: rgba(212,235,227,0.5);
             margin-bottom: 16px;
         }
         .menu-tag {
@@ -116,10 +192,10 @@
             font-size: 26px;
             letter-spacing: 6px;
             color: #14130D;
-            background: #E6D9B8;
+            background: #D4EBE3;
             border: none;
             border-radius: 6px;
-            box-shadow: 0 10px 34px rgba(0,0,0,0.7), 0 0 30px rgba(230,217,184,0.22);
+            box-shadow: 0 10px 34px rgba(0,0,0,0.7), 0 0 30px rgba(212,235,227,0.22);
             cursor: pointer;
             touch-action: manipulation;
             user-select: none;
@@ -168,14 +244,14 @@
             font-family: 'Inter', sans-serif;
             font-size: 15px;
             letter-spacing: 6px;
-            color: rgba(230,217,184,0.6);
+            color: rgba(212,235,227,0.6);
             margin-bottom: 12px;
         }
         #cine-caption .cap-title {
             font-family: 'Orbitron', sans-serif;
             font-size: 38px;
             letter-spacing: 5px;
-            color: #E6D9B8;
+            color: #D4EBE3;
             text-shadow: 0 0 26px rgba(0,0,0,0.9);
         }
         #cine-caption .cap-sub {
@@ -198,16 +274,16 @@
             font-family: 'Orbitron', sans-serif;
             font-size: 16px;
             letter-spacing: 3px;
-            color: #E6D9B8;
+            color: #D4EBE3;
             background: rgba(12,12,9,0.75);
-            border: 2px solid rgba(230,217,184,0.4);
+            border: 2px solid rgba(212,235,227,0.4);
             border-radius: 6px;
             cursor: pointer;
             touch-action: manipulation;
             user-select: none;
             -webkit-user-select: none;
         }
-        #skip-btn:active { transform: scale(0.95); background: rgba(230,217,184,0.25); }
+        #skip-btn:active { transform: scale(0.95); background: rgba(212,235,227,0.25); }
 
         #cine-fade {
             position: absolute;
@@ -263,7 +339,7 @@
         }
         #noise-meter .nm-fill {
             width: 0%; height: 100%;
-            background: #C8B27A;
+            background: #86C3B1;
             transition: width 80ms linear, background 200ms linear;
         }
         #noise-meter .nm-val { min-width: 34px; }
@@ -277,10 +353,10 @@
             letter-spacing: 2px;
             color: #FFFFFF;
             background: rgba(14, 14, 12, 0.88);
-            border: 2px solid rgba(230, 217, 184, 0.5);
+            border: 2px solid rgba(212, 235, 227, 0.5);
             border-radius: 36px;
             padding: 14px 28px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(230, 217, 184, 0.2);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(212, 235, 227, 0.2);
             z-index: 9;
             pointer-events: auto;
             cursor: pointer;
@@ -293,7 +369,7 @@
         }
         #interact-prompt:active {
             transform: translate(-50%, -50%) scale(0.95);
-            background: rgba(230, 217, 184, 0.35);
+            background: rgba(212, 235, 227, 0.35);
         }
         #interact-prompt.locked {
             border-color: rgba(255, 70, 70, 0.55);
@@ -320,10 +396,10 @@
             padding: 8px 4px 6px;
             box-sizing: border-box;
             display: flex; flex-direction: column; align-items: center; gap: 4px;
-            border: 2px solid rgba(230,217,184,0.22);
+            border: 2px solid rgba(212,235,227,0.22);
             border-radius: 8px;
             background: rgba(10,10,8,0.62);
-            color: rgba(230,217,184,0.28);
+            color: rgba(212,235,227,0.28);
             transition: color 300ms linear, border-color 300ms linear, box-shadow 300ms linear, background 300ms linear;
         }
         #key-hud .key-slot svg { width: 34px; height: 34px; fill: currentColor; }
@@ -336,57 +412,6 @@
         }
         #key-hud .key-slot.pop { animation: keyPop 700ms ease-out; }
         @keyframes keyPop { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }
-
-        /* ---- Microphone meter ---- */
-        #mic-meter {
-            position: absolute;
-            bottom: 96px; left: 24px;
-            display: none;
-            align-items: center;
-            gap: 10px;
-            font-family: 'Inter', sans-serif;
-            font-size: 13px;
-            letter-spacing: 2px;
-            color: rgba(255,255,255,0.4);
-            z-index: 5;
-            pointer-events: none;
-        }
-        #mic-meter .mm-track {
-            position: relative;
-            width: 180px; height: 8px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 4px;
-            overflow: visible;
-        }
-        #mic-meter .mm-fill { width: 0%; height: 100%; background: #7FB4D6; border-radius: 3px; transition: width 60ms linear, background 150ms linear; }
-        #mic-meter .mm-thr { position: absolute; top: -4px; width: 2px; height: 16px; background: rgba(255,120,120,0.85); }
-        #mic-meter.hot { color: #FF8A8A; }
-        #mic-meter.off { opacity: 0.55; }
-        body.touch #mic-meter { bottom: auto; top: 170px; left: 24px; }
-
-        #mic-meter.tappable { pointer-events: auto; cursor: pointer; z-index: 9; padding: 16px 12px; margin: -16px -12px; }
-        #mic-banner {
-            position: absolute; top: 214px; left: 50%; transform: translateX(-50%);
-            width: min(640px, 90%); box-sizing: border-box;
-            display: none; align-items: center; gap: 14px;
-            padding: 14px 16px; border: 2px solid rgba(255,138,138,0.6); border-radius: 10px;
-            background: rgba(20,8,8,0.9); color: #F3D6D6;
-            font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.35;
-            z-index: 12; pointer-events: auto;
-        }
-        #mic-banner b { color: #FF9B9B; letter-spacing: 2px; }
-        #mic-banner button { flex: 0 0 auto; min-width: 72px; min-height: 72px; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; background: rgba(60,30,30,0.9); color: #fff; font-size: 15px; cursor: pointer; touch-action: manipulation; }
-        #shout-btn {
-            position: absolute; left: 24px; bottom: 372px; width: 112px; height: 112px;
-            display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-            border: 2px solid rgba(255,196,120,0.7); border-radius: 50%;
-            background: rgba(30,22,12,0.85); color: #FFD79A;
-            font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 2px;
-            z-index: 9; pointer-events: auto; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
-        }
-        #shout-btn.held { background: rgba(120,40,20,0.95); box-shadow: 0 0 24px rgba(255,120,60,0.7); }
-        #shout-btn .sg { font-size: 30px; line-height: 1; }
 
         /* ---- Puzzle modal (notes, keypad, memory console) ---- */
         #puzzle-modal {
@@ -412,8 +437,8 @@
             border: 3px solid #5D492C;
             border-radius: 10px;
             background: linear-gradient(180deg, #1C1A14 0%, #11100C 100%);
-            box-shadow: 0 20px 68px rgba(0,0,0,0.85), inset 0 0 40px rgba(230,217,184,0.05);
-            color: #E6D9B8;
+            box-shadow: 0 20px 68px rgba(0,0,0,0.85), inset 0 0 40px rgba(212,235,227,0.05);
+            color: #D4EBE3;
             text-align: center;
         }
         #pm-panel.paper {
@@ -423,18 +448,18 @@
             border-color: #5D492C;
             transform: rotate(-0.4deg);
         }
-        #pm-kicker { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 3px; color: #C8B27A; margin-bottom: 10px; }
+        #pm-kicker { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 3px; color: #86C3B1; margin-bottom: 10px; }
         #pm-panel.paper #pm-kicker { color: #6E1E1B; }
         #pm-title { margin: 0 0 18px; font-family: 'Orbitron', sans-serif; font-size: 28px; letter-spacing: 4px; }
         #pm-panel.paper #pm-title { font-family: 'Special Elite', monospace; color: #24170E; letter-spacing: 2px; }
         #pm-body { font-family: 'Special Elite', 'Courier New', monospace; font-size: 22px; line-height: 1.45; }
-        #pm-status { min-height: 30px; margin-top: 14px; font-family: 'Orbitron', sans-serif; font-size: 15px; letter-spacing: 3px; color: #C8B27A; }
+        #pm-status { min-height: 30px; margin-top: 14px; font-family: 'Orbitron', sans-serif; font-size: 15px; letter-spacing: 3px; color: #86C3B1; }
         #pm-status.bad { color: #FF6B6B; }
         #pm-status.good { color: #7CFFC0; }
         #pm-close {
             display: block; width: 100%; min-height: 80px; margin-top: 18px;
             border: 2px solid #5D492C; border-radius: 6px;
-            background: rgba(61,54,38,0.85); color: #E6D9B8;
+            background: rgba(61,54,38,0.85); color: #D4EBE3;
             font-family: 'Orbitron', sans-serif; font-size: 18px; letter-spacing: 4px;
             cursor: pointer; touch-action: manipulation;
         }
@@ -475,8 +500,8 @@
             font-family: 'Orbitron', sans-serif;
             font-size: 19px;
             letter-spacing: 4px;
-            color: #E6D9B8;
-            text-shadow: 0 0 18px rgba(230,217,184,0.45);
+            color: #D4EBE3;
+            text-shadow: 0 0 18px rgba(212,235,227,0.45);
             text-align: center;
             width: 90%;
             z-index: 7;
@@ -509,7 +534,7 @@
             font-family: 'Orbitron', sans-serif;
             font-size: 50px;
             letter-spacing: 8px;
-            color: #E6D9B8;
+            color: #D4EBE3;
             text-shadow: 0 0 30px rgba(85,255,170,0.25);
             margin: 0;
         }
@@ -557,7 +582,7 @@
             font-family: 'Inter', sans-serif;
             font-size: 15px;
             letter-spacing: 7px;
-            color: rgba(200,178,122,0.55);
+            color: rgba(134,195,177,0.55);
             margin-bottom: 22px;
         }
         #escape-title .et-main {
@@ -673,8 +698,8 @@
             font-family: 'Orbitron', sans-serif;
             font-size: 60px;
             letter-spacing: 10px;
-            color: #E6D9B8;
-            text-shadow: 0 0 26px rgba(230,217,184,0.25);
+            color: #D4EBE3;
+            text-shadow: 0 0 26px rgba(212,235,227,0.25);
             margin: 0;
         }
 
@@ -688,7 +713,7 @@
             font-size: 22px;
             letter-spacing: 4px;
             color: #0B0B08;
-            background: #E6D9B8;
+            background: #D4EBE3;
             border: none;
             border-radius: 6px;
             cursor: pointer;
@@ -702,11 +727,11 @@
             transform: translate(-50%, -50%);
             font-family: 'Orbitron', sans-serif;
             font-size: 28px;
-            color: #E6D9B8;
+            color: #D4EBE3;
             text-align: center;
             z-index: 10;
             pointer-events: none;
-            text-shadow: 0 0 10px rgba(230,217,184,0.3);
+            text-shadow: 0 0 10px rgba(212,235,227,0.3);
         }
 
         #edit-overlay .sub {
@@ -727,11 +752,11 @@
             min-width: 132px;
             min-height: 96px;
             padding: 10px;
-            border: 2px solid rgba(230,217,184,0.64);
+            border: 2px solid rgba(212,235,227,0.64);
             border-radius: 7px;
-            color: #E6D9B8;
+            color: #D4EBE3;
             background: rgba(11,11,8,0.86);
-            box-shadow: 0 7px 22px rgba(0,0,0,0.72), inset 0 0 14px rgba(230,217,184,0.06);
+            box-shadow: 0 7px 22px rgba(0,0,0,0.72), inset 0 0 14px rgba(212,235,227,0.06);
             font-family: 'Orbitron', sans-serif;
             font-size: 14px;
             line-height: 1.1;
@@ -746,7 +771,7 @@
             -webkit-user-select: none;
             transition: transform 120ms ease, background 150ms ease, border-color 150ms ease;
         }
-        #hints-button .hint-glyph { font-family: 'Special Elite', monospace; font-size: 27px; color: #C8B27A; }
+        #hints-button .hint-glyph { font-family: 'Special Elite', monospace; font-size: 27px; color: #86C3B1; }
         #hints-button:active { transform: scale(0.94); background: rgba(61,54,38,0.94); border-color: #FFF0C5; }
 
         #hints-modal {
@@ -877,6 +902,10 @@
             display: none;
         }
 
+        /* Touch players use the dedicated bottom-corner controls; keep the desktop
+           interaction prompt out of those thumb zones. */
+        body.touch #interact-prompt { display: none !important; pointer-events: none; }
+
         /* Full-screen look layer sits UNDER the joystick / buttons in DOM order.
            Only a real touch session claims pointer events, so the on-screen pad can
            stay visible on desktop without stealing mouse-look drags from the canvas. */
@@ -906,13 +935,13 @@
             width: 210px;
             height: 210px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(230,217,184,0.10) 0%, rgba(230,217,184,0.03) 70%);
-            border: 2px solid rgba(230,217,184,0.18);
+            background: radial-gradient(circle, rgba(212,235,227,0.10) 0%, rgba(212,235,227,0.03) 70%);
+            border: 2px solid rgba(212,235,227,0.18);
             pointer-events: none;
             opacity: 0.5;
             transition: opacity 140ms linear;
         }
-        .joystick-zone.active { opacity: 1; border-color: rgba(230,217,184,0.4); }
+        .joystick-zone.active { opacity: 1; border-color: rgba(212,235,227,0.4); }
 
         .joystick-knob {
             position: absolute;
@@ -920,8 +949,8 @@
             transform: translate(-50%, -50%);
             width: 92px; height: 92px;
             border-radius: 50%;
-            background: rgba(230,217,184,0.28);
-            border: 2px solid rgba(230,217,184,0.55);
+            background: rgba(212,235,227,0.28);
+            border: 2px solid rgba(212,235,227,0.55);
             box-shadow: 0 6px 18px rgba(0,0,0,0.55);
             pointer-events: none;
         }
@@ -931,14 +960,14 @@
             position: absolute;
             top: 26px; left: 26px; right: 26px; bottom: 26px;
             border-radius: 50%;
-            border: 1px dashed rgba(230,217,184,0.22);
+            border: 1px dashed rgba(212,235,227,0.22);
             pointer-events: none;
         }
         .joy-tick {
             position: absolute;
             font-size: 15px;
             line-height: 1;
-            color: rgba(230,217,184,0.42);
+            color: rgba(212,235,227,0.42);
             pointer-events: none;
             transition: color 140ms linear;
         }
@@ -967,11 +996,11 @@
             padding: 10px 14px;
             border-radius: 20px;
             background: rgba(12,12,9,0.55);
-            border: 1px solid rgba(230,217,184,0.2);
+            border: 1px solid rgba(212,235,227,0.2);
             font-family: 'Orbitron', sans-serif;
             font-size: 13px;
             letter-spacing: 2px;
-            color: rgba(230,217,184,0.6);
+            color: rgba(212,235,227,0.6);
             pointer-events: none;
             opacity: 1;
             transition: opacity 700ms linear;
@@ -1007,14 +1036,14 @@
             height: 104px;
             border-radius: 50%;
             background: rgba(18,18,15,0.72);
-            border: 2px solid rgba(230,217,184,0.35);
+            border: 2px solid rgba(212,235,227,0.35);
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             gap: 3px;
             font-family: 'Orbitron', sans-serif;
             font-size: 13px;
             letter-spacing: 1px;
-            color: #E6D9B8;
+            color: #D4EBE3;
             user-select: none;
             -webkit-user-select: none;
             touch-action: none;
@@ -1027,8 +1056,8 @@
 
         .mobile-btn:active { transform: scale(0.92); }
         .mobile-btn.active, .mobile-btn.toggled {
-            background: rgba(230,217,184,0.38);
-            border-color: #E6D9B8;
+            background: rgba(212,235,227,0.38);
+            border-color: #D4EBE3;
             color: #16150F;
         }
         .mobile-btn.toggled .lbl { opacity: 1; }
@@ -1037,7 +1066,7 @@
             width: 126px; height: 126px;
             min-width: 126px; min-height: 126px;
             opacity: 0.65;
-            border-color: rgba(230,217,184,0.45);
+            border-color: rgba(212,235,227,0.45);
             background: rgba(24,24,19,0.85);
             box-shadow: 0 6px 20px rgba(0,0,0,0.7);
         }
@@ -1045,7 +1074,7 @@
         #btn-interact .lbl { font-size: 12px; letter-spacing: 2px; }
         #btn-interact.ready {
             opacity: 1;
-            background: rgba(230,217,184,0.25);
+            background: rgba(212,235,227,0.25);
             animation: usePulse 1.2s ease-in-out infinite;
         }
 
@@ -1074,8 +1103,8 @@
             color: #FFD79A;
         }
         @keyframes usePulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230,217,184,0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(230,217,184,0.0); }
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(212,235,227,0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(212,235,227,0.0); }
         }
 
         /* Touch layout: keep readouts clear of the thumb zones */
@@ -1096,10 +1125,17 @@
 </head>
 <body>
     <div id="game-world">
+        <div id="loading-screen" aria-live="polite">
+            <div class="load-kicker">ASTROCADE PRESENTS</div>
+            <h1 class="load-title">HUSH</h1>
+            <div class="load-message">The rooms are waking...</div>
+            <div class="load-track"><div class="load-progress"></div></div>
+            <div class="load-foot">PREPARING THE HOLLOW WARD</div>
+        </div>
         <div id="overlay">
             <div class="menu-kicker">TRAPPED &middot; NO WAY BACK</div>
             <h1>HUSH</h1>
-            <div class="menu-tag">It hears you. Even through the microphone.</div>
+            <div class="menu-tag">Something in the ward is listening.</div>
             <button id="start-btn" type="button"><span class="sb-glyph">&#9654;</span><span id="start-label">START</span></button>
             <p>Click START to enter</p>
             <div class="controls-hint">
@@ -1108,8 +1144,8 @@
                 <span>E</span> Interact &nbsp;|&nbsp; <span>E/G</span> Grab &nbsp;|&nbsp; <span>Left Click</span> Throw<br>
                 <span>L</span> Flashlight On / Off<br><br>
                 Solve 3 puzzles. Find 3 keys. Open the exit.<br>
-                <b>Microphone:</b> loud talking, clapping or shouting wakes it.<br>
-                Headphones recommended. Allow the mic when asked.
+                Every footstep, thrown object and wrong answer is a sound.<br>
+                Crouch. Listen. Headphones recommended.
             </div>
         </div>
         <div id="crosshair"></div>
@@ -1121,13 +1157,6 @@
             <div class="nm-val" id="noise-val">0.0</div>
         </div>
         <div id="interact-prompt"></div>
-        <div id="mic-meter">
-            <div class="mm-label" id="mic-label">MIC</div>
-            <div class="mm-track"><div class="mm-fill" id="mic-fill"></div><div class="mm-thr" id="mic-thr"></div></div>
-            <div class="mm-val" id="mic-state">--</div>
-        </div>
-        <div id="mic-banner"><div><b>MIC OFF</b><br>The Listener can't hear your real voice. For the full experience, open HUSH in the <b>Astrocade app</b> and allow the microphone. Meanwhile you can hold <b>SHOUT</b> (or V) to make noise yourself.</div><button id="mic-banner-close" type="button">OK</button></div>
-        <button id="shout-btn" type="button"><span class="sg">&#128226;</span><span>SHOUT</span></button>
         <div id="key-hud">
             <div class="key-slot" id="key-slot-0"><svg viewBox="0 0 24 24"><path d="M7 14a5 5 0 1 1 4.6-6.9H22v3.4h-2.2v2.6h-3.2v-2.6h-5A5 5 0 0 1 7 14zm0-7.4a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></svg><span class="ks-n">I</span></div>
             <div class="key-slot" id="key-slot-1"><svg viewBox="0 0 24 24"><path d="M7 14a5 5 0 1 1 4.6-6.9H22v3.4h-2.2v2.6h-3.2v-2.6h-5A5 5 0 0 1 7 14zm0-7.4a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></svg><span class="ks-n">II</span></div>
@@ -1159,16 +1188,16 @@
                 <h2 class="note-title" id="hints-title">DON'T LET IT HEAR YOU.</h2>
                 <div class="note-section">YOUR WAY OUT</div>
                 <p class="note-copy">The exit door needs THREE KEYS. None of them lie around: each one is locked behind a puzzle. <b>I</b> &mdash; wake the three seals in the right order (read the note on the stand near where you woke). <b>II</b> &mdash; open the safe: three torn pages hide three digits. <b>III</b> &mdash; repeat the pattern on the lamp console.</p>
-                <div class="note-section">THE MICROPHONE</div>
-                <p class="note-copy">It is not only your feet. If your real voice is LOUD, or you clap or shout, the tall one hears it in here. It is not very sensitive: whispering and normal breathing are fine. Watch the MIC bar &mdash; the red line is where it starts to listen.</p>
+                <div class="note-section">THE LISTENER</div>
+                <p class="note-copy">The tall one in the ward hunts by sound: your footsteps, a thrown object, a wrong code. Crouching is nearly silent. Running carries through every wall.</p>
                 <div class="note-section">DO NOT</div>
-                <div class="note-warning">RUN THROUGH OPEN HALLS.<br>JUMP WHEN IT IS NEAR.<br>GUESS THE WRONG CODE.<br>LET THE TALL ONE SEE YOU.</div>
+                <div class="note-warning">RUN THROUGH OPEN HALLS.<br>JUMP WHEN IT IS NEAR.<br>GUESS THE WRONG CODE.<br>DON'T MAKE A SOUND.</div>
                 <div class="note-section">A NOISE THAT ISN'T YOU</div>
                 <p class="note-copy">Small things are left everywhere &mdash; mugs, staplers, tape. Take one in your hand and throw it. Wherever it lands, that is where the tall one goes. Buy yourself a hallway.</p>
                 <div class="note-section">THE TORCH</div>
                 <p class="note-copy">You carry a lamp. Kill it with <b>L</b> (or the LIGHT button) when you want the dark. It is old: every so often it stutters and dies for a breath, then comes back. That is the lamp, not the dark. Your hand only holds one thing &mdash; take an object and the lamp goes in your pocket.</p>
                 <div class="note-section">IF IT FINDS YOU</div>
-                <p class="note-copy">Break its sight behind a wall. Crouch. Do not move. It follows the last sound it understands, not the silence after it.</p>
+                <p class="note-copy">It cannot see. It follows the last sound it hears. Crouch and stop moving to stay quiet; being close alone is not enough to give you away.</p>
                 <div class="note-scratch">it is listening between the lights</div>
                 <button id="close-hints-btn" type="button">FOLD NOTE</button>
             </div>
@@ -1183,7 +1212,7 @@
             <div class="et-kicker">THREE KEYS &middot; ONE DOOR</div>
             <div class="et-main">ESCAPED</div>
             <div class="et-sub">...FOR NOW</div>
-            <div class="et-whisper">it watched you leave. it remembers your voice.</div>
+            <div class="et-whisper">it watched you leave. it remembers the sound of your steps.</div>
             <div class="et-tap">TAP TO CONTINUE</div>
         </div>
         <div id="victory-screen">
@@ -1232,26 +1261,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
     /*
-     * HUSH - first-person low-poly horror escape.
+     * HUSH - first-person low-poly horror escape in a derelict hospital ward.
      *
      * You wake up trapped in a place nobody knows. A tall thing - the Listener - patrols
-     * the rooms and reacts to NOISE: your footsteps, thrown junk, wrong puzzle answers
-     * and (new) your REAL voice through the microphone. The mic is deliberately low
-     * sensitivity: only loud talking, shouting or clapping carries into the game.
+     * the ward and reacts to NOISE: footsteps, thrown objects and wrong puzzle answers.
      *
      * Goal: find 3 keys, each locked behind its own puzzle, then open the exit door.
      *   KEY I   - three seals, woken in the order written on the note near the spawn
      *   KEY II  - a safe whose 3-digit code is hidden as tally marks on 3 torn pages
      *   KEY III - a lamp console: watch the pattern, repeat it
-     * You are a faceted low-poly character (orange hoodie, backpack, torch) - seen in the
-     * title reel, the briefing and from inside your own body while you play.
+     * You are a faceted low-poly character (orange hoodie, backpack, torch).
      *
-     * Map, AI, lighting and controls are reused from the DARKROOMS prototype.
+     * The maze generator, AI and controls come from the DARKROOMS prototype; the
+     * look (tiled ward, props, lighting, textures) is new.
      */
 
     async function run(mode) {
         const cfg = window.gameConfig;
         const gameWorld = document.getElementById('game-world');
+        const loadingScreenEl = document.getElementById('loading-screen');
         const overlay = document.getElementById('overlay');
         const crosshair = document.getElementById('crosshair');
         const hudEl = document.getElementById('hud');
@@ -1267,13 +1295,6 @@
         const retryBtnEl = document.getElementById('retry-btn');
         const promptEl = document.getElementById('interact-prompt');
         const seqHudEl = document.getElementById('key-hud');   // three-key HUD (name kept from the original)
-        const micMeterEl = document.getElementById('mic-meter');
-        const micFillEl = document.getElementById('mic-fill');
-        const micThrEl = document.getElementById('mic-thr');
-        const micStateEl = document.getElementById('mic-state');
-        const micLabelEl = document.getElementById('mic-label');
-        const micBannerEl = document.getElementById('mic-banner');
-        const shoutBtnEl = document.getElementById('shout-btn');
         const pmModalEl = document.getElementById('puzzle-modal');
         const pmPanelEl = document.getElementById('pm-panel');
         const pmKickerEl = document.getElementById('pm-kicker');
@@ -1305,10 +1326,10 @@
         // playable on a phone even when touch detection is unreliable.
         let touchUiOn = false;
         function touchUiWanted() {
-            const m = (cfg.ui && cfg.ui.touchControls) || 'always';
-            if (m === 'off') return false;
-            if (m === 'always') return true;
-            return isTouchActive;
+            const m = (cfg.ui && cfg.ui.touchControls) || 'auto';
+            // Keep virtual controls on touch-capable play sessions only. Desktop stays
+            // on WASD/mouse so the two control schemes never stack on top of each other.
+            return m !== 'off' && isTouchActive;
         }
         function setMobileControlsVisible(v) {
             touchUiOn = !!(v && touchUiWanted());
@@ -1346,11 +1367,6 @@
         lib.showGameParameters({
             name: 'HUSH Settings',
             params: {
-                'Mic Listening': { key: 'mic.enabled', type: 'checkbox' },
-                'Mic Trigger Level (higher = less sensitive)': { key: 'mic.threshold', type: 'slider', min: 0.08, max: 0.8, step: 0.02 },
-                'Mic Peak (clap) Level': { key: 'mic.peakThreshold', type: 'slider', min: 0.2, max: 0.95, step: 0.05 },
-                'Mic Max Noise': { key: 'mic.maxNoise', type: 'slider', min: 1, max: 8, step: 0.5 },
-                'Show Mic Meter': { key: 'mic.showMeter', type: 'checkbox' },
                 'Wrong Code Noise': { key: 'puzzle.codeWrongNoise', type: 'slider', min: 0, max: 10, step: 0.5 },
                 'Console Mistake Noise': { key: 'puzzle.simonWrongNoise', type: 'slider', min: 0, max: 10, step: 0.5 },
                 'Console Pattern Length': { key: 'puzzle.simonLength', type: 'slider', min: 3, max: 8, step: 1 },
@@ -1372,7 +1388,6 @@
                 'Blackout Length (s)': { key: 'blackout.duration', type: 'slider', min: 1, max: 20, step: 0.5 },
                 'Blackout Interval (s)': { key: 'blackout.interval', type: 'slider', min: 30, max: 600, step: 10 },
                 'Touch Controls': { key: 'ui.touchControls', type: 'dropdown', options: [
-                    { label: 'Always Show', value: 'always' },
                     { label: 'Touch Devices Only', value: 'auto' },
                     { label: 'Hidden', value: 'off' }
                 ] },
@@ -1411,8 +1426,7 @@
                 'Patrol Restlessness': { key: 'listener.restlessness', type: 'slider', min: 0, max: 1, step: 0.05 },
                 'Listener Investigate Speed': { key: 'listener.investigateSpeed', type: 'slider', min: 1, max: 6, step: 0.1 },
                 'Listener Chase Speed': { key: 'listener.chaseSpeed', type: 'slider', min: 2, max: 9, step: 0.1 },
-                'Detection Radius x': { key: 'listener.detectionMultiplier', type: 'slider', min: 0.2, max: 2.5, step: 0.1 },
-                'Listener Sight Range': { key: 'listener.sightRange', type: 'slider', min: 6, max: 40, step: 1 },
+                'Listener Hearing Range x': { key: 'listener.detectionMultiplier', type: 'slider', min: 0.2, max: 2.5, step: 0.1 },
                 'Search Duration (s)': { key: 'listener.searchDuration', type: 'slider', min: 3, max: 20, step: 0.5 },
                 'Listener Step Volume': { key: 'listener.footstepVolume', type: 'slider', min: 0, max: 2, step: 0.05 },
                 'Symbol Noise (Correct)': { key: 'puzzle.correctNoise', type: 'slider', min: 0, max: 4, step: 0.1 },
@@ -1565,9 +1579,9 @@
 
         // ---- Three.js Scene Setup ----
         const scene = new THREE.Scene();
-        // Darker, heavier air: the fluorescent glow should fall off fast into black.
-        scene.background = new THREE.Color(0x080704);
-        scene.fog = new THREE.Fog(0x0C0B06, 2.5, cfg.room.fogDistance * Q.fogMul);
+        // Cold, heavy air: the lamp glow falls off fast into black.
+        scene.background = new THREE.Color(0x040807);
+        scene.fog = new THREE.Fog(0x050B0A, 2.5, cfg.room.fogDistance * Q.fogMul);
 
         const camera = new THREE.PerspectiveCamera(70, gameWorld.clientWidth / gameWorld.clientHeight, 0.1, Q.far);
         const renderer = new THREE.WebGLRenderer({ antialias: Q.antialias, powerPreference: 'high-performance' });
@@ -1584,7 +1598,12 @@
         });
 
         // ---- Textures (loaded once) ----
-        const texLoader = new THREE.TextureLoader();
+        let textureLoadResolve;
+        const texturesReady = new Promise(resolve => { textureLoadResolve = resolve; });
+        const textureManager = new THREE.LoadingManager();
+        textureManager.onLoad = () => textureLoadResolve();
+        textureManager.onError = () => textureLoadResolve();
+        const texLoader = new THREE.TextureLoader(textureManager);
         function loadTexture(id, clamp) {
             const info = lib.getAsset(id);
             if (!info) { lib.log('Missing asset: ' + id); return null; }
@@ -1593,9 +1612,90 @@
             t.wrapT = clamp ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
             return t;
         }
-        const texWall = loadTexture('yellow_wall_texture');
-        const texCarpet = loadTexture('carpet_texture');
-        const texCeiling = loadTexture('ceiling_tile_texture');
+        // ---- Procedural textures: tiled hospital ward (no downloaded images) ----
+        function canvasTex(w, h, draw) {
+            const cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            draw(cv.getContext('2d'), w, h);
+            const t = new THREE.CanvasTexture(cv);
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            t.anisotropy = 4;
+            return t;
+        }
+        // blotch that wraps around the left/right edges so the texture still tiles
+        function blotch(g, w, x, y, rx, ry, rot) {
+            [-w, 0, w].forEach(dx => { g.beginPath(); g.ellipse(x + dx, y, rx, ry, rot || 0, 0, Math.PI * 2); g.fill(); });
+        }
+        // Wall: peeling plaster above a green-banded glazed tile dado
+        const texWall = canvasTex(512, 512, (g, w, h) => {
+            const r = mulberry32(101);
+            g.fillStyle = '#C6CFC8'; g.fillRect(0, 0, w, h);
+            const ty = Math.floor(h * 0.62), tn = 8, ts = w / tn;
+            for (let row = 0; ty + row * ts < h; row++) {
+                for (let c = 0; c < tn; c++) {
+                    const x = c * ts, y = ty + row * ts, k = 0.9 + r() * 0.14;
+                    g.fillStyle = 'rgb(' + ((168 * k) | 0) + ',' + ((208 * k) | 0) + ',' + ((196 * k) | 0) + ')';
+                    g.fillRect(x, y, ts, ts);
+                    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(x + 4, y + 4, ts - 10, 5);
+                    if (r() < 0.07) { g.fillStyle = 'rgba(20,28,26,0.5)'; g.fillRect(x, y, ts, ts); }
+                }
+            }
+            g.strokeStyle = '#6A827B'; g.lineWidth = 2;
+            for (let c = 0; c <= tn; c++) { g.beginPath(); g.moveTo(c * ts, ty); g.lineTo(c * ts, h); g.stroke(); }
+            for (let y = ty; y <= h; y += ts) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+            g.fillStyle = '#223D34'; g.fillRect(0, ty - 16, w, 16);
+            g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, ty - 16, w, 3);
+            // plaster damage: water stains, peeled patches, mould near the ceiling
+            for (let i = 0; i < 3; i++) { g.fillStyle = 'rgba(96,84,52,0.10)'; blotch(g, w, r() * w, r() * ty * 0.8, 40 + r() * 70, 40 + r() * 80); }
+            for (let i = 0; i < 3; i++) { g.fillStyle = 'rgba(226,231,224,0.35)'; blotch(g, w, r() * w, 10 + r() * (ty - 40), 12 + r() * 18, 8 + r() * 12, r()); }
+            for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(38,58,44,0.12)'; blotch(g, w, r() * w, r() * 50, 8 + r() * 22, 6 + r() * 10); }
+            // rust-brown drips running down from the rail
+            for (let i = 0; i < 12; i++) {
+                const x = r() * w, len = 20 + r() * 90, gr = g.createLinearGradient(0, ty, 0, ty + len);
+                gr.addColorStop(0, 'rgba(70,40,24,0.35)'); gr.addColorStop(1, 'rgba(70,40,24,0)');
+                g.fillStyle = gr; g.fillRect(x, ty, 3 + r() * 4, len);
+            }
+            const dirt = g.createLinearGradient(0, ty, 0, h);
+            dirt.addColorStop(0, 'rgba(8,14,12,0)'); dirt.addColorStop(1, 'rgba(8,14,12,0.42)');
+            g.fillStyle = dirt; g.fillRect(0, ty, w, h - ty);
+        });
+        // Floor A: dark linoleum checker, scuffed and cracked
+        const texFloor = canvasTex(256, 256, (g, w, h) => {
+            const r = mulberry32(202), n = 4, s = w / n;
+            for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+                g.fillStyle = (x + y) % 2 ? '#2A3532' : '#3A4642';
+                g.fillRect(x * s, y * s, s, s);
+            }
+            for (let i = 0; i < 900; i++) { g.fillStyle = 'rgba(' + (r() < 0.5 ? '0,0,0' : '170,190,180') + ',' + (0.04 + r() * 0.07).toFixed(3) + ')'; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
+            for (let i = 0; i < 14; i++) { g.strokeStyle = 'rgba(190,210,200,0.08)'; g.lineWidth = 1 + r() * 2; g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 70, y + (r() - 0.5) * 70); g.stroke(); }
+            for (let i = 0; i < 3; i++) { g.fillStyle = 'rgba(0,0,0,0.28)'; blotch(g, w, r() * w, r() * h, 12 + r() * 26, 8 + r() * 18, r()); }
+            g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1.5; g.beginPath();
+            let cx = r() * w, cy = r() * h; g.moveTo(cx, cy);
+            for (let i = 0; i < 6; i++) { cx += (r() - 0.3) * 30; cy += (r() - 0.5) * 30; g.lineTo(cx, cy); }
+            g.stroke();
+        });
+        // Floor B: pale small tiles with dirty grout (waiting room, atrium)
+        const texFloorTile = canvasTex(256, 256, (g, w, h) => {
+            const r = mulberry32(303), n = 8, s = w / n;
+            for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+                const k = 0.86 + r() * 0.14;
+                g.fillStyle = 'rgb(' + ((204 * k) | 0) + ',' + ((214 * k) | 0) + ',' + ((208 * k) | 0) + ')';
+                g.fillRect(x * s, y * s, s, s);
+            }
+            g.strokeStyle = '#4F5C57'; g.lineWidth = 2;
+            for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, h); g.stroke(); g.beginPath(); g.moveTo(0, i * s); g.lineTo(w, i * s); g.stroke(); }
+            for (let i = 0; i < 5; i++) { g.fillStyle = 'rgba(60,50,30,0.2)'; blotch(g, w, r() * w, r() * h, 10 + r() * 30, 8 + r() * 24, r()); }
+            for (let i = 0; i < 2; i++) { g.fillStyle = 'rgba(80,20,18,0.28)'; blotch(g, w, r() * w, r() * h, 6 + r() * 12, 5 + r() * 9, r()); }
+        });
+        // Ceiling: stained concrete slabs
+        const texCeiling = canvasTex(256, 256, (g, w, h) => {
+            const r = mulberry32(404);
+            g.fillStyle = '#69746F'; g.fillRect(0, 0, w, h);
+            for (let i = 0; i < 700; i++) { g.fillStyle = 'rgba(' + (r() < 0.5 ? '20,26,24' : '150,165,158') + ',' + (0.05 + r() * 0.07).toFixed(3) + ')'; g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 3); }
+            g.strokeStyle = 'rgba(15,20,18,0.55)'; g.lineWidth = 3;
+            g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+            for (let i = 0; i < 5; i++) { g.fillStyle = 'rgba(110,70,36,0.2)'; blotch(g, w, r() * w, r() * h, 14 + r() * 34, 10 + r() * 26, r()); }
+        });
         // Emergency EXIT sign face, drawn once into a canvas texture
         let texExitSign = null;
         function makeExitSignTexture() {
@@ -1858,14 +1958,18 @@
         const noiseState = {
             level: 0,          // current perceived noise level (units)
             radius: 0,         // spherical audible radius in world units
-            lastNoise: null    // { x, z, strength, radius, time }
+            lastNoise: null,      // latest audible event for investigation
+            lastMovement: null,   // latest movement sound for movement-following behavior
+            lastPlayerSound: null // recent movement or voice sound attributable to the player
         };
-        function emitNoise(strength, x, z, time) {
+        function emitNoise(strength, x, z, time, kind) {
             if (strength <= 0) return;
             const radius = strength * cfg.noise.radiusPerUnit;
             noiseState.level = Math.max(noiseState.level, strength);
             noiseState.radius = Math.max(noiseState.radius, radius);
-            noiseState.lastNoise = { x, z, strength, radius, time };
+            noiseState.lastNoise = { x, z, strength, radius, time, kind: kind || 'other' };
+            if (kind === 'movement') noiseState.lastMovement = noiseState.lastNoise;
+            if (kind === 'movement' || kind === 'voice') noiseState.lastPlayerSound = noiseState.lastNoise;
         }
         function decayNoise(dt) {
             const d = cfg.noise.decayRate * dt;
@@ -1874,7 +1978,7 @@
         }
         function surfaceAt(x, z) {
             const c = cellAt(x, z);
-            return (c && SURFACES[c.surface]) ? c.surface : 'carpet';
+            return (c && SURFACES[c.surface]) ? c.surface : 'lino';
         }
 
         // Scale a geometry's UVs so one shared texture tiles at world scale
@@ -1887,11 +1991,11 @@
 
         // ---- Room prefab catalogue ----
         const ROOM_TYPES = {
-            spawn:    { label: 'RECEPTION',    lights: 4, props: 0.3, surface: 'tile' },
-            hall:     { label: 'CORRIDOR',     lights: 3, props: 0.3, surface: 'carpet' },
-            office:   { label: 'OPEN OFFICE',  lights: 4, props: 1.0, surface: 'carpet' },
-            side:     { label: 'SIDE ROOM',    lights: 1, props: 0.7, surface: 'carpet' },
-            junction: { label: 'JUNCTION',     lights: 4, props: 0.5, surface: 'tile' }
+            spawn:    { label: 'WAITING ROOM',    lights: 4, props: 0.3, surface: 'tile' },
+            hall:     { label: 'CORRIDOR',     lights: 3, props: 0.3, surface: 'lino' },
+            office:   { label: 'WARD',  lights: 4, props: 1.0, surface: 'lino' },
+            side:     { label: 'STORE ROOM',    lights: 1, props: 0.7, surface: 'lino' },
+            junction: { label: 'ATRIUM',     lights: 4, props: 0.5, surface: 'tile' }
         };
 
         // Ways a failing fluorescent tube can misbehave
@@ -1899,7 +2003,7 @@
 
         // Surface response: how loud / bright footsteps are per floor material
         const SURFACES = {
-            carpet: { vol: 1.0, rate: 1.0, noise: 1.0 },
+            lino:   { vol: 1.0, rate: 1.0, noise: 1.0 },
             tile:   { vol: 1.35, rate: 1.12, noise: 1.35 }
         };
 
@@ -2266,7 +2370,7 @@
         // Small junk scattered through the sector. You can carry exactly ONE piece in your
         // right hand (no inventory), and hurl it. Where it lands, it makes a real noise
         // event, which the Listener investigates - the only tool you have against it.
-        const ITEM_KINDS = ['stapler', 'mug', 'phone', 'tape', 'binder', 'can', 'wad', 'clock'];
+        const ITEM_KINDS = ['bottle', 'tin', 'cup', 'tray', 'pills', 'chart', 'gauze', 'bell'];
         const ITEM_GRAVITY = 18;
         let throwItems = [];
         let heldItem = null;
@@ -2306,38 +2410,42 @@
                 return m;
             }
             let label = 'OBJECT', rest = 0.08;
-            if (kind === 'stapler') {
-                label = 'STAPLER'; rest = 0.06;
-                add(new THREE.BoxGeometry(0.27, 0.06, 0.09), M(0x33383F, 0.6, 0.2), 0, 0, 0);
-                add(new THREE.BoxGeometry(0.25, 0.05, 0.08), M(0x8C2A2A, 0.5), 0.01, 0.05, 0);
-            } else if (kind === 'mug') {
-                label = 'MUG'; rest = 0.07;
-                add(new THREE.CylinderGeometry(0.065, 0.055, 0.14, 7), M(0xD9D2BE, 0.7), 0, 0, 0);
-                add(new THREE.TorusGeometry(0.045, 0.014, 4, 6), M(0xD9D2BE, 0.7), 0.085, 0.005, 0, 0, Math.PI / 2, 0);
-            } else if (kind === 'phone') {
-                label = 'DESK PHONE'; rest = 0.055;
-                add(new THREE.BoxGeometry(0.21, 0.05, 0.15), M(0x20242A, 0.65), 0, 0, 0);
-                add(new THREE.BoxGeometry(0.19, 0.045, 0.05), M(0x2C3238, 0.6), 0, 0.045, -0.04);
-                add(new THREE.BoxGeometry(0.1, 0.012, 0.07), M(0x9AA0A6, 0.7), 0, 0.028, 0.04);
-            } else if (kind === 'tape') {
-                label = 'TAPE ROLL'; rest = 0.04;
-                add(new THREE.TorusGeometry(0.085, 0.035, 4, 8), M(0xC9AE78, 0.85), 0, 0, 0, Math.PI / 2, 0, 0);
-            } else if (kind === 'binder') {
-                label = 'BINDER'; rest = 0.045;
-                add(new THREE.BoxGeometry(0.21, 0.05, 0.17), M(0x2C4763, 0.85), 0, 0, 0);
-                add(new THREE.BoxGeometry(0.19, 0.035, 0.15), M(0xE2DBC4, 0.95), 0.01, 0.012, 0);
-            } else if (kind === 'can') {
-                label = 'SODA CAN'; rest = 0.075;
-                add(new THREE.CylinderGeometry(0.046, 0.046, 0.15, 8), M(0x9BA6AE, 0.45, 0.35), 0, 0, 0);
-                add(new THREE.CylinderGeometry(0.048, 0.048, 0.03, 8), M(0xB0453C, 0.6), 0, 0.01, 0);
-            } else if (kind === 'wad') {
-                label = 'PAPER WAD'; rest = 0.085;
-                add(new THREE.IcosahedronGeometry(0.085, 0), M(0xE0D9C2, 0.95), 0, 0, 0);
-                add(new THREE.IcosahedronGeometry(0.05, 0), M(0xD3CBB2, 0.95), 0.05, 0.03, 0.03);
+            if (kind === 'bottle') {
+                label = 'GLASS BOTTLE'; rest = 0.08;
+                add(new THREE.CylinderGeometry(0.045, 0.055, 0.16, 7), M(0xB3772D, 0.3), 0, 0, 0);
+                add(new THREE.CylinderGeometry(0.02, 0.04, 0.07, 6), M(0xB3772D, 0.3), 0, 0.115, 0);
+                add(new THREE.CylinderGeometry(0.024, 0.024, 0.02, 6), M(0x2B2B2B, 0.7), 0, 0.16, 0);
+            } else if (kind === 'tin') {
+                label = 'TIN CAN'; rest = 0.07;
+                add(new THREE.CylinderGeometry(0.05, 0.05, 0.13, 8), M(0xA9B1B4, 0.4, 0.4), 0, 0, 0);
+                add(new THREE.CylinderGeometry(0.052, 0.052, 0.03, 8), M(0x5E6B6F, 0.5, 0.4), 0, 0.03, 0);
+            } else if (kind === 'cup') {
+                label = 'ENAMEL CUP'; rest = 0.06;
+                add(new THREE.CylinderGeometry(0.06, 0.05, 0.11, 8), M(0xDCE6E1, 0.5), 0, 0, 0);
+                add(new THREE.CylinderGeometry(0.061, 0.061, 0.016, 8), M(0x2F4F8A, 0.5), 0, 0.05, 0);
+                add(new THREE.TorusGeometry(0.036, 0.011, 4, 6), M(0xDCE6E1, 0.5), 0.07, 0, 0, 0, Math.PI / 2, 0);
+            } else if (kind === 'tray') {
+                label = 'METAL TRAY'; rest = 0.03;
+                add(new THREE.BoxGeometry(0.3, 0.018, 0.17), M(0xB5BEC2, 0.35, 0.5), 0, 0, 0);
+                add(new THREE.BoxGeometry(0.3, 0.04, 0.012), M(0xB5BEC2, 0.35, 0.5), 0, 0.02, 0.085);
+                add(new THREE.BoxGeometry(0.3, 0.04, 0.012), M(0xB5BEC2, 0.35, 0.5), 0, 0.02, -0.085);
+            } else if (kind === 'pills') {
+                label = 'PILL BOTTLE'; rest = 0.055;
+                add(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 7), M(0xD9772B, 0.5), 0, 0, 0);
+                add(new THREE.CylinderGeometry(0.039, 0.039, 0.03, 7), M(0xEDEDED, 0.6), 0, 0.065, 0);
+            } else if (kind === 'chart') {
+                label = 'CLIPBOARD'; rest = 0.02;
+                add(new THREE.BoxGeometry(0.2, 0.014, 0.28), M(0x6A4E34, 0.85), 0, 0, 0);
+                add(new THREE.BoxGeometry(0.17, 0.012, 0.24), M(0xE0DDCC, 0.95), 0, 0.012, 0.005);
+                add(new THREE.BoxGeometry(0.08, 0.02, 0.03), M(0x9AA3A6, 0.4, 0.5), 0, 0.02, -0.12);
+            } else if (kind === 'gauze') {
+                label = 'GAUZE ROLL'; rest = 0.04;
+                add(new THREE.CylinderGeometry(0.05, 0.05, 0.08, 9), M(0xE9E4D2, 0.95), 0, 0, 0);
+                add(new THREE.CylinderGeometry(0.052, 0.052, 0.012, 9), M(0xA33A3A, 0.8), 0, 0.01, 0);
             } else {
-                label = 'DESK CLOCK'; rest = 0.085;
-                add(new THREE.CylinderGeometry(0.085, 0.085, 0.04, 8), M(0x2A2E33, 0.6), 0, 0, 0, Math.PI / 2, 0, 0);
-                add(new THREE.CylinderGeometry(0.062, 0.062, 0.012, 8), M(0xEDE6CE, 0.7), 0, 0, 0.026, Math.PI / 2, 0, 0);
+                label = 'HAND BELL'; rest = 0.07;
+                add(new THREE.CylinderGeometry(0.03, 0.075, 0.1, 8), M(0xC7A24A, 0.35, 0.6), 0, 0, 0);
+                add(new THREE.CylinderGeometry(0.014, 0.02, 0.07, 6), M(0x4A3524, 0.8), 0, 0.085, 0);
             }
             return { group: g, mats, label, rest };
         }
@@ -2992,12 +3100,12 @@
         const LIGHT_POOL = 6;
         const lightPool = [];
         for (let i = 0; i < LIGHT_POOL; i++) {
-            const pl = new THREE.PointLight(0xFFF3CE, 0, cfg.room.cellSize * 1.15, 2);
+            const pl = new THREE.PointLight(0xCFF2E4, 0, cfg.room.cellSize * 1.15, 2);
             scene.add(pl);
             lightPool.push(pl);
         }
-        const ambientLight = new THREE.AmbientLight(0xFFF6E0, 0.26);
-        const hemiLight = new THREE.HemisphereLight(0xFFFBE0, 0x6B5A3C, 0.32);
+        const ambientLight = new THREE.AmbientLight(0xBFE6D8, 0.26);
+        const hemiLight = new THREE.HemisphereLight(0xC8F0E4, 0x2A3A36, 0.32);
         scene.add(ambientLight);
         scene.add(hemiLight);
 
@@ -3038,8 +3146,8 @@
             hintLine = null;
             hintBeams = [];
 
-            // Yellow Rooms are intentionally oversized: more breathing room, longer sightlines,
-            // and enough floor area for the modular office dressing to read at a human scale.
+            // The ward is intentionally oversized: long sightlines and enough floor area
+            // for the hospital furniture to read at a human scale.
             const C = Math.max(14, cfg.room.cellSize);
             const H = Math.max(3.5, cfg.room.height);
             const T = 0.32;        // wall thickness
@@ -3053,24 +3161,47 @@
             generateLayout(cfg.room.roomCount, cfg.room.seed);
             planPuzzle();
 
-            const wallMat = new THREE.MeshStandardMaterial({ color: cfg.room.wallColor, map: texWall, roughness: 0.95, metalness: 0 });
-            const floorMat = new THREE.MeshStandardMaterial({ color: cfg.room.floorColor, map: texCarpet, roughness: 1.0, metalness: 0, side: THREE.DoubleSide });
-            const ceilMat = new THREE.MeshStandardMaterial({ color: cfg.room.ceilingColor, map: texCeiling, roughness: 0.95, metalness: 0, side: THREE.DoubleSide });
-            const trimMat = new THREE.MeshStandardMaterial({ color: 0xEDE6D2, roughness: 0.8, metalness: 0 });
-            // Fluorescents are sickly and weak now: pools of light with real darkness between them
+            const wallMat = new THREE.MeshStandardMaterial({ color: cfg.room.wallColor, map: texWall, roughness: 0.9, metalness: 0 });
+            const floorMat = new THREE.MeshStandardMaterial({ color: cfg.room.floorColor, map: texFloor, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide });
+            const floorTileMat = new THREE.MeshStandardMaterial({ color: cfg.room.floorColor, map: texFloorTile, roughness: 0.45, metalness: 0.05, side: THREE.DoubleSide });
+            const ceilMat = new THREE.MeshStandardMaterial({ color: cfg.room.ceilingColor, map: texCeiling, roughness: 1.0, metalness: 0, side: THREE.DoubleSide });
+            const trimMat = new THREE.MeshStandardMaterial({ color: 0x1F3A32, roughness: 0.7, metalness: 0 });
+            // Caged ward lamps: a cold bulb in a wire cage, dim, with real darkness between them
             const panelBase = Math.min(1.4, 0.28 + 0.55 * LI);
-            const panelMat = new THREE.MeshStandardMaterial({ color: 0xF6F2DC, emissive: 0xFFF4CE, emissiveIntensity: panelBase, roughness: 0.35, metalness: 0 });
-            const deadPanelMat = new THREE.MeshStandardMaterial({ color: 0x35332B, emissive: 0x0B0A07, emissiveIntensity: 0.15, roughness: 0.6, metalness: 0 });
-            const glowMat = new THREE.MeshBasicMaterial({ color: 0xFFF0C8, transparent: true, opacity: 0.075, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-            const deskMat = new THREE.MeshStandardMaterial({ color: 0x7A6448, roughness: 0.9, metalness: 0 });
-            const darkMat = new THREE.MeshStandardMaterial({ color: 0x3B3B3B, roughness: 0.7, metalness: 0 });
-            // Extra dressing materials: filler objects that make each module feel lived-in
-            const metalMat = new THREE.MeshStandardMaterial({ color: 0x5A5F63, roughness: 0.6, metalness: 0.15 });
+            const panelMat = new THREE.MeshStandardMaterial({ color: 0xDDF6EC, emissive: 0xCFF5E6, emissiveIntensity: panelBase, roughness: 0.35, metalness: 0 });
+            const deadPanelMat = new THREE.MeshStandardMaterial({ color: 0x2C3431, emissive: 0x050807, emissiveIntensity: 0.15, roughness: 0.6, metalness: 0 });
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0xBFF0DF, transparent: true, opacity: 0.085, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+            const lampBaseMat = new THREE.MeshStandardMaterial({ color: 0x1E2523, roughness: 0.6, metalness: 0.3, flatShading: true });
+            const pipeMat = new THREE.MeshStandardMaterial({ color: 0x59655F, roughness: 0.5, metalness: 0.4, flatShading: true });
+            const stainMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false });
+            const bloodStainMat = new THREE.MeshBasicMaterial({ color: 0x3C0F0F, transparent: true, opacity: 0.5, depthWrite: false });
+            // Ward furniture materials
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x5E4B3A, roughness: 0.9, metalness: 0, flatShading: true });
+            const deskMat = woodMat;
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x2B2F30, roughness: 0.7, metalness: 0 });
+            const ironMat = new THREE.MeshStandardMaterial({ color: 0x3C464A, roughness: 0.5, metalness: 0.35, flatShading: true });
+            const metalMat = ironMat;
+            const greenMetalMat = new THREE.MeshStandardMaterial({ color: 0x5C7E72, roughness: 0.6, metalness: 0.2, flatShading: true });
+            const enamelMat = new THREE.MeshStandardMaterial({ color: 0xDCE6E1, roughness: 0.45, metalness: 0.05, flatShading: true });
+            const sheetMat = new THREE.MeshStandardMaterial({ color: 0xC9D4CD, roughness: 1.0, metalness: 0, flatShading: true });
+            const shroudMat = new THREE.MeshStandardMaterial({ color: 0xBDB8A6, roughness: 1.0, metalness: 0, flatShading: true });
+            const mattressMat = new THREE.MeshStandardMaterial({ color: 0x8FA39B, roughness: 0.95, metalness: 0, flatShading: true });
+            const clothMat = new THREE.MeshStandardMaterial({ color: 0x3E5C70, roughness: 1.0, metalness: 0, flatShading: true });
+            const coatMat = new THREE.MeshStandardMaterial({ color: 0x4D4F3A, roughness: 1.0, metalness: 0, flatShading: true });
+            const curtainMat = new THREE.MeshStandardMaterial({ color: 0x7A9C92, roughness: 1.0, metalness: 0, flatShading: true, side: THREE.DoubleSide });
+            const curtainDarkMat = new THREE.MeshStandardMaterial({ color: 0x5A7A70, roughness: 1.0, metalness: 0, flatShading: true, side: THREE.DoubleSide });
+            const rustMat = new THREE.MeshStandardMaterial({ color: 0x7A4A32, roughness: 0.9, metalness: 0.2, flatShading: true });
+            const bloodMat = new THREE.MeshStandardMaterial({ color: 0x4A1717, roughness: 0.6, metalness: 0, flatShading: true });
+            const rubberMat = new THREE.MeshStandardMaterial({ color: 0x17191A, roughness: 0.9, metalness: 0, flatShading: true });
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0xA9CFC6, roughness: 0.25, transparent: true, opacity: 0.6, flatShading: true });
+            const bloodGlassMat = new THREE.MeshStandardMaterial({ color: 0x7B1E22, roughness: 0.3, transparent: true, opacity: 0.8, flatShading: true });
+            const amberMat = new THREE.MeshStandardMaterial({ color: 0xB3772D, roughness: 0.3, transparent: true, opacity: 0.85, flatShading: true });
+            const tankMat = new THREE.MeshStandardMaterial({ color: 0x2E6B52, roughness: 0.45, metalness: 0.3, flatShading: true });
+            const steelBucketMat = new THREE.MeshStandardMaterial({ color: 0x7B868B, roughness: 0.4, metalness: 0.5, flatShading: true });
+            const darkWaterMat = new THREE.MeshStandardMaterial({ color: 0x141C1A, roughness: 0.1, metalness: 0.3 });
             const boxMat = new THREE.MeshStandardMaterial({ color: 0x8A7150, roughness: 0.95, metalness: 0 });
-            const plantMat = new THREE.MeshStandardMaterial({ color: 0x3C5A32, roughness: 0.9, metalness: 0, flatShading: true });
-            const potMat = new THREE.MeshStandardMaterial({ color: 0x6B4B39, roughness: 0.9, metalness: 0 });
-            const fabricMat = new THREE.MeshStandardMaterial({ color: 0x585144, roughness: 1.0, metalness: 0 });
-            const paperMat = new THREE.MeshStandardMaterial({ color: 0xD8D2BE, roughness: 0.95, metalness: 0 });
+            const plantMat = darkMat, potMat = darkMat, fabricMat = clothMat;
+            const paperMat = new THREE.MeshStandardMaterial({ color: 0xCFCABA, roughness: 0.95, metalness: 0 });
 
             function addBox(w, h, d, x, y, z, mat, uv, collide) {
                 const geo = new THREE.BoxGeometry(w, h, d);
@@ -3086,15 +3217,25 @@
                 return m;
             }
 
+            // The wall texture spans the full room height (tile dado below, plaster above),
+            // so a wall piece that starts higher up (a lintel) samples the matching part of it.
             function wallPiece(x, z, sx, sz, y, h, collide) {
-                addBox(sx, h, sz, x, y + h / 2, z, wallMat, [Math.max(sx, sz) / 2.6, h / 2.6], collide);
+                const geo = new THREE.BoxGeometry(sx, h, sz);
+                const uv = geo.attributes.uv;
+                const su = Math.max(sx, sz) / 3.2, sv = h / H, v0 = y / H;
+                for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv + v0);
+                uv.needsUpdate = true;
+                const m = new THREE.Mesh(geo, wallMat);
+                m.position.set(x, y + h / 2, z);
+                mazeGroup.add(m);
+                if (collide) colliders.push({ minX: x - sx / 2, maxX: x + sx / 2, minZ: z - sz / 2, maxZ: z + sz / 2, top: y + h });
             }
             function baseboard(x, z, sx, sz) {
-                addBox(sx + 0.07, 0.16, sz + 0.07, x, 0.08, z, trimMat, null, false);
+                addBox(sx + 0.07, 0.2, sz + 0.07, x, 0.1, z, trimMat, null, false);
             }
-            // Crown moulding at the top of a full-height wall run
+            // Heavy cornice at the top of a full-height wall run
             function crown(x, z, sx, sz) {
-                addBox(sx + 0.06, 0.1, sz + 0.06, x, H - 0.06, z, trimMat, null, false);
+                addBox(sx + 0.06, 0.14, sz + 0.06, x, H - 0.08, z, trimMat, null, false);
             }
             // Small posts plug the hairline gaps where two wall runs meet
             const cornerPosts = {};
@@ -3102,9 +3243,22 @@
                 const k = gx + '/' + gz;
                 if (cornerPosts[k]) return;
                 cornerPosts[k] = true;
-                addBox(T + 0.03, H, T + 0.03, cx, H / 2, cz, wallMat, [(T + 0.03) / 2.6, H / 2.6], false);
-                addBox(T + 0.12, 0.16, T + 0.12, cx, 0.08, cz, trimMat, null, false);
-                addBox(T + 0.11, 0.1, T + 0.11, cx, H - 0.06, cz, trimMat, null, false);
+                addBox(T + 0.03, H, T + 0.03, cx, H / 2, cz, wallMat, [(T + 0.03) / 3.2, 1], false);
+                addBox(T + 0.12, 0.2, T + 0.12, cx, 0.1, cz, trimMat, null, false);
+                addBox(T + 0.11, 0.14, T + 0.11, cx, H - 0.08, cz, trimMat, null, false);
+            }
+            // A caged bulb on a short ceiling mount
+            function addLamp(x, z, bulbMat) {
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.12, 8), lampBaseMat);
+                base.position.set(x, H - 0.06, z);
+                mazeGroup.add(base);
+                const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), bulbMat);
+                bulb.position.set(x, H - 0.33, z);
+                mazeGroup.add(bulb);
+                const cage = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.018, 4, 10), lampBaseMat);
+                cage.rotation.x = Math.PI / 2;
+                cage.position.set(x, H - 0.33, z);
+                mazeGroup.add(cage);
             }
 
             // ---- Prop placement validation (keeps furniture out of walls/doorways) ----
@@ -3184,247 +3338,275 @@
                 if (isExit) buildExitDoor(bx, bz, acrossX, dirX, dirZ);
             }
 
-            // ---- Props (all validated so nothing clips walls, doorways or each other) ----
+            // ---- Props: a derelict hospital ward (all validated so nothing clips walls or doorways) ----
             function placePillar(x, z) {
                 if (!spotOk(x, z, 1.05, 1.05)) return false;
                 markSpot(x, z, 1.05, 1.05);
-                addBox(0.8, H - 0.12, 0.8, x, (H - 0.12) / 2 + 0.06, z, wallMat, [0.8 / 2.6, H / 2.6], true);
-                addBox(0.95, 0.17, 0.95, x, 0.085, z, trimMat, null, false);
+                addBox(0.8, H - 0.12, 0.8, x, (H - 0.12) / 2 + 0.06, z, wallMat, [0.8 / 3.2, (H - 0.12) / H], true);
+                addBox(0.9, 0.14, 0.9, x, 0.38 * H, z, trimMat, null, false);
+                addBox(0.95, 0.2, 0.95, x, 0.1, z, trimMat, null, false);
                 addBox(0.95, 0.12, 0.95, x, H - 0.07, z, trimMat, null, false);
                 return true;
             }
-            // Furniture is deliberately chunky and close to real-world scale so the
-            // oversized modules still read as a believable office.
+            // Hospital bed (replaces the office desk): iron frame, thin mattress, pillow, rumpled sheet
             function placeDesk(x, z, rot) {
-                const w = rot ? 1.4 : 2.5, d = rot ? 2.5 : 1.4;
+                const w = rot ? 1.05 : 2.25, d = rot ? 2.25 : 1.05;
                 if (!spotOk(x, z, w + 0.6, d + 0.6)) return false;
                 markSpot(x, z, w + 0.6, d + 0.6);
-                addBox(w, 0.11, d, x, 0.78, z, deskMat, null, true);
-                if (rot) {
-                    addBox(1.24, 0.74, 0.11, x, 0.39, z - d / 2 + 0.16, deskMat, null, false);
-                    addBox(1.24, 0.74, 0.11, x, 0.39, z + d / 2 - 0.16, deskMat, null, false);
-                    // drawer stack under one end
-                    addBox(1.0, 0.62, 0.72, x, 0.35, z + d / 2 - 0.62, metalMat, null, false);
-                } else {
-                    addBox(0.11, 0.74, 1.24, x - w / 2 + 0.16, 0.39, z, deskMat, null, false);
-                    addBox(0.11, 0.74, 1.24, x + w / 2 - 0.16, 0.39, z, deskMat, null, false);
-                    addBox(0.72, 0.62, 1.0, x + w / 2 - 0.62, 0.35, z, metalMat, null, false);
-                }
-                // monitor + keyboard + paper clutter, scaled to the bigger desk
-                addBox(0.74, 0.5, 0.07, x, 1.11, z - (rot ? 0 : 0.28), darkMat, null, false);
-                addBox(0.24, 0.16, 0.2, x, 0.9, z - (rot ? 0 : 0.28), darkMat, null, false);
-                addBox(0.62, 0.04, 0.24, x, 0.86, z + (rot ? 0.42 : 0.34), darkMat, null, false);
-                addBox(0.3, 0.05, 0.4, x + (rot ? 0.42 : 0.78), 0.86, z - (rot ? 0.6 : 0.2), paperMat, null, false);
-                // finer detail pass: rolled edge trim, drawer pulls, a mug and a slack cable
-                addBox(w + 0.06, 0.05, d + 0.06, x, 0.845, z, trimMat, null, false);
-                const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.14, 8), trimMat);
-                mug.position.set(x - (rot ? 0.36 : 0.72), 0.91, z + (rot ? 0.5 : 0.3));
-                mazeGroup.add(mug);
-                const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.62, 5), darkMat);
-                cable.position.set(x + 0.1, 0.5, z - (rot ? 0.1 : 0.5));
-                cable.rotation.x = 0.35;
-                mazeGroup.add(cable);
-                addBox(0.26, 0.03, 0.03, x + (rot ? 0.02 : w / 2 - 0.62), 0.55, z + (rot ? d / 2 - 0.26 : 0.34), trimMat, null, false);
+                addBox(w, 0.07, d, x, 0.5, z, ironMat, null, false);
+                addBox(w - 0.08, 0.17, d - 0.08, x, 0.62, z, mattressMat, null, true);
+                [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(l => {
+                    addBox(0.06, 0.5, 0.06, x + l[0] * (w / 2 - 0.05), 0.25, z + l[1] * (d / 2 - 0.05), ironMat, null, false);
+                });
+                // head- and footboard rails
+                const hx = rot ? 0 : -(w / 2 - 0.03), hz = rot ? -(d / 2 - 0.03) : 0;
+                const fx = rot ? 0 : (w / 2 - 0.03), fz = rot ? (d / 2 - 0.03) : 0;
+                addBox(rot ? w : 0.05, 0.62, rot ? 0.05 : d, x + hx, 0.95, z + hz, ironMat, null, false);
+                addBox(rot ? w : 0.05, 0.4, rot ? 0.05 : d, x + fx, 0.8, z + fz, ironMat, null, false);
+                // pillow at the head, rumpled sheet, one stained patch
+                addBox(rot ? 0.6 : 0.42, 0.1, rot ? 0.42 : 0.6, x + (rot ? 0 : -(w / 2 - 0.34)), 0.76, z + (rot ? -(d / 2 - 0.34) : 0), sheetMat, null, false);
+                const sheet = new THREE.Mesh(new THREE.BoxGeometry(rot ? w - 0.16 : d * 0.55 + 0.4, 0.07, rot ? d * 0.55 + 0.4 : d - 0.16), sheetMat);
+                sheet.position.set(x + (rot ? 0 : 0.35), 0.74, z + (rot ? 0.35 : 0));
+                sheet.rotation.y = (((x * 7 + z * 13) % 5) - 2) * 0.03;
+                mazeGroup.add(sheet);
+                if ((Math.floor(x * 3 + z * 5) & 3) === 0) addBox(0.4, 0.075, 0.3, x + 0.1, 0.742, z + 0.05, bloodMat, null, false);
+                // a bedpan on the lower rail
+                const pan = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.08, 7), enamelMat);
+                pan.position.set(x + (rot ? 0.2 : 0.3), 0.31, z + (rot ? 0.3 : 0.2));
+                mazeGroup.add(pan);
                 return true;
             }
+            // Wheelchair (replaces the office chair)
             function placeChair(x, z, rot) {
-                if (!spotOk(x, z, 1.05, 1.05)) return false;
-                markSpot(x, z, 1.05, 1.05);
-                addBox(0.66, 0.1, 0.66, x, 0.5, z, fabricMat, null, true);
-                if (rot) addBox(0.1, 0.72, 0.66, x + 0.3, 0.9, z, fabricMat, null, false);
-                else addBox(0.66, 0.72, 0.1, x, 0.9, z + 0.3, fabricMat, null, false);
-                addBox(0.15, 0.42, 0.15, x, 0.24, z, metalMat, null, false);
-                addBox(0.62, 0.08, 0.62, x, 0.06, z, darkMat, null, false);
-                // armrests, lumbar pad and five little castors
-                if (rot) {
-                    addBox(0.08, 0.07, 0.5, x - 0.02, 0.78, z - 0.31, darkMat, null, false);
-                    addBox(0.08, 0.07, 0.5, x - 0.02, 0.78, z + 0.31, darkMat, null, false);
-                    addBox(0.06, 0.34, 0.44, x + 0.24, 0.82, z, fabricMat, null, false);
-                } else {
-                    addBox(0.5, 0.07, 0.08, x - 0.31, 0.78, z - 0.02, darkMat, null, false);
-                    addBox(0.5, 0.07, 0.08, x + 0.31, 0.78, z - 0.02, darkMat, null, false);
-                    addBox(0.44, 0.34, 0.06, x, 0.82, z + 0.24, fabricMat, null, false);
-                }
-                for (let cw = 0; cw < 5; cw++) {
-                    const ca = (cw / 5) * Math.PI * 2;
-                    const cst = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 6), darkMat);
-                    cst.position.set(x + Math.sin(ca) * 0.28, 0.05, z + Math.cos(ca) * 0.28);
-                    cst.rotation.z = Math.PI / 2;
-                    mazeGroup.add(cst);
-                }
+                if (!spotOk(x, z, 1.1, 1.1)) return false;
+                markSpot(x, z, 1.1, 1.1);
+                const g = new THREE.Group();
+                g.position.set(x, 0, z);
+                g.rotation.y = rot ? Math.PI / 2 : 0;
+                const put = (geo, m, px, py, pz, rx, ry, rz) => {
+                    const me = new THREE.Mesh(geo, m);
+                    me.position.set(px, py, pz);
+                    me.rotation.set(rx || 0, ry || 0, rz || 0);
+                    g.add(me);
+                    return me;
+                };
+                put(new THREE.BoxGeometry(0.5, 0.06, 0.48), clothMat, 0, 0.5, 0);
+                put(new THREE.BoxGeometry(0.5, 0.5, 0.05), clothMat, 0, 0.78, 0.24, -0.1);
+                put(new THREE.BoxGeometry(0.04, 0.04, 0.46), ironMat, -0.27, 0.68, 0.02);
+                put(new THREE.BoxGeometry(0.04, 0.04, 0.46), ironMat, 0.27, 0.68, 0.02);
+                put(new THREE.BoxGeometry(0.04, 0.5, 0.04), ironMat, -0.27, 0.42, 0.22);
+                put(new THREE.BoxGeometry(0.04, 0.5, 0.04), ironMat, 0.27, 0.42, 0.22);
+                [-1, 1].forEach(sd => {
+                    put(new THREE.CylinderGeometry(0.31, 0.31, 0.04, 10), rubberMat, sd * 0.31, 0.31, 0.2, 0, 0, Math.PI / 2);
+                    put(new THREE.CylinderGeometry(0.24, 0.24, 0.045, 8), ironMat, sd * 0.31, 0.31, 0.2, 0, 0, Math.PI / 2);
+                    put(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 6), rubberMat, sd * 0.2, 0.075, -0.28, 0, 0, Math.PI / 2);
+                    put(new THREE.BoxGeometry(0.04, 0.3, 0.04), ironMat, sd * 0.2, 0.27, -0.26);
+                    put(new THREE.BoxGeometry(0.2, 0.025, 0.2), ironMat, sd * 0.16, 0.2, -0.45);
+                });
+                put(new THREE.BoxGeometry(0.5, 0.04, 0.04), ironMat, 0, 1.05, 0.26);
+                mazeGroup.add(g);
+                colliders.push({ minX: x - 0.4, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.4, top: 0.7 });
                 return true;
             }
+            // Green steel locker pair, one door hanging open
             function placeCabinet(x, z) {
                 if (!spotOk(x, z, 1.5, 1.15)) return false;
                 markSpot(x, z, 1.5, 1.15);
-                addBox(1.18, 1.85, 0.78, x, 0.925, z, metalMat, null, true);
-                addBox(1.08, 0.05, 0.06, x, 0.6, z - 0.4, trimMat, null, false);
-                addBox(1.08, 0.05, 0.06, x, 1.15, z - 0.4, trimMat, null, false);
-                addBox(1.08, 0.05, 0.06, x, 1.66, z - 0.4, trimMat, null, false);
-                // recessed pulls, seam lines and a curled label card
-                [0.6, 1.15, 1.66].forEach(hy => {
-                    addBox(0.3, 0.05, 0.05, x, hy - 0.14, z - 0.42, darkMat, null, false);
-                    addBox(1.14, 0.015, 0.02, x, hy + 0.2, z - 0.4, darkMat, null, false);
-                });
-                addBox(0.26, 0.14, 0.02, x - 0.34, 1.42, z - 0.41, paperMat, null, false);
-                addBox(1.2, 0.06, 0.82, x, 1.88, z, metalMat, null, false);
+                addBox(1.2, 1.9, 0.6, x, 0.95, z, greenMetalMat, null, true);
+                addBox(1.24, 0.06, 0.64, x, 1.93, z, ironMat, null, false);
+                addBox(0.02, 1.8, 0.02, x, 0.95, z - 0.31, ironMat, null, false);
+                for (let v = 0; v < 5; v++) {
+                    addBox(0.34, 0.025, 0.02, x - 0.3, 1.66 - v * 0.05, z - 0.31, darkMat, null, false);
+                    addBox(0.34, 0.025, 0.02, x + 0.3, 1.66 - v * 0.05, z - 0.31, darkMat, null, false);
+                }
+                addBox(0.05, 0.14, 0.04, x - 0.05, 1.0, z - 0.33, enamelMat, null, false);
+                addBox(0.05, 0.14, 0.04, x + 0.05, 1.0, z - 0.33, enamelMat, null, false);
+                addBox(1.22, 0.14, 0.62, x, 0.07, z, rustMat, null, false);
+                const door = new THREE.Mesh(new THREE.BoxGeometry(0.58, 1.7, 0.03), greenMetalMat);
+                door.position.set(x - 0.6 - 0.22, 0.95, z - 0.55);
+                door.rotation.y = 1.0;
+                mazeGroup.add(door);
+                addBox(0.5, 0.012, 0.3, x - 0.3, 1.0, z - 0.02, paperMat, null, false);
                 return true;
             }
-            // ---- Additional filler dressing ----
+            // Medicine rack with bottles
             function placeShelf(x, z, rot) {
                 const w = rot ? 0.7 : 2.2, d = rot ? 2.2 : 0.7;
                 if (!spotOk(x, z, w + 0.5, d + 0.5)) return false;
                 markSpot(x, z, w + 0.5, d + 0.5);
                 const h = Math.min(2.15, H - 1.4);
-                addBox(w, 0.09, d, x, h, z, metalMat, null, false);
-                addBox(w, 0.09, d, x, h * 0.66, z, metalMat, null, false);
-                addBox(w, 0.09, d, x, h * 0.33, z, metalMat, null, true);
-                addBox(rot ? 0.1 : 0.1, h, 0.1, x - (rot ? 0 : w / 2 - 0.08), h / 2, z - (rot ? d / 2 - 0.08 : 0), metalMat, null, false);
-                addBox(0.1, h, 0.1, x + (rot ? 0 : w / 2 - 0.08), h / 2, z + (rot ? d / 2 - 0.08 : 0), metalMat, null, false);
-                for (let b = 0; b < 3; b++) {
-                    const t = (b - 1) * (rot ? 0 : 0.62);
-                    const u = (b - 1) * (rot ? 0.62 : 0);
-                    addBox(0.6, 0.4, 0.5, x + t, h * 0.33 + 0.25, z + u, boxMat, null, false);
-                    // leaning binders and loose paper on the upper decks
-                    for (let bi = 0; bi < 4; bi++) {
-                        const bo = (bi - 1.5) * 0.12;
-                        const bh = 0.3 + (bi % 2) * 0.07;
-                        const bnd = new THREE.Mesh(new THREE.BoxGeometry(0.09, bh, 0.34),
-                            bi % 2 ? darkMat : boxMat);
-                        bnd.position.set(x + t + (rot ? 0 : bo), h * 0.66 + bh / 2 + 0.05, z + u + (rot ? bo : 0));
-                        bnd.rotation.z = bi === 3 ? 0.22 : 0;
-                        if (rot) bnd.rotation.y = Math.PI / 2;
-                        mazeGroup.add(bnd);
+                [h, h * 0.66, h * 0.33].forEach((sy, si) => addBox(w, 0.06, d, x, sy, z, ironMat, null, si === 2));
+                addBox(0.07, h, 0.07, x - (rot ? 0 : w / 2 - 0.05), h / 2, z - (rot ? d / 2 - 0.05 : 0), ironMat, null, false);
+                addBox(0.07, h, 0.07, x + (rot ? 0 : w / 2 - 0.05), h / 2, z + (rot ? d / 2 - 0.05 : 0), ironMat, null, false);
+                const bottleMats = [amberMat, glassMat, tankMat, amberMat];
+                for (let lvl = 0; lvl < 3; lvl++) {
+                    for (let b = 0; b < 6; b++) {
+                        const t = (b - 2.5) * 0.3;
+                        if (((b * 7 + lvl * 3 + Math.floor(x)) & 3) === 0) continue;   // gaps in the rows
+                        const bh = 0.2 + ((b + lvl) % 3) * 0.05;
+                        const bt = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, bh, 6), bottleMats[(b + lvl) % 4]);
+                        bt.position.set(x + (rot ? 0 : t), (lvl === 0 ? h * 0.33 : lvl === 1 ? h * 0.66 : h) + bh / 2 + 0.03, z + (rot ? t : 0));
+                        mazeGroup.add(bt);
                     }
-                    addBox(0.34, 0.05, 0.26, x + t, h + 0.07, z + u, paperMat, null, false);
                 }
+                addBox(0.4, 0.2, 0.3, x + (rot ? 0 : 0.5), h * 0.33 + 0.13, z + (rot ? 0.5 : 0), paperMat, null, false);
                 return true;
             }
+            // Gas cylinders (replaces the carton stack): three tanks, one leaning
             function placeBoxStack(x, z) {
                 if (!spotOk(x, z, 1.4, 1.4)) return false;
                 markSpot(x, z, 1.4, 1.4);
-                addBox(0.95, 0.62, 0.85, x, 0.31, z, boxMat, null, true);
-                addBox(0.82, 0.55, 0.78, x + 0.09, 0.9, z - 0.05, boxMat, null, false);
-                addBox(0.7, 0.45, 0.66, x - 0.06, 1.4, z + 0.06, boxMat, null, false);
-                // packing tape seams and a hand-written label on each carton
-                addBox(0.97, 0.02, 0.12, x, 0.62, z, paperMat, null, false);
-                addBox(0.84, 0.02, 0.11, x + 0.09, 1.175, z - 0.05, paperMat, null, false);
-                addBox(0.72, 0.02, 0.1, x - 0.06, 1.625, z + 0.06, paperMat, null, false);
-                addBox(0.26, 0.16, 0.02, x + 0.1, 0.36, z + 0.43, paperMat, null, false);
+                [[-0.28, -0.1, 0], [0.12, -0.18, 0], [0.0, 0.26, 0.28]].forEach((tp, i) => {
+                    const tk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.15, 8), tankMat);
+                    tk.position.set(x + tp[0], 0.58, z + tp[1]);
+                    tk.rotation.x = tp[2];
+                    mazeGroup.add(tk);
+                    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.15, 0.14, 8), enamelMat);
+                    cap.position.set(x + tp[0], 1.2 + (i === 2 ? -0.06 : 0), z + tp[1] + (i === 2 ? -0.15 : 0));
+                    cap.rotation.x = tp[2];
+                    mazeGroup.add(cap);
+                });
+                addBox(0.9, 0.04, 0.05, x, 0.8, z - 0.03, rustMat, null, false);
+                colliders.push({ minX: x - 0.55, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.55, top: 1.2 });
                 return true;
             }
+            // IV stand with a dangling bag (replaces the potted plant)
             function placePlant(x, z) {
                 if (!spotOk(x, z, 1.25, 1.25)) return false;
                 markSpot(x, z, 1.25, 1.25);
-                const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.3, 0.58, 7), potMat);
-                pot.position.set(x, 0.29, z);
-                mazeGroup.add(pot);
-                // dry soil disc, a chunky stem and a fuller, drooping crown of leaves
-                const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.05, 7), potMat);
-                soil.position.set(x, 0.57, z);
-                mazeGroup.add(soil);
-                addBox(0.42, 0.07, 0.42, x, 0.555, z, potMat, null, false);
-                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.7, 5), plantMat);
-                stem.position.set(x, 0.9, z);
-                mazeGroup.add(stem);
-                for (let l = 0; l < 9; l++) {
-                    const a = (l / 9) * Math.PI * 2 + (l % 2) * 0.3;
-                    const tall = l % 3 === 0;
-                    const len = tall ? 1.55 : 1.1;
-                    const leaf = new THREE.Mesh(new THREE.ConeGeometry(tall ? 0.2 : 0.15, len, 4), plantMat);
-                    const rad = tall ? 0.18 : 0.26;
-                    leaf.position.set(x + Math.sin(a) * rad, 0.95 + len * 0.42, z + Math.cos(a) * rad);
-                    leaf.rotation.z = Math.sin(a) * (tall ? 0.3 : 0.5);
-                    leaf.rotation.x = -Math.cos(a) * (tall ? 0.3 : 0.5);
-                    mazeGroup.add(leaf);
+                for (let l = 0; l < 5; l++) {
+                    const a = (l / 5) * Math.PI * 2;
+                    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.04), ironMat);
+                    leg.position.set(x + Math.sin(a) * 0.17, 0.05, z + Math.cos(a) * 0.17);
+                    leg.rotation.y = a + Math.PI / 2;
+                    mazeGroup.add(leg);
                 }
-                colliders.push({ minX: x - 0.42, maxX: x + 0.42, minZ: z - 0.42, maxZ: z + 0.42, top: 0.6 });
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 2.05, 6), ironMat);
+                pole.position.set(x, 1.03, z);
+                mazeGroup.add(pole);
+                addBox(0.5, 0.03, 0.03, x, 2.05, z, ironMat, null, false);
+                [-0.2, 0.2].forEach((ox, i) => {
+                    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.26, 0.05), i ? glassMat : bloodGlassMat);
+                    bag.position.set(x + ox, 1.85, z);
+                    mazeGroup.add(bag);
+                });
+                const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 1.0, 4), glassMat);
+                tube.position.set(x + 0.2, 1.25, z + 0.03);
+                mazeGroup.add(tube);
+                colliders.push({ minX: x - 0.25, maxX: x + 0.25, minZ: z - 0.25, maxZ: z + 0.25, top: 0.6 });
                 return true;
             }
+            // Washbasin on a pedestal (replaces the water cooler)
             function placeCooler(x, z) {
                 if (!spotOk(x, z, 1.15, 1.15)) return false;
                 markSpot(x, z, 1.15, 1.15);
-                addBox(0.62, 1.05, 0.62, x, 0.525, z, metalMat, null, true);
-                const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.34, 0.66, 8),
-                    new THREE.MeshStandardMaterial({ color: 0x93B8C4, roughness: 0.35, transparent: true, opacity: 0.75 }));
-                bottle.position.set(x, 1.42, z);
-                mazeGroup.add(bottle);
-                // collar, two taps, a drip tray and a stack of paper cups
-                const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.12, 8), metalMat);
-                collar.position.set(x, 1.06, z);
-                mazeGroup.add(collar);
-                addBox(0.08, 0.12, 0.1, x - 0.11, 0.82, z + 0.34, darkMat, null, false);
-                addBox(0.08, 0.12, 0.1, x + 0.11, 0.82, z + 0.34, darkMat, null, false);
-                addBox(0.34, 0.03, 0.16, x, 0.7, z + 0.34, metalMat, null, false);
-                const cups = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.3, 7), paperMat);
-                cups.position.set(x + 0.24, 1.2, z + 0.02);
-                mazeGroup.add(cups);
+                const col = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.17, 0.78, 7), enamelMat);
+                col.position.set(x, 0.39, z);
+                mazeGroup.add(col);
+                const basin = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.22, 0.2, 8), enamelMat);
+                basin.position.set(x, 0.88, z);
+                mazeGroup.add(basin);
+                const water = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.02, 8), darkWaterMat);
+                water.position.set(x, 0.96, z);
+                mazeGroup.add(water);
+                addBox(0.05, 0.22, 0.05, x, 1.08, z - 0.3, ironMat, null, false);
+                addBox(0.05, 0.05, 0.2, x, 1.18, z - 0.2, ironMat, null, false);
+                colliders.push({ minX: x - 0.4, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.4, top: 1.0 });
                 return true;
             }
+            // Mop bucket with a leaning mop (replaces the waste bin)
             function placeBin(x, z) {
-                if (!spotOk(x, z, 0.85, 0.85)) return false;
-                markSpot(x, z, 0.85, 0.85);
-                const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.22, 0.62, 7), darkMat);
-                bin.position.set(x, 0.31, z);
-                mazeGroup.add(bin);
-                // rim, sagging liner and crumpled paper spilling over the lip
-                const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.29, 0.05, 7), metalMat);
-                rim.position.set(x, 0.63, z);
-                mazeGroup.add(rim);
-                const wad = new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 0), paperMat);
-                wad.position.set(x + 0.06, 0.66, z - 0.04);
-                mazeGroup.add(wad);
-                const wad2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), paperMat);
-                wad2.position.set(x - 0.32, 0.07, z + 0.24);
-                mazeGroup.add(wad2);
-                colliders.push({ minX: x - 0.3, maxX: x + 0.3, minZ: z - 0.3, maxZ: z + 0.3, top: 0.62 });
+                if (!spotOk(x, z, 0.95, 0.95)) return false;
+                markSpot(x, z, 0.95, 0.95);
+                const bk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.45, 8), steelBucketMat);
+                bk.position.set(x, 0.23, z);
+                mazeGroup.add(bk);
+                const grime = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.02, 8), darkWaterMat);
+                grime.position.set(x, 0.43, z);
+                mazeGroup.add(grime);
+                addBox(0.34, 0.2, 0.3, x + 0.02, 0.52, z + 0.3, ironMat, null, false);
+                const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.5, 5), woodMat);
+                stick.position.set(x - 0.22, 0.75, z - 0.2);
+                stick.rotation.z = 0.28;
+                stick.rotation.x = 0.1;
+                mazeGroup.add(stick);
+                const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), clothMat);
+                head.position.set(x - 0.45, 0.12, z - 0.24);
+                head.scale.set(1.2, 0.7, 1);
+                mazeGroup.add(head);
+                colliders.push({ minX: x - 0.32, maxX: x + 0.32, minZ: z - 0.32, maxZ: z + 0.32, top: 0.5 });
                 return true;
             }
+            // Waiting-room bench (replaces the couch)
             function placeCouch(x, z, rot) {
-                const w = rot ? 1.0 : 2.4, d = rot ? 2.4 : 1.0;
+                const w = rot ? 0.6 : 2.4, d = rot ? 2.4 : 0.6;
                 if (!spotOk(x, z, w + 0.6, d + 0.6)) return false;
                 markSpot(x, z, w + 0.6, d + 0.6);
-                addBox(w, 0.46, d, x, 0.23, z, fabricMat, null, true);
-                if (rot) addBox(0.28, 0.55, d, x - w / 2 + 0.14, 0.73, z, fabricMat, null, false);
-                else addBox(w, 0.55, 0.28, x, 0.73, z - d / 2 + 0.14, fabricMat, null, false);
-                addBox(rot ? 0.9 : 0.26, 0.24, rot ? 0.26 : 0.9, x + (rot ? 0 : w / 2 - 0.13), 0.58, z + (rot ? d / 2 - 0.13 : 0), fabricMat, null, false);
-                addBox(rot ? 0.9 : 0.26, 0.24, rot ? 0.26 : 0.9, x - (rot ? 0 : w / 2 - 0.13), 0.58, z - (rot ? d / 2 - 0.13 : 0), fabricMat, null, false);
-                // separate seat cushions and short wooden feet
-                for (let cu = 0; cu < 2; cu++) {
-                    const o = (cu - 0.5) * (rot ? 1.0 : 1.0);
-                    addBox(rot ? 0.74 : 1.0, 0.12, rot ? 1.0 : 0.74,
-                        x + (rot ? 0 : o), 0.5, z + (rot ? o : 0), fabricMat, null, false);
+                addBox(w, 0.07, d, x, 0.46, z, woodMat, null, true);
+                addBox(rot ? 0.06 : w, rot ? d : 0.5, rot ? 0.5 : 0.06, x + (rot ? -(w / 2 - 0.03) : 0), 0.78, z + (rot ? 0 : -(d / 2 - 0.03)), woodMat, null, false);
+                [-1, 1].forEach(sd => {
+                    const lx = rot ? 0 : sd * (w / 2 - 0.12), lz = rot ? sd * (d / 2 - 0.12) : 0;
+                    addBox(rot ? 0.55 : 0.05, 0.43, rot ? 0.05 : 0.55, x + lx, 0.215, z + lz, ironMat, null, false);
+                });
+                // a curled magazine and a coat left behind
+                addBox(0.3, 0.015, 0.22, x + (rot ? 0 : -0.5), 0.51, z + (rot ? -0.5 : 0), paperMat, null, false);
+                if (((Math.floor(x) + Math.floor(z)) & 1) === 0) {
+                    const coat = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), coatMat);
+                    coat.position.set(x + (rot ? 0 : 0.5), 0.62, z + (rot ? 0.5 : 0));
+                    coat.scale.set(1.5, 0.5, 1);
+                    mazeGroup.add(coat);
                 }
-                [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(l => {
-                    addBox(0.1, 0.14, 0.1, x + l[0] * (w / 2 - 0.16), 0.07, z + l[1] * (d / 2 - 0.16), deskMat, null, false);
-                });
                 return true;
             }
+            // Gurney (replaces the meeting table); some carry a sheeted shape you do not look at twice
             function placeTable(x, z) {
-                if (!spotOk(x, z, 1.9, 1.9)) return false;
-                markSpot(x, z, 1.9, 1.9);
-                addBox(1.5, 0.1, 1.5, x, 0.72, z, deskMat, null, true);
-                [[-0.62, -0.62], [0.62, -0.62], [-0.62, 0.62], [0.62, 0.62]].forEach(l => {
-                    addBox(0.12, 0.7, 0.12, x + l[0], 0.35, z + l[1], metalMat, null, false);
+                const w = 2.1, d = 0.85;
+                if (!spotOk(x, z, w + 0.5, d + 0.7)) return false;
+                markSpot(x, z, w + 0.5, d + 0.7);
+                addBox(w, 0.05, d - 0.2, x, 0.82, z, ironMat, null, true);
+                addBox(w - 0.1, 0.08, d - 0.28, x, 0.89, z, mattressMat, null, false);
+                [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(l => {
+                    addBox(0.05, 0.62, 0.05, x + l[0] * (w / 2 - 0.12), 0.5, z + l[1] * 0.22, ironMat, null, false);
+                    const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 6), rubberMat);
+                    wh.position.set(x + l[0] * (w / 2 - 0.12), 0.07, z + l[1] * 0.22);
+                    wh.rotation.x = Math.PI / 2;
+                    mazeGroup.add(wh);
                 });
-                addBox(0.36, 0.06, 0.5, x, 0.79, z, paperMat, null, false);
-                // apron rail, a scatter of documents and a dead conference phone
-                addBox(1.42, 0.07, 1.42, x, 0.63, z, deskMat, null, false);
-                addBox(0.3, 0.03, 0.42, x + 0.42, 0.78, z - 0.3, paperMat, null, false);
-                addBox(0.26, 0.03, 0.36, x - 0.38, 0.78, z + 0.32, paperMat, null, false);
-                const phone = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.07, 6), darkMat);
-                phone.position.set(x - 0.34, 0.8, z - 0.3);
-                mazeGroup.add(phone);
+                addBox(0.05, 0.1, d - 0.2, x - w / 2 + 0.06, 1.0, z, ironMat, null, false);
+                if ((Math.floor(x * 2 + z * 3) & 3) === 0) {
+                    const body = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.2, 0.46), shroudMat);
+                    body.position.set(x + 0.1, 1.04, z);
+                    mazeGroup.add(body);
+                    const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.17, 0), shroudMat);
+                    head.position.set(x - 0.7, 1.08, z);
+                    mazeGroup.add(head);
+                    const feet = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.14, 0.34), shroudMat);
+                    feet.position.set(x + 0.88, 1.01, z);
+                    mazeGroup.add(feet);
+                    addBox(0.38, 0.205, 0.2, x + 0.1, 1.04, z + 0.05, bloodMat, null, false);
+                } else {
+                    addBox(0.5, 0.06, 0.4, x + 0.5, 0.97, z, sheetMat, null, false);
+                }
                 return true;
             }
+            // Privacy curtain on a ceiling rail, torn and hanging unevenly (replaces the partition)
             function placePartition(x, z, rot) {
-                const len = C * 0.34;
-                const pw = rot ? T : len, pd = rot ? len : T;
+                const len = C * 0.3;
+                const pw = rot ? 0.3 : len, pd = rot ? len : 0.3;
                 if (!spotOk(x, z, pw + 0.6, pd + 0.6)) return false;
                 markSpot(x, z, pw + 0.6, pd + 0.6);
-                const ph = Math.min(1.85, H - 1.2);
-                if (rot) { wallPiece(x, z, T, len, 0, ph, true); baseboard(x, z, T, len); addBox(T + 0.1, 0.08, len, x, ph, z, trimMat, null, false); }
-                else { wallPiece(x, z, len, T, 0, ph, true); baseboard(x, z, len, T); addBox(len, 0.08, T + 0.1, x, ph, z, trimMat, null, false); }
+                addBox(rot ? 0.05 : len, 0.05, rot ? len : 0.05, x, 2.2, z, ironMat, null, false);
+                const strips = Math.floor(len / 0.5);
+                for (let i = 0; i < strips; i++) {
+                    const off = (i - (strips - 1) / 2) * (len / strips);
+                    const drop = 1.55 + ((i * 37 + Math.floor(x)) % 5) * 0.12;
+                    const cur = new THREE.Mesh(new THREE.BoxGeometry(rot ? 0.04 : len / strips - 0.03, drop, rot ? len / strips - 0.03 : 0.04), i % 3 === 0 ? curtainDarkMat : curtainMat);
+                    cur.position.set(x + (rot ? 0 : off), 2.18 - drop / 2, z + (rot ? off : 0));
+                    cur.rotation.z = rot ? 0 : ((i % 2) - 0.5) * 0.04;
+                    mazeGroup.add(cur);
+                }
+                // the curtain stops you walking through it
+                colliders.push({ minX: x - pw / 2, maxX: x + pw / 2, minZ: z - pd / 2, maxZ: z + pd / 2, top: 2.2 });
                 return true;
             }
 
@@ -3528,8 +3710,8 @@
                 const g = new THREE.Group();
                 g.position.set(spec.x, 0, spec.z);
                 mazeGroup.add(g);
-                const steel = new THREE.MeshStandardMaterial({ color: 0x555C64, roughness: 0.5, metalness: 0.35, flatShading: true });
-                const dark = new THREE.MeshStandardMaterial({ color: 0x24282D, roughness: 0.8, flatShading: true });
+                const steel = new THREE.MeshStandardMaterial({ color: 0xAFC4BB, roughness: 0.45, metalness: 0.2, flatShading: true });
+                const dark = new THREE.MeshStandardMaterial({ color: 0x1F2B28, roughness: 0.8, flatShading: true });
                 const base = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.12, 1.44), dark);
                 base.position.y = 0.06;
                 g.add(base);
@@ -3542,6 +3724,20 @@
                 const lid = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.1, 1.26), dark);
                 lid.position.set(0.63, 0.05, 0);
                 lidPivot.add(lid);
+                // red medical cross on the lid and on every side of the safe
+                const crossMat = new THREE.MeshBasicMaterial({ color: 0xC0392B });
+                [[0.5, 0.14], [0.14, 0.5]].forEach(c => {
+                    const cb = new THREE.Mesh(new THREE.BoxGeometry(c[0], 0.02, c[1]), crossMat);
+                    cb.position.set(0, 0.06, 0);
+                    lid.add(cb);
+                });
+                [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(sd => {
+                    [[0.34, 0.1], [0.1, 0.34]].forEach(c => {
+                        const cb = new THREE.Mesh(new THREE.BoxGeometry(sd[0] ? 0.02 : c[0], c[1], sd[1] ? 0.02 : c[0]), crossMat);
+                        cb.position.set(sd[0] * 0.635, 0.45, sd[1] * 0.635);
+                        g.add(cb);
+                    });
+                });
                 const screenMat = new THREE.MeshBasicMaterial({ color: 0xFF3B30 });
                 const keyMat = new THREE.MeshStandardMaterial({ color: 0x8A8F96, roughness: 0.5, flatShading: true });
                 [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(sd => {
@@ -3773,7 +3969,7 @@
                 const q = C / 4;
 
                 // Carpet (slightly oversized so adjacent cells never show a hairline seam)
-                const floor = new THREE.Mesh(scaleUV(new THREE.PlaneGeometry(C + 0.1, C + 0.1), C / 3.5, C / 3.5), floorMat);
+                const floor = new THREE.Mesh(scaleUV(new THREE.PlaneGeometry(C + 0.1, C + 0.1), C / 3.5, C / 3.5), cell.surface === 'tile' ? floorTileMat : floorMat);
                 floor.rotation.x = -Math.PI / 2;
                 floor.position.set(ox, 0, oz);
                 mazeGroup.add(floor);
@@ -3784,6 +3980,24 @@
                 ceil.position.set(ox, H, oz);
                 mazeGroup.add(ceil);
                 ceilingMeshes.push(ceil);
+
+                // Exposed ceiling pipes (one each way) and grime on the floor
+                const pzOff = (crnd() < 0.5 ? -1 : 1) * (C * 0.16 + crnd() * C * 0.12);
+                const pxOff = (crnd() < 0.5 ? -1 : 1) * (C * 0.16 + crnd() * C * 0.12);
+                const pipeA = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, C, 8), crnd() < 0.4 ? rustMat : pipeMat);
+                pipeA.rotation.z = Math.PI / 2;
+                pipeA.position.set(ox, H - 0.34, oz + pzOff);
+                mazeGroup.add(pipeA);
+                const pipeB = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, C, 6), pipeMat);
+                pipeB.rotation.x = Math.PI / 2;
+                pipeB.position.set(ox + pxOff, H - 0.5, oz);
+                mazeGroup.add(pipeB);
+                for (let sn = 0; sn < 2; sn++) {
+                    const st = new THREE.Mesh(new THREE.CircleGeometry(0.5 + crnd() * 0.9, 10), (sn === 1 && crnd() < 0.5) ? bloodStainMat : stainMat);
+                    st.rotation.x = -Math.PI / 2;
+                    st.position.set(ox + (crnd() - 0.5) * (C - 6), 0.014, oz + (crnd() - 0.5) * (C - 6));
+                    mazeGroup.add(st);
+                }
 
                 // Walls: each shared boundary is built exactly once
                 buildBoundary(cell, 1, 0);
@@ -3814,9 +4028,17 @@
                 // Some modules are "haunted": entering them fires a fake proximity cue
                 // (breath, a dragging step, a distant shriek) so you never trust a quiet room.
                 cell.haunt = (cell.type !== 'spawn') && crnd() < 0.4;
-                const roomMat = dim ? panelMat.clone() : panelMat;
+                let roomMat = dim ? panelMat.clone() : panelMat;
                 const baseFixture = dim ? panelBase * 0.45 : panelBase;
                 if (dim) roomMat.emissiveIntensity = baseFixture;
+                // Dying rooms burn emergency red instead of hospital white
+                const redRoom = (mood === 'blackout');
+                if (redRoom) {
+                    roomMat = panelMat.clone();
+                    roomMat.color.setHex(0xFF9A88);
+                    roomMat.emissive.setHex(0xFF3A22);
+                    roomMat.emissiveIntensity = baseFixture;
+                }
                 const panelSpots = [];
                 if (info.lights >= 4) {
                     const rows = C >= 22 ? 3 : 2;
@@ -3849,12 +4071,12 @@
                         if (!broken && crnd() < chance) kind = FLICKER_KINDS[Math.floor(crnd() * FLICKER_KINDS.length)];
                     }
                     const fixMat = kind ? roomMat.clone() : roomMat;
-                    addBox(2.0, 0.07, 0.55, ox + s[0], H - 0.05, oz + s[1],
-                           broken ? deadPanelMat : fixMat, null, false);
+                    addLamp(ox + s[0], oz + s[1], broken ? deadPanelMat : fixMat);
                     if (broken) return;
                     // soft light bloom plate just under the fixture
-                    const bloomMat = kind ? glowMat.clone() : glowMat;
-                    const gl = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 1.3), bloomMat);
+                    const bloomMat = (kind || redRoom) ? glowMat.clone() : glowMat;
+                    if (redRoom) bloomMat.color.setHex(0xFF4A30);
+                    const gl = new THREE.Mesh(new THREE.CircleGeometry(1.5, 14), bloomMat);
                     gl.rotation.x = Math.PI / 2;
                     gl.position.set(ox + s[0], H - 0.14, oz + s[1]);
                     mazeGroup.add(gl);
@@ -3866,6 +4088,7 @@
                         glowMat: kind ? bloomMat : null,
                         bloom: bloomMat,
                         baseEmissive: baseFixture, baseGlow: bloomMat.opacity,
+                        color: redRoom ? 0xFF4A30 : 0xCFF2E4,
                         seed: crnd() * 6.283, f: 1, lit: true, nextBuzz: 0
                     });
                 });
@@ -4095,6 +4318,7 @@
                 const pl = lightPool[i];
                 if (!s || i >= Q.lights) { pl.intensity = 0; continue; }
                 pl.position.set(s.x, s.y, s.z);
+                pl.color.setHex(s.color || 0xCFF2E4);
                 let f = s.flicker ? s.f : 1;
                 // The Listener's presence drags the fluorescents down - a warning you can feel
                 if (listenerGroup && listenerGroup.visible) {
@@ -4113,17 +4337,22 @@
         // ================= THE LISTENER =================
         const LISTENER_RADIUS = 0.46;
         const LISTENER_HEIGHT = 3.6;
-        const LISTENER_KILL_DIST = 1.35;   // those arms reach further than they should
+        const LISTENER_KILL_DIST = 1.35;   // collision distance; movement noise is still required to catch the player
         const listenerParts = {};
         let listenerGroup = null;
 
         function buildListenerModel() {
             const g = new THREE.Group();
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x070707, roughness: 0.96, flatShading: true });
-            const jointMat = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.7, flatShading: true });
-            const headMat = new THREE.MeshStandardMaterial({ color: 0x0A0A0A, roughness: 0.4, flatShading: true });
-            const edgeMat = new THREE.MeshBasicMaterial({ color: 0x27313A, side: THREE.BackSide });
-            const mawMat = new THREE.MeshStandardMaterial({ color: 0x140303, emissive: 0x3C0808, emissiveIntensity: 0.55, roughness: 0.9, flatShading: true });
+            // Layered charcoal materials catch the flashlight without losing the creature's
+            // silhouette in the dark. Cool edges contrast with the wet, ember-dark maw.
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x090B0E, roughness: 0.88, metalness: 0.04, flatShading: true });
+            const jointMat = new THREE.MeshStandardMaterial({ color: 0x20262C, roughness: 0.72, metalness: 0.08, flatShading: true });
+            const headMat = new THREE.MeshStandardMaterial({ color: 0x11151A, roughness: 0.52, metalness: 0.06, flatShading: true });
+            const edgeMat = new THREE.MeshBasicMaterial({ color: 0x526979, side: THREE.BackSide });
+            const boneMat = new THREE.MeshStandardMaterial({ color: 0x353A3C, roughness: 0.8, flatShading: true });
+            const tendonMat = new THREE.MeshStandardMaterial({ color: 0x11191C, roughness: 0.95, flatShading: true });
+            const mawMat = new THREE.MeshStandardMaterial({ color: 0x190506, emissive: 0x641012, emissiveIntensity: 0.72, roughness: 0.62, metalness: 0.03, flatShading: true });
+            const mawInnerMat = new THREE.MeshBasicMaterial({ color: 0x030304 });
 
             function box(w, h, d, x, y, z, mat, parent) {
                 const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -4183,17 +4412,44 @@
             box(0.3, 0.24, 0.22, 0, 0.07, 0, bodyMat, torso);            // pelvis
             const ribs = box(0.36, 0.84, 0.26, 0, 0.62, 0, bodyMat, torso);
             edgeShell(ribs, torso, 1.05);
-            // exposed rib bands
-            for (let r = 0; r < 4; r++) {
-                box(0.4, 0.045, 0.3, 0, 0.36 + r * 0.17, 0, jointMat, torso);
+            // Exposed rib cage: the original hard bands now sit under uneven bone hoops,
+            // with a knotted sternum and a jagged vertebral ridge visible in the torch beam.
+            for (let r = 0; r < 5; r++) {
+                const y = 0.31 + r * 0.145;
+                box(0.4 - (r % 2) * 0.025, 0.035, 0.3, 0, y, 0.01, jointMat, torso);
+                const rib = new THREE.Mesh(new THREE.TorusGeometry(0.17 - (r % 2) * 0.008, 0.016, 5, 10), boneMat);
+                rib.position.set(0, y, 0.12);
+                rib.scale.set(1.12, 0.68, 0.72);
+                torso.add(rib);
+                const knot = new THREE.Mesh(new THREE.IcosahedronGeometry(0.043, 0), jointMat);
+                knot.position.set((r % 2 ? -1 : 1) * 0.025, y, 0.145);
+                torso.add(knot);
             }
-            // dorsal spines running up the back
-            for (let sp = 0; sp < 5; sp++) {
-                spike(0.3 + sp * 0.045, 0.045, torso, 0, 0.34 + sp * 0.16, -0.16, 1.05 + sp * 0.05, 0);
+            // Dark sinew cords run between ribs; the vertebrae and dorsal spines break
+            // the outline into an irregular, less toy-like silhouette.
+            for (let side = -1; side <= 1; side += 2) {
+                for (let cord = 0; cord < 3; cord++) {
+                    const strand = box(0.025, 0.58, 0.035, side * (0.12 + cord * 0.025), 0.62, 0.13, tendonMat, torso);
+                    strand.rotation.z = side * (0.12 + cord * 0.04);
+                }
+            }
+            for (let sp = 0; sp < 6; sp++) {
+                const y = 0.3 + sp * 0.14;
+                const vertebra = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075 - (sp % 2) * 0.012, 0), jointMat);
+                vertebra.position.set(0, y, -0.16);
+                vertebra.scale.set(0.72, 0.9, 0.8);
+                torso.add(vertebra);
+                spike(0.28 + sp * 0.035, 0.042, torso, 0, y, -0.19, 1.05 + sp * 0.04, 0);
             }
             box(0.58, 0.16, 0.26, 0, 1.04, 0, bodyMat, torso);           // shoulder bar
-            spike(0.34, 0.055, torso, -0.3, 1.1, -0.04, 0, 0.7);          // shoulder blades
-            spike(0.34, 0.055, torso, 0.3, 1.1, -0.04, 0, -0.7);
+            [-1, 1].forEach(side => {
+                const plate = new THREE.Mesh(new THREE.IcosahedronGeometry(0.19, 0), headMat);
+                plate.position.set(side * 0.31, 1.04, 0.015);
+                plate.scale.set(1.25, 0.55, 0.78);
+                plate.rotation.z = side * -0.22;
+                torso.add(plate);
+                spike(0.34, 0.055, torso, side * 0.3, 1.1, -0.04, 0, side === -1 ? 0.7 : -0.7);
+            });
 
             // ---- head: featureless, elongated, crowned with sound antennae ----
             const head = new THREE.Group();
@@ -4202,17 +4458,58 @@
             torso.add(head);
             listenerParts.head = head;
             box(0.1, 0.4, 0.1, 0, 0.2, 0, bodyMat, head);                // long, exposed neck
-            const skull = box(0.25, 0.66, 0.3, 0, 0.67, 0.02, headMat, head);
-            edgeShell(skull, head, 1.07);
-            // slack vertical maw - no eyes, only a mouth that listens
-            box(0.1, 0.44, 0.06, 0, 0.58, 0.16, mawMat, head);
-            box(0.22, 0.05, 0.05, 0, 0.86, 0.16, mawMat, head);
-            // dish-like receptors on the sides of the skull
-            ['l', 'r'].forEach((s, i) => {
-                const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.03, 0.05, 6), headMat);
-                dish.position.set(i === 0 ? -0.2 : 0.2, 0.74, -0.02);
-                dish.rotation.z = i === 0 ? 1.45 : -1.45;
-                head.add(dish);
+            const skull = new THREE.Mesh(new THREE.IcosahedronGeometry(0.19, 1), headMat);
+            skull.position.set(0, 0.67, 0.02);
+            skull.scale.set(0.72, 1.72, 0.82);
+            head.add(skull);
+            edgeShell(skull, head, 1.075);
+
+            // A vertical, lightless auditory maw: layered lips, a deep black throat and
+            // uneven worn teeth. No eyes are added; the creature remains blind by design.
+            box(0.112, 0.42, 0.026, 0, 0.57, 0.191, mawInnerMat, head);
+            box(0.17, 0.045, 0.05, 0, 0.80, 0.19, mawMat, head);
+            const jaw = new THREE.Group();
+            jaw.position.set(0, 0.36, 0.19);
+            head.add(jaw);
+            box(0.16, 0.075, 0.055, 0, 0, 0, mawMat, jaw);
+            for (let tooth = 0; tooth < 4; tooth++) {
+                const tx = (tooth - 1.5) * 0.043;
+                const fang = new THREE.Mesh(new THREE.ConeGeometry(0.023, 0.085 + (tooth % 2) * 0.02, 5), boneMat);
+                fang.position.set(tx, 0.765, 0.218);
+                fang.rotation.z = Math.PI;
+                head.add(fang);
+                const lowerFang = new THREE.Mesh(new THREE.ConeGeometry(0.021, 0.075 + (tooth % 2) * 0.018, 5), boneMat);
+                lowerFang.position.set(tx + 0.012, 0.025, 0.04);
+                jaw.add(lowerFang);
+            }
+            listenerParts.jaw = jaw;
+
+            // Layered acoustic dishes on either side of the skull. Their concentric
+            // ridges and dark membranes make the Listener's hearing its defining feature.
+            listenerParts.receptors = [];
+            [-1, 1].forEach(side => {
+                const receptor = new THREE.Group();
+                receptor.position.set(side * 0.19, 0.74, -0.015);
+                head.add(receptor);
+                const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.075, 0.065, 8), headMat);
+                dish.rotation.z = side < 0 ? -Math.PI / 2 : Math.PI / 2;
+                receptor.add(dish);
+                for (let ringIdx = 0; ringIdx < 3; ringIdx++) {
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.118 - ringIdx * 0.028, 0.009, 5, 10), ringIdx === 0 ? boneMat : jointMat);
+                    ring.position.x = side * (0.035 + ringIdx * 0.008);
+                    ring.rotation.y = side * Math.PI / 2;
+                    receptor.add(ring);
+                }
+                const membraneMat = new THREE.MeshStandardMaterial({ color: 0x172329, emissive: 0x18313A, emissiveIntensity: 0.32, roughness: 0.46, metalness: 0.08, flatShading: true });
+                const membrane = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), membraneMat);
+                membrane.position.x = side * 0.072;
+                membrane.scale.set(0.35, 0.9, 0.9);
+                receptor.add(membrane);
+                for (let slit = 0; slit < 3; slit++) {
+                    const gill = box(0.018, 0.075, 0.025, side * 0.17, 0.54 + slit * 0.09, 0.015, tendonMat, head);
+                    gill.rotation.z = side * -0.16;
+                }
+                listenerParts.receptors.push({ group: receptor, membrane, side });
             });
             // scribbled crown of antennae, the silhouette from the reports
             const crown = new THREE.Group();
@@ -4269,16 +4566,40 @@
                 }
                 // one thumb-claw curling back
                 spike(0.34, 0.03, hand, i === 0 ? -0.13 : 0.13, -0.36, -0.06, Math.PI * 0.78, 0);
+                // Worn dark-bone caps sharpen the five long fingers into readable talons.
+                for (let f = 0; f < 5; f++) {
+                    const fx = (f - 2) * 0.055;
+                    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.13, 5), boneMat);
+                    tip.position.set(fx, -1.08 - (f % 2) * 0.05, 0.02 + f * 0.008);
+                    tip.rotation.z = Math.PI;
+                    hand.add(tip);
+                }
+                // Narrow ossified bands at the wrist and elbow catch a brief cold highlight.
+                [fore, arm].forEach((limb, bandIdx) => {
+                    const band = new THREE.Mesh(new THREE.TorusGeometry(0.064, 0.012, 5, 8), jointMat);
+                    band.rotation.x = Math.PI / 2;
+                    band.position.y = bandIdx === 0 ? -1.12 : -1.12;
+                    limb.add(band);
+                });
                 listenerParts['arm' + side] = arm;
                 listenerParts['forearm' + side] = fore;
                 listenerParts['hand' + side] = hand;
             });
 
             // Dim red aura, only lit while it is hunting you
-            const aura = new THREE.PointLight(0x5A1010, 0, 11, 2);
+            const aura = new THREE.PointLight(0x6A1014, 0, 11, 2);
             aura.position.set(0, 2.5, 0);
             g.add(aura);
             listenerParts.aura = aura;
+            // A restrained blue-gray rim gives the long limbs a premium silhouette in fog.
+            const rim = new THREE.PointLight(0x7897A8, 0.18, 6.5, 2);
+            rim.position.set(0, 2.55, -0.42);
+            g.add(rim);
+            listenerParts.rim = rim;
+            const mawLight = new THREE.PointLight(0x8D1D20, 0, 3.2, 2);
+            mawLight.position.set(0, 2.75, 0.28);
+            g.add(mawLight);
+            listenerParts.mawLight = mawLight;
 
             return g;
         }
@@ -4673,31 +4994,6 @@
             return n;
         }
 
-        function listenerSeesPlayer(mult) {
-            const dx = playerPos.x - LIS.pos.x, dz = playerPos.z - LIS.pos.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist < 0.001) return true;
-            const range = cfg.listener.sightRange * mult * (isCrouching ? 0.72 : 1);
-            if (dist > range) return false;
-            const dot = (dx / dist) * Math.sin(LIS.yaw) + (dz / dist) * Math.cos(LIS.yaw);
-            const halfCos = Math.cos((cfg.listener.fovDegrees * Math.PI / 180) / 2);
-            if (dot < halfCos && dist > 3.5) return false;
-            return hasLineOfSight(
-                LIS.pos.x, LISTENER_HEIGHT * 0.88, LIS.pos.z,
-                playerPos.x, Math.max(0.4, playerPos.y - 0.12), playerPos.z
-            );
-        }
-
-        function enterChase(time) {
-            if (LIS.state !== 'CHASE') {
-                LIS.state = 'CHASE';
-                LIS.stateTime = 0;
-                LIS.repathTimer = 0;
-                playSfx('listener_scream_sfx', 0.85, 0.94 + Math.random() * 0.1);
-                shakeAmp = Math.max(shakeAmp, 0.16);
-            }
-            LIS.lastSeen = time;
-        }
         function enterInvestigate(x, z) {
             LIS.state = 'INVESTIGATE';
             LIS.stateTime = 0;
@@ -4771,7 +5067,7 @@
             if (LIS.state === 'CHASE') {
                 LIS.forcePath = 1.4;
                 LIS.repathTimer = 0;
-                const t = LIS.lastKnown || { x: playerPos.x, z: playerPos.z };
+                const t = LIS.lastKnown || { x: LIS.goal.x, z: LIS.goal.z };
                 setListenerPath(t.x, t.z);
             } else if (LIS.state === 'PATROL') {
                 if (LIS.stuckCount >= 2) { LIS.stuckCount = 0; advancePatrol(); }
@@ -4820,6 +5116,19 @@
                     : Math.sin(time * 0.00065) * 0.6 + (twitch > 0.75 ? 0.35 : 0);
                 P.head.rotation.z = chasing ? twitch * 0.06 : Math.sin(time * 0.0011) * 0.16;
                 P.head.rotation.x = chasing ? 0.1 : 0.34 + (twitch > 0.8 ? -0.22 : 0);
+                if (P.jaw) {
+                    const jawPulse = 0.5 + 0.5 * Math.sin(time * (chasing ? 0.006 : 0.0021));
+                    const jawOpen = chasing ? 0.13 + jawPulse * 0.09 : 0.025 + jawPulse * 0.035;
+                    P.jaw.rotation.x += (jawOpen - P.jaw.rotation.x) * Math.min(1, dt * 5);
+                }
+                if (P.receptors) {
+                    const pulse = 1 + (chasing ? 0.13 : 0.045) * (0.5 + 0.5 * Math.sin(time * (chasing ? 0.018 : 0.006)));
+                    P.receptors.forEach((r, i) => {
+                        r.group.rotation.z = Math.sin(time * 0.003 + i * 2.4) * (chasing ? 0.07 : 0.025);
+                        r.membrane.scale.y = 0.9 * pulse;
+                        r.membrane.scale.z = 0.9 * pulse;
+                    });
+                }
             }
             // Antennae crown quivers constantly, harder while hunting
             if (P.crown) {
@@ -4838,6 +5147,14 @@
             if (P.aura) {
                 const target = chasing ? 1.5 + breath * 0.9 : (LIS.state === 'PATROL' ? 0 : 0.3);
                 P.aura.intensity += (target - P.aura.intensity) * Math.min(1, dt * 5);
+            }
+            if (P.rim) {
+                const target = LIS.state === 'PATROL' ? 0.18 : (chasing ? 0.62 : 0.36);
+                P.rim.intensity += (target - P.rim.intensity) * Math.min(1, dt * 4);
+            }
+            if (P.mawLight) {
+                const target = chasing ? 0.8 + breath * 0.35 : (LIS.state === 'PATROL' ? 0.04 : 0.22);
+                P.mawLight.intensity += (target - P.mawLight.intensity) * Math.min(1, dt * 5);
             }
             listenerGroup.position.y = moving ? Math.abs(Math.sin(LIS.walkPhase)) * 0.06
                                               : Math.sin(time * 0.0013) * 0.025;
@@ -4882,20 +5199,15 @@
                 LIS.nextCall = time + 20000 + Math.random() * 26000;
             }
 
-            const mult = cfg.listener.detectionMultiplier;
-            const sees = listenerSeesPlayer(mult);
-            LIS.sawPlayer = sees;
-            if (sees) {
-                LIS.lastSeen = time;
-                LIS.lastKnown = { x: playerPos.x, z: playerPos.z };
-            }
-            const heard = (LIS.state === 'CHASE') ? null : listenerHearsNoise(time, mult);
+            // The Listener has no vision: it can only react to audible noise events.
+            const mult = cfg.listener.detectionMultiplier !== undefined ? cfg.listener.detectionMultiplier : 1.6;
+            LIS.sawPlayer = false;
+            const heard = listenerHearsNoise(time, mult);
 
             const prevX = LIS.pos.x, prevZ = LIS.pos.z;
 
             switch (LIS.state) {
                 case 'PATROL': {
-                    if (sees) { enterChase(time); break; }
                     if (heard) { enterInvestigate(heard.x, heard.z); break; }
                     if (LIS.pauseTimer > 0) { LIS.pauseTimer -= dt; idleLook(dt, time); break; }
                     if (stepAlongPath(dt, cfg.listener.patrolSpeed)) {
@@ -4906,7 +5218,6 @@
                     break;
                 }
                 case 'INVESTIGATE': {
-                    if (sees) { enterChase(time); break; }
                     if (heard) {
                         const gdx = heard.x - LIS.goal.x, gdz = heard.z - LIS.goal.z;
                         if (gdx * gdx + gdz * gdz > 9) { enterInvestigate(heard.x, heard.z); break; }
@@ -4915,7 +5226,6 @@
                     break;
                 }
                 case 'SEARCH': {
-                    if (sees) { enterChase(time); break; }
                     if (heard) { enterInvestigate(heard.x, heard.z); break; }
                     LIS.searchTimer -= dt;
                     if (LIS.searchTimer <= 0) { enterPatrol(); break; }
@@ -4930,7 +5240,8 @@
                     const spd = cfg.listener.chaseSpeed;
                     if (LIS.forcePath > 0) LIS.forcePath -= dt;
                     const sameRoom = (cellAt(LIS.pos.x, LIS.pos.z) === cellAt(playerPos.x, playerPos.z));
-                    if (sees && sameRoom && LIS.forcePath <= 0) {
+                    const recentMovement = noiseState.lastMovement && (time - noiseState.lastMovement.time) < 900;
+                    if (sameRoom && LIS.forcePath <= 0 && recentMovement) {
                         let dx = playerPos.x - LIS.pos.x, dz = playerPos.z - LIS.pos.z;
                         const d = Math.sqrt(dx * dx + dz * dz) || 1;
                         dx /= d; dz /= d;
@@ -4943,11 +5254,11 @@
                         LIS.repathTimer -= dt;
                         if (LIS.repathTimer <= 0 || LIS.pathIdx >= LIS.path.length) {
                             LIS.repathTimer = 0.28;
-                            const t = (sees ? { x: playerPos.x, z: playerPos.z } : LIS.lastKnown) || { x: playerPos.x, z: playerPos.z };
+                            const t = LIS.lastKnown || { x: LIS.goal.x, z: LIS.goal.z };
                             setListenerPath(t.x, t.z);
                         }
                         stepAlongPath(dt, spd * 0.96);
-                        if (time - LIS.lastSeen > cfg.listener.loseDelay * 1000) enterSearch();
+                        if (!fresh && !recentMovement && LIS.lastKnown && time - LIS.lastSeen > cfg.listener.loseDelay * 1000) enterSearch();
                     }
                     break;
                 }
@@ -4986,14 +5297,19 @@
             // The music tightens when it is hunting you, but never gets loud
             setMusicIntensity(chasing ? 1 : Math.min(0.5, near * near * 1.4));
 
-            const vig = chasing ? (sees ? 0.95 : 0.6) : Math.min(0.5, near * near * 0.9);
+            const vig = chasing ? 0.6 : Math.min(0.5, near * near * 0.9);
             vignetteEl.style.opacity = vig.toFixed(2);
 
             if (chasing && kd < 14) shakeAmp = Math.max(shakeAmp, 0.02 + (1 - kd / 14) * 0.075);
             else if (near > 0.55) shakeAmp = Math.max(shakeAmp, (near - 0.55) * 0.05);
 
-            // Touch = instant death
-            if (kd2 < LISTENER_KILL_DIST * LISTENER_KILL_DIST) triggerDeath();
+            // Proximity alone is harmless. It catches you only while you are moving
+            // and a recent footstep, jump or landing noise came from your position.
+            const lastPlayerSound = noiseState.lastPlayerSound;
+            const movingNow = Math.sqrt(playerVelX * playerVelX + playerVelZ * playerVelZ) > 0.35 || Math.abs(velocityY) > 0.5;
+            const playerSoundFresh = lastPlayerSound && (time - lastPlayerSound.time) < 900 &&
+                Math.hypot(lastPlayerSound.x - playerPos.x, lastPlayerSound.z - playerPos.z) < 2.2;
+            if (kd2 < LISTENER_KILL_DIST * LISTENER_KILL_DIST && movingNow && playerSoundFresh) triggerDeath();
         }
 
         listenerGroup = buildListenerModel();
@@ -5197,6 +5513,7 @@
 
         // ---- Edit Mode ----
         if (mode === 'edit') {
+            if (loadingScreenEl) loadingScreenEl.style.display = 'none';
             editOverlay.style.display = 'block';
             overlay.style.display = 'none';
             crosshair.style.display = 'none';
@@ -5265,109 +5582,6 @@
                 const p = renderer.domElement.requestPointerLock();
                 if (p && p.catch) p.catch(() => {});
             } catch (e) {}
-        }
-
-        // ================= MICROPHONE: the Listener hears your REAL voice =================
-        // Deliberately low sensitivity: breathing, whispers and normal speech near the
-        // trigger line are ignored. LOUD talking, a shout or a clap carries into the rooms.
-        // The mic stream never leaves the device; only its loudness is read.
-        const micState = { status: 'off', started: false, floor: 0, raw: 0, eff: 0, lastEmit: 0, hot: 0 };
-        function micCfg() {
-            const m = cfg.mic || {};
-            return {
-                enabled: m.enabled !== false,
-                threshold: m.threshold !== undefined ? m.threshold : 0.28,
-                peak: m.peakThreshold !== undefined ? m.peakThreshold : 0.55,
-                maxNoise: m.maxNoise !== undefined ? m.maxNoise : 5,
-                showMeter: m.showMeter !== false
-            };
-        }
-        function onMicPeak(info) {
-            if (phase !== 'play' || dead || won || hintsOpen) return;
-            const mc = micCfg();
-            if (!mc.enabled) return;
-            const lv = info && info.level !== undefined ? info.level : 0;
-            if (lv < mc.peak) return;
-            const over = Math.min(1, (lv - mc.peak) / Math.max(0.05, 1 - mc.peak));
-            emitNoise(2.2 + over * Math.max(0, mc.maxNoise - 2.2), playerPos.x, playerPos.z, performance.now());
-            micState.hot = 1;
-        }
-        // Called from the START click so the browser can show its permission prompt
-        function startMic() {
-            if (micState.started || mode === 'edit') return;
-            micState.started = true;
-            micState.status = 'asking';
-            if (!lib.mic || !lib.mic.start) { micState.status = 'unavailable'; return; }
-            try {
-                Promise.resolve(lib.mic.start()).then(r => {
-                    micState.status = r || 'unavailable';
-                    if (micState.status === 'granted' && lib.mic.onPeak) lib.mic.onPeak(onMicPeak);
-                }).catch(() => { micState.status = 'unavailable'; });
-            } catch (e) { micState.status = 'unavailable'; }
-        }
-        let micUiOn = false, micBannerShown = false, shoutHeld = false;
-        function setMicMeterVisible(v) {
-            micUiOn = !!v;
-            if (!micMeterEl) return;
-            micMeterEl.style.display = (v && micCfg().showMeter) ? 'flex' : 'none';
-            if (!v) {
-                if (shoutBtnEl) shoutBtnEl.style.display = 'none';
-                if (micBannerEl) micBannerEl.style.display = 'none';
-            }
-        }
-        // Mic missing (web without mic access, denied, ...): explain once, and offer a manual SHOUT
-        function setShout(on) {
-            shoutHeld = on;
-            if (shoutBtnEl) shoutBtnEl.classList.toggle('held', on);
-        }
-        if (shoutBtnEl) {
-            shoutBtnEl.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); setShout(true); });
-            ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => shoutBtnEl.addEventListener(ev, () => setShout(false)));
-        }
-        if (micBannerEl) document.getElementById('mic-banner-close').addEventListener('click', (e) => { e.stopPropagation(); micBannerEl.style.display = 'none'; });
-        if (micMeterEl) micMeterEl.addEventListener('click', () => {
-            if (micState.status === 'denied' || micState.status === 'unavailable') openPuzzleUi('mic', null);
-        });
-        function updateMic(dt, time) {
-            const mc = micCfg();
-            const live = mc.enabled && micState.status === 'granted';
-            const raw = live ? Math.max(0, Math.min(1, lib.mic.level || 0)) : 0;
-            micState.raw = raw;
-            // learn the room's steady background level so a fan or hum never counts as talking
-            if (raw <= micState.floor + 0.02) micState.floor += (raw - micState.floor) * Math.min(1, dt * 1.5);
-            else micState.floor = Math.min(0.12, micState.floor + dt * 0.01);
-            micState.eff = Math.max(0, raw - micState.floor);
-            if (live && micState.eff > mc.threshold) {
-                micState.hot = 1;
-                if (time - micState.lastEmit > 220) {
-                    micState.lastEmit = time;
-                    const over = Math.min(1, (micState.eff - mc.threshold) / Math.max(0.05, 1 - mc.threshold));
-                    emitNoise(0.9 + over * Math.max(0, mc.maxNoise - 0.9), playerPos.x, playerPos.z, time);
-                }
-            }
-            // manual shout when the real mic is not available
-            const micMissing = mc.enabled && (micState.status === 'denied' || micState.status === 'unavailable');
-            if (micMissing && (shoutHeld || keys['KeyV'])) {
-                micState.hot = 1;
-                if (time - micState.lastEmit > 220) { micState.lastEmit = time; emitNoise(3.5, playerPos.x, playerPos.z, time); }
-            }
-            if (shoutBtnEl) shoutBtnEl.style.display = (micUiOn && micMissing && !uiOpen) ? 'flex' : 'none';
-            if (micMissing && micUiOn && !micBannerShown && micBannerEl) { micBannerShown = true; micBannerEl.style.display = 'flex'; setTimeout(() => { micBannerEl.style.display = 'none'; }, 14000); }
-            if (micMeterEl) micMeterEl.classList.toggle('tappable', micMissing);
-            micState.hot = Math.max(0, micState.hot - dt * 2.2);
-
-            if (micMeterEl && micMeterEl.style.display !== 'none') {
-                const pct = Math.min(100, (micState.eff / Math.max(0.05, mc.threshold * 2)) * 100);
-                micFillEl.style.width = pct.toFixed(0) + '%';
-                micFillEl.style.background = micState.eff > mc.threshold ? '#FF4C4C' : (micState.eff > mc.threshold * 0.6 ? '#E8B04B' : '#7FB4D6');
-                micThrEl.style.left = '50%';
-                micMeterEl.classList.toggle('hot', micState.hot > 0.2);
-                micMeterEl.classList.toggle('off', !live);
-                if (!mc.enabled) { micLabelEl.textContent = 'MIC'; micStateEl.textContent = 'OFF'; }
-                else if (micState.status === 'granted') { micLabelEl.textContent = 'MIC'; micStateEl.textContent = micState.hot > 0.2 ? 'HEARD!' : 'LISTENING'; }
-                else if (micState.status === 'asking') { micLabelEl.textContent = 'MIC'; micStateEl.textContent = 'ALLOW?'; }
-                else { micLabelEl.textContent = 'MIC'; micStateEl.textContent = 'NO MIC'; }
-            }
         }
 
         // ---- Death, victory & restart ----
@@ -5516,7 +5730,7 @@
         function targetStyle(t) {
             const isTouch = isTouchActive || document.body.classList.contains('touch');
             const keyCap = '<span style="color:#FFF; background:rgba(255,255,255,0.15); padding:2px 8px; border-radius:4px; font-size:16px;">[E]</span> ';
-            let color = '#E6D9B8', label = 'USE', glyph = '&#9889;', locked = false;
+            let color = '#D4EBE3', label = 'USE', glyph = '&#9889;', locked = false;
             if (t.type === 'symbol') {
                 const meta = SYMBOL_META[t.obj.key];
                 color = '#' + meta.color.toString(16).padStart(6, '0');
@@ -5706,7 +5920,7 @@
                         '<div class="glyph-row">' + glyphs.join('<span class="arr">&rsaquo;</span>') + '</div>' +
                         '<p style="margin:10px 0 6px">KEY II &mdash; the safe. Its code is split over three torn pages. Read them page 1, 2, 3.</p>' +
                         '<p style="margin:6px 0">KEY III &mdash; the lamp console. Watch. Repeat. Do not slip.</p>' +
-                        '<p style="margin:12px 0 0;color:#6B1515">Then the exit. And do not talk loudly. It listens.</p>';
+                        '<p style="margin:12px 0 0;color:#6B1515">Then the exit. And walk softly. It listens.</p>';
                 } else {
                     pmKickerEl.textContent = 'TORN PAGE ' + st.page + ' OF 3';
                     pmTitleEl.textContent = 'TALLY';
@@ -5714,13 +5928,6 @@
                         '<p style="margin:0">I kept count of the nights. Count with me:</p>' + tallyHtml(st.digit) +
                         '<p style="margin:10px 0 0;color:#6B1515">Digit ' + st.page + ' of the safe code.</p>';
                 }
-            } else if (kind === 'mic') {
-                pmKickerEl.textContent = 'MICROPHONE // OFF';
-                pmTitleEl.textContent = 'IT CAN\u2019T HEAR YOUR VOICE';
-                pmBodyEl.innerHTML = '<p style="margin:0 0 10px">HUSH reacts to your real voice, but the microphone is not reachable here (blocked or not available in this player).</p>' +
-                    '<p style="margin:0 0 10px">For the full experience, open HUSH in the <b>Astrocade app</b> and allow the microphone.</p>' +
-                    '<p style="margin:0">You can still play: hold <b>SHOUT</b> (or <b>V</b>) to make noise on purpose. Footsteps, thrown junk and wrong answers still count.</p>';
-                pmCloseEl.textContent = 'GOT IT';
             } else if (kind === 'safe') {
                 codeEntry = [];
                 pmKickerEl.textContent = 'SAFE // KEY II';
@@ -6030,7 +6237,6 @@
             overlay.style.display = 'none';
             hudEl.style.display = 'block';
             seqHudEl.style.display = 'flex';
-            setMicMeterVisible(true);
             if (playerFill) playerFill.intensity = 0;
             setPlayerFP(true);
             setMobileControlsVisible(true);
@@ -6086,6 +6292,8 @@
             noiseState.level = 0;
             noiseState.radius = 0;
             noiseState.lastNoise = null;
+            noiseState.lastMovement = null;
+            noiseState.lastPlayerSound = null;
             resetThrowables();
             resetFlashlight();
             lastRoomKey = null;
@@ -6269,7 +6477,6 @@
             hudEl.style.display = 'none';
             seqHudEl.style.display = 'none';
             noiseMeterEl.style.display = 'none';
-            setMicMeterVisible(false);
             promptEl.style.display = 'none';
             crosshair.style.display = 'none';
             vignetteEl.style.opacity = '0';
@@ -6322,7 +6529,7 @@
                 kind: 'final', dur: 3.2,
                 cx: c0.x, cz: c0.z - C * 0.32,
                 mx: c0.x, mz: c0.z + C * 0.34,
-                cap: { step: 'ONE RULE', title: 'DON\u2019T MAKE A SOUND', color: '#E6D9B8', sub: 'Footsteps count  \u00B7  and so does your REAL voice (microphone)' }
+                cap: { step: 'ONE RULE', title: 'DON\u2019T MAKE A SOUND', color: '#D4EBE3', sub: 'Crouch to stay quiet  \u00B7  Running and jumping carry' }
             });
             return out;
         }
@@ -6440,7 +6647,7 @@
 
         // ================= ESCAPE CUTSCENE + SECTOR 02 END CARD =================
         // You are through the transition door. The camera turns back: the Listener is
-        // standing far away inside the Yellow Rooms, watching you go - then it starts
+        // standing far away inside the ward, watching you go - then it starts
         // walking toward the doorway. Cut to black, then the SECTOR 02 card.
         let outroShots = [];
         let outroIdx = 0;
@@ -6457,7 +6664,6 @@
             hudEl.style.display = 'none';
             seqHudEl.style.display = 'none';
             noiseMeterEl.style.display = 'none';
-            setMicMeterVisible(false);
             if (playerModel) playerModel.visible = false;
             if (playerFill) playerFill.intensity = 0;
             crosshair.style.display = 'none';
@@ -6577,7 +6783,7 @@
 
         function startOrResume() {
             resumeAudio();
-            if (phase === 'menu') { startMic(); beginIntro(); return; }
+            if (phase === 'menu') { beginIntro(); return; }
             if (phase !== 'play') return;
             if (hintsBtnEl) hintsBtnEl.style.display = 'flex';
             overlay.classList.remove('resume');
@@ -6808,21 +7014,24 @@
         function bindBtn(el, onDown, onUp) {
             if (!el) return;
             const start = (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
                 e.preventDefault();
+                e.stopPropagation();
                 el.classList.add('active');
+                try { if (el.setPointerCapture && e.pointerId !== undefined) el.setPointerCapture(e.pointerId); } catch (err) {}
                 if (onDown) onDown();
             };
             const end = (e) => {
-                e.preventDefault();
+                if (e && e.preventDefault) e.preventDefault();
                 el.classList.remove('active');
                 if (onUp) onUp();
             };
-            el.addEventListener('touchstart', start, { passive: false });
-            el.addEventListener('touchend', end, { passive: false });
-            el.addEventListener('touchcancel', end, { passive: false });
-            el.addEventListener('mousedown', start);
-            el.addEventListener('mouseup', end);
-            el.addEventListener('mouseleave', end);
+            // A single pointer stream avoids the touchstart + synthetic mousedown
+            // double-toggle that can otherwise make mobile stance controls unreliable.
+            el.addEventListener('pointerdown', start);
+            el.addEventListener('pointerup', end);
+            el.addEventListener('pointercancel', end);
+            el.addEventListener('lostpointercapture', end);
         }
 
         function syncStanceButtons() {
@@ -6991,7 +7200,7 @@
 
         function currentRoomLabel(px, pz) {
             const c = cellAt(px, pz);
-            return c ? c.label : 'THE YELLOW ROOMS';
+            return c ? c.label : 'HOLLOW WARD';
         }
 
         // ---- Footstep / noise runtime state ----
@@ -7009,7 +7218,7 @@
             playSfx(id, vol, rate);
             const base = movementState === 'crouch' ? cfg.noise.crouch
                        : (running ? cfg.noise.run : cfg.noise.walk);
-            emitNoise(base * surf.noise, x, z, performance.now());
+            emitNoise(base * surf.noise, x, z, performance.now(), 'movement');
         }
 
         // ---- Room-entry scare events ----
@@ -7176,7 +7385,7 @@
                 isOnGround = false;
                 const surf = SURFACES[surfaceAt(playerPos.x, playerPos.z)];
                 playSfx('step_run_carpet_soft_sfx', (cfg.audio.footstepVolume || 0.45) * 0.5 * surf.vol, surf.rate * 0.85);
-                emitNoise(cfg.noise.jump * surf.noise, playerPos.x, playerPos.z, time);
+                emitNoise(cfg.noise.jump * surf.noise, playerPos.x, playerPos.z, time, 'movement');
             }
 
             // Gravity & Vertical Position
@@ -7192,7 +7401,7 @@
                 if (!wasOnGround && impact < -3.0) {
                     const surf = SURFACES[surfaceAt(playerPos.x, playerPos.z)];
                     playSfx('land_thud_soft_sfx', (cfg.audio.footstepVolume || 0.45) * 0.85 * surf.vol, surf.rate * (0.95 + Math.random() * 0.1));
-                    emitNoise(cfg.noise.land * surf.noise, playerPos.x, playerPos.z, time);
+                    emitNoise(cfg.noise.land * surf.noise, playerPos.x, playerPos.z, time, 'movement');
                     strideAccum = 0;
                 }
             }
@@ -7250,7 +7459,6 @@
             } else if (isOnGround) {
                 strideAccum = Math.min(strideAccum, STRIDE[moveState] * 0.7);
             }
-            updateMic(dt, time);
             decayNoise(dt);
 
             // ---- Entering a new module: maybe something is in here with you ----
@@ -7319,8 +7527,21 @@
             requestAnimationFrame(gameLoop);
         }
 
-        startMenu();
-        requestAnimationFrame(gameLoop);
+        // Hold the title menu until the initial texture and audio requests have settled.
+        // The moving progress beam gives feedback without pretending to know exact byte progress.
+        const loadingStartedAt = performance.now();
+        Promise.all([audioReady, texturesReady]).then(() => {
+            const minimumDisplay = 900;
+            const wait = Math.max(0, minimumDisplay - (performance.now() - loadingStartedAt));
+            setTimeout(() => {
+                if (loadingScreenEl) loadingScreenEl.classList.add('loaded');
+                setTimeout(() => {
+                    if (loadingScreenEl) loadingScreenEl.style.display = 'none';
+                    startMenu();
+                    requestAnimationFrame(gameLoop);
+                }, 680);
+            }, wait);
+        });
     }
     </script>
 </body>

@@ -1,46 +1,4 @@
 {
-  "yellow_wall_texture": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/yellow_wall_texture_d12fcc95-809d-4320-8215-51db39b70e3f.webp",
-    "type": "image",
-    "description": "yellow wall texture",
-    "subtype": "ground",
-    "aspect_ratio": [
-      1024,
-      1024
-    ],
-    "compression_suggestion": "low",
-    "duration_secs": null,
-    "loop": null,
-    "animation": null
-  },
-  "carpet_texture": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/carpet_texture_45ccefdb-266f-4791-b3be-09c2bbeedc22.webp",
-    "type": "image",
-    "description": "carpet texture",
-    "subtype": "ground",
-    "aspect_ratio": [
-      1024,
-      1024
-    ],
-    "compression_suggestion": "low",
-    "duration_secs": null,
-    "loop": null,
-    "animation": null
-  },
-  "ceiling_tile_texture": {
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/ceiling_tile_texture_758fbd59-6b6b-4e57-9931-fb40f972b551.webp",
-    "type": "image",
-    "description": "ceiling tile texture",
-    "subtype": "ground",
-    "aspect_ratio": [
-      1024,
-      1024
-    ],
-    "compression_suggestion": "medium",
-    "duration_secs": null,
-    "loop": null,
-    "animation": null
-  },
   "ambient_fluorescent_hum": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/ambient_fluorescent_hum_943b4a2d-87cf-42c9-8b08-ef08d4100863.mp3",
     "type": "audio",
