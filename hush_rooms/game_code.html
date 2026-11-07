@@ -471,6 +471,14 @@
         .tally-big { font-size: 64px; letter-spacing: 6px; color: #2A1D12; margin: 8px 0; }
         .glyph-row { display: flex; justify-content: center; align-items: center; gap: 22px; margin: 18px 0 8px; font-size: 64px; line-height: 1; font-family: 'Inter', sans-serif; }
         .glyph-row .arr { color: rgba(42,29,18,0.5); font-size: 34px; }
+        .seal-row { display: flex; align-items: center; gap: 14px; margin: 8px 0; padding: 6px 10px; text-align: left; border-left: 4px solid rgba(42,29,18,0.25); font-family: 'Special Elite', 'Courier New', monospace; font-size: 19px; line-height: 1.25; color: #2A1D12; }
+        .seal-row .sr-n { flex: 0 0 auto; width: 30px; font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: 700; color: #6E1E1B; text-align: center; }
+        .seal-row svg { flex: 0 0 auto; }
+        .seal-row b { letter-spacing: 2px; }
+        .seal-row.next { background: rgba(107,27,21,0.12); border-left-color: #741D1A; }
+        .seal-row.done { opacity: 0.55; }
+        .seal-row.done .sr-t::after { content: '  \2713 WOKEN'; color: #1F6B3A; font-weight: 700; }
+        .seal-foot { margin-top: 6px; font-family: 'Special Elite', 'Courier New', monospace; font-size: 15px; color: #5A4A38; }
         .code-display { display: flex; justify-content: center; gap: 14px; margin: 6px 0 20px; }
         .code-cell { width: 84px; height: 108px; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', sans-serif; font-size: 56px; color: #FFD76A; background: #070604; border: 2px solid #5D492C; border-radius: 8px; text-shadow: 0 0 16px rgba(255,200,70,0.6); }
         .code-display.shake { animation: codeShake 420ms linear; }
@@ -1188,12 +1196,14 @@
                 <h2 class="note-title" id="hints-title">DON'T LET IT HEAR YOU.</h2>
                 <div class="note-section">YOUR WAY OUT</div>
                 <p class="note-copy">The exit door needs THREE KEYS. None of them lie around: each one is locked behind a puzzle. <b>I</b> &mdash; wake the three seals in the right order (read the note on the stand near where you woke). <b>II</b> &mdash; open the safe: three torn pages hide three digits. <b>III</b> &mdash; repeat the pattern on the lamp console.</p>
+                <div class="note-section">SEAL LOCATIONS</div>
+                <div id="seal-clues"></div>
                 <div class="note-section">THE LISTENER</div>
                 <p class="note-copy">The tall one in the ward hunts by sound: your footsteps, a thrown object, a wrong code. Crouching is nearly silent. Running carries through every wall.</p>
                 <div class="note-section">DO NOT</div>
                 <div class="note-warning">RUN THROUGH OPEN HALLS.<br>JUMP WHEN IT IS NEAR.<br>GUESS THE WRONG CODE.<br>DON'T MAKE A SOUND.</div>
                 <div class="note-section">A NOISE THAT ISN'T YOU</div>
-                <p class="note-copy">Small things are left everywhere &mdash; mugs, staplers, tape. Take one in your hand and throw it. Wherever it lands, that is where the tall one goes. Buy yourself a hallway.</p>
+                <p class="note-copy">Small things are left everywhere &mdash; bottles, tin cans, metal trays. Take one in your hand and throw it. Wherever it lands, that is where the tall one goes. Buy yourself a hallway.</p>
                 <div class="note-section">THE TORCH</div>
                 <p class="note-copy">You carry a lamp. Kill it with <b>L</b> (or the LIGHT button) when you want the dark. It is old: every so often it stutters and dies for a breath, then comes back. That is the lamp, not the dark. Your hand only holds one thing &mdash; take an object and the lamp goes in your pocket.</p>
                 <div class="note-section">IF IT FINDS YOU</div>
@@ -1798,6 +1808,26 @@
         const symbolAspect = { circle: 1, triangle: 1, square: 1 };
         // All textures are drawn in code now, so there is nothing left to download: release the loading gate
         textureLoadResolve();
+        // Where each seal stands, in rooms from the room you woke in. "Ahead" is the way you faced
+        // when you woke up (towards the lectern), "right" is to your right from there.
+        function sealClueText(key) {
+            const sp = puzzlePlan.symbols.find(q => q.key === key);
+            if (!sp) return '';
+            const c = sp.cell, parts = [];
+            const n = v => Math.abs(v) + (Math.abs(v) === 1 ? ' room ' : ' rooms ');
+            if (c.gz < 0) parts.push(n(c.gz) + 'AHEAD'); else if (c.gz > 0) parts.push(n(c.gz) + 'BEHIND');
+            if (c.gx > 0) parts.push(n(c.gx) + 'to the RIGHT'); else if (c.gx < 0) parts.push(n(c.gx) + 'to the LEFT');
+            return c.label + ' \u00B7 ' + (parts.join(', ') || 'where you woke');
+        }
+        function sealRowsHtml(withProgress, svgSize) {
+            return SYMBOL_ORDER.map((k, i) => {
+                const done = withProgress && (sealsDone || i < puzzleStep);
+                const next = withProgress && !done && i === puzzleStep;
+                return '<div class="seal-row' + (done ? ' done' : '') + (next ? ' next' : '') + '"><span class="sr-n">' + (i + 1) + '</span>' +
+                    sigilSvg(k, svgSize, SYMBOL_META[k].css) +
+                    '<div class="sr-t"><b>' + SYMBOL_META[k].label + ' SEAL</b><br>' + sealClueText(k) + '</div></div>';
+            }).join('') + '<div class="seal-foot">Counted in rooms from where you woke, in a straight line. Ahead = the way you faced when you woke up. Each seal shines as a tall coloured beam.</div>';
+        }
         // Simplified inline-SVG version of each sigil for notes and prompts
         function sigilSvg(key, size, color) {
             const rings = '<circle cx="50" cy="50" r="46" fill="none" stroke="' + color + '" stroke-width="3"/><circle cx="50" cy="50" r="38" fill="none" stroke="' + color + '" stroke-width="1.4"/>';
@@ -2420,7 +2450,7 @@
             hintBeams.forEach(b => {
                 b.visible = true;
                 const base = (mode === 'obvious' ? 0.20 : (mode === 'off' ? 0.06 : 0.08));
-                b.material.opacity = base * (0.7 + pulse * 0.5) * (b.userData.dim ? 0.35 : 1);
+                b.material.opacity = base * (0.7 + pulse * 0.5) * (b.userData.dim ? 0.35 : 1) * (b.userData.seal ? 2.6 : 1);
             });
             stations.forEach(st => { if (st.update) st.update(dt, time); });
             keyPickups.forEach(k => {
@@ -4039,15 +4069,16 @@
                     }));
                     mazeGroup.add(hintLine);
                 }
-                const beamH = Math.max(0.8, H - 2.1);
+                const beamH = Math.max(1.5, H - 0.4);
                 symbols.forEach(s => {
                     const bm = new THREE.Mesh(
-                        new THREE.CylinderGeometry(0.055, 0.055, beamH, 6),
+                        new THREE.CylinderGeometry(0.09, 0.09, beamH, 6),
                         new THREE.MeshBasicMaterial({
                             color: SYMBOL_META[s.key].color, transparent: true, opacity: 0.08,
                             blending: THREE.AdditiveBlending, depthWrite: false
                         }));
-                    bm.position.set(s.x, 2.05 + beamH / 2, s.z);
+                    bm.position.set(s.x, 0.2 + beamH / 2, s.z);
+                    bm.userData.seal = true;
                     mazeGroup.add(bm);
                     hintBeams.push(bm);
                 });
@@ -5704,6 +5735,8 @@
                 hintsModalEl.setAttribute('aria-hidden', hintsOpen ? 'false' : 'true');
             }
             if (hintsOpen) {
+                const sc = document.getElementById('seal-clues');
+                if (sc) sc.innerHTML = sealRowsHtml(true, 52);
                 promptEl.style.display = 'none';
                 if (document.pointerLockElement) document.exitPointerLock();
             } else if (!isTouchActive && !dead && !won) {
@@ -6006,10 +6039,9 @@
                 if (st.note === 'order') {
                     pmKickerEl.textContent = 'NAILED TO THE STAND // NEAR WHERE YOU WOKE';
                     pmTitleEl.textContent = 'THREE KEYS';
-                    const glyphs = SYMBOL_ORDER.map(k => sigilSvg(k, 84, SYMBOL_META[k].css));
                     pmBodyEl.innerHTML =
-                        '<p style="margin:0 0 6px">KEY I &mdash; wake the three seals in THIS order, or the walls scream:</p>' +
-                        '<div class="glyph-row">' + glyphs.join('<span class="arr">&rsaquo;</span>') + '</div>' +
+                        '<p style="margin:0 0 6px">KEY I &mdash; wake the three seals in THIS order, or the walls scream. They stand here:</p>' +
+                        sealRowsHtml(false, 60) +
                         '<p style="margin:10px 0 6px">KEY II &mdash; the safe. Its code is split over three torn pages. Read them page 1, 2, 3.</p>' +
                         '<p style="margin:6px 0">KEY III &mdash; the lamp console. Watch. Repeat. Do not slip.</p>' +
                         '<p style="margin:12px 0 0;color:#6B1515">Then the exit. And walk softly. It listens.</p>';
