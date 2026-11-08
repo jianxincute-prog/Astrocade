@@ -1,0 +1,10 @@
+{
+  "settings": {
+    "foodCount": 76,
+    "predatorCount": 12,
+    "caterpillarScale": 1,
+    "difficulty": "Meadow",
+    "flightSeconds": 90
+  },
+  "editorPositions": {}
+}
