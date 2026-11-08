@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   abilitiesForStage, addNourishment, burstEnemies, canBeginCocoon, clampPosition, cocoonDrain, comboAlive, comboMultiplier,
   enemySpeedFactor, finalScore, growthStage, movePlayer, predatorMinStage, registerPollen, starRating, takeHit, FOOD_ENERGY, STAGE_STEPS,
+  BOSS, bossCanBeHit, bossShouldAppear, bossTimings, capEnergyForBoss, lashHits, pushOutOfCircles, slideAroundCircles,
 } from '../logic.mjs';
 
 test('world edges and normalized movement stay inside the 300x300 garden', () => {
@@ -99,4 +100,50 @@ test('final score and stars', () => {
   assert.equal(starRating(1800), 2);
   assert.equal(starRating(3000), 3);
   assert.equal(starRating(799), 0);
+});
+
+test('trees block movement: points inside a trunk are pushed to its edge', () => {
+  const trees = [{ x: 10, z: 0, r: 2 }];
+  const out = pushOutOfCircles(10.5, 0.2, trees, 1);
+  assert.ok(Math.hypot(out.x - 10, out.z) >= 3 - 1e-9);
+  assert.deepEqual(pushOutOfCircles(30, 30, trees, 1), { x: 30, z: 30 });
+  const center = pushOutOfCircles(10, 0, trees, 1);          // dead centre must not produce NaN
+  assert.ok(Number.isFinite(center.x) && Number.isFinite(center.z));
+});
+
+test('the toad gates the growth bar and only appears in chapter 3', () => {
+  assert.equal(capEnergyForBoss(100, false), BOSS.gate);
+  assert.equal(capEnergyForBoss(100, true), 100);
+  assert.equal(capEnergyForBoss(40, false), 40);
+  assert.equal(bossShouldAppear({ stage: 2, energy: BOSS.gate }, false, false), true);
+  assert.equal(bossShouldAppear({ stage: 1, energy: 90 }, false, false), false);
+  assert.equal(bossShouldAppear({ stage: 2, energy: 99 }, true, false), false);
+  assert.equal(bossShouldAppear({ stage: 2, energy: 99 }, false, true), false);
+});
+
+test('the toad is only hittable while dizzy and close, and speeds up on its last hit point', () => {
+  assert.equal(bossCanBeHit('rest', 10), true);
+  assert.equal(bossCanBeHit('rest', 40), false);
+  assert.equal(bossCanBeHit('idle', 5), false);
+  assert.ok(bossTimings(1).windup < bossTimings(3).windup);
+  assert.ok(bossTimings(1).rest < bossTimings(2).rest);
+});
+
+test('tongue lash hits only inside the telegraphed strip', () => {
+  const boss = { x: 0, z: 0 };            // ry = 0 -> lashes toward -z
+  assert.equal(lashHits(boss, 0, { x: 0, z: -10 }), true);
+  assert.equal(lashHits(boss, 0, { x: 0.5, z: -20 }), true);
+  assert.equal(lashHits(boss, 0, { x: 6, z: -10 }), false);   // beside the strip
+  assert.equal(lashHits(boss, 0, { x: 0, z: 10 }), false);    // behind the toad
+  assert.equal(lashHits(boss, 0, { x: 0, z: -40 }), false);   // beyond the tongue
+  assert.equal(lashHits(boss, Math.PI / 2, { x: -10, z: 0 }), true);   // turned to face -x
+});
+
+test('walking straight into a tree slides around it instead of sticking', () => {
+  const trees = [{ x: 0, z: 0, r: 2 }];
+  let p = { x: 0, z: 10 };
+  for (let i = 0; i < 60; i++) { const next = { x: p.x, z: p.z - 0.4 }; p = slideAroundCircles(p, next, trees, 1); }   // aimed dead at the centre
+  assert.ok(p.z < -3, `should have passed the tree, ended at z=${p.z}`);
+  assert.ok(Math.hypot(p.x, p.z) >= 3 - 1e-6 || p.z < -3);
+  assert.deepEqual(slideAroundCircles({ x: 20, z: 20 }, { x: 20, z: 19 }, trees, 1), { x: 20, z: 19 });   // far away: untouched
 });

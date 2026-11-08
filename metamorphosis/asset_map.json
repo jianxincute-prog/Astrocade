@@ -206,5 +206,44 @@
   "subtype": "effect",
   "type": "audio",
   "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6XAQFHRAB76YJBV7NFVRDEA_543de387-6ae9-46f7-bce6-3315d7484b8c_6a0386fe-012e-4d6f-91c8-8a67967b8539.mp3"
+ },
+ "sfx_toad": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Big cartoon toad ribbit croak, deep comedic frog bellow, one short call, playful not scary",
+  "duration_secs": 1.59,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6XDCKS18JA6RDZ8QZ6N0MP8_2add1c98-bc9c-40c0-bd29-b802fecd33b1_f5edac2d-9fec-49db-b249-00690df45fd0.ogg",
+  "prompt": "Big cartoon toad ribbit croak, deep comedic frog bellow, one short call, playful not scary",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6XDCKS18JA6RDZ8QZ6N0MP8_2add1c98-bc9c-40c0-bd29-b802fecd33b1_f5edac2d-9fec-49db-b249-00690df45fd0.mp3"
+ },
+ "sfx_slam": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Heavy cartoon ground slam landing thump with a rumbling shockwave and small debris, short, comedic",
+  "duration_secs": 1.69,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6XDCNGRTA9AR1Q1XD7GY4XN_1c1f4c79-707d-4e59-8f79-3e47872c5c27_615eae49-ef7f-45e4-9fd7-184f104eb86f.ogg",
+  "prompt": "Heavy cartoon ground slam landing thump with a rumbling shockwave and small debris, short, comedic",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6XDCNGRTA9AR1Q1XD7GY4XN_1c1f4c79-707d-4e59-8f79-3e47872c5c27_615eae49-ef7f-45e4-9fd7-184f104eb86f.mp3"
+ },
+ "sfx_tongue": {
+  "animation": null,
+  "aspect_ratio": null,
+  "compression_suggestion": "original",
+  "description": "Cartoon frog tongue whip lash snap, fast stretchy slurp thwip, short",
+  "duration_secs": 1.91,
+  "loop": false,
+  "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6XDCPQHTGVC1V6FRTK13VDT_e1f79fc5-8e7d-4e44-90dd-ef22b37b4a9b_6dd4ca0c-bb42-4137-bf80-86eb773ebc95.ogg",
+  "prompt": "Cartoon frog tongue whip lash snap, fast stretchy slurp thwip, short",
+  "subtype": "effect",
+  "type": "audio",
+  "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M6XDCPQHTGVC1V6FRTK13VDT_e1f79fc5-8e7d-4e44-90dd-ef22b37b4a9b_6dd4ca0c-bb42-4137-bf80-86eb773ebc95.mp3"
  }
 }

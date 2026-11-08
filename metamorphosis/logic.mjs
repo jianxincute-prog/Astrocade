@@ -124,3 +124,58 @@ export function starRating(score) {
   if (score >= 800) return 1;
   return 0;
 }
+
+// ---- P2: obstacles (trees and bushes block movement and make real cover)
+export function pushOutOfCircles(x, z, circles, pad = 0) {
+  let nx = x, nz = z;
+  for (const c of circles) {
+    const dx = nx - c.x, dz = nz - c.z, rr = c.r + pad, d2 = dx * dx + dz * dz;
+    if (d2 < rr * rr) {
+      const d = Math.sqrt(d2) || 0.001;
+      nx = c.x + (dx / d || 1) * rr; nz = c.z + (dz / d || 0) * rr;
+    }
+  }
+  return { x: nx, z: nz };
+}
+
+// ---- P2: the Giant Toad mini-boss that guards the end of chapter 3
+export const BOSS = { hp: 3, gate: 95, hopRadius: 8, lashLength: 26, lashWidth: 3.4, hitReach: 17, giveUpAfter: 85 };
+
+export function bossShouldAppear(state, bossActive, bossDone) {
+  return state.stage === 2 && state.energy >= BOSS.gate && !bossActive && !bossDone;
+}
+
+// the growth bar stops at the gate until the toad has been dealt with
+export function capEnergyForBoss(energy, bossDone) {
+  return bossDone ? energy : Math.min(energy, BOSS.gate);
+}
+
+// the toad gets quicker once it is down to its last hit point
+export function bossTimings(hp) {
+  return hp <= 1 ? { windup: 0.8, lash: 0.65, rest: 2.0 } : { windup: 1.1, lash: 0.9, rest: 2.4 };
+}
+
+// forward is -z rotated by `ry` (same convention as every creature in the game)
+export function lashHits(origin, ry, p, length = BOSS.lashLength, width = BOSS.lashWidth) {
+  const fx = -Math.sin(ry), fz = -Math.cos(ry), dx = p.x - origin.x, dz = p.z - origin.z;
+  const along = dx * fx + dz * fz, lateral = Math.abs(dx * fz - dz * fx);
+  return along > 0 && along < length && lateral < width / 2 + 0.9;
+}
+
+export function bossCanBeHit(mode, distanceToPlayer) {
+  return mode === 'rest' && distanceToPlayer < BOSS.hitReach;
+}
+
+// Slide along an obstacle instead of sticking to it: whatever pressed into the trunk is turned into sideways motion.
+export function slideAroundCircles(prev, next, circles, pad = 0) {
+  let x = next.x, z = next.z;
+  for (const c of circles) {
+    const rr = c.r + pad, dx = x - c.x, dz = z - c.z, d2 = dx * dx + dz * dz;
+    if (d2 >= rr * rr) continue;
+    const d = Math.sqrt(d2) || 0.001, nx = dx / d, nz = dz / d;
+    const mx = next.x - prev.x, mz = next.z - prev.z, into = Math.max(0, -(mx * nx + mz * nz));
+    const sign = (mx * -nz + mz * nx) >= 0 ? 1 : -1;
+    x = c.x + nx * rr + -nz * sign * into * 0.9; z = c.z + nz * rr + nx * sign * into * 0.9;
+  }
+  return { x, z };
+}

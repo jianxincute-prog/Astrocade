@@ -1,6 +1,7 @@
 import {
   FOOD_ENERGY, STAGE_STEPS, abilitiesForStage, addNourishment, burstEnemies, canBeginCocoon, clampPosition, cocoonDrain, comboAlive,
   comboMultiplier, enemySpeedFactor, finalScore, growthStage, movePlayer, predatorMinStage, registerPollen, starRating, takeHit, COMBO_WINDOW, FLIGHT_BONUS_CAP,
+  BOSS, bossCanBeHit, bossShouldAppear, bossTimings, capEnergyForBoss, lashHits, pushOutOfCircles, slideAroundCircles,
 } from './logic.mjs';
 
 // Metamorphosis: a 5-minute garden story in four acts.
@@ -25,7 +26,7 @@ const THREE_URLS = [
 
 /* ------------------------------------------------------------------ audio (module level: survives soft restarts) */
 const AUDIO_IDS = ['bgm_garden', 'bgm_tense', 'bgm_butterfly', 'sting_win', 'sfx_eat', 'sfx_nectar', 'sfx_golden', 'sfx_hit', 'sfx_burst', 'sfx_molt',
-  'sfx_cocoon', 'sfx_emerge', 'sfx_pollen', 'sfx_warning', 'sfx_bird', 'sfx_click'];
+  'sfx_cocoon', 'sfx_emerge', 'sfx_pollen', 'sfx_warning', 'sfx_bird', 'sfx_click', 'sfx_toad', 'sfx_slam', 'sfx_tongue'];
 const audio = { ctx: null, master: null, muted: false, raw: {}, bufs: {}, decoding: {}, total: 0, done: 0, started: false, music: null, musicId: null, wanted: null, listeners: [] };
 function preloadAudio() {
   if (audio.started) return; audio.started = true;
@@ -72,6 +73,7 @@ const SYNTH = {
   sfx_cocoon: () => synthTone(120, 220, 1.2, 'sine', 0.14), sfx_emerge: () => [523, 659, 784, 1047, 1319].forEach((f, i) => synthTone(f, f, 0.3, 'triangle', 0.15, i * 0.1)),
   sfx_pollen: () => synthTone(1200, 1500, 0.1, 'sine', 0.13), sfx_warning: () => { synthTone(900, 900, 0.1, 'square', 0.1); synthTone(900, 900, 0.1, 'square', 0.1, 0.16); },
   sfx_bird: () => synthTone(1400, 300, 0.4, 'sawtooth', 0.12), sfx_click: () => synthTone(500, 400, 0.06, 'square', 0.1),
+  sfx_toad: () => { synthTone(150, 95, 0.35, 'sawtooth', 0.16); synthTone(180, 110, 0.2, 'square', 0.08, 0.18); }, sfx_slam: () => synthTone(120, 34, 0.5, 'sine', 0.32), sfx_tongue: () => synthTone(950, 180, 0.18, 'square', 0.1),
   sting_win: () => [523, 659, 784, 1047].forEach((f, i) => synthTone(f, f, 0.4, 'triangle', 0.18, i * 0.12)),
 };
 function playSfx(id, vol = 1, rate = 1) {
@@ -198,6 +200,7 @@ function boot(mode) {
       <div class="card minimap"><canvas id="minimap" width="180" height="180"></canvas><div class="map-coord" id="map-coord">0 · 0</div></div>
       <button class="sound-btn" id="sound-btn" aria-label="Sound">🔊</button>
       <div class="card health" id="health"><span class="hearts" id="hearts">♥ ♥ ♥</span></div>
+      <div class="card bossbar" id="bossbar"><div class="bb-head"><span>🐸 GIANT TOAD</span><span id="boss-hits">3 ♥</span></div><div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div><div class="bb-sub" id="boss-sub">Dodge, then PUFF it while it is dizzy!</div></div>
       <div class="danger-alert" id="danger-alert">⚠ DANGER NEARBY</div>
       <div class="status-toast" id="status-toast"></div>
       <div class="chapter-banner" id="chapter-banner"><div class="cb-title" id="cb-title"></div><div class="cb-text" id="cb-text"></div></div>
@@ -209,7 +212,7 @@ function boot(mode) {
     <div class="start-overlay" id="start-overlay"><div class="intro-card"><div class="intro-kicker">A TINY LIFE, A VERY BIG GARDEN</div><div class="intro-title">Metamor<span>phosis</span></div><div class="intro-creature">🐛</div><div class="intro-copy" id="intro-copy">Grow through three chapters, spin your cocoon, then burst out as a butterfly. Birds, spiders and beetles think you look like lunch.</div><div class="intro-chips"><span>🌱 EAT &amp; GROW</span><span>✨ PUFF TO DEFEND</span><span>🦋 FLY FOR POLLEN</span></div><button id="start-button" class="main-button">Wiggle into the garden <span>➜</span></button><div class="intro-footer" id="intro-footer">Best score: 0</div></div></div>
     <div class="editor-panel card" id="editor-panel"><div class="editor-kicker">GARDEN EDITOR</div><div class="editor-heading">Shape your little world</div><div class="editor-copy" id="editor-copy">Tap an object, then drag it wherever you like. Every move is saved to your game config.</div><div class="editor-selected" id="editor-selected">Selected: none</div><button class="rebuild-button" id="rebuild-button">↻ Rebuild garden from settings</button></div>
     <div class="editor-badge" id="editor-badge">EDITOR · DRAG OBJECTS</div>
-    <div class="finish-overlay" id="finish-overlay"><div class="finish-card"><div class="finish-sparkle">🦋</div><div class="finish-title">WINGS, AT LAST!</div><div class="stars" id="stars">☆☆☆</div><div class="res-score" id="res-score">0</div><div class="res-grid" id="res-grid"></div><div class="res-best" id="res-best"></div><button class="main-button" id="again-button">Fly again <span>➜</span></button></div></div>
+    <div class="finish-overlay" id="finish-overlay"><div class="finish-card"><div class="finish-sparkle">🦋</div><div class="finish-title">WINGS, AT LAST!</div><div class="stars" id="stars">☆☆☆</div><div class="res-score" id="res-score">0</div><div class="res-grid" id="res-grid"></div><div class="res-best" id="res-best"></div><div class="res-board" id="res-board"></div><button class="main-button" id="again-button">Fly again <span>➜</span></button></div></div>
     <div class="gameover-overlay" id="gameover-overlay"><div class="finish-card"><div class="finish-sparkle">🌼</div><div class="finish-title" id="go-title">BACK TO THE BURROW</div><div class="finish-text" id="go-text">The garden got a little too wild. Your next run starts with a fresh wiggle.</div><button class="main-button" id="retry-button">Try again <span>➜</span></button></div></div>`;
   document.body.appendChild(root);
 
@@ -238,7 +241,7 @@ function boot(mode) {
     .main-button{position:relative;width:100%;height:84px;border:0;border-radius:24px;background:linear-gradient(90deg,#367f4f,#69aa57);box-shadow:0 9px 20px #397b4a44;color:#fff;font-size:30px;font-weight:950;pointer-events:auto;touch-action:manipulation}.main-button span{float:right;margin-right:22px;font-size:30px}.main-button:active{transform:translateY(2px)}.intro-footer{position:relative;margin-top:16px;color:#6f8a68;font-size:22px;font-weight:900}
     .finish-card{width:600px;padding:34px 36px 30px}.finish-sparkle{position:relative;font-size:60px}.finish-title{position:relative;font-size:46px;font-weight:1000;letter-spacing:1px;color:#23553b;margin-top:2px}.finish-text{position:relative;color:#5d7a5e;font-size:26px;line-height:1.4;font-weight:700;margin:14px 0 24px}.stars{position:relative;font-size:64px;color:#f2a93b;letter-spacing:8px;margin-top:4px;text-shadow:0 3px 0 #fff}.res-score{position:relative;font-size:84px;font-weight:1000;color:#b0541a;line-height:1;margin-top:2px}.res-grid{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:16px 0 8px;font-size:24px;font-weight:800;color:#4f6c55;text-align:left}.res-grid b{float:right;color:#1d4e38}.res-best{position:relative;font-size:26px;font-weight:950;color:#8a5a14;margin:8px 0 18px}
     .editor-panel{position:absolute;left:25px;bottom:26px;width:420px;padding:17px 18px;pointer-events:auto}.editor-kicker{font-size:14px;font-weight:950;letter-spacing:2px;color:#77a852}.editor-heading{font-size:24px;font-weight:950;color:#224b36;margin-top:2px}.editor-copy{font-size:18px;line-height:1.4;font-weight:600;color:#68806a;margin-top:5px}.editor-selected{font-size:18px;color:#477649;font-weight:900;margin-top:7px}.rebuild-button{margin-top:11px;width:100%;height:52px;border:0;border-radius:14px;background:#4d9258;color:#fff;font-weight:900;font-size:20px;pointer-events:auto}.editor-badge{position:absolute;left:26px;top:26px;padding:12px 16px;background:#24543ddd;color:white;border-radius:14px;font-size:18px;font-weight:950;letter-spacing:1px}
-    .editor-panel,.editor-badge{display:none}body.edit-mode .editor-panel,body.edit-mode .editor-badge{display:block}body.edit-mode .stick,body.edit-mode .burst-button,body.edit-mode .control-hint,body.edit-mode .objective,body.edit-mode .health,body.edit-mode .danger-alert,body.edit-mode .status-toast,body.edit-mode .start-overlay,body.edit-mode .finish-overlay,body.edit-mode .gameover-overlay,body.edit-mode .sound-btn{display:none}body.edit-mode .minimap{top:98px}body.edit-mode .editor-badge{top:26px}
+    .bossbar{position:absolute;top:228px;left:20px;width:450px;padding:10px 18px 12px;display:none}.bossbar.show{display:block}.bb-head{display:flex;justify-content:space-between;font-size:24px;font-weight:1000;color:#2c6b2a}.boss-track{height:24px;margin-top:6px;background:#d3e6c7;border-radius:14px;overflow:hidden}.boss-fill{width:100%;height:100%;background:linear-gradient(90deg,#4caf50,#a8e063);border-radius:14px;transition:width .35s}.bb-sub{margin-top:5px;font-size:20px;font-weight:800;color:#6b8a5a}.res-board{position:relative;margin:0 0 14px;font-size:22px;font-weight:800;color:#4f6c55;text-align:left}.res-board div{display:flex;justify-content:space-between;padding:2px 8px}.res-board b{color:#1d4e38}.res-board .bh{justify-content:center;font-size:20px;letter-spacing:1px;color:#8a5a14}.res-board .yr{margin-top:4px;border-top:2px solid #cfe0bd;padding-top:5px;color:#b0541a}.editor-panel,.editor-badge{display:none}body.edit-mode .editor-panel,body.edit-mode .editor-badge{display:block}body.edit-mode .stick,body.edit-mode .burst-button,body.edit-mode .control-hint,body.edit-mode .objective,body.edit-mode .health,body.edit-mode .danger-alert,body.edit-mode .status-toast,body.edit-mode .start-overlay,body.edit-mode .finish-overlay,body.edit-mode .gameover-overlay,body.edit-mode .sound-btn{display:none}body.edit-mode .minimap{top:98px}body.edit-mode .editor-badge{top:26px}
     [data-phase=molt] .health,[data-phase=spin] .health,[data-phase=cocoon] .health,[data-phase=emerge] .health,[data-phase=fly] .health{display:none}[data-phase=spin] .objective,[data-phase=cocoon] .objective,[data-phase=emerge] .objective,[data-phase=fly] .objective{display:none}[data-phase=cocoon] .cocoonbar,[data-phase=spin] .cocoonbar{display:block}[data-phase=fly] .flightbar{display:block}[data-phase=spin] .control-hint,[data-phase=emerge] .control-hint,[data-phase=cocoon] .control-hint,[data-phase=fly] .control-hint,[data-phase=result] .control-hint,[data-phase=start] .stick,[data-phase=start] .burst-button,[data-phase=start] .health,[data-phase=start] .objective,[data-phase=start] .control-hint{display:none}[data-phase=spin] .stick,[data-phase=cocoon] .stick,[data-phase=emerge] .stick{opacity:.3}[data-phase=emerge] .burst-button,[data-phase=spin] .burst-button,[data-phase=molt] .burst-button{opacity:.3}`;
   document.head.appendChild(style);
   document.body.classList.toggle('edit-mode', editMode);
@@ -300,6 +303,8 @@ function boot(mode) {
     glowLeaf: new THREE.MeshBasicMaterial({ color: '#ddf870', transparent: true, opacity: .27, depthWrite: false }), glowNectar: new THREE.MeshBasicMaterial({ color: '#ffbd64', transparent: true, opacity: .27, depthWrite: false }),
     glowGold: new THREE.MeshBasicMaterial({ color: '#ffe36b', transparent: true, opacity: .42, depthWrite: false }), glowFlower: new THREE.MeshBasicMaterial({ color: '#fff3a8', transparent: true, opacity: .3, depthWrite: false }),
     shadow: new THREE.MeshBasicMaterial({ color: '#102016', transparent: true, opacity: .3, depthWrite: false }),
+    toad: new THREE.MeshStandardMaterial({ color: '#5fa84a', roughness: .75 }), toadBelly: new THREE.MeshStandardMaterial({ color: '#d4e8a2', roughness: .8 }),
+    wart: new THREE.MeshStandardMaterial({ color: '#467f38', roughness: .9 }), tongue: new THREE.MeshStandardMaterial({ color: '#ff7aa0', roughness: .5 }),
   };
   const geo = {
     sphere: new THREE.SphereGeometry(1, 16, 12), leaf: new THREE.SphereGeometry(1, 12, 8), cylinder: new THREE.CylinderGeometry(.5, .62, 1, 9), thin: new THREE.CylinderGeometry(.045, .055, 1, 6),
@@ -331,7 +336,8 @@ function boot(mode) {
     object.position.set(Array.isArray(pos) ? pos[0] : x, 0, Array.isArray(pos) ? pos[1] : z);
     object.userData.editorId = id; object.userData.baseX = object.position.x; object.userData.baseZ = object.position.z;
   }
-  const editorPickables = [], food = [], enemies = [];
+  const editorPickables = [], food = [], enemies = [], obstacles = [];
+  const unblock = (x, z, pad = 1.6) => { const q = pushOutOfCircles(x, z, obstacles, pad); return [q.x, q.z]; };
   const freezeStatic = (g) => { if (!editMode) { g.matrixAutoUpdate = false; g.updateMatrix(); g.traverse((c) => { c.matrixAutoUpdate = false; c.updateMatrix(); }); } };
 
   function makeTree(id, x, z, size = 1) {
@@ -340,6 +346,7 @@ function boot(mode) {
     for (const [dx, dy, dz, r, mat] of [[0, 6.2, 0, 3.6, mats.tree1], [2.25, 5.6, .4, 2.5, mats.tree2], [-2.1, 5.4, .2, 2.7, mats.tree3], [.2, 5.3, -2.0, 2.4, mats.tree2]]) {
       const crown = new THREE.Mesh(geo.sphere, mat); crown.position.set(dx * size, dy * size, dz * size); crown.scale.set(r * size, r * .7 * size, r * size); g.add(crown);
     }
+    obstacles.push({ x: g.position.x, z: g.position.z, r: 1.5 * size });
     scene.add(g); editorPickables.push(g); freezeStatic(g); return g;
   }
   function makeBush(id, x, z, size = 1) {
@@ -347,6 +354,7 @@ function boot(mode) {
     for (const [dx, dy, dz, s, m] of [[0, 1.0, 0, 1.65, mats.tree3], [1.15, .85, .1, 1.2, mats.tree2], [-1.0, .9, .15, 1.18, mats.tree1]]) {
       const m0 = new THREE.Mesh(geo.sphere, m); m0.position.set(dx * size, dy * size, dz * size); m0.scale.set(s * size, s * .74 * size, s * size); g.add(m0);
     }
+    obstacles.push({ x: g.position.x, z: g.position.z, r: 1.95 * size });
     scene.add(g); editorPickables.push(g); freezeStatic(g); return g;
   }
   for (let i = 0; i < 25; i++) {
@@ -379,6 +387,7 @@ function boot(mode) {
 
   /* ---------- food */
   function makeFoodPickup(id, x, z, kind) {
+    [x, z] = unblock(x, z, 2.2);
     const g = new THREE.Group(); applyEditorPosition(g, id, x, z); g.userData.kind = kind;
     const glow = new THREE.Mesh(geo.circle, kind === 'nectar' ? mats.glowNectar : kind === 'golden' ? mats.glowGold : mats.glowLeaf);
     glow.rotation.x = -Math.PI / 2; glow.position.y = .05; glow.scale.setScalar(kind === 'nectar' ? 1.7 : kind === 'golden' ? 2.4 : 1.25); g.add(glow);
@@ -488,6 +497,30 @@ function boot(mode) {
     const r = rings.find((q) => !q.on) || rings[0]; r.on = true; r.t = 0; r.dur = dur; r.max = max; r.mesh.material.color.set(color); r.mesh.position.set(x, y, z); r.mesh.visible = true;
   }
 
+  /* ---------- mini-boss: the Giant Toad */
+  const toad = new THREE.Group(); toad.visible = false; scene.add(toad);
+  (function buildToad() {
+    const add = (m) => { toad.add(m); return m; };
+    const body = add(new THREE.Mesh(geo.sphere, mats.toad)); body.scale.set(3.6, 2.4, 4.0); body.position.y = 2.3;
+    const belly = add(new THREE.Mesh(geo.sphere, mats.toadBelly)); belly.scale.set(3.0, 1.5, 3.3); belly.position.set(0, 1.5, -.3);
+    const head = add(new THREE.Mesh(geo.sphere, mats.toad)); head.scale.set(2.5, 1.9, 2.3); head.position.set(0, 3.2, -2.8);
+    for (const sd of [-1, 1]) {
+      const w = add(new THREE.Mesh(geo.sphere, mats.eye)); w.scale.setScalar(.85); w.position.set(sd * 1.35, 4.6, -3.1);
+      const pu = add(new THREE.Mesh(geo.sphere, mats.pupil)); pu.scale.set(.42, .45, .3); pu.position.set(sd * 1.35, 4.65, -3.85);
+      const leg = add(new THREE.Mesh(geo.sphere, mats.toad)); leg.scale.set(1.2, 1.1, 1.8); leg.position.set(sd * 3.0, 1.0, 1.8);
+      const fr = add(new THREE.Mesh(geo.sphere, mats.toad)); fr.scale.set(.8, 1, 1.1); fr.position.set(sd * 2.4, .9, -2.9);
+    }
+    const mouth = add(new THREE.Mesh(geo.thin, mats.pupil)); mouth.scale.set(1.4, 5.0, 1.4); mouth.rotation.z = Math.PI / 2; mouth.position.set(0, 2.55, -4.65);
+    for (let i = 0; i < 9; i++) { const wt = add(new THREE.Mesh(geo.sphere, mats.wart)); const a = i * 2.4; wt.scale.setScalar(.34 + (i % 3) * .08); wt.position.set(Math.cos(a) * 2.2, 4.1 + Math.sin(a * 1.7) * .3, Math.sin(a) * 2.6 + 1.0); }
+    const tongue = add(new THREE.Mesh(geo.thin, mats.tongue)); tongue.rotation.x = Math.PI / 2; tongue.visible = false;
+    const stars = []; for (let i = 0; i < 3; i++) { const st = add(new THREE.Mesh(geo.sphere, mats.golden)); st.scale.setScalar(.38); st.visible = false; stars.push(st); }
+    toad.userData = { tongue, stars };
+  })();
+  const lashGeo = new THREE.PlaneGeometry(1, 1); lashGeo.rotateX(-Math.PI / 2); lashGeo.translate(0, 0, -.5);
+  const lashMark = new THREE.Mesh(lashGeo, new THREE.MeshBasicMaterial({ color: '#e0412c', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); lashMark.position.y = .14; lashMark.visible = false; scene.add(lashMark);
+  const landMark = new THREE.Mesh(geo.circle, new THREE.MeshBasicMaterial({ color: '#e0412c', transparent: true, opacity: 0, depthWrite: false })); landMark.rotation.x = -Math.PI / 2; landMark.position.y = .13; landMark.visible = false; scene.add(landMark);
+  const boss = { active: false, done: false, hp: BOSS.hp, x: 0, z: 0, tx: 0, tz: 0, sx: 0, sz: 0, ry: 0, mode: 'idle', t: 0, life: 0, pop: 0, tele: false, early: false };
+
   function makeEnemy(id, x, z, kind, minStage) {
     const g = new THREE.Group(); applyEditorPosition(g, id, x, z); g.userData.kind = kind;
     const bodyMat = kind === 'spider' ? mats.spider : mats.beetleDark;
@@ -517,6 +550,7 @@ function boot(mode) {
   const flowers = [], hunters = [];
   const flowerMats = [mats.petalPink, mats.petalYellow, mats.petalViolet, mats.petalOrange];
   function makeFlower(x, z, golden) {
+    [x, z] = unblock(x, z, 2.2);
     const g = new THREE.Group(); g.position.set(x, 0, z);
     const stem = new THREE.Mesh(geo.thin, mats.tree3); stem.scale.set(1.1, 2.2, 1.1); stem.position.y = 1.0; g.add(stem);
     const head = new THREE.Mesh(geo.sphere, golden ? mats.golden : flowerMats[Math.floor(lrand() * 4)]); head.scale.set(golden ? 1.25 : .85, .32, golden ? 1.25 : .85); head.position.y = 2.15; g.add(head);
@@ -525,7 +559,7 @@ function boot(mode) {
     g.userData.seed = lrand() * 7; scene.add(g);
     return { mesh: g, x, z, golden, active: true, respawnAt: 0 };
   }
-  const flowerSpot = (px, pz) => { let x, z, tries = 0; do { x = lrange(-138, 138); z = lrange(-138, 138); tries++; } while ((Math.hypot(x - px, z - pz) < 26 || Math.hypot(x + 57, z + 44) < 19) && tries < 20); return [x, z]; };
+  const flowerSpot = (px, pz) => { let x, z, tries = 0; do { x = lrange(-138, 138); z = lrange(-138, 138); tries++; } while ((Math.hypot(x - px, z - pz) < 26 || Math.hypot(x + 57, z + 44) < 19) && tries < 20); return unblock(x, z, 2.2); };
   function spawnFlowers() {
     clearFlowers();
     for (let c = 0; c < 8; c++) {
@@ -541,7 +575,7 @@ function boot(mode) {
   /* ---------- state */
   const playerState = { x: player.position.x, z: player.position.z, energy: 0, foodEaten: 0, stage: 0, health: 3, invulnerable: 0, burstCooldown: 0, cocooning: false, cocoonTimer: 0, complete: false, alive: true, shielded: false };
   const ui = {};
-  for (const id of ['progress-fill', 'energy-label', 'food-count', 'chapter-label', 'hearts', 'burst-button', 'burst-cooldown', 'danger-alert', 'status-toast', 'minimap', 'map-coord', 'vignette', 'flash', 'chapter-banner', 'cb-title', 'cb-text', 'control-hint', 'score-big', 'timer-label', 'combo-label', 'combo-fill', 'cocoon-fill', 'cocoon-time', 'cocoon-sub', 'float-layer', 'sound-btn', 'start-overlay', 'finish-overlay', 'gameover-overlay', 'stars', 'res-score', 'res-grid', 'res-best', 'go-title', 'go-text', 'intro-footer']) ui[id] = root.querySelector(`#${id}`);
+  for (const id of ['progress-fill', 'energy-label', 'food-count', 'chapter-label', 'hearts', 'burst-button', 'burst-cooldown', 'danger-alert', 'status-toast', 'minimap', 'map-coord', 'vignette', 'flash', 'chapter-banner', 'cb-title', 'cb-text', 'control-hint', 'score-big', 'timer-label', 'combo-label', 'combo-fill', 'cocoon-fill', 'cocoon-time', 'cocoon-sub', 'float-layer', 'sound-btn', 'start-overlay', 'finish-overlay', 'gameover-overlay', 'stars', 'res-score', 'res-grid', 'res-best', 'go-title', 'go-text', 'intro-footer', 'bossbar', 'boss-fill', 'boss-hits', 'boss-sub', 'res-board']) ui[id] = root.querySelector(`#${id}`);
   const stick = root.querySelector('#stick'), knob = root.querySelector('#stick-knob');
   const input = { x: 0, z: 0, keys: new Set(), pointerId: null, pointerOrigin: null };
   let phase = editMode ? 'edit' : 'start', phaseT = 0, abilities = abilitiesForStage(0), cocoonIntegrity = 100, flyT = 0, bestScore = 0, runStats = null;
@@ -549,7 +583,7 @@ function boot(mode) {
   let moltStage = 0, moltBuilt = false, camH = 43, camBack = 31, hintHidden = false, timeScale = 1, floatIdx = 0, lastMove = { x: 0, z: 0 };
   let score = { combo: 0, score: 0, maxCombo: 0, lastPollenAt: null }, butterflyStun = 0, flyWarned = false, flyBonus = 0, stuns = 0;
   const raycaster = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pointerNdc = new THREE.Vector2();
-  let animationId = 0;
+  let animationId = 0, paused = false;
   const listeners = [];
   const listen = (target, event, handler, options) => { target.addEventListener(event, handler, options); listeners.push(() => target.removeEventListener(event, handler, options)); };
   const setPhase = (p) => { phase = p; phaseT = 0; root.dataset.phase = p; };
@@ -597,6 +631,7 @@ function boot(mode) {
     } else {
       for (const f of food) if (f.active) { const [x, y] = xy(f.x, f.z); ctx.fillStyle = f.kind === 'nectar' ? '#ee9a5a' : f.kind === 'golden' ? '#ffcf1f' : '#f4dc69'; ctx.beginPath(); ctx.arc(x, y, f.kind === 'leaf' ? 2.5 : 4, 0, TAU); ctx.fill(); }
       for (const e of enemies) if (e.active) { const [x, y] = xy(e.x, e.z); ctx.fillStyle = e.kind === 'spider' ? '#9a58c8' : '#d96658'; ctx.beginPath(); ctx.arc(x, y, 3.8, 0, TAU); ctx.fill(); }
+      if (boss.active) { const [x, y] = xy(boss.x, boss.z); ctx.fillStyle = '#3f9d3a'; ctx.beginPath(); ctx.arc(x, y, 7.5, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
       if (strike.active) { const [x, y] = xy(strike.x, strike.z); ctx.strokeStyle = '#ff3b2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 7, 0, TAU); ctx.stroke(); }
     }
     const [px, py] = xy(playerState.x, playerState.z); ctx.fillStyle = '#fff678'; ctx.beginPath(); ctx.arc(px, py, 5.6, 0, TAU); ctx.fill(); ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
@@ -622,6 +657,7 @@ function boot(mode) {
     Object.assign(playerState, { x: startX, z: startZ, energy: 0, foodEaten: 0, stage: 0, health: 3, invulnerable: 0, burstCooldown: 0, cocooning: false, cocoonTimer: 0, complete: false, alive: true, shielded: false });
     player.position.set(startX, 0, startZ); player.rotation.y = Math.PI; buildCaterpillar(0); playerVisual.visible = true; playerVisual.scale.set(savedSettings.caterpillarScale * 1.8, savedSettings.caterpillarScale, savedSettings.caterpillarScale); playerVisual.position.y = 0;
     cocoon.visible = false; cocoon.rotation.z = 0; mats.cocoon.color.set('#efc75f'); mats.cocoon.emissiveIntensity = .15; playerVisual.userData.born = false; strike.flying = false; abilities = abilitiesForStage(0); cocoonIntegrity = 100; score = { combo: 0, score: 0, maxCombo: 0, lastPollenAt: null }; butterflyStun = 0; strike.active = false; strike.cd = 6; strike.t = 0; strikeBird.visible = false; strikeMark.visible = false; strikeRing.visible = false;
+    moltStage = 0; boss.active = false; boss.done = false; boss.hp = BOSS.hp; toad.visible = false; toad.rotation.z = 0; landMark.visible = false; lashMark.visible = false; ui.bossbar.classList.remove('show');
     for (const f of food) { f.active = true; f.x = f.spawnX; f.z = f.spawnZ; f.mesh.position.set(f.x, 0, f.z); f.mesh.visible = true; }
     for (const e of enemies) { e.hold = 0; e.active = false; e.mesh.visible = false; e.x = e.homeX; e.z = e.homeZ; e.mesh.position.set(e.x, 0, e.z); e.stun = 0; e.mode = 'wander'; e.pop = 1; e.mesh.scale.setScalar(1); }
     activateEnemies(0, false); showPuddles(false); atmo.night = 0; atmo.sunset = 0; applyAtmosphere();
@@ -671,6 +707,16 @@ function boot(mode) {
     spawnFlowers(); spawnHunters(2); playMusic('bgm_butterfly'); banner('WINGS!', 'Chain pollen for combos — dodge the birds', 3.4); toast('Fly through the flowers!', 2.2);
     ui['score-big'].textContent = '0'; ui['combo-label'].textContent = 'COMBO ×1'; ui['combo-fill'].style.width = '0%';
   }
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function renderBoard(r) {
+    if (!r || !r.entries || !r.entries.length) { ui['res-board'].innerHTML = ''; return; }
+    const rows = r.entries.slice(0, 5).map((e, i) => `<div><span>${i + 1}. ${esc(e.username || 'Gardener')}</span><b>${Number(e.score) || 0}</b></div>`).join('');
+    ui['res-board'].innerHTML = `<div class="bh">🌍 TOP GARDENERS</div>${rows}${r.userRank ? `<div class="yr"><span>Your rank</span><b>#${r.userRank}</b></div>` : ''}`;
+  }
+  function postScore(final) {
+    ui['res-board'].innerHTML = '<div class="bh">Posting your score…</div>';
+    try { Promise.resolve(lib.addPlayerScoreToLeaderboard?.(final, 5)).then(renderBoard).catch(() => { ui['res-board'].innerHTML = ''; }); } catch (e) { ui['res-board'].innerHTML = ''; }
+  }
   function finishRun() {
     setPhase('result'); stopMusic(0.5); playSfx('sting_win'); hap('success');
     const final = finalScore({ pollen: score.score, health: playerState.health, integrity: cocoonIntegrity }), stars = starRating(final), isBest = final > bestScore;
@@ -678,6 +724,7 @@ function boot(mode) {
     ui.stars.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars); ui['res-score'].textContent = String(final);
     ui['res-grid'].innerHTML = `<div>Pollen <b>${score.score}</b></div><div>Best combo <b>×${comboMultiplier(score.maxCombo)}</b></div><div>Nibbles <b>${playerState.foodEaten}</b></div><div>Hearts <b>${playerState.health}</b></div><div>Cocoon <b>${Math.round(cocoonIntegrity)}%</b></div><div>Streak <b>${score.maxCombo}</b></div>`;
     ui['res-best'].textContent = isBest ? '🏆 NEW BEST SCORE!' : `Best: ${bestScore}`;
+    postScore(final);
     ui['finish-overlay'].classList.add('show');
   }
 
@@ -693,6 +740,7 @@ function boot(mode) {
       for (const h of hunters) if (Math.hypot(h.x - playerState.x, h.z - playerState.z) < radius * 1.4) { h.mode = 'flee'; h.fleeT = 3.2; }
     } else {
       const act = enemies.filter((e) => e.active), pushed = burstEnemies({ x: playerState.x, z: playerState.z }, act.map((e) => ({ x: e.x, z: e.z, stun: e.stun })), radius, push, inCocoon ? 3.6 : 2.1);
+      if (boss.active && phase === 'larva') { const bd = Math.hypot(boss.x - playerState.x, boss.z - playerState.z); if (bossCanBeHit(boss.mode, bd)) setTimeout(() => { if (boss.active && boss.mode === 'rest') bossHit(); }, 0); else if (bd < 24 && !boss.early) { boss.early = true; toast('Too early! Puff it when it is dizzy ★', 1.8); } }
       act.forEach((e, i) => { const n = pushed[i]; if (n.knocked) { e.x = clamp(n.x, -144, 144); e.z = clamp(n.z, -144, 144); e.stun = n.stun; e.mode = 'recover'; e.modeT = 0; e.mesh.position.set(e.x, 0, e.z); } });
     }
     burstWave.visible = true; burstWave.scale.setScalar(1.2); burstWave.material.opacity = .86; burstWaveTimer = .52; burstWave.userData.max = radius;
@@ -765,10 +813,12 @@ function boot(mode) {
     if (input.keys.has('w') || input.keys.has('arrowup')) input.z = -1; else if (input.keys.has('s') || input.keys.has('arrowdown')) input.z = 1; else if (input.pointerId === null && !testInput) input.z = 0;
     if ((input.x || input.z) && !hintHidden) { hintHidden = true; ui['control-hint'].style.opacity = '0'; }
   }
-  function moveHero(dt, speed, allow = true) {
+  function moveHero(dt, speed, allow = true, solid = false) {
     const prevX = playerState.x, prevZ = playerState.z;
     if (!allow) { playerState.invulnerable = Math.max(0, playerState.invulnerable - dt); playerState.burstCooldown = Math.max(0, playerState.burstCooldown - dt); return; }
-    Object.assign(playerState, movePlayer(playerState, { x: input.x, z: input.z }, dt, speed, 144)); player.position.set(playerState.x, 0, playerState.z);
+    Object.assign(playerState, movePlayer(playerState, { x: input.x, z: input.z }, dt, speed, 144));
+    if (solid) { const q = slideAroundCircles({ x: prevX, z: prevZ }, { x: playerState.x, z: playerState.z }, obstacles, .9); playerState.x = clamp(q.x, -144, 144); playerState.z = clamp(q.z, -144, 144); }
+    player.position.set(playerState.x, 0, playerState.z);
     const vx = playerState.x - prevX, vz = playerState.z - prevZ; lastMove = { x: vx / Math.max(dt, .001), z: vz / Math.max(dt, .001) };
     if (Math.hypot(vx, vz) > .001) player.rotation.y = Math.atan2(-vx, -vz);
   }
@@ -790,7 +840,9 @@ function boot(mode) {
         Object.assign(playerState, addNourishment(playerState, amount)); hap('success');
         playSfx(p.kind === 'golden' ? 'sfx_golden' : p.kind === 'nectar' ? 'sfx_nectar' : 'sfx_eat', 1, 0.95 + lrand() * .12);
         floatText(`+${Math.round(amount)}`, p.x, p.z); spawnParts(p.x, .8, p.z, p.kind === 'golden' ? 12 : 6, p.kind === 'nectar' ? '#ffbd64' : p.kind === 'golden' ? '#ffe36b' : '#c8f26b', 5, .7, .22, 3);
+        playerState.energy = capEnergyForBoss(playerState.energy, boss.done); playerState.stage = growthStage(playerState.energy);
         updateHud();
+        if (bossShouldAppear(playerState, boss.active, boss.done)) { startBoss(); return; }
         if (canBeginCocoon(playerState)) { startSpin(); return; }
         if (playerState.stage > before && playerState.stage <= 2) { startMolt(playerState.stage); return; }
       }
@@ -821,7 +873,9 @@ function boot(mode) {
       else if (!chaseAll) { dx = Math.sin(e.phase * .75) * .42; dz = Math.cos(e.phase * .61) * .42; speed = .9; }
     }
     if (speed > 0) {
+      const prevEX = e.x, prevEZ = e.z;
       e.x += dx * speed * dt; e.z += dz * speed * dt; const edge = clampPosition(e.x, e.z, 143); e.x = edge.x; e.z = edge.z;
+      const bump = slideAroundCircles({ x: prevEX, z: prevEZ }, { x: e.x, z: e.z }, obstacles, .8); e.x = bump.x; e.z = bump.z;
       if (Math.hypot(dx, dz) > .1) e.mesh.rotation.y = Math.atan2(-dx, -dz);
     }
     e.mesh.position.set(e.x, Math.abs(Math.sin(simTime * 8 + e.phase)) * .08, e.z);
@@ -857,14 +911,101 @@ function boot(mode) {
     if (playerState.health <= 0) gameOver('hp');
   }
 
+  /* ---------- boss fight */
+  const bossBar = () => { ui['boss-fill'].style.width = `${boss.hp / BOSS.hp * 100}%`; ui['boss-hits'].textContent = `${'♥'.repeat(boss.hp)}`; };
+  function startBoss() {
+    boss.active = true; boss.done = false; boss.hp = BOSS.hp; boss.life = 0; boss.mode = 'enter'; boss.t = 0; boss.pop = 0; boss.tele = false; boss.early = false;
+    const a = lrand() * TAU, c = clampPosition(playerState.x + Math.cos(a) * 42, playerState.z + Math.sin(a) * 42, 138); boss.x = c.x; boss.z = c.z;
+    for (const e of enemies) if (e.active) { spawnParts(e.x, 1, e.z, 4, '#ffffff', 6, .6, .25, 3); e.active = false; e.mesh.visible = false; }
+    strike.active = false; strike.cd = 7; strikeMark.visible = false; strikeRing.visible = false; strikeBird.visible = false;
+    toad.visible = true; toad.position.set(boss.x, 0, boss.z); toad.scale.setScalar(.01);
+    ui.bossbar.classList.add('show'); ui['boss-sub'].textContent = 'Dodge, then PUFF it while it is dizzy!'; bossBar();
+    banner('BOSS', 'The Giant Toad guards the last leaves!', 3.8); toast('Dodge the red zones. PUFF when it is dizzy!', 3.2);
+    playSfx('sfx_toad'); hap('thud'); ringFx(boss.x, boss.z, '#7bd95a', 22, 1.2); playMusic('bgm_tense');
+  }
+  function bossPick(d) {
+    boss.t = 0; boss.tele = true;
+    if (d > 22 || lrand() < .55) {
+      let tx = playerState.x + lastMove.x * .6, tz = playerState.z + lastMove.z * .6; const dd = Math.hypot(tx - boss.x, tz - boss.z);
+      if (dd > 28) { tx = boss.x + (tx - boss.x) / dd * 28; tz = boss.z + (tz - boss.z) / dd * 28; }
+      const c = clampPosition(tx, tz, 140); boss.tx = c.x; boss.tz = c.z; boss.sx = boss.x; boss.sz = boss.z; boss.mode = 'hop-wind';
+      landMark.position.set(boss.tx, .13, boss.tz); landMark.scale.setScalar(BOSS.hopRadius); landMark.visible = true;
+    } else { boss.mode = 'lash-wind'; lashMark.visible = true; }
+    playSfx('sfx_warning', .6);
+  }
+  function bossDefeat(fought) {
+    boss.mode = 'dead'; boss.t = 0; boss.tele = false; boss.done = true; landMark.visible = false; lashMark.visible = false; toad.userData.tongue.visible = false; toad.userData.stars.forEach((st) => { st.visible = false; });
+    playerState.shielded = true; ui.bossbar.classList.remove('show');
+    if (fought) {
+      playSfx('sfx_golden'); playSfx('sfx_molt', .7); hap('success'); flash(.5, 320); addShake(2);
+      spawnParts(boss.x, 3, boss.z, 34, '#ffe36b', 14, 1.4, .42, 9); ringFx(boss.x, boss.z, '#ffe36b', 26, 1.1); banner('TOAD DEFEATED', 'The last leaves are yours!', 3);
+    } else { toast('The toad got bored and hopped away…', 2.6); }
+  }
+  function bossHit() {
+    boss.hp = Math.max(0, boss.hp - 1); bossBar(); playSfx('sfx_hit'); playSfx('sfx_toad', .5, 1.25); hap('thud'); addShake(1.6);
+    spawnParts(boss.x, 4, boss.z, 16, '#fff3a0', 10, .8, .34, 6); floatText(boss.hp > 0 ? `TOAD HIT! ${boss.hp} left` : 'FINAL HIT!', boss.x, boss.z);
+    const dx = boss.x - playerState.x, dz = boss.z - playerState.z, d = Math.hypot(dx, dz) || 1; boss.x = clamp(boss.x + dx / d * 7, -140, 140); boss.z = clamp(boss.z + dz / d * 7, -140, 140);
+    if (boss.hp <= 0) bossDefeat(true);
+    else {
+      boss.mode = 'hurt'; boss.t = 0;
+      if (boss.hp === 1) { ui['boss-sub'].textContent = 'It is ENRAGED! One more puff!'; if (playerState.health < 3) { playerState.health++; updateHud(); toast('Toad enraged! +1 heart', 2); } else toast('Toad enraged! Faster attacks!', 2); }
+      else ui['boss-sub'].textContent = 'Nice! Dodge again…';
+    }
+  }
+  function updateBoss(dt) {
+    boss.life += dt; boss.t += dt;
+    const P = playerState, tm = bossTimings(boss.hp), dx = P.x - boss.x, dz = P.z - boss.z, d = Math.hypot(dx, dz) || .01, ud = toad.userData;
+    const face = () => { boss.ry = Math.atan2(-dx, -dz); };
+    let y = 0, sq = 1;
+    ud.stars.forEach((st) => { st.visible = boss.mode === 'rest'; });
+    switch (boss.mode) {
+      case 'enter': boss.pop = Math.min(1, boss.pop + dt * 1.3); face(); if (boss.t > 1.5) { boss.mode = 'idle'; boss.t = 0; } break;
+      case 'idle': face(); sq = 1 + Math.sin(simTime * 4) * .03; if (boss.t > .85) { if (boss.life > BOSS.giveUpAfter) bossDefeat(false); else bossPick(d); } break;
+      case 'hop-wind': { face(); const w = Math.min(1, boss.t / tm.windup); y = -w * .5; sq = 1 - w * .22; landMark.material.opacity = .32 + .26 * w + Math.sin(boss.t * 24) * .06; if (boss.t >= tm.windup) { boss.mode = 'hop-air'; boss.t = 0; playSfx('sfx_toad', .7); } break; }
+      case 'hop-air': {
+        const u = Math.min(1, boss.t / .7); boss.x = lerp(boss.sx, boss.tx, u); boss.z = lerp(boss.sz, boss.tz, u); y = Math.sin(Math.PI * u) * 11; sq = 1 + Math.sin(Math.PI * u) * .14;
+        boss.ry = Math.atan2(-(boss.tx - boss.sx), -(boss.tz - boss.sz));
+        if (u >= 1) {
+          landMark.visible = false; boss.tele = false; ringFx(boss.x, boss.z, '#c9a46b', BOSS.hopRadius * 1.2, .7); spawnParts(boss.x, .6, boss.z, 14, '#c9a46b', 10, .8, .34, 6); addShake(2.4); playSfx('sfx_slam'); hap('thud');
+          boss.mode = 'rest'; boss.t = 0; if (Math.hypot(P.x - boss.x, P.z - boss.z) < BOSS.hopRadius) hurtPlayer(boss.x, boss.z, 'Toad slam!');
+        }
+        break;
+      }
+      case 'lash-wind': {
+        const w = Math.min(1, boss.t / tm.lash); if (boss.t < tm.lash - .25) face(); sq = 1 + w * .1;
+        lashMark.position.set(boss.x, .14, boss.z); lashMark.rotation.y = boss.ry; lashMark.scale.set(BOSS.lashWidth, 1, BOSS.lashLength); lashMark.material.opacity = .34 + .3 * w + Math.sin(boss.t * 26) * .06;
+        if (boss.t >= tm.lash) { boss.mode = 'lash'; boss.t = 0; lashMark.visible = false; boss.tele = false; playSfx('sfx_tongue'); if (lashHits({ x: boss.x, z: boss.z }, boss.ry, P)) hurtPlayer(boss.x, boss.z, 'Tongue lash!'); }
+        break;
+      }
+      case 'lash': { const len = BOSS.lashLength * Math.min(1, boss.t / .1); ud.tongue.visible = true; ud.tongue.scale.set(10, len, 10); ud.tongue.position.set(0, 2.5, -4.6 - len / 2); if (boss.t > .35) { ud.tongue.visible = false; boss.mode = 'rest'; boss.t = 0; } break; }
+      case 'rest': {
+        sq = .92 + Math.sin(simTime * 10) * .02;
+        ud.stars.forEach((st, i) => { const a = simTime * 4 + i * 2.1; st.position.set(Math.cos(a) * 2, 6.3 + Math.sin(simTime * 6 + i) * .2, Math.sin(a) * 2 - 2.8); });
+        if (boss.t > tm.rest) { boss.mode = 'idle'; boss.t = 0; }
+        break;
+      }
+      case 'hurt': sq = 1 + Math.sin(boss.t * 40) * .1; if (boss.t > 1.0) { boss.mode = 'idle'; boss.t = 0; } break;
+      case 'dead': {
+        const u = Math.min(1, boss.t / 1.6); sq = 1 - u * .6; y = u * 3; boss.pop = Math.max(.01, 1 - u); toad.rotation.z = u * .8;
+        if (Math.floor(boss.t * 10) !== Math.floor((boss.t - dt) * 10)) spawnParts(boss.x, 3, boss.z, 3, '#ffe36b', 8, .8, .3, 6);
+        if (boss.t >= 1.8) { boss.active = false; toad.visible = false; toad.rotation.z = 0; playerState.energy = 100; playerState.stage = 3; updateHud(); startSpin(); }
+        break;
+      }
+      default: break;
+    }
+    toad.position.set(boss.x, y, boss.z); toad.rotation.y = boss.ry; toad.scale.set(boss.pop, boss.pop * sq, boss.pop);
+  }
+
   /* ---------- phases */
   function updateLarva(dt) {
     readKeys();
     inPuddle = false;
     for (const p of puddles) if (p.shown && Math.hypot(playerState.x - p.x, playerState.z - p.z) < p.r) inPuddle = true;
-    moveHero(dt, abilities.speed * (inPuddle ? .5 : 1)); animateCaterpillar();
+    moveHero(dt, abilities.speed * (inPuddle ? .5 : 1), true, true); animateCaterpillar();
     if (inPuddle) { toxic += dt; if (!poisonWarned) { poisonWarned = true; toast('Poison puddle! Get out!', 1.6); } if (toxic > 2.2) { toxic = 0; hurtPlayer(playerState.x + 1, playerState.z, 'Poisoned!'); } } else toxic = Math.max(0, toxic - dt * .5);
-    updateFood(dt, true); if (phase !== 'larva') return;
+    updateFood(dt, !boss.active); if (phase !== 'larva') return;
+    if (boss.active) updateBoss(dt);
+    if (phase !== 'larva') return;
     let danger = false;
     for (const e of enemies) {
       if (!e.active) continue;
@@ -872,8 +1013,8 @@ function boot(mode) {
       if (d < 2.85 && e.stun <= 0) { const before = playerState.health; hurtPlayer(e.x, e.z); if (playerState.health < before) { e.x = clamp(e.x - (playerState.x - e.x) * .8, -144, 144); e.z = clamp(e.z - (playerState.z - e.z) * .8, -144, 144); if (e.kind === 'spider') { e.mode = 'recover'; e.modeT = 0; } } }
       if (phase !== 'larva') return;
     }
-    if (playerState.stage >= 1) { if (updateStrike(dt, playerState.stage >= 2 ? 4.3 : 6.8, playerState)) hurtPlayer(strike.x, strike.z, 'Bird strike!'); if (strike.active) danger = true; }
-    ui['danger-alert'].textContent = strike.active && strike.t < 1.7 ? '⚠ BIRD ABOVE! MOVE!' : inPuddle ? '☠ POISON!' : '⚠ DANGER NEARBY'; ui['danger-alert'].classList.toggle('show', danger || inPuddle);
+    if (playerState.stage >= 1) { if (updateStrike(dt, boss.active ? 9 : playerState.stage >= 2 ? 4.3 : 6.8, playerState)) hurtPlayer(strike.x, strike.z, 'Bird strike!'); if (strike.active) danger = true; }
+    ui['danger-alert'].textContent = strike.active && strike.t < 1.7 ? '⚠ BIRD ABOVE! MOVE!' : boss.active && boss.tele ? '⚠ TOAD ATTACK! MOVE!' : inPuddle ? '☠ POISON!' : '⚠ DANGER NEARBY'; ui['danger-alert'].classList.toggle('show', danger || inPuddle || (boss.active && boss.tele));
     updateHud();
   }
   function updateMolt(dt) {
@@ -991,8 +1132,8 @@ function boot(mode) {
     shake = Math.max(0, shake - dt * 2.4);
   }
   function updateCamera(dt) {
-    const tH = phase === 'spin' ? 30 : phase === 'cocoon' ? 38 : phase === 'molt' ? 36 : phase === 'fly' || phase === 'emerge' ? 52 : 43;
-    const tB = phase === 'spin' ? 21 : phase === 'cocoon' ? 27 : phase === 'molt' ? 25 : phase === 'fly' || phase === 'emerge' ? 38 : 31;
+    const bossCam = boss.active && phase === 'larva'; const tH = bossCam ? 52 : phase === 'spin' ? 30 : phase === 'cocoon' ? 38 : phase === 'molt' ? 36 : phase === 'fly' || phase === 'emerge' ? 52 : 43;
+    const tB = bossCam ? 38 : phase === 'spin' ? 21 : phase === 'cocoon' ? 27 : phase === 'molt' ? 25 : phase === 'fly' || phase === 'emerge' ? 38 : 31;
     camH += (tH - camH) * Math.min(1, dt * 1.8); camBack += (tB - camBack) * Math.min(1, dt * 1.8);
     const sx = shake > 0 ? (Math.random() - .5) * shake * 1.6 : 0, sz = shake > 0 ? (Math.random() - .5) * shake * 1.6 : 0;
     camera.position.x += (playerState.x - camera.position.x) * Math.min(1, dt * 2.7); camera.position.z += (playerState.z + camBack - camera.position.z) * Math.min(1, dt * 2.7); camera.position.y += (camH - camera.position.y) * Math.min(1, dt * 2.1);
@@ -1013,8 +1154,8 @@ function boot(mode) {
   function frame(now) {
     animationId = requestAnimationFrame(frame);
     const dt = Math.min(.11, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    if (!editMode) { const steps = Math.max(1, Math.round(timeScale)); for (let i = 0; i < steps; i++) updateGame(steps > 1 ? Math.min(dt, .05) : dt); }
-    else {
+    if (!editMode && !paused) { const steps = Math.max(1, Math.round(timeScale)); for (let i = 0; i < steps; i++) updateGame(steps > 1 ? Math.min(dt, .05) : dt); }
+    else if (editMode) {
       camera.position.x += (player.position.x - camera.position.x) * Math.min(1, dt * 2.7); camera.position.z += (player.position.z + 31 - camera.position.z) * Math.min(1, dt * 2.7); camera.lookAt(player.position.x, 0, player.position.z - 1.5);
       for (const f of food) f.mesh.position.y = .02 + Math.sin(now / 1000 * 2.3 + f.mesh.userData.floatSeed) * .07;
     }
@@ -1027,12 +1168,12 @@ function boot(mode) {
 
   if (window.__META_TEST) {
     window.__meta = {
-      phase: () => phase, state: () => ({ ...playerState, phase, flyT, stuns, t: simTime, score: score.score, combo: score.combo, integrity: cocoonIntegrity, strikeActive: strike.active }),
+      phase: () => phase, state: () => ({ ...playerState, phase, flyT, stuns, t: simTime, bossHp: boss.hp, bossMode: boss.mode, bossActive: boss.active, bossDone: boss.done, score: score.score, combo: score.combo, integrity: cocoonIntegrity, strikeActive: strike.active }),
       setScale: (n) => { timeScale = n; }, setInput: (x, z) => { testInput = x !== null; if (x !== null) { input.x = x; input.z = z; } },
       burst: () => spawnBurst(), start: () => startGame(), restart: () => newRun(false),
-      give: (n) => { Object.assign(playerState, addNourishment(playerState, n)); const b = playerState.stage; if (canBeginCocoon(playerState)) startSpin(); else if (b >= 1 && phase === 'larva' && moltStage < b) startMolt(b); },
-      snapshot: () => ({ food: food.filter((f) => f.active).map((f) => ({ x: f.x, z: f.z, kind: f.kind })), enemies: enemies.filter((e) => e.active).map((e) => ({ x: e.x, z: e.z, kind: e.kind, stun: e.stun, mode: e.mode })), flowers: flowers.filter((f) => f.active).map((f) => ({ x: f.x, z: f.z, golden: f.golden })), hunters: hunters.map((h) => ({ x: h.x, z: h.z })), strike: { ...strike }, puddles: puddles.filter((p) => p.shown).map((p) => ({ x: p.x, z: p.z, r: p.r })), player: { x: playerState.x, z: playerState.z } }),
-      calls: () => renderer.info.render.calls, mute: (m) => setMuted(m), audio: () => ({ bufs: Object.keys(audio.bufs).length, raw: Object.keys(audio.raw).length, music: audio.musicId, ctx: !!audio.ctx }),
+      give: (n) => { Object.assign(playerState, addNourishment(playerState, n)); playerState.energy = capEnergyForBoss(playerState.energy, boss.done); playerState.stage = growthStage(playerState.energy); const b = playerState.stage; if (bossShouldAppear(playerState, boss.active, boss.done)) startBoss(); else if (canBeginCocoon(playerState)) startSpin(); else if (b >= 1 && phase === 'larva' && moltStage < b) startMolt(b); },
+      snapshot: () => ({ food: food.filter((f) => f.active).map((f) => ({ x: f.x, z: f.z, kind: f.kind })), enemies: enemies.filter((e) => e.active).map((e) => ({ x: e.x, z: e.z, kind: e.kind, stun: e.stun, mode: e.mode })), flowers: flowers.filter((f) => f.active).map((f) => ({ x: f.x, z: f.z, golden: f.golden })), hunters: hunters.map((h) => ({ x: h.x, z: h.z })), strike: { ...strike }, puddles: puddles.filter((p) => p.shown).map((p) => ({ x: p.x, z: p.z, r: p.r })), player: { x: playerState.x, z: playerState.z }, boss: { active: boss.active, x: boss.x, z: boss.z, mode: boss.mode, hp: boss.hp, tx: boss.tx, tz: boss.tz, ry: boss.ry, tele: boss.tele, r: BOSS.hopRadius, len: BOSS.lashLength, w: BOSS.lashWidth }, obstacles: obstacles.map((o) => ({ x: o.x, z: o.z, r: o.r })) }),
+      pause: (v) => { paused = v; }, bossDone: (v) => { boss.done = v; }, calls: () => renderer.info.render.calls, mute: (m) => setMuted(m), audio: () => ({ bufs: Object.keys(audio.bufs).length, raw: Object.keys(audio.raw).length, music: audio.musicId, ctx: !!audio.ctx }),
     };
   }
 

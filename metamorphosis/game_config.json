@@ -6,5 +6,10 @@
     "difficulty": "Meadow",
     "flightSeconds": 90
   },
-  "editorPositions": {}
+  "editorPositions": {},
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": false
+    }
+  }
 }
