@@ -2,6 +2,7 @@
 // short context-aware dialogue and a friendship tier. Far-away NPCs are hidden and not animated.
 import { createCharacter } from './character.js';
 import { angleDiff, clamp, lerp, approach } from './util.js';
+import { ringPt } from './layout.js';
 
 export const TALK_RANGE = 4.2;
 const ACTIVE_RANGE = 95;
@@ -10,7 +11,7 @@ export const NPC_DEFS = [
   {
     id: 'mika', name: 'Coach Mika', role: 'Skating coach', kind: 'male',
     variant: { skin: 0xc58a64, jacket: 0xe8833a, scarf: 0xf2f2f2, pants: 0x2a2f3d, boot: 0x1c1c22, bootAccent: 0x2aa5c9, glove: 0x3a3f4f, cuff: 0x2a2f3d, hair: { color: 0x1d1612, style: 'short' }, eye: { iris: 0x6a4524 }, brow: { color: 0x1d1612 } },
-    behavior: { type: 'skater', speed: 5.4, path: [[22, -10], [38, 6], [30, 26], [10, 30], [-6, 14], [0, -12]] },
+    behavior: { type: 'skater', speed: 5.4, path: [[40, 2], [50, -14], [38, -30], [16, -26], [10, -6], [22, 10]] },
     intro: ['Hey, new face! I am Coach Mika. I run the lake sessions here.', 'Rule number one: falling is part of learning. Everybody wipes out at first!'],
     greet: [['Back for more ice time? Good. Let us get you gliding.', 'Ready to train? The ice is in great shape today.'], ['Hey! Your strokes are looking smoother already.', 'Nice to see you again. Want a tip?'], ['There you are, champ! The best ice is yours today.', 'My favourite student! Show me what you have got.']],
     chat: ['Push, push, glide. Then breathe. Easy.', 'The secret to speed? Relaxed knees and long strokes.', 'Do not stare at your skates. Look where you want to go.', 'Practice a little every day. The lake will wait for you.'],
@@ -29,7 +30,7 @@ export const NPC_DEFS = [
   {
     id: 'rin', name: 'Rin', role: 'Young skater', kind: 'female',
     variant: { skin: 0xf3cfb6, jacket: 0x7a5cd6, scarf: 0xffd36b, pants: 0x2b2f45, boot: 0xfff4f8, bootAccent: 0xff8fb1, laces: 0xff8fb1, glove: 0xffd36b, cuff: 0x5a3fb0, glasses: false, hair: { color: 0xe0a84a, style: 'bob' }, hat: { color: 0xff8fb1 }, eye: { iris: 0x4d9a5e }, brow: { color: 0xb07a2a } },
-    behavior: { type: 'skater', speed: 3.8, path: [[-30, 20], [-40, 8], [-30, -4], [-18, 6], [-20, 22]] },
+    behavior: { type: 'skater', speed: 3.8, path: [[-28, 14], [-42, 24], [-52, 8], [-42, -8], [-30, 0]] },
     intro: ['Oh! Hi! I am Rin. I am trying to land my first spin before the ice melts!', 'Want to practise together? Do not race me. Okay, maybe race me.'],
     greet: [['Hi again! Watch this... okay, watch the next one.', 'Oh hey! I almost landed it, I swear.'], ['You are getting good! Keep up with me if you can!', 'Hey you! My ankles say hi.'], ['My practice buddy! Let us make today count!', 'Best friend alert! Ready for round two?']],
     chat: ['I saw a fox on the north shore this morning. A real one!', 'If you fall, laugh first. Then get up. That is my trick.', 'I love the lamps at night. The whole lake glows.', 'Coach Mika says I lean too far. I say it looks cool.'],
@@ -37,7 +38,7 @@ export const NPC_DEFS = [
   {
     id: 'hana', name: 'Hana', role: 'Skate shop', kind: 'female',
     variant: { skin: 0xe9bf9e, jacket: 0x3aa38a, scarf: 0xf6e7d0, pants: 0x3a3340, boot: 0x6a4a3a, bootAccent: 0xe9c27a, glove: 0xf6e7d0, cuff: 0x2a7a68, glasses: true, hair: { color: 0x1a1a22, style: 'bob' }, eye: { iris: 0x4a3322 }, brow: { color: 0x1a1a22 } },
-    behavior: { type: 'idle', start: [-24, 100], face: [0, 92] },
+    behavior: { type: 'idle', start: [-19, 119.5], face: [0, 108] },
     intro: ['Welcome to Blade & Edge! I am Hana.', 'Boots, blades, scarves... we are still unpacking, but the shop opens very soon!'],
     greet: [['Welcome back! Boxes everywhere, I know.', 'Hello! Come see me when the shelves are ready.'], ['Oh, it is you! I saved a nice pair of boots in your size.', 'Good to see a familiar face!'], ['My favourite customer! You get the first look, always.', 'Hello, friend! The best blades are yours.']],
     chat: ['A sharp blade is a happy blade.', 'The new boots just arrived. I am polishing them.', 'Wool scarves are half the sport, honestly.', 'Opening day is almost here. I can feel it.'],
@@ -45,7 +46,7 @@ export const NPC_DEFS = [
   {
     id: 'ollie', name: 'Ollie', role: 'Cafe barista', kind: 'male',
     variant: { skin: 0xf0c6aa, jacket: 0x8a5a3a, scarf: 0xd94f4f, pants: 0x2f2f38, boot: 0x3a2a22, bootAccent: 0xd94f4f, glove: 0x8a5a3a, cuff: 0x5a3a24, hair: { color: 0x7a4a24, style: 'short' }, eye: { iris: 0x5f8aa8 }, brow: { color: 0x5a3418 } },
-    behavior: { type: 'idle', start: [3, 106], face: [0, 92] },
+    behavior: { type: 'idle', start: [4, 122], face: [0, 108] },
     intro: ['Cocoa Corner! I am Ollie.', 'The espresso machine is warming up. Come back soon and the first cup is on me!'],
     greet: [['Hey! Still warming up the kitchen.', 'Hello again! Smells like cinnamon, right?'], ['Oh, hi! I am practising a new cocoa recipe for you.', 'Back again? I like that.'], ['My favourite regular! Table by the window is yours.', 'Hey, friend! Marshmallows on me today.']],
     chat: ['Marshmallows are a skating tool. Fight me.', 'The lake froze in three days. I timed it with soup.', 'I put cinnamon in everything. It is a lifestyle.', 'Best seat in town: the bench by the fountain.'],
@@ -53,7 +54,7 @@ export const NPC_DEFS = [
   {
     id: 'baker', name: 'Mr. Baker', role: 'Neighbour', kind: 'male',
     variant: { skin: 0xdcaa86, jacket: 0x4a5568, scarf: 0x9a6a3e, pants: 0x30323c, boot: 0x2a2a30, bootAccent: 0x9a6a3e, glove: 0x4a5568, cuff: 0x2d3748, hair: { color: 0xc9c9d0, style: 'short' }, hat: { color: 0x2d3748 }, eye: { iris: 0x7a6a3a }, brow: { color: 0x9a9aa2 } },
-    behavior: { type: 'walker', speed: 1.5, pingpong: true, path: [[0, 82], [-24, 82], [-54, 72], [-80, 44], [-92, 20]] },
+    behavior: { type: 'walker', speed: 1.5, pingpong: true, path: [[0, 100], [0, 87], ringPt(75), ringPt(60), ringPt(45), ringPt(30), ringPt(15), ringPt(0), [105, 12]] },
     intro: ['Morning! Walter Baker, but everyone says Mr. Baker.', 'I walk this path every day. Best view of the lake in town.'],
     greet: [['Morning again! Lovely cold today.', 'Ah, hello there. Out for a stroll?'], ['Good to see you! You skate better every day.', 'Hello, young one. Mind the ice by the dock.'], ['Ah, my favourite neighbour! Walk with me a while.', 'Hello, friend! Still the best view in town.']],
     chat: ['I used to skate here before my knees retired.', 'The bakery on the plaza? The cinnamon buns are legendary.', 'Winter is just summer taking a long nap.', 'Watch the old oak by the park. It has seen every winter.'],
@@ -64,13 +65,13 @@ export const friendTier = (p) => (p < 2 ? 0 : p < 6 ? 1 : 2);
 export const friendLabel = (p) => (p < 1 ? 'New face' : p < 3 ? 'Acquaintance' : p < 6 ? 'Friend' : 'Close friend');
 export const friendHearts = (p) => (p < 1 ? 0 : p < 3 ? 1 : p < 6 ? 2 : 3);
 
-export function createNpcs(scene) {
+export function createNpcs(scene, heightAt = () => 0) {
   const list = NPC_DEFS.map((def) => {
     const ch = createCharacter(def.kind, { variant: def.variant, lite: true });
     scene.add(ch.root);
     const b = def.behavior, start = b.type === 'idle' ? b.start : b.path[0], nx = b.type === 'idle' ? b.face : b.path[1];
     const s = {
-      x: start[0], z: start[1], h: Math.atan2(nx[0] - start[0], nx[1] - start[1]), vx: 0, speed: 0, mode: b.type === 'skater' ? 'skate' : 'walk', state: 'ok',
+      x: start[0], z: start[1], y: 0, h: Math.atan2(nx[0] - start[0], nx[1] - start[1]), vx: 0, speed: 0, mode: b.type === 'skater' ? 'skate' : 'walk', state: 'ok',
       strokeT: 0, strokeLeg: 0, stroking: false, strideAmp: 0, stride: Math.random() * 6, b: 0, steer: 0, brake: 0, fallAmt: 0, fallDir: -1, spin: null, spinAng: 0,
     };
     return { def, id: def.id, name: def.name, role: def.role, ch, s, wi: 1, dir: 1, pause: 0, talks: 0, active: true, clock: Math.random() * 10 };
@@ -126,6 +127,7 @@ export function createNpcs(scene) {
         else if (n.def.behavior.type === 'walker') walk(n, dt);
         else idle(n, dt, px, pz);
         s.x += Math.sin(s.h) * s.speed * dt; s.z += Math.cos(s.h) * s.speed * dt;
+        s.y = s.mode === 'skate' ? 0 : heightAt(s.x, s.z);
         n.ch.pose(s, n.clock); n.ch.place(s);
       }
     },

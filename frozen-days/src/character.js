@@ -328,7 +328,7 @@ export function createCharacter(kind, opts = {}) {
     body.rotation.y = p.spinAng || 0;
     body.position.y = f * 0.16;
   }
-  function place(p) { root.position.set(p.x, p.mode === 'skate' ? 0.06 : 0, p.z); root.rotation.y = p.h; }
+  function place(p) { root.position.set(p.x, (p.y || 0) + (p.mode === 'skate' ? 0.06 : 0), p.z); root.rotation.y = p.h; }
   function dispose() {
     root.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
     disposables.forEach((d) => { if (d.dispose) d.dispose(); });

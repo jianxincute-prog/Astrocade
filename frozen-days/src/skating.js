@@ -1,13 +1,13 @@
 // Skater state + physics: walking on snow, gliding on ice, balance, falling and getting up.
 import { clamp, lerp, ease, approach } from './util.js';
 import { skillsFor } from './config.js';
-import { MAP_HALF } from './world.js';
+import { MAP_HALF } from './layout.js';
 
 export const SPAWN = { x: 0, z: 34, h: Math.PI };
 
 export function createSkater() {
   return {
-    x: SPAWN.x, z: SPAWN.z, h: SPAWN.h, vx: 0, vz: 0,
+    x: SPAWN.x, z: SPAWN.z, y: 0, h: SPAWN.h, vx: 0, vz: 0,
     speed: 0, vf: 0, vl: 0,
     mode: 'skate', state: 'ok', t: 0,
     b: 0, warned: false,

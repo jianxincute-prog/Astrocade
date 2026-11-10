@@ -1,5 +1,5 @@
 /*
- * FROZEN DAYS — Build 2: skating progression + frozen-lake environment.
+ * FROZEN DAYS — Build 4: skating progression, town and NPCs, world layout v1 (organic lake, four districts, corner areas).
  * A beginner learns to skate on a frozen lake. Hold PUSH to build speed, steer, brake and ease off when you
  * wobble. Practice grows five skills (Balance, Control, Speed, Braking, Tricks), earns XP and levels, and
  * optional goals add short challenges. Progress and the chosen skater are saved between sessions.
@@ -12,7 +12,7 @@ import { makeEnvironment } from './src/textures.js';
 import { OUTLINE } from './src/anime.js';
 import { createProgress } from './src/progress.js';
 import { createNpcs, NPC_DEFS, TALK_RANGE, friendLabel, friendHearts } from './src/npc.js';
-import { ZONE_LIST } from './src/town.js';
+import { ZONE_LIST } from './src/layout.js';
 import { createSkater, updateSkater, respawn, SPAWN } from './src/skating.js';
 import { createCameraRig } from './src/camera.js';
 import { createInput } from './src/input.js';
@@ -61,7 +61,7 @@ function run(mode) {
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: 0x1a2a40, transparent: true, opacity: 0.25, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
 
-  const npcs = createNpcs(scene);
+  const npcs = createNpcs(scene, world.heightAt);
   const skater = createSkater();
   const rig = createCameraRig(camera);
   let talkNpc = null, curZone = null, zoneTimer = 0;
@@ -90,7 +90,7 @@ function run(mode) {
   }
 
   // Developer hook (only when gameConfig.dev is set): jump to a spot to inspect the town.
-  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
+  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
 
   let raf = 0, last = performance.now(), clock = 0;
   let input = null, hud = null, sel = null;
@@ -172,7 +172,7 @@ function run(mode) {
         if (hasLib()) lib.haptics.play('warning');
       } else if (ev.type === 'fall') {
         hud.toast(FALL_MSG[ev.reason] || 'You fell!', 2.4);
-        spray.burst(skater.x, 0.2, skater.z, 28, 3 + Math.min(skater.speed, 12) * 0.3);
+        spray.burst(skater.x, skater.y + 0.2, skater.z, 28, 3 + Math.min(skater.speed, 12) * 0.3);
         world.scuff(skater.x, skater.z, 0.6);
         if (hasLib()) lib.haptics.play('thud');
         saveState(false); maybeSubmitScore();
@@ -206,7 +206,7 @@ function run(mode) {
   function handleUi(list) {
     for (const u of list) {
       if (u.type === 'met') { hud.toast('You met ' + u.name + '!  +10 XP', 2.4); continue; }
-      if (u.type === 'zone') { hud.toast('New place discovered!  +15 XP', 2.4); continue; }
+      if (u.type === 'zone') { hud.toast('New place discovered!  +' + u.xp + ' XP', 2.4); continue; }
       if (u.type === 'level') {
         hud.toast('LEVEL UP!  Lv ' + u.level + ' · ' + u.name + (u.unlock ? '\n' + u.unlock : ''), 3);
         if (hasLib()) lib.haptics.play('success');
@@ -232,7 +232,7 @@ function run(mode) {
     if (playing && phase !== 'play') {
       // Character preview: stand still, camera sways in front (or zooms to the face).
       player.pose({ ...skater, mode: 'walk', speed: 0, stride: 0, strideAmp: 0, b: 0, fallAmt: 0, steer: 0, state: 'ok', spin: null, spinAng: 0 }, clock);
-      player.place({ ...skater, mode: 'walk' });
+      player.place({ ...skater, mode: 'walk', y: 0 });
       const tgtD = pv.zoom ? 1.15 : 4.4, tgtY = pv.zoom ? player.faceY - 0.075 : player.height * 0.36;
       const k = 1 - Math.exp(-4 * dt);
       pv.d += (tgtD - pv.d) * k; pv.y += (tgtY - pv.y) * k;
@@ -250,6 +250,7 @@ function run(mode) {
       else if (inp.push > 0.1 || Math.abs(inp.steer) > 0.2) hud.hideHint();
       const steps = Math.max(1, Math.ceil(dt / (1 / 60))), h = dt / steps;
       for (let i = 0; i < steps; i++) { inp.spin = i === 0 ? inp.spin : false; updateSkater(skater, inp, h, c, world); }
+      skater.y = world.heightAt(skater.x, skater.z);
 
       // Blade trails on the ice + spray while braking hard.
       if (skater.mode === 'skate' && skater.speed > 0.8) {
@@ -275,7 +276,7 @@ function run(mode) {
       if (progress.isDirty()) saveState(false);
       player.pose(skater, clock);
       player.place(skater);
-      shadow.position.set(skater.x, skater.mode === 'skate' ? 0.08 : 0.04, skater.z);
+      shadow.position.set(skater.x, skater.y + (skater.mode === 'skate' ? 0.08 : 0.06), skater.z);
       rig.update(skater, dt, c, input.consumeLook());
       hud.update(skater, dt, progress);
 
@@ -284,7 +285,7 @@ function run(mode) {
       if (zoneTimer > 0.4) {
         zoneTimer = 0;
         const zn = world.zoneAt(skater.x, skater.z);
-        if (zn && zn.id !== curZone) { curZone = zn.id; hud.banner(zn.name); handleUi(progress.discoverZone(zn.id, zn.name)); }
+        if (zn && zn.id !== curZone) { curZone = zn.id; hud.banner(zn.name); handleUi(progress.discoverZone(zn.id, zn.name, zn.xp)); }
         else if (!zn) curZone = null;
       }
       const wantTalk = input.consumeTalk();
@@ -303,6 +304,7 @@ function run(mode) {
     npcs.update(dt, skater.x, skater.z, talkNpc ? talkNpc.id : null);
     spray.update(dt);
     world.update(dt, camera.position);
+    if (window.__frozen && window.__frozen.cam) { const o = window.__frozen.cam; camera.position.set(o.x, o.y, o.z); camera.lookAt(o.tx, o.ty, o.tz); if ((o.fov && camera.fov !== o.fov) || camera.far !== 1500) { if (o.fov) camera.fov = o.fov; camera.far = 1500; camera.updateProjectionMatrix(); } }
     renderer.render(scene, camera);
   }
   raf = requestAnimationFrame(frame);

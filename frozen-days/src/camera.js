@@ -10,8 +10,9 @@ export function createCameraRig(camera) {
       if (lookDx) { off = Math.max(-2.4, Math.min(2.4, off + lookDx)); idle = 0; }
       else { idle += dt; if (idle > 1.5) off *= Math.exp(-2.5 * dt); }
       const a = yaw + off;
-      camera.position.set(p.x - Math.sin(a) * c.camDist, c.camHeight + 0.06, p.z - Math.cos(a) * c.camDist);
-      camera.lookAt(p.x + Math.sin(a) * 3, 1.3, p.z + Math.cos(a) * 3);
+      const gy = p.y || 0;
+      camera.position.set(p.x - Math.sin(a) * c.camDist, gy + c.camHeight + 0.06, p.z - Math.cos(a) * c.camDist);
+      camera.lookAt(p.x + Math.sin(a) * 3, gy + 1.3, p.z + Math.cos(a) * 3);
       const f = 58 + Math.min(p.speed, 18) * 0.9;
       if (Math.abs(f - fov) > 0.05) { fov += (f - fov) * Math.min(1, dt * 4); camera.fov = fov; camera.updateProjectionMatrix(); }
     },

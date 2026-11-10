@@ -88,7 +88,7 @@ export function createProgress(saved) {
     friendPoints(id) { return s.friends[id] === undefined ? -1 : s.friends[id]; },
     meet(id, name) { const out = []; if (s.friends[id] === undefined) { s.friends[id] = 0; award(10, out); out.push({ type: 'met', name }); } return out; },
     addFriend(id) { if (s.friends[id] !== undefined) { s.friends[id] = Math.min(12, s.friends[id] + 1); dirty = true; } },
-    discoverZone(id, name) { const out = []; if (!s.zones[id]) { s.zones[id] = true; award(15, out); out.push({ type: 'zone', name }); } return out; },
+    discoverZone(id, name, xp = 15) { const out = []; if (!s.zones[id]) { s.zones[id] = true; award(xp, out); out.push({ type: 'zone', name, xp }); } return out; },
     zonesFound() { return Object.keys(s.zones).length; },
     friendsMet() { return Object.keys(s.friends).length; },
 
