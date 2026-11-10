@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Baldy's Penguin Rescue</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#bfe4f8}body{touch-action:none}
+    #boot{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:linear-gradient(#a9daf5,#eaf6fd);transition:opacity .4s;font-family:"Trebuchet MS",system-ui,sans-serif;color:#24405c;text-align:center}
+    #boot.hide{opacity:0;pointer-events:none}
+    .boot-icon{font-size:120px;line-height:1;animation:bootwaddle .7s ease-in-out infinite alternate}
+    .boot-msg{margin-top:20px;min-height:30px;font-size:28px;font-weight:900}
+    #boot-retry{margin-top:24px;min-width:260px;min-height:100px;border:0;border-radius:50px;background:#ff8a3c;color:#fff;font-size:36px;font-weight:900;cursor:pointer}
+    #boot.failed .boot-icon{animation:none;opacity:.5}
+    @keyframes bootwaddle{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+  </style>
+</head>
+<body>
+  <div id="boot"><div>
+    <div class="boot-icon">🐧</div>
+    <div class="boot-msg" id="boot-msg"></div>
+    <button id="boot-retry" hidden>TRY AGAIN</button>
+  </div></div>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>

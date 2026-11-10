@@ -1,0 +1,10 @@
+{
+  "penguinCount": 8,
+  "fishCount": 24,
+  "walkSpeed": 9,
+  "whirlyCount": 2,
+  "snowfall": true,
+  "jacketColor": "#e8452c",
+  "home": { "x": 0, "z": 10 },
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}
