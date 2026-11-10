@@ -1,0 +1,6 @@
+{
+  "skill": { "level": 0 },
+  "skating": { "pushAccel": 7, "iceFriction": 0.1 },
+  "camera": { "distance": 8.5, "height": 4.2 },
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}
