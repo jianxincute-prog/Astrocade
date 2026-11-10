@@ -2,7 +2,8 @@
 // Rig: root(feet) > body(fall pivot) > hips > [legs: thigh > knee > ankle(boot+blade)] + spine > [torso, arms: shoulder > elbow > wrist, neck > head].
 // Limbs are tapered capsules that overlap at the joints, so shoulders/hips/knees/elbows blend with no gaps.
 import { clamp, lerp } from './util.js';
-import * as TX from './textures.js';
+import * as TX from './cloth.js';
+import { toonMat, addOutlines } from './anime.js';
 import { paintFace } from './face.js';
 const T = THREE;
 
@@ -92,10 +93,10 @@ export function createCharacter(kind) {
   const P = PRESETS[kind] || PRESETS.male;
   const disposables = [];
   const keep = (x) => { disposables.push(x); return x; };
-  const std = (o) => keep(new T.MeshStandardMaterial(Object.assign({ envMapIntensity: 0.3 }, o)));
+  const std = (o) => keep(toonMat(o));
 
-    const skinMat = std({ color: 0xffffff, vertexColors: true, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
-  const skinFlat = std({ color: P.skin, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
+    const skinMat = std({ soft: true, color: 0xffffff, vertexColors: true, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
+  const skinFlat = std({ soft: true, color: P.skin, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
 
   const torsoQ = TX.quilted(P.jacket, 7, { zip: true, seed: 3 });
   const armQ = TX.quilted(P.jacket, 3, { seed: 5 }), foreQ = TX.quilted(P.jacket, 3, { seed: 6 });
@@ -212,7 +213,7 @@ export function createCharacter(kind) {
 
   // glasses
   if (P.glasses) {
-    const fm = std({ color: 0x1c1717, metalness: 0.35, roughness: 0.32, envMapIntensity: 0.9 });
+    const fm = std({ noOutline: true, color: 0x1c1717, metalness: 0.35, roughness: 0.32, envMapIntensity: 0.9 });
     const lensMat = keep(new T.MeshStandardMaterial({ color: 0xcfe6ff, transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0.2, envMapIntensity: 1.2, side: T.DoubleSide, depthWrite: false }));
     const gz = surf(E.x, E.y) + 0.021;
     [-1, 1].forEach((s) => {
@@ -225,7 +226,7 @@ export function createCharacter(kind) {
     head.add(new T.Mesh(new T.TubeGeometry(bc, 8, 0.0014, 6), fm));
   }
 
-  head.rotation.x = 0; head.scale.setScalar(1.1);
+  head.rotation.x = 0; head.scale.setScalar(1.18);
 
   // ---------- Animation
   const FOOT = 0.16, L1 = 0.41, L2 = 0.36;
@@ -289,6 +290,7 @@ export function createCharacter(kind) {
     root.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
     disposables.forEach((d) => { if (d.dispose) d.dispose(); });
   }
+  addOutlines(root);
   return { root, pose, place, dispose, kind, height: 1.77 * P.scale, faceY: 1.64 * P.scale };
 }
 

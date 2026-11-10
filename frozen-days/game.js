@@ -9,6 +9,7 @@ import { createWorld } from './src/world.js';
 import { createCharacter, CHARACTERS, characterLabel } from './src/character.js';
 import { createSelect } from './src/select.js';
 import { makeEnvironment } from './src/textures.js';
+import { OUTLINE } from './src/anime.js';
 import { createSkater, updateSkater, respawn, SPAWN } from './src/skating.js';
 import { createCameraRig } from './src/camera.js';
 import { createInput } from './src/input.js';
@@ -61,6 +62,7 @@ function run(mode) {
     const w = root.clientWidth || window.innerWidth, h = root.clientHeight || window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix();
+    OUTLINE.aspect.value = w / h;
   }
   resize();
   window.addEventListener('resize', resize);
