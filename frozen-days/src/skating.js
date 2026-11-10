@@ -12,7 +12,7 @@ export function createSkater() {
     mode: 'skate', state: 'ok', t: 0,
     b: 0, warned: false,
     stride: 0, strideAmp: 0, fallAmt: 0, fallDir: -1,
-    steer: 0, push: 0, brake: 0,
+    steer: 0, steerS: 0, push: 0, brake: 0,
     falls: 0, dist: 0, events: [],
   };
 }
@@ -32,15 +32,19 @@ export function updateSkater(p, inp, dt, c, world) {
   const sk = skillsFor(c.level);
   const ok = p.state === 'ok';
   const steer = ok ? inp.steer : 0, push = ok ? inp.push : 0, brake = ok ? inp.brake : 0;
-  p.steer = steer; p.push = push; p.brake = brake;
+  p.push = push; p.brake = brake;
+  // Steering has inertia on ice (edges take a moment to bite); snow turns respond faster.
+  const onIce0 = world.onIce(p.x, p.z);
+  p.steerS = approach(p.steerS, steer, (onIce0 ? lerp(4, 7, sk.control) : 12) * dt);
+  p.steer = p.steerS;
   const onIce = world.onIce(p.x, p.z);
   p.mode = onIce ? 'skate' : 'walk';
   let speed = Math.hypot(p.vx, p.vz);
 
   // Heading: wider turns at higher speed on ice, pivot-in-place on snow.
   if (ok) {
-    if (onIce) p.h -= steer * (lerp(2.1, 3.3, sk.control) / (1 + speed * 0.07)) * dt;
-    else p.h -= steer * 2.8 * dt;
+    if (onIce) p.h -= p.steerS * (lerp(2.0, 3.2, sk.control) / (1 + speed * 0.08)) * clamp(0.3 + speed / 3, 0, 1) * dt;
+    else p.h -= p.steerS * 2.8 * dt;
   }
   const fx = Math.sin(p.h), fz = Math.cos(p.h);
   let vf = p.vx * fx + p.vz * fz;
@@ -48,10 +52,11 @@ export function updateSkater(p, inp, dt, c, world) {
   let load = { over: 0, turn: 0, slip: 0, brake: 0 };
 
   if (onIce) {
-    const vmax = lerp(10, 19, sk.speed);
+    const vmax = lerp(9, 19, sk.speed);
     if (ok) {
       if (push > 0 && vf < vmax) {
-        vf += c.pushAccel * push * (1 - clamp(vf / vmax, 0, 1) * 0.85) * dt;
+        const kick = 0.45 + 0.55 * Math.max(0, Math.sin(p.stride * 2)) * 1.8; // each stroke gives a surge
+        vf += c.pushAccel * push * (1 - clamp(vf / vmax, 0, 1) * 0.85) * clamp(kick, 0.3, 1.6) * dt;
         vf = Math.min(vf, vmax);
       }
       if (brake > 0) {
@@ -59,13 +64,19 @@ export function updateSkater(p, inp, dt, c, world) {
         vf = vf > 0 ? Math.max(0, vf - d) : Math.min(0, vf + d);
       }
     }
-    vf *= Math.exp(-c.iceFriction * dt);
+    vf *= Math.exp(-c.iceFriction * 0.8 * dt);
     if (!ok) vf *= Math.exp(-(p.state === 'falling' ? 1.6 : 3.2) * dt);
     // Blade grip: lateral slip is converted to forward motion (carving) and partly lost.
     const grip = ok ? lerp(2.2, 5.5, sk.control) * (1 + brake * 1.2) : 1.2;
+    const mag0 = Math.hypot(vf, vl);
     const lost = vl * (1 - Math.exp(-grip * dt));
     vl -= lost;
-    if (ok) vf += Math.abs(lost) * 0.7 * (vf < 0 ? -1 : 1);
+    if (ok && mag0 > 0.01) {
+      // Carving: slip is redirected into forward motion, losing only a little energy (never gaining any).
+      const target = mag0 * (1 - 0.12 * Math.abs(lost) / (mag0 + 0.5));
+      const fwd = Math.sqrt(Math.max(0, target * target - vl * vl));
+      vf = vf < 0 ? -fwd : fwd;
+    }
     p.vx = fx * vf - fz * vl;
     p.vz = fz * vf + fx * vl;
     speed = Math.hypot(p.vx, p.vz);
@@ -73,15 +84,15 @@ export function updateSkater(p, inp, dt, c, world) {
     if (ok) {
       // Balance model: instability grows with speed past your comfort zone, sharp turns at speed,
       // side-slipping and hard braking. It recovers when you ease off.
-      const comfort = lerp(6.5, 15, sk.balance);
-      load.over = Math.max(0, (speed - comfort) / comfort) * 1.2;
-      load.turn = Math.max(0, Math.abs(steer) * speed / (comfort + 3) * (1 - 0.5 * sk.control) - 0.75) * 1.6;
-      load.slip = Math.max(0, Math.abs(vl) / (comfort * 0.55) - 0.7);
-      load.brake = Math.max(0, brake * speed / (comfort + 3) * (1 - 0.5 * sk.braking) - 0.8) * 1.4;
+      const comfort = lerp(7.5, 15, sk.balance);
+      load.over = Math.max(0, (speed - comfort) / comfort) * 1.4;
+      load.turn = Math.max(0, Math.abs(p.steerS) * speed / (comfort + 3) * (1 - 0.5 * sk.control) - 0.7) * 2.2;
+      load.slip = Math.max(0, Math.abs(vl) / (comfort * 0.55) - 0.9);
+      load.brake = Math.max(0, brake * speed / (comfort + 3) * (1 - 0.5 * sk.braking) - 0.85) * 1.4;
       const total = load.over + load.turn + load.slip + load.brake;
-      const floor = (1 - sk.balance) * 0.18 * clamp(speed / comfort, 0, 1);
-      if (total > 0.02) p.b += total * 0.9 * dt;
-      else p.b = Math.max(floor, p.b - 0.45 * dt);
+      const floor = (1 - sk.balance) * 0.1 * clamp(speed / comfort, 0, 1);
+      if (total > 0.02) p.b += total * 0.7 * dt;
+      else p.b = Math.max(floor, p.b - 0.6 * dt);
       p.b = clamp(p.b, 0, 1);
       let reason = 'speed', best = load.over;
       if (load.turn + load.slip > best) { reason = 'turn'; best = load.turn + load.slip; }

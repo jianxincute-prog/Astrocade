@@ -60,7 +60,7 @@ export function createPlayerMesh() {
 
     const lean = (onIce ? 0.1 + sf * 0.35 : 0.06) * calm;
     body.rotation.x = lean + Math.cos(t * 7) * wob * 0.14 + p.fallDir * f * 1.5;
-    body.rotation.z = (Math.sin(t * 9) * wob * 0.35 + p.steer * sf * 0.3) * calm;
+    body.rotation.z = (Math.sin(t * 9) * wob * 0.35 + p.steer * clamp(p.speed / 9, 0, 1) * 0.45) * calm;
     body.position.y = f * 0.16;
   }
 
