@@ -165,6 +165,13 @@ function run(mode) {
       } else if (ev.type === 'up') {
         hud.toast('Back on your feet!', 1.2);
         if (hasLib()) lib.haptics.play('tick');
+      } else if (ev.type === 'stroke') {
+        if (skater.speed > 1.5 && hasLib()) lib.haptics.play({ intensity: 0.2, sharpness: 0.7 });
+        const fx = Math.sin(skater.h), fz = Math.cos(skater.h), side = ev.leg === 0 ? 1 : -1;
+        for (let k = 0; k < 3; k++) {
+          spray.emit(skater.x - fx * 0.3 + fz * side * 0.25, 0.12, skater.z - fz * 0.3 - fx * side * 0.25,
+            -fx * 1.4 + fz * side * 1.1 + (Math.random() - 0.5), 0.8 + Math.random() * 1.2, -fz * 1.4 - fx * side * 1.1 + (Math.random() - 0.5));
+        }
       } else if (ev.type === 'spin') {
         hud.toast('Nice spin!', 1.2);
         if (hasLib()) lib.haptics.play('success');

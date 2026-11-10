@@ -2,13 +2,13 @@
 // Skills never gate basic controls — they only make balance, control, top speed and braking more forgiving.
 import { clamp, angleDiff } from './util.js';
 
-const K = { balance: 150, control: 110, speed: 2200, braking: 40, tricks: 60 }; // practice needed for ~63% of a skill
+const K = { balance: 200, control: 170, speed: 2800, braking: 55, tricks: 70 }; // practice needed for ~63% of a skill
 export const MAX_LEVEL = 10;
 export const SPIN_LEVEL = 3;
 const NAMES = [[1, 'Beginner'], [3, 'Novice'], [5, 'Intermediate'], [8, 'Advanced']];
 const GOAL_SEQ = ['glide', 'speed', 'stop', 'turns', 'glide', 'spin', 'speed', 'turns'];
 
-const xpForLevel = (L) => 45 * (L - 1) * (L - 1); // cumulative XP needed to reach level L
+const xpForLevel = (L) => 50 * (L - 1) * (L - 1); // cumulative XP needed to reach level L
 export function levelName(L) { let n = 'Beginner'; for (const [lv, name] of NAMES) if (L >= lv) n = name; return n; }
 const levelFor = (xp) => { let L = 1; while (L < MAX_LEVEL && xp >= xpForLevel(L + 1)) L++; return L; };
 const num = (v, d = 0) => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : d);
@@ -26,7 +26,7 @@ export function createProgress(saved) {
     s.goalIdx = Math.floor(num(saved.goalIdx));
   }
   let level = levelFor(s.xp), dirty = false, pendingXp = 0;
-  const run = { dist: 0, turn: 0, lastH: null, brakeStart: 0, braking: false, wobbling: false, xpDist: 0, xpTime: 0 };
+  const run = { base: 0, hold: 0, dist: 0, turn: 0, lastH: null, brakeStart: 0, braking: false, wobbling: false, xpDist: 0, xpTime: 0 };
 
   const skillVal = (k) => 1 - Math.exp(-s.raw[k] / K[k]);
   function award(n, out) {
@@ -38,25 +38,25 @@ export function createProgress(saved) {
   function makeGoal() {
     let t = GOAL_SEQ[s.goalIdx % GOAL_SEQ.length];
     if (t === 'spin' && level < SPIN_LEVEL) t = 'speed';
-    const L = level, reward = 20 + 4 * L;
-    if (t === 'glide') { const target = Math.min(700, 120 + 40 * L); return { type: t, target, reward, text: 'Glide ' + target + ' m without falling' }; }
-    if (t === 'speed') { const u = Math.min(16, 7.5 + 0.8 * L); return { type: t, target: u, reward, text: 'Reach ' + Math.round(u * 2.4) + ' km/h' }; }
-    if (t === 'stop') { const u = Math.min(12, 4.5 + 0.4 * L); return { type: t, target: u, reward, text: 'Brake to a stop from ' + Math.round(u * 2.4) + ' km/h' }; }
-    if (t === 'turns') { const n = Math.round(1 + 0.2 * L); return { type: t, target: n * Math.PI * 2, reward, text: 'Skate ' + n + ' full circle' + (n > 1 ? 's' : '') }; }
+    const L = level, reward = 16 + 3 * L;
+    if (t === 'glide') { const target = Math.min(700, 100 + 40 * L); return { type: t, target, reward, text: 'Glide ' + target + ' m without falling' }; }
+    if (t === 'speed') { const u = Math.min(16, 7.6 + 0.9 * L); return { type: t, target: u, reward, text: 'Reach ' + Math.round(u * 2.4) + ' km/h' }; }
+    if (t === 'stop') { const u = Math.min(12, 5.5 + 0.5 * L); return { type: t, target: u, reward, text: 'Brake to a stop from ' + Math.round(u * 2.4) + ' km/h' }; }
+    if (t === 'turns') { const n = Math.round(1 + 0.3 * L); return { type: t, target: n * Math.PI * 2, reward, text: 'Skate ' + n + ' full circle' + (n > 1 ? 's' : '') }; }
     return { type: 'spin', target: 1, reward: 30, text: 'Land a spin' };
   }
   let goal = makeGoal();
 
   function completeGoal(out) {
     const done = goal;
-    award(done.reward, out); s.totals.goals++; s.goalIdx++; run.turn = 0;
+    award(done.reward, out); s.totals.goals++; s.goalIdx++; run.turn = 0; run.base = run.dist; run.hold = 0;
     out.push({ type: 'goal', text: done.text, xp: done.reward });
     goal = makeGoal();
   }
   function goalState(p) {
     let f = 0;
-    if (goal.type === 'glide') f = run.dist / goal.target;
-    else if (goal.type === 'speed') f = p.speed / goal.target;
+    if (goal.type === 'glide') f = (run.dist - run.base) / goal.target;
+    else if (goal.type === 'speed') f = Math.min(p.speed / goal.target, 1) * 0.9 + run.hold / 1.2 * 0.1;
     else if (goal.type === 'stop') f = run.braking && run.brakeStart >= goal.target ? 0.5 : 0;
     else if (goal.type === 'turns') f = run.turn / goal.target;
     return { text: goal.text, frac: clamp(f, 0, 1) };
@@ -74,8 +74,8 @@ export function createProgress(saved) {
     },
     stats() { return { best: s.best, totals: s.totals }; },
     goal(p) { return goalState(p); },
-    skipGoal() { s.goalIdx++; run.turn = 0; run.braking = false; goal = makeGoal(); dirty = true; },
-    resetRun() { run.dist = 0; run.turn = 0; run.braking = false; run.wobbling = false; },
+    skipGoal() { s.goalIdx++; run.turn = 0; run.base = run.dist; run.hold = 0; run.braking = false; goal = makeGoal(); dirty = true; },
+    resetRun() { run.dist = 0; run.base = 0; run.hold = 0; run.turn = 0; run.braking = false; run.wobbling = false; },
     popXp() { const n = pendingXp; pendingXp = 0; return n; },
     isDirty() { return dirty; }, clearDirty() { dirty = false; },
     bestRun() { return s.best.run; },
@@ -85,7 +85,7 @@ export function createProgress(saved) {
     onEvents(evs) {
       const out = [];
       for (const ev of evs) {
-        if (ev.type === 'fall') { s.totals.falls++; run.dist = 0; run.turn = 0; run.braking = false; run.wobbling = false; dirty = true; }
+        if (ev.type === 'fall') { s.totals.falls++; run.dist = 0; run.base = 0; run.hold = 0; run.turn = 0; run.braking = false; run.wobbling = false; dirty = true; }
         else if (ev.type === 'wobble') run.wobbling = true;
         else if (ev.type === 'up') { s.raw.balance += 2; }
         else if (ev.type === 'spin') {
@@ -122,8 +122,8 @@ export function createProgress(saved) {
         } else if (p.brake < 0.05) run.braking = false;
       }
       if (ok) {
-        if (goal.type === 'glide' && run.dist >= goal.target) completeGoal(out);
-        else if (goal.type === 'speed' && p.speed >= goal.target) completeGoal(out);
+        if (goal.type === 'glide' && run.dist - run.base >= goal.target) completeGoal(out);
+        else if (goal.type === 'speed') { run.hold = p.speed >= goal.target ? run.hold + dt : 0; if (run.hold >= 1.2) completeGoal(out); }
         else if (goal.type === 'turns' && run.turn >= goal.target) completeGoal(out);
       }
       return out;

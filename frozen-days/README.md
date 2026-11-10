@@ -12,7 +12,7 @@ Male/Female anime skaters, XP + levels + five skills, optional goals, a Spin tri
 - `game.js` — `run(mode)`: scene setup, game loop, edit-mode preview, settings panel.
 - `src/config.js` — reads `gameConfig`; `skillsFor(level)` maps one skill level to Balance/Control/Speed/Braking/Tricks.
 - `src/progress.js` — XP, levels, five skills grown by practice, optional goals, personal bests, save format (v2).
-- `src/skating.js` — skater state, ice physics, balance/instability model, fall & recovery state machine, collisions.
+- `src/skating.js` — skater state, ice physics (push strokes share a phase with the animation), balance/instability model, fall & recovery state machine, collisions.
 - `src/world.js` — cel-shaded snowfield, frozen lake (canvas ice texture with skate trails), pines, dock, rowboat, boathouse cabin, signpost, rocks, snow banks, lamps, snowmen, mountains, snowfall.
 - `src/anime.js`, `src/cloth.js` — toon materials with screen-space outlines; flat anime cloth/hair textures.
 - `src/character.js` — detailed procedural Male/Female skaters (rigged capsule limbs, painted anime face, ears, hair, glasses, outfit) and pose animation.

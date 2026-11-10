@@ -11,7 +11,7 @@ export function createSkater() {
     speed: 0, vf: 0, vl: 0,
     mode: 'skate', state: 'ok', t: 0,
     b: 0, warned: false,
-    stride: 0, strideAmp: 0, fallAmt: 0, fallDir: -1,
+    stride: 0, strideAmp: 0, strokeT: 0, strokeLeg: 0, stroking: false, fallAmt: 0, fallDir: -1,
     steer: 0, steerS: 0, push: 0, brake: 0,
     falls: 0, dist: 0, events: [],
     spin: null, spinAng: 0,
@@ -24,7 +24,7 @@ export function respawn(p) {
 }
 
 function startFall(p, reason) {
-  p.state = 'falling'; p.t = 0; p.falls++; p.spin = null; p.spinAng = 0;
+  p.state = 'falling'; p.t = 0; p.falls++; p.spin = null; p.spinAng = 0; p.stroking = false; p.strokeT = 0;
   p.fallDir = reason === 'turn' ? 1 : -1;
   p.events.push({ type: 'fall', reason, speed: p.speed });
 }
@@ -59,17 +59,27 @@ export function updateSkater(p, inp, dt, c, world) {
   if (onIce) {
     const vmax = lerp(9, 19, sk.speed);
     if (ok) {
-      if (push > 0 && vf < vmax) {
-        const kick = 0.45 + 0.55 * Math.max(0, Math.sin(p.stride * 2)) * 1.8; // each stroke gives a surge
-        vf += c.pushAccel * push * (1 - clamp(vf / vmax, 0, 1) * 0.85) * clamp(kick, 0.3, 1.6) * dt;
-        vf = Math.min(vf, vmax);
+      // Stroke cycle: a push phase (u < 0.5) delivers a bell-shaped thrust, then recovery and glide.
+      // The animation reads the same phase, so every visible push is a real push.
+      if (!p.stroking && push > 0) { p.stroking = true; p.strokeT = 0; p.events.push({ type: 'stroke', leg: p.strokeLeg }); }
+      if (p.stroking) {
+        p.strokeT += dt / lerp(0.8, 1.25, clamp(vf / vmax, 0, 1));
+        if (p.strokeT < 0.5 && push > 0 && vf < vmax) {
+          const bell = Math.sin(Math.PI * p.strokeT / 0.5);
+          vf += c.pushAccel * 1.9 * bell * push * (1 - clamp(vf / vmax, 0, 1) * 0.7) * dt;
+          vf = Math.min(vf, vmax);
+        }
+        if (p.strokeT >= 1) {
+          p.strokeT = 0; p.strokeLeg ^= 1;
+          if (push > 0) p.events.push({ type: 'stroke', leg: p.strokeLeg }); else p.stroking = false;
+        }
       }
       if (brake > 0) {
         const d = lerp(4, 11, sk.braking) * brake * dt;
         vf = vf > 0 ? Math.max(0, vf - d) : Math.min(0, vf + d);
       }
     }
-    vf *= Math.exp(-c.iceFriction * 0.8 * dt);
+    vf *= Math.exp(-c.iceFriction * dt);
     if (!ok) vf *= Math.exp(-(p.state === 'falling' ? 1.6 : 3.2) * dt);
     // Blade grip: lateral slip is converted to forward motion (carving) and partly lost.
     const grip = ok ? lerp(2.2, 5.5, sk.control) * (1 + brake * 1.2) : 1.2;
@@ -115,9 +125,7 @@ export function updateSkater(p, inp, dt, c, world) {
       if (p.b < 0.3) p.warned = false;
       if (p.b >= 1) startFall(p, reason);
     }
-    const stridePush = ok && push > 0 && vf < vmax;
-    p.strideAmp = approach(p.strideAmp, stridePush ? 1 : 0, 3 * dt);
-    p.stride += (stridePush ? 4.5 + speed * 0.3 : 0) * dt;
+    p.strideAmp = approach(p.strideAmp, p.stroking ? 1 : 0, 4 * dt); // pose blends between stroke and glide
   } else {
     // Walking on snow: direct control, strong friction, no balance loss.
     const walk = 4.6;

@@ -230,47 +230,73 @@ export function createCharacter(kind) {
 
   // ---------- Animation
   const FOOT = 0.16, L1 = 0.41, L2 = 0.36;
+  const sstep = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+  // Knee flex that keeps a grounded blade on the ice for a given thigh angle and hip-to-ankle height.
+  const ikKnee = (th, H) => Math.max(0.03, Math.acos(clamp((H - L1 * Math.cos(th)) / L2, -1, 1)) - th);
+
   function pose(p, t) {
     const onIce = p.mode === 'skate', ok = p.state === 'ok';
     const sf = clamp(p.speed / 12, 0, 1), f = p.fallAmt, calm = 1 - f;
     const amp = clamp(p.strideAmp, 0, 1), s = p.stride;
     const wob = p.b * calm + (p.spin ? 0.25 : 0), w = clamp(p.speed / 4.6, 0, 1);
-    let tL, tR, kL, kR, spread = 0;
-    if (ok && onIce) {
-      const cr = clamp(0.3 + sf * 0.55 + amp * 0.15, 0, 1);
-      const base = -0.12 - cr * 0.3, kb = 0.12 + cr * 0.62;
-      const sw = Math.sin(s) * 0.55 * amp;
-      tL = base + sw; tR = base - sw;
-      kL = kb + Math.max(0, -Math.cos(s)) * 0.5 * amp; kR = kb + Math.max(0, Math.cos(s)) * 0.5 * amp;
-      spread = 0.05 + amp * 0.07;
+    const braking = ok && onIce ? clamp(p.brake * clamp(p.speed / 3, 0, 1), 0, 1) : 0;
+    let tL, tR, kL, kR, yL = 0, yR = 0, aL = 0, aR = 0, rL = 0, rR = 0;
+    let hipsY = 0, shift = 0, roll = 0, twist = 0, armStroke = 0, crouchLean = 0, hl = 0.74;
+    const skating = ok && onIce;
+    if (skating) {
+      // Hip-to-ankle height: deeper crouch with speed and when braking. Grounded legs are solved by IK.
+      const H = lerp(0.75, 0.6, clamp(0.35 + sf * 0.4 + braking * 0.35, 0, 1));
+      const u = clamp(p.strokeT, 0, 1), left = p.strokeLeg === 0, side = left ? 1 : -1;
+      const base = -0.18, sw = Math.sin(Math.PI * u) * amp;
+      const e1 = sstep(u / 0.5), e2 = sstep((u - 0.5) / 0.5);
+      // Pushing leg: drives back and out with the blade turned out, then lifts and recovers under the body.
+      let tp = u < 0.5 ? lerp(base, 0.46, e1) : lerp(0.46, base, e2);
+      let abdP = u < 0.5 ? lerp(0.04, 0.3, e1) : lerp(0.3, 0.04, e2);
+      let yawP = u < 0.5 ? lerp(0, 0.6, e1) : lerp(0.6, 0, e2);
+      const lift = u < 0.5 ? 0 : Math.pow(Math.sin(Math.PI * e2), 0.8) * amp;
+      let ts = base - 0.06 * Math.sin(Math.PI * u);
+      tp = lerp(base, tp, amp); ts = lerp(base, ts, amp); abdP = lerp(0.04, abdP, amp); yawP *= amp;
+      const kP = lerp(ikKnee(tp, H), 0.95, lift), kS = ikKnee(ts, H);
+      const edgeP = (u < 0.5 ? e1 : 1 - e2) * amp;
+      if (left) { tL = tp; kL = kP; yL = yawP; aL = abdP; rL = 0.15 * edgeP; tR = ts; kR = kS; aR = -0.04; }
+      else { tR = tp; kR = kP; yR = -yawP; aR = -abdP; rR = -0.15 * edgeP; tL = ts; kL = kS; aL = 0.04; }
+      // Weight shift toward the gliding leg, torso counter-twist, opposite arm swings forward.
+      shift = -side * 0.055 * sw; roll = side * 0.07 * sw; twist = side * 0.09 * sw; armStroke = side * 0.45 * sw;
+      // Snowplow when braking: toes in, knees wider and deeper, weight back.
+      yL -= 0.6 * braking; yR += 0.6 * braking; aL += 0.1 * braking; aR -= 0.1 * braking; crouchLean = -0.18 * braking;
+      // Edge the blades into a turn.
+      const edge = p.steer * 0.2 * sf; rL += edge; rR += edge;
+      hipsY = FOOT + H; hl = H;
     } else if (ok) {
       tL = -0.04 + Math.sin(s) * 0.55 * w; tR = -0.04 - Math.sin(s) * 0.55 * w;
       kL = 0.08 + Math.max(0, Math.cos(s)) * 0.8 * w; kR = 0.08 + Math.max(0, -Math.cos(s)) * 0.8 * w;
     } else { tL = tR = -0.1 - f * 0.1; kL = kR = 0.25 + f * 0.35; }
     const wobL = Math.sin(t * 9) * wob * 0.12; tL += wobL; tR -= wobL;
-    legL.hip.rotation.set(tL, 0, spread); legR.hip.rotation.set(tR, 0, -spread);
+    legL.hip.rotation.set(tL, yL, aL, 'YXZ'); legR.hip.rotation.set(tR, yR, aR, 'YXZ');
     legL.knee.rotation.x = kL; legR.knee.rotation.x = kR;
-    legL.ankle.rotation.x = -(tL + kL); legR.ankle.rotation.x = -(tR + kR);
-    const hl = L1 * Math.cos(tL) + L2 * Math.cos(tL + kL), hr = L1 * Math.cos(tR) + L2 * Math.cos(tR + kR);
-    hips.position.y = FOOT + Math.max(hl, hr) * (1 - 0.0) - 0.0;
-    hips.position.y -= 0.002;
+    legL.ankle.rotation.set(-(tL + kL), 0, rL); legR.ankle.rotation.set(-(tR + kR), 0, rR);
+    if (!skating) {
+      const l = L1 * Math.cos(tL) + L2 * Math.cos(tL + kL), r = L1 * Math.cos(tR) + L2 * Math.cos(tR + kR);
+      hl = Math.max(l, r); hipsY = FOOT + hl - 0.002;
+    }
+    hips.position.y = hipsY; hips.position.x = shift;
 
-    const lean = (onIce ? 0.1 + sf * 0.3 : 0.05) * calm + 0.18 * (hl < 0.74 ? (0.74 - hl) * 1.6 : 0);
+    const lean = (onIce ? 0.1 + sf * 0.3 : 0.05) * calm + crouchLean + 0.18 * (hl < 0.74 ? (0.74 - hl) * 1.6 : 0);
     spine.rotation.x = lean + Math.cos(t * 7) * wob * 0.14;
-    spine.rotation.z = (Math.sin(t * 9) * wob * 0.28 + p.steer * clamp(p.speed / 9, 0, 1) * 0.35) * calm;
-    spine.rotation.y = -p.steer * clamp(p.speed / 9, 0, 1) * 0.12 * calm;
+    spine.rotation.z = (Math.sin(t * 9) * wob * 0.28 + p.steer * clamp(p.speed / 9, 0, 1) * 0.35 + roll) * calm;
+    spine.rotation.y = (-p.steer * clamp(p.speed / 9, 0, 1) * 0.12 + twist) * calm;
     const breathe = Math.sin(t * 1.7) * 0.004;
     spine.scale.set(1 + breathe, 1 + breathe * 0.6, 1 + breathe);
     neck.rotation.x = -lean * 0.45; head.rotation.x = -lean * 0.4 + Math.sin(t * 0.8) * 0.02 - f * 0.2;
-    head.rotation.y = -p.steer * 0.25 * calm; head.rotation.z = -spine.rotation.z * 0.5;
+    head.rotation.y = -p.steer * 0.25 * calm - twist * 0.6; head.rotation.z = -spine.rotation.z * 0.5;
 
     // arms
     const flail = Math.sin(t * 15) * wob * 0.5;
-    const swingA = ok ? (onIce ? Math.sin(s) * 0.5 * amp : Math.sin(s) * 0.6 * w) : 0;
+    const swingA = ok && !onIce ? Math.sin(s) * 0.6 * w : 0;
     const fwd = onIce ? 0.35 + sf * 0.15 : 0.1;
     [[armL, 1], [armR, -1]].forEach(([a, side]) => {
-      a.sh.rotation.x = (-fwd - side * swingA) * calm + flail * side - f * 1.3;
-      a.sh.rotation.z = side * (0.13 + wob * 1.0 + f * (0.9 + Math.sin(t * 20) * 0.3));
+      a.sh.rotation.x = (-fwd - side * swingA) * calm + flail * side - f * 1.3 + side * armStroke * calm;
+      a.sh.rotation.z = side * (0.13 + wob * 1.0 + braking * 0.35 + f * (0.9 + Math.sin(t * 20) * 0.3));
       a.el.rotation.x = -(0.35 + (onIce ? 0.35 : 0.2) * calm + wob * 0.6) - f * 0.4;
       a.wr.rotation.x = -0.25;
     });
