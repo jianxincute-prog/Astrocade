@@ -3,14 +3,15 @@
 // Limbs are tapered capsules that overlap at the joints, so shoulders/hips/knees/elbows blend with no gaps.
 import { clamp, lerp } from './util.js';
 import * as TX from './textures.js';
+import { paintFace } from './face.js';
 const T = THREE;
 
 const PRESETS = {
   male: {
     label: 'Male', scale: 1.0,
     skin: 0xdcaa86,
-    head: { rx: 0.079, ry: 0.116, rz: 0.099, jawTaper: 0.2, jawPow: 2.0, jawSquare: 0.14, flatChin: 0.5, cheek: 0.055, crown: 0.86, cranium: 0.07, brow: 0.011, chin: 0.011, socket: 0.0035, noseTip: 0.0165, noseW: 0.0118, hw: 0.0245 },
-    eye: { r: 0.0138, x: 0.0328, y: 0.008, iris: 0x6a96b4, ring: 0x1f3442, tilt: 0.42 },
+    head: { rx: 0.081, ry: 0.108, rz: 0.099, jawTaper: 0.3, jawPow: 1.7, jawSquare: 0.05, flatChin: 0.6, cheek: 0.03, crown: 0.97, cranium: 0.09, brow: 0, chin: 0.004, socket: 0, noseTip: 0, noseW: 0, hw: 0.02 },
+    eye: { r: 0.0138, x: 0.0345, y: -0.004, iris: 0x6a96b4, ring: 0x1f3442, tilt: 0.42 },
     brow: { color: 0x2a1c15, w: 0.0078, arch: 0.0035, y: 0.034 },
     lips: { color: 0xb07468, full: 0.82 },
     stubble: true, blush: 0,
@@ -23,8 +24,8 @@ const PRESETS = {
   female: {
     label: 'Female', scale: 0.945,
     skin: 0xf0c6aa,
-    head: { rx: 0.073, ry: 0.113, rz: 0.094, jawTaper: 0.36, jawPow: 1.35, jawSquare: 0, cheek: 0.03, crown: 0.92, cranium: 0.04, brow: 0.003, chin: 0.004, socket: 0.003, noseTip: 0.0125, noseW: 0.0095, hw: 0.0228 },
-    eye: { r: 0.0148, x: 0.0308, y: 0.011, iris: 0x8a5a32, ring: 0x2a170c, tilt: 0.34 },
+    head: { rx: 0.074, ry: 0.113, rz: 0.093, jawTaper: 0.46, jawPow: 1.5, jawSquare: 0, cheek: 0.025, crown: 0.93, cranium: 0.04, brow: 0, chin: 0.002, socket: 0, noseTip: 0, noseW: 0, hw: 0.018 },
+    eye: { r: 0.0148, x: 0.0335, y: -0.002, iris: 0x8a5a32, ring: 0x2a170c, tilt: 0.34 },
     brow: { color: 0x2b1a16, w: 0.0042, arch: 0.0055, y: 0.036 },
     lips: { color: 0xc4666b, full: 0.98 },
     stubble: false, blush: 1,
@@ -39,7 +40,6 @@ export const CHARACTERS = Object.keys(PRESETS);
 export const characterLabel = (k) => PRESETS[k].label;
 
 const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-const hash3 = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s); };
 
 // Tapered capsule hanging down -y from its pivot (top cap centred on the pivot).
 function limb(len, r0, r1, mat, seg = 16) {
@@ -55,34 +55,6 @@ function surfaceFn(mesh) {
   const rc = new T.Raycaster(), o = new T.Vector3(), d = new T.Vector3(0, 0, -1);
   return (x, y) => { o.set(x, y, 1); rc.set(o, d); const h = rc.intersectObject(mesh, false)[0]; return h ? h.point.z : 0; };
 }
-// Flat strip conforming to the face surface (eyebrows, mouth line).
-function ribbon(samples, widthFn, surf, lift, mat) {
-  const n = samples.length, pos = [], nor = [], idx = [];
-  for (let i = 0; i < n; i++) {
-    const a = samples[Math.max(0, i - 1)], b = samples[Math.min(n - 1, i + 1)];
-    let tx = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
-    const w = widthFn(i / (n - 1)) / 2, nx = -ty, ny = tx;
-    for (const s of [-1, 1]) { const x = samples[i][0] + nx * w * s, y = samples[i][1] + ny * w * s; pos.push(x, y, surf(x, y) + lift); nor.push(0, 0, 1); }
-    if (i < n - 1) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
-  }
-  const g = new T.BufferGeometry();
-  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); g.setIndex(idx);
-  return new T.Mesh(g, mat);
-}
-// Tube with variable radius (lips).
-function taperTube(pts, rFn, mat, radial = 10, zs = 0.8) {
-  const n = pts.length, pos = [], idx = [], N = new T.Vector3(0, 0, 1);
-  for (let i = 0; i < n; i++) {
-    const tan = pts[Math.min(n - 1, i + 1)].clone().sub(pts[Math.max(0, i - 1)]).normalize();
-    const B = tan.clone().cross(N).normalize(), r = rFn(i / (n - 1));
-    for (let j = 0; j < radial; j++) { const a = (j / radial) * Math.PI * 2; pos.push(pts[i].x + B.x * Math.cos(a) * r, pts[i].y + B.y * Math.cos(a) * r, pts[i].z + Math.sin(a) * r * zs); }
-    if (i < n - 1) for (let j = 0; j < radial; j++) { const a = i * radial + j, b = i * radial + (j + 1) % radial, c = a + radial, d = b + radial; idx.push(a, c, b, b, c, d); }
-  }
-  const g = new T.BufferGeometry();
-  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  return new T.Mesh(g, mat);
-}
-
 function buildHead(P, skinMat, skinFlat) {
   const H = P.head, E = P.eye;
   const g = new T.SphereGeometry(1, 64, 48), pos = g.attributes.position, col = new Float32Array(pos.count * 3);
@@ -105,29 +77,9 @@ function buildHead(P, skinMat, skinFlat) {
     if (Z > 0.2) {
       const d = Math.pow((Math.abs(px) - E.x) / 0.026, 2) + Math.pow((py - E.y) / 0.018, 2);
       pz -= H.socket * Math.exp(-d);
-      const dm = Math.pow(px / 0.034, 2) + Math.pow((py + 0.062) / 0.026, 2);
-      pz += 0.005 * Math.exp(-dm);
     }
     pos.setXYZ(i, px, py, pz);
-    // Vertex-painted skin shading.
     let r = 1, gg = 1, b = 1;
-    const ax = Math.abs(px), front = pz > 0 ? 1 : 0;
-    const eyeD = Math.hypot(ax - E.x, py - E.y);
-    const sock = Math.exp(-Math.pow(eyeD / 0.024, 2)) * front;
-    r *= 1 - 0.05 * sock; gg *= 1 - 0.09 * sock; b *= 1 - 0.06 * sock;
-    const under = Math.exp(-(Math.pow((ax - E.x) / 0.02, 2) + Math.pow((py - E.y + 0.02) / 0.009, 2))) * front;
-    r *= 1 - 0.02 * under; gg *= 1 - 0.07 * under; b *= 1 - 0.03 * under;
-    if (P.stubble) {
-      const n = 0.85 + 0.15 * hash3(Math.round(px * 150), Math.round(py * 150), Math.round(pz * 150));
-      const jaw = sm(-0.012, -0.05, py) * sm(0.085, 0.06, ax * 0.5 + Math.abs(py) * 0.1) * sm(-0.045, 0.02, pz);
-      const scalp = sm(0.078, 0.105, py) * 0.5 + sm(-0.005, -0.05, pz) * sm(0.07, -0.02, py) * 0.5;
-      const m = clamp(jaw * 0.95 + scalp * 0.55, 0, 1) * n;
-      r *= 1 - 0.26 * m; gg *= 1 - 0.29 * m; b *= 1 - 0.22 * m;
-    }
-    if (P.blush) {
-      const bl = Math.exp(-(Math.pow((ax - 0.046) / 0.02, 2) + Math.pow((py + 0.026) / 0.018, 2))) * front;
-      gg *= 1 - 0.10 * bl; b *= 1 - 0.09 * bl; r *= 1 + 0.02 * bl;
-    }
     const ao = 1 - 0.2 * sm(-0.6, -0.97, Y); r *= ao; gg *= ao; b *= ao;
     col[i * 3] = r; col[i * 3 + 1] = gg; col[i * 3 + 2] = b;
   }
@@ -142,7 +94,7 @@ export function createCharacter(kind) {
   const keep = (x) => { disposables.push(x); return x; };
   const std = (o) => keep(new T.MeshStandardMaterial(Object.assign({ envMapIntensity: 0.3 }, o)));
 
-    const skinMat = std({ color: P.skin, vertexColors: true, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
+    const skinMat = std({ color: 0xffffff, vertexColors: true, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
   const skinFlat = std({ color: P.skin, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
 
   const torsoQ = TX.quilted(P.jacket, 7, { zip: true, seed: 3 });
@@ -235,55 +187,9 @@ export function createCharacter(kind) {
     const inner = ell(1, 0.004, 0.02, 0.011, earInner, s * (ex0 + 0.0075), -0.004, -0.004, 8, 6); inner.rotation.y = s * 0.45; head.add(inner);
   });
 
-  // nose
-  const nz = (y) => surf(0, y);
-  const bridge = ell(1, 0.0072, 0.026, 0.0088, skinFlat, 0, -0.004, nz(-0.004) + 0.0025, 12, 10); bridge.rotation.x = -0.32; head.add(bridge);
-  head.add(ell(1, Hh.noseW * 0.8, 0.0096, 0.0108, skinFlat, 0, -0.0325, nz(-0.0325) + Hh.noseTip - 0.007, 14, 10));
-  [-1, 1].forEach((s) => {
-    head.add(ell(1, 0.0058, 0.0068, 0.0072, skinFlat, s * Hh.noseW, -0.0365, surf(s * Hh.noseW, -0.0365) + 0.0022, 10, 8));
-    head.add(ell(1, 0.0036, 0.0022, 0.003, darkMat, s * 0.0072, -0.0405, nz(-0.0405) + Hh.noseTip - 0.0045, 8, 6));
-  });
-
-  // eyes, lids (blink), liner
-  const eyeTex = keep(TX.eye(E.iris, E.ring));
-  const eyeMat = keep(new T.MeshPhysicalMaterial({ map: eyeTex, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.0 }));
-  const linerMat = std({ color: 0x1a0f0c, roughness: 0.5 });
-  const lids = [];
-  [-1, 1].forEach((s) => {
-    const ex = s * E.x, ez = surf(ex, E.y) - E.r * 0.42;
-    const eg = new T.Group(); eg.position.set(ex, E.y, ez); head.add(eg);
-    const ball = mk(new T.SphereGeometry(E.r, 24, 18), eyeMat); eg.add(ball);
-    const lidG = new T.Group(); eg.add(lidG);
-    const lidTheta = 1.27 - E.tilt; // lid edge sits ~13 deg below the eye's equator when open
-    lidG.add(mk(new T.SphereGeometry(E.r * 1.1, 24, 12, 0, Math.PI * 2, 0, lidTheta), skinFlat));
-    lidG.add(mk(new T.SphereGeometry(E.r * 1.09, 24, 12, 0, Math.PI * 2, 0, lidTheta + (kind === 'female' ? 0.12 : 0.08)), linerMat));
-    const lower = mk(new T.SphereGeometry(E.r * 1.08, 24, 8, 0, Math.PI * 2, 2.0, Math.PI - 2.0), skinFlat); eg.add(lower);
-    lidG.rotation.x = E.tilt; lids.push(lidG);
-    // brow
-    const bw = P.brow, pts = [];
-    for (let i = 0; i <= 14; i++) {
-      const t = i / 14, x = s * lerp(0.011, 0.056, t);
-      const y = E.y + bw.y + Math.sin(t * Math.PI) * bw.arch - Math.max(0, t - 0.6) * 0.012 - (1 - t) * 0.002;
-      pts.push([x, y]);
-    }
-    head.add(ribbon(pts, (t) => bw.w * (1 - 0.65 * t) * (0.75 + 0.25 * Math.sin(t * Math.PI + 0.3)) + 0.0006, surf, 0.0016, std({ color: bw.color, roughness: 0.9, side: T.DoubleSide })));
-  });
-
-  // mouth
-  const lipMat = std({ color: P.lips.color, roughness: 0.4, envMapIntensity: 0.3 });
-  const ym = -0.066, hw = Hh.hw, full = P.lips.full, up = [], lo = [], line = [];
-  for (let i = 0; i <= 28; i++) {
-    const t = (i / 28) * 2 - 1, x = t * hw, yl = ym + 0.0042 * t * t;
-    const ru = 0.0046 * full * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(t), 2.4)), 0.6) + 0.0005;
-    const rl = 0.0057 * full * Math.pow(Math.max(0, 1 - t * t), 0.6) + 0.0005;
-    const z = surf(x, yl);
-    up.push(new T.Vector3(x, yl + ru - 0.0011 * Math.exp(-Math.pow(t / 0.18, 2)), z + ru * 0.35));
-    lo.push(new T.Vector3(x, yl - rl, z + rl * 0.35));
-    line.push([x, yl]);
-  }
-  head.add(taperTube(up, (t) => 0.0046 * full * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(t * 2 - 1), 2.4)), 0.6) + 0.0005, lipMat));
-  head.add(taperTube(lo, (t) => 0.0057 * full * Math.pow(Math.max(0, 1 - Math.pow(t * 2 - 1, 2)), 0.6) + 0.0005, lipMat));
-  head.add(ribbon(line, (t) => 0.0022 * Math.sin(t * Math.PI) + 0.0004, surf, 0.0002, std({ color: 0x4a2224, roughness: 0.8, side: T.DoubleSide })));
+  // painted anime face (open + blink variants swapped on the head material)
+  const faceOpen = keep(paintFace(kind, headMesh, false)), faceBlink = keep(paintFace(kind, headMesh, true));
+  skinMat.map = faceOpen; skinMat.needsUpdate = true;
 
   // hair (female bob + fringe) / bald (male)
   if (P.hair) {
@@ -317,10 +223,9 @@ export function createCharacter(kind) {
     });
     const bc = new T.CatmullRomCurve3([new T.Vector3(0.0105, E.y + 0.004, gz), new T.Vector3(0, E.y + 0.008, gz + 0.001), new T.Vector3(-0.0105, E.y + 0.004, gz)]);
     head.add(new T.Mesh(new T.TubeGeometry(bc, 8, 0.0014, 6), fm));
-    [-1, 1].forEach((s) => head.add(mk(new T.SphereGeometry(0.0022, 6, 6), fm, s * 0.0125, E.y - 0.012, gz - 0.003)));
   }
 
-  head.rotation.x = 0; head.scale.setScalar(1.07);
+  head.rotation.x = 0; head.scale.setScalar(1.1);
 
   // ---------- Animation
   const FOOT = 0.16, L1 = 0.41, L2 = 0.36;
@@ -374,7 +279,7 @@ export function createCharacter(kind) {
 
     // blink
     const ph = (t + 0.7) % 3.7; const bl = ph < 0.16 ? Math.sin((ph / 0.16) * Math.PI) : 0;
-    lids.forEach((l) => { l.rotation.x = E.tilt + bl * 0.62 + wob * 0.1; });
+    const want = bl > 0.35 ? faceBlink : faceOpen; if (skinMat.map !== want) skinMat.map = want;
 
     body.rotation.x = p.fallDir * f * 1.5;
     body.position.y = f * 0.16;
