@@ -2830,6 +2830,8 @@
         let lightPose = 0;     // 0 = carrying an object, 1 = gripping the flashlight
         let gripT = 1;         // finger curl, 1 = closed grip, 0 = open
         let fingerJoints = [];
+        let handRight = null, handLeft = null;   // original / mirrored hand models under handGroup
+        const handSets = [];                     // their finger + thumb joints, driven together
         let thumbJoints = null;
         const HAND_SCALE = 1.28;   // a touch larger than life, standard for first-person hands
 
@@ -2855,9 +2857,14 @@
             HAND_Q_LIGHT.setFromRotationMatrix(new THREE.Matrix4().makeBasis(bx, by, bz));
         })();
 
-        function buildHandModel() {
+        function buildHandModel(mirror) {
             const g = new THREE.Group();
-            g.scale.setScalar(HAND_SCALE);
+            // Two copies of this hand exist. The torch pose uses the one mirrored across the palm plane
+            // (negative Y): in that grip the original curled its fingers towards the RIGHT of the screen,
+            // which reads as a left hand. Mirrored, the fingers wrap towards the centre with the thumb on
+            // the inside, so it reads as a right hand. Carrying an object uses the unmirrored original.
+            const SY = mirror ? -1 : 1;
+            g.scale.set(HAND_SCALE, HAND_SCALE * SY, HAND_SCALE);
             const skin = new THREE.MeshStandardMaterial({
                 color: 0xC89B77, roughness: 0.82, metalness: 0, flatShading: false,
                 emissive: 0x3E2617, emissiveIntensity: 0.9
@@ -2969,16 +2976,17 @@
             // anchors (counter-scaled so held props keep their true world size)
             const hold = new THREE.Object3D();
             hold.position.set(0, 0.05, -0.05);
-            hold.scale.setScalar(1 / HAND_SCALE);
+            hold.scale.set(1 / HAND_SCALE, SY / HAND_SCALE, 1 / HAND_SCALE);   // undo the mirror for held props
             g.add(hold);
             handParts.hold = hold;
             // Tool anchor sits in the middle of the closed fist (just above the palm,
             // level with the curled fingertips) so a gripped prop is really enclosed.
             const tool = new THREE.Object3D();
             tool.position.set(0, 0.038, -0.062);
-            tool.scale.setScalar(1 / HAND_SCALE);
+            tool.scale.set(1 / HAND_SCALE, SY / HAND_SCALE, 1 / HAND_SCALE);
             g.add(tool);
             handParts.tool = tool;
+            g.userData.set = { fingers: fingerJoints, thumb: thumbJoints, hold, tool };
             return g;
         }
 
@@ -3003,20 +3011,28 @@
             // fingers actually close around the object and snap open on release
             const gripWant = (heldItem || light) ? (th > 0.45 ? 0.12 : 1) : 0.25;
             gripT += (gripWant - gripT) * Math.min(1, dt * 12);
-            for (let i = 0; i < fingerJoints.length; i++) {
-                const f = fingerJoints[i];
-                for (let j = 0; j < 3; j++) {
-                    const closed = f.grip[j] + (f.light[j] - f.grip[j]) * lp;
-                    f.j[j].rotation.x = f.base[j] + (closed - f.base[j]) * gripT;
+            for (let si = 0; si < handSets.length; si++) {
+                const hs0 = handSets[si];
+                for (let i = 0; i < hs0.fingers.length; i++) {
+                    const f = hs0.fingers[i];
+                    for (let j = 0; j < 3; j++) {
+                        const closed = f.grip[j] + (f.light[j] - f.grip[j]) * lp;
+                        f.j[j].rotation.x = f.base[j] + (closed - f.base[j]) * gripT;
+                    }
+                }
+                const th0 = hs0.thumb;
+                if (th0) {
+                    for (let j = 0; j < 2; j++) {
+                        const closed = th0.grip[j] + (th0.light[j] - th0.grip[j]) * lp;
+                        th0.j[j].rotation.x = th0.base[j] + (closed - th0.base[j]) * gripT;
+                    }
+                    th0.j[0].rotation.y = th0.baseY + (th0.lightY - th0.baseY) * lp * gripT;
                 }
             }
-            if (thumbJoints) {
-                for (let j = 0; j < 2; j++) {
-                    const closed = thumbJoints.grip[j] + (thumbJoints.light[j] - thumbJoints.grip[j]) * lp;
-                    thumbJoints.j[j].rotation.x = thumbJoints.base[j] + (closed - thumbJoints.base[j]) * gripT;
-                }
-                thumbJoints.j[0].rotation.y = thumbJoints.baseY
-                    + (thumbJoints.lightY - thumbJoints.baseY) * lp * gripT;
+            // torch pose = mirrored hand, carrying an object = original hand
+            if (handRight && handLeft) {
+                handLeft.visible = lp > 0.5;
+                handRight.visible = lp <= 0.5;
             }
 
             // Place the hand relative to what the camera can actually see. A fixed offset sat
@@ -3025,9 +3041,11 @@
             const halfH = 0.5 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
             const halfW = halfH * camera.aspect;
             const portrait = camera.aspect < 1;
-            const fx = portrait ? 0.56 : 0.46;        // right hand: how far right of centre (0 = middle, 1 = edge); the forearm leaves the bottom-right corner
-            const fy = portrait ? -0.7 : -0.6;        // how far below centre
-            handGroup.scale.setScalar(portrait ? 0.7 : 1);   // narrow screens: smaller, so it never blocks the view
+            const fx = portrait ? 0.46 : 0.46;        // right hand: how far right of centre (0 = middle, 1 = edge); the forearm leaves the bottom-right corner
+            const fy = portrait ? -0.76 : -0.6;        // how far below centre
+            // narrow screens: smaller, so it never blocks the view (the models keep the designed HAND_SCALE).
+            const hs = portrait ? 0.547 : 1;
+            handGroup.scale.setScalar(hs);
             handGroup.position.set(
                 halfW * fx - lp * (portrait ? 0.02 : 0.05) + sway,
                 halfH * fy + lp * 0.03 + bob - down * 0.46 + snap * 0.03,
@@ -5942,7 +5960,14 @@
         }
 
         // The right hand rides on the camera, so it needs the camera in the scene graph
-        handGroup = buildHandModel();
+        handRight = buildHandModel(false);
+        handLeft = buildHandModel(true);
+        handSets.push(handRight.userData.set, handLeft.userData.set);
+        handParts.hold = handRight.userData.set.hold;    // carried objects sit in the original hand
+        handParts.tool = handLeft.userData.set.tool;     // the torch sits in the mirrored hand
+        handGroup = new THREE.Group();
+        handGroup.add(handRight);
+        handGroup.add(handLeft);
         handGroup.position.set(0.3, -0.28, -0.55);
         handGroup.rotation.set(-0.12, 0.34, -0.1);
         handGroup.visible = false;
