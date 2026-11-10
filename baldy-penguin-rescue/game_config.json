@@ -1,8 +1,8 @@
 {
-  "penguinCount": 8,
+  "penguinCount": 4,
   "fishCount": 24,
   "walkSpeed": 9,
-  "whirlyCount": 2,
+  "whirlyCount": 1,
   "snowfall": true,
   "jacketColor": "#e8452c",
   "home": { "x": 0, "z": 10 },

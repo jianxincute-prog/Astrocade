@@ -5,6 +5,14 @@ const CSS = `
 .pr-top{position:absolute;left:20px;top:20px;display:flex;gap:12px;align-items:center}
 .pr-pill{background:rgba(255,255,255,.92);border-radius:40px;padding:10px 22px;font-size:36px;font-weight:900;box-shadow:0 5px 0 rgba(36,64,92,.18);display:flex;align-items:center;gap:8px;min-height:60px}
 .pr-pill small{font-size:24px;opacity:.6}
+.pr-level{position:absolute;left:20px;top:96px;background:rgba(42,111,176,.9);color:#fff;border-radius:30px;padding:6px 20px;font-size:28px;font-weight:900;box-shadow:0 4px 0 rgba(36,64,92,.25)}
+.pr-level b{color:#ffe14a;margin-left:10px}
+#pr-banner{position:absolute;left:0;right:0;top:300px;text-align:center;pointer-events:none;opacity:0}
+#pr-banner.show{animation:prbanner 2.4s ease-out}
+#pr-banner div{font-size:120px;line-height:1;font-weight:900;color:#ffe14a;text-shadow:0 8px 0 #c97a12,0 16px 0 rgba(36,64,92,.4);letter-spacing:3px}
+#pr-banner span{display:block;margin-top:14px;font-size:60px;font-weight:900;color:#fff;text-shadow:0 5px 0 #24405c}
+@keyframes prbanner{0%{opacity:0;transform:scale(.3) rotate(-6deg)}14%{opacity:1;transform:scale(1.12)}24%{transform:scale(1)}78%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.25)}}
+.pr-total{font-size:34px;font-weight:900;color:#2a6fb0}
 .pr-follow{background:#38d6ff;color:#fff;transition:transform .2s}
 .pr-follow.hide{transform:scale(0)}
 .pr-round{position:absolute;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.92);font-size:44px;box-shadow:0 5px 0 rgba(36,64,92,.18);color:#24405c}
@@ -56,11 +64,13 @@ const HTML = `
     <div class="pr-pill">🐟 <span id="pr-fish">0</span></div>
     <div class="pr-pill pr-follow hide" id="pr-follow">🐧×<span id="pr-chain">0</span></div>
   </div>
+  <div class="pr-level">LEVEL <span id="pr-lv">1</span><b>⭐ <span id="pr-sum">0</span></b></div>
   <button class="pr-round" id="pr-pause" aria-label="Pause">⏸</button>
   <div id="pr-stick"><div id="pr-knob"></div></div>
   <button class="pr-act" id="pr-sled"><span>🛷</span>SLED</button>
   <button class="pr-act" id="pr-jump"><span>⬆</span>JUMP</button>
   <div id="pr-toast"></div>
+  <div id="pr-banner"><div id="pr-banner-t"></div><span id="pr-banner-s"></span></div>
 </div>
 <div class="pr-screen" id="pr-menu">
   <div class="pr-title">BALDY'S<b>PENGUIN RESCUE</b></div>
@@ -91,12 +101,13 @@ const HTML = `
 </div>
 <div class="pr-screen pr-dim" id="pr-win">
   <div class="pr-card">
-    <h2>Everyone is home!</h2>
+    <h2 id="pr-wtitle">Level 1 done!</h2>
     <div class="pr-stars" id="pr-stars"><span>⭐</span><span>⭐</span><span>⭐</span></div>
     <div class="pr-stat"><div>⏱ <span id="pr-wtime"></span></div><div>🐟 <span id="pr-wfish"></span></div></div>
     <div class="pr-score" id="pr-wscore"></div>
+    <div class="pr-total">TOTAL ⭐ <span id="pr-wtotal"></span></div>
     <div class="pr-lb" id="pr-lb"></div>
-    <button class="pr-big" id="pr-again">↻ AGAIN</button>
+    <button class="pr-big" id="pr-next">NEXT ▶</button>
   </div>
 </div>
 <div id="pr-edit" style="display:none">Tap the snow to move the igloo</div>
@@ -131,13 +142,22 @@ export function createHud(handlers) {
       const t = $('pr-toast'); t.textContent = text; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
       clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
     },
-    setBest(best) { $('pr-best').textContent = best > 0 ? `🏆 BEST ${best}` : ''; },
+    setBest(best, level) {
+      $('pr-best').textContent = best > 0 ? `🏆 BEST ${best}` : '';
+      $('pr-play').textContent = level > 1 ? `▶ LEVEL ${level}` : '▶ PLAY';
+    },
+    setLevel(level, total) { $('pr-lv').textContent = level; $('pr-sum').textContent = total; },
+    banner(title, sub) {
+      const b = $('pr-banner'); $('pr-banner-t').textContent = title; $('pr-banner-s').textContent = sub;
+      b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+    },
     setMute(muted) { $('pr-mute').textContent = muted ? '🔇 SOUND OFF' : '🔊 SOUND ON'; },
-    showWin({ stars, time, fish, fishTotal, score }) {
+    showWin({ level, stars, time, fish, fishTotal, score, total }) {
+      $('pr-wtitle').textContent = `Level ${level} done!`; $('pr-wtotal').textContent = total;
       const m = Math.floor(time / 60), s = Math.floor(time % 60);
       $('pr-wtime').textContent = `${m}:${String(s).padStart(2, '0')}`;
       $('pr-wfish').textContent = `${fish}/${fishTotal}`;
-      $('pr-wscore').textContent = score;
+      $('pr-wscore').textContent = `+${score}`;
       $('pr-lb').innerHTML = '';
       const spans = $('pr-stars').children;
       for (let i = 0; i < 3; i++) { spans[i].classList.remove('on'); if (i < stars) setTimeout(() => spans[i].classList.add('on'), 350 + i * 350); }
@@ -161,6 +181,6 @@ export function createHud(handlers) {
   click('pr-resume', () => handlers.resume());
   click('pr-mute', () => handlers.mute());
   click('pr-restart', () => handlers.restart());
-  click('pr-again', () => handlers.restart());
+  click('pr-next', () => handlers.next());
   return hud;
 }

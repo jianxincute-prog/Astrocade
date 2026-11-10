@@ -2,7 +2,13 @@
 import { WORLD, heightAt, rng } from './terrain.js';
 import { buildPenguin } from './character.js';
 
-const SKY = 0xbfe4f8;
+// Sky moods that rotate from level to level: clear day, golden sunset, pink dawn, blue dusk.
+const THEMES = [
+  { sky: 0xbfe4f8, top: 0xeaf6ff, ground: 0x9db7d6, hemi: 1.15, sun: 0xfff1d6, sunI: 1.5 },
+  { sky: 0xffcfa8, top: 0xffe6d2, ground: 0xb0a4c8, hemi: 1.05, sun: 0xffb26e, sunI: 1.5 },
+  { sky: 0xf6cbe6, top: 0xffe8f6, ground: 0xa9b2de, hemi: 1.1, sun: 0xfff0e0, sunI: 1.4 },
+  { sky: 0x7d93d6, top: 0xc3cfff, ground: 0x6474b4, hemi: 1.05, sun: 0xd6deff, sunI: 1.15 },
+];
 
 function canvasTexture(size, draw) {
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -11,12 +17,13 @@ function canvasTexture(size, draw) {
   return t;
 }
 
-export function buildScene(home, layout, snowfall) {
+export function buildScene(home, layout, snowfall, theme = 0) {
+  const T = THEMES[theme % THEMES.length], SKY = T.sky;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY);
   scene.fog = new THREE.Fog(SKY, 70, 210);
-  scene.add(new THREE.HemisphereLight(0xeaf6ff, 0x9db7d6, 1.15));
-  const sun = new THREE.DirectionalLight(0xfff1d6, 1.5); sun.position.set(40, 80, 30); scene.add(sun);
+  scene.add(new THREE.HemisphereLight(T.top, T.ground, T.hemi));
+  const sun = new THREE.DirectionalLight(T.sun, T.sunI); sun.position.set(40, 80, 30); scene.add(sun);
   const H = (x, z) => heightAt(x, z, home);
 
   // ---- terrain ----

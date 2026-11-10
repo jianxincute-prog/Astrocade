@@ -14,9 +14,10 @@ export function smooth(a, b, v) {
 
 /** Ground height. Flat around the igloo and the pond, rising into a rim at the edge. */
 export function heightAt(x, z, home) {
-  let h = 2.4 * Math.sin(x * 0.045 + 1.3) * Math.cos(z * 0.04)
-        + 1.5 * Math.sin(x * 0.09 + z * 0.07)
-        + 0.6 * Math.sin(z * 0.16 - x * 0.05);
+  const p = home.p || 0;                                   // per-level phase reshapes the hills
+  let h = 2.4 * Math.sin(x * 0.045 + 1.3 + p) * Math.cos(z * 0.04 + p * 0.7)
+        + 1.5 * Math.sin(x * 0.09 + z * 0.07 + p * 1.9)
+        + 0.6 * Math.sin(z * 0.16 - x * 0.05 + p * 2.3);
   h *= smooth(10, 28, Math.hypot(x - home.x, z - home.z));
   h *= smooth(WORLD.pond.r + 1, WORLD.pond.r + 13, Math.hypot(x - WORLD.pond.x, z - WORLD.pond.z));
   const r = Math.hypot(x, z);
@@ -108,9 +109,30 @@ export function layoutWorld(home, penguinCount, fishCount, seed = 20261) {
   return { trees, rocks, penguins, fish };
 }
 
-/** Score: every penguin and fish counts, and a quick rescue adds a time bonus. */
+/**
+ * Endless levels: each one gets a new igloo spot, new hills, a new layout and a new sky,
+ * with one more penguin to find and, every other level, one more (slightly faster) whirly.
+ */
+export function levelPlan(level, cfg) {
+  const rand = rng(9001 + level * 131), n = level - 1;
+  let home = clampHome(cfg.home);
+  if (level > 1) {
+    const a = rand() * 6.283, r = rand() * 60;
+    home = clampHome({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+    home.p = rand() * 6.283;
+  }
+  return {
+    level, home, seed: 20261 + n * 977, theme: n % 4,
+    penguins: Math.min(12, cfg.penguins + n),
+    fish: Math.min(40, cfg.fish + n * 2),
+    whirlies: cfg.whirlies ? Math.min(5, cfg.whirlies + Math.floor(n / 2)) : 0,
+    whirlySpeed: Math.min(6.5, 4.2 + n * 0.25),
+  };
+}
+
+/** Level score: every penguin and fish counts, and a quick rescue adds a time bonus. */
 export function finalScore(penguins, fish, seconds) {
-  return penguins * 100 + fish * 10 + Math.max(0, 600 - Math.floor(seconds)) ;
+  return penguins * 100 + fish * 10 + Math.max(0, 300 + penguins * 40 - Math.floor(seconds));
 }
 
 export function starsFor(fish, fishTotal, seconds, penguins) {

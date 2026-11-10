@@ -7,7 +7,9 @@ them home to the igloo under the orange beam. Penguins waddle behind him in a li
 - **Golden fish** add score/stars and refill sled power.
 - **SLED** gives a speed boost (extra fast downhill) while the power ring lasts.
 - **Snow whirlies** wander the valley. Touching one scatters the penguin line a few metres; jump over it to stay safe.
-- There is no way to lose: the round ends when every penguin is home. Score = penguins, fish and a time bonus.
+- There is no way to lose. When every penguin is home the level is done and the next one is generated: a new igloo spot,
+  new hills and layout, a new sky mood, one more penguin, and every other level one more (slightly faster) whirly.
+  Score (penguins, fish, time bonus) keeps adding up across levels; progress and best total are saved.
 
 ## Controls
 - Touch: left thumbstick moves, drag elsewhere to look, JUMP and SLED buttons on the right.

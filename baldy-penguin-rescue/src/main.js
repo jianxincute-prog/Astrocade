@@ -1,5 +1,5 @@
 // Game loop and rules: Baldy explores the valley, lost baby penguins follow him, and he leads them home.
-import { WORLD, onIce, layoutWorld, clampHome, finalScore, starsFor } from './terrain.js';
+import { WORLD, onIce, layoutWorld, clampHome, finalScore, starsFor, levelPlan } from './terrain.js';
 import { buildScene, buildBeacon, buildFish, buildShadow, buildArrow, buildSparkles } from './world.js';
 import { buildMan, animateMan, buildPenguin, animatePenguin, buildWhirly, animateWhirly } from './character.js';
 import { createHud } from './hud.js';
@@ -19,10 +19,10 @@ function log(message) { try { lib.log(message); } catch (e) { console.log(messag
 function readConfig() {
   const g = window.gameConfig || {};
   return {
-    penguins: Math.round(num(g.penguinCount, 8, 3, 12)),
+    penguins: Math.round(num(g.penguinCount, 4, 3, 12)),
     fish: Math.round(num(g.fishCount, 24, 10, 40)),
     walkSpeed: num(g.walkSpeed, 9, 6, 12),
-    whirlies: Math.round(num(g.whirlyCount, 2, 0, 3)),
+    whirlies: Math.round(num(g.whirlyCount, 1, 0, 3)),
     snowfall: g.snowfall !== false,
     jacketColor: typeof g.jacketColor === 'string' ? g.jacketColor : '#e8452c',
     home: clampHome(g.home || { x: 0, z: 10 }),
@@ -30,6 +30,7 @@ function readConfig() {
 }
 
 let current = null, restartTimer = 0, savedBest = 0, bestLoaded = false;
+const session = { level: 1, score: 0 };              // carries on from level to level
 
 export function startGame(mode, autoPlay = false) {
   if (current) current.dispose();
@@ -49,10 +50,10 @@ export function registerParameters(mode) {
     lib.showGameParameters({
       name: "Baldy's Penguin Rescue",
       params: {
-        'Lost penguins': param('penguinCount', { type: 'slider', min: 3, max: 12, step: 1 }),
+        'Penguins at level 1': param('penguinCount', { type: 'slider', min: 3, max: 12, step: 1 }),
         'Golden fish': param('fishCount', { type: 'slider', min: 10, max: 40, step: 1 }),
         'Walk speed': param('walkSpeed', { type: 'slider', min: 6, max: 12, step: 0.5 }),
-        'Snow whirlies': param('whirlyCount', { type: 'slider', min: 0, max: 3, step: 1 }),
+        'Whirlies at level 1': param('whirlyCount', { type: 'slider', min: 0, max: 3, step: 1 }),
         'Snowfall': param('snowfall', { type: 'checkbox' }),
         'Jacket color': param('jacketColor', { type: 'color' }),
       },
@@ -61,9 +62,9 @@ export function registerParameters(mode) {
 }
 
 function createGame(mode, autoPlay) {
-  const cfg = readConfig(), home = cfg.home;
-  const layout = layoutWorld(home, cfg.penguins, cfg.fish);
-  const world = buildScene(home, layout, cfg.snowfall), scene = world.scene, H = world.H;
+  const cfg = readConfig(), plan = levelPlan(mode === 'edit' ? 1 : session.level, cfg), home = plan.home;
+  const layout = layoutWorld(home, plan.penguins, plan.fish, plan.seed);
+  const world = buildScene(home, layout, cfg.snowfall, plan.theme), scene = world.scene, H = world.H;
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   const canvas = renderer.domElement;
@@ -103,7 +104,7 @@ function createGame(mode, autoPlay) {
   let fishCount = 0;
 
   const whirlies = [];
-  for (let i = 0; i < cfg.whirlies; i++) {
+  for (let i = 0; i < plan.whirlies; i++) {
     const model = buildWhirly(); scene.add(model.root);
     const a = i * 2.1 + 1, w = { model, x: Math.cos(a) * 60, z: Math.sin(a) * 60, tx: 0, tz: 0 };
     pickWhirlyTarget(w); whirlies.push(w);
@@ -131,14 +132,20 @@ function createGame(mode, autoPlay) {
     pause() { if (phase === 'play') { phase = 'paused'; input.reset(); hud.show('paused'); } },
     resume() { if (phase === 'paused') { phase = 'play'; hud.show('play'); last = performance.now(); } },
     mute() { setMuted(!isMuted()); hud.setMute(isMuted()); },
-    restart() { startGame(mode, true); },
+    next() { session.level++; startGame(mode, true); },
+    restart() { session.level = 1; session.score = 0; saveProgress(); startGame(mode, true); },
   });
   const input = createInput(hud.root, hud.buttons);
-  hud.setCounts(0, penguins.length, 0); hud.setFish(0); hud.setMute(isMuted()); hud.setBest(savedBest);
+  hud.setCounts(0, penguins.length, 0); hud.setFish(0); hud.setMute(isMuted()); hud.setBest(savedBest, session.level);
+  hud.setLevel(plan.level, session.score);
+
+  function saveProgress() {
+    try { Promise.resolve(lib.saveUserGameState({ best: savedBest, level: session.level, score: session.score })).catch(() => {}); } catch (e) { /* no saves here */ }
+  }
 
   function begin() {
     phase = 'play'; input.enabled = true; input.reset(); hud.show('play'); camYaw = Math.PI; camPitch = 0.36; player.yaw = 0;
-    hud.toast('Find the penguins!');
+    hud.banner(`LEVEL ${plan.level}`, `🐧 ×${penguins.length}`);
   }
 
   if (phase === 'edit') { hud.editMode(); scene.fog = null; setupEditor(); }
@@ -148,7 +155,13 @@ function createGame(mode, autoPlay) {
   if (!bestLoaded && mode !== 'edit') {
     bestLoaded = true;
     try {
-      Promise.resolve(lib.getUserGameState()).then(r => { savedBest = Number(r?.state?.best) || 0; if (current) current.setBest(savedBest); }).catch(() => {});
+      Promise.resolve(lib.getUserGameState()).then(r => {
+        const st = r?.state || {}, level = Math.floor(Number(st.level)) || 1;
+        savedBest = Number(st.best) || 0;
+        if (level > 1 && current && current.inMenu() && session.level === 1) {       // pick up where the player left off
+          session.level = level; session.score = Number(st.score) || 0; startGame(mode);
+        } else if (current) current.setBest(savedBest);
+      }).catch(() => {});
     } catch (e) { /* no saves here */ }
   }
 
@@ -301,7 +314,7 @@ function createGame(mode, autoPlay) {
     whirlies.forEach(w => {
       const ox = w.tx - w.x, oz = w.tz - w.z, d = Math.hypot(ox, oz);
       if (d < 2) pickWhirlyTarget(w);
-      else { w.x += ox / d * 4.2 * dt; w.z += oz / d * 4.2 * dt; }
+      else { w.x += ox / d * plan.whirlySpeed * dt; w.z += oz / d * plan.whirlySpeed * dt; }
       const gy = H(w.x, w.z);
       w.model.root.position.set(w.x, gy, w.z);
       w.model.face.rotation.y = Math.atan2(camera.position.x - w.x, camera.position.z - w.z);
@@ -376,15 +389,15 @@ function createGame(mode, autoPlay) {
     phase = 'win'; input.enabled = false; input.reset(); player.vx = player.vz = 0; player.sled = false; arrow.visible = false;
     const score = finalScore(delivered, fishCount, time), stars = starsFor(fishCount, fishes.length, time, delivered);
     sfx.win(); buzz('success');
-    hud.showWin({ stars, time, fish: fishCount, fishTotal: fishes.length, score });
-    if (score > savedBest) {
-      savedBest = score;
-      try { Promise.resolve(lib.saveUserGameState({ best: savedBest })).catch(() => {}); } catch (e) { /* no saves here */ }
-    }
+    session.score += score;
+    hud.showWin({ level: plan.level, stars, time, fish: fishCount, fishTotal: fishes.length, score, total: session.score });
+    hud.setLevel(plan.level, session.score);
+    savedBest = Math.max(savedBest, session.score);
+    session.level++; saveProgress(); session.level--;               // a returning player starts at the next level
     try {
-      Promise.resolve(lib.addPlayerScoreToLeaderboard(score, 3)).then(r => { if (!disposed && r?.entries) hud.setLeaderboard(r.entries); }).catch(() => {});
+      Promise.resolve(lib.addPlayerScoreToLeaderboard(session.score, 3)).then(r => { if (!disposed && r?.entries) hud.setLeaderboard(r.entries); }).catch(() => {});
     } catch (e) { /* no leaderboard here */ }
-    log(`Rescue complete: score ${score}, time ${Math.round(time)}s, fish ${fishCount}`);
+    log(`Level ${plan.level} complete: total ${session.score}, level score ${score}, time ${Math.round(time)}s, fish ${fishCount}`);
   }
 
   // ---------- edit mode: tap the snow to move the igloo ----------
@@ -435,7 +448,8 @@ function createGame(mode, autoPlay) {
   raf = requestAnimationFrame(frame);
 
   return {
-    setBest(best) { hud.setBest(best); },
+    setBest(best) { hud.setBest(best, session.level); },
+    inMenu() { return phase === 'menu'; },
     debug: { player, penguins, fishes, whirlies, home, get phase() { return phase; }, get chain() { return chain; }, get delivered() { return delivered; } },
     dispose() {
       disposed = true; cancelAnimationFrame(raf); clearTimeout(restartTimer);
