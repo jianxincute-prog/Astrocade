@@ -182,7 +182,7 @@ export function buildSparkles(scene) {
     for (let i = 0; i < 10; i++) { const r = i % 2 ? 12 : 29, a = i * Math.PI / 5 - Math.PI / 2; x.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); }
     x.closePath(); x.fill();
   });
-  const snow = canvasTexture(64, x => { x.fillStyle = '#ffffff'; x.beginPath(); x.arc(32, 32, 26, 0, 6.3); x.fill(); });
+  const snow = canvasTexture(64, x => { const g = x.createRadialGradient(32, 32, 4, 32, 32, 30); g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(0.6, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); });
   const mats = { heart, star, snow };
   const pool = [];
   for (let i = 0; i < 48; i++) {
@@ -197,7 +197,7 @@ export function buildSparkles(scene) {
         p.s.material.map = mats[kind]; p.s.visible = true; p.s.position.set(x, y, z);
         const a = Math.random() * 6.283;
         p.vx = Math.cos(a) * spread * Math.random(); p.vz = Math.sin(a) * spread * Math.random(); p.vy = 2 + Math.random() * 3;
-        p.life = p.max = 0.7 + Math.random() * 0.4; p.size = kind === 'snow' ? 0.5 : 0.7;
+        p.life = p.max = 0.7 + Math.random() * 0.4; p.size = kind === 'snow' ? 0.42 : 0.7;
       }
     },
     update(dt) {
