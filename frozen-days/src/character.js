@@ -234,7 +234,7 @@ export function createCharacter(kind) {
     const onIce = p.mode === 'skate', ok = p.state === 'ok';
     const sf = clamp(p.speed / 12, 0, 1), f = p.fallAmt, calm = 1 - f;
     const amp = clamp(p.strideAmp, 0, 1), s = p.stride;
-    const wob = p.b * calm, w = clamp(p.speed / 4.6, 0, 1);
+    const wob = p.b * calm + (p.spin ? 0.25 : 0), w = clamp(p.speed / 4.6, 0, 1);
     let tL, tR, kL, kR, spread = 0;
     if (ok && onIce) {
       const cr = clamp(0.3 + sf * 0.55 + amp * 0.15, 0, 1);
@@ -283,6 +283,7 @@ export function createCharacter(kind) {
     const want = bl > 0.35 ? faceBlink : faceOpen; if (skinMat.map !== want) skinMat.map = want;
 
     body.rotation.x = p.fallDir * f * 1.5;
+    body.rotation.y = p.spinAng || 0;
     body.position.y = f * 0.16;
   }
   function place(p) { root.position.set(p.x, p.mode === 'skate' ? 0.06 : 0, p.z); root.rotation.y = p.h; }

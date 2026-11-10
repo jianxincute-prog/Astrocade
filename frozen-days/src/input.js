@@ -3,12 +3,13 @@ import { clamp } from './util.js';
 
 export function createInput(root, canvas, { touch }) {
   const keys = new Set();
-  let joy = { x: 0, y: 0 }, btnPush = false, btnBrake = false, lookDx = 0, respawnReq = false;
+  let joy = { x: 0, y: 0 }, btnPush = false, btnBrake = false, lookDx = 0, respawnReq = false, spinReq = false;
 
   const onKeyDown = (e) => {
     const k = e.key.toLowerCase();
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
     if (k === 'r' && !e.repeat) respawnReq = true;
+    if (k === 'e' && !e.repeat) spinReq = true;
     keys.add(k);
   };
   const onKeyUp = (e) => keys.delete(e.key.toLowerCase());
@@ -33,7 +34,7 @@ export function createInput(root, canvas, { touch }) {
     ui.id = 'touch';
     ui.innerHTML =
       '<div id="joyZone"><div id="joyBase"><div id="joyKnob"></div></div></div>' +
-      '<div id="btnBrake" class="btn">BRAKE</div><div id="btnPush" class="btn big">PUSH</div>';
+      '<div id="btnSpin" class="btn" style="display:none">SPIN</div><div id="btnBrake" class="btn">BRAKE</div><div id="btnPush" class="btn big">PUSH</div>';
     root.appendChild(ui);
     const zone = ui.querySelector('#joyZone'), base = ui.querySelector('#joyBase'), knob = ui.querySelector('#joyKnob');
     let joyId = null;
@@ -58,6 +59,7 @@ export function createInput(root, canvas, { touch }) {
     };
     hold(ui.querySelector('#btnPush'), (v) => { btnPush = v; });
     hold(ui.querySelector('#btnBrake'), (v) => { btnBrake = v; });
+    ui.querySelector('#btnSpin').addEventListener('pointerdown', (e) => { e.preventDefault(); spinReq = true; });
   }
 
   function read() {
@@ -73,11 +75,13 @@ export function createInput(root, canvas, { touch }) {
   function consumeLook() { const d = lookDx; lookDx = 0; return d; }
   function consumeRespawn() { const r = respawnReq; respawnReq = false; return r; }
   function requestRespawn() { respawnReq = true; }
+  function consumeSpin() { const r = spinReq; spinReq = false; return r; }
+  function setSpinVisible(v) { const b = ui && ui.querySelector('#btnSpin'); if (b) b.style.display = v ? 'flex' : 'none'; }
   function destroy() {
     window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); window.removeEventListener('blur', onBlur);
     canvas.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
     if (ui) ui.remove();
   }
-  return { read, consumeLook, consumeRespawn, requestRespawn, destroy };
+  return { read, consumeLook, consumeRespawn, requestRespawn, consumeSpin, setSpinVisible, destroy };
 }

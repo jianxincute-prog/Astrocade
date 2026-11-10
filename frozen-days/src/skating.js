@@ -14,6 +14,7 @@ export function createSkater() {
     stride: 0, strideAmp: 0, fallAmt: 0, fallDir: -1,
     steer: 0, steerS: 0, push: 0, brake: 0,
     falls: 0, dist: 0, events: [],
+    spin: null, spinAng: 0,
   };
 }
 
@@ -23,13 +24,13 @@ export function respawn(p) {
 }
 
 function startFall(p, reason) {
-  p.state = 'falling'; p.t = 0; p.falls++;
+  p.state = 'falling'; p.t = 0; p.falls++; p.spin = null; p.spinAng = 0;
   p.fallDir = reason === 'turn' ? 1 : -1;
   p.events.push({ type: 'fall', reason, speed: p.speed });
 }
 
 export function updateSkater(p, inp, dt, c, world) {
-  const sk = skillsFor(c.level);
+  const sk = c.skills || skillsFor(c.level);
   const ok = p.state === 'ok';
   const steer = ok ? inp.steer : 0, push = ok ? inp.push : 0, brake = ok ? inp.brake : 0;
   p.push = push; p.brake = brake;
@@ -40,6 +41,10 @@ export function updateSkater(p, inp, dt, c, world) {
   const onIce = world.onIce(p.x, p.z);
   p.mode = onIce ? 'skate' : 'walk';
   let speed = Math.hypot(p.vx, p.vz);
+  if (inp.spin && ok && !p.spin) {
+    if (onIce0 && c.spinUnlocked && speed > 2) { p.spin = { t: 0 }; p.events.push({ type: 'spinstart' }); }
+    else p.events.push({ type: 'spinfail', reason: !c.spinUnlocked ? 'locked' : (onIce0 ? 'slow' : 'land') });
+  }
 
   // Heading: wider turns at higher speed on ice, pivot-in-place on snow.
   if (ok) {
@@ -89,14 +94,23 @@ export function updateSkater(p, inp, dt, c, world) {
       load.turn = Math.max(0, Math.abs(p.steerS) * speed / (comfort + 3) * (1 - 0.5 * sk.control) - 0.7) * 2.2;
       load.slip = Math.max(0, Math.abs(vl) / (comfort * 0.55) - 0.9);
       load.brake = Math.max(0, brake * speed / (comfort + 3) * (1 - 0.5 * sk.braking) - 0.85) * 1.4;
-      const total = load.over + load.turn + load.slip + load.brake;
+      let spinLoad = 0;
+      if (p.spin) {
+        p.spin.t += dt;
+        const u = clamp(p.spin.t / 0.9, 0, 1);
+        p.spinAng = Math.PI * 2 * ease(u);
+        spinLoad = 0.9 * (1 - sk.tricks * 0.7) * clamp(speed / Math.max(1, comfort), 0, 1.2);
+        if (u >= 1) { p.spin = null; p.spinAng = 0; p.events.push({ type: 'spin' }); }
+      }
+      const total = load.over + load.turn + load.slip + load.brake + spinLoad;
       const floor = (1 - sk.balance) * 0.1 * clamp(speed / comfort, 0, 1);
       if (total > 0.02) p.b += total * 0.7 * dt;
       else p.b = Math.max(floor, p.b - 0.6 * dt);
       p.b = clamp(p.b, 0, 1);
       let reason = 'speed', best = load.over;
       if (load.turn + load.slip > best) { reason = 'turn'; best = load.turn + load.slip; }
-      if (load.brake > best) reason = 'brake';
+      if (load.brake > best) { reason = 'brake'; best = load.brake; }
+      if (spinLoad > best) reason = 'spin';
       if (p.b > 0.55 && !p.warned) { p.warned = true; p.events.push({ type: 'wobble', reason }); }
       if (p.b < 0.3) p.warned = false;
       if (p.b >= 1) startFall(p, reason);

@@ -1,0 +1,132 @@
+// Skating progression: XP, level, five skills grown by relevant practice, optional goals, personal bests.
+// Skills never gate basic controls — they only make balance, control, top speed and braking more forgiving.
+import { clamp, angleDiff } from './util.js';
+
+const K = { balance: 150, control: 110, speed: 2200, braking: 40, tricks: 60 }; // practice needed for ~63% of a skill
+export const MAX_LEVEL = 10;
+export const SPIN_LEVEL = 3;
+const NAMES = [[1, 'Beginner'], [3, 'Novice'], [5, 'Intermediate'], [8, 'Advanced']];
+const GOAL_SEQ = ['glide', 'speed', 'stop', 'turns', 'glide', 'spin', 'speed', 'turns'];
+
+const xpForLevel = (L) => 45 * (L - 1) * (L - 1); // cumulative XP needed to reach level L
+export function levelName(L) { let n = 'Beginner'; for (const [lv, name] of NAMES) if (L >= lv) n = name; return n; }
+const levelFor = (xp) => { let L = 1; while (L < MAX_LEVEL && xp >= xpForLevel(L + 1)) L++; return L; };
+const num = (v, d = 0) => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : d);
+
+export function createProgress(saved) {
+  const s = {
+    xp: 0, raw: { balance: 0, control: 0, speed: 0, braking: 0, tricks: 0 },
+    best: { run: 0, speed: 0 }, totals: { dist: 0, falls: 0, spins: 0, goals: 0 }, goalIdx: 0,
+  };
+  if (saved && saved.v === 2) {
+    s.xp = num(saved.xp);
+    Object.keys(s.raw).forEach((k) => { s.raw[k] = num(saved.raw && saved.raw[k]); });
+    s.best.run = num(saved.best && saved.best.run); s.best.speed = num(saved.best && saved.best.speed);
+    Object.keys(s.totals).forEach((k) => { s.totals[k] = num(saved.totals && saved.totals[k]); });
+    s.goalIdx = Math.floor(num(saved.goalIdx));
+  }
+  let level = levelFor(s.xp), dirty = false, pendingXp = 0;
+  const run = { dist: 0, turn: 0, lastH: null, brakeStart: 0, braking: false, wobbling: false, xpDist: 0, xpTime: 0 };
+
+  const skillVal = (k) => 1 - Math.exp(-s.raw[k] / K[k]);
+  function award(n, out) {
+    s.xp += n; pendingXp += n; dirty = true;
+    const nl = levelFor(s.xp);
+    while (level < nl) { level++; out.push({ type: 'level', level, name: levelName(level), unlock: level === SPIN_LEVEL ? 'Spin trick unlocked!' : null }); }
+  }
+
+  function makeGoal() {
+    let t = GOAL_SEQ[s.goalIdx % GOAL_SEQ.length];
+    if (t === 'spin' && level < SPIN_LEVEL) t = 'speed';
+    const L = level, reward = 20 + 4 * L;
+    if (t === 'glide') { const target = Math.min(700, 120 + 40 * L); return { type: t, target, reward, text: 'Glide ' + target + ' m without falling' }; }
+    if (t === 'speed') { const u = Math.min(16, 7.5 + 0.8 * L); return { type: t, target: u, reward, text: 'Reach ' + Math.round(u * 2.4) + ' km/h' }; }
+    if (t === 'stop') { const u = Math.min(12, 4.5 + 0.4 * L); return { type: t, target: u, reward, text: 'Brake to a stop from ' + Math.round(u * 2.4) + ' km/h' }; }
+    if (t === 'turns') { const n = Math.round(1 + 0.2 * L); return { type: t, target: n * Math.PI * 2, reward, text: 'Skate ' + n + ' full circle' + (n > 1 ? 's' : '') }; }
+    return { type: 'spin', target: 1, reward: 30, text: 'Land a spin' };
+  }
+  let goal = makeGoal();
+
+  function completeGoal(out) {
+    const done = goal;
+    award(done.reward, out); s.totals.goals++; s.goalIdx++; run.turn = 0;
+    out.push({ type: 'goal', text: done.text, xp: done.reward });
+    goal = makeGoal();
+  }
+  function goalState(p) {
+    let f = 0;
+    if (goal.type === 'glide') f = run.dist / goal.target;
+    else if (goal.type === 'speed') f = p.speed / goal.target;
+    else if (goal.type === 'stop') f = run.braking && run.brakeStart >= goal.target ? 0.5 : 0;
+    else if (goal.type === 'turns') f = run.turn / goal.target;
+    return { text: goal.text, frac: clamp(f, 0, 1) };
+  }
+
+  return {
+    skills(boost = 0) {
+      const o = {}; Object.keys(K).forEach((k) => { o[k] = Math.max(skillVal(k), boost); }); return o;
+    },
+    rawSkills() { const o = {}; Object.keys(K).forEach((k) => { o[k] = skillVal(k); }); return o; },
+    spinUnlocked() { return level >= SPIN_LEVEL; },
+    info() {
+      const base = xpForLevel(level), need = level >= MAX_LEVEL ? 1 : xpForLevel(level + 1) - base;
+      return { level, name: levelName(level), xp: Math.floor(s.xp), into: s.xp - base, need, frac: level >= MAX_LEVEL ? 1 : clamp((s.xp - base) / need, 0, 1) };
+    },
+    stats() { return { best: s.best, totals: s.totals }; },
+    goal(p) { return goalState(p); },
+    skipGoal() { s.goalIdx++; run.turn = 0; run.braking = false; goal = makeGoal(); dirty = true; },
+    resetRun() { run.dist = 0; run.turn = 0; run.braking = false; run.wobbling = false; },
+    popXp() { const n = pendingXp; pendingXp = 0; return n; },
+    isDirty() { return dirty; }, clearDirty() { dirty = false; },
+    bestRun() { return s.best.run; },
+    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx }; },
+
+    // Discrete skater events (fall, wobble, up, spin...). Returns UI events.
+    onEvents(evs) {
+      const out = [];
+      for (const ev of evs) {
+        if (ev.type === 'fall') { s.totals.falls++; run.dist = 0; run.turn = 0; run.braking = false; run.wobbling = false; dirty = true; }
+        else if (ev.type === 'wobble') run.wobbling = true;
+        else if (ev.type === 'up') { s.raw.balance += 2; }
+        else if (ev.type === 'spin') {
+          s.raw.tricks += 10; s.totals.spins++; award(4, out); dirty = true;
+          if (goal.type === 'spin') completeGoal(out);
+        }
+      }
+      return out;
+    },
+
+    // Per-frame accumulation from the skater state. Returns UI events (level ups, goals).
+    update(p, dt) {
+      const out = [], ok = p.state === 'ok', ice = p.mode === 'skate';
+      if (run.lastH === null) run.lastH = p.h;
+      const dh = Math.abs(angleDiff(p.h, run.lastH)); run.lastH = p.h;
+      if (p.speed > s.best.speed) { s.best.speed = p.speed; dirty = true; }
+      if (ok && ice && p.speed > 1) {
+        const d = p.speed * dt;
+        run.dist += d; s.raw.speed += d; s.totals.dist += d; run.xpDist += d; dirty = true;
+        if (run.dist > s.best.run) s.best.run = run.dist;
+        while (run.xpDist >= 20) { run.xpDist -= 20; award(1, out); }
+        if (p.speed > 5 && p.b < 0.55) { s.raw.balance += dt; run.xpTime += dt; if (run.xpTime >= 8) { run.xpTime -= 8; award(1, out); } }
+        if (p.speed > 3) { s.raw.control += dh * 2; run.turn += dh; }
+      }
+      if (run.wobbling && ok && p.b < 0.3) { run.wobbling = false; s.raw.balance += 3; award(2, out); }
+      // Braking to a stop.
+      if (ok && p.brake > 0.2 && p.speed > 1 && !run.braking) { run.braking = true; run.brakeStart = p.speed; }
+      if (run.braking) {
+        if (!ok) run.braking = false;
+        else if (p.speed < 0.8) {
+          const from = run.brakeStart; run.braking = false;
+          if (from > 5) { s.raw.braking += 6; award(2, out); } else if (from > 3) s.raw.braking += 2;
+          if (goal.type === 'stop' && from >= goal.target) completeGoal(out);
+        } else if (p.brake < 0.05) run.braking = false;
+      }
+      if (ok) {
+        if (goal.type === 'glide' && run.dist >= goal.target) completeGoal(out);
+        else if (goal.type === 'speed' && p.speed >= goal.target) completeGoal(out);
+        else if (goal.type === 'turns' && run.turn >= goal.target) completeGoal(out);
+      }
+      return out;
+    },
+  };
+}
