@@ -1019,29 +1019,29 @@
 
         .mobile-btn-cluster {
             position: absolute;
-            bottom: 36px;
-            right: 20px;
+            bottom: 30px;
+            right: 14px;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 14px;
+            gap: 10px;
             pointer-events: none;
             z-index: 10;
         }
 
         .mobile-btn-row {
             display: flex;
-            gap: 14px;
+            gap: 10px;
             justify-content: flex-end;
             align-items: flex-end;
             pointer-events: none;
         }
 
         .mobile-btn {
-            min-width: 104px;
-            min-height: 104px;
-            width: 104px;
-            height: 104px;
+            min-width: 92px;
+            min-height: 92px;
+            width: 92px;
+            height: 92px;
             border-radius: 50%;
             background: rgba(18,18,15,0.72);
             border: 2px solid rgba(212,235,227,0.35);
@@ -1071,8 +1071,8 @@
         .mobile-btn.toggled .lbl { opacity: 1; }
 
         #btn-interact {
-            width: 126px; height: 126px;
-            min-width: 126px; min-height: 126px;
+            width: 112px; height: 112px;
+            min-width: 112px; min-height: 112px;
             opacity: 0.65;
             border-color: rgba(212,235,227,0.45);
             background: rgba(24,24,19,0.85);
@@ -1255,14 +1255,14 @@
                 </div>
                 <div class="mobile-btn-row">
                     <button class="mobile-btn item-btn" id="btn-light" type="button"><span class="glyph">&#128294;</span><span class="lbl">LIGHT ON</span></button>
+                    <button class="mobile-btn" id="btn-run" type="button"><span class="glyph">&#187;</span><span class="lbl">RUN</span></button>
                 </div>
                 <div class="mobile-btn-row">
-                    <button class="mobile-btn" id="btn-run" type="button"><span class="glyph">&#187;</span><span class="lbl">RUN</span></button>
                     <button class="mobile-btn" id="btn-crouch" type="button"><span class="glyph">&#8681;</span><span class="lbl">CROUCH</span></button>
+                    <button class="mobile-btn" id="btn-jump" type="button"><span class="glyph">&#8679;</span><span class="lbl">JUMP</span></button>
                 </div>
                 <div class="mobile-btn-row">
                     <button class="mobile-btn" id="btn-interact" type="button"><span class="glyph" id="interact-glyph">&#9889;</span><span class="lbl" id="interact-lbl">ACTIVATE</span></button>
-                    <button class="mobile-btn" id="btn-jump" type="button"><span class="glyph">&#8679;</span><span class="lbl">JUMP</span></button>
                 </div>
             </div>
         </div>
@@ -1288,6 +1288,27 @@
 
     async function run(mode) {
         const cfg = window.gameConfig;
+        // Keep the renderer self-contained; this pure helper mirrors visibility-core.mjs for unit tests.
+        function isOccludedByWalls(from, targetSamples, walls) {
+            if (!targetSamples || targetSamples.length === 0 || !walls || walls.length === 0) return false;
+            function rayHitsWall(to, wall) {
+                const dx = to.x - from.x, dz = to.z - from.z;
+                let tMin = 0, tMax = 1;
+                function clip(origin, delta, min, max) {
+                    if (Math.abs(delta) < 1e-8) return origin >= min && origin <= max;
+                    let a = (min - origin) / delta, b = (max - origin) / delta;
+                    if (a > b) { const swap = a; a = b; b = swap; }
+                    tMin = Math.max(tMin, a); tMax = Math.min(tMax, b);
+                    return tMin <= tMax;
+                }
+                if (!clip(from.x, dx, wall.minX, wall.maxX) || !clip(from.z, dz, wall.minZ, wall.maxZ)) return false;
+                if (tMin >= 0.98 || tMax <= 0) return false;
+                const y0 = from.y + (to.y - from.y) * tMin;
+                const y1 = from.y + (to.y - from.y) * tMax;
+                return Math.max(y0, y1) >= wall.bottom && Math.min(y0, y1) <= wall.top;
+            }
+            return targetSamples.every(target => walls.some(wall => rayHitsWall(target, wall)));
+        }
         const gameWorld = document.getElementById('game-world');
         const loadingScreenEl = document.getElementById('loading-screen');
         const overlay = document.getElementById('overlay');
@@ -1392,6 +1413,8 @@
                     applyQuality(v === 'auto' ? detectedTier : v, true);
                 } },
                 'Adaptive Performance': { key: 'graphics.adaptive', type: 'checkbox' },
+                'Level of Detail (LOD)': { key: 'graphics.lod', type: 'checkbox' },
+                'Room Occlusion Culling': { key: 'graphics.occlusion', type: 'checkbox' },
                 'Intro Cutscene': { key: 'intro.enabled', type: 'checkbox' },
                 'Blackout Events': { key: 'blackout.enabled', type: 'checkbox' },
                 'First Blackout (s)': { key: 'blackout.firstDelay', type: 'slider', min: 10, max: 300, step: 5 },
@@ -1463,13 +1486,13 @@
             }
         });
 
-        // ================= AUTO VISUAL QUALITY (mobile low-spec support) =================
-        // The sector is expensive: dozens of rooms, hundreds of props, real point lights.
-        // On weak phones we quietly trade fidelity for framerate instead of stuttering.
-        // A device probe picks a starting tier, then a live FPS watchdog nudges it up/down.
+        // ================= AUTO RENDER BUDGET (mobile + desktop) =================
+        // Every tier keeps the same rooms, props, throwables, lights and view distance.
+        // Auto adaptation only changes framebuffer resolution / antialiasing; it never
+        // removes game content. Static batching and visibility culling do the heavy lifting.
         const QUALITY_TIERS = {
-            low:    { label: 'LOW',    maxPR: 1.0,  antialias: false, fogMul: 0.70, lights: 2, propMul: 0.40, itemMul: 0.45, far: 120, fill: false },
-            medium: { label: 'MEDIUM', maxPR: 1.4,  antialias: false, fogMul: 0.88, lights: 4, propMul: 0.75, itemMul: 0.75, far: 220, fill: true },
+            low:    { label: 'LOW',    maxPR: 1.0,  antialias: false, fogMul: 1.00, lights: 6, propMul: 1.00, itemMul: 1.00, far: 400, fill: true },
+            medium: { label: 'MEDIUM', maxPR: 1.4,  antialias: false, fogMul: 1.00, lights: 6, propMul: 1.00, itemMul: 1.00, far: 400, fill: true },
             high:   { label: 'HIGH',   maxPR: 2.0,  antialias: true,  fogMul: 1.00, lights: 6, propMul: 1.00, itemMul: 1.00, far: 400, fill: true }
         };
         const TIER_ORDER = ['low', 'medium', 'high'];
@@ -1561,16 +1584,16 @@
             adaptTimer = 0; fpsAccum = 0; fpsSamples = 0;
             if (adaptCooldown > 0) return;
             const idx = TIER_ORDER.indexOf(qualityTier);
-            if (fps < 38) {
+            if (fps < 55) {
                 if (idx > 0) {
                     adaptCooldown = 5;
                     applyQuality(TIER_ORDER[idx - 1], true);
-                } else if (renderScale > 0.7 && fps < 32) {
+                } else if (renderScale > 0.7 && fps < 53) {
                     adaptCooldown = 5;
-                    renderScale = Math.max(0.7, renderScale - 0.15);
+                    renderScale = Math.max(0.7, renderScale - 0.1);
                     applyQuality('low', false);
                 }
-            } else if (fps > 57) {
+            } else if (fps > 59) {
                 if (renderScale < 1) {
                     adaptCooldown = 6;
                     renderScale = Math.min(1, renderScale + 0.15);
@@ -2996,9 +3019,18 @@
                     + (thumbJoints.lightY - thumbJoints.baseY) * lp * gripT;
             }
 
+            // Place the hand relative to what the camera can actually see. A fixed offset sat
+            // outside the narrow portrait view (hand cut off at the right edge, under the buttons),
+            // so the position is a fraction of the visible half-width / half-height at hand depth.
+            const halfH = 0.5 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+            const halfW = halfH * camera.aspect;
+            const portrait = camera.aspect < 1;
+            const fx = portrait ? 0.36 : 0.46;        // how far right of centre (0 = middle, 1 = edge)
+            const fy = portrait ? -0.74 : -0.6;       // how far below centre
+            handGroup.scale.setScalar(portrait ? 0.74 : 1);   // narrow screens: smaller, so it never blocks the view
             handGroup.position.set(
-                0.28 - lp * 0.07 + sway,
-                -0.3 + lp * 0.03 + bob - down * 0.46 + snap * 0.03,
+                halfW * fx - lp * (portrait ? 0.02 : 0.05) + sway,
+                halfH * fy + lp * 0.03 + bob - down * 0.46 + snap * 0.03,
                 -0.5 + lp * 0.05 - snap * 0.2);
             HAND_E.set(-0.16, 0.3, 0.5);
             HAND_Q_CARRY.setFromEuler(HAND_E);
@@ -3241,6 +3273,142 @@
         let colliders = [];
         let lightSpots = [];
         let ceilingMeshes = [];
+        let roomRenderData = [];
+        let wallOccluders = [];
+        let activeRoomGroup = null;
+        let activeRoomRecord = null;
+
+        // Flatten batches of immutable room meshes by material. Geometry transforms,
+        // UVs and normals are baked once at level construction, reducing draw calls
+        // without changing the number or appearance of props.
+        function batchStaticRoomGeometry() {
+            const animatedMaterials = new Set();
+            lightSpots.forEach(spot => {
+                if (!spot.flicker) return;
+                if (spot.mat) animatedMaterials.add(spot.mat);
+                if (spot.glowMat) animatedMaterials.add(spot.glowMat);
+            });
+            const position = new THREE.Vector3();
+            const normal = new THREE.Vector3();
+            const normalMatrix = new THREE.Matrix3();
+            const ceilingMeshSet = new Set(ceilingMeshes);
+            let sourceMeshTotal = 0;
+            let batchTotal = 0;
+
+            roomRenderData.forEach(record => {
+                record.group.updateMatrixWorld(true);
+                const batches = new Map();
+                const originals = [];
+                const preservedDetails = [];
+                record.group.traverse(node => {
+                    if (!node.isMesh || node.isInstancedMesh || node.isSkinnedMesh || !node.geometry || ceilingMeshSet.has(node)) return;
+                    let ancestor = node;
+                    while (ancestor && ancestor !== record.group.parent) {
+                        if (ancestor.userData && ancestor.userData.hushDynamic) return;
+                        if (ancestor === record.group) break;
+                        ancestor = ancestor.parent;
+                    }
+                    const material = node.material;
+                    const geometry = node.geometry;
+                    if (!material || Array.isArray(material) || material.transparent || material.visible === false || animatedMaterials.has(material)) return;
+                    if ((geometry.morphAttributes && Object.keys(geometry.morphAttributes).length) ||
+                        node.renderOrder !== 0 || node.layers.mask !== 1) return;
+                    const positionAttribute = geometry.attributes && geometry.attributes.position;
+                    const normalAttribute = geometry.attributes && geometry.attributes.normal;
+                    if (!positionAttribute || !normalAttribute) return;
+                    const names = Object.keys(geometry.attributes).sort();
+                    for (let i = 0; i < names.length; i++) {
+                        const attribute = geometry.attributes[names[i]];
+                        if (attribute.isInterleavedBufferAttribute || attribute.normalized || attribute.itemSize > 4) return;
+                    }
+                    const totalElements = geometry.index ? geometry.index.count : positionAttribute.count;
+                    if (geometry.drawRange && geometry.drawRange.start !== 0 && geometry.drawRange.start !== undefined) return;
+                    if (geometry.drawRange && geometry.drawRange.count !== Infinity && geometry.drawRange.count !== totalElements) return;
+                    const isDetail = node.userData.hushLodBaseVisible !== undefined;
+                    const layout = names.map(name => name + ':' + geometry.attributes[name].itemSize).join(',');
+                    const key = material.uuid + '|' + (isDetail ? 'detail' : 'main') + '|' + layout;
+                    let batch = batches.get(key);
+                    if (!batch) {
+                        const attributes = {};
+                        names.forEach(name => { attributes[name] = { itemSize: geometry.attributes[name].itemSize, values: [] }; });
+                        batch = { material, names, attributes, indices: [], meshes: [], detail: isDetail };
+                        batches.set(key, batch);
+                    }
+                    const vertexOffset = batch.attributes.position.values.length / 3;
+                    normalMatrix.getNormalMatrix(node.matrixWorld);
+                    names.forEach(name => {
+                        const attribute = geometry.attributes[name];
+                        const output = batch.attributes[name].values;
+                        for (let v = 0; v < attribute.count; v++) {
+                            if (name === 'position') {
+                                position.fromBufferAttribute(attribute, v).applyMatrix4(node.matrixWorld);
+                                output.push(position.x, position.y, position.z);
+                            } else if (name === 'normal') {
+                                normal.fromBufferAttribute(attribute, v).applyNormalMatrix(normalMatrix);
+                                output.push(normal.x, normal.y, normal.z);
+                            } else {
+                                for (let c = 0; c < attribute.itemSize; c++) {
+                                    output.push(c === 0 ? attribute.getX(v) : (c === 1 ? attribute.getY(v) : (c === 2 ? attribute.getZ(v) : attribute.getW(v))));
+                                }
+                            }
+                        }
+                    });
+                    if (geometry.index) {
+                        for (let i = 0; i < geometry.index.count; i++) batch.indices.push(geometry.index.array[i] + vertexOffset);
+                    } else {
+                        for (let i = 0; i < positionAttribute.count; i++) batch.indices.push(i + vertexOffset);
+                    }
+                    batch.meshes.push(node);
+                    originals.push(node);
+                });
+
+                const mergedDetails = [];
+                const mergedSources = new Set();
+                batches.forEach(batch => {
+                    if (batch.meshes.length < 2) return;
+                    const geometry = new THREE.BufferGeometry();
+                    batch.names.forEach(name => {
+                        geometry.setAttribute(name, new THREE.Float32BufferAttribute(batch.attributes[name].values, batch.attributes[name].itemSize));
+                    });
+                    const vertexCount = batch.attributes.position.values.length / 3;
+                    const IndexArray = vertexCount <= 65535 ? Uint16Array : Uint32Array;
+                    geometry.setIndex(new THREE.BufferAttribute(new IndexArray(batch.indices), 1));
+                    geometry.computeBoundingBox();
+                    geometry.computeBoundingSphere();
+                    const mergedMesh = new THREE.Mesh(geometry, batch.material);
+                    mergedMesh.name = batch.detail ? 'HUSH LOD detail batch' : 'HUSH static room batch';
+                    mergedMesh.userData.hushStaticBatch = true;
+                    record.group.add(mergedMesh);
+                    if (batch.detail) {
+                        mergedMesh.userData.hushLodBaseVisible = true;
+                        mergedDetails.push(mergedMesh);
+                    }
+                    batch.meshes.forEach(mesh => mergedSources.add(mesh));
+                    sourceMeshTotal += batch.meshes.length;
+                    batchTotal++;
+                });
+
+                const removedDetails = new Set();
+                originals.forEach(mesh => {
+                    if (!mergedSources.has(mesh)) return;
+                    if (mesh.userData.hushLodBaseVisible !== undefined) removedDetails.add(mesh);
+                    if (mesh.parent) mesh.parent.remove(mesh);
+                });
+                record.lodDetails = preservedDetails.concat(record.lodDetails.filter(mesh => !removedDetails.has(mesh)), mergedDetails);
+
+                // Dispose only source buffers no longer used by any untouched mesh.
+                const liveGeometry = new Set();
+                record.group.traverse(node => { if (node.isMesh && node.geometry) liveGeometry.add(node.geometry); });
+                const disposed = new Set();
+                mergedSources.forEach(mesh => {
+                    if (!liveGeometry.has(mesh.geometry) && !disposed.has(mesh.geometry)) {
+                        disposed.add(mesh.geometry);
+                        mesh.geometry.dispose();
+                    }
+                });
+            });
+            if (sourceMeshTotal) lib.log('HUSH static batching: ' + sourceMeshTotal + ' meshes -> ' + batchTotal + ' batches');
+        }
 
         function buildMaze() {
             if (mazeGroup) {
@@ -3252,6 +3420,10 @@
             colliders = [];
             lightSpots = [];
             ceilingMeshes = [];
+            roomRenderData = [];
+            wallOccluders = [];
+            activeRoomGroup = null;
+            activeRoomRecord = null;
             symbols = [];
             stations = [];
             keyPickups = [];
@@ -3267,8 +3439,8 @@
             const DOOR_W = Math.min(5.2, Math.max(3.8, C * 0.24));
             const DOOR_H = Math.min(H - 0.35, Math.max(2.9, H * 0.78));
             const LI = cfg.room.lightIntensity;
-            // Prop budget is scaled by the visual tier so low-spec phones build a
-            // much lighter scene (fewer meshes, fewer colliders) from the same layout.
+            // Keep the authored prop density identical on every device; quality tiers
+            // only alter raster resolution/AA, never the room contents.
             const PD = cfg.room.propDensity * Q.propMul;
 
             generateLayout(cfg.room.roomCount, cfg.room.seed);
@@ -3316,12 +3488,33 @@
             const plantMat = darkMat, potMat = darkMat, fabricMat = clothMat;
             const paperMat = new THREE.MeshStandardMaterial({ color: 0xCFCABA, roughness: 0.95, metalness: 0 });
 
+            // Room-local parenting lets the renderer skip entire distant/hidden modules.
+            // Small meshes are registered as near-field details for distance-based LOD.
+            function addMazeObject(object) {
+                (activeRoomGroup || mazeGroup).add(object);
+                if (!activeRoomRecord) return object;
+                object.traverse(node => {
+                    if (!node.isMesh || !node.geometry) return;
+                    const geo = node.geometry;
+                    if (!geo.boundingBox) geo.computeBoundingBox();
+                    const box = geo.boundingBox;
+                    if (!box) return;
+                    const sx = Math.abs(node.scale.x), sy = Math.abs(node.scale.y), sz = Math.abs(node.scale.z);
+                    const size = Math.max((box.max.x - box.min.x) * sx, (box.max.y - box.min.y) * sy, (box.max.z - box.min.z) * sz);
+                    if (size <= 1.15) {
+                        node.userData.hushLodBaseVisible = node.visible;
+                        activeRoomRecord.lodDetails.push(node);
+                    }
+                });
+                return object;
+            }
+
             function addBox(w, h, d, x, y, z, mat, uv, collide) {
                 const geo = new THREE.BoxGeometry(w, h, d);
                 if (uv) scaleUV(geo, uv[0], uv[1]);
                 const m = new THREE.Mesh(geo, mat);
                 m.position.set(x, y, z);
-                mazeGroup.add(m);
+                addMazeObject(m);
                 if (collide) colliders.push({
                     minX: x - w / 2, maxX: x + w / 2,
                     minZ: z - d / 2, maxZ: z + d / 2,
@@ -3340,7 +3533,8 @@
                 uv.needsUpdate = true;
                 const m = new THREE.Mesh(geo, wallMat);
                 m.position.set(x, y + h / 2, z);
-                mazeGroup.add(m);
+                addMazeObject(m);
+                wallOccluders.push({ minX: x - sx / 2, maxX: x + sx / 2, minZ: z - sz / 2, maxZ: z + sz / 2, bottom: y, top: y + h });
                 if (collide) colliders.push({ minX: x - sx / 2, maxX: x + sx / 2, minZ: z - sz / 2, maxZ: z + sz / 2, top: y + h });
             }
             function baseboard(x, z, sx, sz) {
@@ -3364,14 +3558,14 @@
             function addLamp(x, z, bulbMat) {
                 const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.12, 8), lampBaseMat);
                 base.position.set(x, H - 0.06, z);
-                mazeGroup.add(base);
+                addMazeObject(base);
                 const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), bulbMat);
                 bulb.position.set(x, H - 0.33, z);
-                mazeGroup.add(bulb);
+                addMazeObject(bulb);
                 const cage = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.018, 4, 10), lampBaseMat);
                 cage.rotation.x = Math.PI / 2;
                 cage.position.set(x, H - 0.33, z);
-                mazeGroup.add(cage);
+                addMazeObject(cage);
             }
 
             // ---- Prop placement validation (keeps furniture out of walls/doorways) ----
@@ -3481,12 +3675,12 @@
                 const sheet = new THREE.Mesh(new THREE.BoxGeometry(rot ? w - 0.16 : d * 0.55 + 0.4, 0.07, rot ? d * 0.55 + 0.4 : d - 0.16), sheetMat);
                 sheet.position.set(x + (rot ? 0 : 0.35), 0.74, z + (rot ? 0.35 : 0));
                 sheet.rotation.y = (((x * 7 + z * 13) % 5) - 2) * 0.03;
-                mazeGroup.add(sheet);
+                addMazeObject(sheet);
                 if ((Math.floor(x * 3 + z * 5) & 3) === 0) addBox(0.4, 0.075, 0.3, x + 0.1, 0.742, z + 0.05, bloodMat, null, false);
                 // a bedpan on the lower rail
                 const pan = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.08, 7), enamelMat);
                 pan.position.set(x + (rot ? 0.2 : 0.3), 0.31, z + (rot ? 0.3 : 0.2));
-                mazeGroup.add(pan);
+                addMazeObject(pan);
                 return true;
             }
             // Wheelchair (replaces the office chair)
@@ -3517,7 +3711,7 @@
                     put(new THREE.BoxGeometry(0.2, 0.025, 0.2), ironMat, sd * 0.16, 0.2, -0.45);
                 });
                 put(new THREE.BoxGeometry(0.5, 0.04, 0.04), ironMat, 0, 1.05, 0.26);
-                mazeGroup.add(g);
+                addMazeObject(g);
                 colliders.push({ minX: x - 0.4, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.4, top: 0.7 });
                 return true;
             }
@@ -3538,7 +3732,7 @@
                 const door = new THREE.Mesh(new THREE.BoxGeometry(0.58, 1.7, 0.03), greenMetalMat);
                 door.position.set(x - 0.6 - 0.22, 0.95, z - 0.55);
                 door.rotation.y = 1.0;
-                mazeGroup.add(door);
+                addMazeObject(door);
                 addBox(0.5, 0.012, 0.3, x - 0.3, 1.0, z - 0.02, paperMat, null, false);
                 return true;
             }
@@ -3559,7 +3753,7 @@
                         const bh = 0.2 + ((b + lvl) % 3) * 0.05;
                         const bt = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, bh, 6), bottleMats[(b + lvl) % 4]);
                         bt.position.set(x + (rot ? 0 : t), (lvl === 0 ? h * 0.33 : lvl === 1 ? h * 0.66 : h) + bh / 2 + 0.03, z + (rot ? t : 0));
-                        mazeGroup.add(bt);
+                        addMazeObject(bt);
                     }
                 }
                 addBox(0.4, 0.2, 0.3, x + (rot ? 0 : 0.5), h * 0.33 + 0.13, z + (rot ? 0.5 : 0), paperMat, null, false);
@@ -3573,11 +3767,11 @@
                     const tk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.15, 8), tankMat);
                     tk.position.set(x + tp[0], 0.58, z + tp[1]);
                     tk.rotation.x = tp[2];
-                    mazeGroup.add(tk);
+                    addMazeObject(tk);
                     const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.15, 0.14, 8), enamelMat);
                     cap.position.set(x + tp[0], 1.2 + (i === 2 ? -0.06 : 0), z + tp[1] + (i === 2 ? -0.15 : 0));
                     cap.rotation.x = tp[2];
-                    mazeGroup.add(cap);
+                    addMazeObject(cap);
                 });
                 addBox(0.9, 0.04, 0.05, x, 0.8, z - 0.03, rustMat, null, false);
                 colliders.push({ minX: x - 0.55, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.55, top: 1.2 });
@@ -3592,20 +3786,20 @@
                     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.04), ironMat);
                     leg.position.set(x + Math.sin(a) * 0.17, 0.05, z + Math.cos(a) * 0.17);
                     leg.rotation.y = a + Math.PI / 2;
-                    mazeGroup.add(leg);
+                    addMazeObject(leg);
                 }
                 const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 2.05, 6), ironMat);
                 pole.position.set(x, 1.03, z);
-                mazeGroup.add(pole);
+                addMazeObject(pole);
                 addBox(0.5, 0.03, 0.03, x, 2.05, z, ironMat, null, false);
                 [-0.2, 0.2].forEach((ox, i) => {
                     const bag = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.26, 0.05), i ? glassMat : bloodGlassMat);
                     bag.position.set(x + ox, 1.85, z);
-                    mazeGroup.add(bag);
+                    addMazeObject(bag);
                 });
                 const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 1.0, 4), glassMat);
                 tube.position.set(x + 0.2, 1.25, z + 0.03);
-                mazeGroup.add(tube);
+                addMazeObject(tube);
                 colliders.push({ minX: x - 0.25, maxX: x + 0.25, minZ: z - 0.25, maxZ: z + 0.25, top: 0.6 });
                 return true;
             }
@@ -3615,13 +3809,13 @@
                 markSpot(x, z, 1.15, 1.15);
                 const col = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.17, 0.78, 7), enamelMat);
                 col.position.set(x, 0.39, z);
-                mazeGroup.add(col);
+                addMazeObject(col);
                 const basin = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.22, 0.2, 8), enamelMat);
                 basin.position.set(x, 0.88, z);
-                mazeGroup.add(basin);
+                addMazeObject(basin);
                 const water = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.02, 8), darkWaterMat);
                 water.position.set(x, 0.96, z);
-                mazeGroup.add(water);
+                addMazeObject(water);
                 addBox(0.05, 0.22, 0.05, x, 1.08, z - 0.3, ironMat, null, false);
                 addBox(0.05, 0.05, 0.2, x, 1.18, z - 0.2, ironMat, null, false);
                 colliders.push({ minX: x - 0.4, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.4, top: 1.0 });
@@ -3633,20 +3827,20 @@
                 markSpot(x, z, 0.95, 0.95);
                 const bk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.45, 8), steelBucketMat);
                 bk.position.set(x, 0.23, z);
-                mazeGroup.add(bk);
+                addMazeObject(bk);
                 const grime = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.02, 8), darkWaterMat);
                 grime.position.set(x, 0.43, z);
-                mazeGroup.add(grime);
+                addMazeObject(grime);
                 addBox(0.34, 0.2, 0.3, x + 0.02, 0.52, z + 0.3, ironMat, null, false);
                 const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.5, 5), woodMat);
                 stick.position.set(x - 0.22, 0.75, z - 0.2);
                 stick.rotation.z = 0.28;
                 stick.rotation.x = 0.1;
-                mazeGroup.add(stick);
+                addMazeObject(stick);
                 const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), clothMat);
                 head.position.set(x - 0.45, 0.12, z - 0.24);
                 head.scale.set(1.2, 0.7, 1);
-                mazeGroup.add(head);
+                addMazeObject(head);
                 colliders.push({ minX: x - 0.32, maxX: x + 0.32, minZ: z - 0.32, maxZ: z + 0.32, top: 0.5 });
                 return true;
             }
@@ -3667,7 +3861,7 @@
                     const coat = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), coatMat);
                     coat.position.set(x + (rot ? 0 : 0.5), 0.62, z + (rot ? 0.5 : 0));
                     coat.scale.set(1.5, 0.5, 1);
-                    mazeGroup.add(coat);
+                    addMazeObject(coat);
                 }
                 return true;
             }
@@ -3683,19 +3877,19 @@
                     const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 6), rubberMat);
                     wh.position.set(x + l[0] * (w / 2 - 0.12), 0.07, z + l[1] * 0.22);
                     wh.rotation.x = Math.PI / 2;
-                    mazeGroup.add(wh);
+                    addMazeObject(wh);
                 });
                 addBox(0.05, 0.1, d - 0.2, x - w / 2 + 0.06, 1.0, z, ironMat, null, false);
                 if ((Math.floor(x * 2 + z * 3) & 3) === 0) {
                     const body = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.2, 0.46), shroudMat);
                     body.position.set(x + 0.1, 1.04, z);
-                    mazeGroup.add(body);
+                    addMazeObject(body);
                     const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.17, 0), shroudMat);
                     head.position.set(x - 0.7, 1.08, z);
-                    mazeGroup.add(head);
+                    addMazeObject(head);
                     const feet = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.14, 0.34), shroudMat);
                     feet.position.set(x + 0.88, 1.01, z);
-                    mazeGroup.add(feet);
+                    addMazeObject(feet);
                     addBox(0.38, 0.205, 0.2, x + 0.1, 1.04, z + 0.05, bloodMat, null, false);
                 } else {
                     addBox(0.5, 0.06, 0.4, x + 0.5, 0.97, z, sheetMat, null, false);
@@ -3716,7 +3910,7 @@
                     const cur = new THREE.Mesh(new THREE.BoxGeometry(rot ? 0.04 : len / strips - 0.03, drop, rot ? len / strips - 0.03 : 0.04), i % 3 === 0 ? curtainDarkMat : curtainMat);
                     cur.position.set(x + (rot ? 0 : off), 2.18 - drop / 2, z + (rot ? off : 0));
                     cur.rotation.z = rot ? 0 : ((i % 2) - 0.5) * 0.04;
-                    mazeGroup.add(cur);
+                    addMazeObject(cur);
                 }
                 // the curtain stops you walking through it
                 colliders.push({ minX: x - pw / 2, maxX: x + pw / 2, minZ: z - pd / 2, maxZ: z + pd / 2, top: 2.2 });
@@ -3728,7 +3922,7 @@
                 const meta = SYMBOL_META[spec.key];
                 const g = new THREE.Group();
                 g.position.set(spec.x, 0, spec.z);
-                mazeGroup.add(g);
+                addMazeObject(g);
 
                 const baseMat = new THREE.MeshStandardMaterial({ color: 0x2A2C30, roughness: 0.85, flatShading: true });
                 const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.54, 0.64, 0.16, 8), baseMat);
@@ -3787,7 +3981,7 @@
             function buildNoteStand(spec) {
                 const g = new THREE.Group();
                 g.position.set(spec.x, 0, spec.z);
-                mazeGroup.add(g);
+                addMazeObject(g);
                 const wood = new THREE.MeshStandardMaterial({ color: 0x3B2F22, roughness: 0.9, flatShading: true });
                 const col = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.23, 1.1, 6), wood);
                 col.position.y = 0.55;
@@ -3831,7 +4025,7 @@
             function buildSafe(spec) {
                 const g = new THREE.Group();
                 g.position.set(spec.x, 0, spec.z);
-                mazeGroup.add(g);
+                addMazeObject(g);
                 const steel = new THREE.MeshStandardMaterial({ color: 0xAFC4BB, roughness: 0.45, metalness: 0.2, flatShading: true });
                 const dark = new THREE.MeshStandardMaterial({ color: 0x1F2B28, roughness: 0.8, flatShading: true });
                 const base = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.12, 1.44), dark);
@@ -3909,7 +4103,7 @@
             function buildConsole(spec) {
                 const g = new THREE.Group();
                 g.position.set(spec.x, 0, spec.z);
-                mazeGroup.add(g);
+                addMazeObject(g);
                 const steel = new THREE.MeshStandardMaterial({ color: 0x4A5058, roughness: 0.55, metalness: 0.3, flatShading: true });
                 const dark = new THREE.MeshStandardMaterial({ color: 0x23272C, roughness: 0.8, flatShading: true });
                 const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.64, 0.92, 8), dark);
@@ -3962,8 +4156,9 @@
             // ---- Exit door (sealed until all three keys are found) ----
             function buildExitDoor(bx, bz, acrossX, dirX, dirZ) {
                 const group = new THREE.Group();
+                group.userData.hushDynamic = true; // the sealed door rotates during the escape sequence
                 group.position.set(bx, 0, bz);
-                mazeGroup.add(group);
+                addMazeObject(group);
 
                 const slabMat = new THREE.MeshStandardMaterial({ color: 0x24272B, roughness: 0.55, flatShading: true });
                 const stripMat = new THREE.MeshStandardMaterial({ color: 0x772626, emissive: 0x882222, emissiveIntensity: 0.5, roughness: 0.4 });
@@ -3996,15 +4191,15 @@
                 const sign = new THREE.Mesh(new THREE.PlaneGeometry(signW, signH), signMat);
                 sign.position.set(bx + inX * 0.4, sy, bz + inZ * 0.4);
                 sign.rotation.y = Math.atan2(inX, inZ);
-                mazeGroup.add(sign);
+                addMazeObject(sign);
                 const housing = new THREE.Mesh(new THREE.BoxGeometry(
                     acrossX ? 0.12 : signW + 0.16, signH + 0.16, acrossX ? signW + 0.16 : 0.12),
                     new THREE.MeshStandardMaterial({ color: 0x14161A, roughness: 0.85 }));
                 housing.position.set(bx + inX * 0.33, sy, bz + inZ * 0.33);
-                mazeGroup.add(housing);
+                addMazeObject(housing);
                 const signLight = new THREE.PointLight(0x7CFFC0, 0.85, 9.5, 2);
                 signLight.position.set(bx + inX * 1.0, sy - 0.35, bz + inZ * 1.0);
-                mazeGroup.add(signLight);
+                addMazeObject(signLight);
 
                 const dLight = new THREE.PointLight(0xFF6666, 0.16, 6.5, 2);
                 dLight.position.set(0, DOOR_H * 0.6, 0);
@@ -4032,11 +4227,11 @@
                 const vFloor = new THREE.Mesh(new THREE.PlaneGeometry(fw, fd), shellMat);
                 vFloor.rotation.x = -Math.PI / 2;
                 vFloor.position.set(cx, 0.01, cz);
-                mazeGroup.add(vFloor);
+                addMazeObject(vFloor);
                 const vCeil = new THREE.Mesh(new THREE.PlaneGeometry(fw, fd), shellMat);
                 vCeil.rotation.x = Math.PI / 2;
                 vCeil.position.set(cx, H, cz);
-                mazeGroup.add(vCeil);
+                addMazeObject(vCeil);
                 ceilingMeshes.push(vCeil);
 
                 if (acrossX) {
@@ -4067,7 +4262,7 @@
                     hintLine = new THREE.Line(geo, new THREE.LineBasicMaterial({
                         color: 0xBFE9FF, transparent: true, opacity: 0.12
                     }));
-                    mazeGroup.add(hintLine);
+                    addMazeObject(hintLine);
                 }
                 const beamH = Math.max(1.5, H - 0.4);
                 symbols.forEach(s => {
@@ -4079,7 +4274,7 @@
                         }));
                     bm.position.set(s.x, 0.2 + beamH / 2, s.z);
                     bm.userData.seal = true;
-                    mazeGroup.add(bm);
+                    addMazeObject(bm);
                     hintBeams.push(bm);
                 });
             }
@@ -4088,6 +4283,18 @@
             cellList.forEach(cell => {
                 const ox = cell.gx * C, oz = cell.gz * C;
                 const info = ROOM_TYPES[cell.type];
+                const roomGroup = new THREE.Group();
+                roomGroup.name = 'room-' + cell.gx + '-' + cell.gz;
+                mazeGroup.add(roomGroup);
+                activeRoomGroup = roomGroup;
+                const roomRadius = Math.sqrt(2 * Math.pow(C * 0.72, 2) + Math.pow(H * 0.65, 2));
+                const roomCenter = new THREE.Vector3(ox, H * 0.5, oz);
+                activeRoomRecord = {
+                    group: roomGroup, cell, x: ox, z: oz, cellSize: C,
+                    center: roomCenter, radius: roomRadius,
+                    sphere: new THREE.Sphere(roomCenter, roomRadius), lodDetails: []
+                };
+                roomRenderData.push(activeRoomRecord);
                 const crnd = mulberry32(Math.floor(cfg.room.seed) * 131 + cell.gx * 3719 + cell.gz * 271 + 7);
                 const q = C / 4;
 
@@ -4095,13 +4302,13 @@
                 const floor = new THREE.Mesh(scaleUV(new THREE.PlaneGeometry(C + 0.1, C + 0.1), C / 3.5, C / 3.5), cell.surface === 'tile' ? floorTileMat : floorMat);
                 floor.rotation.x = -Math.PI / 2;
                 floor.position.set(ox, 0, oz);
-                mazeGroup.add(floor);
+                addMazeObject(floor);
 
                 // Drop ceiling
                 const ceil = new THREE.Mesh(scaleUV(new THREE.PlaneGeometry(C + 0.1, C + 0.1), C / 3.6, C / 3.6), ceilMat);
                 ceil.rotation.x = Math.PI / 2;
                 ceil.position.set(ox, H, oz);
-                mazeGroup.add(ceil);
+                addMazeObject(ceil);
                 ceilingMeshes.push(ceil);
 
                 // Exposed ceiling pipes (one each way) and grime on the floor
@@ -4110,16 +4317,16 @@
                 const pipeA = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, C, 8), crnd() < 0.4 ? rustMat : pipeMat);
                 pipeA.rotation.z = Math.PI / 2;
                 pipeA.position.set(ox, H - 0.34, oz + pzOff);
-                mazeGroup.add(pipeA);
+                addMazeObject(pipeA);
                 const pipeB = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, C, 6), pipeMat);
                 pipeB.rotation.x = Math.PI / 2;
                 pipeB.position.set(ox + pxOff, H - 0.5, oz);
-                mazeGroup.add(pipeB);
+                addMazeObject(pipeB);
                 for (let sn = 0; sn < 2; sn++) {
                     const st = new THREE.Mesh(new THREE.CircleGeometry(0.5 + crnd() * 0.9, 10), (sn === 1 && crnd() < 0.5) ? bloodStainMat : stainMat);
                     st.rotation.x = -Math.PI / 2;
                     st.position.set(ox + (crnd() - 0.5) * (C - 6), 0.014, oz + (crnd() - 0.5) * (C - 6));
-                    mazeGroup.add(st);
+                    addMazeObject(st);
                 }
 
                 // Walls: each shared boundary is built exactly once
@@ -4202,7 +4409,7 @@
                     const gl = new THREE.Mesh(new THREE.CircleGeometry(1.5, 14), bloomMat);
                     gl.rotation.x = Math.PI / 2;
                     gl.position.set(ox + s[0], H - 0.14, oz + s[1]);
-                    mazeGroup.add(gl);
+                    addMazeObject(gl);
                     // The dynamic light pool follows fixtures, so the broad rooms stay navigable.
                     lightSpots.push({
                         x: ox + s[0], y: H - 0.7, z: oz + s[1],
@@ -4289,6 +4496,8 @@
                 }
                 dressRoom(cell.type === 'hall' ? 1 : 0);
             });
+            activeRoomGroup = null;
+            activeRoomRecord = null;
 
             // Power Sequence objects (placed after props so nothing overlaps them)
             puzzlePlan.symbols.forEach(buildSymbolPedestal);
@@ -4300,6 +4509,7 @@
             buildHints();
             resetPuzzleState();
             spawnThrowables();
+            batchStaticRoomGeometry();
 
             // Global ambience levels
             ambBase = (EDIT_VIEW ? 1.7 : 0.075) * LI;
@@ -4463,6 +4673,7 @@
         const LISTENER_KILL_DIST = 1.35;   // collision distance; movement noise is still required to catch the player
         const listenerParts = {};
         let listenerGroup = null;
+        let listenerLOD = null;
 
         function buildListenerModel() {
             const g = new THREE.Group();
@@ -5435,7 +5646,40 @@
             if (kd2 < LISTENER_KILL_DIST * LISTENER_KILL_DIST && movingNow && playerSoundFresh) triggerDeath();
         }
 
-        listenerGroup = buildListenerModel();
+        function buildListenerFarModel() {
+            const root = new THREE.Group();
+            const shadow = new THREE.MeshStandardMaterial({ color: 0x080A0D, roughness: 1, flatShading: true });
+            const edge = new THREE.MeshStandardMaterial({ color: 0x1B2226, roughness: 0.95, flatShading: true });
+            function part(geo, mat, x, y, z, rz) {
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, y, z);
+                mesh.rotation.z = rz || 0;
+                root.add(mesh);
+                return mesh;
+            }
+            // A compact low-poly silhouette keeps the Listener readable at a distance.
+            part(new THREE.BoxGeometry(0.42, 1.6, 0.32), shadow, 0, 2.85, 0, 0.08);
+            const head = part(new THREE.IcosahedronGeometry(0.24, 0), edge, 0, 4.0, 0.02, 0);
+            head.scale.set(0.65, 1.55, 0.72);
+            part(new THREE.BoxGeometry(0.14, 2.9, 0.15), shadow, -0.48, 1.55, 0.02, -0.11);
+            part(new THREE.BoxGeometry(0.14, 2.9, 0.15), shadow, 0.48, 1.55, 0.02, 0.11);
+            part(new THREE.BoxGeometry(0.15, 1.75, 0.17), edge, -0.2, 1.08, 0, -0.035);
+            part(new THREE.BoxGeometry(0.15, 1.75, 0.17), edge, 0.2, 1.08, 0, 0.035);
+            for (let i = 0; i < 3; i++) {
+                const spine = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.38, 4), shadow);
+                spine.position.set((i - 1) * 0.12, 3.5 + i * 0.12, -0.2);
+                spine.rotation.x = -0.7;
+                root.add(spine);
+            }
+            return root;
+        }
+
+        const listenerDetailedModel = buildListenerModel();
+        const listenerFarModel = buildListenerFarModel();
+        listenerLOD = new THREE.LOD();
+        listenerLOD.addLevel(listenerDetailedModel, 0);
+        listenerLOD.addLevel(listenerFarModel, 27, 0.12);
+        listenerGroup = listenerLOD;
         scene.add(listenerGroup);
         resetListener();
 
@@ -5615,6 +5859,88 @@
 
         camera.position.copy(playerPos);
 
+        // Room-level frustum/occlusion culling and distance-based mesh LOD.
+        const roomFrustum = new THREE.Frustum();
+        const roomViewProjection = new THREE.Matrix4();
+        const roomCameraWorld = new THREE.Vector3();
+        const roomRayFrom = { x: 0, y: 0, z: 0 };
+        const roomRayTargets = Array.from({ length: 5 }, () => ({ x: 0, y: 0, z: 0 }));
+        let lastRoomCullTime = -Infinity;
+        let lastRoomCullPhase = '';
+        const TARGET_FRAME_MS = 1000 / 60;
+
+        function syncListenerLODPreference() {
+            if (!listenerLOD) return;
+            const enabled = !cfg.graphics || cfg.graphics.lod !== false;
+            listenerLOD.autoUpdate = enabled;
+            if (!enabled) {
+                listenerLOD.levels.forEach((level, index) => { level.object.visible = index === 0; });
+            }
+        }
+
+        function updateRoomVisibility(time, force) {
+            syncListenerLODPreference();
+            if (!roomRenderData.length) return;
+            const cinematic = phase !== 'play';
+            const phaseKey = cinematic ? 'cinematic' : 'play';
+            if (!force && phaseKey === lastRoomCullPhase && time - lastRoomCullTime < 150) return;
+            lastRoomCullPhase = phaseKey;
+            lastRoomCullTime = time;
+
+            if (EDIT_VIEW || cinematic) {
+                roomRenderData.forEach(record => {
+                    record.group.visible = true;
+                    record.lodDetails.forEach(node => { node.visible = node.userData.hushLodBaseVisible !== false; });
+                });
+                return;
+            }
+
+            camera.updateMatrixWorld(true);
+            roomViewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+            roomFrustum.setFromProjectionMatrix(roomViewProjection);
+            camera.getWorldPosition(roomCameraWorld);
+            roomRayFrom.x = roomCameraWorld.x;
+            roomRayFrom.y = roomCameraWorld.y;
+            roomRayFrom.z = roomCameraWorld.z;
+
+            const currentCell = cellAt(playerPos.x, playerPos.z);
+            const occlusionEnabled = !cfg.graphics || cfg.graphics.occlusion !== false;
+            const lodEnabled = !cfg.graphics || cfg.graphics.lod !== false;
+            const C = Math.max(14, cfg.room.cellSize || 22);
+            const fogFar = (scene.fog ? scene.fog.far : cfg.room.fogDistance) || cfg.room.fogDistance;
+            const drawDistance = Math.min(camera.far - 1, Math.max(C * 2.4, fogFar * 1.5));
+            const detailDistance = C * (qualityTier === 'low' ? 0.85 : (qualityTier === 'medium' ? 1.15 : 1.55));
+
+            roomRenderData.forEach(record => {
+                const dx = record.x - roomCameraWorld.x;
+                const dz = record.z - roomCameraWorld.z;
+                const distanceSq = dx * dx + dz * dz;
+                const distance = Math.sqrt(distanceSq);
+                let visible = distance <= drawDistance + record.radius && roomFrustum.intersectsSphere(record.sphere);
+
+                const inCurrentRoom = currentCell === record.cell;
+                const nextDoorRoom = currentCell && Math.abs(currentCell.gx - record.cell.gx) + Math.abs(currentCell.gz - record.cell.gz) === 1;
+                if (visible && occlusionEnabled && !inCurrentRoom && !nextDoorRoom && distance > C * 1.35) {
+                    const spread = record.cellSize * 0.22;
+                    const sampleY = Math.max(0.9, Math.min(2.35, roomCameraWorld.y * 0.72));
+                    const xs = [record.x, record.x + spread, record.x - spread, record.x, record.x];
+                    const zs = [record.z, record.z, record.z, record.z + spread, record.z - spread];
+                    for (let i = 0; i < roomRayTargets.length; i++) {
+                        roomRayTargets[i].x = xs[i];
+                        roomRayTargets[i].y = sampleY;
+                        roomRayTargets[i].z = zs[i];
+                    }
+                    if (isOccludedByWalls(roomRayFrom, roomRayTargets, wallOccluders)) visible = false;
+                }
+
+                record.group.visible = visible;
+                const showFineDetails = !lodEnabled || distance <= detailDistance;
+                record.lodDetails.forEach(node => {
+                    node.visible = showFineDetails && node.userData.hushLodBaseVisible !== false;
+                });
+            });
+        }
+
         // The right hand rides on the camera, so it needs the camera in the scene graph
         handGroup = buildHandModel();
         handGroup.position.set(0.3, -0.28, -0.55);
@@ -5651,7 +5977,18 @@
 
             let editAngle = 0.7;
             let lastSig = configSignature();
+            let editLastCallback = performance.now();
+            let editFrameAccumulator = 0;
             function editLoop(time) {
+                const elapsed = Math.max(0, time - editLastCallback);
+                editLastCallback = time;
+                editFrameAccumulator += elapsed;
+                if (editFrameAccumulator + 0.25 < TARGET_FRAME_MS) {
+                    requestAnimationFrame(editLoop);
+                    return;
+                }
+                editFrameAccumulator = Math.max(0, editFrameAccumulator - TARGET_FRAME_MS);
+                if (editFrameAccumulator >= TARGET_FRAME_MS) editFrameAccumulator %= TARGET_FRAME_MS;
                 editAngle += 0.0022;
 
                 // Rebuild the maze only when the creator changes a parameter
@@ -5682,6 +6019,7 @@
 
                 for (let i = 0; i < lightPool.length; i++) lightPool[i].intensity = 0;
 
+                updateRoomVisibility(time);
                 renderer.render(scene, camera);
                 requestAnimationFrame(editLoop);
             }
@@ -7382,28 +7720,42 @@
         // ---- Game Loop ----
         const GRAVITY = 16;
         let lastTime = performance.now();
+        let renderAccumulator = 0;
+        let pendingSimulationMs = 0;
 
         function gameLoop(time) {
-            let dt = (time - lastTime) / 1000;
+            const elapsedMs = Math.max(0, time - lastTime);
             lastTime = time;
-            dt = Math.min(dt, 0.11);
+            renderAccumulator += elapsedMs;
+            pendingSimulationMs = Math.min(110, pendingSimulationMs + elapsedMs);
+            if (renderAccumulator + 0.25 < TARGET_FRAME_MS) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            renderAccumulator = Math.max(0, renderAccumulator - TARGET_FRAME_MS);
+            if (renderAccumulator >= TARGET_FRAME_MS) renderAccumulator %= TARGET_FRAME_MS;
+            const dt = Math.min(pendingSimulationMs / 1000, 0.11);
+            pendingSimulationMs = 0;
             updateAdaptiveQuality(dt);
 
             // ---- Onboarding phases drive their own cinematic camera ----
             if (phase === 'menu') {
                 updateMenuCine(dt, time);
+                updateRoomVisibility(time);
                 renderer.render(scene, camera);
                 requestAnimationFrame(gameLoop);
                 return;
             }
             if (phase === 'intro') {
                 updateIntroCine(dt, time);
+                updateRoomVisibility(time);
                 renderer.render(scene, camera);
                 requestAnimationFrame(gameLoop);
                 return;
             }
             if (phase === 'outro') {
                 updateOutroCine(dt, time);
+                updateRoomVisibility(time);
                 renderer.render(scene, camera);
                 requestAnimationFrame(gameLoop);
                 return;
@@ -7421,6 +7773,7 @@
                     camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
                     updateLights(playerPos.x, playerPos.z, time);
                 }
+                updateRoomVisibility(time);
                 renderer.render(scene, camera);
                 requestAnimationFrame(gameLoop);
                 return;
@@ -7647,6 +8000,7 @@
                 noiseMeterEl.style.display = 'none';
             }
 
+            updateRoomVisibility(time);
             renderer.render(scene, camera);
             requestAnimationFrame(gameLoop);
         }

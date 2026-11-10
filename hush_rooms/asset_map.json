@@ -2,17 +2,20 @@
   "ambient_fluorescent_hum": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/ambient_fluorescent_hum_943b4a2d-87cf-42c9-8b08-ef08d4100863.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "ambient fluorescent hum",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 10,
     "loop": true,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "listener_model": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/listener_model_906cf001-c3fe-4d16-8099-a2dd6ae79a97.webp",
     "type": "image",
+    "prompt": null,
     "description": "listener model",
     "subtype": "character",
     "aspect_ratio": [
@@ -22,171 +25,202 @@
     "compression_suggestion": "low",
     "duration_secs": null,
     "loop": null,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "death_sting_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/death_sting_sfx_2dd57303-7340-4f09-9a35-7956c1bf4115.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "death sting sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 2.3,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "symbol_correct_chime_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/symbol_correct_chime_sfx_461e85c3-4d2b-415e-a07e-e5b67e3325bf.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "symbol correct chime sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.45,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "symbol_wrong_buzzer_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/symbol_wrong_buzzer_sfx_a7e0e588-f2ea-4768-84cb-68df22b1c9a2.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "symbol wrong buzzer sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.35,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "door_unlock_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/door_unlock_sfx_685db254-0671-477e-9797-84d34b7b3322.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "door unlock sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 2.25,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "step_carpet_soft_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/step_carpet_soft_sfx_bf614a2e-0e63-4fa3-9056-2c56f021de3c.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "step carpet soft sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.57,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "step_run_carpet_soft_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/step_run_carpet_soft_sfx_e2f62e57-dd9d-4ae3-a8ad-32d505c9cc63.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "step run carpet soft sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.87,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "land_thud_soft_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/land_thud_soft_sfx_f5be86e5-a1d8-4ec7-86de-0efbd07eed81.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "land thud soft sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 0.75,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "listener_step_soft_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/listener_step_soft_sfx_f89454a3-d382-47e4-bd06-5da7373dd0e6.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "listener step soft sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 0.6802494331065759,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "listener_scream_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/listener_scream_sfx_e7ebdb8d-a789-4a5a-b96d-6f5cb689e50e.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "listener scream sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.93,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "listener_breath_drone_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/listener_breath_drone_sfx_97256046-5c1f-4f57-a5ed-ebc898e36593.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "listener breath drone sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 12,
     "loop": true,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "light_flicker_buzz_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/light_flicker_buzz_sfx_406544a1-56f3-4973-a836-4f1d54864477.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "light flicker buzz sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.94,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "menu_theme_bgm": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/menu_theme_bgm_0575982c-ba40-458d-b07f-e7b3eff01607.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "menu theme bgm",
     "subtype": "music",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 60.08163265306123,
     "loop": true,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "sector_tension_bgm": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/sector_tension_bgm_3133b0bc-bad8-4fd7-904d-1e3511204e23.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "sector tension bgm",
     "subtype": "music",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 60.08163265306123,
     "loop": true,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "item_impact_clatter_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/item_impact_clatter_sfx_e4de03a1-7704-4bff-b44d-4f94f7bc62ed.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "item impact clatter sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.66,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   },
   "item_pickup_soft_sfx": {
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/item_pickup_soft_sfx_365d4086-29bb-48dd-b96a-327126fb1976.mp3",
     "type": "audio",
+    "prompt": null,
     "description": "item pickup soft sfx",
     "subtype": "effect",
     "aspect_ratio": null,
     "compression_suggestion": "original",
     "duration_secs": 1.54,
     "loop": false,
-    "animation": null
+    "animation": null,
+    "opus_url": null
   }
 }
