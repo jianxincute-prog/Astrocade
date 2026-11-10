@@ -3025,9 +3025,9 @@
             const halfH = 0.5 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
             const halfW = halfH * camera.aspect;
             const portrait = camera.aspect < 1;
-            const fx = portrait ? 0.36 : 0.46;        // how far right of centre (0 = middle, 1 = edge)
-            const fy = portrait ? -0.74 : -0.6;       // how far below centre
-            handGroup.scale.setScalar(portrait ? 0.74 : 1);   // narrow screens: smaller, so it never blocks the view
+            const fx = portrait ? 0.56 : 0.46;        // right hand: how far right of centre (0 = middle, 1 = edge); the forearm leaves the bottom-right corner
+            const fy = portrait ? -0.7 : -0.6;        // how far below centre
+            handGroup.scale.setScalar(portrait ? 0.7 : 1);   // narrow screens: smaller, so it never blocks the view
             handGroup.position.set(
                 halfW * fx - lp * (portrait ? 0.02 : 0.05) + sway,
                 halfH * fy + lp * 0.03 + bob - down * 0.46 + snap * 0.03,
