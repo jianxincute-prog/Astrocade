@@ -11,7 +11,8 @@ const CSS = `
 #toast.show{opacity:1}
 #hint{position:absolute;left:50%;bottom:42%;width:560px;margin-left:-280px;padding:22px 26px;border-radius:26px;background:rgba(25,50,85,.58);text-align:center;font-size:28px;font-weight:600;line-height:1.35;transition:opacity .6s}
 #hint.hide{opacity:0}
-#respawn{position:absolute;right:24px;top:140px;pointer-events:auto;padding:8px 18px;border-radius:18px;background:rgba(25,50,85,.45);font-size:22px;font-weight:700}
+#charBtn{position:absolute;left:24px;top:160px;pointer-events:auto;padding:8px 18px;border-radius:18px;background:rgba(25,50,85,.45);font-size:22px;font-weight:700}
+#respawn{position:absolute;right:24px;top:160px;pointer-events:auto;padding:8px 18px;border-radius:18px;background:rgba(25,50,85,.45);font-size:22px;font-weight:700}
 #touch{position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif}
 #joyZone{position:absolute;left:0;bottom:0;width:380px;height:560px;pointer-events:auto;touch-action:none}
 #joyBase{position:absolute;left:60px;bottom:110px;width:230px;height:230px;border-radius:50%;background:rgba(255,255,255,.28);border:3px solid rgba(255,255,255,.6)}
@@ -32,11 +33,12 @@ export function createHud(root, { touch }) {
   el.innerHTML =
     '<div id="speed" class="chip">0 km/h</div><div id="stats" class="chip"></div>' +
     '<div id="bal"><div>BALANCE</div><div id="balTrack"><div id="balFill"></div></div></div>' +
-    '<div id="toast"></div><div id="hint">' + hintText + '</div><div id="respawn">↺ Respawn</div>';
+    '<div id="toast"></div><div id="hint">' + hintText + '</div><div id="respawn">↺ Respawn</div><div id="charBtn">☺ Character</div>';
   root.appendChild(el);
   const $ = (id) => el.querySelector('#' + id);
   const speedEl = $('speed'), statsEl = $('stats'), balEl = $('bal'), fillEl = $('balFill'), toastEl = $('toast'), hintEl = $('hint');
   let toastTimer = 0, hintTimer = 9, hintHidden = false;
+  $('charBtn').addEventListener('click', () => el.dispatchEvent(new CustomEvent('character')));
   $('respawn').addEventListener('click', () => el.dispatchEvent(new CustomEvent('respawn')));
 
   function hideHint() { if (!hintHidden) { hintHidden = true; hintEl.classList.add('hide'); } }

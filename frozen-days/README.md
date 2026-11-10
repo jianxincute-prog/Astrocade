@@ -12,8 +12,10 @@ third-person camera, ice-skating controller (momentum, grip, braking), beginner 
 - `src/config.js` — reads `gameConfig`; `skillsFor(level)` maps one skill level to Balance/Control/Speed/Braking/Tricks.
 - `src/skating.js` — skater state, ice physics, balance/instability model, fall & recovery state machine, collisions.
 - `src/world.js` — snowfield, frozen lake (canvas ice texture with skate trails), pines, lamps, snowmen, cones, snowfall.
-- `src/player.js` — procedural placeholder skater mesh and pose animation.
+- `src/character.js` — detailed procedural Male/Female skaters (rigged capsule limbs, face with eyes/brows/nose/lips/ears, hair, glasses, outfit) and pose animation.
+- `src/textures.js` — procedural canvas textures (quilted puffer, knit, twill, leather, hair, eyes) and the reflection environment.
+- `src/select.js` — character select overlay (Male/Female, face close-up, start).
 - `src/camera.js`, `src/input.js`, `src/hud.js`, `src/fx.js` — chase camera, keyboard/touch input, DOM HUD, spray particles.
 
 ## Roadmap (see GDD)
-Next: Phase 4 lake environment pass, Phase 6 character select (male/female), Phase 7 XP & skills + save.
+Next: Phase 4 lake environment pass, Phase 7 XP & skills + save.

@@ -6,7 +6,9 @@
  */
 import { getCfg } from './src/config.js';
 import { createWorld } from './src/world.js';
-import { createPlayerMesh } from './src/player.js';
+import { createCharacter, CHARACTERS, characterLabel } from './src/character.js';
+import { createSelect } from './src/select.js';
+import { makeEnvironment } from './src/textures.js';
 import { createSkater, updateSkater, respawn, SPAWN } from './src/skating.js';
 import { createCameraRig } from './src/camera.js';
 import { createInput } from './src/input.js';
@@ -41,8 +43,14 @@ function run(mode) {
   const camera = new THREE.PerspectiveCamera(60, 9 / 16, 0.5, 400);
   const world = createWorld(scene);
   const spray = createSpray(scene);
-  const player = createPlayerMesh();
+  try { scene.environment = makeEnvironment(renderer); } catch (e) { /* reflections are optional */ }
+  let kind = 'male', player = createCharacter(kind);
   scene.add(player.root);
+  function setCharacter(k) {
+    kind = k;
+    scene.remove(player.root); player.dispose();
+    player = createCharacter(k); scene.add(player.root);
+  }
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: 0x1a2a40, transparent: true, opacity: 0.25, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
 
@@ -70,15 +78,49 @@ function run(mode) {
   }
 
   let raf = 0, last = performance.now(), clock = 0;
-  let input = null, hud = null;
+  let input = null, hud = null, sel = null;
   const playing = mode !== 'edit';
+  let phase = 'loading'; // loading -> select -> play (character button returns to select)
+  const pv = { d: 3.7, y: 1.0, zoom: false };
+
+  function saveChoice() {
+    try { if (typeof lib !== 'undefined' && lib.saveUserGameState) lib.saveUserGameState({ character: kind }).catch(() => {}); } catch (e) { /* save is optional */ }
+  }
+  function loadChoice() {
+    return new Promise((res) => {
+      let done = false; const fin = (v) => { if (!done) { done = true; res(v); } };
+      setTimeout(() => fin(null), 1500);
+      try {
+        if (typeof lib !== 'undefined' && lib.getUserGameState) lib.getUserGameState().then((r) => fin(r && r.state && r.state.character || null)).catch(() => fin(null));
+        else fin(null);
+      } catch (e) { fin(null); }
+    });
+  }
+  function startPlay() {
+    phase = 'play'; sel.hide(); rig.snap(skater); hasPrev = false;
+    saveChoice();
+  }
+  function openSelect() {
+    phase = 'select'; skater.vx = skater.vz = 0; skater.speed = 0;
+    pv.zoom = false; sel.show(); sel.mark(kind);
+  }
 
   if (playing) {
     input = createInput(root, renderer.domElement, { touch });
     hud = createHud(root, { touch });
     hud.el.addEventListener('respawn', () => input.requestRespawn());
+    hud.el.addEventListener('character', () => openSelect());
+    sel = createSelect(root, {
+      kinds: CHARACTERS, labels: Object.fromEntries(CHARACTERS.map((k) => [k, characterLabel(k)])), current: kind,
+      onPick: (k) => setCharacter(k), onZoom: (z) => { pv.zoom = z; }, onStart: () => startPlay(),
+    });
+    sel.hide(); root.classList.add('selecting');
     skater.x = SPAWN.x; skater.z = SPAWN.z; skater.h = SPAWN.h;
     rig.snap(skater);
+    loadChoice().then((saved) => {
+      if (saved && CHARACTERS.includes(saved)) { setCharacter(saved); sel.mark(saved); startPlay(); }
+      else { phase = 'select'; sel.show(); }
+    });
   }
 
   let px = skater.x, pz = skater.z, hasPrev = false;
@@ -109,7 +151,20 @@ function run(mode) {
     clock += dt;
     const c = getCfg();
 
-    if (playing) {
+    if (playing && phase !== 'play') {
+      // Character preview: stand still, camera sways in front (or zooms to the face).
+      player.pose({ ...skater, mode: 'walk', speed: 0, stride: 0, strideAmp: 0, b: 0, fallAmt: 0, steer: 0, state: 'ok' }, clock);
+      player.place({ ...skater, mode: 'walk' });
+      const tgtD = pv.zoom ? 1.15 : 4.4, tgtY = pv.zoom ? player.faceY - 0.075 : player.height * 0.36;
+      const k = 1 - Math.exp(-4 * dt);
+      pv.d += (tgtD - pv.d) * k; pv.y += (tgtY - pv.y) * k;
+      const sw = Math.sin(clock * 0.5) * (pv.zoom ? 0.35 : 0.6);
+      camera.position.set(skater.x + Math.sin(skater.h + sw) * pv.d, pv.y + (pv.zoom ? 0.02 : 0.3), skater.z + Math.cos(skater.h + sw) * pv.d);
+      camera.lookAt(skater.x, pv.y, skater.z);
+      const f = pv.zoom ? 30 : 40; if (Math.abs(camera.fov - f) > 0.05) { camera.fov += (f - camera.fov) * k; camera.updateProjectionMatrix(); }
+      input.consumeRespawn(); input.consumeLook();
+      shadow.position.set(skater.x, 0.08, skater.z);
+    } else if (playing) {
       if (input.consumeRespawn()) { respawn(skater); rig.snap(skater); hasPrev = false; }
       const inp = input.read();
       if (inp.push > 0.1 || Math.abs(inp.steer) > 0.2) hud.hideHint();
@@ -157,6 +212,8 @@ function run(mode) {
     window.removeEventListener('resize', resize);
     if (input) input.destroy();
     if (hud) hud.destroy();
+    if (sel) sel.destroy();
+    player.dispose();
     renderer.dispose();
     renderer.domElement.remove();
     teardown = null;

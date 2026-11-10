@@ -9,8 +9,8 @@ export function createWorld(scene) {
   const colliders = [];
   scene.background = new T.Color(0xbfd9ee);
   scene.fog = new T.Fog(0xcfe2f0, 70, 280);
-  scene.add(new T.HemisphereLight(0xdcecff, 0xcfdbe8, 0.7));
-  const sun = new T.DirectionalLight(0xfff1d6, 0.6);
+  scene.add(new T.HemisphereLight(0xdcecff, 0xcfdbe8, 0.55));
+  const sun = new T.DirectionalLight(0xfff1d6, 0.55);
   sun.position.set(60, 90, 40);
   scene.add(sun);
 
@@ -41,7 +41,7 @@ export function createWorld(scene) {
   iceCanvas.width = IW; iceCanvas.height = IH;
   const ictx = iceCanvas.getContext('2d');
   const grad = ictx.createRadialGradient(IW / 2, IH / 2, 40, IW / 2, IH / 2, IW * 0.55);
-  grad.addColorStop(0, '#7fc0ea'); grad.addColorStop(1, '#4f93c4');
+  grad.addColorStop(0, '#68a8d4'); grad.addColorStop(1, '#4880b0');
   ictx.fillStyle = grad; ictx.fillRect(0, 0, IW, IH);
   const r1 = mulberry32(11);
   ictx.lineCap = 'round';
@@ -58,7 +58,7 @@ export function createWorld(scene) {
   const iceTex = new T.CanvasTexture(iceCanvas);
   iceTex.anisotropy = 4;
   const iceGeo = new T.CircleGeometry(1, 72); iceGeo.rotateX(-Math.PI / 2);
-  const ice = new T.Mesh(iceGeo, new T.MeshStandardMaterial({ map: iceTex, roughness: 0.25, metalness: 0.0 }));
+  const ice = new T.Mesh(iceGeo, new T.MeshStandardMaterial({ map: iceTex, roughness: 0.25, metalness: 0.0, envMapIntensity: 0.12 }));
   ice.scale.set(LAKE.rx, 1, LAKE.rz); ice.position.y = 0.06;
   scene.add(ice);
 

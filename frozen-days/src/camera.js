@@ -15,6 +15,6 @@ export function createCameraRig(camera) {
       const f = 58 + Math.min(p.speed, 18) * 0.9;
       if (Math.abs(f - fov) > 0.05) { fov += (f - fov) * Math.min(1, dt * 4); camera.fov = fov; camera.updateProjectionMatrix(); }
     },
-    snap(p) { yaw = p.h; off = 0; },
+    snap(p) { yaw = p.h; off = 0; fov = 58; camera.fov = 58; camera.updateProjectionMatrix(); },
   };
 }
