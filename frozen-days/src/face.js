@@ -19,9 +19,10 @@ const STYLE = {
   },
 };
 
-export function paintFace(kind, headMesh, closed) {
-  const S = STYLE[kind] || STYLE.male;
-  const W = 1536, H = 768;
+export function paintFace(kind, headMesh, closed, ov) {
+  const S = Object.assign({}, STYLE[kind] || STYLE.male, (ov && ov.style) || {});
+  if (ov && ov.style && ov.style.browCol) S.brow = Object.assign({}, S.brow, { col: ov.style.browCol });
+  const W = (ov && ov.size && ov.size[0]) || 1536, H = (ov && ov.size && ov.size[1]) || 768;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
   x.fillStyle = S.skin; x.fillRect(0, 0, W, H);

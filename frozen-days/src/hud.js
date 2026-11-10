@@ -45,6 +45,15 @@ const CSS = `
 #btnBrake{right:270px;bottom:110px;width:150px;height:150px;font-size:24px;background:rgba(190,80,70,.62)}
 #btnBrake.on{background:rgba(220,100,90,.9)}
 #touch #btnSpin{right:70px;bottom:360px;width:130px;height:130px;font-size:24px;background:rgba(150,90,200,.65)}
+#touch #btnTalk{right:250px;bottom:300px;width:120px;height:120px;font-size:22px;background:rgba(60,160,110,.75)}
+#talkTip{position:absolute;right:190px;bottom:440px;padding:10px 22px;border-radius:20px;background:rgba(25,50,85,.55);font-size:24px;font-weight:700;display:none;white-space:nowrap}
+#zoneBanner{position:absolute;left:0;right:0;top:430px;text-align:center;font-size:44px;font-weight:800;opacity:0;transition:opacity .5s}
+#zoneBanner.show{opacity:1}
+#dlg{position:absolute;left:30px;right:30px;bottom:44px;padding:24px 28px 20px;border-radius:32px;background:rgba(235,244,252,.97);color:#1d3a5c;display:none;pointer-events:auto;text-shadow:none;cursor:pointer}
+#dlg .who{font-size:32px;font-weight:800}#dlg .role{font-size:21px;font-weight:600;opacity:.65;margin-left:8px}
+#dlg .hearts{font-size:24px;color:#e0507a;letter-spacing:4px;margin-top:2px}
+#dlg .txt{font-size:30px;font-weight:600;line-height:1.35;margin:12px 0 8px;min-height:125px}
+#dlg .nxt{text-align:right;font-size:22px;font-weight:700;opacity:.6}
 `;
 
 const SK = [['balance', 'Balance'], ['control', 'Control'], ['speed', 'Speed'], ['braking', 'Braking'], ['tricks', 'Tricks']];
@@ -61,6 +70,8 @@ export function createHud(root, { touch }) {
     '<div id="bal"><div>BALANCE</div><div id="balTrack"><div id="balFill"></div></div></div>' +
     '<div id="goal"><small>GOAL · tap to skip</small><span id="goalTxt"></span><div id="goalTrack"><div id="goalFill"></div></div></div>' +
     '<div id="toast"></div><div id="hint">' + hintText + '</div>' +
+    '<div id="talkTip"></div><div id="zoneBanner"></div>' +
+    '<div id="dlg"><div class="who"><span id="dName"></span><span class="role" id="dRole"></span></div><div class="hearts" id="dHearts"></div><div class="txt" id="dTxt"></div><div class="nxt">Tap to continue ▶</div></div>' +
     '<div id="charBtn" class="hbtn">☺ Character</div><div id="skillBtn" class="hbtn">★ Skills</div>' +
     '<div id="panel"><div class="card"><h2 id="pTitle"></h2><div class="sub" id="pSub"></div><div id="pRows"></div><div class="bests" id="pBests"></div>' +
     '<div class="btns"><button class="alt" id="pRespawn">Respawn</button><button id="pClose">Continue</button></div></div></div>';
@@ -68,6 +79,8 @@ export function createHud(root, { touch }) {
   const $ = (id) => el.querySelector('#' + id);
   const speedEl = $('speed'), lvlTxt = $('lvlTxt'), xpFill = $('xpFill'), xpPop = $('xpPop'), balEl = $('bal'), fillEl = $('balFill'),
     goalTxt = $('goalTxt'), goalFill = $('goalFill'), toastEl = $('toast'), hintEl = $('hint'), panel = $('panel');
+  const talkTip = $('talkTip'), bannerEl = $('zoneBanner'), dlg = $('dlg');
+  let dlgState = null, bannerTimer = 0;
   let toastTimer = 0, hintTimer = 9, hintHidden = false, popTimer = 0, popAcc = 0, popGather = 0, panelOpen = false;
   $('charBtn').addEventListener('click', () => el.dispatchEvent(new CustomEvent('character')));
   $('goal').addEventListener('click', () => el.dispatchEvent(new CustomEvent('skipgoal')));
@@ -77,8 +90,8 @@ export function createHud(root, { touch }) {
 
   function hideHint() { if (!hintHidden) { hintHidden = true; hintEl.classList.add('hide'); } }
   function toast(text, secs = 2.2) { toastEl.textContent = text; toastEl.classList.add('show'); toastTimer = secs; }
-  function showPanel(prog) {
-    const info = prog.info(), sk = prog.rawSkills(), st = prog.stats();
+  function showPanel(prog, extra) {
+    const info = prog.info(), sk = prog.rawSkills(), st = prog.stats(), ex = extra || {};
     $('pTitle').textContent = 'Lv ' + info.level + ' · ' + info.name;
     $('pSub').textContent = info.level >= 10 ? 'Max level reached' : Math.round(info.need - info.into) + ' XP to the next level';
     $('pRows').innerHTML = SK.map(([k, label]) => {
@@ -87,10 +100,30 @@ export function createHud(root, { touch }) {
         (locked ? 'Lv 3' : Math.round(sk[k] * 100) + '%') + '</div></div>';
     }).join('');
     $('pBests').innerHTML = 'Best clean run: <b>' + Math.round(st.best.run) + ' m</b> · Top speed: <b>' + Math.round(st.best.speed * 2.4) + ' km/h</b><br>' +
-      'Total distance: <b>' + (st.totals.dist / 1000).toFixed(2) + ' km</b> · Falls: <b>' + st.totals.falls + '</b> · Spins: <b>' + st.totals.spins + '</b> · Goals: <b>' + st.totals.goals + '</b>';
+      'Total distance: <b>' + (st.totals.dist / 1000).toFixed(2) + ' km</b> · Falls: <b>' + st.totals.falls + '</b> · Spins: <b>' + st.totals.spins + '</b> · Goals: <b>' + st.totals.goals + '</b><br>' +
+      'Places found: <b>' + st.zones + (ex.zones ? '/' + ex.zones : '') + '</b> · Friends met: <b>' + st.friends + (ex.npcs ? '/' + ex.npcs : '') + '</b>';
     panel.style.display = 'block'; panelOpen = true;
   }
   function hidePanel() { panel.style.display = 'none'; panelOpen = false; }
+  function setTalk(name, touchUi) {
+    if (!name || dlgState) { talkTip.style.display = 'none'; return; }
+    talkTip.textContent = (touchUi ? 'Talk to ' : 'F · Talk to ') + name; talkTip.style.display = 'block';
+  }
+  function banner(text) { bannerEl.textContent = text; bannerEl.classList.add('show'); bannerTimer = 2.8; }
+  function renderDialog() {
+    $('dTxt').textContent = dlgState.lines[dlgState.i];
+  }
+  function showDialog(d) {
+    dlgState = { lines: d.lines, i: 0 };
+    $('dName').textContent = d.name; $('dRole').textContent = d.role + ' · ' + d.label;
+    $('dHearts').textContent = '♥'.repeat(d.hearts) + '♡'.repeat(3 - d.hearts);
+    talkTip.style.display = 'none'; dlg.style.display = 'block'; renderDialog();
+  }
+  dlg.addEventListener('click', () => {
+    if (!dlgState) return;
+    dlgState.i++;
+    if (dlgState.i >= dlgState.lines.length) { dlgState = null; dlg.style.display = 'none'; el.dispatchEvent(new CustomEvent('dialogend')); } else renderDialog();
+  });
   function update(p, dt, prog) {
     speedEl.textContent = Math.round(p.speed * 2.4) + ' km/h';
     const info = prog.info();
@@ -106,8 +139,9 @@ export function createHud(root, { touch }) {
     fillEl.style.background = b < 0.4 ? '#5fd38d' : b < 0.7 ? '#f2c94c' : '#eb5757';
     balEl.classList.toggle('shake', b > 0.7 && p.state === 'ok');
     if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
+    if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) bannerEl.classList.remove('show'); }
     if (!hintHidden) { hintTimer -= dt; if (hintTimer <= 0) hideHint(); }
   }
   function destroy() { el.remove(); style.remove(); }
-  return { el, update, toast, hideHint, showPanel, hidePanel, get panelOpen() { return panelOpen; }, destroy };
+  return { el, update, toast, hideHint, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
 }

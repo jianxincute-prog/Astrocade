@@ -11,6 +11,8 @@ import { createSelect } from './src/select.js';
 import { makeEnvironment } from './src/textures.js';
 import { OUTLINE } from './src/anime.js';
 import { createProgress } from './src/progress.js';
+import { createNpcs, NPC_DEFS, TALK_RANGE, friendLabel, friendHearts } from './src/npc.js';
+import { ZONE_LIST } from './src/town.js';
 import { createSkater, updateSkater, respawn, SPAWN } from './src/skating.js';
 import { createCameraRig } from './src/camera.js';
 import { createInput } from './src/input.js';
@@ -59,8 +61,11 @@ function run(mode) {
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: 0x1a2a40, transparent: true, opacity: 0.25, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
 
+  const npcs = createNpcs(scene);
   const skater = createSkater();
   const rig = createCameraRig(camera);
+  let talkNpc = null, curZone = null, zoneTimer = 0;
+  const lastTalk = {};
   let progress = createProgress(null);
 
   function resize() {
@@ -83,6 +88,9 @@ function run(mode) {
       },
     });
   }
+
+  // Developer hook (only when gameConfig.dev is set): jump to a spot to inspect the town.
+  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
 
   let raf = 0, last = performance.now(), clock = 0;
   let input = null, hud = null, sel = null;
@@ -128,7 +136,13 @@ function run(mode) {
     hud = createHud(root, { touch });
     hud.el.addEventListener('respawn', () => input.requestRespawn());
     hud.el.addEventListener('character', () => openSelect());
-    hud.el.addEventListener('panel', () => hud.showPanel(progress));
+    hud.el.addEventListener('panel', () => hud.showPanel(progress, { zones: ZONE_LIST.length, npcs: NPC_DEFS.length }));
+    hud.el.addEventListener('dialogend', () => {
+      if (talkNpc) {
+        if (clock - (lastTalk[talkNpc.id] === undefined ? -999 : lastTalk[talkNpc.id]) > 40) { progress.addFriend(talkNpc.id); lastTalk[talkNpc.id] = clock; hud.toast('♥ Your friendship with ' + talkNpc.name + ' grew', 2); }
+        talkNpc = null; saveState(true);
+      }
+    });
     hud.el.addEventListener('skipgoal', () => { progress.skipGoal(); hud.toast('New goal!', 1.2); });
     sel = createSelect(root, {
       kinds: CHARACTERS, labels: Object.fromEntries(CHARACTERS.map((k) => [k, characterLabel(k)])), current: kind,
@@ -180,8 +194,19 @@ function run(mode) {
       }
     }
   }
+  function startTalk(n) {
+    const pts = progress.friendPoints(n.id), met = pts >= 0;
+    if (!met) handleUi(progress.meet(n.id, n.name));
+    const points = Math.max(0, pts);
+    const lines = npcs.dialogue(n, { points, met, skills: progress.rawSkills(), spinUnlocked: progress.spinUnlocked() });
+    hud.showDialog({ name: n.name, role: n.role, label: friendLabel(points), hearts: friendHearts(points), lines });
+    talkNpc = n;
+    if (hasLib()) lib.haptics.play('tap');
+  }
   function handleUi(list) {
     for (const u of list) {
+      if (u.type === 'met') { hud.toast('You met ' + u.name + '!  +10 XP', 2.4); continue; }
+      if (u.type === 'zone') { hud.toast('New place discovered!  +15 XP', 2.4); continue; }
       if (u.type === 'level') {
         hud.toast('LEVEL UP!  Lv ' + u.level + ' · ' + u.name + (u.unlock ? '\n' + u.unlock : ''), 3);
         if (hasLib()) lib.haptics.play('success');
@@ -221,7 +246,7 @@ function run(mode) {
       if (input.consumeRespawn()) { respawn(skater); progress.resetRun(); rig.snap(skater); hasPrev = false; }
       const inp = input.read();
       inp.spin = input.consumeSpin();
-      if (hud.panelOpen) { inp.steer = 0; inp.push = 0; inp.brake = 0; inp.spin = false; }
+      if (hud.panelOpen || hud.dialogOpen) { inp.steer = 0; inp.push = 0; inp.brake = hud.dialogOpen ? 1 : 0; inp.spin = false; }
       else if (inp.push > 0.1 || Math.abs(inp.steer) > 0.2) hud.hideHint();
       const steps = Math.max(1, Math.ceil(dt / (1 / 60))), h = dt / steps;
       for (let i = 0; i < steps; i++) { inp.spin = i === 0 ? inp.spin : false; updateSkater(skater, inp, h, c, world); }
@@ -253,6 +278,20 @@ function run(mode) {
       shadow.position.set(skater.x, skater.mode === 'skate' ? 0.08 : 0.04, skater.z);
       rig.update(skater, dt, c, input.consumeLook());
       hud.update(skater, dt, progress);
+
+      // Town: discovering places and talking to neighbours.
+      zoneTimer += dt;
+      if (zoneTimer > 0.4) {
+        zoneTimer = 0;
+        const zn = world.zoneAt(skater.x, skater.z);
+        if (zn && zn.id !== curZone) { curZone = zn.id; hud.banner(zn.name); handleUi(progress.discoverZone(zn.id, zn.name)); }
+        else if (!zn) curZone = null;
+      }
+      const wantTalk = input.consumeTalk();
+      const near = !hud.panelOpen && !hud.dialogOpen ? npcs.nearest(skater.x, skater.z, TALK_RANGE) : null;
+      const canTalk = !!near && skater.speed < 4.5 && skater.state === 'ok';
+      hud.setTalk(canTalk ? near.name : null, touch); input.setTalkVisible(canTalk);
+      if (wantTalk && canTalk) startTalk(near);
     } else {
       // Edit mode: static scene, slow orbit, no gameplay.
       player.pose({ ...skater, speed: 0, strideAmp: 0, b: 0, fallAmt: 0, steer: 0, spin: null, spinAng: 0 }, clock);
@@ -261,6 +300,7 @@ function run(mode) {
       camera.position.set(Math.sin(a) * 28, 10, 34 + Math.cos(a) * 14);
       camera.lookAt(0, 1.5, 28);
     }
+    npcs.update(dt, skater.x, skater.z, talkNpc ? talkNpc.id : null);
     spray.update(dt);
     world.update(dt, camera.position);
     renderer.render(scene, camera);
@@ -275,6 +315,7 @@ function run(mode) {
     if (input) input.destroy();
     if (hud) hud.destroy();
     if (sel) sel.destroy();
+    npcs.dispose();
     player.dispose();
     renderer.dispose();
     renderer.domElement.remove();

@@ -56,9 +56,9 @@ function surfaceFn(mesh) {
   const rc = new T.Raycaster(), o = new T.Vector3(), d = new T.Vector3(0, 0, -1);
   return (x, y) => { o.set(x, y, 1); rc.set(o, d); const h = rc.intersectObject(mesh, false)[0]; return h ? h.point.z : 0; };
 }
-function buildHead(P, skinMat, skinFlat) {
+function buildHead(P, skinMat, skinFlat, lite) {
   const H = P.head, E = P.eye;
-  const g = new T.SphereGeometry(1, 64, 48), pos = g.attributes.position, col = new Float32Array(pos.count * 3);
+  const g = new T.SphereGeometry(1, lite ? 32 : 64, lite ? 22 : 48), pos = g.attributes.position, col = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
     const X = pos.getX(i), Y = pos.getY(i), Z = pos.getZ(i);
     let px = X * H.rx, py = Y * H.ry, pz = Z * H.rz;
@@ -89,8 +89,10 @@ function buildHead(P, skinMat, skinFlat) {
   return new T.Mesh(g, skinMat);
 }
 
-export function createCharacter(kind) {
-  const P = PRESETS[kind] || PRESETS.male;
+// opts.variant overrides colours / hair / hat (NPCs); opts.lite builds a cheaper model for background characters.
+export function createCharacter(kind, opts = {}) {
+  const base = PRESETS[kind] || PRESETS.male, v = opts.variant || {}, lite = !!opts.lite;
+  const P = { ...base, ...v, eye: { ...base.eye, ...(v.eye || {}) }, head: { ...base.head, ...(v.head || {}) }, brow: { ...base.brow, ...(v.brow || {}) } };
   const disposables = [];
   const keep = (x) => { disposables.push(x); return x; };
   const std = (o) => keep(toonMat(o));
@@ -122,7 +124,7 @@ export function createCharacter(kind) {
   torso.scale.z = P.torsoZ; torso.rotation.y = Math.PI; // seam to the back; zipper faces front
   spine.add(torso);
   hips.add(ell(1, 0.152, 0.085, 0.105, pantsMat, 0, -0.075, 0, 20, 14));
-  const hem = new T.Mesh(new T.TorusGeometry(0.15, 0.016, 8, 32), cuffMat); hem.rotation.x = Math.PI / 2; hem.scale.set(1, P.torsoZ, 1); hem.position.y = -0.085; spine.add(hem);
+  if (!lite) { const hem = new T.Mesh(new T.TorusGeometry(0.15, 0.016, 8, 32), cuffMat); hem.rotation.x = Math.PI / 2; hem.scale.set(1, P.torsoZ, 1); hem.position.y = -0.085; spine.add(hem); }
 
   // ---------- Legs + skates
   const legs = [];
@@ -135,11 +137,11 @@ export function createCharacter(kind) {
     // boot
     const shaft = limb(0.075, 0.054, 0.056, bootMat); shaft.position.y = 0.05; ankle.add(shaft);
     const foot = limb(0.15, 0.05, 0.043, bootMat); foot.rotation.x = -Math.PI / 2; foot.position.set(0, -0.042, -0.06); foot.scale.set(1, 1, 0.88); ankle.add(foot);
-    const cuff = new T.Mesh(new T.TorusGeometry(0.056, 0.012, 8, 20), accentMat); cuff.rotation.x = Math.PI / 2; cuff.position.y = 0.052; ankle.add(cuff);
-    [0.034, 0.016, -0.002].forEach((y) => { const l = mk(new T.BoxGeometry(0.05, 0.005, 0.004), laceMat, 0, y, 0.057); ankle.add(l); });
-    [0.0, 0.025].forEach((z) => { const l = mk(new T.BoxGeometry(0.05, 0.004, 0.006), laceMat, 0, -0.003, 0.07 + z); ankle.add(l); });
+    if (!lite) { const cuff = new T.Mesh(new T.TorusGeometry(0.056, 0.012, 8, 20), accentMat); cuff.rotation.x = Math.PI / 2; cuff.position.y = 0.052; ankle.add(cuff); }
+    if (!lite) [0.034, 0.016, -0.002].forEach((y) => { const l = mk(new T.BoxGeometry(0.05, 0.005, 0.004), laceMat, 0, y, 0.057); ankle.add(l); });
+    if (!lite) [0.0, 0.025].forEach((z) => { const l = mk(new T.BoxGeometry(0.05, 0.004, 0.006), laceMat, 0, -0.003, 0.07 + z); ankle.add(l); });
     ankle.add(mk(new T.BoxGeometry(0.103, 0.014, 0.27), rubber, 0, -0.088, 0.034));
-    [-0.075, 0.1].forEach((z) => ankle.add(mk(new T.BoxGeometry(0.012, 0.034, 0.022), steel, 0, -0.108, z)));
+    if (!lite) [-0.075, 0.1].forEach((z) => ankle.add(mk(new T.BoxGeometry(0.012, 0.034, 0.022), steel, 0, -0.108, z)));
     const sh = new T.Shape(); sh.moveTo(-0.125, -0.16); sh.lineTo(0.125, -0.16); sh.quadraticCurveTo(0.185, -0.158, 0.19, -0.118); sh.lineTo(-0.115, -0.122); sh.quadraticCurveTo(-0.13, -0.14, -0.125, -0.16);
     const bg = new T.ExtrudeGeometry(sh, { depth: 0.006, bevelEnabled: false }); bg.translate(0, 0, -0.003); bg.rotateY(-Math.PI / 2);
     ankle.add(new T.Mesh(bg, steel));
@@ -168,14 +170,14 @@ export function createCharacter(kind) {
   const neckMesh = limb(0.15, 0.05, 0.048, skinFlat); neckMesh.position.y = 0.15; neck.add(neckMesh);
   const collar = new T.Mesh(new T.CylinderGeometry(0.066, 0.085, 0.06, 28, 1, true), jacketPlain); collar.material.side = T.DoubleSide; collar.position.y = 0.02; collar.scale.z = 0.9; neck.add(collar);
   const s1 = new T.Mesh(new T.TorusGeometry(0.072, 0.036, 12, 28), scarfMat); s1.rotation.x = Math.PI / 2; s1.position.y = 0.055; s1.scale.set(1.05, 1, 0.95); neck.add(s1);
-  const s2 = new T.Mesh(new T.TorusGeometry(0.064, 0.03, 12, 28), scarfMat); s2.rotation.x = Math.PI / 2; s2.position.set(0, 0.095, 0.006); neck.add(s2);
+  if (!lite) { const s2 = new T.Mesh(new T.TorusGeometry(0.064, 0.03, 12, 28), scarfMat); s2.rotation.x = Math.PI / 2; s2.position.set(0, 0.095, 0.006); neck.add(s2); }
   const tail = new T.Group(); tail.position.set(0.03, 0.06, -0.075); neck.add(tail);
   const tailMesh = mk(new T.BoxGeometry(0.075, 0.36, 0.022, 4, 8, 1), scarfMat, 0, -0.18, 0); tail.add(tailMesh);
   const fringe = mk(new T.BoxGeometry(0.075, 0.03, 0.026), jacketPlain, 0, -0.37, 0); fringe.material = cuffMat; tail.add(fringe);
 
   // ---------- Head
   const head = new T.Group(); head.position.y = 0.21; neck.add(head);
-  const headMesh = buildHead(P, skinMat, skinFlat);
+  const headMesh = buildHead(P, skinMat, skinFlat, lite);
   const surf = surfaceFn(headMesh);
   head.add(headMesh);
   const E = P.eye, Hh = P.head;
@@ -185,30 +187,44 @@ export function createCharacter(kind) {
   [-1, 1].forEach((s) => {
     const ex0 = Hh.rx * (1 + Hh.cheek * 0.4 + Hh.cranium * 0.3);
     const ear = ell(1, 0.0105, 0.031, 0.019, skinFlat, s * (ex0 + 0.002), -0.004, -0.006, 14, 10); ear.rotation.y = s * 0.45; head.add(ear);
-    const inner = ell(1, 0.004, 0.02, 0.011, earInner, s * (ex0 + 0.0075), -0.004, -0.004, 8, 6); inner.rotation.y = s * 0.45; head.add(inner);
+    if (!lite) { const inner = ell(1, 0.004, 0.02, 0.011, earInner, s * (ex0 + 0.0075), -0.004, -0.004, 8, 6); inner.rotation.y = s * 0.45; head.add(inner); }
   });
 
   // painted anime face (open + blink variants swapped on the head material)
-  const faceOpen = keep(paintFace(kind, headMesh, false)), faceBlink = keep(paintFace(kind, headMesh, true));
+  let faceOv = null;
+  if (opts.variant) {
+    const ic = new T.Color(P.eye.iris), hexOf = (c) => '#' + c.getHexString();
+    faceOv = { size: lite ? [768, 384] : null, style: { skin: '#' + P.skin.toString(16).padStart(6, '0'), irisMid: hexOf(ic), irisTop: hexOf(ic.clone().multiplyScalar(0.4)), irisBot: hexOf(ic.clone().lerp(new T.Color(0xffffff), 0.65)), browCol: '#' + new T.Color(P.brow.color).getHexString() } };
+  }
+  const faceOpen = keep(paintFace(kind, headMesh, false, faceOv)), faceBlink = lite ? faceOpen : keep(paintFace(kind, headMesh, true, faceOv));
   skinMat.map = faceOpen; skinMat.needsUpdate = true;
 
   // hair (female bob + fringe) / bald (male)
   if (P.hair) {
     const hx = TX.hair(P.hair.color);
-    const hairMat = keep(new T.MeshStandardMaterial({ color: 0xffffff, map: hx.map, bumpMap: hx.bump, bumpScale: 0.25, roughness: 0.5, metalness: 0.05, side: T.DoubleSide, envMapIntensity: 0.25 }));
+    const hairMat = std({ map: hx.map, side: T.DoubleSide });
+    const short = P.hair.style === 'short';
     const prof = [[0.0, -0.126], [0.066, -0.118], [0.086, -0.1], [0.094, -0.07], [0.094, -0.02], [0.092, 0.03], [0.085, 0.07], [0.068, 0.103], [0.04, 0.122], [0.0, 0.132]]
       .map(([r, y]) => new T.Vector2(r, y));
     const smooth = new T.SplineCurve(prof).getPoints(40).map((v) => new T.Vector2(Math.max(0.0005, v.x), v.y));
-    const open = 0.34 * Math.PI;
-    const shell = new T.Mesh(new T.LatheGeometry(smooth, 48, open, Math.PI * 2 - open * 2), hairMat);
+    const open = (short ? 0.4 : 0.34) * Math.PI;
+    const shell = new T.Mesh(new T.LatheGeometry(short ? smooth.filter((q) => q.y > -0.012) : smooth, 48, open, Math.PI * 2 - open * 2), hairMat);
     shell.scale.set(1, 1, 1.2); shell.position.z = -0.004; head.add(shell);
-    const topPts = smooth.filter((v) => v.y > 0.062);
+    const topPts = smooth.filter((q) => q.y > (short ? 0.082 : 0.062));
     const fringe = new T.Mesh(new T.LatheGeometry(topPts, 32, -open - 0.04, open * 2 + 0.08), hairMat);
     fringe.scale.set(1.02, 1, 1.22); fringe.position.z = -0.004; fringe.rotation.z = 0.06; head.add(fringe);
     // side-swept strands falling toward the cheeks
-    [-1, 1].forEach((s) => {
+    if (!short) [-1, 1].forEach((s) => {
       const st = mk(new T.CylinderGeometry(0.004, 0.0015, 0.1, 6), hairMat, s * 0.072, -0.02, surf(s * 0.072, -0.02) + 0.012); st.rotation.z = s * 0.12; head.add(st);
     });
+  }
+
+  // knit beanie
+  if (P.hat) {
+    const hk = TX.knit(P.hat.color, 2, 2), hatMat = std({ map: hk.map });
+    const cap = new T.Mesh(new T.SphereGeometry(0.106, 18, 12, 0, Math.PI * 2, 0, 1.5), hatMat); cap.scale.set(0.97, 1, 1.1); cap.position.set(0, 0.03, -0.004); head.add(cap);
+    const rim = new T.Mesh(new T.TorusGeometry(0.103, 0.017, 8, 22), hatMat); rim.scale.set(0.98, 1.1, 1); rim.rotation.x = Math.PI / 2; rim.position.set(0, 0.0385, -0.004); head.add(rim);
+    head.add(ell(1, 0.04, 0.04, 0.04, hatMat, 0, 0.14, -0.004, 10, 8));
   }
 
   // glasses

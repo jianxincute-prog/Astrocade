@@ -2,6 +2,7 @@
 // (dock, rowboat, boathouse cabin, signpost, rocks, snow banks, lamps, snowmen) and distant mountains.
 import { mulberry32 } from './util.js';
 import { toonMat, addOutlines, addInstancedOutline } from './anime.js';
+import { createTown, zoneAt } from './town.js';
 const T = THREE;
 
 export const LAKE = { rx: 62, rz: 48 };
@@ -121,6 +122,10 @@ export function createWorld(scene) {
     dirty = true;
   }
 
+  // ---- Town blockout (plaza, park, residential, community) — built first so scenery can avoid it
+  const town = createTown(scene);
+  colliders.push(...town.colliders);
+
   // ---- Pine forest (instanced, snow-tipped) with outlines
   const rng = mulberry32(7);
   const trees = [];
@@ -131,6 +136,7 @@ export function createWorld(scene) {
     if ((x / (LAKE.rx + 18)) ** 2 + (z / (LAKE.rz + 18)) ** 2 < 1) continue;
     if (Math.hypot(x, z - 34) < 24) continue;
     if (Math.abs(x + 18) < 14 && Math.abs(z + 64) < 14) continue; // boathouse clearing
+    if (town.blocked(x, z, 6)) continue;
     const edge = Math.max(Math.abs(x), Math.abs(z)) / MAP_HALF;
     if (rng() > 0.2 + edge * 0.9) continue;
     trees.push({ x, z, s: 0.8 + rng() * 0.9 });
@@ -139,6 +145,7 @@ export function createWorld(scene) {
     const s = 1.5 + rng() * 0.6;
     trees.push({ x: t, z: -MAP_HALF - 6, s }, { x: t, z: MAP_HALF + 6, s }, { x: -MAP_HALF - 6, z: t, s }, { x: MAP_HALF + 6, z: t, s });
   }
+  town.trees.forEach((t) => trees.push(t));
   const trunks = new T.InstancedMesh(new T.CylinderGeometry(0.28, 0.4, 2, 6), toonMat({ color: 0x5a3f2c }), trees.length);
   const foliageMat = toonMat({ vertexColors: true });
   const tiers = [0, 1, 2].map(() => new T.InstancedMesh(colorCone(new T.ConeGeometry(1.7, 2.6, 7, 1), 2.6, 0xf4f8fc, 0x2e6048), foliageMat, trees.length));
@@ -179,6 +186,7 @@ export function createWorld(scene) {
     let a = rng() * Math.PI * 2;
     if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.3) a += 0.7;
     const [x, z] = ring(a, 9 + rng() * 14), s = 0.8 + rng() * 1.3;
+    if (town.blocked(x, z, 3)) { rocks.setMatrixAt(i, dummy.matrix.identity().scale(new T.Vector3(0.001, 0.001, 0.001))); continue; }
     dummy.position.set(x, s * 0.45, z); dummy.rotation.set(rng(), rng() * 6, rng()); dummy.scale.set(s, s * 0.75, s * 1.1); dummy.updateMatrix();
     rocks.setMatrixAt(i, dummy.matrix);
     colliders.push({ x, z, r: s * 0.95 });
@@ -190,6 +198,7 @@ export function createWorld(scene) {
   const BUSH = 46, bushes = new T.InstancedMesh(bushGeo, toonMat({ vertexColors: true }), BUSH);
   for (let i = 0; i < BUSH; i++) {
     const a = rng() * Math.PI * 2, [x, z] = ring(a, 16 + rng() * 22), s = 0.7 + rng() * 0.7;
+    if (town.blocked(x, z, 3)) { bushes.setMatrixAt(i, dummy.matrix.identity().scale(new T.Vector3(0.001, 0.001, 0.001))); continue; }
     dummy.position.set(x, s * 0.7, z); dummy.rotation.set(0, rng() * 6, 0); dummy.scale.set(s * 1.2, s * 0.9, s * 1.2); dummy.updateMatrix();
     bushes.setMatrixAt(i, dummy.matrix);
     colliders.push({ x, z, r: s * 1.0 });
@@ -305,9 +314,11 @@ export function createWorld(scene) {
     flakeGeo.attributes.position.needsUpdate = true;
     const pulse = 3.3 + Math.sin(clock * 2.1) * 0.15;
     for (let i = 0; i < glows.length; i++) glows[i].scale.setScalar(pulse + (i % 3) * 0.05);
+    for (let i = 0; i < town.glows.length; i++) town.glows[i].scale.setScalar(pulse + (i % 3) * 0.05);
+    for (let i = 0; i < town.flicker.length; i++) town.flicker[i].scale.setScalar(8.5 + Math.sin(clock * 9) * 0.5 + Math.sin(clock * 13.7) * 0.4);
     if (dirty && ++tick % 3 === 0) { iceTex.needsUpdate = true; dirty = false; }
   }
 
   const onIce = (x, z) => (x / LAKE.rx) ** 2 + (z / LAKE.rz) ** 2 < 1;
-  return { colliders, onIce, trail, scuff, update };
+  return { colliders, onIce, trail, scuff, update, zoneAt };
 }

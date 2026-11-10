@@ -17,6 +17,7 @@ export function createProgress(saved) {
   const s = {
     xp: 0, raw: { balance: 0, control: 0, speed: 0, braking: 0, tricks: 0 },
     best: { run: 0, speed: 0 }, totals: { dist: 0, falls: 0, spins: 0, goals: 0 }, goalIdx: 0,
+    friends: {}, zones: {},
   };
   if (saved && saved.v === 2) {
     s.xp = num(saved.xp);
@@ -24,6 +25,8 @@ export function createProgress(saved) {
     s.best.run = num(saved.best && saved.best.run); s.best.speed = num(saved.best && saved.best.speed);
     Object.keys(s.totals).forEach((k) => { s.totals[k] = num(saved.totals && saved.totals[k]); });
     s.goalIdx = Math.floor(num(saved.goalIdx));
+    if (saved.friends && typeof saved.friends === 'object') Object.keys(saved.friends).slice(0, 40).forEach((k) => { s.friends[k] = Math.min(12, num(saved.friends[k])); });
+    if (saved.zones && typeof saved.zones === 'object') Object.keys(saved.zones).slice(0, 40).forEach((k) => { if (saved.zones[k]) s.zones[k] = true; });
   }
   let level = levelFor(s.xp), dirty = false, pendingXp = 0;
   const run = { base: 0, hold: 0, dist: 0, turn: 0, lastH: null, brakeStart: 0, braking: false, wobbling: false, xpDist: 0, xpTime: 0 };
@@ -72,14 +75,22 @@ export function createProgress(saved) {
       const base = xpForLevel(level), need = level >= MAX_LEVEL ? 1 : xpForLevel(level + 1) - base;
       return { level, name: levelName(level), xp: Math.floor(s.xp), into: s.xp - base, need, frac: level >= MAX_LEVEL ? 1 : clamp((s.xp - base) / need, 0, 1) };
     },
-    stats() { return { best: s.best, totals: s.totals }; },
+    stats() { return { best: s.best, totals: s.totals, zones: Object.keys(s.zones).length, friends: Object.keys(s.friends).length }; },
     goal(p) { return goalState(p); },
     skipGoal() { s.goalIdx++; run.turn = 0; run.base = run.dist; run.hold = 0; run.braking = false; goal = makeGoal(); dirty = true; },
     resetRun() { run.dist = 0; run.base = 0; run.hold = 0; run.turn = 0; run.braking = false; run.wobbling = false; },
     popXp() { const n = pendingXp; pendingXp = 0; return n; },
     isDirty() { return dirty; }, clearDirty() { dirty = false; },
     bestRun() { return s.best.run; },
-    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx }; },
+    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx, friends: s.friends, zones: s.zones }; },
+
+    // Town: friendship points per NPC (undefined = not met yet) and discovered places.
+    friendPoints(id) { return s.friends[id] === undefined ? -1 : s.friends[id]; },
+    meet(id, name) { const out = []; if (s.friends[id] === undefined) { s.friends[id] = 0; award(10, out); out.push({ type: 'met', name }); } return out; },
+    addFriend(id) { if (s.friends[id] !== undefined) { s.friends[id] = Math.min(12, s.friends[id] + 1); dirty = true; } },
+    discoverZone(id, name) { const out = []; if (!s.zones[id]) { s.zones[id] = true; award(15, out); out.push({ type: 'zone', name }); } return out; },
+    zonesFound() { return Object.keys(s.zones).length; },
+    friendsMet() { return Object.keys(s.friends).length; },
 
     // Discrete skater events (fall, wobble, up, spin...). Returns UI events.
     onEvents(evs) {
