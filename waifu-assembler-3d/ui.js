@@ -1,4 +1,5 @@
 import { SETS } from './logic.mjs';
+import { EXPRESSIONS } from './faces.mjs';
 
 // HUD markup, stylesheet, blueprint drawing and small canvas helpers shared by the Babylon.js renderer.
 export function uiMarkup(editing) {
@@ -26,6 +27,14 @@ export function uiMarkup(editing) {
         <div class="editor-bottom"><span id="editor-coords"></span><button id="editor-reset">RESET LAYOUT</button></div>
         <div class="editor-picks">${SETS.map((set) => `<button data-editor-set="${set.id}"><i style="--dot:${set.color}"></i>${set.name}</button>`).join('')}</div>
         <div class="editor-note">Drag a marker on the plan or select a podium to reposition it.</div>
+      </section>
+      <button id="studio-open" class="studio-open" aria-label="Open the character studio"><span>✦</span><b>STUDIO</b><small>12 FACES</small></button>
+      <section id="studio" class="studio">
+        <div id="studio-stage" class="studio-stage"></div>
+        <header class="studio-top"><div><small>CHARACTER STUDIO · 3D FIGURES</small><b id="studio-name">OFFICE-01</b><span id="studio-title"></span></div><button id="studio-close" aria-label="Close the studio">✕</button></header>
+        <button id="studio-prev" class="studio-arrow left" aria-label="Previous figure">‹</button>
+        <button id="studio-next" class="studio-arrow right" aria-label="Next figure">›</button>
+        <div class="studio-bottom"><span id="studio-count" class="studio-count">1 / 12</span><div class="studio-expr">${EXPRESSIONS.map((e) => `<button data-expr="${e}">${e}</button>`).join('')}</div></div>
       </section>
       ${editing ? '<div class="edit-badge">EDITOR MODE <span>· gameplay paused</span></div>' : ''}
     </div>`;
@@ -116,6 +125,23 @@ export function installStyles() {
     .editor-picks button.active { border-color:rgba(117,222,229,.58);color:#f4fdff;background:rgba(39,92,102,.34); }
     .editor-picks i { width:6px;height:6px;margin-right:4px;vertical-align:1px; }
     .editor-note { margin-top:6px;text-align:center;color:#718c9c;font-size:8px; }
+    .hud.studio-on > *:not(.studio) { visibility:hidden; }
+    .studio-open { pointer-events:auto; position:absolute; left:22px; top:420px; width:158px; height:64px; display:grid; grid-template-columns:34px 1fr; grid-template-rows:1fr 1fr; align-items:center; padding:0 12px; border-radius:16px; border:1px solid rgba(255,156,207,.45); background:linear-gradient(135deg,rgba(60,30,70,.85),rgba(16,16,32,.85)); color:#ffe2f2; text-align:left; box-shadow:0 0 22px rgba(255,120,190,.18); }
+    .studio-open span { grid-row:span 2; font-size:22px; color:#ffb0dc; } .studio-open b { font-size:13px; letter-spacing:2px; align-self:end; } .studio-open small { font-size:8px; letter-spacing:1.6px; color:#c7a8d8; align-self:start; }
+    .studio { display:none; position:absolute; inset:0; pointer-events:auto; z-index:30; }
+    .studio.shown { display:block; }
+    .studio-stage { position:absolute; inset:0; touch-action:none; cursor:grab; }
+    .studio-top { position:absolute; top:22px; left:22px; right:22px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; }
+    .studio-top small { display:block; color:#c6a8dc; font-size:9px; font-weight:900; letter-spacing:2.2px; } .studio-top b { display:block; margin-top:4px; font-size:30px; letter-spacing:2px; color:#fff; text-shadow:0 0 18px rgba(255,140,200,.45); } .studio-top span { display:block; color:#d9c8e6; font-size:13px; margin-top:2px; }
+    .studio-top button, .studio-arrow, .studio-expr button { pointer-events:auto; }
+    #studio-close { width:64px; height:64px; border-radius:18px; border:1px solid rgba(255,255,255,.25); background:rgba(14,12,26,.7); color:#fff; font-size:24px; }
+    .studio-arrow { position:absolute; top:46%; width:72px; height:120px; border-radius:22px; border:1px solid rgba(255,190,225,.35); background:rgba(14,12,26,.55); color:#ffd7ee; font-size:54px; line-height:1; }
+    .studio-arrow.left { left:16px; } .studio-arrow.right { right:16px; }
+    .studio-bottom { position:absolute; left:16px; right:16px; bottom:26px; text-align:center; }
+    .studio-count { display:inline-block; margin-bottom:12px; padding:6px 14px; border-radius:20px; background:rgba(14,12,26,.7); color:#e9d6f4; font-size:12px; letter-spacing:2px; font-weight:800; }
+    .studio-expr { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; }
+    .studio-expr button { min-height:64px; border-radius:16px; border:1px solid rgba(255,190,225,.3); background:rgba(18,14,32,.78); color:#f3e6fb; font-size:13px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; }
+    .studio-expr button.active { background:linear-gradient(135deg,#ff7ab8,#9a6cff); border-color:transparent; color:#fff; box-shadow:0 0 18px rgba(255,120,190,.45); }
     .edit-badge { position:absolute; right:22px; bottom:55px; padding:10px 13px;border-radius:12px;border:1px solid rgba(116,228,224,.32);background:rgba(9,17,29,.82);color:#8de7df;font-size:9px;letter-spacing:1.2px;font-weight:900; }
     .edit-badge span { color:#91a8b5;font-weight:600;letter-spacing:.3px; }
     .edit-mode .mobile-controls,.edit-mode .movement-hint,.edit-mode .map-card,.edit-mode .status-card { display:none; }
@@ -126,6 +152,7 @@ export function installStyles() {
       .status-card{top:94px;left:14px;right:14px;grid-template-columns:32px 1fr;gap:8px;padding:10px 11px;min-height:65px}
       .status-icon{width:31px;height:31px}.status-target{display:none}
       .map-card{top:169px;left:14px;transform:scale(.9);transform-origin:top left}
+      .studio-open{top:378px;left:14px}.studio-expr button{font-size:11px;min-height:58px}
       .blueprint-card{top:169px;right:12px;transform:scale(.9);transform-origin:top right}
       .movement-hint{top:340px;font-size:8px}
       .mobile-controls{left:11px;right:11px;bottom:28px}.stick-zone{width:135px;height:145px}.stick-ring{width:124px;height:124px}.stick-nub{width:56px;height:56px}.mobile-action{width:111px;height:111px;margin-bottom:9px}

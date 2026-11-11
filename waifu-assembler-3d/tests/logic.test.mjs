@@ -98,3 +98,23 @@ test('saved progress is validated and round-trips safely', () => {
   assert.deepEqual(clean.collected, []);
   assert.equal(clean.carried, null);
 });
+
+test('character face system: 12 presets, 10 expressions, valid defaults and shapes', async () => {
+  const { FACE_PRESETS, EXPRESSIONS, EXPR, DEFAULT_EXPR, SHAPE } = await import('../faces.mjs');
+  assert.equal(FACE_PRESETS.length, 12);
+  assert.equal(new Set(FACE_PRESETS.map((p) => p.id)).size, 12);
+  for (const { id } of SETS) assert.ok(FACE_PRESETS.some((p) => p.id === id), `${id} is a face preset`);
+  assert.deepEqual([...EXPRESSIONS].sort(), ['angry', 'crying', 'happy', 'neutral', 'sad', 'shy', 'smiling', 'smug', 'surprised', 'wink']);
+  for (const name of EXPRESSIONS) {
+    const e = EXPR[name];
+    assert.equal(e.lid.length, 2, `${name} has a lid closure per eye`);
+    assert.ok(['closed', 'smile', 'small', 'smirk', 'open', 'o'].includes(e.mouth));
+    assert.equal(e.mouth === 'open' || e.mouth === 'o', e.open > 0, `${name} opens the mouth only when it says so`);
+  }
+  assert.ok(EXPR.wink.lid[0] < 0.5 && EXPR.wink.lid[1] === 1, 'wink closes exactly one eye');
+  assert.ok(EXPR.crying.tears && EXPR.happy.happy.every(Boolean));
+  for (const { id } of FACE_PRESETS) {
+    assert.ok(EXPRESSIONS.includes(DEFAULT_EXPR[id]), `${id} has a valid signature expression`);
+    const sh = SHAPE[id]; assert.ok(sh && ['jaw', 'chin', 'nose', 'lips'].every((k) => sh[k] > 0.6 && sh[k] < 1.4), `${id} face shape in range`);
+  }
+});

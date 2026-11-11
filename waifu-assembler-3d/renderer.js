@@ -4,7 +4,8 @@ import {
   pickup, placeCarried, restoreState, serializeState,
 } from './logic.mjs';
 import { escapeHtml, installStyles, roundRect, uiMarkup } from './ui.js';
-import { PART_OFFSET, buildStatuePart, createStatueKit } from './statues.js';
+import { PART_OFFSET, buildBust, buildStatuePart, createStatueKit } from './statues.js';
+import { DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
 import { STATUE_POSES } from './poses.mjs';
 import { buildFragment, buildPodium, buildWorld, petalTexture, starTexture } from './world.js';
 
@@ -88,7 +89,7 @@ export function createGame(mode = 'play') {
   shadows.filteringQuality = BAB.ShadowGenerator.QUALITY_MEDIUM;
   shadows.bias = 0.0006; shadows.normalBias = 0.02; shadows.setDarkness(0.38);
 
-  const studio = setupStudioReflections(scene, BAB);
+  const hallEnv = setupStudioReflections(scene, BAB);
 
   // ---------- cinematic post-processing ----------
   let pipeline = null;
@@ -595,17 +596,87 @@ export function createGame(mode = 'play') {
     if (ui.toast.classList.contains('visible') && now > toastUntil) ui.toast.classList.remove('visible');
   }
   let envFrames = 0;
+  // ---------- Character Studio: 12 figures × 10 expressions in their own studio-lit scene ----------
+  const studio = { open: false, scene: null, kit: null, holder: null, bust: null, index: 0, expr: 'neutral', yaw: 0, pitch: 0, drag: null, idleAt: 0, env: null, envFrames: 0, fx: null };
+  const studioEl = root.querySelector('#studio');
+  function ensureStudio() {
+    if (studio.scene) return;
+    const s = new BAB.Scene(engine); s.useRightHandedSystem = true; s.skipPointerMovePicking = true;
+    s.clearColor = new BAB.Color4(0.07, 0.06, 0.12, 1);
+    const cam = new BAB.FreeCamera('studioCam', new BAB.Vector3(0, 3.86, 2.35), s);
+    cam.inputs.clear(); cam.fov = 0.52; cam.minZ = 0.05; cam.setTarget(new BAB.Vector3(0, 3.74, 0)); s.activeCamera = cam;
+    // soft cyclorama backdrop
+    const bg = new BAB.DynamicTexture('studioBg', { width: 512, height: 512 }, s, true); const bctx = bg.getContext();
+    const grd = bctx.createRadialGradient(256, 230, 20, 256, 256, 330); grd.addColorStop(0, '#5a4a74'); grd.addColorStop(0.55, '#2a2240'); grd.addColorStop(1, '#0e0c18');
+    bctx.fillStyle = grd; bctx.fillRect(0, 0, 512, 512); bg.update(true);
+    const back = BAB.MeshBuilder.CreatePlane('studioBack', { width: 9, height: 9 }, s); back.position.set(0, 3.7, -3.2);
+    const bm = new BAB.StandardMaterial('studioBackMat', s); bm.disableLighting = true; bm.emissiveTexture = bg; back.material = bm; back.isPickable = false;
+    // three-point studio lighting + a soft beauty light on the face
+    const hemi = new BAB.HemisphericLight('sFill', new BAB.Vector3(0, 1, 0.3), s); hemi.intensity = 0.55; hemi.groundColor = BAB.Color3.FromHexString('#6a5a80');
+    const keyL = new BAB.DirectionalLight('sKey', new BAB.Vector3(0.45, -0.5, -1).normalize(), s); keyL.intensity = 1.9; keyL.diffuse = BAB.Color3.FromHexString('#fff0e4');
+    const rimL = new BAB.DirectionalLight('sRim', new BAB.Vector3(-0.6, -0.25, 1).normalize(), s); rimL.intensity = 2.2; rimL.diffuse = BAB.Color3.FromHexString('#ffb0dc');
+    const beauty = new BAB.PointLight('sBeauty', new BAB.Vector3(0.1, 4.0, 1.6), s); beauty.intensity = 2.4; beauty.range = 4; beauty.diffuse = BAB.Color3.FromHexString('#fff4ee');
+    studio.env = setupStudioReflections(s, BAB); studio.envFrames = 0;
+    try {
+      const fx = new BAB.DefaultRenderingPipeline('studioFx', true, s, [cam]);
+      fx.fxaaEnabled = true; fx.bloomEnabled = true; fx.bloomThreshold = 0.82; fx.bloomWeight = 0.28; fx.bloomKernel = 48; fx.bloomScale = 0.5;
+      studio.fx = fx;
+    } catch { /* optional on weak devices */ }
+    const ipc = s.imageProcessingConfiguration; ipc.toneMappingEnabled = true; ipc.toneMappingType = BAB.ImageProcessingConfiguration.TONEMAPPING_ACES;
+    ipc.exposure = 1.08; ipc.contrast = 1.14; ipc.vignetteEnabled = true; ipc.vignetteWeight = 1.4; ipc.vignetteColor = new BAB.Color4(0.05, 0.02, 0.1, 0);
+    studio.scene = s; studio.kit = createStatueKit(s);
+    studio.holder = new BAB.TransformNode('studioHolder', s); studio.holder.position.set(0, 3.8, 0);
+  }
+  function showStudioFigure() {
+    const preset = FACE_PRESETS[studio.index];
+    if (studio.bust) { const { id, expr } = studio.bustInfo; studio.bust.dispose(false, false); studio.kit.releaseFace(id, expr); }
+    studio.bust = buildBust(studio.kit, studio.scene, preset.id, studio.expr);
+    studio.bustInfo = { id: preset.id, expr: studio.expr };
+    studio.bust.parent = studio.holder; studio.bust.position.set(0, -3.8, 0);
+    root.querySelector('#studio-name').textContent = preset.name;
+    root.querySelector('#studio-title').textContent = preset.title;
+    root.querySelector('#studio-count').textContent = `${studio.index + 1} / ${FACE_PRESETS.length}`;
+    root.querySelectorAll('[data-expr]').forEach((b) => b.classList.toggle('active', b.dataset.expr === studio.expr));
+    studio.idleAt = performance.now();
+  }
+  function openStudio() {
+    ensureStudio(); studio.open = true; studioEl.classList.add('shown'); root.querySelector('.hud').classList.add('studio-on');
+    if (!studio.bust) { studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); }
+  }
+  function closeStudio() { studio.open = false; studioEl.classList.remove('shown'); root.querySelector('.hud').classList.remove('studio-on'); lastFrame = performance.now(); }
+  root.querySelector('#studio-open').addEventListener('click', openStudio);
+  root.querySelector('#studio-close').addEventListener('click', closeStudio);
+  root.querySelector('#studio-prev').addEventListener('click', () => { studio.index = (studio.index + FACE_PRESETS.length - 1) % FACE_PRESETS.length; studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); });
+  root.querySelector('#studio-next').addEventListener('click', () => { studio.index = (studio.index + 1) % FACE_PRESETS.length; studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); });
+  root.querySelectorAll('[data-expr]').forEach((b) => b.addEventListener('click', () => { studio.expr = b.dataset.expr; showStudioFigure(); }));
+  const stage = root.querySelector('#studio-stage');
+  stage.addEventListener('pointerdown', (e) => { studio.drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; stage.setPointerCapture(e.pointerId); });
+  stage.addEventListener('pointermove', (e) => {
+    if (!studio.drag || studio.drag.id !== e.pointerId) return;
+    studio.yaw += (e.clientX - studio.drag.x) * 0.008; studio.pitch = clamp(studio.pitch + (e.clientY - studio.drag.y) * 0.004, -0.35, 0.35);
+    studio.drag.x = e.clientX; studio.drag.y = e.clientY; studio.idleAt = performance.now();
+  });
+  const endDrag = (e) => { if (studio.drag?.id === e.pointerId) studio.drag = null; };
+  stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
+  function renderStudio(now) {
+    const idle = now - studio.idleAt > 2500 && !studio.drag;
+    if (idle) { studio.yaw += 0.004; studio.pitch *= 0.97; }
+    studio.holder.rotation.set(studio.pitch, studio.yaw, 0);
+    studio.scene.render();
+    if (studio.envFrames < 4 && ++studio.envFrames === 4) studio.env.release();
+  }
   function render() {
     if (disposed) return;
     const now = performance.now();
     const dt = Math.min(0.11, Math.max(0.001, (now - lastFrame) / 1000));
     lastFrame = now;
+    if (studio.open) { renderStudio(now); return; }
     if (!editing) movePlayer(dt);
     updateObjects(now, dt);
     updateCarried(now);
     updateHologram(now);
     scene.render();
-    if (envFrames < 4 && ++envFrames === 4) studio.release();
+    if (envFrames < 4 && ++envFrames === 4) hallEnv.release();
   }
   engine.runRenderLoop(render);
 
@@ -682,6 +753,7 @@ export function createGame(mode = 'play') {
   return () => {
     disposed = true;
     engine.stopRenderLoop();
+    try { studio.fx?.dispose(); studio.kit?.dispose(); studio.scene?.dispose(); } catch { /* no-op */ }
     window.removeEventListener('resize', resize);
     window.removeEventListener('pointermove', pointerMove);
     window.removeEventListener('pointerup', pointerUp);
