@@ -301,7 +301,12 @@ function drawFace(ctx, W, H, setId, expr = 'neutral') {
   radial(ctx, X(0), Y(0.04), 80, 40, hexA('#ffffff', 0.12)); // chin glow
 
   // --- eyes ---
-  for (const side of [-1, 1]) drawEye(ctx, X(side * F.eyeX), Y(F.eye), side, s, rnd, setId, E.lid[side > 0 ? 1 : 0] >= 0.45);
+  const shut = shutEyes(E);
+  for (const side of [-1, 1]) {
+    const i = side > 0 ? 1 : 0;
+    if (shut[i]) drawClosedEye(ctx, ...eyeCentrePx(side), side, setId, E, E.happy && E.happy[i]);
+    else drawEye(ctx, X(side * F.eyeX), Y(F.eye), side, s, rnd, setId, E.lid[i] >= 0.45);
+  }
   // --- brows ---
   for (const side of [-1, 1]) drawBrow(ctx, X(side * F.eyeX), Y(F.brow), side, s, rnd, setId, E);
   // --- nose: just a whisper of shadow under the tip and two tiny nostrils ---
@@ -342,6 +347,7 @@ function drawFace(ctx, W, H, setId, expr = 'neutral') {
   // --- open the eyelids: the sclera/iris are real 3D eyeballs behind the skin ---
   ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = '#000';
   for (const side of [-1, 1]) {
+    if (shut[side > 0 ? 1 : 0]) continue; // a closed eye keeps its skin: there is no eyeball behind it
     const [ex, ey] = eyeCentrePx(side); const { hw, hgt } = EYE_SHAPE[setId];
     const c = eyeCurves(ex, ey + 3, side, hw * 0.93, hgt * 0.86);
     ctx.beginPath(); ctx.moveTo(...c.up[0]); ctx.bezierCurveTo(...c.up[1], ...c.up[2], ...c.up[3]); ctx.bezierCurveTo(...c.lo[1], ...c.lo[2], ...c.lo[3]); ctx.closePath(); ctx.fill();
@@ -379,6 +385,37 @@ function eyeCurves(ex, ey, side, hw, hgt) {
   const lo = [outer, [ex + side * hw * 0.35, ey + hgt * 0.95], [ex - side * hw * 0.35, ey + hgt * 1.0], inner];
   return { inner, outer, up, lo, upper: (t) => bez(...up, t), lower: (t) => bez(...lo, t) };
 }
+// Exact point on a ribbon mesh for a face-texture pixel: finds the triangle containing that uv and returns the
+// interpolated position, lifted along the outward normal. Keeps 3D details glued onto painted ones.
+function meshPointAtTex(mesh, px, py, lift = 0) {
+  const pos = mesh.getVerticesData('position'); const uv = mesh.getVerticesData('uv'); const idx = mesh.getIndices();
+  const u = px / TEX_W; const v = 1 - py / TEX_H;
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t]; const b = idx[t + 1]; const c = idx[t + 2];
+    const ua = uv[a * 2]; const va = uv[a * 2 + 1]; const ub = uv[b * 2]; const vb = uv[b * 2 + 1]; const uc = uv[c * 2]; const vc = uv[c * 2 + 1];
+    if (u < Math.min(ua, ub, uc) || u > Math.max(ua, ub, uc) || v < Math.min(va, vb, vc) || v > Math.max(va, vb, vc)) continue;
+    const det = (vb - vc) * (ua - uc) + (uc - ub) * (va - vc); if (Math.abs(det) < 1e-12) continue;
+    const l1 = ((vb - vc) * (u - uc) + (uc - ub) * (v - vc)) / det; const l2 = ((vc - va) * (u - uc) + (ua - uc) * (v - vc)) / det; const l3 = 1 - l1 - l2;
+    if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+    const P = (i, k) => pos[i * 3 + k]; const p = [0, 1, 2].map((k) => l1 * P(a, k) + l2 * P(b, k) + l3 * P(c, k));
+    const e1 = [0, 1, 2].map((k) => P(b, k) - P(a, k)); const e2 = [0, 1, 2].map((k) => P(c, k) - P(a, k));
+    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const len = Math.hypot(...n) || 1; n = n.map((q) => q / len); if (n[2] < 0) n = n.map((q) => -q); // face front is +z
+    return p.map((q, k) => q + n[k] * lift);
+  }
+  return null;
+}
+// Which eyes are fully shut for an expression [figure-left, figure-right].
+const shutEyes = (E) => [E.lid[0] >= 0.9, E.lid[1] >= 0.9];
+// Contour of a closed eye in texture px: relaxed ‿, happy ^, or squeezed shut (crying).
+function closedEyeCurve(ex, ey, side, hw, hgt, E, happy) {
+  let pts;
+  if (happy) pts = [[ex - side * hw * 0.9, ey + 12], [ex - side * hw * 0.4, ey - hgt * 1.15], [ex + side * hw * 0.42, ey - hgt * 1.2], [ex + side * hw * 0.92, ey + 8]];
+  else if (E.squeeze) pts = [[ex - side * hw * 0.86, ey - 8], [ex - side * hw * 0.3, ey + hgt * 0.3], [ex + side * hw * 0.35, ey + hgt * 0.22], [ex + side * hw * 0.9, ey + 4]];
+  else pts = [[ex - side * hw * 0.92, ey + 2], [ex - side * hw * 0.35, ey + hgt * 0.62], [ex + side * hw * 0.4, ey + hgt * 0.6], [ex + side * hw * 0.95, ey - 4]];
+  const at = (t) => { const u = 1 - t; return [0, 1].map((k) => u * u * u * pts[0][k] + 3 * u * u * t * pts[1][k] + 3 * u * t * t * pts[2][k] + t * t * t * pts[3][k]); };
+  return { pts, at };
+}
 // Babylon ribbons assign v by arc length up each column, so texture rows are not evenly spaced in height.
 // Measure that arc length on the deformed face loft to convert texture pixels ↔ head-space positions.
 let VMAP = null;
@@ -399,6 +436,29 @@ const hOfV = (v) => interp(vMap().vs, vMap().hs, v);
 const texToHead = (px, py) => [(px - TEX_W / 2) / PXX, hOfV(1 - py / TEX_H)];
 const eyeCentrePx = (side) => [TEX_W / 2 + side * F.eyeX * PXX, TEX_H * (1 - vOfH(F.eye))];
 
+function drawClosedEye(ctx, ex, ey, side, setId, E, happy) {
+  const { hw, hgt } = EYE_SHAPE[setId]; const L = LOOK[setId];
+  const c = closedEyeCurve(ex, ey, side, hw, hgt, E, happy); const [p0, p1, p2, p3] = c.pts;
+  const stroke = () => { ctx.beginPath(); ctx.moveTo(...p0); ctx.bezierCurveTo(...p1, ...p2, ...p3); ctx.stroke(); };
+  // soft socket, eyeshadow on the closed lid and a sheen on its curve
+  radial(ctx, ex, ey - 6, hw * 1.4, hgt * 2.0, hexA('#7a4a46', 0.12));
+  radial(ctx, ex + side * 6, ey - hgt * 0.55, hw * 1.2, hgt * 1.15, hexA(L.shadow, 0.42));
+  radial(ctx, ex + side * hw * 0.55, ey - hgt * 0.7, hw * 0.65, hgt * 0.8, hexA(L.shadow2, 0.32));
+  radial(ctx, ex, ey - hgt * 0.45, hw * 0.55, hgt * 0.4, hexA('#ffffff', 0.16));
+  ctx.lineCap = 'round';
+  if (!happy) { ctx.strokeStyle = hexA('#8a5048', 0.22); ctx.lineWidth = 3; // lid crease above the closed lash line
+    ctx.beginPath(); ctx.moveTo(ex - side * hw * 0.7, ey - hgt * 0.55); ctx.quadraticCurveTo(ex, ey - hgt * (E.squeeze ? 0.55 : 0.85), ex + side * hw * 0.85, ey - hgt * 0.7); ctx.stroke(); }
+  if (E.squeeze) for (let k = 0; k < 2; k += 1) { ctx.strokeStyle = hexA('#8a5048', 0.18); ctx.lineWidth = 2.4; // squeezed creases at the outer corner
+    ctx.beginPath(); ctx.moveTo(p3[0] + side * 10, p3[1] - 14 + k * 16); ctx.quadraticCurveTo(p3[0] + side * 24, p3[1] - 4 + k * 10, p3[0] + side * 34, p3[1] - 12 + k * 22); ctx.stroke(); }
+  // lash line shadow + ink (the 3D lash ridge sits on top of this)
+  ctx.strokeStyle = hexA('#3a1a20', 0.28); ctx.lineWidth = 14; stroke();
+  ctx.strokeStyle = '#1a0f14'; ctx.lineWidth = 5; stroke();
+  if (!happy) { ctx.lineWidth = 2.6; // a few short lashes hanging from the outer half of the closed lid
+    for (let i = 0; i < 5; i += 1) { const t = 0.5 + i * 0.11; const [px, py] = c.at(t); const len = (9 + i * 3) * L.lashLen;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo(px + side * len * 0.3, py + len * 0.6, px + side * len * 0.75, py + len * 0.85); ctx.stroke(); }
+  }
+  if (L.liner > 0) { ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(...p3); ctx.lineTo(p3[0] + side * (6 + L.liner * 0.6), p3[1] - (happy ? -2 : 6 + L.liner * 0.25)); ctx.stroke(); }
+}
 function drawEye(ctx, ex, ey, side, s, rnd, setId, closed = false) {
   // Nurse has an open, welcoming gaze; the CEO gets a poised, slightly narrower cat-eye; Office sits between.
   const { hw, hgt } = EYE_SHAPE[setId];
@@ -749,14 +809,17 @@ function headSurfaceZ(y, x) { // front surface z of the (undeformed) face at hei
 const F = { eye: 0.27, eyeX: 0.086, brow: 0.335, noseTip: 0.192, mouth: 0.104 };
 // Face relief. `sh` is the preset's face shape (SHAPE) and `mx` the mouth layout of the current expression (mouthGeom):
 // both only touch the lower face, so the eyes, brows and hairline stay exactly where the hair and lids expect them.
-function faceDeformFor(sh, mx) {
+function faceDeformFor(sh, mx, shut) {
   const S = sh || { jaw: 1, chin: 1, nose: 1, lips: 1 };
   return (x, y, z, s, zf, xf) => {
     const h = y - CHIN; // height above chin
     const front = Math.max(0, zf);
     let dz = 0; let dx = 0;
     dz += 0.01 * gauss(h, F.brow, 0.03) * front * (1 - Math.abs(xf) * 0.6); // soft brow ridge
-    dz -= 0.011 * gauss(h, F.eye, 0.026) * front * gauss(Math.abs(x), F.eyeX, 0.042); // eye sockets (lids wrap the eyeballs)
+    if (shut && shut[x < 0 ? 0 : 1]) { // a fully closed eye: no eyeball behind it, the lid is part of the face skin
+      dz -= 0.003 * gauss(h, F.eye, 0.026) * front * gauss(Math.abs(x), F.eyeX, 0.042);
+      dz += 0.0042 * gauss(h, F.eye + 0.004, 0.018) * front * gauss(Math.abs(x), F.eyeX, 0.034); // soft convex lid
+    } else dz -= 0.011 * gauss(h, F.eye, 0.026) * front * gauss(Math.abs(x), F.eyeX, 0.042); // eye sockets (lids wrap the eyeballs)
     dz += 0.009 * gauss(h, 0.18, 0.05) * front * gauss(Math.abs(x), 0.1, 0.05); // full apple cheeks
     dx += Math.sign(x) * 0.004 * gauss(h, 0.22, 0.05) * Math.max(0, 1 - front);
     dx += x * (S.jaw - 1) * smooth(0.25, 0.06, h); // jaw width
@@ -836,7 +899,8 @@ function sculptHead(sc, id) {
   const E = EXPR[sc.expr] || EXPR.neutral;
   const mg = mouthGeom(id, sc.expr);
   const mx = { open: mg.oh > 0, smile: E.smile, hTop: texToHead(mg.lx, mg.topY)[1], hBot: texToHead(mg.lx, mg.botY)[1] };
-  sc.loft('face', headSecs(), { N: 120, deform: faceDeformFor(SHAPE[id], mx), flip: false });
+  sc.faceDef = faceDeformFor(SHAPE[id], mx, shutEyes(EXPR[sc.expr] || EXPR.neutral));
+  sc.faceMesh = sc.loft('face', headSecs(), { N: 120, deform: sc.faceDef, flip: false });
   if (mg.oh > 0) { // mouth cavity with teeth and tongue, inside the head behind the opening
     const w = (mg.mw / PXX) * 0.9; const yT = CHIN + mx.hTop; const yB = CHIN + mx.hBot; const yc = (yT + yB) / 2; const hh = Math.max(0.006, (yT - yB) / 2);
     const zs = headSurfaceZ(yc, 0) + faceDeform(0, yc, 0, null, 1, 0)[2];
@@ -845,10 +909,10 @@ function sculptHead(sc, id) {
     sc.ell('tongue', [0, yB - 0.006, zs - 0.042], [w * 1.1, 0.012, 0.016], [0, 0, 0], 16); // tongue rests low and deep in the mouth
   }
   if (E.tears) for (const side of [-1, 1]) { // glossy 3D tears running from the outer eye down the cheek
-    const pts = []; for (let k = 0; k <= 8; k += 1) { const h = F.eye - 0.035 - k * 0.016; const x = side * (F.eyeX + 0.018 + k * 0.002); const y = CHIN + h; pts.push([x, y, headSurfaceZ(y, x) + faceDeform(x, y, 0, null, 1, x / 0.19)[2] + 0.004]); }
+    const pts = []; for (let k = 0; k <= 8; k += 1) { const h = F.eye - 0.035 - k * 0.016; const x = side * (F.eyeX + 0.018 + k * 0.002); const y = CHIN + h; pts.push([x, y, headSurfaceZ(y, x) + sc.faceDef(x, y, 0, null, 1, x / 0.19)[2] + 0.004]); }
     sc.strand('tear', pts, 0.005, 0.008, 8, 4);
     const [tx, ty, tz] = pts[pts.length - 1]; sc.ell('tear', [tx, ty - 0.008, tz + 0.002], [0.02, 0.026, 0.014], [0, 0, 0], 12);
-    for (let k = 0; k < 5; k += 1) { const x = side * (F.eyeX - 0.03 + k * 0.016); const y = CHIN + F.eye - 0.028; sc.ell('tear', [x, y, headSurfaceZ(y, x) + faceDeform(x, y, 0, null, 1, x / 0.19)[2] + 0.002], [0.016, 0.008, 0.008], [0, 0, 0], 8); }
+    for (const [dx, dh, r] of [[0.018, -0.032, 0.0085], [-0.05, -0.012, 0.0055]]) { const x = side * (F.eyeX + dx); const y = CHIN + F.eye + dh; sc.ell('tear', [x, y, headSurfaceZ(y, x) + sc.faceDef(x, y, 0, null, 1, x / 0.19)[2] + r * 0.4], [r * 1.1, r * 1.25, r * 0.8], [0, 0, 0], 12); } // a drop where the streak starts and one at the inner corner
   }
   // ears
   for (const side of [-1, 1]) sc.loft('skin', sectionsFrom([{ y: CHIN + 0.2, cx: side * 0.182, cz: -0.012, rx: 0.006, rz: 0.012 }, { y: CHIN + 0.26, cx: side * 0.188, cz: -0.012, rx: 0.011, rz: 0.03 }, { y: CHIN + 0.32, cx: side * 0.186, cz: -0.012, rx: 0.008, rz: 0.026 }, { y: CHIN + 0.35, cx: side * 0.182, cz: -0.012, rx: 0.003, rz: 0.008 }], 8), { N: 14 });
@@ -859,8 +923,20 @@ function sculptHead(sc, id) {
 // that slide over the eyeball for each expression, and a 3D lash line riding on the lid edge.
 function eyes(sc, id) {
   const BAB = B(); const { hw, hgt } = EYE_SHAPE[id]; const E = EXPR[sc.expr] || EXPR.neutral; const L = LOOK[id];
+  const shut = shutEyes(E); const def = sc.faceDef || faceDeform;
   for (const side of [-1, 1]) {
     const ex = side * F.eyeX; const ey = CHIN + F.eye;
+    if (shut[side > 0 ? 1 : 0]) {
+      const happy = E.happy && E.happy[side > 0 ? 1 : 0];
+      const [cxp, cyp] = eyeCentrePx(side); const c = closedEyeCurve(cxp, cyp, side, hw, hgt, E, happy);
+      const onSkin = (px, py, lift) => (sc.faceMesh && meshPointAtTex(sc.faceMesh, px, py, lift)) || (() => {
+        const [x, h] = texToHead(px, py); const y = CHIN + h; return [x, y, headSurfaceZ(y, x) + def(x, y, 0, null, 1, x / 0.19)[2] + lift]; })();
+      const pts = []; for (let i = 0; i <= 16; i += 1) pts.push(onSkin(...c.at(0.03 + 0.97 * (i / 16)), 0.0022));
+      const [ox, oy] = c.pts[3]; pts.push(onSkin(ox + side * (10 + L.liner * 0.4), oy + (happy ? 4 : -4), 0.0016));
+      const lashW = (t) => { const w = (0.0011 + 0.0028 * Math.sin(Math.PI * Math.min(1, t * 0.92 + 0.06))) * (0.85 + 0.2 * L.lashLen); return [w * 0.5, w]; };
+      sc.path('lash', pts, lashW, { up: [0, 0, 1], N: 6, samples: 4 });
+      continue;
+    }
     const skin = headSurfaceZ(ey, ex) + faceDeform(ex, ey, 0, null, 1, ex / 0.19)[2];
     const R = 0.062; const cz = skin - 0.004 - R * 0.85; const ecy = ey + 0.002; const rot = side * 0.12;
     sc.ell('sclera', [ex, ecy, cz], [R * 2.15, R * 1.7, R * 1.7], [0, rot, 0], 32);
@@ -871,8 +947,8 @@ function eyes(sc, id) {
     const dp = disc.getVerticesData('position'); // dome the iris slightly so it follows the eyeball
     for (let k = 0; k < dp.length; k += 3) { const r2 = (dp[k] ** 2 + dp[k + 1] ** 2) / (ir * ir); dp[k + 2] = 0.0035 * (1 - r2); }
     disc.updateVerticesData('position', dp);
-    const shut = Math.max(0, E.lid[side > 0 ? 1 : 0]) >= 0.6; // a closed lid hides the iris completely
-    if (shut) disc.dispose(); else {
+    const irisHidden = Math.max(0, E.lid[side > 0 ? 1 : 0]) >= 0.6; // a mostly closed lid hides the iris completely
+    if (irisHidden) disc.dispose(); else {
       sc.prim(disc, 'iris', [gx, gy, front - 0.002 - Math.abs(look[0]) * 0.002], [0, 0, 0]);
       sc.ell('cornea', [gx, gy, front], [ir * 2.3, ir * 2.3, ir * 0.45], [0, 0, 0], 24);
     }

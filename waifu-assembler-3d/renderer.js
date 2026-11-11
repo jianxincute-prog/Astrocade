@@ -748,7 +748,7 @@ export function createGame(mode = 'play') {
   updateHUD();
 
   // Test/debug hook: lets automated checks pose the camera and state without touching gameplay rules.
-  window.__waifuDebug = { holo, scene, camera, player, eye, state, podiums, fragments, aimCamera, refreshFragments, updateHUD };
+  window.__waifuDebug = { holo, scene, camera, player, eye, state, podiums, fragments, aimCamera, refreshFragments, updateHUD, studio };
 
   return () => {
     disposed = true;
