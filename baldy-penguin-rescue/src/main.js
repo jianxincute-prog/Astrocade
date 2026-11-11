@@ -1,9 +1,10 @@
 // Game loop and rules: Baldy explores the valley, lost baby penguins follow him, and he leads them home.
-import { WORLD, onIce, layoutWorld, clampHome, finalScore, starsFor, levelPlan } from './terrain.js';
+import { WORLD, onIce, layoutWorld, clampHome, finalScore, starsFor, levelPlan, BIOMES } from './terrain.js';
 import { buildScene, buildBeacon, buildFish, buildShadow, buildArrow, buildSparkles, buildSnowball, buildHeart } from './world.js';
 import { SLEDS } from './sleds.js';
 import { buildMan, setSled, animateMan, buildPenguin, animatePenguin, buildWhirly, animateWhirly } from './character.js';
 import { createHud } from './hud.js';
+import { showLoading } from './loading.js';
 import { createInput } from './input.js';
 import { unlockAudio, stopAudio, setMuted, isMuted, sfx } from './audio.js';
 
@@ -30,7 +31,7 @@ function readConfig() {
   };
 }
 
-let current = null, restartTimer = 0, savedBest = 0, bestLoaded = false;
+let current = null, restartTimer = 0, savedBest = 0, bestLoaded = false, travelling = false;
 const session = { level: 1, score: 0 };
 const store = { fish: 0, owned: ['classic'], sled: 'classic' };   // fish wallet and bought sled skins              // carries on from level to level
 
@@ -173,8 +174,8 @@ function createGame(mode, autoPlay) {
     },
     resume() { if (phase === 'paused') { phase = 'play'; hud.show('play'); last = performance.now(); } },
     mute() { setMuted(!isMuted()); hud.setMute(isMuted()); },
-    next() { session.level++; startGame(mode, true); },
-    restart() { session.level = 1; session.score = 0; saveProgress(); startGame(mode, true); },
+    next() { session.level++; travel(); },
+    restart() { session.level = 1; session.score = 0; saveProgress(); travel(); },
   });
   const input = createInput(hud.root, hud.buttons);
   hud.setCounts(0, penguins.length, 0); hud.setFish(0); hud.setMute(isMuted()); hud.setBest(savedBest, session.level);
@@ -190,12 +191,24 @@ function createGame(mode, autoPlay) {
     try { Promise.resolve(lib.saveUserGameState({ best: savedBest, level: session.level, score: session.score, fish: store.fish, owned: store.owned, sled: store.sled })).catch(() => {}); } catch (e) { /* no saves here */ }
   }
 
+  /** Slide to the next level: the loading screen covers the rebuild, then play starts as it fades. */
+  function travel() {
+    if (travelling) return;
+    travelling = true; input.enabled = false;
+    showLoading({
+      title: false, label: `LEVEL ${session.level}`, sub: BIOMES[(session.level - 1) % BIOMES.length].name, sled: store.sled, jacket: cfg.jacketColor, duration: 1.9,
+      onMid: () => startGame(mode, 'hold'),
+      onDone: () => { travelling = false; current?.begin(); },
+    });
+  }
+
   function begin() {
     phase = 'play'; input.enabled = true; input.reset(); hud.show('play'); camYaw = Math.PI; camPitch = 0.36; player.yaw = 0;
     hud.banner(`LEVEL ${plan.level}`, `${plan.biome.name} · 🐧 ×${penguins.length}`);
   }
 
   if (phase === 'edit') { hud.editMode(); scene.fog = null; setupEditor(); }
+  else if (autoPlay === 'hold') hud.show('hold');
   else if (autoPlay) begin();
   else hud.show('menu');
 
@@ -587,13 +600,14 @@ function createGame(mode, autoPlay) {
     setBest(best) { hud.setBest(best, session.level); },
     applyStore() { hud.setBest(savedBest, session.level); hud.setWallet(store.fish); setSled(man, store.sled); },
     inMenu() { return phase === 'menu'; },
+    begin() { if (phase === 'menu') begin(); },
     debug: { player, penguins, fishes, whirlies, home, layout, balls, plan, get hearts() { return hearts; }, set timeLeft(v) { timeLeft = v; }, get timeLeft() { return timeLeft; }, get phase() { return phase; }, get chain() { return chain; }, get delivered() { return delivered; } },
     dispose() {
       disposed = true; cancelAnimationFrame(raf); clearTimeout(restartTimer);
       window.removeEventListener('resize', resize);
       input.dispose(); hud.dispose();
       scene.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-      renderer.dispose(); canvas.remove();
+      renderer.dispose(); renderer.forceContextLoss?.(); canvas.remove();
     },
   };
 }

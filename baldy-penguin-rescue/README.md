@@ -28,6 +28,7 @@ them home to the igloo under the orange beam. Penguins waddle behind him in a li
 - `src/world.js` — Three.js scene: terrain, pond, instanced pines and rocks, mountains, igloo, snowfall, beacons, fish, sparkles.
 - `src/sleds.js` — the six sled skins (wooden sled, snow tube, penguin glider, rocket, dragon boat, golden fish), each its own shape.
 - `src/character.js` — procedural models and animation for Baldy, penguins and snow whirlies.
+- `src/loading.js` — 3D loading screen (Baldy and the penguins sliding down a mountain) shown at start and between levels.
 - `src/hud.js` — DOM HUD and the start / help / pause / win screens.
 - `src/input.js` — thumbstick, buttons, keyboard and camera drag.
 - `src/audio.js` — music from `asset_map.json` and synthesised sound effects.

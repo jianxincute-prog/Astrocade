@@ -3,6 +3,7 @@
 // finds lost baby penguins that waddle behind him in a line, and leads them home to the igloo.
 // Golden fish add stars and sled power; playful snow whirlies scatter the line unless you jump over them.
 import { startGame, registerParameters } from './src/main.js';
+import { showLoading } from './src/loading.js';
 
 let threeLoad;
 function loadThree() {
@@ -39,7 +40,12 @@ function run(mode) {
   registerParameters(mode);
   loadThree()
     .then(() => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 30))))
-    .then(() => { startGame(mode); requestAnimationFrame(() => requestAnimationFrame(hideBoot)); })
+    .then(() => {
+      if (mode === 'edit') { startGame(mode); requestAnimationFrame(() => requestAnimationFrame(hideBoot)); return; }
+      // play mode: penguins slide down the mountain while the valley is built behind them
+      showLoading({ jacket: window.gameConfig?.jacketColor, onMid: () => startGame(mode) });
+      requestAnimationFrame(() => requestAnimationFrame(hideBoot));
+    })
     .catch(error => {
       try { window.lib.log(`ERROR could not start: ${error.message}`); } catch (e) { console.error(error); }
       setBoot('Could not load the snowy valley.', true);
