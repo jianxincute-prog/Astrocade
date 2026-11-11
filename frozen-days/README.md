@@ -12,9 +12,6 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 - Touch: the left stick gives a direction relative to the camera. On snow you walk that way; on ice you steer toward it (tilt = glide and turn, push fully = stroke, pull hard behind while fast = brake). PUSH adds a stroke, BRAKE stops.
 - Keyboard: WASD / arrows move relative to the camera, Space brake, E spin (Lv 3+), F talk, drag mouse to look, R respawn.
 
-## Loading screen and main menu
-A dusk loading screen (animated snow, progress bar, tips) covers the world setup, then the main menu opens over a slow camera sway around your skater: Play / Continue (shows level, day and coins), New Game (asks before erasing), Settings and How to Play. The Skills panel has a Main Menu button that saves and returns here. Nothing is saved while the menu or loading screen is up.
-
 ## Story start
 A new game begins on Day 1 at 09:00 at the gate of the player's own house ("MY HOME", residential area). The player has no skates and 160 coins. The goal card switches to STORY: walk to Blade & Edge in the Town Plaza (golden beam), buy the cheapest skates, then take a first glide on the lake (+25 XP, +30 coins). Without skates the lake edge is a soft wall and Respawn returns to the house. Saves from before this update count as finished story.
 
@@ -64,6 +61,9 @@ Lantern Skate (daily 18:00-24:00: skate through glowing lanterns on the ice), Wi
 - `src/shops.js` — shop hours and doors, the catalogue (jackets, scarves, beanies, pants, gloves, skates with grip/glide perks, drinks, bakes) and helpers that turn the worn items into a character variant and skate gear.
 - `src/shop.js` — the shop/wardrobe bottom-sheet UI (tabs, tap to try on, buy / wear / eat).
 - `src/camera.js`, `src/input.js`, `src/hud.js`, `src/fx.js` — chase camera, keyboard/touch input, DOM HUD, spray particles.
+
+## Loading screen and main menu
+A dusk loading screen (animated snow, progress bar, tips) covers the world setup, then the main menu opens over a slow camera sway around your skater: Play / Continue (shows level, day and coins), New Game (asks before erasing), Settings and How to Play. The Skills panel has a Main Menu button that saves and returns here. Nothing is saved while the menu or loading screen is up.
 
 ## Roadmap (see GDD)
 Next: more seasons and the Library.
