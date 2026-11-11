@@ -65,7 +65,7 @@ export function createStatueKit(scene) {
         m.emissiveColor = hex(s.hair).scale(0.12);
       });
       case 'hairTip': return pbr(key, (m) => {
-        m.albedoColor = hex(s.hairTip); m.roughness = 0.3; m.metallic = 0.05; m.backFaceCulling = false;
+        m.albedoColor = hex(s.hairTip).scale(0.55).add(hex(s.hair).scale(0.45)); m.albedoTexture = hairTexture(setId); m.roughness = 0.42; m.metallic = 0.02; m.backFaceCulling = false;
         m.clearCoat.isEnabled = true; m.clearCoat.intensity = 0.9; m.clearCoat.roughness = 0.08;
         m.emissiveColor = hex(s.hairTip).scale(0.14);
       });
@@ -684,44 +684,95 @@ function eyes(sc, id) {
 function hairShell(sc, offset, trimFn) {
   sc.loft('hair', headSecs(), { N: 120, offset, deform: trimmed((x, y, z, s, zf, xf) => faceDeform(x, y, z, s, zf, xf), trimFn, true) });
 }
+// ---------- Layered hair: a soft scalp cover + dozens of tapered locks with pointed tips ----------
+const HAIR = {
+  office01: { len: 0.9, wave: 0.0, part: 0.05, sweep: 1, fringeLen: 0.075, back: 30 },
+  nurse01: { len: 0.66, wave: 0.022, part: 0, sweep: 0, fringeLen: 0.06, back: 28 },
+  ceo01: { len: 1.02, wave: 0.008, part: -0.07, sweep: -1, fringeLen: 0.12, back: 30 },
+};
+// point on the scalp at height h above the chin, around angle a (0 = front, +π/2 = figure's left/+x), lifted by off
+function scalp(a, h, off) {
+  const y = CHIN + h; const secs = headSecs(); let s = secs[0];
+  for (const c of secs) if (Math.abs(c.y - y) < Math.abs(s.y - y)) s = c;
+  return [s.cx + (s.rx + off) * spow(Math.sin(a), 2 / s.n), y, s.cz + (s.rz + off) * spow(Math.cos(a), 2 / s.n)];
+}
+// one flat, tapered hair lock that ends in a fine point
+function hairLock(sc, kind, pts, width, thick, out) {
+  sc.path(kind, pts, (t) => {
+    // full width through most of the lock, then a long, clean taper into a sharp point
+    const taper = t < 0.5 ? 1 : Math.pow(Math.max(0, (1 - t) / 0.5), 1.15);
+    const root = 0.7 + 0.3 * smooth(0, 0.18, t);
+    return [Math.max(0.001, thick * (0.35 + 0.65 * taper)), Math.max(0.0012, width * taper * root)];
+  }, { up: out, N: 10, samples: 7 });
+}
 function hairFor(sc, id, st) {
   void st;
-  // one full hair cover whose front edge is a designed fringe; a rolled edge gives it thickness
-  const scallop = (x) => -0.022 * Math.pow(Math.abs(Math.cos(x * 40)), 8) + 0.006;
-  const fringe = {
-    office01: (x) => 0.352 + 0.07 * smooth(-0.19, 0.19, x) + scallop(x), // side-swept
-    nurse01: (x) => 0.35 + 0.02 * Math.abs(x) / 0.17 + scallop(x), // soft full bangs
-    ceo01: (x) => 0.335 + 0.13 * smooth(-0.2, 0.15, x) + scallop(x) * 0.5, // deep side part
-  }[id];
-  hairCover(sc, fringe);
+  const H = HAIR[id]; const rnd = mulberry(id.length * 101 + 9);
   const Hy = (h) => CHIN + h;
+  // fringe tip height per x (head space above chin)
+  const fringe = {
+    office01: (x) => 0.35 + 0.07 * smooth(-0.19, 0.19, x),
+    nurse01: (x) => 0.348 + 0.03 * Math.pow(Math.abs(x) / 0.17, 2),
+    ceo01: (x) => 0.33 + 0.13 * smooth(-0.2, 0.15, x),
+  }[id];
+  hairCover(sc, (x) => fringe(x) + 0.055);
+
+  // 1) under-layer: a short inner volume so gaps between back locks never show skin
+  sc.loft('hair', sectionsFrom([
+    { y: Hy(0.3), cz: -0.05, rx: 0.16, rz: 0.15, n: 2.3 }, { y: Hy(0.1), cz: -0.08, rx: 0.18, rz: 0.13, n: 2.3 }, { y: Hy(-0.08), cz: -0.17, rx: 0.19, rz: 0.08, n: 2.3 },
+    { y: Hy(-H.len * 0.35), cz: -0.22, rx: 0.2, rz: 0.075, n: 2.3 }, { y: Hy(-H.len * 0.62), cz: -0.24, rx: 0.16, rz: 0.05, n: 2.2 }], 30), { N: 36 });
+
+  // 2) back + side-back locks from the crown, falling behind the shoulders, staggered lengths
+  for (let i = 0; i < H.back; i += 1) {
+    const u = i / (H.back - 1); const a = lerp(Math.PI * 0.52, Math.PI * 1.48, u) + (rnd() - 0.5) * 0.08;
+    const side = Math.sin(a); const back = -Math.cos(a);
+    const len = H.len * (0.82 + 0.18 * rnd()) * (1 - 0.18 * Math.pow(Math.abs(side), 3));
+    const r0 = scalp(a, 0.55, 0.026); const r1 = scalp(a, 0.38, 0.04); const r2 = scalp(a, 0.18, 0.048);
+    const fx = side * (0.2 + 0.03 * back); const fz = -0.17 - 0.1 * back;
+    const wv = (k) => H.wave * Math.sin(k * 7 + i * 1.3);
+    const pts = [r0, r1, r2,
+      [fx * 1.08 + wv(1), Hy(-0.05), fz - 0.03],
+      [fx * 1.1 + wv(2), Hy(-len * 0.45), fz - 0.06 * back - 0.02],
+      [fx * 1.06 + wv(3), Hy(-len * 0.8), fz - 0.055 * back - 0.015],
+      [fx * 0.98, Hy(-len), fz - 0.03 * back]];
+    hairLock(sc, i % 7 === 3 ? 'hairTip' : 'hair', pts, 0.06 + 0.014 * rnd(), 0.014, [side, 0, -Math.cos(a) < 0 ? 0.3 : -1]);
+  }
+  // 3) side locks framing the face, layered and falling over the collarbone
+  for (const sideS of [-1, 1]) for (let k = 0; k < 3; k += 1) {
+    const a = sideS * (Math.PI * (0.36 + k * 0.07)); const len = (id === 'nurse01' ? 0.42 : 0.5) - k * 0.06 + (sideS > 0 ? 0.02 : 0);
+    const r0 = scalp(a, 0.54, 0.028); const r1 = scalp(a, 0.4, 0.04);
+    const x0 = sideS * (0.205 + k * 0.015);
+    const pts = [r0, r1, [x0, Hy(0.24), 0.09 - k * 0.04], [x0 + sideS * 0.01, Hy(0.04), 0.11 - k * 0.04],
+      [x0 + sideS * (0.03 + H.wave), Hy(-len * 0.55), 0.17 - k * 0.04], [x0 + sideS * 0.04, Hy(-len), 0.21 - k * 0.04]];
+    hairLock(sc, 'hair', pts, 0.05 - k * 0.004, 0.012, [sideS, 0, 0.3]);
+  }
+  // 4) fringe: fine pointed locks from the crown over the forehead, swept for side-parted styles
+  const N = id === 'nurse01' ? 17 : 15;
+  for (let i = 0; i < N; i += 1) {
+    const u = i / (N - 1); const x = lerp(-0.17, 0.17, u);
+    const a = Math.asin(Math.max(-1, Math.min(1, x / 0.2))) * 1.0 + H.part;
+    const tipX = x + H.sweep * 0.045 * (1 - Math.abs(x) / 0.2) + (rnd() - 0.5) * 0.01;
+    const tipH = fringe(tipX) - (i % 2 ? 0.012 : 0) - rnd() * 0.01;
+    const tipY = Hy(tipH); const tipZ = headSurfaceZ(tipY, tipX) + 0.013;
+    const root = scalp(a * 0.6, 0.575, 0.024); const mid = scalp(a * 0.85, 0.5, 0.036);
+    const pre = [lerp(mid[0], tipX, 0.55), lerp(mid[1], tipY, 0.5) + 0.02, headSurfaceZ(lerp(mid[1], tipY, 0.5), lerp(mid[0], tipX, 0.55)) + 0.03];
+    hairLock(sc, i % 5 === 2 ? 'hairTip' : 'hair', [root, mid, pre, [tipX, tipY, tipZ]], 0.04 + 0.008 * rnd(), 0.009, [x, 0.4, 1]);
+  }
+  // 5) a few loose wisps on top for a soft, non-helmet silhouette
+  for (let i = 0; i < 5; i += 1) {
+    const a = Math.PI * (0.35 + i * 0.32) + (rnd() - 0.5) * 0.2;
+    hairLock(sc, 'hair', [scalp(a * 0.2, 0.6, 0.02), scalp(a, 0.5, 0.036), scalp(a, 0.36, 0.044), scalp(a, 0.2, 0.048)], 0.06, 0.01, [Math.sin(a), 0.6, Math.cos(a)]);
+  }
+
   if (id === 'office01') {
-    // long straight hair falling behind the shoulders, side-swept fringe, elegant low ponytail over the shoulder
-    sc.loft('hair', sectionsFrom([
-      { y: Hy(0.46), cz: -0.07, rx: 0.17, rz: 0.19, n: 2.3 }, { y: Hy(0.3), cz: -0.115, rx: 0.2, rz: 0.15, n: 2.3 }, { y: Hy(0.1), cz: -0.14, rx: 0.2, rz: 0.115, n: 2.3 },
-      { y: Hy(-0.12), cz: -0.21, rx: 0.225, rz: 0.1, n: 2.3 }, { y: Hy(-0.36), cz: -0.265, rx: 0.235, rz: 0.1, n: 2.3 }, { y: Hy(-0.62), cz: -0.28, rx: 0.215, rz: 0.085, n: 2.3 }, { y: Hy(-0.84), cz: -0.28, rx: 0.12, rz: 0.05, n: 2.1 }], 36), { N: 40, offset: 0 });
-    for (const [x, ex] of [[-0.19, -0.2], [0.19, 0.22]]) lock(sc, 'hair', [[x, Hy(0.34), 0.09], [x * 1.06, Hy(0.1), 0.115], [ex, Hy(-0.2), 0.17], [ex * 1.02, Hy(-0.46), 0.225]], 0.036, 0.012, 0.024);
     glasses(sc);
   } else if (id === 'nurse01') {
-    // soft curtain bangs and gentle waves with a nurse cap
-    sc.loft('hair', sectionsFrom([
-      { y: Hy(0.46), cz: -0.07, rx: 0.17, rz: 0.19, n: 2.3 }, { y: Hy(0.3), cz: -0.115, rx: 0.205, rz: 0.15, n: 2.3 }, { y: Hy(0.1), cz: -0.145, rx: 0.215, rz: 0.12, n: 2.3 },
-      { y: Hy(-0.12), cz: -0.215, rx: 0.24, rz: 0.105, n: 2.3 }, { y: Hy(-0.34), cz: -0.265, rx: 0.255, rz: 0.1, n: 2.3 }, { y: Hy(-0.54), cz: -0.275, rx: 0.235, rz: 0.085, n: 2.3 }, { y: Hy(-0.7), cz: -0.275, rx: 0.12, rz: 0.04, n: 2.1 }], 36), { N: 40 });
-    for (const side of [-1, 1]) lock(sc, 'hair', [[side * 0.2, Hy(0.34), 0.08], [side * 0.225, Hy(0.08), 0.11], [side * 0.255, Hy(-0.22), 0.16], [side * 0.27, Hy(-0.46), 0.215]], 0.04, 0.012, 0.026);
-    // nurse cap
     sc.box('cloth', [0, Hy(0.585), 0.03], [0.34, 0.1, 0.17], [-0.2, 0, 0]);
     sc.box('cloth', [0, Hy(0.555), 0.05], [0.37, 0.025, 0.2], [-0.2, 0, 0]);
     sc.box('accent', [0, Hy(0.6), 0.115], [0.026, 0.07, 0.006], [-0.2, 0, 0]); sc.box('accent', [0, Hy(0.6), 0.115], [0.07, 0.026, 0.006], [-0.2, 0, 0]);
-    sc.box('accent', [0.15, Hy(0.43), 0.1], [0.07, 0.014, 0.014], [0, -0.4, 0.5]);
+    sc.box('accent', [0.15, Hy(0.45), 0.12], [0.07, 0.014, 0.014], [0, -0.4, 0.5]);
   } else {
-    // CEO: sleek long dark hair, deep side part, soft wave, gold clip and hoop earrings
-    sc.loft('hair', sectionsFrom([
-      { y: Hy(0.46), cz: -0.07, rx: 0.17, rz: 0.19, n: 2.3 }, { y: Hy(0.3), cz: -0.12, rx: 0.205, rz: 0.155, n: 2.3 }, { y: Hy(0.1), cz: -0.15, rx: 0.215, rz: 0.125, n: 2.3 },
-      { y: Hy(-0.14), cz: -0.215, rx: 0.235, rz: 0.11, n: 2.3 }, { y: Hy(-0.4), cz: -0.265, rx: 0.245, rz: 0.1, n: 2.3 }, { y: Hy(-0.68), cz: -0.275, rx: 0.225, rz: 0.09, n: 2.3 }, { y: Hy(-0.92), cz: -0.275, rx: 0.13, rz: 0.045, n: 2.1 }], 36), { N: 40 });
-    for (const side of [-1, 1]) {
-      lock(sc, 'hair', [[side * 0.2, Hy(0.34), 0.085], [side * 0.222, Hy(0.08), 0.115], [side * 0.245, Hy(-0.24), 0.17], [side * 0.255, Hy(-0.46), 0.215]], 0.038, 0.012, 0.026);
-      earring(sc, side, Hy(0.16));
-    }
+    for (const side of [-1, 1]) earring(sc, side, Hy(0.16));
   }
 }
 function hairCover(sc, frontY) {
@@ -733,12 +784,6 @@ function hairCover(sc, frontY) {
   // volume grows toward the crown so the hair reads as hair, not a helmet
   const puff = (x, y, z, s, zf, xf) => { const d = faceDeform(x, y, z, s, zf, xf); const k = 1 + 0.07 * smooth(0.3, 0.52, y - CHIN); return [s.cx + (d[0] - s.cx) * k, d[1], s.cz + (d[2] - s.cz) * k]; };
   sc.loft('hair', headSecs(), { N: 120, offset: 0.022, deform: trimmed(puff, trim, true) });
-  const edge = [];
-  for (let i = 0; i <= 40; i += 1) {
-    const x = -0.175 + 0.35 * (i / 40); const y = CHIN + frontY(x) + 0.006;
-    edge.push([x, y, headSurfaceZ(y, x) + 0.032 - 0.04 * Math.pow(Math.abs(x) / 0.175, 3)]);
-  }
-  sc.strand('hair', edge, 0.007, 0.007, 8, 2);
 }
 function lock(sc, kind, pts, w0, w1, th) { // flat hair lock: pts = [[x,y,z],...] top→bottom
   const keys = pts.map(([x, y, z], i) => { const t = i / (pts.length - 1); return { y, cx: x, cz: z, rx: lerp(w0, Math.max(w1, w0 * 0.3), Math.pow(t, 0.8)), rz: th * (1 - t * 0.35), n: 2 }; });
