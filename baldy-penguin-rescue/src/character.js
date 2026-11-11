@@ -182,7 +182,7 @@ export function animateMan(man, dt, s) {
   const k = Math.min(1, dt * 12);
   let legL = 0, legR = 0, armL = 0, armR = 0, bodyY = 0, lean = 0, armSide = 0.18;
   if (s.sled) {
-    legL = legR = -1.45; armL = armR = -0.5; bodyY = -0.42; lean = -0.12;
+    legL = legR = -1.45; armL = armR = -0.5; bodyY = -0.42 + (man.sledModel?.userData.lift || 0); lean = -0.12;
   } else if (!s.grounded) {
     legL = 0.5; legR = -0.3; armL = armR = -2.6; armSide = 0.5;
   } else if (s.speed > 0.4) {

@@ -5,7 +5,16 @@ const CSS = `
 .pr-top{position:absolute;left:20px;top:20px;display:flex;gap:12px;align-items:center}
 .pr-pill{background:rgba(255,255,255,.92);border-radius:40px;padding:10px 22px;font-size:36px;font-weight:900;box-shadow:0 5px 0 rgba(36,64,92,.18);display:flex;align-items:center;gap:8px;min-height:60px}
 .pr-pill small{font-size:24px;opacity:.6}
-.pr-level{position:absolute;left:20px;top:96px;background:rgba(42,111,176,.9);color:#fff;border-radius:30px;padding:6px 20px;font-size:28px;font-weight:900;box-shadow:0 4px 0 rgba(36,64,92,.25)}
+.pr-row2{position:absolute;left:20px;top:96px;display:flex;gap:10px;align-items:center}
+.pr-chip{background:rgba(255,255,255,.92);border-radius:30px;padding:6px 16px;font-size:28px;font-weight:900;box-shadow:0 4px 0 rgba(36,64,92,.25);white-space:nowrap}
+.pr-chip.low{background:#ff5d73;color:#fff;animation:prpulse .5s infinite alternate}
+@keyframes prpulse{to{transform:scale(1.12)}}
+#pr-hearts span{display:inline-block;transition:all .3s}
+#pr-hearts span.off{filter:grayscale(1);opacity:.3;transform:scale(.75)}
+#pr-flash{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(transparent 45%,rgba(255,40,70,.75))}
+#pr-flash.show{animation:prflash .6s ease-out}
+@keyframes prflash{0%{opacity:1}100%{opacity:0}}
+.pr-level{background:rgba(42,111,176,.9);color:#fff;border-radius:30px;padding:6px 20px;font-size:28px;font-weight:900;box-shadow:0 4px 0 rgba(36,64,92,.25)}
 .pr-level b{color:#ffe14a;margin-left:10px}
 #pr-banner{position:absolute;left:0;right:0;top:300px;text-align:center;pointer-events:none;opacity:0}
 #pr-banner.show{animation:prbanner 2.4s ease-out}
@@ -78,7 +87,12 @@ const HTML = `
     <div class="pr-pill">🐟 <span id="pr-fish">0</span></div>
     <div class="pr-pill pr-follow hide" id="pr-follow">🐧×<span id="pr-chain">0</span></div>
   </div>
-  <div class="pr-level">LEVEL <span id="pr-lv">1</span><b>⭐ <span id="pr-sum">0</span></b></div>
+  <div class="pr-row2">
+    <div class="pr-level">LEVEL <span id="pr-lv">1</span><b>⭐ <span id="pr-sum">0</span></b></div>
+    <div class="pr-chip" id="pr-hearts"><span>❤️</span><span>❤️</span><span>❤️</span></div>
+    <div class="pr-chip" id="pr-time">⏱ 0:00</div>
+  </div>
+  <div id="pr-flash"></div>
   <button class="pr-round" id="pr-pause" aria-label="Pause">⏸</button>
   <div id="pr-stick"><div id="pr-knob"></div></div>
   <button class="pr-act" id="pr-sled"><span>🛷</span>SLED</button>
@@ -124,7 +138,8 @@ const HTML = `
     <div class="pr-row"><i>🐧</i>Find the lost baby penguins under the blue lights.</div>
     <div class="pr-row"><i>🏠</i>Lead them home to the igloo with the orange light.</div>
     <div class="pr-row"><i>🐟</i>Grab golden fish for more stars and sled power.</div>
-    <div class="pr-row"><i>🌪️</i>Jump over snow whirlies or the penguins scatter!</div>
+    <div class="pr-row"><i>❤️</i>Dodge whirlies, ice spikes, snowballs and ice holes. You have 3 hearts!</div>
+    <div class="pr-row"><i>⏱</i>Get everyone home before the time runs out.</div>
     <button class="pr-big" id="pr-help-ok">OK!</button>
   </div>
 </div>
@@ -137,11 +152,21 @@ const HTML = `
     <button class="pr-mid" id="pr-restart">↻ START OVER</button>
   </div>
 </div>
+<div class="pr-screen pr-dim" id="pr-over">
+  <div class="pr-card">
+    <h2 id="pr-otitle">Game over</h2>
+    <div class="pr-stars" id="pr-oicon">💔</div>
+    <div class="pr-total">You reached level <span id="pr-olevel"></span></div>
+    <div class="pr-score" id="pr-oscore"></div>
+    <div class="pr-lb" id="pr-olb"></div>
+    <button class="pr-big" id="pr-retry" style="font-size:50px;white-space:nowrap;padding:0 36px">↻ TRY AGAIN</button>
+  </div>
+</div>
 <div class="pr-screen pr-dim" id="pr-win">
   <div class="pr-card">
     <h2 id="pr-wtitle">Level 1 done!</h2>
     <div class="pr-stars" id="pr-stars"><span>⭐</span><span>⭐</span><span>⭐</span></div>
-    <div class="pr-stat"><div>⏱ <span id="pr-wtime"></span></div><div>🐟 <span id="pr-wfish"></span></div></div>
+    <div class="pr-stat"><div>⏱ <span id="pr-wtime"></span></div><div>❤️ <span id="pr-whearts"></span></div><div>🐟 <span id="pr-wfish"></span></div></div>
     <div class="pr-score" id="pr-wscore"></div>
     <div class="pr-total">TOTAL ⭐ <span id="pr-wtotal"></span></div>
     <div class="pr-lb" id="pr-lb"></div>
@@ -157,7 +182,7 @@ export function createHud(handlers) {
   const style = document.createElement('style'); style.id = 'pr-css'; style.textContent = CSS; document.head.appendChild(style);
   const root = document.createElement('div'); root.id = 'pr-ui'; root.innerHTML = HTML; document.body.appendChild(root);
   const $ = id => root.querySelector('#' + id);
-  const screens = ['pr-menu', 'pr-help', 'pr-paused', 'pr-win', 'pr-shop', 'pr-board'];
+  const screens = ['pr-menu', 'pr-help', 'pr-paused', 'pr-win', 'pr-shop', 'pr-board', 'pr-over'];
   let helpBack = null, toastTimer = 0;
   const click = (id, fn) => $(id).addEventListener('click', () => { handlers.tap?.(); fn(); });
 
@@ -190,7 +215,8 @@ export function createHud(handlers) {
       b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
     },
     setMute(muted) { $('pr-mute').textContent = muted ? '🔇 SOUND OFF' : '🔊 SOUND ON'; },
-    showWin({ level, stars, time, fish, fishTotal, score, total }) {
+    showWin({ level, stars, time, hearts, fish, fishTotal, score, total }) {
+      $('pr-whearts').textContent = hearts;
       $('pr-wtitle').textContent = `Level ${level} done!`; $('pr-wtotal').textContent = total;
       const m = Math.floor(time / 60), s = Math.floor(time % 60);
       $('pr-wtime').textContent = `${m}:${String(s).padStart(2, '0')}`;
@@ -201,12 +227,24 @@ export function createHud(handlers) {
       for (let i = 0; i < 3; i++) { spans[i].classList.remove('on'); if (i < stars) setTimeout(() => spans[i].classList.add('on'), 350 + i * 350); }
       hud.show('win');
     },
-    setLeaderboard(entries) {
-      const box = $('pr-lb'); box.innerHTML = '';
+    setLeaderboard(entries, id = 'pr-lb') {
+      const box = $(id); box.innerHTML = '';
       (entries || []).slice(0, 3).forEach((e, i) => {
         const row = document.createElement('div'), a = document.createElement('span'), b = document.createElement('span');
         a.textContent = `${i + 1}. ${e.username || 'Player'}`; b.textContent = e.score; row.append(a, b); box.appendChild(row);
       });
+    },
+    setHearts(n) { [...$('pr-hearts').children].forEach((h, i) => h.classList.toggle('off', i >= n)); },
+    setTime(sec) {
+      const s = Math.ceil(sec), t = $('pr-time');
+      t.textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; t.classList.toggle('low', s <= 15);
+    },
+    flash() { const f = $('pr-flash'); f.classList.remove('show'); void f.offsetWidth; f.classList.add('show'); },
+    showOver({ why, level, total }) {
+      $('pr-otitle').textContent = why === 'time' ? "Time's up!" : 'Out of hearts!';
+      $('pr-oicon').textContent = why === 'time' ? '⏰' : '💔';
+      $('pr-olevel').textContent = level; $('pr-oscore').textContent = total; $('pr-olb').innerHTML = '';
+      hud.show('over');
     },
     setWallet(fish) { $('pr-wallet').textContent = fish; $('pr-shop-fish').textContent = fish; },
     setShop({ name, price, owned, active, fish, index, count }) {
@@ -244,5 +282,6 @@ export function createHud(handlers) {
   click('pr-mute', () => handlers.mute());
   click('pr-restart', () => handlers.restart());
   click('pr-next', () => handlers.next());
+  click('pr-retry', () => handlers.restart());
   return hud;
 }

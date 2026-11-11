@@ -1,6 +1,6 @@
 // Game loop and rules: Baldy explores the valley, lost baby penguins follow him, and he leads them home.
 import { WORLD, onIce, layoutWorld, clampHome, finalScore, starsFor, levelPlan } from './terrain.js';
-import { buildScene, buildBeacon, buildFish, buildShadow, buildArrow, buildSparkles } from './world.js';
+import { buildScene, buildBeacon, buildFish, buildShadow, buildArrow, buildSparkles, buildSnowball, buildHeart } from './world.js';
 import { SLEDS } from './sleds.js';
 import { buildMan, setSled, animateMan, buildPenguin, animatePenguin, buildWhirly, animateWhirly } from './character.js';
 import { createHud } from './hud.js';
@@ -65,8 +65,8 @@ export function registerParameters(mode) {
 
 function createGame(mode, autoPlay) {
   const cfg = readConfig(), plan = levelPlan(mode === 'edit' ? 1 : session.level, cfg), home = plan.home;
-  const layout = layoutWorld(home, plan.penguins, plan.fish, plan.seed);
-  const world = buildScene(home, layout, cfg.snowfall, plan.theme), scene = world.scene, H = world.H;
+  const layout = layoutWorld(home, plan.penguins, plan.fish, plan.seed, { clumps: plan.biome.clumps, rocks: plan.biome.rocks, snowmen: plan.snowmen, huts: plan.huts, spikes: plan.spikes, holes: plan.holes });
+  const world = buildScene(home, layout, cfg.snowfall, plan.theme, plan.biome.id), scene = world.scene, H = world.H;
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   const canvas = renderer.domElement;
@@ -88,6 +88,7 @@ function createGame(mode, autoPlay) {
   const solids = [
     ...layout.trees.map(t => ({ x: t.x, z: t.z, r: 0.75 * t.s })),
     ...layout.rocks.map(r => ({ x: r.x, z: r.z, r: r.r })),
+    ...layout.snowmen.map(m => ({ x: m.x, z: m.z, r: m.r * m.s })), ...layout.huts.map(h => ({ x: h.x, z: h.z, r: h.r })),
     { x: home.x, z: home.z, r: 4.3 }, { x: home.x, z: home.z + 4.4, r: 1.9 }, { x: home.x + 3.4, z: home.z + 6.6, r: 0.9 },
   ];
 
@@ -119,12 +120,32 @@ function createGame(mode, autoPlay) {
     }
   }
 
+  // rolling snowballs: cross the valley in straight lines and burst on anything solid
+  const BALL_R = 1.35, balls = [];
+  function launchBall(b) {
+    for (let k = 0; k < 20; k++) {
+      const a = Math.random() * 6.283, edge = WORLD.radius - 6, tx = (Math.random() - 0.5) * 120, tz = (Math.random() - 0.5) * 120;
+      b.x = Math.cos(a) * edge; b.z = Math.sin(a) * edge;
+      const d = Math.hypot(tx - b.x, tz - b.z) || 1; b.dx = (tx - b.x) / d; b.dz = (tz - b.z) / d;
+      if (Math.hypot(b.x - player.x, b.z - player.z) > 30) break;
+    }
+    b.grow = 0;
+  }
+  for (let i = 0; i < plan.balls; i++) {
+    const model = buildSnowball(BALL_R); scene.add(model);
+    const shadow = buildShadow(1.2); scene.add(shadow);
+    const b = { model, shadow, x: 0, z: 0, dx: 1, dz: 0, grow: 0 }; launchBall(b); balls.push(b);
+  }
+  const heartPickup = layout.heart ? { mesh: buildHeart(), x: layout.heart.x, z: layout.heart.z, taken: false } : null;
+  if (heartPickup) scene.add(heartPickup.mesh);
+
   const arrow = buildArrow(); arrow.visible = false; arrow.scale.setScalar(0.7); scene.add(arrow);
   const sparkles = buildSparkles(scene);
   const snowBase = world.snow ? world.snow.geometry.attributes.position.array.slice() : null;
 
   // ---------- state ----------
   let phase = mode === 'edit' ? 'edit' : 'menu';
+  let hearts = 3, timeLeft = plan.timeLimit, shownTime = -1, overT = -1, overWhy = '';
   let time = 0, clock = 0, winT = -1, raf = 0, last = performance.now(), disposed = false, stepT = 0;
   let camYaw = Math.PI, camPitch = 0.36, camDist = 9.5;
 
@@ -157,7 +178,7 @@ function createGame(mode, autoPlay) {
   });
   const input = createInput(hud.root, hud.buttons);
   hud.setCounts(0, penguins.length, 0); hud.setFish(0); hud.setMute(isMuted()); hud.setBest(savedBest, session.level);
-  hud.setLevel(plan.level, session.score); hud.setWallet(store.fish);
+  hud.setLevel(plan.level, session.score); hud.setWallet(store.fish); hud.setHearts(hearts); hud.setTime(timeLeft);
   let shopIndex = 0;
   function showShop() {
     const item = SLEDS[shopIndex], owned = store.owned.includes(item.id);
@@ -171,7 +192,7 @@ function createGame(mode, autoPlay) {
 
   function begin() {
     phase = 'play'; input.enabled = true; input.reset(); hud.show('play'); camYaw = Math.PI; camPitch = 0.36; player.yaw = 0;
-    hud.banner(`LEVEL ${plan.level}`, `🐧 ×${penguins.length}`);
+    hud.banner(`LEVEL ${plan.level}`, `${plan.biome.name} · 🐧 ×${penguins.length}`);
   }
 
   if (phase === 'edit') { hud.editMode(); scene.fog = null; setupEditor(); }
@@ -253,6 +274,7 @@ function createGame(mode, autoPlay) {
     const p = player;
     man.root.position.set(p.x, p.y, p.z);
     man.root.rotation.y = p.yaw + (p.spin > 0 ? (0.8 - p.spin) * 16 : 0);
+    man.root.visible = !(phase === 'play' && p.safe > 0 && p.safe < 2.6 && Math.floor(clock * 14) % 2);
     manShadow.position.set(p.x, H(p.x, p.z) + 0.06, p.z);
     manShadow.scale.setScalar(clamp(1 - (p.y - H(p.x, p.z)) * 0.25, 0.4, 1));
     void dt;
@@ -348,8 +370,9 @@ function createGame(mode, autoPlay) {
       w.model.root.position.set(w.x, gy, w.z);
       w.model.face.rotation.y = Math.atan2(camera.position.x - w.x, camera.position.z - w.z);
       animateWhirly(w.model, dt);
-      if (phase === 'play' && p.safe <= 0 && Math.hypot(p.x - w.x, p.z - w.z) < 2.3 && p.y - gy < 1.0) {
-        p.safe = 4; p.spin = 0.8; p.sled = false;
+      if (phase === 'play' && p.safe <= 0 && winT < 0 && Math.hypot(p.x - w.x, p.z - w.z) < 2.3 && p.y - gy < 1.0) {
+        const ox2 = p.x - w.x, oz2 = p.z - w.z, d2 = Math.hypot(ox2, oz2) || 1;
+        hurt(ox2 / d2, oz2 / d2, 6); p.spin = 0.8;
         sfx.whoosh(); sparkles.burst('snow', p.x, p.y + 1, p.z, 12, 5);
         if (chain.length) { scatterChain(); hud.toast('🌪️ Whoosh!'); buzz('warning'); } else buzz('tap');
       }
@@ -363,7 +386,7 @@ function createGame(mode, autoPlay) {
       f.phase += dt;
       f.mesh.position.set(f.x, f.y + Math.sin(f.phase * 2.2) * 0.2, f.z); f.mesh.rotation.y = f.phase * 1.8;
       if (phase === 'play' && Math.hypot(p.x - f.x, p.z - f.z) < 1.9 && Math.abs(p.y + 1 - f.y) < 2.6) {
-        f.taken = true; f.mesh.visible = false; fishCount++; store.fish++;
+        f.taken = true; f.mesh.visible = false; fishCount++; store.fish++; timeLeft += 2;
         p.energy = Math.min(1, p.energy + 0.3);
         sfx.fish(); buzz('tick'); sparkles.burst('star', f.x, f.y, f.z, 5, 2);
         hud.setFish(fishCount);
@@ -414,13 +437,95 @@ function createGame(mode, autoPlay) {
     world.snow.geometry.attributes.position.needsUpdate = true;
   }
 
+  // ---------- hearts, hazards and the clock ----------
+  function hurt(dx, dz, power = 9) {
+    const p = player;
+    if (p.safe > 0 || phase !== 'play' || winT > 0 || overT > 0) return false;
+    hearts--; p.safe = 2.6; p.spin = 0.55; p.sled = false; p.vx = dx * power; p.vz = dz * power;
+    sfx.ouch(); buzz('error'); hud.setHearts(hearts); hud.flash();
+    sparkles.burst('snow', p.x, p.y + 1, p.z, 10, 4);
+    if (hearts <= 0) { overT = 0.9; overWhy = 'hearts'; }
+    return true;
+  }
+
+  function updateHazards(dt) {
+    const p = player, playing = phase === 'play', ground = H(p.x, p.z), low = p.y - ground < 1.0;
+    if (playing && low) {
+      for (const sp of layout.spikes) {
+        const ox = p.x - sp.x, oz = p.z - sp.z, d = Math.hypot(ox, oz);
+        if (d < sp.r + 0.35) { hurt(ox / (d || 1), oz / (d || 1), 10); p.x = sp.x + ox / (d || 1) * (sp.r + 0.5); p.z = sp.z + oz / (d || 1) * (sp.r + 0.5); break; }
+      }
+    }
+    if (playing && p.grounded) {
+      for (const hole of layout.holes) {
+        const ox = p.x - hole.x, oz = p.z - hole.z, d = Math.hypot(ox, oz);
+        if (d < hole.r - 0.3) {                                    // splash! climb out on the side you came from
+          const sp = Math.hypot(p.vx, p.vz), bx = sp > 0.5 ? -p.vx / sp : ox / (d || 1), bz = sp > 0.5 ? -p.vz / sp : oz / (d || 1);
+          const wasSafe = p.safe > 0;
+          sfx.splash(); sparkles.burst('snow', hole.x, 0.6, hole.z, 12, 4);
+          p.x = hole.x + bx * (hole.r + 1.6); p.z = hole.z + bz * (hole.r + 1.6);
+          if (wasSafe) { p.vx = p.vz = 0; } else hurt(bx, bz, 3);
+          break;
+        }
+      }
+    }
+    balls.forEach(b => {
+      b.grow = Math.min(1, b.grow + dt * 2);
+      b.x += b.dx * plan.ballSpeed * dt; b.z += b.dz * plan.ballSpeed * dt;
+      const gy = H(b.x, b.z);
+      let burst = Math.hypot(b.x, b.z) > WORLD.radius - 3 || Math.hypot(b.x - home.x, b.z - home.z) < 13;
+      if (!burst) for (const s of solids) if (Math.hypot(b.x - s.x, b.z - s.z) < s.r + BALL_R * 0.7) { burst = true; break; }
+      if (!burst && playing && Math.hypot(b.x - p.x, b.z - p.z) < BALL_R + 0.45 && p.y - gy < BALL_R * 1.7) {
+        if (hurt(b.dx, b.dz, 12)) burst = true;
+      }
+      if (burst) {
+        if (Math.hypot(b.x - p.x, b.z - p.z) < 45) { sparkles.burst('snow', b.x, gy + 1, b.z, 10, 5); if (Math.hypot(b.x - p.x, b.z - p.z) < 18) sfx.pop(); }
+        launchBall(b);
+      }
+      const r = BALL_R * (0.3 + 0.7 * b.grow);
+      b.model.position.set(b.x, H(b.x, b.z) + r, b.z); b.model.scale.setScalar(0.3 + 0.7 * b.grow);
+      b.model.userData.ball.rotateOnWorldAxis(rollAxis.set(b.dz, 0, -b.dx), plan.ballSpeed * dt / BALL_R);
+      b.shadow.position.set(b.x, H(b.x, b.z) + 0.06, b.z);
+    });
+    if (heartPickup && !heartPickup.taken) {
+      const m = heartPickup.mesh, hy = H(heartPickup.x, heartPickup.z) + 1.3;
+      m.position.set(heartPickup.x, hy + Math.sin(clock * 2.5) * 0.2, heartPickup.z); m.rotation.y = clock * 2; m.scale.setScalar(1 + Math.sin(clock * 5) * 0.08);
+      if (playing && hearts < 3 && Math.hypot(p.x - heartPickup.x, p.z - heartPickup.z) < 1.9) {
+        heartPickup.taken = true; m.visible = false; hearts++;
+        sfx.heart(); buzz('success'); hud.setHearts(hearts); sparkles.burst('heart', heartPickup.x, hy, heartPickup.z, 10, 3);
+      }
+    }
+  }
+  const rollAxis = new THREE.Vector3();
+
+  function updateClock(dt) {
+    if (winT > 0 || overT > 0) return;
+    timeLeft = Math.max(0, timeLeft - dt);
+    const s = Math.ceil(timeLeft);
+    if (s !== shownTime) { shownTime = s; hud.setTime(timeLeft); if (s <= 15 && s > 0) { sfx.tick(); if (s === 15) buzz('warning'); } }
+    if (timeLeft <= 0) { overT = 0.6; overWhy = 'time'; player.sled = false; }
+  }
+
+  function gameOver() {
+    phase = 'over'; input.enabled = false; input.reset(); player.vx = player.vz = 0; player.sled = false; arrow.visible = false;
+    sfx.lose(); buzz('error');
+    const total = session.score + delivered * 100 + fishCount * 10;     // what was rescued this level still counts
+    savedBest = Math.max(savedBest, total);
+    hud.showOver({ why: overWhy, level: plan.level, total });
+    try {
+      Promise.resolve(lib.addPlayerScoreToLeaderboard(total, 3)).then(r => { if (!disposed && r?.entries) hud.setLeaderboard(r.entries, 'pr-olb'); }).catch(() => {});
+    } catch (e) { /* no leaderboard here */ }
+    session.level = 1; session.score = 0; saveProgress();              // the next run starts fresh; the fish wallet is kept
+    log(`Game over on level ${plan.level} (${overWhy}): total ${total}`);
+  }
+
   // ---------- win ----------
   function win() {
     phase = 'win'; input.enabled = false; input.reset(); player.vx = player.vz = 0; player.sled = false; arrow.visible = false;
-    const score = finalScore(delivered, fishCount, time), stars = starsFor(fishCount, fishes.length, time, delivered);
+    const score = finalScore(delivered, fishCount, timeLeft, hearts), stars = starsFor(hearts, fishCount, fishes.length);
     sfx.win(); buzz('success');
     session.score += score;
-    hud.showWin({ level: plan.level, stars, time, fish: fishCount, fishTotal: fishes.length, score, total: session.score });
+    hud.showWin({ level: plan.level, stars, time: timeLeft, hearts, fish: fishCount, fishTotal: fishes.length, score, total: session.score });
     hud.setLevel(plan.level, session.score);
     savedBest = Math.max(savedBest, session.score);
     session.level++; saveProgress(); session.level--;               // a returning player starts at the next level
@@ -461,14 +566,15 @@ function createGame(mode, autoPlay) {
     if (phase === 'paused') { renderer.render(scene, camera); return; }
     clock += dt;
     if (phase === 'play') {
-      time += dt; updatePlayer(dt);
+      time += dt; updatePlayer(dt); updateClock(dt);
       if (winT > 0) { winT -= dt; if (winT <= 0) win(); }
+      else if (overT > 0) { overT -= dt; if (overT <= 0) gameOver(); }
     } else if (phase !== 'edit') {
       animateMan(man, dt, { speed: phase === 'shop' ? 6 : 0, grounded: true, sled: phase === 'shop', cheer: phase === 'win' });
       if (phase === 'menu') player.yaw = lerpAngle(player.yaw, camYaw, Math.min(1, dt * 2));
     }
     placeMan(dt);
-    updatePenguins(dt); updateWhirlies(dt); updateFish(dt); updateArrow();
+    updatePenguins(dt); updateWhirlies(dt); updateHazards(dt); updateFish(dt); updateArrow();
     sparkles.update(dt);
     world.igloo.userData.flag.rotation.y = Math.sin(clock * 3) * 0.3;
     if (phase !== 'edit') updateCamera(dt);
@@ -481,7 +587,7 @@ function createGame(mode, autoPlay) {
     setBest(best) { hud.setBest(best, session.level); },
     applyStore() { hud.setBest(savedBest, session.level); hud.setWallet(store.fish); setSled(man, store.sled); },
     inMenu() { return phase === 'menu'; },
-    debug: { player, penguins, fishes, whirlies, home, get phase() { return phase; }, get chain() { return chain; }, get delivered() { return delivered; } },
+    debug: { player, penguins, fishes, whirlies, home, layout, balls, plan, get hearts() { return hearts; }, set timeLeft(v) { timeLeft = v; }, get timeLeft() { return timeLeft; }, get phase() { return phase; }, get chain() { return chain; }, get delivered() { return delivered; } },
     dispose() {
       disposed = true; cancelAnimationFrame(raf); clearTimeout(restartTimer);
       window.removeEventListener('resize', resize);

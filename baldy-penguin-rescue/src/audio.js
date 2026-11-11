@@ -59,6 +59,12 @@ export const sfx = {
   home() { [523, 659, 784].forEach((f, i) => tone(f, i * 0.08, 0.16, 'triangle', 0.3)); },
   whoosh() { noise(0.7, 0.5, 300, 2400); tone(500, 0, 0.5, 'sine', 0.12, 160); },
   sled() { noise(0.25, 0.2, 1800, 600); },
+  ouch() { tone(520, 0, 0.16, 'square', 0.16, 180); tone(300, 0.14, 0.2, 'square', 0.14, 120); },
+  splash() { noise(0.5, 0.5, 900, 250); tone(260, 0, 0.3, 'sine', 0.2, 90); },
+  heart() { [660, 880, 1320].forEach((f, i) => tone(f, i * 0.07, 0.16, 'sine', 0.28)); },
+  tick() { tone(980, 0, 0.07, 'square', 0.1); },
+  pop() { noise(0.25, 0.35, 700, 200); },
+  lose() { [392, 330, 262, 196].forEach((f, i) => tone(f, i * 0.2, 0.32, 'triangle', 0.3)); },
   tap() { tone(700, 0, 0.06, 'triangle', 0.2); },
   win() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.13, 0.28, 'triangle', 0.32)); },
 };

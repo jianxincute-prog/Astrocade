@@ -4,15 +4,16 @@ A kid-friendly 3D third-person winter adventure for Astrocade. Baldy — a cheer
 explores a round snowy valley (about 224 m across), finds lost baby penguins under blue light beams, and leads
 them home to the igloo under the orange beam. Penguins waddle behind him in a line (and belly-slide when he sleds).
 
-- **Golden fish** add score/stars and refill sled power.
+- **Golden fish** add score, two seconds on the clock and sled power, and fill a saved wallet for the shop.
 - **SLED** gives a speed boost (extra fast downhill) while the power ring lasts.
-- **Snow whirlies** wander the valley. Touching one scatters the penguin line a few metres; jump over it to stay safe.
-- There is no way to lose. When every penguin is home the level is done and the next one is generated: a new igloo spot,
-  new hills and layout, a new sky mood, one more penguin, and every other level one more (slightly faster) whirly.
-  Score (penguins, fish, time bonus) keeps adding up across levels; progress and best total are saved.
-
-Fish picked up in levels also go into a saved wallet. The main menu has a **Sled Shop** (browse skins on a 3D turntable,
-buy with fish, pick which one to use) and a **Top** leaderboard screen.
+- **Three hearts and a countdown.** Every level has a time limit (70 s + 40 s per penguin). Hazards cost a heart:
+  snow whirlies (also scatter the penguin line), ice spikes (jump over them), rolling snowballs (step aside; they burst on
+  trees and rocks) and fishing holes in the lake ice (jump over them). One spare heart floats somewhere in each level.
+  No hearts or no time left means game over: the total goes to the leaderboard and the next run starts at level 1.
+- **Endless levels in four places** that rotate: Pine Valley, Frozen Lake (a huge slippery lake with huts and ice holes),
+  Crystal Fields (giant ice crystals, extra spikes) and Snowman Hills (tall hills, snowmen, extra snowballs). Each level
+  has a new igloo spot, hills and layout, one more penguin and steadily more hazards. Score keeps adding up.
+- The main menu has a **Sled Shop** (six differently shaped sleds on a 3D turntable, bought with fish) and a **Top** screen.
 
 ## Controls
 - Touch: left thumbstick moves, drag elsewhere to look, JUMP and SLED buttons on the right.
