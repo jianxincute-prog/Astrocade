@@ -19,6 +19,8 @@ import { createInput } from './src/input.js';
 import { createHud } from './src/hud.js';
 import { createSpray } from './src/fx.js';
 import { createSky } from './src/sky.js';
+import { createLoading } from './src/loading.js';
+import { createMenu } from './src/menu.js';
 import { createIcons } from './src/icons.js';
 import { createAudio } from './src/audio.js';
 import { createShop } from './src/shop.js';
@@ -44,8 +46,9 @@ const FALL_MSG = {
 };
 const hasLib = () => typeof lib !== 'undefined';
 
-function run(mode) {
+function run(mode, loader) {
   if (teardown) teardown();
+  const t0 = performance.now();
   const root = document.getElementById('app') || document.body;
   const touch = (hasLib() && lib.shouldUseTouchControls) ? lib.shouldUseTouchControls() : ('ontouchstart' in window);
 
@@ -126,17 +129,20 @@ function run(mode) {
   }
 
 
+  if (loader) loader.set(0.6, 'Warming up the ice…');
   let raf = 0, last = performance.now(), clock = 0, clockT = 1;
-  let input = null, hud = null, sel = null, shop = null;
+  let input = null, hud = null, sel = null, shop = null, menu = null;
   const buff = { mul: 1, t: 0, label: '' };
   let shopView = null;
   const playing = mode !== 'edit';
+  if (!playing && loader) loader.done();
   let phase = 'loading'; // loading -> select -> play (character button returns to select)
   const pv = { d: 4.4, y: 1.0, zoom: false };
 
   // ---- Save / load (one slot per player)
   let lastSave = 0, lastScore = 0, lastScoreAt = 0;
   function saveState(force) {
+    if (phase === 'loading' || phase === 'menu') return; // nothing to save before the player has chosen to continue
     const now = performance.now();
     if (!force && now - lastSave < 10000) return;
     lastSave = now; progress.clearDirty();
@@ -196,6 +202,28 @@ function run(mode) {
       onPick: (k) => setCharacter(k), onZoom: (z) => { pv.zoom = z; }, onStart: () => startPlay(),
     });
     sel.hide(); root.classList.add('selecting');
+    const menuLine = () => 'Lv ' + progress.info().level + ' · Day ' + sky.day() + ' · ● ' + progress.coins();
+    let hasSave = false;
+    menu = createMenu(root, {
+      onPlay: () => { audio.play('tap'); if (hasSave) { menu.hide(); startPlay(); } else { menu.hide(); phase = 'select'; sel.show(); sel.mark(kind); } },
+      onNew: () => {
+        audio.play('tap'); progress = createProgress(null); outfit = {}; rebuildPlayer(); buff.mul = 1; buff.t = 0; hud.setBuff(null);
+        sky.setHour(9); sky.setDay(1); respawn(skater, HOME.spawn); lastLand.x = skater.x; lastLand.z = skater.z; hasSave = false;
+        input.setSpinVisible(false); menu.hide(); phase = 'select'; sel.show(); sel.mark(kind);
+      },
+      onSettings: () => { audio.play('tap'); hud.showSettings(settings); },
+      onHow: () => {
+        audio.play('tap');
+        hud.showCard({ kicker: 'HOW TO PLAY', title: 'Your winter life', button: 'Got it', html: (touch
+          ? '<p><b>Left stick</b> moves you. On the ice push it fully to stroke, ease off to glide.<br><b>PUSH</b> builds speed, <b>BRAKE</b> stops. Drag the screen to look around.</p>'
+          : '<p><b>WASD / arrows</b> move (push fully to stroke on the ice), <b>Space</b> brakes. Drag the screen to look around.</p>') +
+          '<p>Buy skates, learn tricks, earn coins and XP, shop for outfits, make friends and fall in love. Watch the clock: shops close and events come and go.</p>' });
+      },
+    });
+    hud.el.addEventListener('mainmenu', () => {
+      hud.hidePanel(); saveState(true); skater.vx = skater.vz = 0; skater.speed = 0; hasSave = true;
+      phase = 'menu'; menu.show({ hasSave: true, line: menuLine() });
+    });
     skater.x = SPAWN.x; skater.z = SPAWN.z; skater.h = SPAWN.h;
     rig.snap(skater);
     const onHide = () => { if (document.hidden) saveState(true); };
@@ -210,8 +238,13 @@ function run(mode) {
       if (saved && typeof saved.tod === 'number') sky.setHour(saved.tod);
       if (saved && typeof saved.day === 'number') sky.setDay(saved.day);
       input.setSpinVisible(progress.spinUnlocked());
-      if (saved && CHARACTERS.includes(saved.character)) { setCharacter(saved.character); sel.mark(saved.character); startPlay(); }
-      else { phase = 'select'; sel.show(); }
+      hasSave = !!(saved && CHARACTERS.includes(saved.character));
+      if (hasSave) { setCharacter(saved.character); sel.mark(saved.character); }
+      if (loader) loader.set(0.9, 'Ready to skate…');
+      setTimeout(() => { // keep the loading screen up long enough to read, then open the main menu
+        if (loader) loader.done();
+        root.classList.remove('selecting'); phase = 'menu'; menu.show({ hasSave, line: hasSave ? menuLine() : '' });
+      }, Math.max(300, 2300 - (performance.now() - t0)));
     });
   }
 
@@ -438,8 +471,16 @@ function run(mode) {
       // Character preview: stand still, camera sways in front (or zooms to the face).
       player.pose({ ...skater, mode: 'walk', speed: 0, stride: 0, strideAmp: 0, b: 0, fallAmt: 0, steer: 0, state: 'ok', spin: null, spinAng: 0 }, clock);
       player.place({ ...skater, mode: 'walk', y: 0 });
-      const tgtD = pv.zoom ? 1.15 : 4.4, tgtY = pv.zoom ? player.faceY - 0.075 : player.height * 0.36;
       const k = 1 - Math.exp(-4 * dt);
+      if (phase === 'menu' || phase === 'loading') { // slow cinematic sway around the skater
+        const a = skater.h + Math.PI + Math.sin(clock * 0.22) * 0.9;
+        camera.position.set(skater.x + Math.sin(a) * 6.6, skater.y + 1.7, skater.z + Math.cos(a) * 6.6);
+        camera.lookAt(skater.x, skater.y + 1.25, skater.z);
+        if (Math.abs(camera.fov - 42) > 0.05) { camera.fov += (42 - camera.fov) * k; camera.updateProjectionMatrix(); }
+        input.consumeRespawn(); input.consumeLook(); input.consumeSpin();
+        shadow.position.set(skater.x, 0.08, skater.z);
+      } else {
+      const tgtD = pv.zoom ? 1.15 : 4.4, tgtY = pv.zoom ? player.faceY - 0.075 : player.height * 0.36;
       pv.d += (tgtD - pv.d) * k; pv.y += (tgtY - pv.y) * k;
       const sw = Math.sin(clock * 0.5) * (pv.zoom ? 0.35 : 0.6);
       camera.position.set(skater.x + Math.sin(skater.h + sw) * pv.d, pv.y + (pv.zoom ? 0.02 : 0.3), skater.z + Math.cos(skater.h + sw) * pv.d);
@@ -447,6 +488,7 @@ function run(mode) {
       const f = pv.zoom ? 30 : 40; if (Math.abs(camera.fov - f) > 0.05) { camera.fov += (f - camera.fov) * k; camera.updateProjectionMatrix(); }
       input.consumeRespawn(); input.consumeLook(); input.consumeSpin();
       shadow.position.set(skater.x, 0.08, skater.z);
+      }
     } else if (playing) {
       if (input.consumeRespawn()) { respawn(skater, progress.canSkate() ? null : HOME.spawn); progress.resetRun(); rig.snap(skater); hasPrev = false; }
       const inp = input.read();
@@ -608,6 +650,8 @@ function run(mode) {
     if (input) input.destroy();
     if (hud) hud.destroy();
     if (sel) sel.destroy();
+    if (menu) menu.destroy();
+    if (loader) loader.destroy();
     if (shop) shop.destroy();
     npcs.dispose();
     player.dispose();
@@ -619,4 +663,8 @@ function run(mode) {
 
 // The platform boots the game by calling window.run(mode); publishing bundles game.js into an IIFE,
 // so run must be assigned to window explicitly.
-window.run = run;
+window.run = function (mode) {
+  const root = document.getElementById('app') || document.body, loader = createLoading(root);
+  loader.set(0.1, 'Preparing…');
+  setTimeout(() => { try { run(mode, loader); } catch (e) { loader.destroy(); throw e; } }, 60); // let the loading screen paint before the heavy setup
+};

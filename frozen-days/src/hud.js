@@ -40,6 +40,7 @@ const CSS = `
 #panel .bests{margin-top:16px;padding-top:14px;border-top:2px solid #c5d6e8;font-size:23px;font-weight:600;line-height:1.55}
 #panel .btns{display:flex;gap:16px;margin-top:20px}
 #panel button{flex:1;padding:18px;border-radius:22px;border:0;font-size:28px;font-weight:800;cursor:pointer;background:#3fa7ff;color:#fff}
+#panel .btns button{padding:18px 4px;font-size:23px;min-width:0;white-space:nowrap}
 #panel button.alt{background:#d6e3f1;color:#1d3a5c}
 #story{position:absolute;inset:0;display:none;pointer-events:auto;background:rgba(15,30,55,.5);z-index:65;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 #story .card{position:absolute;left:40px;right:40px;top:230px;padding:34px 34px 30px;border-radius:36px;background:rgba(240,246,252,.97);color:#1d3a5c;text-shadow:none;box-shadow:0 14px 50px rgba(8,20,40,.45)}
@@ -99,7 +100,7 @@ export function createHud(root, { touch }) {
     '<div id="dlg"><div class="who"><span id="dName"></span><span class="role" id="dRole"></span></div><div class="hearts" id="dHearts"></div><div class="txt" id="dTxt"></div><div class="ch" id="dCh"></div><div class="nxt">Tap to continue ▶</div></div>' +
     '<div id="charBtn" class="hbtn">☺ Character</div><div id="skillBtn" class="hbtn">★ Skills</div>' +
     '<div id="panel"><div class="card"><h2 id="pTitle"></h2><div class="sub" id="pSub"></div><div id="pRows"></div><div class="bests" id="pBests"></div>' +
-    '<div class="btns"><button class="alt" id="pWard">Wardrobe</button><button class="alt" id="pRespawn">Respawn</button><button class="alt" id="pSet">Settings</button><button id="pClose">Continue</button></div></div></div>' +
+    '<div class="btns"><button class="alt" id="pWard">Wardrobe</button><button class="alt" id="pRespawn">Respawn</button><button class="alt" id="pSet">Settings</button><button id="pClose">Continue</button></div><div class="btns"><button class="alt" id="pMenu">Main Menu</button></div></div></div>' +
     '<div id="story"><div class="card"><small id="stK"></small><h2 id="stT"></h2><div id="stP"></div><button id="stB">OK</button></div></div>' +
     '<div id="setp"><div class="card"><h2>Settings</h2><div id="setRows"></div><button class="done" id="setDone">Done</button></div></div>';
   root.appendChild(el);
@@ -116,6 +117,7 @@ export function createHud(root, { touch }) {
   function showCard(c) { cardOpen = true; $('stK').textContent = c.kicker || ''; $('stT').textContent = c.title; $('stP').innerHTML = c.html; $('stB').textContent = c.button || 'OK'; $('story').style.display = 'block'; }
   $('stB').addEventListener('click', () => { cardOpen = false; $('story').style.display = 'none'; el.dispatchEvent(new CustomEvent('cardclose')); });
   $('pClose').addEventListener('click', () => hidePanel());
+  $('pMenu').addEventListener('click', () => el.dispatchEvent(new CustomEvent('mainmenu')));
   $('pWard').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('wardrobe')); });
   $('pRespawn').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('respawn')); });
 
