@@ -8,8 +8,9 @@ gentle rolls, a hill and a bridge deck, and characters follow the ground height.
 anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), save, five NPCs with routines and dialogue.
 
 ## Controls
-- Touch: left stick steers (up = push, down = brake), PUSH and BRAKE buttons on the right, drag the view to look around.
-- Keyboard: W/↑ push, A/D steer, S/Space brake, E spin (Lv 3+), F talk, drag mouse to look, R respawn.
+- Camera: sweep (drag) the screen to rotate the view a full 360 degrees. The camera only follows the character's position; moving or steering never swings it.
+- Touch: the left stick gives a direction relative to the camera. On snow you walk that way; on ice you steer toward it (tilt = glide and turn, push fully = stroke, pull hard behind while fast = brake). PUSH adds a stroke, BRAKE stops.
+- Keyboard: WASD / arrows move relative to the camera, Space brake, E spin (Lv 3+), F talk, drag mouse to look, R respawn.
 
 ## Code structure
 - `game.js` — `run(mode)`: scene setup, game loop, edit-mode preview, settings panel.
@@ -25,7 +26,8 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 - `src/face.js` — hand-painted anime faces (eyes, brows, nose, mouth, blush) projected onto the head texture; open and blink variants.
 - `src/textures.js` — procedural canvas textures (quilted puffer, knit, twill, leather, hair, eyes) and the reflection environment.
 - `src/select.js` — character select overlay (Male/Female, face close-up, start).
+- `src/sky.js` — day-night cycle (sun, moon, stars, sky/fog colour, lamp and window glow) and four weather states (clear, cloudy, light snow, heavy snow) that blend smoothly; settings `world.dayMinutes`, `world.weather`, `world.hour`.
 - `src/camera.js`, `src/input.js`, `src/hud.js`, `src/fx.js` — chase camera, keyboard/touch input, DOM HUD, spray particles.
 
 ## Roadmap (see GDD)
-Next: day-night cycle and dynamic weather, then shops, currency and outfits, settings and audio.
+Next: shops, currency and outfits, then settings and audio.

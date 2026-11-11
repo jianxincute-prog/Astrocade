@@ -1,4 +1,4 @@
-// Keyboard + touch input. Output: steer (-1 left .. +1 right), push (0..1), brake (0..1).
+// Keyboard + touch input. Output: camera-relative move vector (mx, my), push (0/1), brake (0/1); dragging the view only turns the camera.
 import { clamp } from './util.js';
 
 export function createInput(root, canvas, { touch }) {
@@ -22,7 +22,7 @@ export function createInput(root, canvas, { touch }) {
   // Camera drag (mouse or finger on the 3D view).
   let dragId = null, lastX = 0;
   const onDown = (e) => { if (dragId === null) { dragId = e.pointerId; lastX = e.clientX; } };
-  const onMove = (e) => { if (e.pointerId === dragId) { lookDx += (e.clientX - lastX) * 0.006; lastX = e.clientX; } };
+  const onMove = (e) => { if (e.pointerId === dragId) { lookDx += (e.clientX - lastX) * 0.0075; lastX = e.clientX; } };
   const onUp = (e) => { if (e.pointerId === dragId) dragId = null; };
   canvas.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove);
@@ -64,16 +64,14 @@ export function createInput(root, canvas, { touch }) {
     ui.querySelector('#btnTalk').addEventListener('pointerdown', (e) => { e.preventDefault(); talkReq = true; });
   }
 
+  // Stick / WASD give a direction relative to the camera (x right, y away from the camera); PUSH and BRAKE are buttons.
   function read() {
-    const kx = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
-    let jx = Math.abs(joy.x) < 0.12 ? 0 : Math.sign(joy.x) * (Math.abs(joy.x) - 0.12) / 0.88;
-    const steer = clamp(kx + jx, -1, 1);
-    const jPush = joy.y > 0.35 ? clamp((joy.y - 0.35) / 0.4, 0, 1) : 0;
-    const jBrake = joy.y < -0.35 ? clamp((-joy.y - 0.35) / 0.4, 0, 1) : 0;
-    const push = Math.max(keys.has('w') || keys.has('arrowup') ? 1 : 0, btnPush ? 1 : 0, jPush);
-    const brake = Math.max(keys.has('s') || keys.has('arrowdown') || keys.has(' ') ? 1 : 0, btnBrake ? 1 : 0, jBrake);
-    return { steer, push, brake };
+    let x = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0) + joyDead(joy.x, joy.y)[0];
+    let y = (keys.has('w') || keys.has('arrowup') ? 1 : 0) - (keys.has('s') || keys.has('arrowdown') ? 1 : 0) + joyDead(joy.x, joy.y)[1];
+    const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+    return { mx: x, my: y, push: btnPush ? 1 : 0, brake: Math.max(keys.has(' ') ? 1 : 0, btnBrake ? 1 : 0) };
   }
+  function joyDead(jx, jy) { const m = Math.hypot(jx, jy); if (m < 0.12) return [0, 0]; const k = (m - 0.12) / 0.88 / m; return [jx * k, jy * k]; }
   function consumeLook() { const d = lookDx; lookDx = 0; return d; }
   function consumeRespawn() { const r = respawnReq; respawnReq = false; return r; }
   function requestRespawn() { respawnReq = true; }

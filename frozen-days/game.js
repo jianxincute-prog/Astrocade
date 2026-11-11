@@ -18,6 +18,7 @@ import { createCameraRig } from './src/camera.js';
 import { createInput } from './src/input.js';
 import { createHud } from './src/hud.js';
 import { createSpray } from './src/fx.js';
+import { createSky } from './src/sky.js';
 
 let teardown = null;
 
@@ -49,6 +50,7 @@ function run(mode) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, 9 / 16, 0.5, 450);
   const world = createWorld(scene);
+  const sky = createSky(scene, world);
   const spray = createSpray(scene);
   try { scene.environment = makeEnvironment(renderer); } catch (e) { /* reflections are optional */ }
   let kind = 'male', player = createCharacter(kind);
@@ -85,14 +87,17 @@ function run(mode) {
         'Push power': { key: 'skating.pushAccel', type: 'slider', min: 3, max: 14, step: 0.5 },
         'Ice slipperiness': { key: 'skating.iceFriction', type: 'slider', min: 0.02, max: 0.5, step: 0.01 },
         'Camera distance': { key: 'camera.distance', type: 'slider', min: 5, max: 14, step: 0.5 },
+        'Day length (minutes)': { key: 'world.dayMinutes', type: 'slider', min: 2, max: 30, step: 1 },
+        'Weather (0 auto, 1 clear, 2 cloudy, 3 light snow, 4 heavy)': { key: 'world.weather', type: 'slider', min: 0, max: 4, step: 1 },
+        'Hour (-1 = time flows)': { key: 'world.hour', type: 'slider', min: -1, max: 23, step: 1 },
       },
     });
   }
 
   // Developer hook (only when gameConfig.dev is set): jump to a spot to inspect the town.
-  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
+  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, sky, rig, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
 
-  let raf = 0, last = performance.now(), clock = 0;
+  let raf = 0, last = performance.now(), clock = 0, clockT = 1;
   let input = null, hud = null, sel = null;
   const playing = mode !== 'edit';
   let phase = 'loading'; // loading -> select -> play (character button returns to select)
@@ -104,7 +109,7 @@ function run(mode) {
     const now = performance.now();
     if (!force && now - lastSave < 10000) return;
     lastSave = now; progress.clearDirty();
-    try { if (hasLib() && lib.saveUserGameState) lib.saveUserGameState(Object.assign({ character: kind }, progress.serialize())).catch(() => {}); } catch (e) { /* save is optional */ }
+    try { if (hasLib() && lib.saveUserGameState) lib.saveUserGameState(Object.assign({ character: kind, tod: sky.hour() }, progress.serialize())).catch(() => {}); } catch (e) { /* save is optional */ }
   }
   function maybeSubmitScore() {
     const now = performance.now(), run = Math.round(progress.bestRun());
@@ -156,6 +161,7 @@ function run(mode) {
     root._frozenOnHide = onHide;
     loadState().then((saved) => {
       progress = createProgress(saved);
+      if (saved && typeof saved.tod === 'number') sky.setHour(saved.tod);
       input.setSpinVisible(progress.spinUnlocked());
       if (saved && CHARACTERS.includes(saved.character)) { setCharacter(saved.character); sel.mark(saved.character); startPlay(); }
       else { phase = 'select'; sel.show(); }
@@ -246,8 +252,10 @@ function run(mode) {
       if (input.consumeRespawn()) { respawn(skater); progress.resetRun(); rig.snap(skater); hasPrev = false; }
       const inp = input.read();
       inp.spin = input.consumeSpin();
-      if (hud.panelOpen || hud.dialogOpen) { inp.steer = 0; inp.push = 0; inp.brake = hud.dialogOpen ? 1 : 0; inp.spin = false; }
-      else if (inp.push > 0.1 || Math.abs(inp.steer) > 0.2) hud.hideHint();
+      if (hud.panelOpen || hud.dialogOpen) { inp.mx = 0; inp.my = 0; inp.push = 0; inp.brake = hud.dialogOpen ? 1 : 0; inp.spin = false; }
+      else if (inp.push > 0.1 || Math.hypot(inp.mx, inp.my) > 0.3) hud.hideHint();
+      inp.mag = Math.hypot(inp.mx, inp.my);
+      { const ya = rig.yaw; inp.tgtH = inp.mag > 0.01 ? Math.atan2(Math.sin(ya) * inp.my + Math.cos(ya) * inp.mx, Math.cos(ya) * inp.my - Math.sin(ya) * inp.mx) : null; }
       const steps = Math.max(1, Math.ceil(dt / (1 / 60))), h = dt / steps;
       for (let i = 0; i < steps; i++) { inp.spin = i === 0 ? inp.spin : false; updateSkater(skater, inp, h, c, world); }
       skater.y = world.heightAt(skater.x, skater.z);
@@ -304,6 +312,8 @@ function run(mode) {
     npcs.update(dt, skater.x, skater.z, talkNpc ? talkNpc.id : null);
     spray.update(dt);
     world.update(dt, camera.position);
+    sky.update(dt, camera.position, c);
+    clockT += dt; if (hud && clockT > 0.5) { clockT = 0; hud.setClock(sky.label()); }
     if (window.__frozen && window.__frozen.cam) { const o = window.__frozen.cam; camera.position.set(o.x, o.y, o.z); camera.lookAt(o.tx, o.ty, o.tz); if ((o.fov && camera.fov !== o.fov) || camera.far !== 1500) { if (o.fov) camera.fov = o.fov; camera.far = 1500; camera.updateProjectionMatrix(); } }
     renderer.render(scene, camera);
   }

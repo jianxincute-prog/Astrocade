@@ -407,5 +407,5 @@ export function createTown(scene) {
     for (const o of occupied) if (Math.hypot(x - o[0], z - o[1]) < o[2] + m) return true;
     return false;
   }
-  return { colliders, glowPts, flicker, trees, blocked };
+  return { colliders, glowPts, flicker, trees, blocked, lightMat };
 }

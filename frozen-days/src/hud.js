@@ -3,6 +3,7 @@ const CSS = `
 #hud{position:absolute;inset:0;pointer-events:none;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;text-shadow:0 2px 6px rgba(20,40,70,.55)}
 #hud .chip{position:absolute;top:28px;padding:10px 20px;border-radius:22px;background:rgba(25,50,85,.45);font-size:28px;font-weight:700;backdrop-filter:blur(4px)}
 #speed{left:24px}
+#hud #clock{left:50%;top:22px;transform:translateX(-50%);padding:6px 16px 7px;font-size:16px;line-height:1.25;text-align:center;border-radius:18px;white-space:pre;font-weight:700}
 #lvl{right:24px;width:236px;padding:8px 16px 10px;font-size:22px;text-align:left}
 #xpTrack{margin-top:6px;height:12px;border-radius:7px;background:rgba(255,255,255,.28);overflow:hidden}
 #xpFill{height:100%;width:0;background:linear-gradient(90deg,#ffd66b,#ffae3d);transition:width .3s}
@@ -62,10 +63,10 @@ export function createHud(root, { touch }) {
   const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
   const el = document.createElement('div'); el.id = 'hud';
   const hintText = touch
-    ? 'Hold <b>PUSH</b> to skate.<br>Steer with the stick.<br>Falling is part of learning!'
-    : '<b>W / ↑</b> push &nbsp; <b>A D</b> steer &nbsp; <b>S / Space</b> brake<br>Drag to look around.<br>Falling is part of learning!';
+    ? 'Move the stick to head that way.<br>Push it fully to stroke, <b>BRAKE</b> to stop.<br>Drag the screen to look around.'
+    : '<b>WASD / arrows</b> move (push fully to stroke) &nbsp; <b>Space</b> brake<br>Drag the screen to look around.<br>Falling is part of learning!';
   el.innerHTML =
-    '<div id="speed" class="chip">0 km/h</div>' +
+    '<div id="speed" class="chip">0 km/h</div><div id="clock" class="chip"></div>' +
     '<div id="lvl" class="chip"><div id="lvlTxt">Lv 1 · Beginner</div><div id="xpTrack"><div id="xpFill"></div></div></div><div id="xpPop"></div>' +
     '<div id="bal"><div>BALANCE</div><div id="balTrack"><div id="balFill"></div></div></div>' +
     '<div id="goal"><small>GOAL · tap to skip</small><span id="goalTxt"></span><div id="goalTrack"><div id="goalFill"></div></div></div>' +
@@ -88,6 +89,7 @@ export function createHud(root, { touch }) {
   $('pClose').addEventListener('click', () => hidePanel());
   $('pRespawn').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('respawn')); });
 
+  function setClock(t) { const e = $('clock'); if (e && e.textContent !== t) e.textContent = t; }
   function hideHint() { if (!hintHidden) { hintHidden = true; hintEl.classList.add('hide'); } }
   function toast(text, secs = 2.2) { toastEl.textContent = text; toastEl.classList.add('show'); toastTimer = secs; }
   function showPanel(prog, extra) {
@@ -143,5 +145,5 @@ export function createHud(root, { touch }) {
     if (!hintHidden) { hintTimer -= dt; if (hintTimer <= 0) hideHint(); }
   }
   function destroy() { el.remove(); style.remove(); }
-  return { el, update, toast, hideHint, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
+  return { el, update, toast, hideHint, setClock, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
 }

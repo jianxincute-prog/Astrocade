@@ -1,5 +1,5 @@
 // Skater state + physics: walking on snow, gliding on ice, balance, falling and getting up.
-import { clamp, lerp, ease, approach } from './util.js';
+import { clamp, lerp, ease, approach, angleDiff } from './util.js';
 import { skillsFor } from './config.js';
 import { MAP_HALF } from './layout.js';
 
@@ -32,10 +32,21 @@ function startFall(p, reason) {
 export function updateSkater(p, inp, dt, c, world) {
   const sk = c.skills || skillsFor(c.level);
   const ok = p.state === 'ok';
-  const steer = ok ? inp.steer : 0, push = ok ? inp.push : 0, brake = ok ? inp.brake : 0;
-  p.push = push; p.brake = brake;
-  // Steering has inertia on ice (edges take a moment to bite); snow turns respond faster.
   const onIce0 = world.onIce(p.x, p.z);
+  // The stick gives a world direction (relative to the camera). On ice it steers toward that direction (and strokes when pushed
+  // fully ahead, brakes when pulled hard behind); on snow the character simply walks that way.
+  const hasDir = ok && inp.tgtH !== null && inp.tgtH !== undefined && inp.mag > 0.15;
+  const dh = hasDir ? angleDiff(inp.tgtH, p.h) : 0, spd0 = Math.hypot(p.vx, p.vz);
+  let steer = 0, push = ok ? (inp.push || 0) : 0, brake = ok ? (inp.brake || 0) : 0;
+  if (onIce0 && hasDir) {
+    if (Math.abs(dh) > 2.3 && spd0 > 2.5) brake = Math.max(brake, Math.min(1, inp.mag * 1.3) * 0.8);
+    else {
+      steer = clamp(-dh * 1.6, -1, 1);
+      if (Math.abs(dh) < 1.3 && inp.mag > 0.55) push = Math.max(push, clamp((inp.mag - 0.55) / 0.35, 0, 1));
+    }
+  }
+  p.push = push; p.brake = brake;
+  // Steering has inertia on ice (edges take a moment to bite).
   p.steerS = approach(p.steerS, steer, (onIce0 ? lerp(4, 7, sk.control) : 12) * dt);
   p.steer = p.steerS;
   const onIce = world.onIce(p.x, p.z);
@@ -48,8 +59,8 @@ export function updateSkater(p, inp, dt, c, world) {
 
   // Heading: wider turns at higher speed on ice, pivot-in-place on snow.
   if (ok) {
-    if (onIce) p.h -= p.steerS * (lerp(2.0, 3.2, sk.control) / (1 + speed * 0.08)) * clamp(0.3 + speed / 3, 0, 1) * dt;
-    else p.h -= p.steerS * 2.8 * dt;
+    if (onIce) p.h -= p.steerS * (lerp(2.0, 3.2, sk.control) / (1 + speed * 0.08)) * clamp(0.5 + speed / 3, 0, 1) * dt;
+    else if (hasDir) p.h += clamp(dh, -12 * dt, 12 * dt);
   }
   const fx = Math.sin(p.h), fz = Math.cos(p.h);
   let vf = p.vx * fx + p.vz * fz;
@@ -128,9 +139,11 @@ export function updateSkater(p, inp, dt, c, world) {
     p.strideAmp = approach(p.strideAmp, p.stroking ? 1 : 0, 4 * dt); // pose blends between stroke and glide
   } else {
     // Walking on snow: direct control, strong friction, no balance loss.
-    const walk = 4.6;
-    const tx = ok ? fx * walk * push : 0, tz = ok ? fz * walk * push : 0;
-    const acc = (ok ? 22 : 9) * dt;
+    const walk = 5.6;
+    let want = push;
+    if (hasDir) want = Math.max(want, Math.min(1, inp.mag * 1.15) * clamp(1.3 - Math.abs(dh) / 1.4, 0.2, 1));
+    const tx = ok ? fx * walk * want : 0, tz = ok ? fz * walk * want : 0;
+    const acc = (ok ? 34 : 9) * dt;
     p.vx = approach(p.vx, tx, acc); p.vz = approach(p.vz, tz, acc);
     speed = Math.hypot(p.vx, p.vz);
     p.b = Math.max(0, p.b - 1.2 * dt); p.warned = false;

@@ -38,12 +38,6 @@ function glowTexture() {
 
 export function createWorld(scene) {
   const colliders = [];
-  scene.background = new T.Color(0xbfd9ee);
-  scene.fog = new T.Fog(0xcfe2f0, 80, 360);
-  scene.add(new T.HemisphereLight(0xdcecff, 0xcfdbe8, 0.55));
-  const sun = new T.DirectionalLight(0xfff1d6, 0.55);
-  sun.position.set(60, 90, 40);
-  scene.add(sun);
   const OUT = { thick: 0.0024, fade: 1 };
   const dummy = new T.Object3D(), hide = (m, i) => m.setMatrixAt(i, dummy.matrix.identity().scale(new T.Vector3(0.001, 0.001, 0.001)));
 
@@ -261,29 +255,13 @@ export function createWorld(scene) {
   }
   mtn.frustumCulled = false; scene.add(mtn);
 
-  // ---- Falling snow around the camera
-  const N = 380, snowPos = new Float32Array(N * 3), r2 = mulberry32(5);
-  for (let i = 0; i < N; i++) { snowPos[i * 3] = (r2() - 0.5) * 60; snowPos[i * 3 + 1] = r2() * 24; snowPos[i * 3 + 2] = (r2() - 0.5) * 60; }
-  const flakeGeo = new T.BufferGeometry(); flakeGeo.setAttribute('position', new T.BufferAttribute(snowPos, 3));
-  const flakes = new T.Points(flakeGeo, new T.PointsMaterial({ color: 0xffffff, size: 0.22, transparent: true, opacity: 0.85, depthWrite: false }));
-  flakes.frustumCulled = false;
-  scene.add(flakes);
-
   let clock = 0;
   function update(dt, camPos) {
     clock += dt;
-    flakes.position.set(camPos.x, Math.max(0, camPos.y - 12), camPos.z);
-    const a = flakeGeo.attributes.position.array;
-    for (let i = 0; i < N; i++) {
-      a[i * 3 + 1] -= (1.6 + (i % 5) * 0.35) * dt;
-      a[i * 3] += Math.sin(a[i * 3 + 1] * 0.7 + i) * 0.25 * dt;
-      if (a[i * 3 + 1] < 0) a[i * 3 + 1] += 24;
-    }
-    flakeGeo.attributes.position.needsUpdate = true;
     glowMat.size = 3.6 + Math.sin(clock * 2.1) * 0.16;
     for (let i = 0; i < town.flicker.length; i++) town.flicker[i].scale.setScalar(8.5 + Math.sin(clock * 9) * 0.5 + Math.sin(clock * 13.7) * 0.4);
     if (dirty && ++tick % 3 === 0) { iceTex.needsUpdate = true; dirty = false; }
   }
 
-  return { colliders, onIce, trail, scuff, update, zoneAt, heightAt };
+  return { colliders, onIce, trail, scuff, update, zoneAt, heightAt, glowMat, windowMat: town.lightMat };
 }
