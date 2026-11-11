@@ -6,9 +6,9 @@ import {
 } from '../logic.mjs';
 import { ARM_LENGTHS, SHOULDER, STATUE_POSES, armJoints } from '../poses.mjs';
 
-test('25 fragments cover five five-part statue sets in the 150x150 hall', () => {
-  assert.equal(FRAGMENTS.length, 25);
-  assert.equal(SETS.length, 5);
+test('30 fragments cover six five-part statue sets in the 150x150 hall', () => {
+  assert.equal(FRAGMENTS.length, 30);
+  assert.equal(SETS.length, 6);
   assert.equal(PARTS.length, 5);
   assert.ok(FRAGMENTS.every(({ x, z }) => Math.abs(x) <= 75 && Math.abs(z) <= 75));
 });
@@ -26,7 +26,7 @@ test('pickup is one-at-a-time and matching parts snap into the right set', () =>
   assert.equal(countPlaced(placed), 1);
 });
 
-test('all 25 pieces complete the display, and repeated placements cannot duplicate parts', () => {
+test('all 30 pieces complete the display, and repeated placements cannot duplicate parts', () => {
   let state = createInitialState();
   for (const fragment of FRAGMENTS) {
     state = pickup(state, fragment.key);
@@ -35,7 +35,7 @@ test('all 25 pieces complete the display, and repeated placements cannot duplica
   }
   assert.equal(isGameComplete(state), true);
   assert.ok(SETS.every(({ id }) => isSetComplete(state, id)));
-  assert.equal(countPlaced(state), 25);
+  assert.equal(countPlaced(state), 30);
 });
 
 test('each statue has a distinct, testable presentation pose and signature gesture', () => {
@@ -55,6 +55,11 @@ test('each statue has a distinct, testable presentation pose and signature gestu
   assert.equal(armJoints('student01', -1).arm.prop, 'bag');
   assert.equal(STATUE_POSES.janitor01.gesture, 'mop');
   assert.equal(armJoints('janitor01', 1).arm.prop, 'mop');
+  assert.equal(STATUE_POSES.idol01.gesture, 'microphone');
+  const mic = armJoints('idol01', 1);
+  assert.equal(mic.arm.prop, 'mic');
+  assert.ok(mic.W[1] > 3.1 && mic.W[2] > 0.3, 'idol holds the mic up in front of her chin');
+  assert.ok(armJoints('idol01', -1).W[1] > armJoints('idol01', -1).E[1] + 0.35, 'idol waves with a raised forearm');
 });
 
 test('fragments are spread out and podiums sit inside the annex', () => {
@@ -65,6 +70,11 @@ test('fragments are spread out and podiums sit inside the annex', () => {
   for (const { id } of SETS) {
     const [x, z] = INITIAL_PODIUMS[id];
     assert.ok(Math.abs(x) <= 52 && z <= -92 && z >= -140, `${id} podium inside annex`);
+  }
+  const ids = SETS.map(({ id }) => id);
+  for (let i = 0; i < ids.length; i += 1) for (let j = i + 1; j < ids.length; j += 1) {
+    const [ax, az] = INITIAL_PODIUMS[ids[i]]; const [bx, bz] = INITIAL_PODIUMS[ids[j]];
+    assert.ok(Math.hypot(ax - bx, az - bz) > 12, `${ids[i]} and ${ids[j]} podiums too close`);
   }
 });
 

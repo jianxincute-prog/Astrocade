@@ -28,6 +28,11 @@ export const STYLE = {
     hair: '#3a2622', hairTip: '#7a5040', eye: '#7b5bd6', eyeDeep: '#2b1a55', cloth: '#f6f6fa', suit: '#26306a', suitDark: '#1b2250',
     accent: '#e04a5f', skin: '#fadccd', shoe: '#4a2a1c', stock: '#f4f4f6', gold: '#e9d9a6', lip: '#ec8f9c', blush: '#ffa3b1', heel: 0.02, stockTo: 0.95,
   },
+  // pop idol in a red-and-white stage costume with gold trim, frilled skirt, white stockings and red boots
+  idol01: {
+    hair: '#f0d9a0', hairTip: '#ffb7c8', eye: '#2fa0e0', eyeDeep: '#0d3a66', cloth: '#ffffff', suit: '#ff4f72', suitDark: '#c8365a',
+    accent: '#ffd84d', skin: '#fbdccf', shoe: '#e8465f', stock: '#ffffff', gold: '#ffd36b', lip: '#f2708c', blush: '#ff9db0', heel: 0.06, stockTo: 1.45,
+  },
   // grown-up cleaning-staff woman: teal work tunic, trousers, yellow rubber gloves, white sneakers
   janitor01: {
     hair: '#4a2f25', hairTip: '#8a5a40', eye: '#3e7a5c', eyeDeep: '#16301f', cloth: '#eef2ef', suit: '#2f8a74', suitDark: '#1f5c4e',
@@ -35,7 +40,7 @@ export const STYLE = {
   },
 };
 // Bust / hip fullness per character; the student keeps a youthful, modest silhouette.
-const FIGURE = { office01: [0.071, 0.047], nurse01: [0.071, 0.047], ceo01: [0.071, 0.047], student01: [0.03, 0.025], janitor01: [0.058, 0.045] };
+const FIGURE = { office01: [0.071, 0.047], nurse01: [0.071, 0.047], ceo01: [0.071, 0.047], student01: [0.03, 0.025], janitor01: [0.058, 0.045], idol01: [0.058, 0.04] };
 
 export function createStatueKit(scene) {
   const BAB = B();
@@ -268,7 +273,7 @@ function drawFace(ctx, W, H, setId) {
 }
 // Eye opening per character, in face-texture pixels (the texture is 2048 x 1024 over the head loft).
 const TEX_W = 2048; const TEX_H = 1024; const PXX = 1900;
-const EYE_SHAPE = { office01: { hw: 94, hgt: 47 }, nurse01: { hw: 96, hgt: 52 }, ceo01: { hw: 92, hgt: 42 }, student01: { hw: 98, hgt: 57 }, janitor01: { hw: 92, hgt: 45 } };
+const EYE_SHAPE = { office01: { hw: 94, hgt: 47 }, nurse01: { hw: 96, hgt: 52 }, ceo01: { hw: 92, hgt: 42 }, student01: { hw: 98, hgt: 57 }, janitor01: { hw: 92, hgt: 45 }, idol01: { hw: 99, hgt: 56 } };
 function eyeCurves(ex, ey, side, hw, hgt) {
   const inner = [ex - side * hw, ey + 6]; const outer = [ex + side * hw, ey - 6];
   const bez = (p0, p1, p2, p3, t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
@@ -319,7 +324,7 @@ function drawEye(ctx, ex, ey, side, s, rnd, setId) {
   ctx.fillStyle = sg; ctx.fillRect(ex - hw * 1.2, ey - hgt * 2, hw * 2.4, hgt * 3.2);
   radial(ctx, inner[0], inner[1], 22, 16, hexA('#e59a9a', 0.7)); // tear duct
   // iris
-  const ir = ({ nurse01: 50, ceo01: 44, student01: 54, janitor01: 46 })[setId] ?? 47; const ix = ex + side * 1; const iy = ey - 2;
+  const ir = ({ nurse01: 50, ceo01: 44, student01: 54, janitor01: 46, idol01: 54 })[setId] ?? 47; const ix = ex + side * 1; const iy = ey - 2;
   const ig = ctx.createRadialGradient(ix, iy, 4, ix, iy, ir);
   ig.addColorStop(0, shadeHex(s.eye, 65)); ig.addColorStop(0.55, s.eye); ig.addColorStop(0.9, shadeHex(s.eye, -35)); ig.addColorStop(1, s.eyeDeep);
   ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ix, iy, ir, 0, Math.PI * 2); ctx.fill();
@@ -383,7 +388,7 @@ function drawBrow(ctx, bx, by, side, s, rnd, setId) {
 }
 function drawLips(ctx, lx, ly, s, setId) {
   const hw = 84;
-  const smile = ({ nurse01: 12, ceo01: -3, student01: 14, janitor01: 9 })[setId] ?? 8;
+  const smile = ({ nurse01: 12, ceo01: -3, student01: 14, janitor01: 9, idol01: 18 })[setId] ?? 8;
   const base = s.lip;
   // upper lip
   ctx.beginPath(); ctx.moveTo(lx - hw, ly + smile * -1);
@@ -702,6 +707,7 @@ const HAIR = {
   nurse01: { len: 0.66, wave: 0.022, part: 0, sweep: 0, fringeLen: 0.06, back: 28 },
   ceo01: { len: 1.02, wave: 0.008, part: -0.07, sweep: -1, fringeLen: 0.12, back: 30 },
   student01: { len: 0.42, wave: 0.006, part: 0, sweep: 0, fringeLen: 0.06, back: 26 },
+  idol01: { len: 0.5, wave: 0.014, part: 0, sweep: 0, fringeLen: 0.06, back: 26 },
   janitor01: { len: 0.2, wave: 0.0, part: 0.04, sweep: 1, fringeLen: 0.05, back: 24 },
 };
 // point on the scalp at height h above the chin, around angle a (0 = front, +π/2 = figure's left/+x), lifted by off
@@ -729,6 +735,7 @@ function hairFor(sc, id, st) {
     nurse01: (x) => 0.348 + 0.03 * Math.pow(Math.abs(x) / 0.17, 2),
     ceo01: (x) => 0.33 + 0.13 * smooth(-0.2, 0.15, x),
     student01: (x) => 0.352 + 0.012 * Math.pow(Math.abs(x) / 0.17, 2),
+    idol01: (x) => 0.35 + 0.025 * Math.pow(Math.abs(x) / 0.17, 2) + 0.01 * Math.abs(Math.sin(x * 30)),
     janitor01: (x) => 0.405 + 0.06 * smooth(-0.2, 0.2, x), // swept up off the forehead for work
   }[id];
   hairCover(sc, (x) => fringe(x) + 0.055);
@@ -756,7 +763,7 @@ function hairFor(sc, id, st) {
   }
   // 3) side locks framing the face, layered and falling over the collarbone
   for (const sideS of [-1, 1]) for (let k = 0; k < 3; k += 1) {
-    const a = sideS * (Math.PI * (0.36 + k * 0.07)); const len = (({ nurse01: 0.42, student01: 0.32, janitor01: 0.12 })[id] ?? 0.5) - k * 0.06 + (sideS > 0 ? 0.02 : 0);
+    const a = sideS * (Math.PI * (0.36 + k * 0.07)); const len = (({ nurse01: 0.42, student01: 0.32, janitor01: 0.12, idol01: 0.4 })[id] ?? 0.5) - k * 0.06 + (sideS > 0 ? 0.02 : 0);
     const r0 = scalp(a, 0.54, 0.024); const r1 = scalp(a, 0.4, 0.026);
     const x0 = sideS * (0.207 + k * 0.009);
     const pts = [r0, r1, [x0, Hy(0.24), 0.09 - k * 0.04], [x0 + sideS * 0.01, Hy(0.04), 0.11 - k * 0.04],
@@ -801,6 +808,21 @@ function hairFor(sc, id, st) {
       for (const tilt of [-1, 1]) sc.ell('accent', [side * 0.225, Hy(0.43) + tilt * 0.035, -0.12], [0.03, 0.075, 0.03], [0, 0, tilt * 0.6], 12);
     }
     sc.ell('accent', [0.15, Hy(0.47), 0.15], [0.03, 0.018, 0.012], [0, 0, 0.5], 8); // little hair clip
+  } else if (id === 'idol01') {
+    // high side ponytail with a big red bow, a gold star clip on the other side
+    const knot = [0.19, Hy(0.5), -0.12];
+    for (let k = 0; k < 8; k += 1) {
+      const sp = (k - 3.5) * 0.011; const ln = 0.72 + 0.08 * Math.sin(k * 1.9);
+      hairLock(sc, k % 3 === 1 ? 'hairTip' : 'hair', [knot, [0.3 + sp, Hy(0.5), -0.15 + sp], [0.38 + sp, Hy(0.25), -0.12 + sp * 0.6],
+        [0.4 + sp * 1.4, Hy(-ln * 0.4), -0.08 + sp], [0.36 + sp, Hy(-ln), -0.05 + sp]], 0.055, 0.016, [1, 0, 0.2]);
+    }
+    sc.ell('suit', [0.2, Hy(0.51), -0.11], [0.06, 0.06, 0.06], [0, 0, 0], 12);
+    for (const tilt of [-1, 1]) sc.ell('suit', [0.2, Hy(0.51) + tilt * 0.06, -0.11], [0.05, 0.12, 0.04], [0, -0.6, tilt * 0.9], 14);
+    for (const tilt of [-1, 1]) hairLock(sc, 'suit', [[0.2, Hy(0.49), -0.1], [0.22 + tilt * 0.03, Hy(0.4), -0.08], [0.23 + tilt * 0.05, Hy(0.3), -0.07]], 0.03, 0.008, [1, 0, 0.3]);
+    const st = [-0.17, Hy(0.44), 0.13];
+    for (let k = 0; k < 5; k += 1) { const a = (k / 5) * Math.PI * 2; sc.ell('gold', [st[0] + Math.sin(a) * 0.02, st[1] + Math.cos(a) * 0.02, st[2]], [0.014, 0.034, 0.01], [0, 0, -a], 8); }
+    sc.ell('gold', st, [0.026, 0.026, 0.012], [0, 0, 0], 10);
+    for (const side of [-1, 1]) { sc.ell('gold', [side * 0.19, Hy(0.15), 0.0], [0.02, 0.02, 0.02], [0, 0, 0], 8); sc.ell('suit', [side * 0.19, Hy(0.11), 0.0], [0.022, 0.03, 0.014], [0, 0, 0], 8); }
   } else if (id === 'janitor01') {
     // practical low bun under a work bandana
     sc.ell('hair', [0, Hy(0.2), -0.29], [0.2, 0.18, 0.16], [0.2, 0, 0], 20);
@@ -900,6 +922,22 @@ function sculptTorso(sc, id) {
     for (const side of [-1, 1]) sc.ell('accent', [side * 0.06, 3.15, 0.215], [0.1, 0.06, 0.03], [0, side * 0.3, side * 0.35], 12);
     for (const side of [-1, 1]) hairLock(sc, 'accent', [[side * 0.01, 3.13, 0.235], [side * 0.03, 3.0, 0.25], [side * 0.045, 2.88, 0.245]], 0.03, 0.008, [0, 0, 1]);
     pleatedSkirt(sc, 'suit', [{ y: 2.62, rx: 0.242, rz: 0.172 }, { y: 2.44, rx: 0.31, rz: 0.215 }, { y: 2.23, rx: 0.4, rz: 0.275 }, { y: 1.95, rx: 0.45, rz: 0.33 }, { y: 1.42, rx: 0.5, rz: 0.4 }]);
+  } else if (id === 'idol01') {
+    // red stage bodice with a white sweetheart frill, big chest bow, gold buttons and belt, two-tier frilled skirt
+    const heart = (x, z, zf) => (zf > 0.05 ? 3.38 - 0.06 * Math.max(0, 1 - Math.pow(Math.abs(Math.abs(x) - 0.1) / 0.1, 2)) * smooth(0.05, 0.5, zf) + 0.04 * gauss(x, 0, 0.03) * smooth(0.05, 0.5, zf) : null);
+    cap('cloth', 3.47, 3.3, 0.008, bustG);
+    cap('suit', 3.4, 2.5, 0.016, bustG, heart);
+    trimLine(sc, 'cloth', (x, zf) => (zf > 0.05 ? 3.38 - 0.06 * Math.max(0, 1 - Math.pow(Math.abs(Math.abs(x) - 0.1) / 0.1, 2)) * smooth(0.05, 0.5, zf) + 0.04 * gauss(x, 0, 0.03) * smooth(0.05, 0.5, zf) : 3.38), body, 0.017, bustG, 0.016);
+    sc.ell('cloth', [0, 3.25, 0.245], [0.06, 0.05, 0.04], [0, 0, 0], 12);
+    for (const side of [-1, 1]) sc.ell('cloth', [side * 0.085, 3.26, 0.235], [0.13, 0.085, 0.04], [0, side * 0.3, side * 0.3], 14);
+    for (const side of [-1, 1]) hairLock(sc, 'cloth', [[side * 0.015, 3.23, 0.255], [side * 0.04, 3.1, 0.27], [side * 0.06, 2.98, 0.26]], 0.035, 0.008, [0, 0, 1]);
+    sc.ell('gold', [0, 3.25, 0.27], [0.03, 0.03, 0.016], [0, 0, 0], 10);
+    for (const y of [2.92, 2.78, 2.64]) sc.ell('gold', [0, y, 0.218], [0.02, 0.02, 0.012], [0, 0, 0], 8);
+    pleatedSkirt(sc, 'cloth', [{ y: 2.6, rx: 0.242, rz: 0.172 }, { y: 2.44, rx: 0.31, rz: 0.215 }, { y: 2.23, rx: 0.41, rz: 0.285 }, { y: 1.9, rx: 0.5, rz: 0.38 }, { y: 1.56, rx: 0.58, rz: 0.47 }]);
+    pleatedSkirt(sc, 'suit', [{ y: 2.6, rx: 0.25, rz: 0.178 }, { y: 2.44, rx: 0.32, rz: 0.222 }, { y: 2.23, rx: 0.42, rz: 0.292 }, { y: 1.95, rx: 0.5, rz: 0.38 }, { y: 1.66, rx: 0.56, rz: 0.45 }]);
+    hemBand(sc, 'gold', 1.66, 0.585, 0.475);
+    belt(sc, 'gold', 2.585, 0.243, 0.174);
+    sc.ell('suitDark', [0, 2.585, 0.2], [0.06, 0.05, 0.02], [0, 0, 0.78], 10); // heart-shaped buckle
   } else if (id === 'janitor01') {
     // short-sleeved teal work tunic with a white collar, pockets, name badge and a utility belt
     const vNeck = (x, z, zf) => (zf > 0.1 ? 3.45 - Math.max(0, 0.12 - Math.abs(x) * 1.2) * smooth(0.1, 0.6, zf) : null);
@@ -1008,6 +1046,11 @@ function sculptArm(sc, id, side) {
     sc.path('cloth', ctrl, R, { ...opts, t1: 0.88, offset: 0.014, close: false });
     sc.path('suit', ctrl, R, { ...opts, t0: 0.86, t1: 0.94, offset: 0.018, close: false });
     sc.path('cloth', ctrl, R, { ...opts, t0: 0.905, t1: 0.915, offset: 0.021, close: false, N: 16 });
+  } else if (id === 'idol01') { // puffed red sleeve with a white frill, white glove cuff with gold band
+    sc.path('suit', ctrl, R, { ...opts, t1: atElbow * 0.45, offset: 0.032, close: false });
+    sc.path('cloth', ctrl, R, { ...opts, t0: atElbow * 0.42, t1: atElbow * 0.49, offset: 0.036, close: false });
+    sc.path('cloth', ctrl, R, { ...opts, t0: 0.84, t1: 1, offset: 0.006, close: false });
+    sc.path('gold', ctrl, R, { ...opts, t0: 0.84, t1: 0.865, offset: 0.012, close: false, N: 16 });
   } else if (id === 'janitor01') { // short work sleeve with a darker band; yellow rubber gloves to mid-forearm
     sc.path('suit', ctrl, R, { ...opts, t1: atElbow * 0.6, offset: 0.018, close: false });
     sc.path('suitDark', ctrl, R, { ...opts, t0: atElbow * 0.56, t1: atElbow * 0.62, offset: 0.022, close: false });
@@ -1017,10 +1060,11 @@ function sculptArm(sc, id, side) {
     sc.path('suit', ctrl, R, { ...opts, t1: 0.88, offset: 0.019, close: false });
     sc.path('cloth', ctrl, R, { ...opts, t0: 0.86, t1: 0.93, offset: 0.012, close: false });
   }
-  hand(sc, W, v3.unit(v3.sub(W, E)), arm, side, id === 'janitor01' ? 'accent' : 'skin');
+  hand(sc, W, v3.unit(v3.sub(W, E)), arm, side, id === 'janitor01' ? 'accent' : id === 'idol01' ? 'cloth' : 'skin');
   if (arm.prop === 'clipboard') clipboard(sc, W, arm);
   if (arm.prop === 'bag') schoolBag(sc, W, arm);
   if (arm.prop === 'mop') mop(sc, W, arm, side);
+  if (arm.prop === 'mic') microphone(sc, W, arm);
 }
 
 // A slender, feminine hand: palm loft + four jointed fingers + thumb, curled toward the palm.
@@ -1063,6 +1107,18 @@ function schoolBag(sc, W, arm) {
   sc.box('gold', [c[0] + Math.sign(c[0]) * 0.055, c[1] + 0.02, c[2]], [0.006, 0.03, 0.05]);
   for (const dz of [-0.07, 0.07]) sc.strand('suitDark', [[c[0], c[1] + 0.15, c[2] + dz], [g[0], g[1] + 0.02, g[2] + dz * 0.4]], 0.008, 0.008, 6, 4);
   sc.ell('accent', [c[0] + Math.sign(c[0]) * 0.06, c[1] + 0.08, c[2] + 0.12], [0.012, 0.05, 0.035], [0, 0, 0], 8); // little charm
+}
+function microphone(sc, W, arm) {
+  // gold stage mic: the handle runs through the fist and the grille sits just under her chin
+  const d = v3.unit(arm.hand);
+  const g = v3.add(W, v3.mul(d, 0.075));
+  const mouth = [0.02, CHIN + 0.04, 0.26];
+  const ax = v3.unit(v3.sub(mouth, g));
+  const tail = v3.sub(g, v3.mul(ax, 0.1)); const neck = v3.add(g, v3.mul(ax, 0.17));
+  sc.path('gold', [tail, g, neck], (t) => [lerp(0.013, 0.021, t), lerp(0.013, 0.021, t)], { up: [1, 0, 0], N: 14, samples: 6 });
+  sc.path('suit', [v3.add(g, v3.mul(ax, 0.06)), v3.add(g, v3.mul(ax, 0.1))], () => [0.024, 0.024], { up: [1, 0, 0], N: 14, samples: 3 });
+  const head = v3.add(neck, v3.mul(ax, 0.04));
+  sc.ell('gold', head, [0.07, 0.07, 0.07], [0, 0, 0], 16);
 }
 function mop(sc, W, arm, side) {
   // upright mop: the handle passes through the fist, the mop head rests on the floor
@@ -1113,6 +1169,11 @@ function sculptLegs(sc, id) {
     sc.loft('skin', secs, { N: 36, flip });
     if (st.stockTo > ay + 0.05) sc.loft('stock', sliceY(secs, st.stockTo, ay), { N: 36, offset: 0.004, flip });
     if (id === 'student01') sc.loft('stock', sliceY(secs, st.stockTo + 0.02, st.stockTo - 0.04), { N: 36, offset: 0.008, flip }); // folded sock rim
+    if (id === 'idol01') { // over-knee stockings with a gold frill band, glossy red ankle boots with a gold cuff
+      sc.loft('accent', sliceY(secs, st.stockTo + 0.01, st.stockTo - 0.035), { N: 36, offset: 0.009, flip });
+      sc.loft('shoe', sliceY(secs, 0.68, ay), { N: 36, offset: 0.012, flip });
+      sc.loft('gold', sliceY(secs, 0.7, 0.66), { N: 36, offset: 0.016, flip });
+    }
     if (id === 'janitor01') { // straight work trousers with a rolled hem
       const pant = sliceY(secs, 2.2, ay + 0.06).map((s) => ({ ...s, rx: Math.max(s.rx, 0.085 + 0.02 * smooth(1.2, 0.3, s.y)), rz: Math.max(s.rz, 0.09 + 0.02 * smooth(1.2, 0.3, s.y)) }));
       sc.loft('suit', pant, { N: 36, offset: 0.02, flip });

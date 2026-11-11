@@ -6,9 +6,9 @@ export function uiMarkup(editing) {
     <div class="hud ${editing ? 'edit-mode' : ''}">
       <header class="topbar">
         <div class="brand"><div class="brand-mark">✦</div><div><small>ATELIER K—07</small><strong>WAIFU <em>ASSEMBLER</em></strong></div></div>
-        <div class="score"><small>${editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN'}</small><b id="progress-count">0 <i>/ 25</i></b><span>PARTS PLACED</span></div>
+        <div class="score"><small>${editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN'}</small><b id="progress-count">0 <i>/ 30</i></b><span>PARTS PLACED</span></div>
       </header>
-      <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>25 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
+      <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>30 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
       <section class="map-card"><div class="card-cap"><span>FIELD SCAN</span><span class="scan-live">● LIVE</span></div><canvas id="mini-map" width="158" height="188"></canvas><div class="map-legend"><i></i> FRAGMENT <span>◇ ANNEX</span></div></section>
       <section class="blueprint-card" id="blueprint-card"><div class="card-cap"><span>HOLOGRAM / 3D</span><span class="scan-live">● LINKED</span></div><b id="blueprint-title">OFFICE-01</b><div id="blueprint-drawing"></div><small id="blueprint-foot">HELD COMPONENT / HEAD</small></section>
       <div class="movement-hint"><span class="hint-key">DRAG</span> to look <i>·</i> <span class="hint-key">WASD</span> to walk <i>·</i> <span class="hint-key">E</span> to interact</div>
@@ -17,7 +17,7 @@ export function uiMarkup(editing) {
         <button id="mobile-action" class="mobile-action" aria-label="Collect or assemble"><span>✦</span><b id="action-label">SEARCH</b></button>
       </div>
       <div id="toast" class="toast"></div>
-      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Five figures.<br>One brilliant curator.</h2><p>Office-01, Nurse-01, CEO-01, Student-01 and Janitor-01 are all back on display. The atelier looks rather pleased with itself.</p><button id="finish-close">BACK TO THE HALL</button></div></div>
+      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Six figures.<br>One brilliant curator.</h2><p>Office-01, Nurse-01, CEO-01, Student-01, Idol-01 and Janitor-01 are all back on display. The atelier looks rather pleased with itself.</p><button id="finish-close">BACK TO THE HALL</button></div></div>
       <section id="editor-panel" class="editor-panel">
         <div class="editor-head"><span>✦ &nbsp; RESTORATION ANNEX</span><small>OUTSIDE THE 150 × 150 HALL</small></div>
         <p>Choose a wall-side podium, then drag it. The spacious center stays open.</p>

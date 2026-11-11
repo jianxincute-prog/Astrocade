@@ -50,6 +50,17 @@ export const STATUE_POSES = {
       R: { upper: [0.35, -0.9, 0.2], fore: [-0.15, 1, 0.25], hand: [-0.08, 1, 0.12], palm: [0, 0, 1], curl: 0.08 },
     },
   },
+  idol01: {
+    turn: 0.0,
+    head: [0.02, -0.1, -0.08], // cute idol head tilt toward the mic hand
+    gesture: 'microphone',
+    arms: {
+      // waves to the crowd with an open palm, arm raised out to the side
+      L: { upper: [-0.55, -0.8, 0.15], fore: [-0.1, 1, 0.2], hand: [-0.05, 1, 0.1], palm: [0, 0, 1], curl: 0.06 },
+      // holds a stage microphone just under her chin
+      R: { upper: [0.25, -0.85, 0.45], fore: [-0.55, 0.75, 0.35], hand: [-0.35, 0.85, -0.3], palm: [-0.85, 0, -0.3], curl: 0.85, prop: 'mic' },
+    },
+  },
   janitor01: {
     turn: -0.05,
     head: [0.0, 0.08, -0.02],
