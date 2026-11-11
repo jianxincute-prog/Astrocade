@@ -3,8 +3,9 @@ import {
   countPlaced, createInitialState, getFragment, getSet, isGameComplete,
   pickup, placeCarried, restoreState, serializeState,
 } from './logic.mjs';
-import { blueprintSvg, escapeHtml, installStyles, roundRect, uiMarkup } from './ui.js';
-import { buildStatuePart, createStatueKit } from './statues.js';
+import { escapeHtml, installStyles, roundRect, uiMarkup } from './ui.js';
+import { PART_OFFSET, buildStatuePart, createStatueKit } from './statues.js';
+import { STATUE_POSES } from './poses.mjs';
 import { buildFragment, buildPodium, buildWorld, petalTexture, starTexture } from './world.js';
 
 // Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead annex layout editor.
@@ -204,6 +205,55 @@ export function createGame(mode = 'play') {
     if (!save) return;
     try { Promise.resolve(save({ waifuAssembler: serializeState(state) })).catch(() => {}); } catch { /* local play remains available */ }
   };
+  // ---------- 3D hologram projection inside the HUD card ----------
+  // The real statue, rebuilt with the hologram material, floats in front of the camera exactly behind the card's
+  // transparent window; the component being carried glows red so the player sees where it belongs.
+  const holo = { root: null, spin: null, key: null, base: Math.PI, sway: 0.6 };
+  const heldMat = new BAB.StandardMaterial('holoHeld', scene);
+  heldMat.disableLighting = true; heldMat.backFaceCulling = false; heldMat.alphaMode = BAB.Engine.ALPHA_ADD; heldMat.alpha = 0.85; heldMat.needDepthPrePass = true;
+  heldMat.emissiveColor = BAB.Color3.FromHexString('#ff3d5e');
+  heldMat.emissiveFresnelParameters = new BAB.FresnelParameters({ bias: 0.25, power: 1.6, leftColor: BAB.Color3.FromHexString('#ffd0da'), rightColor: BAB.Color3.FromHexString('#ff2a50') });
+  function rebuildHologram() {
+    const key = state.carried;
+    if (key === holo.key) return;
+    if (holo.root) { holo.root.dispose(false, false); holo.root = null; }
+    holo.key = key;
+    if (!key) return;
+    const fragment = getFragment(key); const pose = STATUE_POSES[fragment.setId];
+    const root = new BAB.TransformNode('holoRoot', scene); const spin = new BAB.TransformNode('holoSpin', scene); spin.parent = root;
+    const fig = new BAB.TransformNode('holoFig', scene); fig.parent = spin; fig.position.y = -2.15; // centre the 4.3-unit figure
+    for (const part of PARTS) {
+      const anchor = new BAB.TransformNode('holoAnchor', scene); anchor.parent = fig; anchor.position.set(...PART_OFFSET[part.id]);
+      if (part.id === 'head' && pose.head) anchor.rotation.set(...pose.head);
+      const mesh = buildStatuePart(kit, scene, part.id, fragment.setId, true); mesh.parent = anchor;
+      if (part.id === fragment.partId) for (const m of mesh.getChildMeshes()) m.material = heldMat;
+    }
+    const set = getSet(fragment.setId); const c = BAB.Color3.FromHexString(set.color);
+    const ringMat = new BAB.StandardMaterial('holoRing', scene); ringMat.disableLighting = true; ringMat.emissiveColor = c.scale(1.3); ringMat.alpha = 0.9; ringMat.alphaMode = BAB.Engine.ALPHA_ADD;
+    for (const [d, y, t] of [[2.2, -2.15, 0.05], [1.5, -2.1, 0.03]]) {
+      const ring = BAB.MeshBuilder.CreateTorus('holoRing', { diameter: d, thickness: t, tessellation: 48 }, scene); ring.parent = spin; ring.position.y = y; ring.material = ringMat;
+    }
+    const beam = BAB.MeshBuilder.CreateCylinder('holoBeam', { height: 4.4, diameterTop: 1.6, diameterBottom: 2.1, tessellation: 32, cap: BAB.Mesh.NO_CAP }, scene);
+    const beamMat = new BAB.StandardMaterial('holoBeamMat', scene); beamMat.disableLighting = true; beamMat.emissiveColor = c; beamMat.alpha = 0.06; beamMat.alphaMode = BAB.Engine.ALPHA_ADD; beamMat.backFaceCulling = false;
+    beam.material = beamMat; beam.parent = spin;
+    for (const m of root.getChildMeshes()) { m.renderingGroupId = 1; m.isPickable = false; }
+    root.onDisposeObservable.add(() => { ringMat.dispose(); beamMat.dispose(); });
+    holo.root = root; holo.spin = spin;
+  }
+  function updateHologram(now) {
+    if (!holo.root) return;
+    const rect = ui.blueprintBody.getBoundingClientRect(); const crect = canvas.getBoundingClientRect();
+    if (!rect.height) { holo.root.setEnabled(false); return; }
+    holo.root.setEnabled(true);
+    const dist = 4;
+    const ray = scene.createPickingRay(rect.left + rect.width / 2 - crect.left, rect.top + rect.height / 2 - crect.top, BAB.Matrix.Identity(), camera);
+    holo.root.position.copyFrom(ray.origin.add(ray.direction.scale(dist)));
+    const worldPerPx = (2 * dist * Math.tan(camera.fov / 2)) / crect.height;
+    holo.root.scaling.setAll((rect.height * 0.92 * worldPerPx) / 4.4);
+    holo.root.rotationQuaternion = camera.absoluteRotation.clone();
+    holo.spin.rotation.y = holo.base + Math.sin(now * 0.0007) * holo.sway;
+    heldMat.alpha = 0.7 + Math.sin(now * 0.008) * 0.25;
+  }
   const refreshPodiums = () => {
     for (const set of SETS) {
       const podium = podiums.get(set.id);
@@ -240,6 +290,7 @@ export function createGame(mode = 'play') {
     updateBlueprint();
   };
   function updateBlueprint() {
+    rebuildHologram();
     if (!state.carried) {
       ui.blueprint.classList.remove('shown');
       return;
@@ -250,7 +301,7 @@ export function createGame(mode = 'play') {
     ui.blueprint.classList.add('shown');
     ui.blueprintTitle.textContent = set.name;
     ui.blueprintFoot.textContent = `HELD COMPONENT  /  ${part.short}`;
-    ui.blueprintBody.innerHTML = blueprintSvg(fragment.partId, set.color);
+    ui.blueprint.style.setProperty('--holo', set.color);
   }
   refreshPodiums();
   refreshFragments();
@@ -552,6 +603,7 @@ export function createGame(mode = 'play') {
     if (!editing) movePlayer(dt);
     updateObjects(now, dt);
     updateCarried(now);
+    updateHologram(now);
     scene.render();
     if (envFrames < 4 && ++envFrames === 4) studio.release();
   }
@@ -625,7 +677,7 @@ export function createGame(mode = 'play') {
   updateHUD();
 
   // Test/debug hook: lets automated checks pose the camera and state without touching gameplay rules.
-  window.__waifuDebug = { scene, camera, player, eye, state, podiums, fragments, aimCamera, refreshFragments, updateHUD };
+  window.__waifuDebug = { holo, scene, camera, player, eye, state, podiums, fragments, aimCamera, refreshFragments, updateHUD };
 
   return () => {
     disposed = true;

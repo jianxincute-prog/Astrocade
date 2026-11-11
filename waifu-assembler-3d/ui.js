@@ -10,7 +10,7 @@ export function uiMarkup(editing) {
       </header>
       <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>30 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
       <section class="map-card"><div class="card-cap"><span>FIELD SCAN</span><span class="scan-live">● LIVE</span></div><canvas id="mini-map" width="158" height="188"></canvas><div class="map-legend"><i></i> FRAGMENT <span>◇ ANNEX</span></div></section>
-      <section class="blueprint-card" id="blueprint-card"><div class="card-cap"><span>HOLOGRAM / 3D</span><span class="scan-live">● LINKED</span></div><b id="blueprint-title">OFFICE-01</b><div id="blueprint-drawing"></div><small id="blueprint-foot">HELD COMPONENT / HEAD</small></section>
+      <section class="blueprint-card" id="blueprint-card"><div class="card-cap"><span>HOLOGRAM / 3D</span><span class="scan-live">● LINKED</span></div><b id="blueprint-title">OFFICE-01</b><div id="blueprint-drawing"><i class="holo-scan"></i><i class="holo-corner a"></i><i class="holo-corner b"></i><i class="holo-corner c"></i><i class="holo-corner d"></i></div><small id="blueprint-foot">HELD COMPONENT / HEAD</small></section>
       <div class="movement-hint"><span class="hint-key">DRAG</span> to look <i>·</i> <span class="hint-key">WASD</span> to walk <i>·</i> <span class="hint-key">E</span> to interact</div>
       <div class="mobile-controls">
         <div id="stick-zone" class="stick-zone" aria-label="Move"><div class="stick-ring"></div><div id="stick-nub" class="stick-nub"><span>✦</span></div><small>MOVE</small></div>
@@ -65,13 +65,17 @@ export function installStyles() {
     .map-legend { padding:4px 3px 0; color:#9bb0bf; font-size:7px; font-weight:800; letter-spacing:1px; }
     .map-legend i { width:5px;height:5px;border-radius:50%;display:inline-block;background:#9cecf0; margin:0 3px 1px 0; box-shadow:0 0 6px #9cecf0; }
     .map-legend span { float:right; color:#7dd9df; }
-    .blueprint-card { display:none; position:absolute; right:21px; top:193px; width:180px; padding:10px 9px 10px; border:1px solid rgba(89,228,237,.42); border-radius:17px; background:linear-gradient(160deg,rgba(11,28,43,.9),rgba(13,16,32,.85)); backdrop-filter:blur(13px); box-shadow:0 0 28px rgba(36,205,223,.15),0 12px 30px rgba(0,0,0,.22); }
+    .blueprint-card { --holo:#73e4e9; display:none; position:absolute; right:21px; top:193px; width:180px; padding:10px 9px 10px; border:1px solid color-mix(in srgb,var(--holo) 55%,transparent); border-radius:17px; background:linear-gradient(180deg,rgba(10,16,31,.82) 0,rgba(10,16,31,.82) 52px,rgba(6,10,22,.5) 70px,rgba(6,10,22,.5) calc(100% - 26px),rgba(10,16,31,.82) calc(100% - 14px)); box-shadow:0 0 28px rgba(36,205,223,.15),0 12px 30px rgba(0,0,0,.22); }
     .blueprint-card.shown { display:block; animation:card-in .22s ease-out; }
     @keyframes card-in { from { transform:translateY(8px);opacity:0 } to { transform:translateY(0);opacity:1 } }
     .blueprint-card>.card-cap { padding-bottom:3px; }
     #blueprint-title { color:#d5fbff; font-size:15px; letter-spacing:1.3px; padding:3px 4px; display:block; }
-    #blueprint-drawing { height:224px; overflow:hidden; }
-    #blueprint-drawing svg { width:100%; height:100%; filter:drop-shadow(0 0 5px rgba(74,222,240,.22)); }
+    #blueprint-drawing { position:relative; height:224px; overflow:hidden; border-radius:10px; background:radial-gradient(ellipse at 50% 92%,color-mix(in srgb,var(--holo) 22%,transparent),transparent 55%),repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px); }
+    .holo-scan { position:absolute; left:0; right:0; height:38px; top:-40px; background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--holo) 28%,transparent),transparent); animation:holo-scan 2.6s linear infinite; }
+    @keyframes holo-scan { to { top:230px } }
+    .holo-corner { position:absolute; width:14px; height:14px; border:2px solid var(--holo); opacity:.75; }
+    .holo-corner.a { left:4px; top:4px; border-right:0; border-bottom:0; } .holo-corner.b { right:4px; top:4px; border-left:0; border-bottom:0; }
+    .holo-corner.c { left:4px; bottom:4px; border-right:0; border-top:0; } .holo-corner.d { right:4px; bottom:4px; border-left:0; border-top:0; }
     .blueprint-card>small { display:block; text-align:center; color:#88b9c8; font-size:7px; letter-spacing:1.15px; }
     .movement-hint { position:absolute; left:50%; top:292px; transform:translateX(-50%); color:rgba(231,240,247,.7); white-space:nowrap; font-size:9px; letter-spacing:.25px; text-shadow:0 2px 8px #07111a; }
     .hint-key { color:#d7edf4; font-weight:900; letter-spacing:1px; }

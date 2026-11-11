@@ -235,16 +235,23 @@ function drawFace(ctx, W, H, setId) {
 
   // --- skin base with soft contour shading ---
   ctx.fillStyle = s.skin; ctx.fillRect(0, 0, W, H);
-  for (const side of [-1, 1]) { // very soft contour toward the ears only, keeping the face clean and luminous
+  const L = LOOK[setId];
+  for (const side of [-1, 1]) { // contour toward the ears and under the cheekbone, strength per character
     const g = ctx.createRadialGradient(X(side * 0.24), Y(0.18), 10, X(side * 0.24), Y(0.18), 280);
-    g.addColorStop(0, hexA('#a0645a', 0.16)); g.addColorStop(1, hexA('#a0645a', 0));
+    g.addColorStop(0, hexA('#a0645a', L.contour)); g.addColorStop(1, hexA('#a0645a', 0));
     ctx.fillStyle = g; ctx.fillRect(X(side * 0.24) - 300, Y(0.18) - 300, 600, 600);
+    radial(ctx, X(side * 0.15), Y(0.155), 150, 34, hexA('#9a5a50', L.contour * 0.55));
   }
+  radial(ctx, X(0), Y(0.33), 34, 60, hexA('#ffffff', 0.1)); // glow between the brows
   radial(ctx, X(0), Y(0.43), 300, 140, hexA('#ffffff', 0.14)); // forehead glow
   radial(ctx, X(0), Y(0.25), 26, 110, hexA('#ffffff', 0.16)); // nose bridge highlight
   radial(ctx, X(0), Y(F.noseTip + 0.006), 30, 22, hexA('#ffffff', 0.28)); // nose tip glow
   for (const side of [-1, 1]) radial(ctx, X(side * 0.095), Y(0.215), 150, 80, hexA('#ffffff', 0.12)); // cheekbone glow
-  for (const side of [-1, 1]) radial(ctx, X(side * 0.108), Y(0.185), 170, 95, hexA(s.blush, 0.34)); // blush
+  for (const side of [-1, 1]) {
+    radial(ctx, X(side * 0.108), Y(0.185), 170, 95, hexA(s.blush, L.blush)); // blush
+    radial(ctx, X(side * 0.1), Y(0.205), 90, 40, hexA('#ffffff', 0.1 + (L.sparkle || 0) * 0.08)); // highlighter on the cheekbone
+    radial(ctx, X(side * 0.05), Y(0.235), 26, 18, hexA('#ffffff', 0.16)); // under-eye brightener
+  }
   radial(ctx, X(0), Y(0.04), 80, 40, hexA('#ffffff', 0.12)); // chin glow
 
   // --- eyes ---
@@ -257,6 +264,26 @@ function drawFace(ctx, W, H, setId) {
   for (const side of [-1, 1]) radial(ctx, X(side * 0.024), Y(0.25), 10, 60, hexA('#a05a52', 0.08));
   // --- lips ---
   drawLips(ctx, X(0), Y(F.mouth), s, setId);
+  // --- character details ---
+  for (const [mx, mh] of L.mark || []) { radial(ctx, X(mx), Y(mh), 7, 7, hexA('#3a2018', 0.8)); radial(ctx, X(mx), Y(mh), 13, 13, hexA('#3a2018', 0.15)); }
+  if (L.freckles) for (let i = 0; i < L.freckles; i += 1) {
+    const side = i % 2 ? 1 : -1; const fx = side * (0.045 + rnd() * 0.085); const fh = 0.19 + rnd() * 0.06;
+    radial(ctx, X(fx), Y(fh), 3 + rnd() * 3, 3 + rnd() * 3, hexA('#a8644e', 0.25 + rnd() * 0.2));
+  }
+  if (L.smileLines) for (const side of [-1, 1]) {
+    ctx.strokeStyle = hexA('#8a5244', 0.16); ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(X(side * 0.04), Y(0.175)); ctx.quadraticCurveTo(X(side * 0.07), Y(0.13), X(side * 0.064), Y(0.085)); ctx.stroke();
+  }
+  if (L.glitter) for (let i = 0; i < 70; i += 1) { // idol stage glitter under the eyes
+    const side = i % 2 ? 1 : -1; const gx = side * (0.06 + rnd() * 0.06); const gh = 0.225 + rnd() * 0.03;
+    ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,.9)' : 'rgba(255,190,220,.85)';
+    ctx.beginPath(); ctx.arc(X(gx), Y(gh), 1.2 + rnd() * 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  if (L.glitter) for (const side of [-1, 1]) { // tiny heart under the left eye
+    if (side > 0) continue; const hx = X(side * 0.118); const hy = Y(0.226);
+    ctx.fillStyle = 'rgba(255,90,140,.85)'; ctx.beginPath(); ctx.moveTo(hx, hy + 8);
+    ctx.bezierCurveTo(hx - 14, hy - 2, hx - 7, hy - 12, hx, hy - 4); ctx.bezierCurveTo(hx + 7, hy - 12, hx + 14, hy - 2, hx, hy + 8); ctx.fill();
+  }
   // --- fine skin grain ---
   for (let i = 0; i < 9000; i += 1) {
     ctx.fillStyle = rnd() > 0.5 ? 'rgba(120,70,60,.025)' : 'rgba(255,255,255,.04)';
@@ -271,6 +298,18 @@ function drawFace(ctx, W, H, setId) {
   }
   ctx.restore();
 }
+// Per-character beauty profile: every face shares the same anatomy but gets its own make-up and feature details.
+//  shadow/shadow2: eyeshadow (lid → crease) · liner: wing length px · lashes/lashLen: lash count and length
+//  iris2: inner iris ring colour · brow: [arch, lift, thickness] · lip: [width, fullness, cupid's bow, gloss]
+//  blush · contour · extras: beauty marks, freckles, glitter, smile lines, under-eye highlight
+export const LOOK = {
+  office01: { shadow: '#b48a9e', shadow2: '#6e4f6c', liner: 12, lashes: 10, lashLen: 1.0, iris2: '#c49a62', brow: [18, 5, 1.0], lip: [80, 0.92, 1.0, 0.45], blush: 0.26, contour: 0.15, mark: [[0.118, 0.24]] },
+  nurse01: { shadow: '#f2a5bd', shadow2: '#d27896', liner: 6, lashes: 12, lashLen: 1.08, iris2: '#ffc4d6', brow: [15, 1, 0.85], lip: [82, 1.02, 0.9, 0.65], blush: 0.42, contour: 0.08, sparkle: 0.5 },
+  ceo01: { shadow: '#a0646e', shadow2: '#4b2433', liner: 26, lashes: 13, lashLen: 1.22, iris2: '#e4b04a', brow: [27, 15, 1.08], lip: [88, 1.12, 1.35, 0.22], blush: 0.2, contour: 0.24, mark: [[0.055, 0.075]] },
+  student01: { shadow: '#f4bcae', shadow2: '#e09a8c', liner: 0, lashes: 9, lashLen: 0.86, iris2: '#c6b4ff', brow: [13, -1, 0.8], lip: [72, 0.86, 0.85, 0.55], blush: 0.5, contour: 0.05, freckles: 26 },
+  janitor01: { shadow: '#b49280', shadow2: '#7c5c4a', liner: 4, lashes: 8, lashLen: 0.92, iris2: '#b8a060', brow: [19, 7, 1.18], lip: [84, 0.98, 1.05, 0.3], blush: 0.28, contour: 0.18, mark: [[-0.112, 0.235]] },
+  idol01: { shadow: '#ff9cc4', shadow2: '#d06aa0', liner: 14, lashes: 15, lashLen: 1.28, iris2: '#bdf0ff', brow: [16, 2, 0.75], lip: [80, 1.06, 1.1, 0.8], blush: 0.46, contour: 0.08, glitter: true, sparkle: 1, lowerLash: true },
+};
 // Eye opening per character, in face-texture pixels (the texture is 2048 x 1024 over the head loft).
 const TEX_W = 2048; const TEX_H = 1024; const PXX = 1900;
 const EYE_SHAPE = { office01: { hw: 94, hgt: 47 }, nurse01: { hw: 96, hgt: 52 }, ceo01: { hw: 92, hgt: 42 }, student01: { hw: 98, hgt: 57 }, janitor01: { hw: 92, hgt: 45 }, idol01: { hw: 99, hgt: 56 } };
@@ -311,9 +350,13 @@ function drawEye(ctx, ex, ey, side, s, rnd, setId) {
     ctx.bezierCurveTo(ex + side * hw * 0.35, ey + hgt * 0.95, ex - side * hw * 0.35, ey + hgt * 1.0, inner[0], inner[1]);
     ctx.closePath();
   };
-  // socket + double-eyelid crease + soft eyeshadow
-  radial(ctx, ex, ey - 8, hw * 1.45, hgt * 2.3, hexA('#7a4a46', 0.22));
-  radial(ctx, ex + side * 6, ey - hgt * 1.5, hw * 1.2, hgt * 0.9, hexA(s.blush, 0.24));
+  const L = LOOK[setId];
+  // socket + layered eyeshadow (light on the lid, deeper in the outer crease) + double-eyelid crease
+  radial(ctx, ex, ey - 8, hw * 1.45, hgt * 2.3, hexA('#7a4a46', 0.18));
+  radial(ctx, ex + side * 6, ey - hgt * 1.35, hw * 1.25, hgt * 1.0, hexA(L.shadow, 0.42));
+  radial(ctx, ex + side * hw * 0.55, ey - hgt * 1.3, hw * 0.7, hgt * 0.85, hexA(L.shadow2, 0.4));
+  radial(ctx, ex - side * hw * 0.85, ey - hgt * 0.6, 26, 20, hexA('#ffffff', 0.45)); // inner-corner highlight
+  radial(ctx, ex + side * hw * 0.2, ey + hgt * 1.05, hw * 0.8, hgt * 0.32, hexA(L.shadow, 0.28)); // soft lower shadow
   ctx.strokeStyle = hexA('#6b3b38', 0.55); ctx.lineWidth = 3.4; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(ex - side * hw * 0.82, ey - hgt * 0.55);
   ctx.bezierCurveTo(ex - side * hw * 0.3, ey - hgt * 2.15, ex + side * hw * 0.5, ey - hgt * 2.25, ex + side * hw * 1.02, ey - hgt * 0.85); ctx.stroke();
@@ -326,7 +369,7 @@ function drawEye(ctx, ex, ey, side, s, rnd, setId) {
   // iris
   const ir = ({ nurse01: 50, ceo01: 44, student01: 54, janitor01: 46, idol01: 54 })[setId] ?? 47; const ix = ex + side * 1; const iy = ey - 2;
   const ig = ctx.createRadialGradient(ix, iy, 4, ix, iy, ir);
-  ig.addColorStop(0, shadeHex(s.eye, 65)); ig.addColorStop(0.55, s.eye); ig.addColorStop(0.9, shadeHex(s.eye, -35)); ig.addColorStop(1, s.eyeDeep);
+  ig.addColorStop(0, shadeHex(s.eye, 65)); ig.addColorStop(0.3, L.iris2); ig.addColorStop(0.58, s.eye); ig.addColorStop(0.9, shadeHex(s.eye, -35)); ig.addColorStop(1, s.eyeDeep);
   ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ix, iy, ir, 0, Math.PI * 2); ctx.fill();
   ctx.lineWidth = 1.1;
   for (let i = 0; i < 70; i += 1) { // iris fibres
@@ -348,32 +391,42 @@ function drawEye(ctx, ex, ey, side, s, rnd, setId) {
   ctx.restore();
   // lash line (thick, tapered, winged) + individual lashes
   ctx.strokeStyle = '#1a0f14'; ctx.lineCap = 'round';
+  if (L.liner > 0) { // tapered eyeliner wing, length per character
+    ctx.fillStyle = '#1a0f14'; ctx.beginPath();
+    ctx.moveTo(outer[0] - side * 18, outer[1] - 10); ctx.quadraticCurveTo(outer[0] + side * L.liner * 0.5, outer[1] - 10 - L.liner * 0.2, outer[0] + side * (8 + L.liner), outer[1] - 12 - L.liner * 0.55);
+    ctx.quadraticCurveTo(outer[0] + side * L.liner * 0.3, outer[1] - 2, outer[0] - side * 22, outer[1] - 2); ctx.fill();
+  }
   for (let k = 0; k < 3; k += 1) {
     ctx.lineWidth = 9 - k * 2.6;
     ctx.beginPath(); ctx.moveTo(inner[0] + side * 4, inner[1] - 3 - k);
     ctx.bezierCurveTo(ex - side * hw * 0.35, ey - hgt * (1.5 + k * 0.02), ex + side * hw * 0.4, ey - hgt * (1.55 + k * 0.02), outer[0] + side * (6 + k * 2), outer[1] - 6 - k * 2); ctx.stroke();
   }
   ctx.lineWidth = 3;
-  for (let i = 0; i < 9; i += 1) { // a few clumped lashes, longest at the outer corner
-    const t = 0.45 + i / 9 * 0.55;
+  for (let i = 0; i < L.lashes; i += 1) { // clumped lashes, longest at the outer corner
+    const t = 0.4 + i / L.lashes * 0.6;
     const px = lerp(inner[0], outer[0], t); const py = ey - hgt * 1.5 * Math.sin(Math.PI * Math.min(1, t * 0.95 + 0.04)) + lerp(inner[1] - ey, outer[1] - ey, t) * 0.9;
-    const len = 10 + 18 * t + rnd() * 3;
+    const len = (10 + 18 * t + rnd() * 3) * L.lashLen;
     const ang = -Math.PI / 2 + side * (0.15 + t * 0.85) + (rnd() - 0.5) * 0.12;
     ctx.beginPath(); ctx.moveTo(px, py);
     ctx.quadraticCurveTo(px + Math.cos(ang) * len * 0.55 + side * 3, py + Math.sin(ang) * len * 0.55, px + Math.cos(ang + side * 0.45) * len, py + Math.sin(ang + side * 0.45) * len); ctx.stroke();
   }
 
+  ctx.lineWidth = 1.4; ctx.strokeStyle = hexA('#2a1a1e', 0.35);
+  if (L.lowerLash) for (let i = 0; i < 5; i += 1) { // a few soft lower lashes on the outer corner (idol stage make-up)
+    const t = 0.62 + i / 5 * 0.3; const px = lerp(inner[0], outer[0], t); const py = ey + hgt * 0.92 * Math.sin(Math.PI * t) + 2;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + side * 4, py + (8 + rnd() * 5) * L.lashLen); ctx.stroke();
+  }
   ctx.strokeStyle = hexA('#f7d6d2', 0.75); ctx.lineWidth = 3; // wet waterline
   ctx.beginPath(); ctx.moveTo(ex - side * hw * 0.6, ey + hgt * 0.72); ctx.quadraticCurveTo(ex, ey + hgt * 0.9, ex + side * hw * 0.7, ey + hgt * 0.45); ctx.stroke();
 }
 function drawBrow(ctx, bx, by, side, s, rnd, setId) {
-  const hw = 108; const arch = setId === 'ceo01' ? 26 : 20; const lift = setId === 'ceo01' ? 14 : 6;
+  const hw = 108; const [arch, lift, thickK] = LOOK[setId].brow;
   const pt = (t) => {
     const x = bx - side * hw * 0.95 + side * hw * 2.05 * t;
     const y = by + 14 - lift * t - Math.sin(Math.PI * Math.pow(t, 0.85)) * arch + (t > 0.7 ? (t - 0.7) * 46 : 0);
     return [x, y];
   };
-  const thick = (t) => 15 * Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.08)) * (1 - t * 0.35) + 3;
+  const thick = (t) => (15 * Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.08)) * (1 - t * 0.35) + 3) * thickK;
   ctx.fillStyle = hexA(s.hair, 0.28);
   ctx.beginPath(); for (let i = 0; i <= 20; i += 1) { const [x, y] = pt(i / 20); ctx.lineTo(x, y - thick(i / 20) * 0.6); }
   for (let i = 20; i >= 0; i -= 1) { const [x, y] = pt(i / 20); ctx.lineTo(x, y + thick(i / 20) * 0.6); } ctx.fill();
@@ -387,13 +440,13 @@ function drawBrow(ctx, bx, by, side, s, rnd, setId) {
   }
 }
 function drawLips(ctx, lx, ly, s, setId) {
-  const hw = 84;
+  const [hw, full, bow, gloss] = LOOK[setId].lip;
   const smile = ({ nurse01: 12, ceo01: -3, student01: 14, janitor01: 9, idol01: 18 })[setId] ?? 8;
   const base = s.lip;
   // upper lip
   ctx.beginPath(); ctx.moveTo(lx - hw, ly + smile * -1);
-  ctx.bezierCurveTo(lx - hw * 0.55, ly - 26, lx - hw * 0.2, ly - 34, lx, ly - 20);
-  ctx.bezierCurveTo(lx + hw * 0.2, ly - 34, lx + hw * 0.55, ly - 26, lx + hw, ly + smile * -1);
+  ctx.bezierCurveTo(lx - hw * 0.55, ly - 26 * full, lx - hw * 0.2, ly - 34 * full * (0.9 + 0.1 * bow), lx, ly - 20 * full / bow);
+  ctx.bezierCurveTo(lx + hw * 0.2, ly - 34 * full * (0.9 + 0.1 * bow), lx + hw * 0.55, ly - 26 * full, lx + hw, ly + smile * -1);
   ctx.bezierCurveTo(lx + hw * 0.55, ly + 4, lx + hw * 0.2, ly + 3, lx, ly + 6);
   ctx.bezierCurveTo(lx - hw * 0.2, ly + 3, lx - hw * 0.55, ly + 4, lx - hw, ly + smile * -1); ctx.closePath();
   const ug = ctx.createLinearGradient(0, ly - 34, 0, ly + 6); ug.addColorStop(0, shadeHex(base, 14)); ug.addColorStop(1, shadeHex(base, -36));
@@ -401,11 +454,13 @@ function drawLips(ctx, lx, ly, s, setId) {
   // lower lip
   ctx.beginPath(); ctx.moveTo(lx - hw * 0.98, ly + smile * -1 + 1);
   ctx.bezierCurveTo(lx - hw * 0.5, ly + 4, lx + hw * 0.5, ly + 4, lx + hw * 0.98, ly + smile * -1 + 1);
-  ctx.bezierCurveTo(lx + hw * 0.62, ly + 50, lx - hw * 0.62, ly + 50, lx - hw * 0.98, ly + smile * -1 + 1); ctx.closePath();
+  ctx.bezierCurveTo(lx + hw * 0.62, ly + 50 * full, lx - hw * 0.62, ly + 50 * full, lx - hw * 0.98, ly + smile * -1 + 1); ctx.closePath();
   const lg = ctx.createLinearGradient(0, ly + 2, 0, ly + 46); lg.addColorStop(0, shadeHex(base, -18)); lg.addColorStop(0.5, shadeHex(base, 16)); lg.addColorStop(1, shadeHex(base, -8));
   ctx.fillStyle = lg; ctx.fill();
-  radial(ctx, lx - 10, ly + 24, 44, 9, hexA('#ffffff', 0.55)); // gloss on lower lip
-  radial(ctx, lx - 40, ly - 14, 20, 5, hexA('#ffffff', 0.3));
+  radial(ctx, lx - 10, ly + 24 * full, 44, 9, hexA('#ffffff', gloss)); // gloss on lower lip
+  radial(ctx, lx + 22, ly + 30 * full, 12, 4, hexA('#ffffff', gloss * 0.7));
+  radial(ctx, lx - 40, ly - 14, 20, 5, hexA('#ffffff', 0.15 + gloss * 0.3));
+  radial(ctx, lx, ly - 28 * full, 16, 6, hexA('#ffffff', 0.22)); // cupid's bow highlight
   ctx.strokeStyle = hexA('#4a1424', 0.85); ctx.lineWidth = 4.4; ctx.lineCap = 'round'; // mouth line
   ctx.beginPath(); ctx.moveTo(lx - hw * 1.0, ly + smile * -1 + 1); ctx.bezierCurveTo(lx - hw * 0.4, ly + 6, lx + hw * 0.4, ly + 6, lx + hw * 1.0, ly + smile * -1 + 1); ctx.stroke();
   radial(ctx, lx, ly + 62, 50, 16, hexA('#7a4a40', 0.2)); // chin dimple shadow
@@ -693,8 +748,8 @@ function eyes(sc, id) {
       const t = 0.06 + (i / 14) * 0.94; const [px, py] = c.upper(t); const [x, h] = texToHead(px, py);
       const y = CHIN + h; pts.push([x, y, headSurfaceZ(y, x) + faceDeform(x, y, 0, null, 1, x / 0.19)[2] + 0.004 + 0.006 * t]);
     }
-    const [lx, ly, lz] = pts[pts.length - 1]; pts.push([lx + side * 0.012, ly + 0.01, lz - 0.004]);
-    sc.path('lash', pts, (t) => { const w = 0.0016 + 0.0042 * Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1)); return [w * 0.7, w]; }, { up: [0, 0, 1], N: 8, samples: 4 });
+    const L = LOOK[id]; const [lx, ly, lz] = pts[pts.length - 1]; const flick = 0.006 + 0.0004 * L.liner * L.lashLen; pts.push([lx + side * flick, ly + flick * 0.8, lz - 0.004]);
+    sc.path('lash', pts, (t) => { const w = (0.0016 + 0.0042 * Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1))) * (0.8 + 0.25 * L.lashLen); return [w * 0.7, w]; }, { up: [0, 0, 1], N: 8, samples: 4 });
   }
 }
 
