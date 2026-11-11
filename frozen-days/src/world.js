@@ -263,5 +263,5 @@ export function createWorld(scene) {
     if (dirty && ++tick % 3 === 0) { iceTex.needsUpdate = true; dirty = false; }
   }
 
-  return { colliders, onIce, trail, scuff, update, zoneAt, heightAt, glowMat, windowMat: town.lightMat };
+  return { colliders, onIce, trail, scuff, update, zoneAt, heightAt, glowMat, windowMat: town.lightMat, benches: town.benches };
 }

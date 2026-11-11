@@ -1,6 +1,6 @@
 // NPCs: a few lightweight characters with simple routines (skate loop, walk route, stand and chat),
 // short context-aware dialogue and a friendship tier. Far-away NPCs are hidden and not animated.
-import { createCharacter } from './character.js';
+import { createCharacter, stepActions } from './character.js';
 import { angleDiff, clamp, lerp, approach } from './util.js';
 import { ringPt } from './layout.js';
 
@@ -54,10 +54,10 @@ export const NPC_DEFS = [
   {
     id: 'baker', name: 'Mr. Baker', role: 'Neighbour', kind: 'male',
     variant: { skin: 0xdcaa86, jacket: 0x4a5568, scarf: 0x9a6a3e, pants: 0x30323c, boot: 0x2a2a30, bootAccent: 0x9a6a3e, glove: 0x4a5568, cuff: 0x2d3748, hair: { color: 0xc9c9d0, style: 'short' }, hat: { color: 0x2d3748 }, eye: { iris: 0x7a6a3a }, brow: { color: 0x9a9aa2 } },
-    behavior: { type: 'walker', speed: 1.5, pingpong: true, path: [[0, 100], [0, 87], ringPt(75), ringPt(60), ringPt(45), ringPt(30), ringPt(15), ringPt(0), [105, 12]] },
+    behavior: { type: 'walker', speed: 1.5, pingpong: true, path: [[0, 100], [0, 87], ringPt(75), ringPt(60), ringPt(45), ringPt(30), ringPt(15), ringPt(0), [105, 12], [104.7, 7.9], [102.95, 7.87]], sit: { yaw: 1.2735, secs: [26, 40] } },
     intro: ['Morning! Walter Baker, but everyone says Mr. Baker.', 'I walk this path every day. Best view of the lake in town.'],
     greet: [['Morning again! Lovely cold today.', 'Ah, hello there. Out for a stroll?'], ['Good to see you! You skate better every day.', 'Hello, young one. Mind the ice by the dock.'], ['Ah, my favourite neighbour! Walk with me a while.', 'Hello, friend! Still the best view in town.']],
-    chat: ['I used to skate here before my knees retired.', 'The bakery on the plaza? The cinnamon buns are legendary.', 'Winter is just summer taking a long nap.', 'Watch the old oak by the park. It has seen every winter.'],
+    chat: ['I used to skate here before my knees retired.', 'The bakery on the plaza? The cinnamon buns are legendary.', 'Winter is just summer taking a long nap.', 'Watch the old oak by the park. It has seen every winter.', 'I rest on the park bench by the gazebo most days. Sit with me sometime.'],
   },
 ];
 
@@ -98,10 +98,16 @@ export function createNpcs(scene, heightAt = () => 0) {
   }
   function walk(n, dt) {
     const s = n.s, b = n.def.behavior;
-    if (n.pause > 0) { n.pause -= dt; s.speed = approach(s.speed, 0, 4 * dt); }
+    if (n.sitT > 0) { // resting on the bench at the end of the route
+      const bw = b.path[b.path.length - 1], k = Math.min(1, dt * 3);
+      n.sitT -= dt; s.speed = 0; s.sitting = true; turnTo(s, b.sit.yaw, 3, dt); s.x += (bw[0] - s.x) * k; s.z += (bw[1] - s.z) * k;
+      if (n.sitT <= 0) { s.sitting = false; n.pause = 0.8; }
+    } else if (n.pause > 0) { n.pause -= dt; s.speed = approach(s.speed, 0, 4 * dt); }
     else {
       const wp = b.path[n.wi], dx = wp[0] - s.x, dz = wp[1] - s.z;
       if (Math.hypot(dx, dz) < 1.2) {
+        if (b.sit && n.wi === b.path.length - 1 && !n.sitDone) { n.sitT = b.sit.secs[0] + Math.random() * (b.sit.secs[1] - b.sit.secs[0]); n.sitDone = true; return; }
+        n.sitDone = false;
         n.pause = 2 + Math.random() * 3;
         if (b.pingpong) { if (n.wi + n.dir < 0 || n.wi + n.dir >= b.path.length) n.dir *= -1; n.wi += n.dir; } else n.wi = (n.wi + 1) % b.path.length;
       } else { const diff = turnTo(s, Math.atan2(dx, dz), 2.5, dt); s.speed = approach(s.speed, Math.abs(diff) > 0.8 ? 0.4 : b.speed, 3 * dt); }
@@ -127,6 +133,7 @@ export function createNpcs(scene, heightAt = () => 0) {
         else if (n.def.behavior.type === 'walker') walk(n, dt);
         else idle(n, dt, px, pz);
         s.x += Math.sin(s.h) * s.speed * dt; s.z += Math.cos(s.h) * s.speed * dt;
+        stepActions(s, dt);
         s.y = s.mode === 'skate' ? 0 : heightAt(s.x, s.z);
         n.ch.pose(s, n.clock); n.ch.place(s);
       }
@@ -135,6 +142,15 @@ export function createNpcs(scene, heightAt = () => 0) {
       let best = null, bd = maxD;
       for (const n of list) { if (!n.active) continue; const d = Math.hypot(px - n.s.x, pz - n.s.z); if (d < bd) { bd = d; best = n; } }
       return best;
+    },
+    // Things you can do together after a chat. ctx.cool(id) = seconds until the activity is available again.
+    choices(n, ctx) {
+      const cd = ctx.cool(n.id), off = cd > 0, tail = off ? ' (later)' : '';
+      if (n.id === 'mika' || n.id === 'rin') return [{ id: 'skate', label: 'Skate together' + tail, off }];
+      if (n.id === 'baker') return [{ id: 'walk', label: 'Take a walk together' + tail, off }];
+      if (n.id === 'ollie') return [{ id: 'treat', label: 'Treat Ollie · ● 12' + tail, off: off || ctx.coins < 12 }];
+      if (n.id === 'hana') return [{ id: 'browse', label: 'Browse skates' }];
+      return [];
     },
     // ctx: { points, met, skills, spinUnlocked }
     dialogue(n, ctx) {

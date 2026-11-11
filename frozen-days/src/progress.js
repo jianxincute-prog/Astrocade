@@ -36,6 +36,8 @@ export function createProgress(saved) {
   const run = { base: 0, hold: 0, dist: 0, turn: 0, lastH: null, brakeStart: 0, braking: false, wobbling: false, xpDist: 0, xpTime: 0 };
 
   const skillVal = (k) => 1 - Math.exp(-s.raw[k] / K[k]);
+  // Friendship perks: Hana (skates) and Ollie (drinks) give a discount as the friendship grows.
+  const discOf = (slot) => { const who = slot === 'skates' ? 'hana' : slot === 'drinks' ? 'ollie' : null, p = who && s.friends[who] !== undefined ? s.friends[who] : -1; return p >= 6 ? 0.2 : p >= 2 ? 0.1 : 0; };
   function award(n, out) {
     s.xp += n; pendingXp += n; dirty = true;
     const nl = levelFor(s.xp);
@@ -95,14 +97,18 @@ export function createProgress(saved) {
     worn() { return { ...s.worn }; },
     outfit() { return variantFor(s.worn); },
     gear() { return gearFor(s.worn); },
-    buy(id) { const it = ITEM[id]; if (!it || s.coins < it.price) return false; s.coins -= it.price; if (!it.food) s.owned[id] = true; dirty = true; return true; },
+    buy(id) { const it = ITEM[id]; if (!it) return false; const price = Math.round(it.price * (1 - discOf(it.slot))); if (s.coins < price) return false; s.coins -= price; if (!it.food) s.owned[id] = true; dirty = true; return true; },
     wear(slot, id) { if (id === null) delete s.worn[slot]; else if (s.owned[id] && ITEM[id] && ITEM[id].slot === slot) s.worn[slot] = id; dirty = true; },
     addXp(n) { const out = []; award(n, out); return out; },
 
     // Town: friendship points per NPC (undefined = not met yet) and discovered places.
     friendPoints(id) { return s.friends[id] === undefined ? -1 : s.friends[id]; },
     meet(id, name) { const out = []; if (s.friends[id] === undefined) { s.friends[id] = 0; award(10, out); s.coins += 5; out.push({ type: 'met', name }); } return out; },
-    addFriend(id) { if (s.friends[id] !== undefined) { s.friends[id] = Math.min(12, s.friends[id] + 1); dirty = true; } },
+    addFriend(id, n = 1) { if (s.friends[id] !== undefined) { s.friends[id] = Math.min(12, s.friends[id] + n); dirty = true; } },
+    addCoins(n) { s.coins += n; dirty = true; },
+    spendCoins(n) { if (s.coins < n) return false; s.coins -= n; dirty = true; return true; },
+    discount(slot) { return discOf(slot); },
+    priceOf(it) { return Math.round(it.price * (1 - discOf(it.slot))); },
     discoverZone(id, name, xp = 15) { const out = []; if (!s.zones[id]) { s.zones[id] = true; award(xp, out); s.coins += xp === 5 ? 5 : 10; out.push({ type: 'zone', name, xp, coins: xp === 5 ? 5 : 10 }); } return out; },
     zonesFound() { return Object.keys(s.zones).length; },
     friendsMet() { return Object.keys(s.friends).length; },

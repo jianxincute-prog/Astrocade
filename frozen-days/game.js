@@ -6,7 +6,7 @@
  */
 import { getCfg } from './src/config.js';
 import { createWorld } from './src/world.js';
-import { createCharacter, CHARACTERS, characterLabel } from './src/character.js';
+import { createCharacter, CHARACTERS, characterLabel, stepActions, startEat } from './src/character.js';
 import { createSelect } from './src/select.js';
 import { makeEnvironment } from './src/textures.js';
 import { OUTLINE } from './src/anime.js';
@@ -66,6 +66,8 @@ function run(mode) {
   const skater = createSkater();
   const rig = createCameraRig(camera);
   let talkNpc = null, curZone = null, zoneTimer = 0;
+  const actCool = {}; // per NPC: clock time when its friendship activity is available again
+  let act = null, sitBench = null, coSit = { id: null, t: 0 }, sitHinted = false;
   const lastTalk = {};
   let progress = createProgress(null);
 
@@ -94,7 +96,7 @@ function run(mode) {
   }
 
   // Developer hook (only when gameConfig.dev is set): jump to a spot to inspect the town.
-  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, sky, rig, get progress() { return progress; }, get shop() { return shop; }, openShopById(id) { openShop(id ? SHOPS.find((s) => s.id === id) : null); }, get buff() { return buff; }, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
+  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, sky, rig, get progress() { return progress; }, get shop() { return shop; }, openShopById(id) { openShop(id ? SHOPS.find((s) => s.id === id) : null); }, get buff() { return buff; }, get act() { return act; }, standUp, startTalkById(id) { const n = npcs.list.find((q) => q.id === id); if (n) startTalk(n); }, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
 
   let raf = 0, last = performance.now(), clock = 0, clockT = 1;
   let input = null, hud = null, sel = null, shop = null;
@@ -145,6 +147,7 @@ function run(mode) {
     hud.el.addEventListener('respawn', () => input.requestRespawn());
     hud.el.addEventListener('character', () => openSelect());
     hud.el.addEventListener('panel', () => hud.showPanel(progress, { zones: ZONE_LIST.length, npcs: NPC_DEFS.length }));
+    hud.el.addEventListener('dialogchoice', (e) => { if (talkNpc) friendActivity(talkNpc, e.detail); });
     hud.el.addEventListener('dialogend', () => {
       if (talkNpc) {
         if (clock - (lastTalk[talkNpc.id] === undefined ? -999 : lastTalk[talkNpc.id]) > 40) { progress.addFriend(talkNpc.id); lastTalk[talkNpc.id] = clock; hud.toast('♥ Your friendship with ' + talkNpc.name + ' grew', 2); }
@@ -215,7 +218,7 @@ function run(mode) {
     const setOutfit = (w) => { outfit = variantFor(w); rebuildPlayer(); };
     shop.open({
       title: def ? def.name : 'Wardrobe', sub: def ? def.line : 'Change what you wear', tabs, wardrobe: !def,
-      coins: () => progress.coins(), owns: (id) => progress.owns(id), worn: (slot) => progress.worn()[slot] || null,
+      coins: () => progress.coins(), price: (it) => progress.priceOf(it), owns: (id) => progress.owns(id), worn: (slot) => progress.worn()[slot] || null,
       preview: (slot, id) => { const w = progress.worn(); if (slot) { if (id === null) delete w[slot]; else w[slot] = id; } setOutfit(w); },
       equip: (slot, id) => { progress.wear(slot, id); setOutfit(progress.worn()); saveState(true); },
       buy: (it) => { if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' }; if (hasLib()) lib.haptics.play('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + '!' }; },
@@ -223,6 +226,7 @@ function run(mode) {
         if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' };
         if (it.food.xp) { handleUi(progress.addXp(it.food.xp)); }
         if (it.food.comfort) { buff.mul = it.food.comfort; buff.t = it.food.secs; buff.label = it.name.split(' ').pop(); }
+        startEat(skater, it.slot === 'drinks' ? 'cup' : 'bun');
         if (hasLib()) lib.haptics.play('success');
         saveState(true); return { ok: true, msg: it.food.xp ? 'Yum! +' + it.food.xp + ' XP' : 'Ahh, so warm!' };
       },
@@ -232,12 +236,53 @@ function run(mode) {
     root.classList.add('shopping');
   }
   const openHint = (s) => (s.soon ? 'Opening soon' : 'Opens ' + hourLabel(s.open[0]));
+  // ---- Friendship activities, sitting on benches
+  const rewardTag = (n, pts) => (pts >= 6 ? 'Close friends!' : pts >= 2 ? 'Good friends!' : 'Nice to meet you!');
+  function friendActivity(n, id) {
+    const pts = Math.max(0, progress.friendPoints(n.id));
+    if (id === 'skate' || id === 'walk') {
+      if (id === 'skate' && skater.mode !== 'skate') { hud.toast('Get on the ice first, then ask ' + n.name + ' again', 2.4); return; }
+      act = { npc: n, name: n.name, skate: id === 'skate', t: 0, goal: id === 'skate' ? 40 : 30, range: id === 'skate' ? 11 : 7, away: 0 };
+      hud.toast(id === 'skate' ? 'Skate with ' + n.name + '!\nStay close for 40 seconds' : 'Walk with ' + n.name + '!\nStay close for 30 seconds', 2.6);
+    } else if (id === 'treat') {
+      if (!progress.spendCoins(12)) { hud.toast('Not enough coins', 1.6); return; }
+      startEat(skater, 'cup'); startEat(n.s, 'cup');
+      progress.addFriend(n.id, 2); handleUi(progress.addXp(10)); actCool[n.id] = clock + 120;
+      hud.toast('Cocoa with ' + n.name + '!  ♥♥  +10 XP', 2.6);
+    } else if (id === 'browse') {
+      const sh = SHOPS.find((s) => s.id === 'skate');
+      if (isOpen(sh, sky.hour())) openShop(sh); else hud.toast('Blade & Edge opens at ' + hourLabel(sh.open[0]), 2.2);
+    }
+  }
+  function finishActivity(ok) {
+    const a = act; act = null; hud.setActivity(null); if (!a) return;
+    actCool[a.npc.id] = clock + 150;
+    if (!ok) { hud.toast('You lost track of ' + a.name, 2); return; }
+    const pts = Math.max(0, progress.friendPoints(a.npc.id));
+    progress.addFriend(a.npc.id, 2); progress.addCoins(20 + Math.min(10, pts)); handleUi(progress.addXp(15));
+    hud.toast((a.skate ? 'Great skate with ' : 'Lovely walk with ') + a.name + '!\n♥♥  +15 XP  +' + (20 + Math.min(10, pts)) + ' coins', 3);
+    if (hasLib()) lib.haptics.play('success'); saveState(true);
+  }
+  function sitOn(b) {
+    sitBench = b; skater.sitting = true; skater.h = b.yaw;
+    // two seats per bench: take the free one if a neighbour is already sitting
+    const rx = Math.cos(b.yaw), rz = -Math.sin(b.yaw), occ = npcs.list.find((q) => q.active && q.s.sitAmt > 0.5 && Math.hypot(q.s.x - b.x, q.s.z - b.z) < 1.4);
+    const off = occ ? ((occ.s.x - b.x) * rx + (occ.s.z - b.z) * rz < 0 ? 0.5 : -0.5) : 0;
+    skater.x = b.x + rx * off; skater.z = b.z + rz * off; skater.vx = skater.vz = 0; skater.speed = 0; skater.stroking = false; skater.strideAmp = 0; coSit = { id: null, t: 0 };
+    if (!sitHinted) { sitHinted = true; hud.toast('Move the stick or tap STAND to get up', 2.4); }
+  }
+  function standUp() {
+    if (!sitBench) return; const b = sitBench; sitBench = null; skater.sitting = false;
+    skater.x = b.x + Math.sin(b.yaw) * 1.9 + Math.cos(b.yaw) * (skater.x - b.x > 0 ? 0 : 0); skater.z = b.z + Math.cos(b.yaw) * 1.9; coSit = { id: null, t: 0 };
+  }
+  function nearBench(x, z, r = 2.5) { let best = null, bd = r; for (const b of world.benches || []) { const d = Math.hypot(x - b.x, z - b.z); if (d < bd) { bd = d; best = b; } } return best; }
   function startTalk(n) {
     const pts = progress.friendPoints(n.id), met = pts >= 0;
     if (!met) handleUi(progress.meet(n.id, n.name));
     const points = Math.max(0, pts);
     const lines = npcs.dialogue(n, { points, met, skills: progress.rawSkills(), spinUnlocked: progress.spinUnlocked() });
-    hud.showDialog({ name: n.name, role: n.role, label: friendLabel(points), hearts: friendHearts(points), lines });
+    const choices = npcs.choices(n, { points, coins: progress.coins(), cool: (id) => Math.max(0, (actCool[id] || 0) - clock) });
+    hud.showDialog({ name: n.name, role: n.role, label: friendLabel(points), hearts: friendHearts(points), lines, choices });
     talkNpc = n;
     if (hasLib()) lib.haptics.play('tap');
   }
@@ -288,8 +333,11 @@ function run(mode) {
       else if (inp.push > 0.1 || Math.hypot(inp.mx, inp.my) > 0.3) hud.hideHint();
       inp.mag = Math.hypot(inp.mx, inp.my);
       { const ya = rig.yaw; inp.tgtH = inp.mag > 0.01 ? Math.atan2(Math.sin(ya) * inp.my + Math.cos(ya) * inp.mx, Math.cos(ya) * inp.my - Math.sin(ya) * inp.mx) : null; }
+      if (skater.sitting && (inp.mag > 0.4 || inp.push > 0)) standUp();
       const steps = Math.max(1, Math.ceil(dt / (1 / 60))), h = dt / steps;
-      for (let i = 0; i < steps; i++) { inp.spin = i === 0 ? inp.spin : false; updateSkater(skater, inp, h, c, world); }
+      if (skater.sitting) { skater.vx = skater.vz = 0; skater.speed = 0; skater.mode = 'walk'; skater.events.length = 0; }
+      else for (let i = 0; i < steps; i++) { inp.spin = i === 0 ? inp.spin : false; updateSkater(skater, inp, h, c, world); }
+      stepActions(skater, dt);
       skater.y = world.heightAt(skater.x, skater.z);
 
       // Blade trails on the ice + spray while braking hard.
@@ -326,6 +374,24 @@ function run(mode) {
       }
       hud.update(skater, dt, progress);
       hud.setCoins(progress.coins());
+      if (act) {
+        const d = Math.hypot(skater.x - act.npc.s.x, skater.z - act.npc.s.z), ok = d < act.range && (!act.skate || skater.mode === 'skate');
+        if (ok) { act.t += dt; act.away = 0; } else act.away += dt;
+        hud.setActivity({ text: (act.skate ? 'Skating with ' : 'Walking with ') + act.name + (ok ? '' : ' · stay close!'), frac: act.t / act.goal });
+        if (act.t >= act.goal) finishActivity(true); else if (act.away > 7) finishActivity(false);
+      }
+      if (skater.sitting) { // resting beside a sitting neighbour is a friendship activity too
+        const mate = npcs.list.find((q) => q.active && q.s.sitAmt > 0.8 && Math.hypot(skater.x - q.s.x, skater.z - q.s.z) < 4.8);
+        if (mate && clock > (actCool[mate.id] || 0)) {
+          if (coSit.id !== mate.id) coSit = { id: mate.id, t: 0 };
+          coSit.t += dt;
+          if (coSit.t >= 14) {
+            if (progress.friendPoints(mate.id) < 0) handleUi(progress.meet(mate.id, mate.name));
+            progress.addFriend(mate.id, 2); handleUi(progress.addXp(12)); progress.addCoins(10); actCool[mate.id] = clock + 150; coSit = { id: null, t: 0 };
+            hud.toast('You and ' + mate.name + ' enjoyed a quiet moment\n♥♥  +12 XP  +10 coins', 3.2); saveState(true);
+          }
+        } else coSit = { id: null, t: 0 };
+      }
       if (buff.t > 0) { buff.t -= dt; if (buff.t <= 0) { buff.mul = 1; hud.setBuff(null); hud.toast(buff.label + ' wore off', 1.6); } else hud.setBuff('♨ ' + buff.label + ' ' + Math.floor(buff.t / 60) + ':' + ('0' + Math.floor(buff.t % 60)).slice(-2)); }
 
       // Town: discovering places and talking to neighbours.
@@ -338,14 +404,20 @@ function run(mode) {
       }
       const wantTalk = input.consumeTalk();
       const busy = hud.panelOpen || hud.dialogOpen || shop.isOpen, calm = skater.speed < 4.5 && skater.state === 'ok';
+      const seated = skater.sitting;
       const near = !busy ? npcs.nearest(skater.x, skater.z, TALK_RANGE) : null;
-      const canTalk = !!near && calm;
-      const door = !busy && !near ? shopNear(skater.x, skater.z) : null, canEnter = !!door && calm;
-      if (canTalk) { hud.setTalk(near.name, touch); input.setTalkLabel('TALK'); }
+      const bench = !busy && !seated && skater.mode === 'walk' ? nearBench(skater.x, skater.z, 2.2) : null, canSit = !!bench && calm;
+      const canTalk = !!near && calm && !canSit;
+      const door = !busy && !near && !seated ? shopNear(skater.x, skater.z) : null, canEnter = !!door && calm;
+      if (canSit) { hud.setTalk('here', touch, 'Sit '); input.setTalkLabel('SIT'); }
+      else if (canTalk) { hud.setTalk(near.name, touch); input.setTalkLabel('TALK'); }
       else if (canEnter) { const op = isOpen(door, sky.hour()); hud.setTalk(op ? door.name : door.name + ' · ' + openHint(door), touch, op ? 'Enter ' : ''); input.setTalkLabel('ENTER'); }
+      else if (seated) { hud.setTalk('', touch, 'Stand up'); input.setTalkLabel('STAND'); }
       else hud.setTalk(null, touch);
-      input.setTalkVisible(canTalk || canEnter);
-      if (wantTalk && canTalk) startTalk(near);
+      input.setTalkVisible(canTalk || canEnter || canSit || seated);
+      if (wantTalk && canSit) sitOn(bench);
+      else if (wantTalk && canTalk) startTalk(near);
+      else if (wantTalk && seated) standUp();
       else if (wantTalk && canEnter) { if (isOpen(door, sky.hour())) openShop(door); else hud.toast(door.name + (door.soon ? ' is opening soon' : ' is closed.\nOpen ' + hourLabel(door.open[0]) + ' - ' + hourLabel(door.open[1])), 2.2); }
     } else {
       // Edit mode: static scene, slow orbit, no gameplay.

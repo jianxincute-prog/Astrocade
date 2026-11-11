@@ -164,6 +164,12 @@ export function createCharacter(kind, opts = {}) {
     const a = { sh, el, wr }; arms.push(a); return a;
   }
   const armL = makeArm(1), armR = makeArm(-1);
+  // handheld props for the eating animation (cup of cocoa / bun), shown only while eating
+  const cupMat = std({ color: 0xf4efe6, roughness: 0.7 }), cocoaMat = std({ color: 0x6a3f24, roughness: 0.6 }), bunMat = std({ color: 0xd9a05a, roughness: 0.8 }), iceMat = std({ color: 0xfff6ea, roughness: 0.7 });
+  const cup = new T.Group(); cup.visible = false; armR.wr.add(cup); cup.position.set(0, -0.11, 0.04);
+  cup.add(mk(new T.CylinderGeometry(0.042, 0.033, 0.095, 12), cupMat, 0, 0, 0)); cup.add(mk(new T.CylinderGeometry(0.037, 0.037, 0.006, 12), cocoaMat, 0, 0.044, 0));
+  const bun = new T.Group(); bun.visible = false; armR.wr.add(bun); bun.position.set(0, -0.085, 0.03);
+  { const b = mk(new T.SphereGeometry(0.042, 12, 9), bunMat, 0, 0, 0); b.scale.y = 0.72; bun.add(b); const ic = mk(new T.SphereGeometry(0.03, 10, 7), iceMat, 0, 0.02, 0); ic.scale.y = 0.4; bun.add(ic); }
 
   // ---------- Neck, collar, scarf
   const neck = new T.Group(); neck.position.y = 0.5; spine.add(neck);
@@ -288,6 +294,12 @@ export function createCharacter(kind, opts = {}) {
       kL = 0.08 + Math.max(0, Math.cos(s)) * 0.8 * w; kR = 0.08 + Math.max(0, -Math.cos(s)) * 0.8 * w;
     } else { tL = tR = -0.1 - f * 0.1; kL = kR = 0.25 + f * 0.35; }
     const wobL = Math.sin(t * 9) * wob * 0.12; tL += wobL; tR -= wobL;
+    // sitting (bench): thighs forward, shins down; blended in by p.sitAmt
+    const sa = clamp(p.sitAmt || 0, 0, 1), ea = clamp(p.eatAmt || 0, 0, 1);
+    if (sa > 0.001) {
+      tL = lerp(tL, -1.25, sa); tR = lerp(tR, -1.25, sa); kL = lerp(kL, 1.35, sa); kR = lerp(kR, 1.35, sa);
+      yL *= 1 - sa; yR *= 1 - sa; rL *= 1 - sa; rR *= 1 - sa; aL = lerp(aL, 0.05, sa); aR = lerp(aR, -0.05, sa);
+    }
     legL.hip.rotation.set(tL, yL, aL, 'YXZ'); legR.hip.rotation.set(tR, yR, aR, 'YXZ');
     legL.knee.rotation.x = kL; legR.knee.rotation.x = kR;
     legL.ankle.rotation.set(-(tL + kL), 0, rL); legR.ankle.rotation.set(-(tR + kR), 0, rR);
@@ -295,9 +307,10 @@ export function createCharacter(kind, opts = {}) {
       const l = L1 * Math.cos(tL) + L2 * Math.cos(tL + kL), r = L1 * Math.cos(tR) + L2 * Math.cos(tR + kR);
       hl = Math.max(l, r); hipsY = FOOT + hl - 0.002;
     }
+    if (sa > 0.001) hipsY = lerp(hipsY, 0.77, sa); // pelvis rests on the bench seat, shins hang a little
     hips.position.y = hipsY; hips.position.x = shift;
 
-    const lean = (onIce ? 0.1 + sf * 0.3 : 0.05) * calm + crouchLean + 0.18 * (hl < 0.74 ? (0.74 - hl) * 1.6 : 0);
+    const lean = ((onIce ? 0.1 + sf * 0.3 : 0.05) * calm + crouchLean + 0.18 * (hl < 0.74 ? (0.74 - hl) * 1.6 : 0)) * (1 - sa * 0.8);
     spine.rotation.x = lean + Math.cos(t * 7) * wob * 0.14;
     spine.rotation.z = (Math.sin(t * 9) * wob * 0.28 + p.steer * clamp(p.speed / 9, 0, 1) * 0.35 + roll) * calm;
     spine.rotation.y = (-p.steer * clamp(p.speed / 9, 0, 1) * 0.12 + twist) * calm;
@@ -316,6 +329,16 @@ export function createCharacter(kind, opts = {}) {
       a.el.rotation.x = -(0.35 + (onIce ? 0.35 : 0.2) * calm + wob * 0.6) - f * 0.4;
       a.wr.rotation.x = -0.25;
     });
+    if (sa > 0.001) [[armL, 1], [armR, -1]].forEach(([a, side]) => { // hands resting on the lap
+      a.sh.rotation.x = lerp(a.sh.rotation.x, -0.5, sa); a.sh.rotation.z = lerp(a.sh.rotation.z, side * 0.1, sa);
+      a.el.rotation.x = lerp(a.el.rotation.x, -1.0, sa); a.wr.rotation.x = lerp(a.wr.rotation.x, -0.15, sa);
+    });
+    if (ea > 0.001) { // right hand lifts the cup / bun to the mouth
+      armR.sh.rotation.x = lerp(armR.sh.rotation.x, -1.3, ea); armR.sh.rotation.z = lerp(armR.sh.rotation.z, 0.66, ea);
+      armR.el.rotation.x = lerp(armR.el.rotation.x, -2.12, ea); armR.wr.rotation.x = lerp(armR.wr.rotation.x, -0.2, ea);
+      head.rotation.x -= 0.1 * ea;
+    }
+    cup.visible = ea > 0.01 && p.eatItem === 'cup'; bun.visible = ea > 0.01 && p.eatItem === 'bun';
     // scarf tail streams behind
     tail.rotation.x = 0.08 + sf * 1.05 + Math.sin(t * 8) * 0.08 * sf + f * 0.4;
     tail.rotation.z = Math.sin(t * 6 + 1) * 0.1 * sf;
@@ -336,6 +359,19 @@ export function createCharacter(kind, opts = {}) {
   addOutlines(root);
   return { root, pose, place, dispose, kind, height: 1.77 * P.scale, faceY: 1.64 * P.scale };
 }
+
+// Timelines for the sit / eat animations (works on the player and on NPC state objects).
+const ss = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+export function stepActions(p, dt) {
+  const goal = p.sitting ? 1 : 0, cur = p.sitAmt || 0;
+  p.sitAmt = cur < goal ? Math.min(goal, cur + dt / 0.4) : Math.max(goal, cur - dt / 0.4);
+  if (p.eatT !== undefined && p.eatT >= 0) {
+    p.eatT += dt;
+    if (p.eatT >= 3.4) { p.eatT = -1; p.eatAmt = 0; p.eatItem = null; }
+    else { const c = p.eatT % 1.7; p.eatAmt = ss(c / 0.5) * (1 - ss((c - 1.1) / 0.5)); }
+  }
+}
+export function startEat(p, item) { p.eatT = 0; p.eatItem = item; p.eatAmt = 0; }
 
 function shadeHex(n, k) {
   const r = Math.min(255, ((n >> 16) & 255) * k) | 0, g = Math.min(255, ((n >> 8) & 255) * k) | 0, b = Math.min(255, (n & 255) * k) | 0;

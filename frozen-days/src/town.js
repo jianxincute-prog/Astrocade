@@ -75,7 +75,7 @@ const HOUSES = [];
 [-40, -24, 24, 40].forEach((x, i) => HOUSES.push({ id: 'hs' + i, x, z: -127, w: 9, d: 7.5, h: 4.7 + (i % 2) * 0.3, yaw: 0, wall: HOUSE_COLORS[i + 6][0], roof: HOUSE_COLORS[i + 6][1], front: -121.2, chunk: 'res' }));
 
 export function createTown(scene) {
-  const colliders = [], glowPts = [], trees = [], flicker = [], occupied = [];
+  const colliders = [], glowPts = [], trees = [], flicker = [], occupied = [], benchList = [];
   // One merged mesh set per district so far-away districts are frustum-culled.
   const chunks = {}; let cur = null;
   const chunk = (name) => (cur = chunks[name] || (chunks[name] = { body: makeMerger(), light: makeMerger(), flat: makeMerger() }));
@@ -181,7 +181,7 @@ export function createTown(scene) {
     const y = heightAt(x, z), g = body.at(x, z, yaw, y);
     g.box(2.1, 0.12, 0.7, 0, 0.55, 0, WOOD); g.box(2.1, 0.55, 0.1, 0, 0.95, -0.32, WOOD, -0.12);
     [-0.85, 0.85].forEach((s) => g.box(0.12, 0.55, 0.62, s, 0.28, 0, DARK));
-    colliders.push({ x, z, r: 0.95 });
+    colliders.push({ x, z, r: 0.95 }); benchList.push({ x, z, yaw, y });
   }
   const face = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
   function signpost(x, z, yaw, lines, bg, fg) {
@@ -407,5 +407,5 @@ export function createTown(scene) {
     for (const o of occupied) if (Math.hypot(x - o[0], z - o[1]) < o[2] + m) return true;
     return false;
   }
-  return { colliders, glowPts, flicker, trees, blocked, lightMat };
+  return { colliders, glowPts, flicker, trees, blocked, lightMat, benches: benchList };
 }

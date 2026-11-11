@@ -15,6 +15,12 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 ## Economy
 Coins come from goals, level-ups, distance skated, new places and new friends. Shops open at set hours (Blade & Edge 08-19, Warm Threads 09-20, Cocoa Corner 07-22, Sweet Bakery 06-17): walk to the door and press ENTER. Clothes and skates are bought once and worn from the shop or from Skills > Wardrobe; drinks give temporary balance comfort and bakes give XP.
 
+## Friendship and rest
+- **Benches:** walk up to any bench and press SIT (two seats per bench); move the stick to get up. Characters have real sit and sip/bite animations.
+- **Sit with a neighbour:** Mr. Baker rests on the park bench by the gazebo for half a minute at the end of his walk. Sit beside him for about 14 seconds for a friendship bonus.
+- **Do things together:** after a chat, Rin and Mika offer to skate together, Mr. Baker a walk (stay close for 30-40 s), Ollie a shared cocoa (12 coins), Hana lets you browse skates. Each gives friendship, XP and coins, then has a cooldown.
+- **Perks:** friends of Hana (skates) and Ollie (drinks) get 10% off at 2 friendship points and 20% off at 6.
+
 ## Code structure
 - `game.js` — `run(mode)`: scene setup, game loop, edit-mode preview, settings panel.
 - `src/config.js` — reads `gameConfig`; `skillsFor(level)` maps one skill level to Balance/Control/Speed/Braking/Tricks.
@@ -35,4 +41,4 @@ Coins come from goals, level-ups, distance skated, new places and new friends. S
 - `src/camera.js`, `src/input.js`, `src/hud.js`, `src/fx.js` — chase camera, keyboard/touch input, DOM HUD, spray particles.
 
 ## Roadmap (see GDD)
-Next: sitting and eating animations, friendship activities, settings and audio.
+Next: settings and audio, then romance and events.

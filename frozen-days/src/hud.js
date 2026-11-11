@@ -19,6 +19,8 @@ const CSS = `
 #goal{position:absolute;left:50%;top:216px;width:420px;margin-left:-210px;padding:8px 16px 10px;border-radius:20px;background:rgba(25,50,85,.45);font-size:21px;font-weight:700;text-align:center;pointer-events:auto;backdrop-filter:blur(4px)}
 #goal small{display:block;font-size:15px;font-weight:600;opacity:.8;letter-spacing:1px;margin-bottom:2px}
 #goalTrack{margin-top:6px;height:10px;border-radius:6px;background:rgba(255,255,255,.28);overflow:hidden}
+#hud #act{position:absolute;left:50%;top:216px;width:420px;margin-left:-210px;padding:8px 16px 10px;border-radius:20px;background:rgba(60,130,100,.62);font-size:21px;font-weight:700;text-align:center;display:none}
+#actTrack{margin-top:6px;height:10px;border-radius:6px;background:rgba(255,255,255,.3);overflow:hidden}#actFill{height:100%;width:0;background:#ffe08a;transition:width .25s}
 #goalFill{height:100%;width:0;background:#7be0a8;transition:width .25s}
 #toast{position:absolute;left:40px;right:40px;top:340px;text-align:center;font-size:36px;font-weight:800;opacity:0;transition:opacity .25s;line-height:1.25}
 #toast.show{opacity:1}
@@ -57,6 +59,7 @@ const CSS = `
 #dlg{position:absolute;left:30px;right:30px;bottom:44px;padding:24px 28px 20px;border-radius:32px;background:rgba(235,244,252,.97);color:#1d3a5c;display:none;pointer-events:auto;text-shadow:none;cursor:pointer}
 #dlg .who{font-size:32px;font-weight:800}#dlg .role{font-size:21px;font-weight:600;opacity:.65;margin-left:8px}
 #dlg .hearts{font-size:24px;color:#e0507a;letter-spacing:4px;margin-top:2px}
+#dlg .ch{display:none;gap:12px;margin-top:6px}#dlg .ch button{flex:1;padding:14px 10px;border-radius:20px;border:0;font-size:24px;font-weight:800;background:#3fa7ff;color:#fff;cursor:pointer}#dlg .ch button.bye{background:#d6e3f1;color:#1d3a5c;flex:0 0 120px}#dlg .ch button[disabled]{background:#b9c8d8;color:#eef3f8}
 #dlg .txt{font-size:30px;font-weight:600;line-height:1.35;margin:12px 0 8px;min-height:125px}
 #dlg .nxt{text-align:right;font-size:22px;font-weight:700;opacity:.6}
 `;
@@ -73,10 +76,11 @@ export function createHud(root, { touch }) {
     '<div id="speed" class="chip">0 km/h</div><div id="clock" class="chip"></div><div id="coins" class="chip">● 0</div><div id="buff" class="chip"></div>' +
     '<div id="lvl" class="chip"><div id="lvlTxt">Lv 1 · Beginner</div><div id="xpTrack"><div id="xpFill"></div></div></div><div id="xpPop"></div>' +
     '<div id="bal"><div>BALANCE</div><div id="balTrack"><div id="balFill"></div></div></div>' +
+    '<div id="act"><span id="actT"></span><div id="actTrack"><div id="actFill"></div></div></div>' +
     '<div id="goal"><small>GOAL · tap to skip</small><span id="goalTxt"></span><div id="goalTrack"><div id="goalFill"></div></div></div>' +
     '<div id="toast"></div><div id="hint">' + hintText + '</div>' +
     '<div id="talkTip"></div><div id="zoneBanner"></div>' +
-    '<div id="dlg"><div class="who"><span id="dName"></span><span class="role" id="dRole"></span></div><div class="hearts" id="dHearts"></div><div class="txt" id="dTxt"></div><div class="nxt">Tap to continue ▶</div></div>' +
+    '<div id="dlg"><div class="who"><span id="dName"></span><span class="role" id="dRole"></span></div><div class="hearts" id="dHearts"></div><div class="txt" id="dTxt"></div><div class="ch" id="dCh"></div><div class="nxt">Tap to continue ▶</div></div>' +
     '<div id="charBtn" class="hbtn">☺ Character</div><div id="skillBtn" class="hbtn">★ Skills</div>' +
     '<div id="panel"><div class="card"><h2 id="pTitle"></h2><div class="sub" id="pSub"></div><div id="pRows"></div><div class="bests" id="pBests"></div>' +
     '<div class="btns"><button class="alt" id="pWard">Wardrobe</button><button class="alt" id="pRespawn">Respawn</button><button id="pClose">Continue</button></div></div></div>';
@@ -115,22 +119,29 @@ export function createHud(root, { touch }) {
     panel.style.display = 'block'; panelOpen = true;
   }
   function hidePanel() { panel.style.display = 'none'; panelOpen = false; }
+  function setActivity(a) { const e = $('act'), g = $('goal'); if (!a) { e.style.display = 'none'; g.style.display = ''; return; } e.style.display = 'block'; g.style.display = 'none'; $('actT').textContent = a.text; $('actFill').style.width = Math.round(a.frac * 100) + '%'; }
   function setTalk(name, touchUi, verb) {
-    if (!name || dlgState) { talkTip.style.display = 'none'; return; }
+    if (name === null || name === undefined || dlgState) { talkTip.style.display = 'none'; return; }
     talkTip.textContent = (touchUi ? '' : 'F · ') + (verb === undefined ? 'Talk to ' : verb) + name; talkTip.style.display = 'block';
   }
   function banner(text) { bannerEl.textContent = text; bannerEl.classList.add('show'); bannerTimer = 2.8; }
   function renderDialog() {
     $('dTxt').textContent = dlgState.lines[dlgState.i];
+    const last = dlgState.i >= dlgState.lines.length - 1, ch = dlgState.choices || [], box = $('dCh');
+    if (last && ch.length) { box.innerHTML = ch.map((c) => '<button data-c="' + c.id + '"' + (c.off ? ' disabled' : '') + '>' + c.label + '</button>').join('') + '<button class="bye" data-c="bye">Bye</button>'; box.style.display = 'flex'; dlg.querySelector('.nxt').style.display = 'none'; }
+    else { box.style.display = 'none'; dlg.querySelector('.nxt').style.display = ''; }
   }
   function showDialog(d) {
-    dlgState = { lines: d.lines, i: 0 };
+    dlgState = { lines: d.lines, i: 0, choices: d.choices };
     $('dName').textContent = d.name; $('dRole').textContent = d.role + ' · ' + d.label;
     $('dHearts').textContent = '♥'.repeat(d.hearts) + '♡'.repeat(3 - d.hearts);
     talkTip.style.display = 'none'; dlg.style.display = 'block'; renderDialog();
   }
-  dlg.addEventListener('click', () => {
+  dlg.addEventListener('click', (e) => {
     if (!dlgState) return;
+    const b = e.target.closest && e.target.closest('button');
+    if (b) { if (b.disabled) return; const id = b.dataset.c; dlgState = null; dlg.style.display = 'none'; el.dispatchEvent(new CustomEvent('dialogchoice', { detail: id })); el.dispatchEvent(new CustomEvent('dialogend')); return; }
+    if (dlgState.choices && dlgState.choices.length && dlgState.i >= dlgState.lines.length - 1) return;
     dlgState.i++;
     if (dlgState.i >= dlgState.lines.length) { dlgState = null; dlg.style.display = 'none'; el.dispatchEvent(new CustomEvent('dialogend')); } else renderDialog();
   });
@@ -153,5 +164,5 @@ export function createHud(root, { touch }) {
     if (!hintHidden) { hintTimer -= dt; if (hintTimer <= 0) hideHint(); }
   }
   function destroy() { el.remove(); style.remove(); }
-  return { el, update, toast, hideHint, setClock, setCoins, setBuff, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
+  return { el, update, toast, hideHint, setClock, setCoins, setBuff, setActivity, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
 }
