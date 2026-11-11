@@ -2,6 +2,7 @@
 import { PARTS, getSet } from './logic.mjs';
 import { buildStatuePart, PART_OFFSET } from './statues.js';
 import { roundRect } from './ui.js';
+import { STATUE_POSES } from './poses.mjs';
 
 const B = () => window.BABYLON;
 const c3 = (hex) => B().Color3.FromHexString(typeof hex === 'number' ? `#${hex.toString(16).padStart(6, '0')}` : hex);
@@ -303,12 +304,15 @@ export function buildPodium(scene, kit, set, position, shadowGen) {
   label.mesh.parent = group; label.mesh.position.y = 6.3;
 
   const figure = new BAB.TransformNode('figure', scene); figure.parent = group; figure.position.y = 0.74;
+  const pose = STATUE_POSES[set.id];
+  figure.rotation.y = pose.turn;
   const figureParts = new Map();
   for (const part of PARTS) {
     const anchor = new BAB.TransformNode(`anchor-${part.id}`, scene); anchor.parent = figure; anchor.position.set(...PART_OFFSET[part.id]);
+    if (part.id === 'head' && pose.head) anchor.rotation.set(...pose.head); // arms are posed in their geometry
     const ghost = buildStatuePart(kit, scene, part.id, set.id, true); ghost.parent = anchor;
     const solid = buildStatuePart(kit, scene, part.id, set.id, false); solid.parent = anchor; solid.setEnabled(false);
-    figureParts.set(part.id, { ghost, solid });
+    figureParts.set(part.id, { ghost, solid, anchor });
     if (shadowGen) for (const m of solid.getChildMeshes()) shadowGen.addShadowCaster(m);
   }
   const finish = BAB.MeshBuilder.CreateTorus('finish', { diameter: 2.5, thickness: 0.1, tessellation: 56 }, scene);
@@ -332,7 +336,7 @@ export function buildPodium(scene, kit, set, position, shadowGen) {
   void meshes;
   if (shadowGen) { shadowGen.addShadowCaster(base); shadowGen.addShadowCaster(top); }
   return {
-    group, figure, figureParts, finished: finish, selection, motes, floorGlow: fgm, cone,
+    group, figure, figureParts, poseTurn: pose.turn, finished: finish, selection, motes, floorGlow: fgm, cone,
     label: { setText: label.setText },
   };
 }

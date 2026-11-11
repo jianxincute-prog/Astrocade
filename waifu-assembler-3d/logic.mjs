@@ -1,8 +1,8 @@
 // Pure game rules for Waifu Assembler 3D. This module has no browser or platform dependencies.
 export const SETS = [
-  { id: 'office01', name: 'OFFICE-01', label: 'Office-01', color: '#76d8ff', accent: '#263b72', cloth: '#dfe8f2', skin: '#f6c9b0', hair: '#49324a' },
-  { id: 'nurse01', name: 'NURSE-01', label: 'Nurse-01', color: '#ff83bf', accent: '#d84781', cloth: '#f5f3f2', skin: '#f6c9b0', hair: '#814c67' },
-  { id: 'ceo01', name: 'CEO-01', label: 'CEO-01', color: '#f0c66f', accent: '#37435d', cloth: '#262f48', skin: '#f2c6a5', hair: '#3c2727' },
+  { id: 'office01', name: 'OFFICE-01', label: 'Office-01', color: '#76d8ff', accent: '#263b72', cloth: '#dfe8f2', skin: '#f6c9b0', hair: '#49324a', hairLight: '#a17b9e', eyes: '#47a7d1', lip: '#cb667d' },
+  { id: 'nurse01', name: 'NURSE-01', label: 'Nurse-01', color: '#ff83bf', accent: '#d84781', cloth: '#f5f3f2', skin: '#f6c9b0', hair: '#814c67', hairLight: '#e29abb', eyes: '#55aa9d', lip: '#d45f83' },
+  { id: 'ceo01', name: 'CEO-01', label: 'CEO-01', color: '#f0c66f', accent: '#37435d', cloth: '#262f48', skin: '#f2c6a5', hair: '#3c2727', hairLight: '#9b755b', eyes: '#a78bda', lip: '#c97876' },
 ];
 
 export const PARTS = [

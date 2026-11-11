@@ -13,13 +13,14 @@ Mode **Edit** menghentikan gameplay; podium annex bisa dipilih dan diseret (ditu
 ## Visual (Babylon.js 9.35)
 - Scene right-handed, PBR, bayangan PCF di annex, pantulan cermin lembut di lantai annex, probe refleksi studio untuk emas/rambut/sepatu.
 - Post-processing: bloom, FXAA, tone mapping ACES, vignette. Kelopak sakura + percikan bintang saat mengambil/memasang bagian.
-- Patung: wajah anime dilukis pada tekstur kepala, rambut berbentuk helai (twin-tail, topi perawat, ponytail), kacamata, pakaian khas tiap set; bagian yang belum terpasang tampil sebagai hologram fresnel.
+- Patung: wajah anime bertekstur dengan iris berkilau, ekspresi dan blush khas; rambut, aksesori, dan seragam berbeda tiap set. Office memegang clipboard, Nurse melambai, CEO berpose presentasi; bagian belum terpasang tampil sebagai hologram.
 
 ## Struktur kode
 - `game.js` — entry Astrocade (`window.run`), memuat Babylon.js dari CDN.
 - `logic.mjs` — aturan murni (pecahan, pengambilan, pemasangan, save).
 - `renderer.js` — scene, kamera, cahaya, pipeline, input, HUD, editor.
-- `statues.js` — model patung (material PBR, wajah, rambut, pakaian, hologram).
+- `statues.js` — model patung, wajah anime bertekstur, rambut, seragam, dan hologram.
+- `poses.mjs` — pose khas berbasis sendi (bahu → siku → pergelangan, arah tangan, telapak, lekuk jari): Office membawa clipboard di pinggul, Nurse melambai, CEO tangan di pinggang sambil presentasi.
 - `world.js` — aula, annex, podium, pedestal fragmen, label, partikel.
 - `ui.js` — markup HUD, CSS, blueprint SVG.
 - `tests/logic.test.mjs` — `node --test tests/logic.test.mjs`.

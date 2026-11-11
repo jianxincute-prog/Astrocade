@@ -2,6 +2,7 @@
 // not stacked spheres. Parts share exact joint profiles (neck, shoulders, hips) so the figure reads as one body.
 // Figure space: +Y up, feet at y=0, +Z is the front. Each part is built in figure space, then recentred on PART_OFFSET.
 import { getSet } from './logic.mjs';
+import { armJoints } from './poses.mjs';
 
 const B = () => window.BABYLON;
 const hex = (value) => B().Color3.FromHexString(value);
@@ -12,15 +13,15 @@ export const PART_OFFSET = { legs: [0, 1.1, 0], torso: [0, 2.75, 0], head: [0, 3
 export const STYLE = {
   office01: {
     hair: '#24182f', hairTip: '#5b4580', eye: '#6a4630', eyeDeep: '#2a170f', cloth: '#f4f3f6', suit: '#2b3b78', suitDark: '#1b2552',
-    accent: '#76d8ff', skin: '#f3d0bb', shoe: '#1b1a2a', stock: '#2b2735', gold: '#e8d7a0', lip: '#c4566b', blush: '#f09aa4', heel: 0.07, stockTo: 2.0,
+    accent: '#76d8ff', skin: '#f3d0bb', shoe: '#1b1a2a', stock: '#2b2735', gold: '#e8d7a0', lip: '#d9707f', blush: '#f4a2ac', heel: 0.07, stockTo: 2.0,
   },
   nurse01: {
-    hair: '#dc8fae', hairTip: '#f7d3e1', eye: '#9a4b63', eyeDeep: '#3a1420', cloth: '#fbf6f8', suit: '#fbf6f8', suitDark: '#ffb7d3',
-    accent: '#ff7fb7', skin: '#f6d6c8', shoe: '#fff0f5', stock: '#fbf4f7', gold: '#ffd0e4', lip: '#d9627f', blush: '#f4909f', heel: 0.04, stockTo: 1.5,
+    hair: '#dc8fae', hairTip: '#f7d3e1', eye: '#b45d86', eyeDeep: '#4a1a33', cloth: '#fbf6f8', suit: '#fbf6f8', suitDark: '#ffb7d3',
+    accent: '#ff7fb7', skin: '#f6d6c8', shoe: '#fff0f5', stock: '#fbf4f7', gold: '#ffd0e4', lip: '#ea8197', blush: '#f7a0b0', heel: 0.04, stockTo: 1.5,
   },
   ceo01: {
     hair: '#1c141c', hairTip: '#4c3048', eye: '#8a5a22', eyeDeep: '#2b1606', cloth: '#f8f2ec', suit: '#2a3358', suitDark: '#171c36',
-    accent: '#f0c66f', skin: '#efc9b0', shoe: '#120f18', stock: '#16131c', gold: '#f2c35f', lip: '#a8283f', blush: '#e88a8c', heel: 0.15, stockTo: 2.0,
+    accent: '#f0c66f', skin: '#efc9b0', shoe: '#120f18', stock: '#16131c', gold: '#f2c35f', lip: '#c9505f', blush: '#ee9a9c', heel: 0.15, stockTo: 2.0,
   },
 };
 
@@ -57,8 +58,8 @@ export function createStatueKit(scene) {
         m.clearCoat.isEnabled = true; m.clearCoat.intensity = 0.6; m.clearCoat.roughness = 0.1;
       });
       case 'hair': return pbr(key, (m) => {
-        m.albedoColor = hex(s.hair); m.roughness = 0.34; m.metallic = 0.05; m.backFaceCulling = false;
-        m.clearCoat.isEnabled = true; m.clearCoat.intensity = 0.8; m.clearCoat.roughness = 0.1;
+        m.albedoColor = hex('#ffffff'); m.albedoTexture = hairTexture(setId); m.roughness = 0.46; m.metallic = 0.02; m.backFaceCulling = false;
+        m.clearCoat.isEnabled = true; m.clearCoat.intensity = 0.3; m.clearCoat.roughness = 0.3;
         m.sheen.isEnabled = true; m.sheen.intensity = 0.7; m.sheen.color = hex(s.hairTip);
         m.emissiveColor = hex(s.hair).scale(0.12);
       });
@@ -124,6 +125,21 @@ export function createStatueKit(scene) {
     return m;
   }
 
+  function hairTexture(setId) {
+    const key = `hair-${setId}`;
+    if (faceTextures.has(key)) return faceTextures.get(key);
+    const s = STYLE[setId]; const tex = new BAB.DynamicTexture(key, { width: 512, height: 512 }, scene, true);
+    const ctx = tex.getContext(); const rnd = mulberry(setId.length * 31 + 7);
+    ctx.fillStyle = s.hair; ctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 900; i += 1) { // fine strands running root → tip
+      const x = rnd() * 512; const light = rnd();
+      ctx.strokeStyle = light > 0.6 ? hexA(s.hairTip, 0.18 + rnd() * 0.22) : hexA(shadeHex(s.hair, -40), 0.2 + rnd() * 0.25);
+      ctx.lineWidth = 0.8 + rnd() * 1.6;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.bezierCurveTo(x + (rnd() - 0.5) * 14, 170, x + (rnd() - 0.5) * 14, 340, x + (rnd() - 0.5) * 10, 512); ctx.stroke();
+    }
+    tex.update(true); tex.uScale = 3; tex.wrapU = tex.wrapV = BAB.Texture.WRAP_ADDRESSMODE; tex.anisotropicFilteringLevel = 8;
+    faceTextures.set(key, tex); return tex;
+  }
   function faceTexture(setId) {
     if (faceTextures.has(setId)) return faceTextures.get(setId);
     const tex = new BAB.DynamicTexture(`face-${setId}`, { width: 2048, height: 1024 }, scene, true);
@@ -159,40 +175,38 @@ function drawFace(ctx, W, H, setId) {
 
   // --- skin base with soft contour shading ---
   ctx.fillStyle = s.skin; ctx.fillRect(0, 0, W, H);
-  const jaw = ctx.createLinearGradient(0, Y(0.0), 0, Y(0.16));
-  jaw.addColorStop(0, hexA('#7d4b3c', 0.32)); jaw.addColorStop(1, hexA('#7d4b3c', 0));
-  ctx.fillStyle = jaw; ctx.fillRect(0, Y(0.16), W, Y(0) - Y(0.16));
-  for (const side of [-1, 1]) { // temple + cheek hollow shading toward the ears
-    const g = ctx.createRadialGradient(X(side * 0.2), Y(0.2), 10, X(side * 0.2), Y(0.2), 300);
-    g.addColorStop(0, hexA('#8a5546', 0.28)); g.addColorStop(1, hexA('#8a5546', 0));
-    ctx.fillStyle = g; ctx.fillRect(X(side * 0.2) - 320, Y(0.2) - 320, 640, 640);
+  for (const side of [-1, 1]) { // very soft contour toward the ears only, keeping the face clean and luminous
+    const g = ctx.createRadialGradient(X(side * 0.24), Y(0.18), 10, X(side * 0.24), Y(0.18), 280);
+    g.addColorStop(0, hexA('#a0645a', 0.16)); g.addColorStop(1, hexA('#a0645a', 0));
+    ctx.fillStyle = g; ctx.fillRect(X(side * 0.24) - 300, Y(0.18) - 300, 600, 600);
   }
-  radial(ctx, X(0), Y(0.47), 320, 150, hexA('#ffffff', 0.16)); // forehead highlight
-  radial(ctx, X(0), Y(0.205), 70, 90, hexA('#ffffff', 0.2)); // nose tip highlight
-  for (const side of [-1, 1]) radial(ctx, X(side * 0.1), Y(0.235), 150, 90, hexA('#ffffff', 0.1)); // cheekbone light
-  for (const side of [-1, 1]) radial(ctx, X(side * 0.105), Y(0.185), 190, 110, hexA(s.blush, 0.4)); // blush
+  radial(ctx, X(0), Y(0.43), 300, 140, hexA('#ffffff', 0.14)); // forehead glow
+  radial(ctx, X(0), Y(0.25), 26, 110, hexA('#ffffff', 0.16)); // nose bridge highlight
+  radial(ctx, X(0), Y(F.noseTip + 0.006), 30, 22, hexA('#ffffff', 0.28)); // nose tip glow
+  for (const side of [-1, 1]) radial(ctx, X(side * 0.095), Y(0.215), 150, 80, hexA('#ffffff', 0.12)); // cheekbone glow
+  for (const side of [-1, 1]) radial(ctx, X(side * 0.108), Y(0.185), 170, 95, hexA(s.blush, 0.34)); // blush
+  radial(ctx, X(0), Y(0.04), 80, 40, hexA('#ffffff', 0.12)); // chin glow
 
   // --- eyes ---
-  for (const side of [-1, 1]) drawEye(ctx, X(side * 0.082), Y(0.287), side, s, rnd);
+  for (const side of [-1, 1]) drawEye(ctx, X(side * F.eyeX), Y(F.eye), side, s, rnd, setId);
   // --- brows ---
-  for (const side of [-1, 1]) drawBrow(ctx, X(side * 0.082), Y(0.345), side, s, rnd, setId);
-  // --- nose shading (the 3D nose carries the form; paint soft shadows) ---
-  for (const side of [-1, 1]) {
-    radial(ctx, X(side * 0.03), Y(0.222), 20, 30, hexA('#8c4f45', 0.28));
-    radial(ctx, X(side * 0.048), Y(0.255), 20, 70, hexA('#8c4f45', 0.16));
-    radial(ctx, X(side * 0.018), Y(0.203), 12, 10, hexA('#4a1f1c', 0.65));
-  }
-  radial(ctx, X(0), Y(0.187), 46, 14, hexA('#8c4f45', 0.12));
+  for (const side of [-1, 1]) drawBrow(ctx, X(side * F.eyeX), Y(F.brow), side, s, rnd, setId);
+  // --- nose: just a whisper of shadow under the tip and two tiny nostrils ---
+  radial(ctx, X(0), Y(F.noseTip - 0.014), 34, 10, hexA('#a05a52', 0.2));
+  for (const side of [-1, 1]) radial(ctx, X(side * 0.014), Y(F.noseTip - 0.011), 9, 5, hexA('#7a3a36', 0.38));
+  for (const side of [-1, 1]) radial(ctx, X(side * 0.024), Y(0.25), 10, 60, hexA('#a05a52', 0.08));
   // --- lips ---
-  drawLips(ctx, X(0), Y(0.083), s, setId);
+  drawLips(ctx, X(0), Y(F.mouth), s, setId);
   // --- fine skin grain ---
   for (let i = 0; i < 9000; i += 1) {
-    ctx.fillStyle = rnd() > 0.5 ? 'rgba(120,70,60,.045)' : 'rgba(255,255,255,.05)';
+    ctx.fillStyle = rnd() > 0.5 ? 'rgba(120,70,60,.025)' : 'rgba(255,255,255,.04)';
     ctx.fillRect(rnd() * W, rnd() * H, 1.4 + rnd() * 1.6, 1.4 + rnd() * 1.6);
   }
 }
-function drawEye(ctx, ex, ey, side, s, rnd) {
-  const hw = 84; const hgt = 40;
+function drawEye(ctx, ex, ey, side, s, rnd, setId) {
+  // Nurse has an open, welcoming gaze; the CEO gets a poised, slightly narrower cat-eye; Office sits between.
+  const hw = setId === 'ceo01' ? 92 : setId === 'nurse01' ? 96 : 94;
+  const hgt = setId === 'ceo01' ? 42 : setId === 'nurse01' ? 52 : 47;
   const inner = [ex - side * hw, ey + 6]; const outer = [ex + side * hw, ey - 6];
   const almond = () => {
     ctx.beginPath(); ctx.moveTo(inner[0], inner[1]);
@@ -213,7 +227,7 @@ function drawEye(ctx, ex, ey, side, s, rnd) {
   ctx.fillStyle = sg; ctx.fillRect(ex - hw * 1.2, ey - hgt * 2, hw * 2.4, hgt * 3.2);
   radial(ctx, inner[0], inner[1], 22, 16, hexA('#e59a9a', 0.7)); // tear duct
   // iris
-  const ir = 38; const ix = ex + side * 1; const iy = ey - 2;
+  const ir = setId === 'nurse01' ? 50 : setId === 'ceo01' ? 44 : 47; const ix = ex + side * 1; const iy = ey - 2;
   const ig = ctx.createRadialGradient(ix, iy, 4, ix, iy, ir);
   ig.addColorStop(0, shadeHex(s.eye, 65)); ig.addColorStop(0.55, s.eye); ig.addColorStop(0.9, shadeHex(s.eye, -35)); ig.addColorStop(1, s.eyeDeep);
   ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ix, iy, ir, 0, Math.PI * 2); ctx.fill();
@@ -224,7 +238,7 @@ function drawEye(ctx, ex, ey, side, s, rnd) {
     ctx.beginPath(); ctx.moveTo(ix + Math.cos(a) * r0, iy + Math.sin(a) * r0); ctx.lineTo(ix + Math.cos(a) * r1, iy + Math.sin(a) * r1); ctx.stroke();
   }
   ctx.strokeStyle = hexA(s.eyeDeep, 0.85); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(ix, iy, ir - 1, 0, Math.PI * 2); ctx.stroke(); // limbal ring
-  ctx.fillStyle = '#0d0810'; ctx.beginPath(); ctx.arc(ix, iy, 16, 0, Math.PI * 2); ctx.fill(); // pupil
+  ctx.fillStyle = '#0d0810'; ctx.beginPath(); ctx.arc(ix, iy, ir * 0.36, 0, Math.PI * 2); ctx.fill(); // pupil
   // lid shadow across the top of the eye + lower glow
   const ls = ctx.createLinearGradient(0, ey - hgt * 1.5, 0, ey - hgt * 0.1);
   ls.addColorStop(0, 'rgba(40,18,22,.62)'); ls.addColorStop(1, 'rgba(40,18,22,0)');
@@ -232,8 +246,8 @@ function drawEye(ctx, ex, ey, side, s, rnd) {
   radial(ctx, ix, iy + 16, 22, 12, hexA('#ffffff', 0.22));
   // catchlights (window + small)
   ctx.fillStyle = 'rgba(255,255,255,.95)';
-  roundedRect(ctx, ix - side * 3 - 22, iy - 27, 27, 20, 7); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(ix + side * 18, iy + 15, 5.4, 0, Math.PI * 2); ctx.fill();
+  roundedRect(ctx, ix - side * 4 - ir * 0.55, iy - ir * 0.66, ir * 0.62, ir * 0.46, 8); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(ix + side * ir * 0.38, iy + ir * 0.36, ir * 0.12, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   // lash line (thick, tapered, winged) + individual lashes
   ctx.strokeStyle = '#1a0f14'; ctx.lineCap = 'round';
@@ -242,18 +256,18 @@ function drawEye(ctx, ex, ey, side, s, rnd) {
     ctx.beginPath(); ctx.moveTo(inner[0] + side * 4, inner[1] - 3 - k);
     ctx.bezierCurveTo(ex - side * hw * 0.35, ey - hgt * (1.5 + k * 0.02), ex + side * hw * 0.4, ey - hgt * (1.55 + k * 0.02), outer[0] + side * (6 + k * 2), outer[1] - 6 - k * 2); ctx.stroke();
   }
-  ctx.lineWidth = 2.2;
-  for (let i = 0; i < 16; i += 1) {
-    const t = 0.15 + i / 16 * 0.85;
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 9; i += 1) { // a few clumped lashes, longest at the outer corner
+    const t = 0.45 + i / 9 * 0.55;
     const px = lerp(inner[0], outer[0], t); const py = ey - hgt * 1.5 * Math.sin(Math.PI * Math.min(1, t * 0.95 + 0.04)) + lerp(inner[1] - ey, outer[1] - ey, t) * 0.9;
-    const len = 14 + 14 * Math.sin(Math.PI * t) + rnd() * 4;
+    const len = 10 + 18 * t + rnd() * 3;
     const ang = -Math.PI / 2 + side * (0.15 + t * 0.85) + (rnd() - 0.5) * 0.12;
     ctx.beginPath(); ctx.moveTo(px, py);
     ctx.quadraticCurveTo(px + Math.cos(ang) * len * 0.55 + side * 3, py + Math.sin(ang) * len * 0.55, px + Math.cos(ang + side * 0.45) * len, py + Math.sin(ang + side * 0.45) * len); ctx.stroke();
   }
   ctx.lineWidth = 1.8; ctx.strokeStyle = hexA('#1a0f14', 0.75);
-  for (let i = 0; i < 14; i += 1) { // lower lashes
-    const t = 0.3 + i / 14 * 0.6; const px = lerp(inner[0], outer[0], t); const py = ey + hgt * 0.9 * Math.sin(Math.PI * t) + 2;
+  for (let i = 0; i < 5; i += 1) { // lower lashes
+    const t = 0.55 + i / 5 * 0.4; const px = lerp(inner[0], outer[0], t); const py = ey + hgt * 0.9 * Math.sin(Math.PI * t) + 2;
     ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + side * 3, py + 11 + rnd() * 5); ctx.stroke();
   }
   ctx.strokeStyle = hexA('#f7d6d2', 0.75); ctx.lineWidth = 3; // wet waterline
@@ -280,8 +294,8 @@ function drawBrow(ctx, bx, by, side, s, rnd, setId) {
   }
 }
 function drawLips(ctx, lx, ly, s, setId) {
-  const hw = 112;
-  const smile = setId === 'nurse01' ? 6 : setId === 'ceo01' ? -2 : 3;
+  const hw = 84;
+  const smile = setId === 'nurse01' ? 12 : setId === 'ceo01' ? -3 : 8;
   const base = s.lip;
   // upper lip
   ctx.beginPath(); ctx.moveTo(lx - hw, ly + smile * -1);
@@ -406,6 +420,41 @@ class Sculptor {
     d.scaling.set(s.rx + offset, s.rz + offset, 1); d.rotation.x = Math.PI / 2; d.position.set(s.cx, s.y, s.cz);
     void dir; return this.addMesh(d, kind);
   }
+  // Loft along an arbitrary 3D path with elliptical sections. radius(t) -> [ra, rb]; ra lies along `up`
+  // (projected off the tangent), rb along the binormal. Parallel transport keeps sections from twisting.
+  path(kind, ctrl, radius, { up = [0, 0, 1], t0 = 0, t1 = 1, offset = 0, N = 22, samples = 12, close = true } = {}) {
+    const BAB = B(); const V = BAB.Vector3;
+    const pts = BAB.Curve3.CreateCatmullRomSpline(ctrl.map((p) => new V(p[0], p[1], p[2])), samples, false).getPoints();
+    const cum = [0]; for (let i = 1; i < pts.length; i += 1) cum.push(cum[i - 1] + V.Distance(pts[i], pts[i - 1]));
+    const L = cum[cum.length - 1];
+    const tan = pts.map((p, i) => pts[Math.min(i + 1, pts.length - 1)].subtract(pts[Math.max(i - 1, 0)]).normalize());
+    let n = new V(up[0], up[1], up[2]); n = n.subtract(tan[0].scale(V.Dot(n, tan[0]))).normalize();
+    const frames = [];
+    for (let i = 0; i < pts.length; i += 1) {
+      if (i > 0) { n = n.subtract(tan[i].scale(V.Dot(n, tan[i]))); if (n.length() < 1e-6) n = frames[i - 1].n.clone(); n.normalize(); }
+      frames.push({ n: n.clone(), b: V.Cross(tan[i], n).normalize() });
+    }
+    const rings = [];
+    for (let i = 0; i < pts.length; i += 1) {
+      const t = L ? cum[i] / L : 0; if (t < t0 - 1e-6 || t > t1 + 1e-6) continue;
+      const [ra, rb] = radius(t); const ring = [];
+      for (let k = 0; k < N; k += 1) {
+        const a = (2 * Math.PI * k) / N;
+        ring.push(pts[i].add(frames[i].n.scale((ra + offset) * Math.cos(a))).add(frames[i].b.scale((rb + offset) * Math.sin(a))));
+      }
+      rings.push(ring);
+    }
+    if (close && rings.length) { // rounded end caps
+      const capRing = (ring, centre, shrink) => ring.map((p) => centre.add(p.subtract(centre).scale(shrink)));
+      const c0 = rings[0].reduce((a, p) => a.add(p), V.Zero()).scale(1 / N); const c1 = rings[rings.length - 1].reduce((a, p) => a.add(p), V.Zero()).scale(1 / N);
+      const d0 = tan[0].scale(-1); const d1 = tan[tan.length - 1];
+      const r0 = V.Distance(rings[0][0], c0) * 0.5; const r1 = V.Distance(rings[rings.length - 1][0], c1) * 0.5;
+      rings.unshift(capRing(rings[0], c0.add(d0.scale(r0)), 0.02), capRing(rings[0], c0.add(d0.scale(r0 * 0.75)), 0.6));
+      rings.push(capRing(rings[rings.length - 1], c1.add(d1.scale(r1 * 0.75)), 0.6), capRing(rings[rings.length - 1], c1.add(d1.scale(r1)), 0.02));
+    }
+    for (const ring of rings) ring.reverse();
+    return this.addMesh(BAB.MeshBuilder.CreateRibbon('p', { pathArray: rings, closePath: true }, this.scene), kind);
+  }
   // Lofted surface along Z (shoes): sections {z,cx,cy,rx,ry}.
   loftZ(kind, secs, N = 28, flip = false) {
     const BAB = B();
@@ -437,14 +486,15 @@ class Sculptor {
 const CHIN = 3.57; // y of the chin tip
 // Head sections are written in head space (y from the chin) and lifted by CHIN.
 const HEAD_KEYS = [
-  { y: 0.0, cz: 0.15, rx: 0.03, rz: 0.03, n: 2 },
-  { y: 0.03, cz: 0.12, rx: 0.082, rz: 0.075, n: 2.1 },
-  { y: 0.08, cz: 0.07, rx: 0.134, rz: 0.14, n: 2.2 },
-  { y: 0.16, cz: 0.03, rx: 0.16, rz: 0.19, n: 2.25 },
-  { y: 0.29, cz: -0.005, rx: 0.186, rz: 0.222, n: 2.3 },
-  { y: 0.42, cz: -0.02, rx: 0.198, rz: 0.24, n: 2.3 },
-  { y: 0.52, cz: -0.03, rx: 0.165, rz: 0.232, n: 2.2 },
-  { y: 0.575, cz: -0.035, rx: 0.095, rz: 0.17, n: 2.1 },
+  { y: 0.0, cz: 0.13, rx: 0.035, rz: 0.03, n: 2 },
+  { y: 0.03, cz: 0.108, rx: 0.088, rz: 0.072, n: 2.1 },
+  { y: 0.08, cz: 0.066, rx: 0.138, rz: 0.136, n: 2.2 },
+  { y: 0.15, cz: 0.03, rx: 0.17, rz: 0.186, n: 2.25 },
+  { y: 0.25, cz: 0.0, rx: 0.19, rz: 0.218, n: 2.3 },
+  { y: 0.36, cz: -0.015, rx: 0.2, rz: 0.235, n: 2.3 },
+  { y: 0.46, cz: -0.025, rx: 0.198, rz: 0.238, n: 2.3 },
+  { y: 0.54, cz: -0.032, rx: 0.165, rz: 0.222, n: 2.2 },
+  { y: 0.585, cz: -0.035, rx: 0.095, rz: 0.16, n: 2.1 },
   { y: 0.6, cz: -0.035, rx: 0.02, rz: 0.04, n: 2 },
 ].map((k) => ({ ...k, y: k.y + CHIN }));
 const HEAD_SECS_CACHE = { secs: null };
@@ -455,25 +505,26 @@ function headSurfaceZ(y, x) { // front surface z of the (undeformed) face at hei
   const t = Math.min(0.999, Math.abs(x) / best.rx);
   return best.cz + best.rz * Math.pow(Math.max(0, 1 - Math.pow(t, best.n)), 1 / best.n);
 }
+// Feature heights above the chin (head space). The painted face texture uses the same numbers.
+const F = { eye: 0.27, eyeX: 0.086, brow: 0.335, noseTip: 0.192, mouth: 0.104 };
 function faceDeform(x, y, z, s, zf, xf) {
   const h = y - CHIN; // height above chin
   const front = Math.max(0, zf);
   let dz = 0; let dx = 0;
-  dz += 0.011 * gauss(h, 0.335, 0.03) * front * (1 - Math.abs(xf) * 0.6); // brow ridge
-  dz -= 0.008 * gauss(h, 0.285, 0.032) * front * (gauss(Math.abs(x), 0.077, 0.05)); // eye sockets
-  dz += 0.006 * gauss(h, 0.2, 0.05) * front * gauss(Math.abs(x), 0.1, 0.05); // cheek fullness
-  dx += Math.sign(x) * 0.005 * gauss(h, 0.23, 0.05) * Math.max(0, 1 - front); // cheekbone width
-  dz -= 0.006 * gauss(h, 0.07, 0.03) * front * gauss(x, 0, 0.03); // chin dimple
-  dz += 0.012 * gauss(h, 0.03, 0.03) * front * gauss(x, 0, 0.06); // chin
-  // nose: bridge, tip and alar wings sculpted into the face surface
-  dz += 0.034 * gauss(h, 0.255, 0.07) * gauss(x, 0, 0.022 + 0.01 * smooth(0.3, 0.2, h)) * front;
-  dz += 0.026 * gauss(h, 0.208, 0.024) * gauss(x, 0, 0.028) * front;
-  dz += 0.012 * gauss(h, 0.208, 0.022) * gauss(Math.abs(x), 0.032, 0.013) * front;
-  dz -= 0.007 * gauss(h, 0.128, 0.026) * gauss(x, 0, 0.012) * front; // philtrum groove
-  // lips: upper and lower volume
-  dz += 0.011 * gauss(h, 0.094, 0.016) * gauss(x, 0, 0.052) * front;
-  dz += 0.015 * gauss(h, 0.066, 0.019) * gauss(x, 0, 0.046) * front;
-  dz -= 0.004 * gauss(h, 0.081, 0.004) * gauss(x, 0, 0.06) * front; // mouth line
+  dz += 0.01 * gauss(h, F.brow, 0.03) * front * (1 - Math.abs(xf) * 0.6); // soft brow ridge
+  dz -= 0.006 * gauss(h, F.eye, 0.03) * front * gauss(Math.abs(x), F.eyeX, 0.045); // shallow eye sockets
+  dz += 0.009 * gauss(h, 0.18, 0.05) * front * gauss(Math.abs(x), 0.1, 0.05); // full apple cheeks
+  dx += Math.sign(x) * 0.004 * gauss(h, 0.22, 0.05) * Math.max(0, 1 - front);
+  dz += 0.01 * gauss(h, 0.03, 0.028) * front * gauss(x, 0, 0.05); // small rounded chin
+  // small, refined nose: low bridge, slightly upturned soft tip, narrow wings
+  dz += 0.011 * gauss(h, 0.245, 0.055) * gauss(x, 0, 0.016) * front;
+  dz += 0.012 * gauss(h, F.noseTip + 0.004, 0.024) * gauss(x, 0, 0.024) * front;
+  dz += 0.006 * gauss(h, F.noseTip - 0.004, 0.016) * gauss(Math.abs(x), 0.026, 0.011) * front;
+  dz += 0.004 * gauss(h, 0.15, 0.03) * gauss(x, 0, 0.04) * front; // fill under the nose so it doesn't shadow
+  // soft, full lips
+  dz += 0.0035 * gauss(h, F.mouth + 0.014, 0.012) * gauss(x, 0, 0.04) * front;
+  dz += 0.009 * gauss(h, F.mouth - 0.013, 0.014) * gauss(x, 0, 0.036) * front;
+  dz -= 0.0025 * gauss(h, F.mouth, 0.004) * gauss(x, 0, 0.05) * front;
   return [x + dx, y, z + dz];
 }
 const TORSO_KEYS = [
@@ -495,12 +546,15 @@ const TORSO_KEYS = [
   { y: 1.98, cz: -0.005, rx: 0.36, rz: 0.23, n: 2.3 },
 ];
 function bodyDeform(amp, buttAmp) {
+  // Bust: a broad, smooth teardrop (gentle slope above, rounded underside) blended across the chest,
+  // so lighting stays soft instead of forming dark rings.
+  const vert = (y) => (y > 3.0 ? Math.exp(-(((y - 3.0) / 0.2) ** 2)) : Math.exp(-(((y - 3.0) / 0.1) ** 2)));
   return (x, y, z, s, zf) => {
-    const front = Math.max(0, zf); const back = Math.max(0, -zf);
-    let dz = amp * gauss(y, 3.02, 0.12) * gauss(Math.abs(x), 0.125, 0.09) * front; // bust
-    dz -= buttAmp * gauss(y, 2.25, 0.1) * gauss(Math.abs(x), 0.13, 0.12) * back; // hips/rear
-    const lift = 0.02 * gauss(y, 3.04, 0.1) * gauss(Math.abs(x), 0.125, 0.08) * front;
-    return [x, y + lift, z + dz];
+    const front = Math.pow(Math.max(0, zf), 1.3); const back = Math.max(0, -zf);
+    const across = 0.55 * gauss(Math.abs(x), 0.12, 0.1) + 0.45 * gauss(x, 0, 0.2);
+    let dz = amp * vert(y) * across * front;
+    dz -= buttAmp * gauss(y, 2.25, 0.12) * gauss(Math.abs(x), 0.13, 0.14) * back;
+    return [x, y, z + dz];
   };
 }
 // Collapse ring vertices onto a trim curve so a loft ends in a shaped edge (necklines, hairlines).
@@ -532,27 +586,27 @@ function hairShell(sc, offset, trimFn) {
 }
 function hairFor(sc, id, st) {
   void st;
-  // scalp shell trimmed to a natural hairline (high on the forehead, low at the nape)
-  const hairline = (x, z, zf, xf) => {
-    const f = zf > 0.2 ? lerp(0.3, 0.47, smooth(0.2, 0.95, zf)) - 0.05 * xf * xf : zf > -1 ? 0.3 + 0.2 * Math.min(0, zf) : 0.1;
-    return CHIN + f;
-  };
-  hairShell(sc, 0.013, hairline);
+  // one full hair cover whose front edge is a designed fringe; a rolled edge gives it thickness
+  const scallop = (x) => -0.022 * Math.pow(Math.abs(Math.cos(x * 40)), 8) + 0.006;
+  const fringe = {
+    office01: (x) => 0.352 + 0.07 * smooth(-0.19, 0.19, x) + scallop(x), // side-swept
+    nurse01: (x) => 0.35 + 0.02 * Math.abs(x) / 0.17 + scallop(x), // soft full bangs
+    ceo01: (x) => 0.335 + 0.13 * smooth(-0.2, 0.15, x) + scallop(x) * 0.5, // deep side part
+  }[id];
+  hairCover(sc, fringe);
   const Hy = (h) => CHIN + h;
   if (id === 'office01') {
     // long straight hair falling behind the shoulders, side-swept fringe, elegant low ponytail over the shoulder
     sc.loft('hair', sectionsFrom([
       { y: Hy(0.46), cz: -0.07, rx: 0.17, rz: 0.19, n: 2.3 }, { y: Hy(0.3), cz: -0.115, rx: 0.2, rz: 0.15, n: 2.3 }, { y: Hy(0.1), cz: -0.14, rx: 0.2, rz: 0.115, n: 2.3 },
       { y: Hy(-0.12), cz: -0.21, rx: 0.225, rz: 0.1, n: 2.3 }, { y: Hy(-0.36), cz: -0.265, rx: 0.235, rz: 0.1, n: 2.3 }, { y: Hy(-0.62), cz: -0.28, rx: 0.215, rz: 0.085, n: 2.3 }, { y: Hy(-0.84), cz: -0.28, rx: 0.12, rz: 0.05, n: 2.1 }], 36), { N: 40, offset: 0 });
-    sweptFringe(sc, 1);
-    for (const [x, ex] of [[-0.19, 0.2], [0.19, 0.22]]) lock(sc, 'hair', [[x, Hy(0.34), 0.09], [x * 1.06, Hy(0.1), 0.115], [ex, Hy(-0.2), 0.17], [ex * 1.02, Hy(-0.46), 0.225]], 0.036, 0.012, 0.024);
+    for (const [x, ex] of [[-0.19, -0.2], [0.19, 0.22]]) lock(sc, 'hair', [[x, Hy(0.34), 0.09], [x * 1.06, Hy(0.1), 0.115], [ex, Hy(-0.2), 0.17], [ex * 1.02, Hy(-0.46), 0.225]], 0.036, 0.012, 0.024);
     glasses(sc);
   } else if (id === 'nurse01') {
     // soft curtain bangs and gentle waves with a nurse cap
     sc.loft('hair', sectionsFrom([
       { y: Hy(0.46), cz: -0.07, rx: 0.17, rz: 0.19, n: 2.3 }, { y: Hy(0.3), cz: -0.115, rx: 0.205, rz: 0.15, n: 2.3 }, { y: Hy(0.1), cz: -0.145, rx: 0.215, rz: 0.12, n: 2.3 },
       { y: Hy(-0.12), cz: -0.215, rx: 0.24, rz: 0.105, n: 2.3 }, { y: Hy(-0.34), cz: -0.265, rx: 0.255, rz: 0.1, n: 2.3 }, { y: Hy(-0.54), cz: -0.275, rx: 0.235, rz: 0.085, n: 2.3 }, { y: Hy(-0.7), cz: -0.275, rx: 0.12, rz: 0.04, n: 2.1 }], 36), { N: 40 });
-    curtainFringe(sc);
     for (const side of [-1, 1]) lock(sc, 'hair', [[side * 0.2, Hy(0.34), 0.08], [side * 0.225, Hy(0.08), 0.11], [side * 0.255, Hy(-0.22), 0.16], [side * 0.27, Hy(-0.46), 0.215]], 0.04, 0.012, 0.026);
     // nurse cap
     sc.box('cloth', [0, Hy(0.585), 0.03], [0.34, 0.1, 0.17], [-0.2, 0, 0]);
@@ -564,13 +618,27 @@ function hairFor(sc, id, st) {
     sc.loft('hair', sectionsFrom([
       { y: Hy(0.46), cz: -0.07, rx: 0.17, rz: 0.19, n: 2.3 }, { y: Hy(0.3), cz: -0.12, rx: 0.205, rz: 0.155, n: 2.3 }, { y: Hy(0.1), cz: -0.15, rx: 0.215, rz: 0.125, n: 2.3 },
       { y: Hy(-0.14), cz: -0.215, rx: 0.235, rz: 0.11, n: 2.3 }, { y: Hy(-0.4), cz: -0.265, rx: 0.245, rz: 0.1, n: 2.3 }, { y: Hy(-0.68), cz: -0.275, rx: 0.225, rz: 0.09, n: 2.3 }, { y: Hy(-0.92), cz: -0.275, rx: 0.13, rz: 0.045, n: 2.1 }], 36), { N: 40 });
-    sweptFringe(sc, -1);
     for (const side of [-1, 1]) {
       lock(sc, 'hair', [[side * 0.2, Hy(0.34), 0.085], [side * 0.222, Hy(0.08), 0.115], [side * 0.245, Hy(-0.24), 0.17], [side * 0.255, Hy(-0.46), 0.215]], 0.038, 0.012, 0.026);
       earring(sc, side, Hy(0.16));
     }
-    sc.box('gold', [0.18, Hy(0.4), 0.12], [0.1, 0.018, 0.018], [0, -0.7, 0.35]);
   }
+}
+function hairCover(sc, frontY) {
+  const trim = (x, z, zf) => {
+    const side = 0.3; let f;
+    if (zf > 0.35) f = frontY(x); else if (zf > -0.1) f = lerp(side, frontY(x), smooth(-0.1, 0.35, zf)); else f = lerp(0.08, side, smooth(-0.6, -0.1, zf));
+    return CHIN + f;
+  };
+  // volume grows toward the crown so the hair reads as hair, not a helmet
+  const puff = (x, y, z, s, zf, xf) => { const d = faceDeform(x, y, z, s, zf, xf); const k = 1 + 0.07 * smooth(0.3, 0.52, y - CHIN); return [s.cx + (d[0] - s.cx) * k, d[1], s.cz + (d[2] - s.cz) * k]; };
+  sc.loft('hair', headSecs(), { N: 120, offset: 0.022, deform: trimmed(puff, trim, true) });
+  const edge = [];
+  for (let i = 0; i <= 40; i += 1) {
+    const x = -0.175 + 0.35 * (i / 40); const y = CHIN + frontY(x) + 0.006;
+    edge.push([x, y, headSurfaceZ(y, x) + 0.032 - 0.04 * Math.pow(Math.abs(x) / 0.175, 3)]);
+  }
+  sc.strand('hair', edge, 0.007, 0.007, 8, 2);
 }
 function lock(sc, kind, pts, w0, w1, th) { // flat hair lock: pts = [[x,y,z],...] top→bottom
   const keys = pts.map(([x, y, z], i) => { const t = i / (pts.length - 1); return { y, cx: x, cz: z, rx: lerp(w0, Math.max(w1, w0 * 0.3), Math.pow(t, 0.8)), rz: th * (1 - t * 0.35), n: 2 }; });
@@ -595,12 +663,12 @@ function curtainFringe(sc) {
 function glasses(sc) {
   const Hy = (h) => CHIN + h;
   for (const side of [-1, 1]) {
-    const cxl = side * 0.083; const cy = Hy(0.283); const z = headSurfaceZ(cy, cxl) + 0.02;
+    const cxl = side * F.eyeX; const cy = Hy(F.eye + 0.004); const z = headSurfaceZ(cy, cxl) + 0.02;
     const pts = []; for (let k = 0; k <= 28; k += 1) { const a = (k / 28) * Math.PI * 2; pts.push([cxl + Math.cos(a) * 0.058 * (1 + 0.1 * Math.cos(a)), cy + Math.sin(a) * 0.041 + (Math.sin(a) > 0 ? 0.004 : 0), z - Math.abs(cxl + Math.cos(a) * 0.058) * 0.18]); }
     sc.strand('gold', pts, 0.0034, 0.0034, 6, 1);
     const arm = [[side * 0.14, cy + 0.01, z - 0.03], [side * 0.18, cy + 0.01, z - 0.12], [side * 0.186, cy + 0.01, -0.04]]; sc.strand('gold', arm, 0.0034, 0.0034, 6, 10);
   }
-  sc.strand('gold', [[-0.025, Hy(0.292), headSurfaceZ(Hy(0.29), 0) + 0.04], [0, Hy(0.299), headSurfaceZ(Hy(0.3), 0) + 0.045], [0.025, Hy(0.292), headSurfaceZ(Hy(0.29), 0) + 0.04]], 0.0034, 0.0034, 6, 8);
+  sc.strand('gold', [[-0.028, Hy(F.eye + 0.01), headSurfaceZ(Hy(F.eye), 0) + 0.03], [0, Hy(F.eye + 0.016), headSurfaceZ(Hy(F.eye), 0) + 0.034], [0.028, Hy(F.eye + 0.01), headSurfaceZ(Hy(F.eye), 0) + 0.03]], 0.0034, 0.0034, 6, 8);
 }
 function earring(sc, side, y) {
   sc.strand('gold', Array.from({ length: 13 }, (_, i) => { const a = (i / 12) * Math.PI * 2; return [side * 0.19, y - 0.05 + Math.cos(a) * 0.04 - 0.04, -0.012 + Math.sin(a) * 0.04]; }), 0.0045, 0.0045, 6, 1);
@@ -671,47 +739,89 @@ function lapels(sc, body, deform) {
   for (const side of [-1, 1]) sc.strand('suitDark', [[side * 0.02, 2.95, 0.235], [side * 0.075, 3.12, 0.255], [side * 0.14, 3.3, 0.235], [side * 0.18, 3.43, 0.17]], 0.016, 0.014, 8, 16);
 }
 
-function sculptArm(sc, id, side) {
-  const st = sc.style; const flip = side > 0;
-  // path: shoulder → elbow → wrist, with a natural relaxed forward bend
-  const arm = [
-    { y: 3.44, cx: side * 0.335, cz: 0, rx: 0.04, rz: 0.05, n: 2 },
-    { y: 3.37, cx: side * 0.362, cz: 0, rx: 0.088, rz: 0.1, n: 2 },
-    { y: 3.25, cx: side * 0.378, cz: 0, rx: 0.088, rz: 0.098, n: 2 },
-    { y: 3.05, cx: side * 0.392, cz: -0.004, rx: 0.078, rz: 0.084, n: 2 },
-    { y: 2.88, cx: side * 0.402, cz: -0.012, rx: 0.068, rz: 0.072, n: 2 },
-    { y: 2.76, cx: side * 0.408, cz: -0.014, rx: 0.062, rz: 0.066, n: 2 },
-    { y: 2.6, cx: side * 0.416, cz: 0.012, rx: 0.064, rz: 0.064, n: 2 },
-    { y: 2.44, cx: side * 0.424, cz: 0.045, rx: 0.053, rz: 0.052, n: 2 },
-    { y: 2.31, cx: side * 0.43, cz: 0.07, rx: 0.036, rz: 0.046, n: 2 },
-    { y: 2.24, cx: side * 0.432, cz: 0.078, rx: 0.026, rz: 0.06, n: 2.1 },
-    { y: 2.14, cx: side * 0.434, cz: 0.084, rx: 0.02, rz: 0.06, n: 2.2 },
-    { y: 2.05, cx: side * 0.435, cz: 0.088, rx: 0.016, rz: 0.048, n: 2.2 },
-    { y: 2.02, cx: side * 0.435, cz: 0.09, rx: 0.008, rz: 0.03, n: 2 },
-  ];
-  const secs = sectionsFrom(arm, 64);
-  sc.loft('skin', secs, { N: 28, flip });
-  // fingers (palm faces the thigh, thumb forward) — relaxed, slightly curled
-  const handX = side * 0.434; const inward = -side;
-  [[0.046, 0.108], [0.016, 0.118], [-0.014, 0.112], [-0.04, 0.092]].forEach(([dz, len], i) => {
-    sc.strand('skin', [[handX, 2.12, 0.086 + dz], [handX + inward * 0.004, 2.12 - len * 0.45, 0.092 + dz + 0.004], [handX + inward * 0.014, 2.12 - len * 0.82, 0.098 + dz + 0.01], [handX + inward * 0.026, 2.12 - len, 0.1 + dz + 0.012]], 0.0125 - i * 0.0006, 0.0078, 8, 14);
-  });
-  sc.strand('skin', [[handX + inward * 0.002, 2.26, 0.136], [handX + inward * 0.012, 2.18, 0.168], [handX + inward * 0.02, 2.11, 0.19], [handX + inward * 0.026, 2.06, 0.196]], 0.0145, 0.0095, 8, 14);
+const v3 = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, k) => [a[0] * k, a[1] * k, a[2] * k], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  unit: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+  lerp: (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t],
+};
+// rotate vector a toward b (both unit, orthogonal) by angle
+const swing = (a, b, ang) => v3.add(v3.mul(a, Math.cos(ang)), v3.mul(b, Math.sin(ang)));
 
-  if (id === 'office01') { // long fitted blouse sleeve with a navy cuff and a slim bracelet watch
-    sc.loft('cloth', sliceY(secs, 3.45, 2.34), { N: 28, offset: 0.012, flip });
-    sc.loft('suit', sliceY(secs, 2.36, 2.27), { N: 28, offset: 0.017, flip });
-    sc.strand('gold', ringAround(secs, 2.24, 0.012, 0.014), 0.005, 0.005, 6, 1);
-  } else if (id === 'nurse01') { // short puff-free fitted sleeve with pink trim
-    sc.loft('cloth', sliceY(secs, 3.45, 3.04), { N: 28, offset: 0.016, flip });
-    sc.loft('accent', sliceY(secs, 3.08, 3.04), { N: 28, offset: 0.019, flip });
-    sc.strand('accent', ringAround(secs, 2.28, 0.01, 0.004), 0.004, 0.004, 6, 1);
-  } else { // tailored blazer sleeve with a crisp white cuff and gold button
-    sc.loft('suit', sliceY(secs, 3.45, 2.37), { N: 28, offset: 0.018, flip });
-    sc.loft('cloth', sliceY(secs, 2.4, 2.29), { N: 28, offset: 0.014, flip });
-    sc.cyl('gold', [side * 0.475, 2.4, 0.08], 0.012, 0.016, 0.016, [0, 0, Math.PI / 2], 12);
+function sculptArm(sc, id, side) {
+  const { S, E, W, arm } = armJoints(id, side);
+  const inner = [side * 0.25, 3.41, -0.01];
+  const elbowOut = v3.unit(v3.sub(v3.add(E, v3.mul(v3.sub(E, S), 0.0)), v3.lerp(S, W, 0.5)));
+  const ctrl = [inner, S, v3.lerp(S, E, 0.45), v3.add(E, v3.mul(elbowOut, 0.012)), v3.lerp(E, W, 0.5), W];
+  // shoulder → bicep → elbow → forearm → wrist taper (fractions of arc length)
+  const R = (t) => {
+    const k = [[0, 0.07, 0.078], [0.08, 0.092, 0.098], [0.2, 0.084, 0.088], [0.4, 0.07, 0.072], [0.53, 0.057, 0.06], [0.62, 0.062, 0.058], [0.78, 0.05, 0.046], [0.94, 0.037, 0.03], [1, 0.035, 0.028]];
+    let i = 0; while (i < k.length - 2 && t > k[i + 1][0]) i += 1;
+    const f = smooth(k[i][0], k[i + 1][0], t); return [lerp(k[i][1], k[i + 1][1], f), lerp(k[i][2], k[i + 1][2], f)];
+  };
+  const palm = v3.unit(arm.palm);
+  const opts = { up: palm, N: 24, samples: 14 };
+  sc.path('skin', ctrl, R, opts);
+  // cumulative arc fraction at the elbow and wrist, for sleeve lengths
+  const len = (a, b) => Math.hypot(...v3.sub(b, a));
+  const total = len(inner, S) + len(S, E) + len(E, W);
+  const atElbow = (len(inner, S) + len(S, E)) / total;
+  if (id === 'office01') { // long fitted blouse sleeve, navy cuff, slim gold bracelet
+    sc.path('cloth', ctrl, R, { ...opts, t1: 0.9, offset: 0.012, close: false });
+    sc.path('suit', ctrl, R, { ...opts, t0: 0.89, t1: 0.95, offset: 0.017, close: false });
+    sc.path('gold', ctrl, R, { ...opts, t0: 0.975, t1: 0.99, offset: 0.006, close: false, N: 16 });
+  } else if (id === 'nurse01') { // short fitted sleeve with pink trim, pink wrist band
+    sc.path('cloth', ctrl, R, { ...opts, t1: atElbow * 0.55, offset: 0.016, close: false });
+    sc.path('accent', ctrl, R, { ...opts, t0: atElbow * 0.53, t1: atElbow * 0.58, offset: 0.02, close: false });
+    sc.path('accent', ctrl, R, { ...opts, t0: 0.965, t1: 0.985, offset: 0.006, close: false, N: 16 });
+  } else { // tailored blazer sleeve, crisp white cuff
+    sc.path('suit', ctrl, R, { ...opts, t1: 0.88, offset: 0.019, close: false });
+    sc.path('cloth', ctrl, R, { ...opts, t0: 0.86, t1: 0.93, offset: 0.012, close: false });
   }
-  void st;
+  hand(sc, W, v3.unit(v3.sub(W, E)), arm, side);
+  if (arm.prop === 'clipboard') clipboard(sc, W, arm);
+}
+
+// A slender, feminine hand: palm loft + four jointed fingers + thumb, curled toward the palm.
+function hand(sc, W, foreDir, arm, side) {
+  let d = v3.unit(arm.hand); let n = v3.unit(arm.palm);
+  n = v3.unit(v3.sub(n, v3.mul(d, v3.dot(n, d))));
+  const w = v3.cross(d, n); const thumbSide = v3.mul(w, -side);
+  // wrist → knuckles, blending from the forearm direction
+  const K = v3.add(W, v3.mul(d, 0.13));
+  sc.path('skin', [v3.sub(W, v3.mul(foreDir, 0.03)), W, v3.add(W, v3.mul(d, 0.07)), K], (t) => [lerp(0.024, 0.02, t), lerp(0.036, 0.046, smooth(0, 0.6, t))], { up: n, N: 20, samples: 8 });
+  const curl = arm.curl;
+  const fingers = [[0.68, 0.12], [0.22, 0.135], [-0.24, 0.128], [-0.68, 0.104]]; // [offset along thumb side, length]
+  fingers.forEach(([o, L], i) => {
+    const r0 = 0.0118 - i * 0.0007;
+    let p = v3.add(v3.add(K, v3.mul(thumbSide, o * 0.036)), v3.mul(d, -0.006 + (Math.abs(o) > 0.5 ? -0.008 : 0)));
+    const splay = v3.unit(v3.add(d, v3.mul(thumbSide, o * 0.09 * (1 - curl))));
+    const pts = [v3.sub(p, v3.mul(splay, 0.02)), p];
+    let dir = splay;
+    [0.42, 0.33, 0.25].forEach((seg, j) => {
+      const nn = v3.unit(v3.sub(n, v3.mul(dir, v3.dot(n, dir))));
+      dir = v3.unit(swing(dir, nn, curl * [0.55, 0.75, 0.55][j] + 0.06));
+      p = v3.add(p, v3.mul(dir, L * seg)); pts.push(p);
+    });
+    sc.path('skin', pts, (t) => [lerp(r0 * 0.9, r0 * 0.62, t), lerp(r0, r0 * 0.7, t)], { up: n, N: 12, samples: 6 });
+  });
+  // thumb: from the base of the palm, angled across toward the fingers
+  let p = v3.add(v3.add(W, v3.mul(d, 0.028)), v3.add(v3.mul(thumbSide, 0.03), v3.mul(n, 0.012)));
+  let dir = v3.unit(v3.add(v3.add(v3.mul(d, 0.65), v3.mul(thumbSide, 0.55)), v3.mul(n, 0.35)));
+  const tp = [v3.sub(p, v3.mul(dir, 0.02)), p];
+  [0.05, 0.042, 0.034].forEach((seg) => { dir = v3.unit(v3.add(dir, v3.mul(v3.sub(n, thumbSide), 0.18 + curl * 0.25))); p = v3.add(p, v3.mul(dir, seg)); tp.push(p); });
+  sc.path('skin', tp, (t) => [lerp(0.016, 0.0095, t), lerp(0.018, 0.011, t)], { up: n, N: 12, samples: 6 });
+}
+
+function clipboard(sc, W, arm) {
+  // board stands in the arm's sagittal plane, its front-top edge in the palm
+  const n = v3.unit(arm.palm);
+  const c = v3.add(W, [n[0] * 0.05, -0.23, -0.16]);
+  sc.box('suitDark', c, [0.03, 0.46, 0.36], [0.05, 0, 0]);
+  sc.box('cloth', v3.add(c, [-0.017, -0.02, 0]), [0.006, 0.4, 0.31], [0.05, 0, 0]);
+  sc.box('gold', v3.add(c, [-0.022, 0.2, 0.0]), [0.014, 0.035, 0.12], [0.05, 0, 0]);
+  for (let i = 0; i < 6; i += 1) sc.box('suitDark', v3.add(c, [-0.021, 0.12 - i * 0.05, 0.02]), [0.003, 0.008, 0.22], [0.05, 0, 0]);
 }
 function ringAround(secs, y, off, lift) {
   const s = secs.reduce((a, b) => (Math.abs(b.y - y) < Math.abs(a.y - y) ? b : a), secs[0]); void lift;

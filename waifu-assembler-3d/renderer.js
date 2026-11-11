@@ -75,7 +75,7 @@ export function createGame(mode = 'play') {
 
   // ---------- lighting ----------
   const hemi = new BAB.HemisphericLight('hemi', new BAB.Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.55; hemi.diffuse = BAB.Color3.FromHexString('#cdd6ff'); hemi.groundColor = BAB.Color3.FromHexString('#3a2c58'); hemi.specular = BAB.Color3.Black();
+  hemi.intensity = 0.55; hemi.diffuse = BAB.Color3.FromHexString('#cdd6ff'); hemi.groundColor = BAB.Color3.FromHexString('#6b5a86'); hemi.specular = BAB.Color3.Black();
   const key = new BAB.DirectionalLight('key', new BAB.Vector3(-0.35, -1, -0.5).normalize(), scene);
   key.position = new BAB.Vector3(14, 46, -96);
   key.diffuse = BAB.Color3.FromHexString('#ffe4cc'); key.intensity = 1.55;
@@ -527,7 +527,7 @@ export function createGame(mode = 'play') {
         podium.finished.rotation.y += dt * 1.1;
         podium.finished.position.y = 5.4 + Math.sin(now * 0.002) * 0.08;
       }
-      podium.figure.rotation.y = Math.sin(now * 0.0005 + podium.group.position.x) * 0.06;
+      podium.figure.rotation.y = podium.poseTurn + Math.sin(now * 0.0005 + podium.group.position.x) * 0.06;
     }
     if (!editing) {
       petalEmitter.set(player.x, 0, player.z);
