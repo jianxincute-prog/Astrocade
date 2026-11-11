@@ -1,0 +1,11 @@
+{
+  "settings": {
+    "walkSpeed": 9,
+    "interactRange": 3.6
+  },
+  "podiumPositions": {
+    "office01": [-47, -101],
+    "nurse01": [47, -101],
+    "ceo01": [-47, -130]
+  }
+}
