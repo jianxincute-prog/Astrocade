@@ -1,4 +1,4 @@
-# Frozen Days
+# Winter Skate Life
 
 3D winter-town life sandbox about learning to ice skate. **Build 4 (world layout v1)** follows the World Layout Specification:
 a 300 x 300 world (north = +Z) with an organic frozen lake in the centre, a lake-ring main road plus shore promenade and six ice access points,

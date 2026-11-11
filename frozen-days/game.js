@@ -1,5 +1,5 @@
 /*
- * FROZEN DAYS — Build 4: skating progression, town and NPCs, world layout v1 (organic lake, four districts, corner areas).
+ * WINTER SKATE LIFE — Build 4: skating progression, town and NPCs, world layout v1 (organic lake, four districts, corner areas).
  * A beginner learns to skate on a frozen lake. Hold PUSH to build speed, steer, brake and ease off when you
  * wobble. Practice grows five skills (Balance, Control, Speed, Braking, Tricks), earns XP and levels, and
  * optional goals add short challenges. Progress and the chosen skater are saved between sessions.
@@ -112,7 +112,7 @@ function run(mode) {
 
   if (hasLib() && lib.showGameParameters) {
     lib.showGameParameters({
-      name: 'Frozen Days',
+      name: 'Winter Skate Life',
       params: {
         'Skill boost (0 = earn it)': { key: 'skill.level', type: 'slider', min: 0, max: 1, step: 0.05 },
         'Push power': { key: 'skating.pushAccel', type: 'slider', min: 3, max: 14, step: 0.5 },
