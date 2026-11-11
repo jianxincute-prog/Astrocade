@@ -12,6 +12,9 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 - Touch: the left stick gives a direction relative to the camera. On snow you walk that way; on ice you steer toward it (tilt = glide and turn, push fully = stroke, pull hard behind while fast = brake). PUSH adds a stroke, BRAKE stops.
 - Keyboard: WASD / arrows move relative to the camera, Space brake, E spin (Lv 3+), F talk, drag mouse to look, R respawn.
 
+## Economy
+Coins come from goals, level-ups, distance skated, new places and new friends. Shops open at set hours (Blade & Edge 08-19, Warm Threads 09-20, Cocoa Corner 07-22, Sweet Bakery 06-17): walk to the door and press ENTER. Clothes and skates are bought once and worn from the shop or from Skills > Wardrobe; drinks give temporary balance comfort and bakes give XP.
+
 ## Code structure
 - `game.js` — `run(mode)`: scene setup, game loop, edit-mode preview, settings panel.
 - `src/config.js` — reads `gameConfig`; `skillsFor(level)` maps one skill level to Balance/Control/Speed/Braking/Tricks.
@@ -27,7 +30,9 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 - `src/textures.js` — procedural canvas textures (quilted puffer, knit, twill, leather, hair, eyes) and the reflection environment.
 - `src/select.js` — character select overlay (Male/Female, face close-up, start).
 - `src/sky.js` — day-night cycle (sun, moon, stars, sky/fog colour, lamp and window glow) and four weather states (clear, cloudy, light snow, heavy snow) that blend smoothly; settings `world.dayMinutes`, `world.weather`, `world.hour`.
+- `src/shops.js` — shop hours and doors, the catalogue (jackets, scarves, beanies, pants, gloves, skates with grip/glide perks, drinks, bakes) and helpers that turn the worn items into a character variant and skate gear.
+- `src/shop.js` — the shop/wardrobe bottom-sheet UI (tabs, tap to try on, buy / wear / eat).
 - `src/camera.js`, `src/input.js`, `src/hud.js`, `src/fx.js` — chase camera, keyboard/touch input, DOM HUD, spray particles.
 
 ## Roadmap (see GDD)
-Next: shops, currency and outfits, then settings and audio.
+Next: sitting and eating animations, friendship activities, settings and audio.

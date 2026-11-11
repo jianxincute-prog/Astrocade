@@ -19,6 +19,8 @@ import { createInput } from './src/input.js';
 import { createHud } from './src/hud.js';
 import { createSpray } from './src/fx.js';
 import { createSky } from './src/sky.js';
+import { createShop } from './src/shop.js';
+import { SHOPS, ITEM, SLOT_LABEL, WEAR_SLOTS, itemsFor, variantFor, isOpen, hourLabel, shopNear } from './src/shops.js';
 
 let teardown = null;
 
@@ -53,13 +55,10 @@ function run(mode) {
   const sky = createSky(scene, world);
   const spray = createSpray(scene);
   try { scene.environment = makeEnvironment(renderer); } catch (e) { /* reflections are optional */ }
-  let kind = 'male', player = createCharacter(kind);
+  let kind = 'male', outfit = {}, player = createCharacter(kind);
   scene.add(player.root);
-  function setCharacter(k) {
-    kind = k;
-    scene.remove(player.root); player.dispose();
-    player = createCharacter(k); scene.add(player.root);
-  }
+  function rebuildPlayer() { scene.remove(player.root); player.dispose(); player = createCharacter(kind, { outfit }); scene.add(player.root); }
+  function setCharacter(k) { kind = k; rebuildPlayer(); }
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: 0x1a2a40, transparent: true, opacity: 0.25, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
 
@@ -95,10 +94,12 @@ function run(mode) {
   }
 
   // Developer hook (only when gameConfig.dev is set): jump to a spot to inspect the town.
-  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, sky, rig, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
+  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, sky, rig, get progress() { return progress; }, get shop() { return shop; }, openShopById(id) { openShop(id ? SHOPS.find((s) => s.id === id) : null); }, get buff() { return buff; }, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
 
   let raf = 0, last = performance.now(), clock = 0, clockT = 1;
-  let input = null, hud = null, sel = null;
+  let input = null, hud = null, sel = null, shop = null;
+  const buff = { mul: 1, t: 0, label: '' };
+  let shopView = null;
   const playing = mode !== 'edit';
   let phase = 'loading'; // loading -> select -> play (character button returns to select)
   const pv = { d: 4.4, y: 1.0, zoom: false };
@@ -139,6 +140,8 @@ function run(mode) {
   if (playing) {
     input = createInput(root, renderer.domElement, { touch });
     hud = createHud(root, { touch });
+    shop = createShop(root);
+    hud.el.addEventListener('wardrobe', () => openShop(null));
     hud.el.addEventListener('respawn', () => input.requestRespawn());
     hud.el.addEventListener('character', () => openSelect());
     hud.el.addEventListener('panel', () => hud.showPanel(progress, { zones: ZONE_LIST.length, npcs: NPC_DEFS.length }));
@@ -161,6 +164,7 @@ function run(mode) {
     root._frozenOnHide = onHide;
     loadState().then((saved) => {
       progress = createProgress(saved);
+      outfit = progress.outfit(); rebuildPlayer();
       if (saved && typeof saved.tod === 'number') sky.setHour(saved.tod);
       input.setSpinVisible(progress.spinUnlocked());
       if (saved && CHARACTERS.includes(saved.character)) { setCharacter(saved.character); sel.mark(saved.character); startPlay(); }
@@ -200,6 +204,34 @@ function run(mode) {
       }
     }
   }
+  // ---- Shops and wardrobe
+  const WEARABLE = (slot) => WEAR_SLOTS.includes(slot);
+  function openShop(def) { // def = a SHOPS entry, or null for the wardrobe (owned items, anywhere)
+    const tabs = (def ? def.tabs : WEAR_SLOTS).map((slot) => ({ label: SLOT_LABEL[slot], slot, consumable: !WEARABLE(slot), items: (WEARABLE(slot) ? [{ id: null, name: 'Standard', slot }] : []).concat(itemsFor(slot)) }));
+    if (def) { // frame the character in front of the door, facing the camera
+      const dx = 0 - def.door[0], dz = 104 - def.door[1], l = Math.hypot(dx, dz) || 1;
+      shopView = { dx: dx / l, dz: dz / l }; skater.h = Math.atan2(shopView.dx, shopView.dz); skater.vx = skater.vz = 0;
+    } else shopView = { dx: Math.sin(skater.h), dz: Math.cos(skater.h) };
+    const setOutfit = (w) => { outfit = variantFor(w); rebuildPlayer(); };
+    shop.open({
+      title: def ? def.name : 'Wardrobe', sub: def ? def.line : 'Change what you wear', tabs, wardrobe: !def,
+      coins: () => progress.coins(), owns: (id) => progress.owns(id), worn: (slot) => progress.worn()[slot] || null,
+      preview: (slot, id) => { const w = progress.worn(); if (slot) { if (id === null) delete w[slot]; else w[slot] = id; } setOutfit(w); },
+      equip: (slot, id) => { progress.wear(slot, id); setOutfit(progress.worn()); saveState(true); },
+      buy: (it) => { if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' }; if (hasLib()) lib.haptics.play('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + '!' }; },
+      consume: (it) => {
+        if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' };
+        if (it.food.xp) { handleUi(progress.addXp(it.food.xp)); }
+        if (it.food.comfort) { buff.mul = it.food.comfort; buff.t = it.food.secs; buff.label = it.name.split(' ').pop(); }
+        if (hasLib()) lib.haptics.play('success');
+        saveState(true); return { ok: true, msg: it.food.xp ? 'Yum! +' + it.food.xp + ' XP' : 'Ahh, so warm!' };
+      },
+      onClose: () => { shopView = null; root.classList.remove('shopping'); saveState(true); },
+    });
+    if (hud) hud.hideHint();
+    root.classList.add('shopping');
+  }
+  const openHint = (s) => (s.soon ? 'Opening soon' : 'Opens ' + hourLabel(s.open[0]));
   function startTalk(n) {
     const pts = progress.friendPoints(n.id), met = pts >= 0;
     if (!met) handleUi(progress.meet(n.id, n.name));
@@ -218,7 +250,7 @@ function run(mode) {
         if (hasLib()) lib.haptics.play('success');
         saveState(true);
       } else if (u.type === 'goal') {
-        hud.toast('Goal complete!  +' + u.xp + ' XP', 2.2);
+        hud.toast('Goal complete!  +' + u.xp + ' XP  +' + u.coins + ' coins', 2.2);
         if (hasLib()) lib.haptics.play('success');
         saveState(true); maybeSubmitScore();
       }
@@ -233,7 +265,7 @@ function run(mode) {
     if (dt <= 0) return;
     clock += dt;
     const c = getCfg();
-    c.skills = progress.skills(c.level); c.spinUnlocked = progress.spinUnlocked();
+    c.skills = progress.skills(c.level); c.spinUnlocked = progress.spinUnlocked(); c.gear = progress.gear(); c.comfort = buff.mul;
 
     if (playing && phase !== 'play') {
       // Character preview: stand still, camera sways in front (or zooms to the face).
@@ -252,7 +284,7 @@ function run(mode) {
       if (input.consumeRespawn()) { respawn(skater); progress.resetRun(); rig.snap(skater); hasPrev = false; }
       const inp = input.read();
       inp.spin = input.consumeSpin();
-      if (hud.panelOpen || hud.dialogOpen) { inp.mx = 0; inp.my = 0; inp.push = 0; inp.brake = hud.dialogOpen ? 1 : 0; inp.spin = false; }
+      if (hud.panelOpen || hud.dialogOpen || shop.isOpen) { inp.mx = 0; inp.my = 0; inp.push = 0; inp.brake = (hud.dialogOpen || shop.isOpen) ? 1 : 0; inp.spin = false; }
       else if (inp.push > 0.1 || Math.hypot(inp.mx, inp.my) > 0.3) hud.hideHint();
       inp.mag = Math.hypot(inp.mx, inp.my);
       { const ya = rig.yaw; inp.tgtH = inp.mag > 0.01 ? Math.atan2(Math.sin(ya) * inp.my + Math.cos(ya) * inp.mx, Math.cos(ya) * inp.my - Math.sin(ya) * inp.mx) : null; }
@@ -285,8 +317,16 @@ function run(mode) {
       player.pose(skater, clock);
       player.place(skater);
       shadow.position.set(skater.x, skater.y + (skater.mode === 'skate' ? 0.08 : 0.06), skater.z);
-      rig.update(skater, dt, c, input.consumeLook());
+      rig.update(skater, dt, c, shop.isOpen ? 0 : input.consumeLook());
+      if (shop.isOpen && shopView) { // side-on view of the character in the top half of the screen
+        camera.position.set(skater.x + shopView.dx * 6.2, skater.y + 1.0, skater.z + shopView.dz * 6.2);
+        camera.lookAt(skater.x, skater.y - 0.02, skater.z);
+        if (Math.abs(camera.fov - 38) > 0.05) { camera.fov = 38; camera.updateProjectionMatrix(); }
+        shop.update(dt);
+      }
       hud.update(skater, dt, progress);
+      hud.setCoins(progress.coins());
+      if (buff.t > 0) { buff.t -= dt; if (buff.t <= 0) { buff.mul = 1; hud.setBuff(null); hud.toast(buff.label + ' wore off', 1.6); } else hud.setBuff('♨ ' + buff.label + ' ' + Math.floor(buff.t / 60) + ':' + ('0' + Math.floor(buff.t % 60)).slice(-2)); }
 
       // Town: discovering places and talking to neighbours.
       zoneTimer += dt;
@@ -297,10 +337,16 @@ function run(mode) {
         else if (!zn) curZone = null;
       }
       const wantTalk = input.consumeTalk();
-      const near = !hud.panelOpen && !hud.dialogOpen ? npcs.nearest(skater.x, skater.z, TALK_RANGE) : null;
-      const canTalk = !!near && skater.speed < 4.5 && skater.state === 'ok';
-      hud.setTalk(canTalk ? near.name : null, touch); input.setTalkVisible(canTalk);
+      const busy = hud.panelOpen || hud.dialogOpen || shop.isOpen, calm = skater.speed < 4.5 && skater.state === 'ok';
+      const near = !busy ? npcs.nearest(skater.x, skater.z, TALK_RANGE) : null;
+      const canTalk = !!near && calm;
+      const door = !busy && !near ? shopNear(skater.x, skater.z) : null, canEnter = !!door && calm;
+      if (canTalk) { hud.setTalk(near.name, touch); input.setTalkLabel('TALK'); }
+      else if (canEnter) { const op = isOpen(door, sky.hour()); hud.setTalk(op ? door.name : door.name + ' · ' + openHint(door), touch, op ? 'Enter ' : ''); input.setTalkLabel('ENTER'); }
+      else hud.setTalk(null, touch);
+      input.setTalkVisible(canTalk || canEnter);
       if (wantTalk && canTalk) startTalk(near);
+      else if (wantTalk && canEnter) { if (isOpen(door, sky.hour())) openShop(door); else hud.toast(door.name + (door.soon ? ' is opening soon' : ' is closed.\nOpen ' + hourLabel(door.open[0]) + ' - ' + hourLabel(door.open[1])), 2.2); }
     } else {
       // Edit mode: static scene, slow orbit, no gameplay.
       player.pose({ ...skater, speed: 0, strideAmp: 0, b: 0, fallAmt: 0, steer: 0, spin: null, spinAng: 0 }, clock);
@@ -327,6 +373,7 @@ function run(mode) {
     if (input) input.destroy();
     if (hud) hud.destroy();
     if (sel) sel.destroy();
+    if (shop) shop.destroy();
     npcs.dispose();
     player.dispose();
     renderer.dispose();

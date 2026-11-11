@@ -3,6 +3,9 @@ const CSS = `
 #hud{position:absolute;inset:0;pointer-events:none;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;text-shadow:0 2px 6px rgba(20,40,70,.55)}
 #hud .chip{position:absolute;top:28px;padding:10px 20px;border-radius:22px;background:rgba(25,50,85,.45);font-size:28px;font-weight:700;backdrop-filter:blur(4px)}
 #speed{left:24px}
+#hud #coins{left:24px;top:94px;padding:4px 14px;font-size:20px;border-radius:16px;color:#ffe9a8;transition:transform .2s}
+#hud #coins.pop{transform:scale(1.18)}
+#hud #buff{right:24px;top:122px;padding:3px 12px;font-size:16px;border-radius:14px;display:none;background:rgba(150,80,30,.55)}
 #hud #clock{left:50%;top:22px;transform:translateX(-50%);padding:6px 16px 7px;font-size:16px;line-height:1.25;text-align:center;border-radius:18px;white-space:pre;font-weight:700}
 #lvl{right:24px;width:236px;padding:8px 16px 10px;font-size:22px;text-align:left}
 #xpTrack{margin-top:6px;height:12px;border-radius:7px;background:rgba(255,255,255,.28);overflow:hidden}
@@ -37,6 +40,7 @@ const CSS = `
 #panel button{flex:1;padding:18px;border-radius:22px;border:0;font-size:28px;font-weight:800;cursor:pointer;background:#3fa7ff;color:#fff}
 #panel button.alt{background:#d6e3f1;color:#1d3a5c}
 #touch{position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif}
+.shopping #touch,.shopping #hud #goal{visibility:hidden}
 #joyZone{position:absolute;left:0;bottom:0;width:380px;height:560px;pointer-events:auto;touch-action:none}
 #joyBase{position:absolute;left:60px;bottom:110px;width:230px;height:230px;border-radius:50%;background:rgba(255,255,255,.28);border:3px solid rgba(255,255,255,.6)}
 #joyKnob{position:absolute;left:70px;top:70px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.8);box-shadow:0 4px 10px rgba(0,0,0,.25)}
@@ -66,7 +70,7 @@ export function createHud(root, { touch }) {
     ? 'Move the stick to head that way.<br>Push it fully to stroke, <b>BRAKE</b> to stop.<br>Drag the screen to look around.'
     : '<b>WASD / arrows</b> move (push fully to stroke) &nbsp; <b>Space</b> brake<br>Drag the screen to look around.<br>Falling is part of learning!';
   el.innerHTML =
-    '<div id="speed" class="chip">0 km/h</div><div id="clock" class="chip"></div>' +
+    '<div id="speed" class="chip">0 km/h</div><div id="clock" class="chip"></div><div id="coins" class="chip">● 0</div><div id="buff" class="chip"></div>' +
     '<div id="lvl" class="chip"><div id="lvlTxt">Lv 1 · Beginner</div><div id="xpTrack"><div id="xpFill"></div></div></div><div id="xpPop"></div>' +
     '<div id="bal"><div>BALANCE</div><div id="balTrack"><div id="balFill"></div></div></div>' +
     '<div id="goal"><small>GOAL · tap to skip</small><span id="goalTxt"></span><div id="goalTrack"><div id="goalFill"></div></div></div>' +
@@ -75,7 +79,7 @@ export function createHud(root, { touch }) {
     '<div id="dlg"><div class="who"><span id="dName"></span><span class="role" id="dRole"></span></div><div class="hearts" id="dHearts"></div><div class="txt" id="dTxt"></div><div class="nxt">Tap to continue ▶</div></div>' +
     '<div id="charBtn" class="hbtn">☺ Character</div><div id="skillBtn" class="hbtn">★ Skills</div>' +
     '<div id="panel"><div class="card"><h2 id="pTitle"></h2><div class="sub" id="pSub"></div><div id="pRows"></div><div class="bests" id="pBests"></div>' +
-    '<div class="btns"><button class="alt" id="pRespawn">Respawn</button><button id="pClose">Continue</button></div></div></div>';
+    '<div class="btns"><button class="alt" id="pWard">Wardrobe</button><button class="alt" id="pRespawn">Respawn</button><button id="pClose">Continue</button></div></div></div>';
   root.appendChild(el);
   const $ = (id) => el.querySelector('#' + id);
   const speedEl = $('speed'), lvlTxt = $('lvlTxt'), xpFill = $('xpFill'), xpPop = $('xpPop'), balEl = $('bal'), fillEl = $('balFill'),
@@ -87,8 +91,12 @@ export function createHud(root, { touch }) {
   $('goal').addEventListener('click', () => el.dispatchEvent(new CustomEvent('skipgoal')));
   $('skillBtn').addEventListener('click', () => el.dispatchEvent(new CustomEvent('panel')));
   $('pClose').addEventListener('click', () => hidePanel());
+  $('pWard').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('wardrobe')); });
   $('pRespawn').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('respawn')); });
 
+  let lastCoins = null;
+  function setCoins(n) { const e = $('coins'); if (!e) return; if (n !== lastCoins) { if (lastCoins !== null && n > lastCoins) { e.classList.add('pop'); setTimeout(() => e.classList.remove('pop'), 220); } lastCoins = n; e.textContent = '● ' + n; } }
+  function setBuff(t) { const e = $('buff'); if (!e) return; if (!t) { e.style.display = 'none'; return; } e.style.display = 'block'; if (e.textContent !== t) e.textContent = t; }
   function setClock(t) { const e = $('clock'); if (e && e.textContent !== t) e.textContent = t; }
   function hideHint() { if (!hintHidden) { hintHidden = true; hintEl.classList.add('hide'); } }
   function toast(text, secs = 2.2) { toastEl.textContent = text; toastEl.classList.add('show'); toastTimer = secs; }
@@ -107,9 +115,9 @@ export function createHud(root, { touch }) {
     panel.style.display = 'block'; panelOpen = true;
   }
   function hidePanel() { panel.style.display = 'none'; panelOpen = false; }
-  function setTalk(name, touchUi) {
+  function setTalk(name, touchUi, verb) {
     if (!name || dlgState) { talkTip.style.display = 'none'; return; }
-    talkTip.textContent = (touchUi ? 'Talk to ' : 'F · Talk to ') + name; talkTip.style.display = 'block';
+    talkTip.textContent = (touchUi ? '' : 'F · ') + (verb === undefined ? 'Talk to ' : verb) + name; talkTip.style.display = 'block';
   }
   function banner(text) { bannerEl.textContent = text; bannerEl.classList.add('show'); bannerTimer = 2.8; }
   function renderDialog() {
@@ -145,5 +153,5 @@ export function createHud(root, { touch }) {
     if (!hintHidden) { hintTimer -= dt; if (hintTimer <= 0) hideHint(); }
   }
   function destroy() { el.remove(); style.remove(); }
-  return { el, update, toast, hideHint, setClock, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
+  return { el, update, toast, hideHint, setClock, setCoins, setBuff, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
 }

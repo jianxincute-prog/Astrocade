@@ -1,6 +1,7 @@
 // Skating progression: XP, level, five skills grown by relevant practice, optional goals, personal bests.
 // Skills never gate basic controls — they only make balance, control, top speed and braking more forgiving.
 import { clamp, angleDiff } from './util.js';
+import { ITEM, gearFor, variantFor } from './shops.js';
 
 const K = { balance: 200, control: 170, speed: 2800, braking: 55, tricks: 70 }; // practice needed for ~63% of a skill
 export const MAX_LEVEL = 10;
@@ -17,7 +18,7 @@ export function createProgress(saved) {
   const s = {
     xp: 0, raw: { balance: 0, control: 0, speed: 0, braking: 0, tricks: 0 },
     best: { run: 0, speed: 0 }, totals: { dist: 0, falls: 0, spins: 0, goals: 0 }, goalIdx: 0,
-    friends: {}, zones: {},
+    friends: {}, zones: {}, coins: 60, owned: {}, worn: {},
   };
   if (saved && saved.v === 2) {
     s.xp = num(saved.xp);
@@ -26,16 +27,19 @@ export function createProgress(saved) {
     Object.keys(s.totals).forEach((k) => { s.totals[k] = num(saved.totals && saved.totals[k]); });
     s.goalIdx = Math.floor(num(saved.goalIdx));
     if (saved.friends && typeof saved.friends === 'object') Object.keys(saved.friends).slice(0, 40).forEach((k) => { s.friends[k] = Math.min(12, num(saved.friends[k])); });
+    s.coins = Math.floor(num(saved.coins, 100));
+    if (saved.owned && typeof saved.owned === 'object') Object.keys(saved.owned).slice(0, 120).forEach((k) => { if (saved.owned[k] && ITEM[k]) s.owned[k] = true; });
+    if (saved.worn && typeof saved.worn === 'object') Object.keys(saved.worn).forEach((k) => { const id = saved.worn[k]; if (ITEM[id] && ITEM[id].slot === k && s.owned[id]) s.worn[k] = id; });
     if (saved.zones && typeof saved.zones === 'object') Object.keys(saved.zones).slice(0, 40).forEach((k) => { if (saved.zones[k]) s.zones[k] = true; });
   }
-  let level = levelFor(s.xp), dirty = false, pendingXp = 0;
+  let level = levelFor(s.xp), dirty = false, pendingXp = 0, coinPing = 0;
   const run = { base: 0, hold: 0, dist: 0, turn: 0, lastH: null, brakeStart: 0, braking: false, wobbling: false, xpDist: 0, xpTime: 0 };
 
   const skillVal = (k) => 1 - Math.exp(-s.raw[k] / K[k]);
   function award(n, out) {
     s.xp += n; pendingXp += n; dirty = true;
     const nl = levelFor(s.xp);
-    while (level < nl) { level++; out.push({ type: 'level', level, name: levelName(level), unlock: level === SPIN_LEVEL ? 'Spin trick unlocked!' : null }); }
+    while (level < nl) { level++; s.coins += 40; out.push({ type: 'coins', n: 40 }); out.push({ type: 'level', level, name: levelName(level), unlock: level === SPIN_LEVEL ? 'Spin trick unlocked!' : null }); }
   }
 
   function makeGoal() {
@@ -53,7 +57,7 @@ export function createProgress(saved) {
   function completeGoal(out) {
     const done = goal;
     award(done.reward, out); s.totals.goals++; s.goalIdx++; run.turn = 0; run.base = run.dist; run.hold = 0;
-    out.push({ type: 'goal', text: done.text, xp: done.reward });
+    s.coins += done.reward; out.push({ type: 'goal', text: done.text, xp: done.reward, coins: done.reward });
     goal = makeGoal();
   }
   function goalState(p) {
@@ -82,13 +86,24 @@ export function createProgress(saved) {
     popXp() { const n = pendingXp; pendingXp = 0; return n; },
     isDirty() { return dirty; }, clearDirty() { dirty = false; },
     bestRun() { return s.best.run; },
-    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx, friends: s.friends, zones: s.zones }; },
+    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx, friends: s.friends, zones: s.zones, coins: Math.floor(s.coins), owned: s.owned, worn: s.worn }; },
+
+    // Coins, owned items and the worn outfit.
+    coins() { return Math.floor(s.coins); },
+    takePing() { const n = coinPing; coinPing = 0; return n; },
+    owns(id) { return !!s.owned[id]; },
+    worn() { return { ...s.worn }; },
+    outfit() { return variantFor(s.worn); },
+    gear() { return gearFor(s.worn); },
+    buy(id) { const it = ITEM[id]; if (!it || s.coins < it.price) return false; s.coins -= it.price; if (!it.food) s.owned[id] = true; dirty = true; return true; },
+    wear(slot, id) { if (id === null) delete s.worn[slot]; else if (s.owned[id] && ITEM[id] && ITEM[id].slot === slot) s.worn[slot] = id; dirty = true; },
+    addXp(n) { const out = []; award(n, out); return out; },
 
     // Town: friendship points per NPC (undefined = not met yet) and discovered places.
     friendPoints(id) { return s.friends[id] === undefined ? -1 : s.friends[id]; },
-    meet(id, name) { const out = []; if (s.friends[id] === undefined) { s.friends[id] = 0; award(10, out); out.push({ type: 'met', name }); } return out; },
+    meet(id, name) { const out = []; if (s.friends[id] === undefined) { s.friends[id] = 0; award(10, out); s.coins += 5; out.push({ type: 'met', name }); } return out; },
     addFriend(id) { if (s.friends[id] !== undefined) { s.friends[id] = Math.min(12, s.friends[id] + 1); dirty = true; } },
-    discoverZone(id, name, xp = 15) { const out = []; if (!s.zones[id]) { s.zones[id] = true; award(xp, out); out.push({ type: 'zone', name, xp }); } return out; },
+    discoverZone(id, name, xp = 15) { const out = []; if (!s.zones[id]) { s.zones[id] = true; award(xp, out); s.coins += xp === 5 ? 5 : 10; out.push({ type: 'zone', name, xp, coins: xp === 5 ? 5 : 10 }); } return out; },
     zonesFound() { return Object.keys(s.zones).length; },
     friendsMet() { return Object.keys(s.friends).length; },
 
@@ -115,6 +130,7 @@ export function createProgress(saved) {
       if (p.speed > s.best.speed) { s.best.speed = p.speed; dirty = true; }
       if (ok && ice && p.speed > 1) {
         const d = p.speed * dt;
+        s.coinDist = (s.coinDist || 0) + d; while (s.coinDist >= 60) { s.coinDist -= 60; s.coins++; coinPing++; }
         run.dist += d; s.raw.speed += d; s.totals.dist += d; run.xpDist += d; dirty = true;
         if (run.dist > s.best.run) s.best.run = run.dist;
         while (run.xpDist >= 20) { run.xpDist -= 20; award(1, out); }

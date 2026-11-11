@@ -89,9 +89,9 @@ function buildHead(P, skinMat, skinFlat, lite) {
   return new T.Mesh(g, skinMat);
 }
 
-// opts.variant overrides colours / hair / hat (NPCs); opts.lite builds a cheaper model for background characters.
+// opts.variant overrides colours / hair / hat (NPCs); opts.outfit overrides only clothing colours (the player's worn items); opts.lite builds a cheaper model for background characters.
 export function createCharacter(kind, opts = {}) {
-  const base = PRESETS[kind] || PRESETS.male, v = opts.variant || {}, lite = !!opts.lite;
+  const base = PRESETS[kind] || PRESETS.male, v = { ...(opts.outfit || {}), ...(opts.variant || {}) }, lite = !!opts.lite;
   const P = { ...base, ...v, eye: { ...base.eye, ...(v.eye || {}) }, head: { ...base.head, ...(v.head || {}) }, brow: { ...base.brow, ...(v.brow || {}) } };
   const disposables = [];
   const keep = (x) => { disposables.push(x); return x; };

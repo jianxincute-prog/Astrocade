@@ -90,10 +90,10 @@ export function updateSkater(p, inp, dt, c, world) {
         vf = vf > 0 ? Math.max(0, vf - d) : Math.min(0, vf + d);
       }
     }
-    vf *= Math.exp(-c.iceFriction * dt);
+    vf *= Math.exp(-c.iceFriction * (c.gear ? c.gear.glide : 1) * dt);
     if (!ok) vf *= Math.exp(-(p.state === 'falling' ? 1.6 : 3.2) * dt);
     // Blade grip: lateral slip is converted to forward motion (carving) and partly lost.
-    const grip = ok ? lerp(2.2, 5.5, sk.control) * (1 + brake * 1.2) : 1.2;
+    const grip = ok ? lerp(2.2, 5.5, sk.control) * (1 + brake * 1.2) * (c.gear ? c.gear.grip : 1) : 1.2;
     const mag0 = Math.hypot(vf, vl);
     const lost = vl * (1 - Math.exp(-grip * dt));
     vl -= lost;
@@ -110,7 +110,7 @@ export function updateSkater(p, inp, dt, c, world) {
     if (ok) {
       // Balance model: instability grows with speed past your comfort zone, sharp turns at speed,
       // side-slipping and hard braking. It recovers when you ease off.
-      const comfort = lerp(7.5, 15, sk.balance);
+      const comfort = lerp(7.5, 15, sk.balance) * (c.comfort || 1);
       load.over = Math.max(0, (speed - comfort) / comfort) * 1.4;
       load.turn = Math.max(0, Math.abs(p.steerS) * speed / (comfort + 3) * (1 - 0.5 * sk.control) - 0.7) * 2.2;
       load.slip = Math.max(0, Math.abs(vl) / (comfort * 0.55) - 0.9);

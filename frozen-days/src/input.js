@@ -77,6 +77,7 @@ export function createInput(root, canvas, { touch }) {
   function requestRespawn() { respawnReq = true; }
   function consumeSpin() { const r = spinReq; spinReq = false; return r; }
   function consumeTalk() { const r = talkReq; talkReq = false; return r; }
+  function setTalkLabel(t) { const b = ui && ui.querySelector('#btnTalk'); if (b && b.textContent !== t) b.textContent = t; }
   function setTalkVisible(v) { const b = ui && ui.querySelector('#btnTalk'); if (b) b.style.display = v ? 'flex' : 'none'; }
   function setSpinVisible(v) { const b = ui && ui.querySelector('#btnSpin'); if (b) b.style.display = v ? 'flex' : 'none'; }
   function destroy() {
@@ -85,5 +86,5 @@ export function createInput(root, canvas, { touch }) {
     window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
     if (ui) ui.remove();
   }
-  return { read, consumeLook, consumeRespawn, requestRespawn, consumeSpin, setSpinVisible, consumeTalk, setTalkVisible, destroy };
+  return { read, consumeLook, consumeRespawn, requestRespawn, consumeSpin, setSpinVisible, consumeTalk, setTalkVisible, setTalkLabel, destroy };
 }
