@@ -315,6 +315,10 @@ export function buildPodium(scene, kit, set, position, shadowGen) {
     figureParts.set(part.id, { ghost, solid, anchor });
     if (shadowGen) for (const m of solid.getChildMeshes()) shadowGen.addShadowCaster(m);
   }
+  // soft portrait light in front of the face, affecting only this statue
+  const portrait = new BAB.PointLight(`portrait-${set.id}`, new BAB.Vector3(0.35, 5.0, 2.4), scene);
+  portrait.parent = group; portrait.diffuse = c3('#ffeee6'); portrait.specular = c3('#fff6f0'); portrait.intensity = 5.5; portrait.range = 8;
+  for (const { ghost, solid } of figureParts.values()) portrait.includedOnlyMeshes.push(...solid.getChildMeshes(), ...ghost.getChildMeshes());
   const finish = BAB.MeshBuilder.CreateTorus('finish', { diameter: 2.5, thickness: 0.1, tessellation: 56 }, scene);
   finish.parent = group; finish.position.y = 5.4; finish.material = glowMat(scene, `finish-${set.id}`, set.color, { intensity: 1.6 }); finish.setEnabled(false); finish.isPickable = false;
   const selection = BAB.MeshBuilder.CreateTorus('selection', { diameter: 5.1, thickness: 0.12, tessellation: 48 }, scene);

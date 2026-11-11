@@ -50,6 +50,7 @@ export function createStatueKit(scene) {
       });
       case 'face': return pbr(key, (m) => {
         m.albedoTexture = faceTexture(setId); m.roughness = 0.48;
+        m.useAlphaFromAlbedoTexture = true; m.transparencyMode = BAB.PBRMaterial.PBRMATERIAL_ALPHATEST; m.alphaCutOff = 0.5;
         m.emissiveTexture = faceTexture(setId); m.emissiveColor = hex('#ffffff').scale(0.12);
         m.sheen.isEnabled = true; m.sheen.intensity = 0.3; m.sheen.color = hex('#ffcdbf');
       });
@@ -100,6 +101,18 @@ export function createStatueKit(scene) {
         m.albedoColor = hex('#cfeaff'); m.alpha = 0.14; m.roughness = 0.05; m.metallic = 0;
         m.emissiveColor = hex('#8fd2ff').scale(0.2);
       });
+      case 'sclera': return pbr(key, (m) => {
+        m.albedoTexture = scleraTexture(); m.roughness = 0.3; m.emissiveTexture = scleraTexture(); m.emissiveColor = hex('#ffffff').scale(0.12);
+      });
+      case 'iris': return pbr(key, (m) => {
+        m.albedoTexture = irisTexture(setId); m.useAlphaFromAlbedoTexture = true; m.transparencyMode = BAB.PBRMaterial.PBRMATERIAL_ALPHATEST; m.alphaCutOff = 0.4;
+        m.emissiveTexture = irisTexture(setId); m.emissiveColor = hex('#ffffff').scale(0.45); m.roughness = 0.3;
+      });
+      case 'cornea': return pbr(key, (m) => {
+        m.albedoColor = hex('#ffffff'); m.alpha = 0.08; m.roughness = 0.02; m.metallic = 0;
+        m.clearCoat.isEnabled = true; m.clearCoat.intensity = 1; m.clearCoat.roughness = 0.02; m.environmentIntensity = 1.6;
+      });
+      case 'lash': return pbr(key, (m) => { m.albedoColor = hex('#1b1016'); m.roughness = 0.5; });
       case 'glow': return pbr(key, (m) => {
         m.albedoColor = hex('#ffffff'); m.emissiveColor = hex(s.accent); m.roughness = 0.4;
       });
@@ -140,9 +153,39 @@ export function createStatueKit(scene) {
     tex.update(true); tex.uScale = 3; tex.wrapU = tex.wrapV = BAB.Texture.WRAP_ADDRESSMODE; tex.anisotropicFilteringLevel = 8;
     faceTextures.set(key, tex); return tex;
   }
+  function scleraTexture() {
+    if (faceTextures.has('sclera')) return faceTextures.get('sclera');
+    const tex = new BAB.DynamicTexture('sclera', { width: 64, height: 256 }, scene, true); const ctx = tex.getContext();
+    const g = ctx.createLinearGradient(0, 0, 0, 256); // sphere v: top → bottom
+    g.addColorStop(0, '#3a2a30'); g.addColorStop(0.36, '#b9a7aa'); g.addColorStop(0.5, '#f4eceb'); g.addColorStop(1, '#efe4e3');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 256); tex.update(true); faceTextures.set('sclera', tex); return tex;
+  }
+  function irisTexture(setId) {
+    const key = `iris-${setId}`;
+    if (faceTextures.has(key)) return faceTextures.get(key);
+    const s = STYLE[setId]; const tex = new BAB.DynamicTexture(key, { width: 256, height: 256 }, scene, true);
+    tex.hasAlpha = true; const ctx = tex.getContext(); const rnd = mulberry(setId.length * 53 + 3); const c = 128; const r = 124;
+    ctx.clearRect(0, 0, 256, 256);
+    const g = ctx.createRadialGradient(c, c, 6, c, c, r);
+    g.addColorStop(0, shadeHex(s.eye, 70)); g.addColorStop(0.35, shadeHex(s.eye, 30)); g.addColorStop(0.75, s.eye); g.addColorStop(0.93, shadeHex(s.eye, -40)); g.addColorStop(1, s.eyeDeep);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 220; i += 1) { // radial fibres
+      const a = rnd() * Math.PI * 2; const r0 = 30 + rnd() * 10; const r1 = r * (0.6 + rnd() * 0.38);
+      ctx.strokeStyle = rnd() > 0.45 ? hexA(shadeHex(s.eye, 80), 0.3) : hexA(s.eyeDeep, 0.35); ctx.lineWidth = 1 + rnd() * 1.4;
+      ctx.beginPath(); ctx.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); ctx.lineTo(c + Math.cos(a + 0.05) * r1, c + Math.sin(a + 0.05) * r1); ctx.stroke();
+    }
+    const top = ctx.createLinearGradient(0, 0, 0, 256); top.addColorStop(0, 'rgba(20,8,16,.55)'); top.addColorStop(0.45, 'rgba(20,8,16,0)');
+    ctx.fillStyle = top; ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = hexA(s.eyeDeep, 0.95); ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(c, c, r - 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#0b060c'; ctx.beginPath(); ctx.arc(c, c, 40, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.beginPath(); ctx.ellipse(c - 40, c - 46, 26, 20, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.arc(c + 44, c + 40, 11, 0, Math.PI * 2); ctx.fill();
+    tex.update(true); faceTextures.set(key, tex); return tex;
+  }
   function faceTexture(setId) {
     if (faceTextures.has(setId)) return faceTextures.get(setId);
     const tex = new BAB.DynamicTexture(`face-${setId}`, { width: 2048, height: 1024 }, scene, true);
+    tex.hasAlpha = true;
     drawFace(tex.getContext(), 2048, 1024, setId);
     tex.update(true);
     tex.anisotropicFilteringLevel = 8;
@@ -170,7 +213,7 @@ function drawFace(ctx, W, H, setId) {
   const PXX = 1900; // canvas px per head-space unit (horizontal, at eye level)
   const PXY = H / HEAD_H; // vertical px per unit
   const X = (x) => cx + x * PXX;
-  const Y = (y) => (FACE_FLIP_V ? H * (1 - y / HEAD_H) : H * (y / HEAD_H));
+  const Y = (y) => H * (1 - vOfH(y)); void FACE_FLIP_V; void HEAD_H;
   const rnd = mulberry(setId.length * 977 + 13);
 
   // --- skin base with soft contour shading ---
@@ -202,11 +245,48 @@ function drawFace(ctx, W, H, setId) {
     ctx.fillStyle = rnd() > 0.5 ? 'rgba(120,70,60,.025)' : 'rgba(255,255,255,.04)';
     ctx.fillRect(rnd() * W, rnd() * H, 1.4 + rnd() * 1.6, 1.4 + rnd() * 1.6);
   }
+  // --- open the eyelids: the sclera/iris are real 3D eyeballs behind the skin ---
+  ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = '#000';
+  for (const side of [-1, 1]) {
+    const [ex, ey] = eyeCentrePx(side); const { hw, hgt } = EYE_SHAPE[setId];
+    const c = eyeCurves(ex, ey + 3, side, hw * 0.93, hgt * 0.86);
+    ctx.beginPath(); ctx.moveTo(...c.up[0]); ctx.bezierCurveTo(...c.up[1], ...c.up[2], ...c.up[3]); ctx.bezierCurveTo(...c.lo[1], ...c.lo[2], ...c.lo[3]); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
 }
+// Eye opening per character, in face-texture pixels (the texture is 2048 x 1024 over the head loft).
+const TEX_W = 2048; const TEX_H = 1024; const PXX = 1900;
+const EYE_SHAPE = { office01: { hw: 94, hgt: 47 }, nurse01: { hw: 96, hgt: 52 }, ceo01: { hw: 92, hgt: 42 } };
+function eyeCurves(ex, ey, side, hw, hgt) {
+  const inner = [ex - side * hw, ey + 6]; const outer = [ex + side * hw, ey - 6];
+  const bez = (p0, p1, p2, p3, t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
+  const up = [inner, [ex - side * hw * 0.35, ey - hgt * 1.28], [ex + side * hw * 0.42, ey - hgt * 1.36], outer];
+  const lo = [outer, [ex + side * hw * 0.35, ey + hgt * 0.95], [ex - side * hw * 0.35, ey + hgt * 1.0], inner];
+  return { inner, outer, up, lo, upper: (t) => bez(...up, t), lower: (t) => bez(...lo, t) };
+}
+// Babylon ribbons assign v by arc length up each column, so texture rows are not evenly spaced in height.
+// Measure that arc length on the deformed face loft to convert texture pixels ↔ head-space positions.
+let VMAP = null;
+function vMap() {
+  if (VMAP) return VMAP;
+  const secs = headSecs(); const hs = []; const vs = []; let acc = 0; let prev = null;
+  for (const s of secs) {
+    const y = s.y; const z = s.cz + s.rz + faceDeform(0, y, 0, s, 1, 0)[2];
+    if (prev) acc += Math.hypot(y - prev[0], z - prev[1]);
+    hs.push(y - CHIN); vs.push(acc); prev = [y, z];
+  }
+  VMAP = { hs, vs: vs.map((v) => v / acc) }; return VMAP;
+}
+const interp = (xs, ys, x) => { let i = 0; while (i < xs.length - 2 && x > xs[i + 1]) i += 1; const t = (x - xs[i]) / (xs[i + 1] - xs[i] || 1); return ys[i] + (ys[i + 1] - ys[i]) * Math.max(0, Math.min(1, t)); };
+const vOfH = (h) => interp(vMap().hs, vMap().vs, h);
+const hOfV = (v) => interp(vMap().vs, vMap().hs, v);
+// texture px → head-space (x, height above chin)
+const texToHead = (px, py) => [(px - TEX_W / 2) / PXX, hOfV(1 - py / TEX_H)];
+const eyeCentrePx = (side) => [TEX_W / 2 + side * F.eyeX * PXX, TEX_H * (1 - vOfH(F.eye))];
+
 function drawEye(ctx, ex, ey, side, s, rnd, setId) {
   // Nurse has an open, welcoming gaze; the CEO gets a poised, slightly narrower cat-eye; Office sits between.
-  const hw = setId === 'ceo01' ? 92 : setId === 'nurse01' ? 96 : 94;
-  const hgt = setId === 'ceo01' ? 42 : setId === 'nurse01' ? 52 : 47;
+  const { hw, hgt } = EYE_SHAPE[setId];
   const inner = [ex - side * hw, ey + 6]; const outer = [ex + side * hw, ey - 6];
   const almond = () => {
     ctx.beginPath(); ctx.moveTo(inner[0], inner[1]);
@@ -265,11 +345,7 @@ function drawEye(ctx, ex, ey, side, s, rnd, setId) {
     ctx.beginPath(); ctx.moveTo(px, py);
     ctx.quadraticCurveTo(px + Math.cos(ang) * len * 0.55 + side * 3, py + Math.sin(ang) * len * 0.55, px + Math.cos(ang + side * 0.45) * len, py + Math.sin(ang + side * 0.45) * len); ctx.stroke();
   }
-  ctx.lineWidth = 1.8; ctx.strokeStyle = hexA('#1a0f14', 0.75);
-  for (let i = 0; i < 5; i += 1) { // lower lashes
-    const t = 0.55 + i / 5 * 0.4; const px = lerp(inner[0], outer[0], t); const py = ey + hgt * 0.9 * Math.sin(Math.PI * t) + 2;
-    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + side * 3, py + 11 + rnd() * 5); ctx.stroke();
-  }
+
   ctx.strokeStyle = hexA('#f7d6d2', 0.75); ctx.lineWidth = 3; // wet waterline
   ctx.beginPath(); ctx.moveTo(ex - side * hw * 0.6, ey + hgt * 0.72); ctx.quadraticCurveTo(ex, ey + hgt * 0.9, ex + side * hw * 0.7, ey + hgt * 0.45); ctx.stroke();
 }
@@ -512,7 +588,7 @@ function faceDeform(x, y, z, s, zf, xf) {
   const front = Math.max(0, zf);
   let dz = 0; let dx = 0;
   dz += 0.01 * gauss(h, F.brow, 0.03) * front * (1 - Math.abs(xf) * 0.6); // soft brow ridge
-  dz -= 0.006 * gauss(h, F.eye, 0.03) * front * gauss(Math.abs(x), F.eyeX, 0.045); // shallow eye sockets
+  dz -= 0.011 * gauss(h, F.eye, 0.026) * front * gauss(Math.abs(x), F.eyeX, 0.042); // eye sockets (lids wrap the eyeballs)
   dz += 0.009 * gauss(h, 0.18, 0.05) * front * gauss(Math.abs(x), 0.1, 0.05); // full apple cheeks
   dx += Math.sign(x) * 0.004 * gauss(h, 0.22, 0.05) * Math.max(0, 1 - front);
   dz += 0.01 * gauss(h, 0.03, 0.028) * front * gauss(x, 0, 0.05); // small rounded chin
@@ -578,7 +654,31 @@ function sculptHead(sc, id) {
   sc.loft('face', headSecs(), { N: 120, deform: faceDeform, flip: false });
   // ears
   for (const side of [-1, 1]) sc.loft('skin', sectionsFrom([{ y: CHIN + 0.2, cx: side * 0.182, cz: -0.012, rx: 0.006, rz: 0.012 }, { y: CHIN + 0.26, cx: side * 0.188, cz: -0.012, rx: 0.011, rz: 0.03 }, { y: CHIN + 0.32, cx: side * 0.186, cz: -0.012, rx: 0.008, rz: 0.026 }, { y: CHIN + 0.35, cx: side * 0.182, cz: -0.012, rx: 0.003, rz: 0.008 }], 8), { N: 14 });
+  eyes(sc, id);
   hairFor(sc, id, st);
+}
+function eyes(sc, id) {
+  const { hw, hgt } = EYE_SHAPE[id];
+  for (const side of [-1, 1]) {
+    const ex = side * F.eyeX; const ey = CHIN + F.eye;
+    const skin = headSurfaceZ(ey, ex) + faceDeform(ex, ey, 0, null, 1, ex / 0.19)[2];
+    const R = 0.062; const cz = skin - 0.004 - R * 0.85;
+    sc.ell('sclera', [ex, ey + 0.002, cz], [R * 2.15, R * 1.7, R * 1.7], [0, side * 0.12, 0], 32);
+    const front = cz + R * 0.85;
+    const ir = 0.031;
+    const disc = B().MeshBuilder.CreateDisc('iris', { radius: ir, tessellation: 40, sideOrientation: B().Mesh.DOUBLESIDE }, sc.scene);
+    sc.prim(disc, 'iris', [ex + side * 0.002, ey + 0.004, front + 0.0006], [0, 0, 0]);
+    sc.ell('cornea', [ex + side * 0.002, ey + 0.004, front], [ir * 2.3, ir * 2.3, ir * 0.45], [0, 0, 0], 24);
+    // 3D upper lash line following the painted lid, flicking out at the corner
+    const [cxp, cyp] = eyeCentrePx(side); const c = eyeCurves(cxp, cyp, side, hw, hgt);
+    const pts = [];
+    for (let i = 0; i <= 14; i += 1) {
+      const t = 0.06 + (i / 14) * 0.94; const [px, py] = c.upper(t); const [x, h] = texToHead(px, py);
+      const y = CHIN + h; pts.push([x, y, headSurfaceZ(y, x) + faceDeform(x, y, 0, null, 1, x / 0.19)[2] + 0.004 + 0.006 * t]);
+    }
+    const [lx, ly, lz] = pts[pts.length - 1]; pts.push([lx + side * 0.012, ly + 0.01, lz - 0.004]);
+    sc.path('lash', pts, (t) => { const w = 0.0016 + 0.0042 * Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1)); return [w * 0.7, w]; }, { up: [0, 0, 1], N: 8, samples: 4 });
+  }
 }
 
 function hairShell(sc, offset, trimFn) {
