@@ -1,6 +1,6 @@
 # Waifu Assembler 3D
 
-Jelajahi aula pameran 150 × 150, temukan 15 segmen patung yang tersebar, lalu susun kembali Office-01, Nurse-01, dan CEO-01 di annex restorasi di luar aula. Blueprint holografik memperlihatkan figur utuh dengan segmen yang sedang dibawa disorot merah.
+Jelajahi aula pameran 150 × 150, temukan 25 segmen patung yang tersebar, lalu susun kembali Office-01, Nurse-01, CEO-01, Student-01, dan Janitor-01 di annex restorasi di luar aula. Blueprint holografik memperlihatkan figur utuh dengan segmen yang sedang dibawa disorot merah.
 
 ## Bermain
 - Gerak: joystick sentuh atau WASD / panah; geser layar atau seret mouse untuk melihat.

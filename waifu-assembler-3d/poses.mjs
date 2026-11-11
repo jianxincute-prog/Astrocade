@@ -39,6 +39,27 @@ export const STATUE_POSES = {
       R: { upper: [0.22, -0.93, 0.3], fore: [0.42, 0.08, 0.9], hand: [0.45, 0.05, 0.9], palm: [-0.15, 1, 0], curl: 0.18 },
     },
   },
+  student01: {
+    turn: 0.05,
+    head: [0.03, -0.12, 0.07], // playful head tilt
+    gesture: 'schoolbag',
+    arms: {
+      // carries her school bag by the handle at her side
+      L: { upper: [-0.1, -1, 0.02], fore: [-0.04, -1, 0.1], hand: [0, -1, 0.12], palm: [1, 0, 0], curl: 0.75, prop: 'bag' },
+      // small cheerful wave beside her face
+      R: { upper: [0.35, -0.9, 0.2], fore: [-0.15, 1, 0.25], hand: [-0.08, 1, 0.12], palm: [0, 0, 1], curl: 0.08 },
+    },
+  },
+  janitor01: {
+    turn: -0.05,
+    head: [0.0, 0.08, -0.02],
+    gesture: 'mop',
+    arms: {
+      L: { upper: [-0.08, -1, 0.04], fore: [0.05, -1, 0.2], hand: [0.05, -1, 0.2], palm: [1, 0, 0], curl: 0.45 },
+      // grips an upright mop handle in front of her right hip
+      R: { upper: [0.1, -1, 0.15], fore: [-0.05, -0.3, 1], hand: [-0.6, 0, 0.8], palm: [-0.7, 0, -0.5], curl: 0.9, prop: 'mop' },
+    },
+  },
 };
 
 const unit = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };

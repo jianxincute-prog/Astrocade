@@ -270,7 +270,7 @@ export function createGame(mode = 'play') {
   }
 
   const updateHUD = () => {
-    ui.progress.textContent = `${countPlaced(state)} / 15`;
+    ui.progress.textContent = `${countPlaced(state)} / ${FRAGMENTS.length}`;
     const nearest = nearestAvailable();
     if (state.carried) {
       const fragment = getFragment(state.carried);
@@ -297,7 +297,7 @@ export function createGame(mode = 'play') {
       ui.actionLabel.textContent = close ? 'COLLECT' : 'SEARCH';
       ui.action.setAttribute('aria-label', close ? `Collect ${nearest.part.label}` : 'Find the highlighted statue fragment');
     } else {
-      ui.status.innerHTML = `<b>RESTORATION COMPLETE</b><span>All three figures are ready for display</span>`;
+      ui.status.innerHTML = `<b>RESTORATION COMPLETE</b><span>All ${SETS.length} figures are ready for display</span>`;
       ui.target.innerHTML = `<i class="target-dot" style="--dot:#80e8ce"></i><span>Every piece has found its home. Lovely work.</span>`;
       ui.action.disabled = true;
       ui.actionLabel.textContent = 'COMPLETE';
@@ -474,7 +474,7 @@ export function createGame(mode = 'play') {
       finishedShown = true;
       root.querySelector('#finish-banner').classList.add('shown');
       safeHaptic('success');
-      try { window.lib?.log?.('All three Waifu Assembler statues restored.'); } catch { /* optional */ }
+      try { window.lib?.log?.('All Waifu Assembler statues restored.'); } catch { /* optional */ }
     }
   }
   root.querySelector('#finish-close').addEventListener('click', () => root.querySelector('#finish-banner').classList.remove('shown'));

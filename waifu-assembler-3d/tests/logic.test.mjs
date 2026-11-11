@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FRAGMENTS, PARTS, SETS, countPlaced, createInitialState, isGameComplete,
-  isSetComplete, pickup, placeCarried, restoreState, serializeState,
+  isSetComplete, pickup, placeCarried, restoreState, serializeState, INITIAL_PODIUMS,
 } from '../logic.mjs';
 import { ARM_LENGTHS, SHOULDER, STATUE_POSES, armJoints } from '../poses.mjs';
 
-test('15 fragments cover three five-part statue sets in the 150x150 hall', () => {
-  assert.equal(FRAGMENTS.length, 15);
-  assert.equal(SETS.length, 3);
+test('25 fragments cover five five-part statue sets in the 150x150 hall', () => {
+  assert.equal(FRAGMENTS.length, 25);
+  assert.equal(SETS.length, 5);
   assert.equal(PARTS.length, 5);
   assert.ok(FRAGMENTS.every(({ x, z }) => Math.abs(x) <= 75 && Math.abs(z) <= 75));
 });
@@ -26,7 +26,7 @@ test('pickup is one-at-a-time and matching parts snap into the right set', () =>
   assert.equal(countPlaced(placed), 1);
 });
 
-test('all 15 pieces complete the display, and repeated placements cannot duplicate parts', () => {
+test('all 25 pieces complete the display, and repeated placements cannot duplicate parts', () => {
   let state = createInitialState();
   for (const fragment of FRAGMENTS) {
     state = pickup(state, fragment.key);
@@ -35,7 +35,7 @@ test('all 15 pieces complete the display, and repeated placements cannot duplica
   }
   assert.equal(isGameComplete(state), true);
   assert.ok(SETS.every(({ id }) => isSetComplete(state, id)));
-  assert.equal(countPlaced(state), 15);
+  assert.equal(countPlaced(state), 25);
 });
 
 test('each statue has a distinct, testable presentation pose and signature gesture', () => {
@@ -51,6 +51,21 @@ test('each statue has a distinct, testable presentation pose and signature gestu
   assert.equal(office.arm.prop, 'clipboard');
   assert.ok(office.W[2] > 0.35, 'office forearm reaches forward to hold the clipboard');
   assert.notDeepEqual(STATUE_POSES.office01.head, STATUE_POSES.nurse01.head);
+  assert.equal(STATUE_POSES.student01.gesture, 'schoolbag');
+  assert.equal(armJoints('student01', -1).arm.prop, 'bag');
+  assert.equal(STATUE_POSES.janitor01.gesture, 'mop');
+  assert.equal(armJoints('janitor01', 1).arm.prop, 'mop');
+});
+
+test('fragments are spread out and podiums sit inside the annex', () => {
+  for (let i = 0; i < FRAGMENTS.length; i += 1) for (let j = i + 1; j < FRAGMENTS.length; j += 1) {
+    const a = FRAGMENTS[i]; const b = FRAGMENTS[j];
+    assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= 5, `${a.key} and ${b.key} overlap`);
+  }
+  for (const { id } of SETS) {
+    const [x, z] = INITIAL_PODIUMS[id];
+    assert.ok(Math.abs(x) <= 52 && z <= -92 && z >= -140, `${id} podium inside annex`);
+  }
 });
 
 test('posed arms stay attached at the shoulder with fixed bone lengths', () => {

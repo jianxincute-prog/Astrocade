@@ -3,6 +3,8 @@ export const SETS = [
   { id: 'office01', name: 'OFFICE-01', label: 'Office-01', color: '#76d8ff', accent: '#263b72', cloth: '#dfe8f2', skin: '#f6c9b0', hair: '#49324a', hairLight: '#a17b9e', eyes: '#47a7d1', lip: '#cb667d' },
   { id: 'nurse01', name: 'NURSE-01', label: 'Nurse-01', color: '#ff83bf', accent: '#d84781', cloth: '#f5f3f2', skin: '#f6c9b0', hair: '#814c67', hairLight: '#e29abb', eyes: '#55aa9d', lip: '#d45f83' },
   { id: 'ceo01', name: 'CEO-01', label: 'CEO-01', color: '#f0c66f', accent: '#37435d', cloth: '#262f48', skin: '#f2c6a5', hair: '#3c2727', hairLight: '#9b755b', eyes: '#a78bda', lip: '#c97876' },
+  { id: 'student01', name: 'STUDENT-01', label: 'Student-01', color: '#b9a3ff', accent: '#26306a', cloth: '#f6f6fa', skin: '#fadccd', hair: '#3a2622', hairLight: '#7a5040', eyes: '#7b5bd6', lip: '#e78a98' },
+  { id: 'janitor01', name: 'JANITOR-01', label: 'Janitor-01', color: '#5fd8a8', accent: '#2f8a74', cloth: '#2f8a74', skin: '#efc8ab', hair: '#4a2f25', hairLight: '#8a5a40', eyes: '#3e7a5c', lip: '#c96f73' },
 ];
 
 export const PARTS = [
@@ -19,6 +21,8 @@ export const INITIAL_PODIUMS = {
   office01: [-47, -101],
   nurse01: [47, -101],
   ceo01: [-47, -130],
+  student01: [47, -130],
+  janitor01: [0, -138],
 };
 
 // Three tidy, searchable fragment zones inside the 150 x 150 exhibition hall.
@@ -26,6 +30,8 @@ const ZONES = {
   office01: [-42, -28],
   nurse01: [42, 19],
   ceo01: [0, 20],
+  student01: [-42, 42],
+  janitor01: [42, -45],
 };
 const FRAGMENT_OFFSETS = [[-26, -22], [22, -24], [-23, 24], [25, 23], [0, 0]];
 
