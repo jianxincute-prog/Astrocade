@@ -727,8 +727,9 @@ function hairFor(sc, id, st) {
     const u = i / (H.back - 1); const a = lerp(Math.PI * 0.52, Math.PI * 1.48, u) + (rnd() - 0.5) * 0.08;
     const side = Math.sin(a); const back = -Math.cos(a);
     const len = H.len * (0.82 + 0.18 * rnd()) * (1 - 0.18 * Math.pow(Math.abs(side), 3));
-    const r0 = scalp(a, 0.55, 0.026); const r1 = scalp(a, 0.38, 0.04); const r2 = scalp(a, 0.18, 0.048);
-    const fx = side * (0.2 + 0.03 * back); const fz = -0.17 - 0.1 * back;
+    const hug = 1 - 0.45 * Math.pow(Math.abs(side), 4); // flatter over the ears
+    const r0 = scalp(a, 0.55, 0.026); const r1 = scalp(a, 0.38, 0.034 * hug); const r2 = scalp(a, 0.18, 0.042 * hug);
+    const fx = side * (0.19 + 0.03 * back); const fz = -0.17 - 0.1 * back;
     const wv = (k) => H.wave * Math.sin(k * 7 + i * 1.3);
     const pts = [r0, r1, r2,
       [fx * 1.08 + wv(1), Hy(-0.05), fz - 0.03],
@@ -740,8 +741,8 @@ function hairFor(sc, id, st) {
   // 3) side locks framing the face, layered and falling over the collarbone
   for (const sideS of [-1, 1]) for (let k = 0; k < 3; k += 1) {
     const a = sideS * (Math.PI * (0.36 + k * 0.07)); const len = (id === 'nurse01' ? 0.42 : 0.5) - k * 0.06 + (sideS > 0 ? 0.02 : 0);
-    const r0 = scalp(a, 0.54, 0.028); const r1 = scalp(a, 0.4, 0.04);
-    const x0 = sideS * (0.205 + k * 0.015);
+    const r0 = scalp(a, 0.54, 0.024); const r1 = scalp(a, 0.4, 0.026);
+    const x0 = sideS * (0.207 + k * 0.009);
     const pts = [r0, r1, [x0, Hy(0.24), 0.09 - k * 0.04], [x0 + sideS * 0.01, Hy(0.04), 0.11 - k * 0.04],
       [x0 + sideS * (0.03 + H.wave), Hy(-len * 0.55), 0.17 - k * 0.04], [x0 + sideS * 0.04, Hy(-len), 0.21 - k * 0.04]];
     hairLock(sc, 'hair', pts, 0.05 - k * 0.004, 0.012, [sideS, 0, 0.3]);
@@ -754,14 +755,14 @@ function hairFor(sc, id, st) {
     const tipX = x + H.sweep * 0.045 * (1 - Math.abs(x) / 0.2) + (rnd() - 0.5) * 0.01;
     const tipH = fringe(tipX) - (i % 2 ? 0.012 : 0) - rnd() * 0.01;
     const tipY = Hy(tipH); const tipZ = headSurfaceZ(tipY, tipX) + 0.013;
-    const root = scalp(a * 0.6, 0.575, 0.024); const mid = scalp(a * 0.85, 0.5, 0.036);
+    const root = scalp(a * 0.92, 0.548, 0.026); const mid = scalp(a * 0.95, 0.49, 0.034);
     const pre = [lerp(mid[0], tipX, 0.55), lerp(mid[1], tipY, 0.5) + 0.02, headSurfaceZ(lerp(mid[1], tipY, 0.5), lerp(mid[0], tipX, 0.55)) + 0.03];
     hairLock(sc, i % 5 === 2 ? 'hairTip' : 'hair', [root, mid, pre, [tipX, tipY, tipZ]], 0.04 + 0.008 * rnd(), 0.009, [x, 0.4, 1]);
   }
   // 5) a few loose wisps on top for a soft, non-helmet silhouette
   for (let i = 0; i < 5; i += 1) {
-    const a = Math.PI * (0.35 + i * 0.32) + (rnd() - 0.5) * 0.2;
-    hairLock(sc, 'hair', [scalp(a * 0.2, 0.6, 0.02), scalp(a, 0.5, 0.036), scalp(a, 0.36, 0.044), scalp(a, 0.2, 0.048)], 0.06, 0.01, [Math.sin(a), 0.6, Math.cos(a)]);
+    const a = Math.PI * (0.62 + i * 0.19) + (rnd() - 0.5) * 0.12; // over the back of the crown only
+    hairLock(sc, 'hair', [scalp(a, 0.585, 0.024), scalp(a, 0.5, 0.034), scalp(a, 0.4, 0.036), scalp(a, 0.3, 0.032)], 0.06, 0.01, [Math.sin(a), 0.6, Math.cos(a)]);
   }
 
   if (id === 'office01') {
