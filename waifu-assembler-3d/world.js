@@ -1,12 +1,11 @@
 // Babylon.js world dressing: exhibition hall, restoration annex, podiums, fragment pedestals, labels, particles.
 import { PARTS, getSet } from './logic.mjs';
-import { buildStatuePart } from './statues.js';
+import { buildStatuePart, PART_OFFSET } from './statues.js';
 import { roundRect } from './ui.js';
 
 const B = () => window.BABYLON;
 const c3 = (hex) => B().Color3.FromHexString(typeof hex === 'number' ? `#${hex.toString(16).padStart(6, '0')}` : hex);
 
-export const PART_OFFSET = { legs: [0, 0.96, 0], torso: [0, 2.19, 0], head: [0, 3.48, 0], armL: [-0.77, 2.35, 0], armR: [0.77, 2.35, 0] };
 
 // ---------- shared material helpers ----------
 const matCache = new WeakMap();
@@ -298,7 +297,7 @@ export function buildPodium(scene, kit, set, position, shadowGen) {
   // soft volumetric spotlight cone
   const cone = BAB.MeshBuilder.CreateCylinder('cone', { height: 9, diameterTop: 1.2, diameterBottom: 6.2, tessellation: 32, cap: BAB.Mesh.NO_CAP }, scene);
   cone.parent = group; cone.position.y = 5.2; cone.isPickable = false;
-  cone.material = glowMat(scene, `cone-${set.id}`, set.color, { intensity: 0.9, alpha: 0.065, additive: true });
+  cone.material = glowMat(scene, `cone-${set.id}`, set.color, { intensity: 0.9, alpha: 0.04, additive: true });
 
   const label = makeLabel(scene, set.name, set.color, 5.8, 1.45);
   label.mesh.parent = group; label.mesh.position.y = 6.3;
