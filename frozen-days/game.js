@@ -20,6 +20,8 @@ import { createHud } from './src/hud.js';
 import { createSpray } from './src/fx.js';
 import { createSky } from './src/sky.js';
 import { createShop } from './src/shop.js';
+import { createEvents } from './src/events.js';
+import { ROMANCEABLE, NEED_FRIEND, NEED_CONFESS, NEED_PROMISE, SPOTS, DATE_SPOT, TASTE, LINES, STAGE_LABEL, dateWindow } from './src/romance.js';
 import { SHOPS, ITEM, SLOT_LABEL, WEAR_SLOTS, itemsFor, variantFor, isOpen, hourLabel, shopNear } from './src/shops.js';
 
 let teardown = null;
@@ -62,12 +64,24 @@ function run(mode) {
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: 0x1a2a40, transparent: true, opacity: 0.25, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
 
-  const npcs = createNpcs(scene, world.heightAt);
+  const npcs = createNpcs(scene, world.heightAt, world.onIce);
+  const events = createEvents(scene, world, {
+    onChange: (k, on) => { if (!hud || phase !== 'play') return; const i = events.info[k]; hud.toast(on ? i.name + ' has begun!\n' + i.hint : i.name + ' has ended', on ? 3.8 : 2); },
+    onLantern: (n, total) => {
+      const fest = events.on('festival'), gain = fest ? 6 : 3;
+      progress.addCoins(gain); hud && hud.toast(n >= total ? 'All lanterns lit!  +' + (fest ? 50 : 25) + ' coins' : 'Lantern ' + n + '/' + total + '  +' + gain + ' coins', n >= total ? 3 : 1.2);
+      if (n >= total) { progress.addCoins(fest ? 50 : 25); handleUi(progress.addXp(20)); saveState(true); }
+      if (hasLib()) lib.haptics.play(n >= total ? 'success' : 'tick');
+    },
+  });
+  // date marker: a soft pink beam above the destination
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 70, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xff9ec8, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide }));
+  beam.visible = false; scene.add(beam);
   const skater = createSkater();
   const rig = createCameraRig(camera);
   let talkNpc = null, curZone = null, zoneTimer = 0;
   const actCool = {}; // per NPC: clock time when its friendship activity is available again
-  let act = null, sitBench = null, coSit = { id: null, t: 0 }, sitHinted = false;
+  let act = null, date = null, dateCool = {}, sitBench = null, coSit = { id: null, t: 0 }, sitHinted = false;
   const lastTalk = {};
   let progress = createProgress(null);
 
@@ -96,7 +110,7 @@ function run(mode) {
   }
 
   // Developer hook (only when gameConfig.dev is set): jump to a spot to inspect the town.
-  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { cam: null, scene, world, sky, rig, get progress() { return progress; }, get shop() { return shop; }, openShopById(id) { openShop(id ? SHOPS.find((s) => s.id === id) : null); }, get buff() { return buff; }, get act() { return act; }, standUp, startTalkById(id) { const n = npcs.list.find((q) => q.id === id); if (n) startTalk(n); }, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
+  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { events, get date() { return date; }, startDateWith(id) { const n = npcs.list.find((q) => q.id === id); if (n) startDate(n); }, cam: null, scene, world, sky, rig, get progress() { return progress; }, get shop() { return shop; }, openShopById(id) { openShop(id ? SHOPS.find((s) => s.id === id) : null); }, get buff() { return buff; }, setWorn(w) { outfit = variantFor(w); rebuildPlayer(); }, get act() { return act; }, standUp, startTalkById(id) { const n = npcs.list.find((q) => q.id === id); if (n) startTalk(n); }, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
 
   let raf = 0, last = performance.now(), clock = 0, clockT = 1;
   let input = null, hud = null, sel = null, shop = null;
@@ -112,7 +126,7 @@ function run(mode) {
     const now = performance.now();
     if (!force && now - lastSave < 10000) return;
     lastSave = now; progress.clearDirty();
-    try { if (hasLib() && lib.saveUserGameState) lib.saveUserGameState(Object.assign({ character: kind, tod: sky.hour() }, progress.serialize())).catch(() => {}); } catch (e) { /* save is optional */ }
+    try { if (hasLib() && lib.saveUserGameState) lib.saveUserGameState(Object.assign({ character: kind, tod: sky.hour(), day: sky.day() }, progress.serialize())).catch(() => {}); } catch (e) { /* save is optional */ }
   }
   function maybeSubmitScore() {
     const now = performance.now(), run = Math.round(progress.bestRun());
@@ -146,7 +160,7 @@ function run(mode) {
     hud.el.addEventListener('wardrobe', () => openShop(null));
     hud.el.addEventListener('respawn', () => input.requestRespawn());
     hud.el.addEventListener('character', () => openSelect());
-    hud.el.addEventListener('panel', () => hud.showPanel(progress, { zones: ZONE_LIST.length, npcs: NPC_DEFS.length }));
+    hud.el.addEventListener('panel', () => hud.showPanel(progress, { zones: ZONE_LIST.length, npcs: NPC_DEFS.length, day: sky.day(), partnerName: (npcs.list.find((q) => q.id === progress.partner()) || {}).name }));
     hud.el.addEventListener('dialogchoice', (e) => { if (talkNpc) friendActivity(talkNpc, e.detail); });
     hud.el.addEventListener('dialogend', () => {
       if (talkNpc) {
@@ -169,6 +183,7 @@ function run(mode) {
       progress = createProgress(saved);
       outfit = progress.outfit(); rebuildPlayer();
       if (saved && typeof saved.tod === 'number') sky.setHour(saved.tod);
+      if (saved && typeof saved.day === 'number') sky.setDay(saved.day);
       input.setSpinVisible(progress.spinUnlocked());
       if (saved && CHARACTERS.includes(saved.character)) { setCharacter(saved.character); sel.mark(saved.character); startPlay(); }
       else { phase = 'select'; sel.show(); }
@@ -218,12 +233,13 @@ function run(mode) {
     const setOutfit = (w) => { outfit = variantFor(w); rebuildPlayer(); };
     shop.open({
       title: def ? def.name : 'Wardrobe', sub: def ? def.line : 'Change what you wear', tabs, wardrobe: !def,
-      coins: () => progress.coins(), price: (it) => progress.priceOf(it), owns: (id) => progress.owns(id), worn: (slot) => progress.worn()[slot] || null,
+      coins: () => progress.coins(), price: (it) => progress.priceOf(it), count: (id) => progress.giftCount(id), owns: (id) => progress.owns(id), worn: (slot) => progress.worn()[slot] || null,
       preview: (slot, id) => { const w = progress.worn(); if (slot) { if (id === null) delete w[slot]; else w[slot] = id; } setOutfit(w); },
       equip: (slot, id) => { progress.wear(slot, id); setOutfit(progress.worn()); saveState(true); },
       buy: (it) => { if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' }; if (hasLib()) lib.haptics.play('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + '!' }; },
       consume: (it) => {
         if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' };
+        if (it.gift) { if (hasLib()) lib.haptics.play('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + ' (×' + progress.giftCount(it.id) + ')' }; }
         if (it.food.xp) { handleUi(progress.addXp(it.food.xp)); }
         if (it.food.comfort) { buff.mul = it.food.comfort; buff.t = it.food.secs; buff.label = it.name.split(' ').pop(); }
         startEat(skater, it.slot === 'drinks' ? 'cup' : 'bun');
@@ -239,6 +255,9 @@ function run(mode) {
   // ---- Friendship activities, sitting on benches
   const rewardTag = (n, pts) => (pts >= 6 ? 'Close friends!' : pts >= 2 ? 'Good friends!' : 'Nice to meet you!');
   function friendActivity(n, id) {
+    if (id === 'gift') { openGiftPicker(n); return; }
+    if (id === 'date') { startDate(n); return; }
+    if (id.startsWith('d_')) { dateChoice(n, id); return; }
     const pts = Math.max(0, progress.friendPoints(n.id));
     if (id === 'skate' || id === 'walk') {
       if (id === 'skate' && skater.mode !== 'skate') { hud.toast('Get on the ice first, then ask ' + n.name + ' again', 2.4); return; }
@@ -276,13 +295,87 @@ function run(mode) {
     skater.x = b.x + Math.sin(b.yaw) * 1.9 + Math.cos(b.yaw) * (skater.x - b.x > 0 ? 0 : 0); skater.z = b.z + Math.cos(b.yaw) * 1.9; coSit = { id: null, t: 0 };
   }
   function nearBench(x, z, r = 2.5) { let best = null, bd = r; for (const b of world.benches || []) { const d = Math.hypot(x - b.x, z - b.z); if (d < bd) { bd = d; best = b; } } return best; }
+  // ---- Romance: gifts, dates, confession, promise
+  function romanceChoices(n) {
+    const out = [];
+    if (!TASTE[n.id]) return out;
+    out.push({ id: 'gift', label: 'Give a gift' });
+    if (ROMANCEABLE.includes(n.id) && progress.friendPoints(n.id) >= NEED_FRIEND && (!progress.partner() || progress.partner() === n.id)) {
+      const open = dateWindow(sky.hour()), cd = (dateCool[n.id] || 0) > clock;
+      out.push({ id: 'date', rom: true, label: open ? 'Ask on a date ♥' : 'Date · after 16:00', off: !open || cd });
+    }
+    return out;
+  }
+  function openGiftPicker(n) {
+    const gifts = itemsFor('gifts');
+    if (!gifts.some((g) => g.id !== 'gf_charm' && progress.giftCount(g.id) > 0)) { hud.toast('You have no gifts yet.\nBuy some at Warm Threads or Sweet Bakery.', 2.8); return; }
+    shopView = { dx: Math.sin(skater.h), dz: Math.cos(skater.h) };
+    shop.open({
+      title: 'Give ' + n.name + ' a gift', sub: 'One gift per day', mode: 'give', tabs: [{ label: 'Gifts', slot: 'gifts', consumable: true, items: gifts }],
+      coins: () => progress.coins(), owns: () => false, worn: () => null, preview: () => {}, equip: () => {}, count: (id) => progress.giftCount(id),
+      give: (it) => giveGift(n, it), onClose: () => { shopView = null; root.classList.remove('shopping'); saveState(true); },
+    });
+    root.classList.add('shopping');
+  }
+  function giveGift(n, it) {
+    const day = sky.day();
+    if (progress.giftedOn(n.id) === day) return { ok: false, msg: n.name + ' already got a gift today' };
+    if (!progress.useGift(it.id)) return { ok: false, msg: 'None left' };
+    progress.markGift(n.id, day);
+    const taste = TASTE[n.id], liked = taste.likes.includes(it.id), hate = taste.hates.includes(it.id), L = LINES[n.id] && LINES[n.id].gift;
+    if (progress.friendPoints(n.id) >= 0) progress.addFriend(n.id, hate ? 0 : liked ? 2 : 1);
+    let rom = 0;
+    if (ROMANCEABLE.includes(n.id) && progress.friendPoints(n.id) >= NEED_FRIEND) { rom = hate ? 0 : liked ? 3 : 1; if (rom) progress.addRomance(n.id, rom); }
+    const pool = L ? (hate ? L.hate : liked ? L.liked : L.ok) : ['Thank you!'];
+    hud.toast(n.name + ': "' + pool[n.talks % pool.length] + '"\n' + (hate ? 'Not their taste...' : '♥ +' + (liked ? 2 : 1) + (rom ? '  ❤ +' + rom : '')), 4.2);
+    if (hasLib()) lib.haptics.play(hate ? 'warning' : 'success');
+    return { ok: true, msg: hate ? 'Hmm, not a fan.' : liked ? 'They loved it!' : 'They liked it.' };
+  }
+  function startDate(n) {
+    if (!dateWindow(sky.hour())) { hud.toast('Dates start at 16:00. Come back this evening.', 2.6); return; }
+    const spot = SPOTS[DATE_SPOT[n.id]]; if (!spot) return;
+    date = { npc: n, spot, t: 0, away: 0, d0: Math.max(10, Math.hypot(skater.x - spot.x, skater.z - spot.z)) };
+    npcs.setFollow(n.id, true);
+    beam.position.set(spot.x, world.heightAt(spot.x, spot.z) + 35, spot.z); beam.visible = true;
+    hud.toast('Date with ' + n.name + '!\nWalk together to the ' + spot.name, 3.6);
+  }
+  function endDate(msg) { const d = date; date = null; beam.visible = false; if (d) { npcs.setFollow(d.npc.id, false); if (msg) hud.toast(msg, 2.4); } }
+  function dateArrived(d) {
+    const n = d.npc, L = LINES[n.id], stage = progress.romStage(n.id), pts = progress.romPts(n.id), partner = progress.partner();
+    endDate(null);
+    const choices = [{ id: 'd_view', label: 'Enjoy the view' }];
+    if (stage < 2 && !partner && pts >= NEED_CONFESS) choices.push({ id: 'd_confess', rom: true, label: 'Confess ♥' });
+    if (stage === 2 && partner === n.id && pts >= NEED_PROMISE && progress.giftCount('gf_charm') > 0) choices.push({ id: 'd_promise', rom: true, label: 'Give the Promise Charm' });
+    talkNpc = n; dateCool[n.id] = clock + 240;
+    hud.showDialog({ name: n.name, role: n.role, label: 'On a date', hearts: friendHearts(Math.max(0, progress.friendPoints(n.id))), rom: stage >= 1 ? '❤ ' + STAGE_LABEL[stage] : '', lines: L.date, choices });
+  }
+  function dateChoice(n, id) {
+    const L = LINES[n.id];
+    if (id === 'd_view') {
+      const bonus = events.on('festival') || events.on('lantern') ? 2 : 0, before = progress.romStage(n.id);
+      progress.addRomance(n.id, 4 + bonus); progress.addFriend(n.id, 1); handleUi(progress.addXp(15));
+      hud.toast('What a lovely evening\n❤ +' + (4 + bonus) + (progress.romStage(n.id) > before ? '\n' + n.name + ' has a crush on you!' : ''), 3.4);
+    } else if (id === 'd_confess') {
+      progress.setStage(n.id, 2); progress.addRomance(n.id, 2); progress.addCoins(50); handleUi(progress.addXp(30));
+      hud.toast('♥ You and ' + n.name + ' are now together!\n+50 coins  +30 XP', 4);
+      hud.showDialog({ name: n.name, role: n.role, label: 'Dating', hearts: 3, rom: '❤ Dating', lines: L.accept, choices: [] });
+    } else if (id === 'd_promise') {
+      progress.useGift('gf_charm'); progress.setStage(n.id, 3); progress.addRomance(n.id, 3); progress.addCoins(100); handleUi(progress.addXp(50));
+      hud.toast('❤ ' + n.name + ' is your Partner!\n+100 coins  +50 XP', 4.2);
+      hud.showDialog({ name: n.name, role: n.role, label: 'Partner', hearts: 3, rom: '❤ Partner', lines: L.promise, choices: [] });
+    }
+    if (hasLib()) lib.haptics.play('success'); saveState(true);
+  }
   function startTalk(n) {
     const pts = progress.friendPoints(n.id), met = pts >= 0;
     if (!met) handleUi(progress.meet(n.id, n.name));
     const points = Math.max(0, pts);
     const lines = npcs.dialogue(n, { points, met, skills: progress.rawSkills(), spinUnlocked: progress.spinUnlocked() });
-    const choices = npcs.choices(n, { points, coins: progress.coins(), cool: (id) => Math.max(0, (actCool[id] || 0) - clock) });
-    hud.showDialog({ name: n.name, role: n.role, label: friendLabel(points), hearts: friendHearts(points), lines, choices });
+    const stage = progress.romStage(n.id), L = LINES[n.id];
+    if (stage >= 2 && L && L.flirt) lines[lines.length - 1] = L.flirt[n.talks % L.flirt.length];
+    if (n.id === progress.partner() && progress.claimPartnerGift(sky.day())) { progress.addCoins(25); hud.toast('♥ ' + n.name + ' left you a little gift\n+25 coins', 3); }
+    const choices = npcs.choices(n, { points, coins: progress.coins(), cool: (id) => Math.max(0, (actCool[id] || 0) - clock) }).concat(romanceChoices(n));
+    hud.showDialog({ name: n.name, role: n.role, label: friendLabel(points), hearts: friendHearts(points), rom: stage >= 1 ? '❤ ' + STAGE_LABEL[stage] : '', lines, choices });
     talkNpc = n;
     if (hasLib()) lib.haptics.play('tap');
   }
@@ -374,12 +467,23 @@ function run(mode) {
       }
       hud.update(skater, dt, progress);
       hud.setCoins(progress.coins());
+      npcs.pushCrumb(skater.x, skater.z);
+      let actInfo = null;
       if (act) {
         const d = Math.hypot(skater.x - act.npc.s.x, skater.z - act.npc.s.z), ok = d < act.range && (!act.skate || skater.mode === 'skate');
         if (ok) { act.t += dt; act.away = 0; } else act.away += dt;
-        hud.setActivity({ text: (act.skate ? 'Skating with ' : 'Walking with ') + act.name + (ok ? '' : ' · stay close!'), frac: act.t / act.goal });
+        actInfo = { text: (act.skate ? 'Skating with ' : 'Walking with ') + act.name + (ok ? '' : ' · stay close!'), frac: act.t / act.goal };
         if (act.t >= act.goal) finishActivity(true); else if (act.away > 7) finishActivity(false);
+      } else if (date) {
+        const dn = date.npc, pd = Math.hypot(skater.x - dn.s.x, skater.z - dn.s.z), sd = Math.hypot(skater.x - date.spot.x, skater.z - date.spot.z);
+        date.away = pd > 22 ? date.away + dt : 0;
+        actInfo = { text: '❤ ' + dn.name + ' · to the ' + date.spot.name + ' · ' + Math.round(sd) + ' m' + (pd > 10 ? ' · wait for ' + dn.name : ''), frac: 1 - sd / date.d0 };
+        beam.material.opacity = 0.26 + Math.sin(clock * 3) * 0.08;
+        if (sd < 5 && pd < 9 && !hud.dialogOpen && !shop.isOpen) dateArrived(date); else if (date.away > 10) endDate(dn.name + ' lost sight of you');
+      } else if (events.on('lantern') && events.lanterns().got < events.lanterns().total) {
+        const l = events.lanterns(); actInfo = { text: 'Lantern Skate ' + l.got + '/' + l.total, frac: l.got / l.total };
       }
+      hud.setActivity(actInfo);
       if (skater.sitting) { // resting beside a sitting neighbour is a friendship activity too
         const mate = npcs.list.find((q) => q.active && q.s.sitAmt > 0.8 && Math.hypot(skater.x - q.s.x, skater.z - q.s.z) < 4.8);
         if (mate && clock > (actCool[mate.id] || 0)) {
@@ -431,7 +535,13 @@ function run(mode) {
     spray.update(dt);
     world.update(dt, camera.position);
     sky.update(dt, camera.position, c);
-    clockT += dt; if (hud && clockT > 0.5) { clockT = 0; hud.setClock(sky.label()); }
+    if (playing && phase === 'play') { events.update(dt, sky.hour(), sky.day(), { x: skater.x, z: skater.z, onIce: skater.mode === 'skate' }); progress.setExtraDiscount(events.on('market') ? 0.15 : 0); }
+    clockT += dt;
+    if (hud && clockT > 0.5) {
+      clockT = 0; let lab = sky.label(); const ev = events.active();
+      if (ev.length && Math.floor(clock / 4) % 2 === 1) lab = lab.split('\n')[0] + '\n' + events.info[ev[Math.floor(clock / 8) % ev.length]].name;
+      hud.setClock(lab);
+    }
     if (window.__frozen && window.__frozen.cam) { const o = window.__frozen.cam; camera.position.set(o.x, o.y, o.z); camera.lookAt(o.tx, o.ty, o.tz); if ((o.fov && camera.fov !== o.fov) || camera.far !== 1500) { if (o.fov) camera.fov = o.fov; camera.far = 1500; camera.updateProjectionMatrix(); } }
     renderer.render(scene, camera);
   }

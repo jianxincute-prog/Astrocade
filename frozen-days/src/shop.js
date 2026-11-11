@@ -34,10 +34,11 @@ export function createShop(root) {
   const price = (it) => (cfg.price ? cfg.price(it) : it.price);
   const hex = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0');
 
-  function items() { const t = cfg.tabs[tab]; return cfg.wardrobe ? t.items.filter((i) => i.id === null || cfg.owns(i.id)) : t.items; }
+  function items() { const t = cfg.tabs[tab]; if (cfg.mode === 'give') return t.items.filter((i) => i.id !== null && cfg.count(i.id) > 0 && i.id !== 'gf_charm'); return cfg.wardrobe ? t.items.filter((i) => i.id === null || cfg.owns(i.id)) : t.items; }
   function state(it) {
+    if (cfg.mode === 'give') return cfg.count(it.id) > 0 ? 'give' : 'none';
     if (it.id === null) return cfg.worn(cfg.tabs[tab].slot) ? 'equip' : 'worn';
-    if (it.food) return 'eat';
+    if (it.food || it.gift) return 'eat';
     if (cfg.worn(it.slot) === it.id) return 'worn';
     return cfg.owns(it.id) ? 'equip' : 'buy';
   }
@@ -47,7 +48,7 @@ export function createShop(root) {
     const list = items();
     if (sel === null || !list.some((i) => i.id === sel)) sel = list.length ? (list.find((i) => i.id !== null && cfg.worn(i.slot) === i.id) || list[0]).id : null;
     $('shGrid').innerHTML = list.map((it) => {
-      const st = it.id === null ? '' : state(it), tag = it.id === null ? '<div class="pr st">Standard</div>' : st === 'worn' ? '<div class="pr st">Worn</div>' : st === 'equip' ? '<div class="pr st">Owned</div>' : '<div class="pr">● ' + price(it) + '</div>';
+      const st = it.id === null ? '' : state(it), tag = it.id === null ? '<div class="pr st">Standard</div>' : st === 'worn' ? '<div class="pr st">Worn</div>' : st === 'equip' ? '<div class="pr st">Owned</div>' : st === 'give' ? '<div class="pr st">×' + cfg.count(it.id) + '</div>' : '<div class="pr">● ' + price(it) + (it.gift && cfg.count && cfg.count(it.id) ? ' · ×' + cfg.count(it.id) : '') + '</div>';
       return '<div class="card' + (it.id === sel ? ' on' : '') + '" data-i="' + (it.id === null ? '' : it.id) + '"><div class="sw" style="background:' + (it.id === null ? 'repeating-linear-gradient(45deg,#cfd8e3,#cfd8e3 6px,#e9eef4 6px,#e9eef4 12px)' : hex(it.color)) + '"></div><div class="nm">' + it.name + '</div>' + tag + '</div>';
     }).join('') || '<div style="grid-column:1/4;font-size:22px;font-weight:600;opacity:.7;padding:30px;text-align:center">Nothing here yet. Visit the shops to buy something.</div>';
     const it = list.find((i) => i.id === sel), go = $('shGo');
@@ -56,7 +57,9 @@ export function createShop(root) {
     $('shD').textContent = it.id === null ? 'Your standard ' + cfg.tabs[tab].label.toLowerCase() + '.' : (it.desc || it.name) + (it.price && price(it) < it.price ? '  (friend discount −' + Math.round((1 - price(it) / it.price) * 100) + '%)' : '');
     const st = it.id === null ? (cfg.worn(cfg.tabs[tab].slot) ? 'equip' : 'worn') : state(it);
     go.disabled = false;
-    if (st === 'worn') { go.textContent = 'Worn ✓'; go.disabled = true; }
+    if (st === 'give') go.textContent = 'Give ♥';
+    else if (st === 'none') { go.textContent = 'None left'; go.disabled = true; }
+    else if (st === 'worn') { go.textContent = 'Worn ✓'; go.disabled = true; }
     else if (st === 'equip') go.textContent = it.id === null ? 'Wear standard' : 'Wear';
     else { go.textContent = 'Buy · ● ' + price(it); go.disabled = cfg.coins() < price(it); }
   }
@@ -73,6 +76,7 @@ export function createShop(root) {
     if (st === 'equip') { cfg.equip(t.slot, it.id); say(it.id === null ? 'Standard look restored' : 'Looking good!'); }
     else if (st === 'buy') { const r = cfg.buy(it); say(r.msg); if (r.ok) cfg.equip(it.slot, it.id); }
     else if (st === 'eat') say(cfg.consume(it).msg);
+    else if (st === 'give') say(cfg.give(it).msg);
     render();
   });
   $('shX').addEventListener('click', () => close());

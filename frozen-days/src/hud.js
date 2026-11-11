@@ -59,7 +59,7 @@ const CSS = `
 #dlg{position:absolute;left:30px;right:30px;bottom:44px;padding:24px 28px 20px;border-radius:32px;background:rgba(235,244,252,.97);color:#1d3a5c;display:none;pointer-events:auto;text-shadow:none;cursor:pointer}
 #dlg .who{font-size:32px;font-weight:800}#dlg .role{font-size:21px;font-weight:600;opacity:.65;margin-left:8px}
 #dlg .hearts{font-size:24px;color:#e0507a;letter-spacing:4px;margin-top:2px}
-#dlg .ch{display:none;gap:12px;margin-top:6px}#dlg .ch button{flex:1;padding:14px 10px;border-radius:20px;border:0;font-size:24px;font-weight:800;background:#3fa7ff;color:#fff;cursor:pointer}#dlg .ch button.bye{background:#d6e3f1;color:#1d3a5c;flex:0 0 120px}#dlg .ch button[disabled]{background:#b9c8d8;color:#eef3f8}
+#dlg .ch{display:none;gap:10px;margin-top:6px;flex-wrap:wrap}#dlg .ch button{flex:1 1 40%;padding:13px 10px;border-radius:20px;border:0;font-size:22px;font-weight:800;background:#3fa7ff;color:#fff;cursor:pointer}#dlg .ch button.bye{background:#d6e3f1;color:#1d3a5c;flex:0 0 110px}#dlg .ch button.rom{background:#e0507a}#dlg .ch button[disabled]{background:#b9c8d8;color:#eef3f8}
 #dlg .txt{font-size:30px;font-weight:600;line-height:1.35;margin:12px 0 8px;min-height:125px}
 #dlg .nxt{text-align:right;font-size:22px;font-weight:700;opacity:.6}
 `;
@@ -115,11 +115,13 @@ export function createHud(root, { touch }) {
     }).join('');
     $('pBests').innerHTML = 'Best clean run: <b>' + Math.round(st.best.run) + ' m</b> · Top speed: <b>' + Math.round(st.best.speed * 2.4) + ' km/h</b><br>' +
       'Total distance: <b>' + (st.totals.dist / 1000).toFixed(2) + ' km</b> · Falls: <b>' + st.totals.falls + '</b> · Spins: <b>' + st.totals.spins + '</b> · Goals: <b>' + st.totals.goals + '</b><br>' +
-      'Places found: <b>' + st.zones + (ex.zones ? '/' + ex.zones : '') + '</b> · Friends met: <b>' + st.friends + (ex.npcs ? '/' + ex.npcs : '') + '</b>';
+      'Places found: <b>' + st.zones + (ex.zones ? '/' + ex.zones : '') + '</b> · Friends met: <b>' + st.friends + (ex.npcs ? '/' + ex.npcs : '') + '</b><br>' +
+      'Day <b>' + (ex.day || 1) + '</b>' + (st.partner ? ' · ❤ Partner: <b>' + (ex.partnerName || st.partner) + '</b>' : '');
     panel.style.display = 'block'; panelOpen = true;
   }
   function hidePanel() { panel.style.display = 'none'; panelOpen = false; }
-  function setActivity(a) { const e = $('act'), g = $('goal'); if (!a) { e.style.display = 'none'; g.style.display = ''; return; } e.style.display = 'block'; g.style.display = 'none'; $('actT').textContent = a.text; $('actFill').style.width = Math.round(a.frac * 100) + '%'; }
+  let lastAct = '';
+  function setActivity(a) { const key = a ? a.text + '|' + Math.round(a.frac * 100) : ''; if (key === lastAct) return; lastAct = key; const e = $('act'), g = $('goal'); if (!a) { e.style.display = 'none'; g.style.display = ''; return; } e.style.display = 'block'; g.style.display = 'none'; $('actT').textContent = a.text; $('actFill').style.width = Math.round(a.frac * 100) + '%'; }
   function setTalk(name, touchUi, verb) {
     if (name === null || name === undefined || dlgState) { talkTip.style.display = 'none'; return; }
     talkTip.textContent = (touchUi ? '' : 'F · ') + (verb === undefined ? 'Talk to ' : verb) + name; talkTip.style.display = 'block';
@@ -128,12 +130,12 @@ export function createHud(root, { touch }) {
   function renderDialog() {
     $('dTxt').textContent = dlgState.lines[dlgState.i];
     const last = dlgState.i >= dlgState.lines.length - 1, ch = dlgState.choices || [], box = $('dCh');
-    if (last && ch.length) { box.innerHTML = ch.map((c) => '<button data-c="' + c.id + '"' + (c.off ? ' disabled' : '') + '>' + c.label + '</button>').join('') + '<button class="bye" data-c="bye">Bye</button>'; box.style.display = 'flex'; dlg.querySelector('.nxt').style.display = 'none'; }
+    if (last && ch.length) { box.innerHTML = ch.map((c) => '<button data-c="' + c.id + '"' + (c.rom ? ' class="rom"' : '') + (c.off ? ' disabled' : '') + '>' + c.label + '</button>').join('') + '<button class="bye" data-c="bye">Bye</button>'; box.style.display = 'flex'; dlg.querySelector('.nxt').style.display = 'none'; }
     else { box.style.display = 'none'; dlg.querySelector('.nxt').style.display = ''; }
   }
   function showDialog(d) {
     dlgState = { lines: d.lines, i: 0, choices: d.choices };
-    $('dName').textContent = d.name; $('dRole').textContent = d.role + ' · ' + d.label;
+    $('dName').textContent = d.name; $('dRole').textContent = d.role + ' · ' + d.label + (d.rom ? ' · ' + d.rom : '');
     $('dHearts').textContent = '♥'.repeat(d.hearts) + '♡'.repeat(3 - d.hearts);
     talkTip.style.display = 'none'; dlg.style.display = 'block'; renderDialog();
   }

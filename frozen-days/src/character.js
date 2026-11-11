@@ -5,6 +5,7 @@ import { clamp, lerp } from './util.js';
 import * as TX from './cloth.js';
 import { toonMat, addOutlines } from './anime.js';
 import { paintFace } from './face.js';
+import { torsoProfile, jacketMats, jacketExtras, scarfBuild, hatBuild, pantsBuild, gloveBuild, skateBuild } from './styles.js';
 const T = THREE;
 
 const PRESETS = {
@@ -96,18 +97,20 @@ export function createCharacter(kind, opts = {}) {
   const disposables = [];
   const keep = (x) => { disposables.push(x); return x; };
   const std = (o) => keep(toonMat(o));
+  // shapes of the worn pieces (each style has its own geometry, see styles.js)
+  const S = { jacket: P.jacketStyle || 'puffer', scarf: P.scarfStyle || 'wool', hat: P.hatStyle || 'beanie', pants: P.pantsStyle || 'slim', glove: P.gloveStyle || 'glove', skate: P.skateStyle || 'rental' };
+  const profile = torsoProfile(S.jacket, P.torso);
 
     const skinMat = std({ soft: true, color: 0xffffff, vertexColors: true, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
   const skinFlat = std({ soft: true, color: P.skin, roughness: 0.58, metalness: 0, emissive: 0x2a120a, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
 
-  const torsoQ = TX.quilted(P.jacket, 7, { zip: true, seed: 3 });
-  const armQ = TX.quilted(P.jacket, 3, { seed: 5 }), foreQ = TX.quilted(P.jacket, 3, { seed: 6 });
-  const jacketOf = (q, bs = 0.9) => std({ color: 0xffffff, map: q.map, bumpMap: q.bump, bumpScale: bs, roughness: 0.62, envMapIntensity: 0.55 });
-  const torsoMat = jacketOf(torsoQ, 1.1), upperMat = jacketOf(armQ), foreMat = jacketOf(foreQ), jacketPlain = std({ color: P.jacket, roughness: 0.6 });
+  const JM = jacketMats(S.jacket, { std, TX, P });
+  const torsoMat = JM.torsoMat, upperMat = JM.upperMat, foreMat = JM.foreMat, jacketPlain = std({ color: P.jacket, roughness: 0.6 });
   const scarfK = TX.knit(P.scarf, 3, 3), scarfMat = std({ color: 0xffffff, map: scarfK.map, bumpMap: scarfK.bump, bumpScale: 1.4, roughness: 0.95 });
   const cuffK = TX.knit(P.cuff, 2, 1), cuffMat = std({ color: 0xffffff, map: cuffK.map, bumpMap: cuffK.bump, bumpScale: 1.2, roughness: 0.95 });
   const gloveK = TX.knit(P.glove, 2, 2), gloveMat = std({ color: 0xffffff, map: gloveK.map, bumpMap: gloveK.bump, bumpScale: 1.2, roughness: 0.95 });
-  const pantsT = TX.twill(P.pants, 1, 1.5), pantsMat = std({ color: 0xffffff, map: pantsT.map, roughness: 0.88 });
+  const legCol = (S.pants === 'skirt' || S.pants === 'shorts') ? 0x23252e : P.pants;
+  const pantsT = TX.twill(legCol, 1, 1.5), pantsMat = std({ color: 0xffffff, map: pantsT.map, roughness: 0.88 });
   const bootL = TX.leather(P.boot), bootMat = std({ color: 0xffffff, map: bootL.map, roughness: 0.4, envMapIntensity: 0.7 });
   const accentMat = std({ color: P.bootAccent, roughness: 0.5 }), laceMat = std({ color: P.laces, roughness: 0.8 });
   const rubber = std({ color: 0x15161a, roughness: 0.9 }), steel = std({ color: 0xdde4ec, metalness: 0.95, roughness: 0.18, envMapIntensity: 1.2 });
@@ -118,22 +121,23 @@ export function createCharacter(kind, opts = {}) {
   root.scale.setScalar(P.scale);
 
   // ---------- Torso (quilted puffer jacket) + pelvis
-  const curve = new T.SplineCurve(P.torso.map(([y, r]) => new T.Vector2(r, y)));
+  const curve = new T.SplineCurve(profile.map(([y, r]) => new T.Vector2(r, y)));
   const tp = curve.getPoints(48).map((v) => new T.Vector2(Math.max(0.001, v.x), v.y));
   const torso = new T.Mesh(new T.LatheGeometry(tp, 40), torsoMat);
   torso.scale.z = P.torsoZ; torso.rotation.y = Math.PI; // seam to the back; zipper faces front
   spine.add(torso);
   hips.add(ell(1, 0.152, 0.085, 0.105, pantsMat, 0, -0.075, 0, 20, 14));
-  if (!lite) { const hem = new T.Mesh(new T.TorusGeometry(0.15, 0.016, 8, 32), cuffMat); hem.rotation.x = Math.PI / 2; hem.scale.set(1, P.torsoZ, 1); hem.position.y = -0.085; spine.add(hem); }
+  if (!lite && S.jacket === 'puffer') { const hem = new T.Mesh(new T.TorusGeometry(0.15, 0.016, 8, 32), cuffMat); hem.rotation.x = Math.PI / 2; hem.scale.set(1, P.torsoZ, 1); hem.position.y = -0.085; spine.add(hem); }
 
   // ---------- Legs + skates
   const legs = [];
   function makeLeg(side) {
     const hipG = new T.Group(); hipG.position.set(side * P.hipX, 0, 0); hips.add(hipG);
-    hipG.add(limb(0.41, 0.083, 0.064, pantsMat));
+    const thigh = limb(0.41, 0.083, 0.064, pantsMat); hipG.add(thigh);
     const knee = new T.Group(); knee.position.y = -0.41; hipG.add(knee);
-    knee.add(limb(0.36, 0.060, 0.045, pantsMat));
+    const shin = limb(0.36, 0.060, 0.045, pantsMat); knee.add(shin);
     const ankle = new T.Group(); ankle.position.y = -0.36; knee.add(ankle);
+    if (S.skate === 'rental') {
     // boot
     const shaft = limb(0.075, 0.054, 0.056, bootMat); shaft.position.y = 0.05; ankle.add(shaft);
     const foot = limb(0.15, 0.05, 0.043, bootMat); foot.rotation.x = -Math.PI / 2; foot.position.set(0, -0.042, -0.06); foot.scale.set(1, 1, 0.88); ankle.add(foot);
@@ -145,7 +149,8 @@ export function createCharacter(kind, opts = {}) {
     const sh = new T.Shape(); sh.moveTo(-0.125, -0.16); sh.lineTo(0.125, -0.16); sh.quadraticCurveTo(0.185, -0.158, 0.19, -0.118); sh.lineTo(-0.115, -0.122); sh.quadraticCurveTo(-0.13, -0.14, -0.125, -0.16);
     const bg = new T.ExtrudeGeometry(sh, { depth: 0.006, bevelEnabled: false }); bg.translate(0, 0, -0.003); bg.rotateY(-Math.PI / 2);
     ankle.add(new T.Mesh(bg, steel));
-    const r = { hip: hipG, knee, ankle }; legs.push(r); return r;
+    } else skateBuild(S.skate, { T, mk, ell, limb, std, lite, mats: { bootMat, accentMat, laceMat, rubber, steel } }, ankle);
+    const r = { hip: hipG, knee, ankle, thigh, shin }; legs.push(r); return r;
   }
   const legL = makeLeg(1), legR = makeLeg(-1);
 
@@ -161,9 +166,14 @@ export function createCharacter(kind, opts = {}) {
     const cuffR = new T.Mesh(new T.CylinderGeometry(0.04, 0.041, 0.04, 16, 1, true), cuffMat); cuffR.position.y = -0.0; wr.add(cuffR);
     const hand = limb(0.075, 0.037, 0.03, gloveMat); hand.scale.set(1.05, 1, 0.62); hand.position.y = -0.015; wr.add(hand);
     const thumb = limb(0.034, 0.016, 0.013, gloveMat); thumb.position.set(-side * 0.032, -0.035, 0.008); thumb.rotation.set(-0.5, 0, -side * 0.5); wr.add(thumb);
-    const a = { sh, el, wr }; arms.push(a); return a;
+    const a = { sh, el, wr, hand, thumb }; arms.push(a); return a;
   }
   const armL = makeArm(1), armR = makeArm(-1);
+  if (!lite) {
+    jacketExtras(S.jacket, { T, mk, ell, std, TX, spine, P, profile, armL, armR });
+    gloveBuild(S.glove, { T, mk, ell, std, TX, P, arms, skinFlat, gloveMat });
+    pantsBuild(S.pants, { T, mk, ell, std, TX, P, hips, spine, legs, profile });
+  }
   // handheld props for the eating animation (cup of cocoa / bun), shown only while eating
   const cupMat = std({ color: 0xf4efe6, roughness: 0.7 }), cocoaMat = std({ color: 0x6a3f24, roughness: 0.6 }), bunMat = std({ color: 0xd9a05a, roughness: 0.8 }), iceMat = std({ color: 0xfff6ea, roughness: 0.7 });
   const cup = new T.Group(); cup.visible = false; armR.wr.add(cup); cup.position.set(0, -0.11, 0.04);
@@ -175,11 +185,13 @@ export function createCharacter(kind, opts = {}) {
   const neck = new T.Group(); neck.position.y = 0.5; spine.add(neck);
   const neckMesh = limb(0.15, 0.05, 0.048, skinFlat); neckMesh.position.y = 0.15; neck.add(neckMesh);
   const collar = new T.Mesh(new T.CylinderGeometry(0.066, 0.085, 0.06, 28, 1, true), jacketPlain); collar.material.side = T.DoubleSide; collar.position.y = 0.02; collar.scale.z = 0.9; neck.add(collar);
+  const tail = new T.Group(); tail.position.set(0.03, 0.06, -0.075); neck.add(tail);
+  if (S.scarf === 'wool') {
   const s1 = new T.Mesh(new T.TorusGeometry(0.072, 0.036, 12, 28), scarfMat); s1.rotation.x = Math.PI / 2; s1.position.y = 0.055; s1.scale.set(1.05, 1, 0.95); neck.add(s1);
   if (!lite) { const s2 = new T.Mesh(new T.TorusGeometry(0.064, 0.03, 12, 28), scarfMat); s2.rotation.x = Math.PI / 2; s2.position.set(0, 0.095, 0.006); neck.add(s2); }
-  const tail = new T.Group(); tail.position.set(0.03, 0.06, -0.075); neck.add(tail);
   const tailMesh = mk(new T.BoxGeometry(0.075, 0.36, 0.022, 4, 8, 1), scarfMat, 0, -0.18, 0); tail.add(tailMesh);
   const fringe = mk(new T.BoxGeometry(0.075, 0.03, 0.026), jacketPlain, 0, -0.37, 0); fringe.material = cuffMat; tail.add(fringe);
+  } else scarfBuild(S.scarf, { T, mk, ell, std, TX, P, neck, spine, scarfMat, profile });
 
   // ---------- Head
   const head = new T.Group(); head.position.y = 0.21; neck.add(head);
@@ -226,7 +238,8 @@ export function createCharacter(kind, opts = {}) {
   }
 
   // knit beanie
-  if (P.hat) {
+  if (P.hat && S.hat !== 'beanie') hatBuild(S.hat, { T, mk, ell, std, TX, P, head });
+  else if (P.hat) {
     const hk = TX.knit(P.hat.color, 2, 2), hatMat = std({ map: hk.map });
     const cap = new T.Mesh(new T.SphereGeometry(0.106, 18, 12, 0, Math.PI * 2, 0, 1.5), hatMat); cap.scale.set(0.97, 1, 1.1); cap.position.set(0, 0.03, -0.004); head.add(cap);
     const rim = new T.Mesh(new T.TorusGeometry(0.103, 0.017, 8, 22), hatMat); rim.scale.set(0.98, 1.1, 1); rim.rotation.x = Math.PI / 2; rim.position.set(0, 0.0385, -0.004); head.add(rim);

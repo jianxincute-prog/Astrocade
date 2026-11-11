@@ -19,6 +19,7 @@ export function createProgress(saved) {
     xp: 0, raw: { balance: 0, control: 0, speed: 0, braking: 0, tricks: 0 },
     best: { run: 0, speed: 0 }, totals: { dist: 0, falls: 0, spins: 0, goals: 0 }, goalIdx: 0,
     friends: {}, zones: {}, coins: 60, owned: {}, worn: {},
+    gifts: {}, rom: { pts: {}, stage: {} }, partner: null, pDay: 0, giftDay: {},
   };
   if (saved && saved.v === 2) {
     s.xp = num(saved.xp);
@@ -28,6 +29,10 @@ export function createProgress(saved) {
     s.goalIdx = Math.floor(num(saved.goalIdx));
     if (saved.friends && typeof saved.friends === 'object') Object.keys(saved.friends).slice(0, 40).forEach((k) => { s.friends[k] = Math.min(12, num(saved.friends[k])); });
     s.coins = Math.floor(num(saved.coins, 100));
+    if (saved.gifts && typeof saved.gifts === 'object') Object.keys(saved.gifts).slice(0, 12).forEach((k) => { if (ITEM[k] && ITEM[k].gift) s.gifts[k] = Math.min(99, Math.floor(num(saved.gifts[k]))); });
+    if (saved.rom && typeof saved.rom === 'object') { ['pts', 'stage'].forEach((f) => { const o = saved.rom[f]; if (o && typeof o === 'object') Object.keys(o).slice(0, 12).forEach((k) => { s.rom[f][k] = Math.min(f === 'pts' ? 15 : 3, Math.floor(num(o[k]))); }); }); }
+    s.partner = typeof saved.partner === 'string' ? saved.partner : null; s.pDay = Math.floor(num(saved.pDay));
+    if (saved.giftDay && typeof saved.giftDay === 'object') Object.keys(saved.giftDay).slice(0, 12).forEach((k) => { s.giftDay[k] = Math.floor(num(saved.giftDay[k])); });
     if (saved.owned && typeof saved.owned === 'object') Object.keys(saved.owned).slice(0, 120).forEach((k) => { if (saved.owned[k] && ITEM[k]) s.owned[k] = true; });
     if (saved.worn && typeof saved.worn === 'object') Object.keys(saved.worn).forEach((k) => { const id = saved.worn[k]; if (ITEM[id] && ITEM[id].slot === k && s.owned[id]) s.worn[k] = id; });
     if (saved.zones && typeof saved.zones === 'object') Object.keys(saved.zones).slice(0, 40).forEach((k) => { if (saved.zones[k]) s.zones[k] = true; });
@@ -37,7 +42,8 @@ export function createProgress(saved) {
 
   const skillVal = (k) => 1 - Math.exp(-s.raw[k] / K[k]);
   // Friendship perks: Hana (skates) and Ollie (drinks) give a discount as the friendship grows.
-  const discOf = (slot) => { const who = slot === 'skates' ? 'hana' : slot === 'drinks' ? 'ollie' : null, p = who && s.friends[who] !== undefined ? s.friends[who] : -1; return p >= 6 ? 0.2 : p >= 2 ? 0.1 : 0; };
+  let extraDisc = 0;
+  const discOf = (slot) => { const who = slot === 'skates' ? 'hana' : slot === 'drinks' ? 'ollie' : null, p = who && s.friends[who] !== undefined ? s.friends[who] : -1; return Math.min(0.4, (p >= 6 ? 0.2 : p >= 2 ? 0.1 : 0) + extraDisc); };
   function award(n, out) {
     s.xp += n; pendingXp += n; dirty = true;
     const nl = levelFor(s.xp);
@@ -81,14 +87,14 @@ export function createProgress(saved) {
       const base = xpForLevel(level), need = level >= MAX_LEVEL ? 1 : xpForLevel(level + 1) - base;
       return { level, name: levelName(level), xp: Math.floor(s.xp), into: s.xp - base, need, frac: level >= MAX_LEVEL ? 1 : clamp((s.xp - base) / need, 0, 1) };
     },
-    stats() { return { best: s.best, totals: s.totals, zones: Object.keys(s.zones).length, friends: Object.keys(s.friends).length }; },
+    stats() { return { best: s.best, totals: s.totals, zones: Object.keys(s.zones).length, friends: Object.keys(s.friends).length, partner: s.partner }; },
     goal(p) { return goalState(p); },
     skipGoal() { s.goalIdx++; run.turn = 0; run.base = run.dist; run.hold = 0; run.braking = false; goal = makeGoal(); dirty = true; },
     resetRun() { run.dist = 0; run.base = 0; run.hold = 0; run.turn = 0; run.braking = false; run.wobbling = false; },
     popXp() { const n = pendingXp; pendingXp = 0; return n; },
     isDirty() { return dirty; }, clearDirty() { dirty = false; },
     bestRun() { return s.best.run; },
-    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx, friends: s.friends, zones: s.zones, coins: Math.floor(s.coins), owned: s.owned, worn: s.worn }; },
+    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx, friends: s.friends, zones: s.zones, coins: Math.floor(s.coins), owned: s.owned, worn: s.worn, gifts: s.gifts, rom: s.rom, partner: s.partner, pDay: s.pDay, giftDay: s.giftDay }; },
 
     // Coins, owned items and the worn outfit.
     coins() { return Math.floor(s.coins); },
@@ -97,7 +103,7 @@ export function createProgress(saved) {
     worn() { return { ...s.worn }; },
     outfit() { return variantFor(s.worn); },
     gear() { return gearFor(s.worn); },
-    buy(id) { const it = ITEM[id]; if (!it) return false; const price = Math.round(it.price * (1 - discOf(it.slot))); if (s.coins < price) return false; s.coins -= price; if (!it.food) s.owned[id] = true; dirty = true; return true; },
+    buy(id) { const it = ITEM[id]; if (!it) return false; const price = Math.round(it.price * (1 - discOf(it.slot))); if (s.coins < price) return false; s.coins -= price; if (it.gift) s.gifts[id] = (s.gifts[id] || 0) + 1; else if (!it.food) s.owned[id] = true; dirty = true; return true; },
     wear(slot, id) { if (id === null) delete s.worn[slot]; else if (s.owned[id] && ITEM[id] && ITEM[id].slot === slot) s.worn[slot] = id; dirty = true; },
     addXp(n) { const out = []; award(n, out); return out; },
 
@@ -105,6 +111,15 @@ export function createProgress(saved) {
     friendPoints(id) { return s.friends[id] === undefined ? -1 : s.friends[id]; },
     meet(id, name) { const out = []; if (s.friends[id] === undefined) { s.friends[id] = 0; award(10, out); s.coins += 5; out.push({ type: 'met', name }); } return out; },
     addFriend(id, n = 1) { if (s.friends[id] !== undefined) { s.friends[id] = Math.min(12, s.friends[id] + n); dirty = true; } },
+    // Romance, gifts and the shared market discount.
+    setExtraDiscount(x) { extraDisc = x; },
+    giftCount(id) { return s.gifts[id] || 0; },
+    useGift(id) { if (!s.gifts[id]) return false; s.gifts[id]--; dirty = true; return true; },
+    romPts(id) { return s.rom.pts[id] || 0; }, romStage(id) { return s.rom.stage[id] || 0; }, partner() { return s.partner; },
+    addRomance(id, n) { const v = Math.min(15, (s.rom.pts[id] || 0) + n); s.rom.pts[id] = v; if ((s.rom.stage[id] || 0) < 1 && v >= 3) s.rom.stage[id] = 1; dirty = true; },
+    setStage(id, st) { s.rom.stage[id] = st; if (st >= 2) s.partner = id; dirty = true; },
+    giftedOn(id) { return s.giftDay[id] || 0; }, markGift(id, day) { s.giftDay[id] = day; dirty = true; },
+    claimPartnerGift(day) { if (!s.partner || s.pDay === day) return false; s.pDay = day; dirty = true; return true; },
     addCoins(n) { s.coins += n; dirty = true; },
     spendCoins(n) { if (s.coins < n) return false; s.coins -= n; dirty = true; return true; },
     discount(slot) { return discOf(slot); },

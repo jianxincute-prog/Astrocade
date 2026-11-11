@@ -21,6 +21,15 @@ Coins come from goals, level-ups, distance skated, new places and new friends. S
 - **Do things together:** after a chat, Rin and Mika offer to skate together, Mr. Baker a walk (stay close for 30-40 s), Ollie a shared cocoa (12 coins), Hana lets you browse skates. Each gives friendship, XP and coins, then has a cooldown.
 - **Perks:** friends of Hana (skates) and Ollie (drinks) get 10% off at 2 friendship points and 20% off at 6.
 
+## Outfit shapes
+Every wearable has its own silhouette (`src/styles.js`), not just a colour: jackets (puffer, parka with fur collar, varsity, peacoat, hoodie, down vest, poncho), scarves (wool, snood, muffler, bandana, bow, fur collar), headwear (beanie, ushanka, newsboy cap, earmuffs, cat-ear beanie, beret), bottoms (slim, cargo, snow bibs, pleated skirt, puff shorts), hands (gloves, mittens, arm warmers, fur cuffs) and skates (rental, hockey, figure with toe pick, speed with a long blade).
+
+## Romance
+Close friends (6+ friendship) with Rin, Mika, Hana and Ollie can become more: give a daily gift (liked gifts count more), ask them on an evening date (16:00-23:00; they follow you to a scenic spot such as the Scenic Dock, Hilltop Viewpoint, Creek Overlook or Park Gazebo), then confess (6+ romance) and later give the Promise Charm (12+). Only one partner at a time; a partner leaves a small gift each day.
+
+## Events
+Lantern Skate (daily 18:00-24:00: skate through glowing lanterns on the ice), Winter Market (every 3rd day 09:00-17:00: plaza stalls, shops 15% cheaper) and Winter Festival (every 5th day 19:00-24:00: fireworks over the lake, lanterns worth double). A day counter runs with the clock.
+
 ## Code structure
 - `game.js` — `run(mode)`: scene setup, game loop, edit-mode preview, settings panel.
 - `src/config.js` — reads `gameConfig`; `skillsFor(level)` maps one skill level to Balance/Control/Speed/Braking/Tricks.
@@ -36,9 +45,12 @@ Coins come from goals, level-ups, distance skated, new places and new friends. S
 - `src/textures.js` — procedural canvas textures (quilted puffer, knit, twill, leather, hair, eyes) and the reflection environment.
 - `src/select.js` — character select overlay (Male/Female, face close-up, start).
 - `src/sky.js` — day-night cycle (sun, moon, stars, sky/fog colour, lamp and window glow) and four weather states (clear, cloudy, light snow, heavy snow) that blend smoothly; settings `world.dayMinutes`, `world.weather`, `world.hour`.
+- `src/styles.js` — the outfit shape builders (jacket, scarf, hat, pants, glove and skate geometry).
+- `src/romance.js` — romance rules, gift tastes, date spots and dialogue lines.
+- `src/events.js` — event schedule, lantern orbs, market stalls and fireworks.
 - `src/shops.js` — shop hours and doors, the catalogue (jackets, scarves, beanies, pants, gloves, skates with grip/glide perks, drinks, bakes) and helpers that turn the worn items into a character variant and skate gear.
 - `src/shop.js` — the shop/wardrobe bottom-sheet UI (tabs, tap to try on, buy / wear / eat).
 - `src/camera.js`, `src/input.js`, `src/hud.js`, `src/fx.js` — chase camera, keyboard/touch input, DOM HUD, spray particles.
 
 ## Roadmap (see GDD)
-Next: settings and audio, then romance and events.
+Next: settings and audio, then more seasons and a main menu.

@@ -65,7 +65,8 @@ export const friendTier = (p) => (p < 2 ? 0 : p < 6 ? 1 : 2);
 export const friendLabel = (p) => (p < 1 ? 'New face' : p < 3 ? 'Acquaintance' : p < 6 ? 'Friend' : 'Close friend');
 export const friendHearts = (p) => (p < 1 ? 0 : p < 3 ? 1 : p < 6 ? 2 : 3);
 
-export function createNpcs(scene, heightAt = () => 0) {
+export function createNpcs(scene, heightAt = () => 0, onIce = () => false) {
+  const crumbs = []; // recent player positions: companions follow this trail, so they never cut through obstacles
   const list = NPC_DEFS.map((def) => {
     const ch = createCharacter(def.kind, { variant: def.variant, lite: true });
     scene.add(ch.root);
@@ -84,9 +85,13 @@ export function createNpcs(scene, heightAt = () => 0) {
   function skate(n, dt) {
     const s = n.s, b = n.def.behavior, wp = b.path[n.wi], dx = wp[0] - s.x, dz = wp[1] - s.z;
     if (Math.hypot(dx, dz) < 4.5) n.wi = (n.wi + 1) % b.path.length;
-    const diff = turnTo(s, Math.atan2(dx, dz), 1.5, dt);
+    skateTo(n, dt, wp[0], wp[1], b.speed, 1.5);
+  }
+  function skateTo(n, dt, wx, wz, tspeed, turn) {
+    const s = n.s, dx = wx - s.x, dz = wz - s.z;
+    const diff = turnTo(s, Math.atan2(dx, dz), turn, dt);
     s.steer = -clamp(diff * 1.5, -1, 1);
-    const target = b.speed * (Math.abs(diff) > 0.9 ? 0.6 : 1);
+    const target = tspeed * (Math.abs(diff) > 0.9 ? 0.6 : 1);
     if (!s.stroking && s.speed < target * 0.96) { s.stroking = true; s.strokeT = 0; }
     if (s.stroking) {
       s.strokeT += dt / lerp(0.8, 1.25, clamp(s.speed / 10, 0, 1));
@@ -114,6 +119,27 @@ export function createNpcs(scene, heightAt = () => 0) {
     }
     s.stride += s.speed * 2.3 * dt;
   }
+  // Companion mode (dates): trail the player a couple of seconds behind, on foot or on skates.
+  function follow(n, dt, px, pz) {
+    const s = n.s, c = crumbs.length > 16 ? crumbs[crumbs.length - 17] : [px, pz];
+    const d = Math.hypot(c[0] - s.x, c[1] - s.z), pd = Math.hypot(px - s.x, pz - s.z);
+    s.mode = onIce(s.x, s.z) ? 'skate' : 'walk';
+    if (s.mode === 'skate') {
+      if (pd < 2.6 && d < 1.2) { s.speed *= Math.exp(-2 * dt); s.stroking = false; s.strideAmp = approach(s.strideAmp, 0, 4 * dt); turnTo(s, Math.atan2(px - s.x, pz - s.z), 2.5, dt); return; }
+      skateTo(n, dt, c[0], c[1], clamp(d * 1.4 + 1.5, 1.5, 9), 2.5);
+    } else {
+      s.stroking = false; s.strideAmp = 0; s.steer = 0;
+      if (d < 0.7 && pd < 3.2) { s.speed = approach(s.speed, 0, 6 * dt); turnTo(s, Math.atan2(px - s.x, pz - s.z), 3, dt); }
+      else { const diff = turnTo(s, Math.atan2(c[0] - s.x, c[1] - s.z), 4.5, dt); s.speed = approach(s.speed, clamp(d * 1.6, 0.5, 5.3) * (Math.abs(diff) > 1 ? 0.4 : 1), 8 * dt); }
+      s.stride += s.speed * 2.3 * dt;
+    }
+  }
+  // After a date a companion waits where it ended; once you are out of range it goes back to its routine.
+  function respawn(n) {
+    const b = n.def.behavior, st = b.type === 'idle' ? b.start : b.path[0], nx = b.type === 'idle' ? b.face : b.path[1];
+    Object.assign(n.s, { x: st[0], z: st[1], y: 0, h: Math.atan2(nx[0] - st[0], nx[1] - st[1]), speed: 0, mode: b.type === 'skater' ? 'skate' : 'walk', stroking: false, sitting: false, strideAmp: 0, steer: 0 });
+    n.wi = 1; n.dir = 1; n.pause = 0; n.sitT = 0; n.sitDone = false; n.following = false; n.linger = false;
+  }
   function idle(n, dt, px, pz) {
     const s = n.s, b = n.def.behavior, near = Math.hypot(px - s.x, pz - s.z) < 9;
     const tx = near ? px : b.face[0], tz = near ? pz : b.face[1];
@@ -122,13 +148,17 @@ export function createNpcs(scene, heightAt = () => 0) {
 
   return {
     list,
+    pushCrumb(x, z) { crumbs.push([x, z]); if (crumbs.length > 60) crumbs.shift(); },
+    setFollow(id, on) { const n = list.find((q) => q.id === id); if (!n) return; if (on) { n.following = true; n.linger = false; } else if (n.following) { n.following = false; n.linger = true; } },
     update(dt, px, pz, talkId) {
       for (const n of list) {
         const s = n.s, d = Math.hypot(px - s.x, pz - s.z);
         n.active = d < ACTIVE_RANGE; n.ch.root.visible = n.active;
-        if (!n.active) continue;
+        if (!n.active) { if (n.linger) respawn(n); continue; }
         n.clock += dt;
         if (n.id === talkId) { turnTo(s, Math.atan2(px - s.x, pz - s.z), 3, dt); s.speed = approach(s.speed, 0, 5 * dt); s.stroking = false; s.strideAmp = approach(s.strideAmp, 0, 4 * dt); s.steer = 0; }
+        else if (n.following) follow(n, dt, px, pz);
+        else if (n.linger) { s.mode = 'walk'; s.stroking = false; s.strideAmp = 0; s.steer = 0; s.speed = approach(s.speed, 0, 6 * dt); if (Math.hypot(px - s.x, pz - s.z) < 9) turnTo(s, Math.atan2(px - s.x, pz - s.z), 2, dt); }
         else if (n.def.behavior.type === 'skater') skate(n, dt);
         else if (n.def.behavior.type === 'walker') walk(n, dt);
         else idle(n, dt, px, pz);

@@ -69,7 +69,7 @@ export function createSky(scene, world) {
   const flakeMat = new T.PointsMaterial({ color: 0xffffff, size: 0.22, map: blobTexture('rgba(255,255,255,1)', 'rgba(255,255,255,0.7)'), alphaTest: 0.05, transparent: true, opacity: 0.85, depthWrite: false });
   const flakes = new T.Points(flakeGeo, flakeMat); flakes.frustumCulled = false; scene.add(flakes);
 
-  const st = { hour: 9.5, w: { ...WEATHER[2] }, target: 2, timer: 60 + rng() * 60, wind: 0 };
+  const st = { hour: 9.5, day: 1, w: { ...WEATHER[2] }, target: 2, timer: 60 + rng() * 60, wind: 0 };
   let dark = 0, sunElev = 0.5;
 
   function lerpKey(h) {
@@ -119,7 +119,7 @@ export function createSky(scene, world) {
   function update(dt, camPos, cfg) {
     // time
     if (cfg.hour >= 0) st.hour = cfg.hour % 24;
-    else st.hour = (st.hour + dt * (24 / (Math.max(1, cfg.dayMinutes) * 60))) % 24;
+    else { const prev = st.hour; st.hour = (st.hour + dt * (24 / (Math.max(1, cfg.dayMinutes) * 60))) % 24; if (st.hour < prev) st.day++; }
     // weather: forced by settings, otherwise a slow random walk between neighbouring states
     if (cfg.weather >= 1) st.target = cfg.weather - 1;
     else {
@@ -158,7 +158,7 @@ export function createSky(scene, world) {
   const pad = (v) => (v < 10 ? '0' : '') + v;
   return {
     update,
-    hour: () => st.hour,
+    hour: () => st.hour, day: () => st.day, setDay(d) { if (typeof d === 'number' && isFinite(d) && d >= 1) st.day = Math.floor(d); },
     setHour(h) { if (typeof h === 'number' && isFinite(h)) st.hour = ((h % 24) + 24) % 24; },
     label() { const h = Math.floor(st.hour), m = Math.floor((st.hour - h) * 60); return pad(h) + ':' + pad(m) + '\n' + st.w.name; },
     state: () => ({ hour: st.hour, weather: st.w.name, dark, sunElev }),
