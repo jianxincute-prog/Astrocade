@@ -11,9 +11,10 @@ const CSS = `
 #shop .tab{flex:none;padding:8px 18px;border-radius:18px;border:0;background:#d6e3f1;color:#1d3a5c;font-size:22px;font-weight:700;cursor:pointer}
 #shop .tab.on{background:#3fa7ff;color:#fff}
 #shop .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;height:292px;overflow-y:auto;padding:2px}
-#shop .card{border-radius:20px;background:#fff;border:3px solid transparent;padding:10px 6px 8px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:128px}
+#shop .card{border-radius:20px;background:#fff;border:3px solid transparent;padding:10px 6px 8px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:156px}
 #shop .card.on{border-color:#3fa7ff;background:#eaf5ff}
 #shop .sw{width:46px;height:46px;border-radius:50%;border:3px solid rgba(29,58,92,.25);margin-bottom:6px}
+#shop .ic{width:92px;height:92px;object-fit:contain;margin-bottom:2px;border-radius:16px;background:radial-gradient(circle at 50% 40%,#fff,#e3edf8);filter:drop-shadow(0 3px 3px rgba(20,40,70,.22))}
 #shop .nm{font-size:19px;font-weight:700;line-height:1.1}
 #shop .pr{font-size:19px;font-weight:800;margin-top:4px;color:#8a5a00}#shop .pr.st{color:#2a8a55}
 #shop .ft{margin-top:12px;display:flex;align-items:center;gap:14px}
@@ -34,6 +35,7 @@ export function createShop(root) {
   const price = (it) => (cfg.price ? cfg.price(it) : it.price);
   const hex = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0');
 
+  function icon(it) { const u = it.id !== null && cfg.icon ? cfg.icon(it) : null; return u ? '<img class="ic" src="' + u + '" alt="">' : ''; }
   function items() { const t = cfg.tabs[tab]; if (cfg.mode === 'give') return t.items.filter((i) => i.id !== null && cfg.count(i.id) > 0 && i.id !== 'gf_charm'); return cfg.wardrobe ? t.items.filter((i) => i.id === null || cfg.owns(i.id)) : t.items; }
   function state(it) {
     if (cfg.mode === 'give') return cfg.count(it.id) > 0 ? 'give' : 'none';
@@ -49,12 +51,12 @@ export function createShop(root) {
     if (sel === null || !list.some((i) => i.id === sel)) sel = list.length ? (list.find((i) => i.id !== null && cfg.worn(i.slot) === i.id) || list[0]).id : null;
     $('shGrid').innerHTML = list.map((it) => {
       const st = it.id === null ? '' : state(it), tag = it.id === null ? '<div class="pr st">Standard</div>' : st === 'worn' ? '<div class="pr st">Worn</div>' : st === 'equip' ? '<div class="pr st">Owned</div>' : st === 'give' ? '<div class="pr st">×' + cfg.count(it.id) + '</div>' : '<div class="pr">● ' + price(it) + (it.gift && cfg.count && cfg.count(it.id) ? ' · ×' + cfg.count(it.id) : '') + '</div>';
-      return '<div class="card' + (it.id === sel ? ' on' : '') + '" data-i="' + (it.id === null ? '' : it.id) + '"><div class="sw" style="background:' + (it.id === null ? 'repeating-linear-gradient(45deg,#cfd8e3,#cfd8e3 6px,#e9eef4 6px,#e9eef4 12px)' : hex(it.color)) + '"></div><div class="nm">' + it.name + '</div>' + tag + '</div>';
+      return '<div class="card' + (it.id === sel ? ' on' : '') + '" data-i="' + (it.id === null ? '' : it.id) + '">' + (icon(it) || '<div class="sw" style="background:' + (it.id === null ? 'repeating-linear-gradient(45deg,#cfd8e3,#cfd8e3 6px,#e9eef4 6px,#e9eef4 12px)' : hex(it.color)) + '"></div>') + '<div class="nm">' + it.name + '</div>' + tag + '</div>';
     }).join('') || '<div style="grid-column:1/4;font-size:22px;font-weight:600;opacity:.7;padding:30px;text-align:center">Nothing here yet. Visit the shops to buy something.</div>';
     const it = list.find((i) => i.id === sel), go = $('shGo');
     if (!it) { $('shD').textContent = ''; go.style.display = 'none'; return; }
     go.style.display = '';
-    $('shD').textContent = it.id === null ? 'Your standard ' + cfg.tabs[tab].label.toLowerCase() + '.' : (it.desc || it.name) + (it.price && price(it) < it.price ? '  (friend discount −' + Math.round((1 - price(it) / it.price) * 100) + '%)' : '');
+    $('shD').textContent = it.id === null ? 'Your standard ' + cfg.tabs[tab].label.toLowerCase() + '.' : (it.desc || it.name) + (it.price && price(it) < it.price ? '  (discount −' + Math.round((1 - price(it) / it.price) * 100) + '%)' : '');
     const st = it.id === null ? (cfg.worn(cfg.tabs[tab].slot) ? 'equip' : 'worn') : state(it);
     go.disabled = false;
     if (st === 'give') go.textContent = 'Give ♥';

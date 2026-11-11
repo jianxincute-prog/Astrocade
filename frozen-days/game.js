@@ -12,13 +12,14 @@ import { makeEnvironment } from './src/textures.js';
 import { OUTLINE } from './src/anime.js';
 import { createProgress } from './src/progress.js';
 import { createNpcs, NPC_DEFS, TALK_RANGE, friendLabel, friendHearts } from './src/npc.js';
-import { ZONE_LIST } from './src/layout.js';
+import { ZONE_LIST, HOME, lakePt } from './src/layout.js';
 import { createSkater, updateSkater, respawn, SPAWN } from './src/skating.js';
 import { createCameraRig } from './src/camera.js';
 import { createInput } from './src/input.js';
 import { createHud } from './src/hud.js';
 import { createSpray } from './src/fx.js';
 import { createSky } from './src/sky.js';
+import { createIcons } from './src/icons.js';
 import { createAudio } from './src/audio.js';
 import { createShop } from './src/shop.js';
 import { createEvents } from './src/events.js';
@@ -79,6 +80,10 @@ function run(mode) {
   // date marker: a soft pink beam above the destination
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 70, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xff9ec8, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide }));
   beam.visible = false; scene.add(beam);
+  // story marker: a golden beam over the next place to go
+  const qbeam = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 90, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd66b, transparent: true, opacity: 0.34, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide }));
+  qbeam.visible = false; scene.add(qbeam);
+  const lastLand = { x: HOME.spawn.x, z: HOME.spawn.z }; let iceWarn = -99;
   const skater = createSkater();
   const rig = createCameraRig(camera);
   let talkNpc = null, curZone = null, zoneTimer = 0;
@@ -94,6 +99,7 @@ function run(mode) {
   const unlockAudio = () => { audio.unlock(); };
   window.addEventListener('pointerdown', unlockAudio); window.addEventListener('keydown', unlockAudio);
   let stepT = 0;
+  const icons = createIcons(176);
 
   function resize() {
     const w = root.clientWidth || window.innerWidth, h = root.clientHeight || window.innerHeight;
@@ -155,6 +161,11 @@ function run(mode) {
   function startPlay() {
     phase = 'play'; sel.hide(); rig.snap(skater); hasPrev = false;
     saveState(true);
+    if (!progress.introSeen()) {
+      progress.markIntro();
+      hud.showCard({ kicker: 'DAY 1', title: 'A new home by the frozen lake', button: "Let's go!", html: "<p>You've just moved into this little house at the quiet end of town. The big frozen lake is calling, but your old skates didn't survive the move.</p><p>You saved <span class='coin'>● " + progress.coins() + "</span> for a fresh pair. Walk north along the main street to <b>Blade &amp; Edge</b> in the Town Plaza and buy the cheapest skates.</p><p>Follow the golden beam!</p>" });
+      saveState(true);
+    }
   }
   function openSelect() {
     phase = 'select'; skater.vx = skater.vz = 0; skater.speed = 0;
@@ -194,6 +205,7 @@ function run(mode) {
       progress = createProgress(saved);
       if (saved && saved.settings) for (const k of Object.keys(settings)) if (saved.settings[k] !== undefined && typeof saved.settings[k] === typeof settings[k]) settings[k] = saved.settings[k];
       applySettings();
+      if (progress.story() === 'buy') { skater.x = HOME.spawn.x; skater.z = HOME.spawn.z; skater.h = HOME.spawn.h; skater.mode = 'walk'; lastLand.x = skater.x; lastLand.z = skater.z; if (!saved) sky.setHour(9); }
       outfit = progress.outfit(); rebuildPlayer();
       if (saved && typeof saved.tod === 'number') sky.setHour(saved.tod);
       if (saved && typeof saved.day === 'number') sky.setDay(saved.day);
@@ -239,7 +251,7 @@ function run(mode) {
   const WEARABLE = (slot) => WEAR_SLOTS.includes(slot);
   function openShop(def) {
     audio.play('door'); // def = a SHOPS entry, or null for the wardrobe (owned items, anywhere)
-    const tabs = (def ? def.tabs : WEAR_SLOTS).map((slot) => ({ label: SLOT_LABEL[slot], slot, consumable: !WEARABLE(slot), items: (WEARABLE(slot) ? [{ id: null, name: 'Standard', slot }] : []).concat(itemsFor(slot)) }));
+    const tabs = (def ? def.tabs : WEAR_SLOTS).map((slot) => ({ label: SLOT_LABEL[slot], slot, consumable: !WEARABLE(slot), items: (WEARABLE(slot) && slot !== 'skates' ? [{ id: null, name: 'Standard', slot }] : []).concat(itemsFor(slot)) }));
     if (def) { // frame the character in front of the door, facing the camera
       const dx = 0 - def.door[0], dz = 104 - def.door[1], l = Math.hypot(dx, dz) || 1;
       shopView = { dx: dx / l, dz: dz / l }; skater.h = Math.atan2(shopView.dx, shopView.dz); skater.vx = skater.vz = 0;
@@ -248,6 +260,7 @@ function run(mode) {
     shop.open({
       title: def ? def.name : 'Wardrobe', sub: def ? def.line : 'Change what you wear', tabs, wardrobe: !def,
       coins: () => progress.coins(), price: (it) => progress.priceOf(it), count: (id) => progress.giftCount(id), owns: (id) => progress.owns(id), worn: (slot) => progress.worn()[slot] || null,
+      icon: (it) => icons.get(it, kind),
       preview: (slot, id) => { const w = progress.worn(); if (slot) { if (id === null) delete w[slot]; else w[slot] = id; } setOutfit(w); },
       equip: (slot, id) => { progress.wear(slot, id); setOutfit(progress.worn()); saveState(true); },
       buy: (it) => { if (!progress.buy(it.id)) { audio.play('err'); return { ok: false, msg: 'Not enough coins' }; } audio.play('coin'); buzz('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + '!' }; },
@@ -256,7 +269,7 @@ function run(mode) {
         if (it.gift) { buzz('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + ' (×' + progress.giftCount(it.id) + ')' }; }
         if (it.food.xp) { handleUi(progress.addXp(it.food.xp)); }
         if (it.food.comfort) { buff.mul = it.food.comfort; buff.t = it.food.secs; buff.label = it.name.split(' ').pop(); }
-        startEat(skater, it.slot === 'drinks' ? 'cup' : 'bun'); audio.play('eat');
+        startEat(skater, it.id); audio.play('eat');
         buzz('success');
         saveState(true); return { ok: true, msg: it.food.xp ? 'Yum! +' + it.food.xp + ' XP' : 'Ahh, so warm!' };
       },
@@ -274,12 +287,13 @@ function run(mode) {
     if (id.startsWith('d_')) { dateChoice(n, id); return; }
     const pts = Math.max(0, progress.friendPoints(n.id));
     if (id === 'skate' || id === 'walk') {
+      if (id === 'skate' && !progress.canSkate()) { hud.toast('You need skates first!', 2.2); return; }
       if (id === 'skate' && skater.mode !== 'skate') { hud.toast('Get on the ice first, then ask ' + n.name + ' again', 2.4); return; }
       act = { npc: n, name: n.name, skate: id === 'skate', t: 0, goal: id === 'skate' ? 40 : 30, range: id === 'skate' ? 11 : 7, away: 0 };
       hud.toast(id === 'skate' ? 'Skate with ' + n.name + '!\nStay close for 40 seconds' : 'Walk with ' + n.name + '!\nStay close for 30 seconds', 2.6);
     } else if (id === 'treat') {
       if (!progress.spendCoins(12)) { hud.toast('Not enough coins', 1.6); return; }
-      startEat(skater, 'cup'); startEat(n.s, 'cup');
+      startEat(skater, 'dr_cocoa'); startEat(n.s, 'dr_cocoa');
       progress.addFriend(n.id, 2); handleUi(progress.addXp(10)); actCool[n.id] = clock + 120;
       hud.toast('Cocoa with ' + n.name + '!  ♥♥  +10 XP', 2.6);
     } else if (id === 'browse') {
@@ -327,7 +341,7 @@ function run(mode) {
     shopView = { dx: Math.sin(skater.h), dz: Math.cos(skater.h) };
     shop.open({
       title: 'Give ' + n.name + ' a gift', sub: 'One gift per day', mode: 'give', tabs: [{ label: 'Gifts', slot: 'gifts', consumable: true, items: gifts }],
-      coins: () => progress.coins(), owns: () => false, worn: () => null, preview: () => {}, equip: () => {}, count: (id) => progress.giftCount(id),
+      coins: () => progress.coins(), owns: () => false, worn: () => null, icon: (it) => icons.get(it, kind), preview: () => {}, equip: () => {}, count: (id) => progress.giftCount(id),
       give: (it) => giveGift(n, it), onClose: () => { shopView = null; root.classList.remove('shopping'); saveState(true); },
     });
     root.classList.add('shopping');
@@ -434,10 +448,10 @@ function run(mode) {
       input.consumeRespawn(); input.consumeLook(); input.consumeSpin();
       shadow.position.set(skater.x, 0.08, skater.z);
     } else if (playing) {
-      if (input.consumeRespawn()) { respawn(skater); progress.resetRun(); rig.snap(skater); hasPrev = false; }
+      if (input.consumeRespawn()) { respawn(skater, progress.canSkate() ? null : HOME.spawn); progress.resetRun(); rig.snap(skater); hasPrev = false; }
       const inp = input.read();
       inp.spin = input.consumeSpin();
-      if (hud.panelOpen || hud.dialogOpen || shop.isOpen) { inp.mx = 0; inp.my = 0; inp.push = 0; inp.brake = (hud.dialogOpen || shop.isOpen) ? 1 : 0; inp.spin = false; }
+      if (hud.panelOpen || hud.dialogOpen || shop.isOpen || hud.cardOpen) { inp.mx = 0; inp.my = 0; inp.push = 0; inp.brake = (hud.dialogOpen || shop.isOpen || hud.cardOpen) ? 1 : 0; inp.spin = false; }
       else if (inp.push > 0.1 || Math.hypot(inp.mx, inp.my) > 0.3) hud.hideHint();
       inp.mag = Math.hypot(inp.mx, inp.my);
       { const ya = rig.yaw; inp.tgtH = inp.mag > 0.01 ? Math.atan2(Math.sin(ya) * inp.my + Math.cos(ya) * inp.mx, Math.cos(ya) * inp.my - Math.sin(ya) * inp.mx) : null; }
@@ -446,6 +460,12 @@ function run(mode) {
       if (skater.sitting) { skater.vx = skater.vz = 0; skater.speed = 0; skater.mode = 'walk'; skater.events.length = 0; }
       else for (let i = 0; i < steps; i++) { inp.spin = i === 0 ? inp.spin : false; updateSkater(skater, inp, h, c, world); }
       stepActions(skater, dt);
+      if (!progress.canSkate()) { // no skates yet: the lake edge is as far as you can go
+        if (skater.mode === 'skate') {
+          skater.x = lastLand.x; skater.z = lastLand.z; skater.vx = skater.vz = 0; skater.speed = 0; skater.mode = 'walk';
+          if (clock - iceWarn > 3) { iceWarn = clock; hud.toast('You need skates to go on the ice.\nBuy a pair at Blade & Edge!', 2.8); audio.play('err'); }
+        } else { lastLand.x = skater.x; lastLand.z = skater.z; }
+      }
       skater.y = world.heightAt(skater.x, skater.z);
 
       // Blade trails on the ice + spray while braking hard.
@@ -482,6 +502,21 @@ function run(mode) {
       }
       audio.setMotion(skater.mode === 'skate' && !skater.sitting && skater.state === 'ok', skater.speed);
       if (skater.mode !== 'skate' && !skater.sitting && skater.speed > 1) { stepT -= dt * skater.speed / 5.6; if (stepT <= 0) { stepT = 0.36; audio.play('step'); } }
+      { // story: buy skates -> wear them -> first glide
+        const st = progress.story();
+        if (st === 'buy' && progress.worn().skates) { progress.setStory('lake'); audio.play('goal'); hud.toast('Skates on! Now head to the lake\nand take your first glide', 3.6); saveState(true); }
+        else if (st === 'lake' && skater.mode === 'skate') { progress.setStory('done'); handleUi(progress.addXp(25)); progress.addCoins(30); audio.play('level'); hud.toast('Your first glide!\n+25 XP  +30 coins', 3.4); saveState(true); }
+        const s2 = progress.story();
+        if (s2 === 'done') qbeam.visible = false;
+        else {
+          let tx, tz, txt, d0;
+          if (s2 === 'buy') { const sh = SHOPS[0]; tx = sh.door[0]; tz = sh.door[1]; d0 = 230; txt = 'Buy your first skates at Blade & Edge' + (isOpen(sh, sky.hour()) ? '' : ' (opens ' + hourLabel(sh.open[0]) + ')'); }
+          else { const lp = lakePt(84, -3); tx = lp[0]; tz = lp[1]; d0 = 90; txt = 'Take your first glide on the lake'; }
+          const dd = Math.hypot(skater.x - tx, skater.z - tz);
+          progress.setStoryHint(txt + ' · ' + Math.round(dd) + ' m', Math.max(0, Math.min(1, 1 - dd / d0)));
+          qbeam.position.set(tx, world.heightAt(tx, tz) + 45, tz); qbeam.visible = !date && dd > 3; qbeam.material.opacity = 0.28 + Math.sin(clock * 3) * 0.08;
+        }
+      }
       hud.update(skater, dt, progress);
       hud.setCoins(progress.coins());
       npcs.pushCrumb(skater.x, skater.z);
@@ -569,7 +604,7 @@ function run(mode) {
     window.removeEventListener('resize', resize);
     if (root._frozenOnHide) { document.removeEventListener('visibilitychange', root._frozenOnHide); root._frozenOnHide = null; }
     if (playing) saveState(true);
-    window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); audio.dispose();
+    window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); audio.dispose(); icons.dispose();
     if (input) input.destroy();
     if (hud) hud.destroy();
     if (sel) sel.destroy();

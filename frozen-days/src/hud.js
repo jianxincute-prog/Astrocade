@@ -41,6 +41,13 @@ const CSS = `
 #panel .btns{display:flex;gap:16px;margin-top:20px}
 #panel button{flex:1;padding:18px;border-radius:22px;border:0;font-size:28px;font-weight:800;cursor:pointer;background:#3fa7ff;color:#fff}
 #panel button.alt{background:#d6e3f1;color:#1d3a5c}
+#story{position:absolute;inset:0;display:none;pointer-events:auto;background:rgba(15,30,55,.5);z-index:65;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#story .card{position:absolute;left:40px;right:40px;top:230px;padding:34px 34px 30px;border-radius:36px;background:rgba(240,246,252,.97);color:#1d3a5c;text-shadow:none;box-shadow:0 14px 50px rgba(8,20,40,.45)}
+#story small{display:block;font-size:22px;font-weight:800;letter-spacing:3px;color:#3fa7ff;margin-bottom:8px}
+#story h2{margin:0 0 14px;font-size:44px;line-height:1.1}
+#story p{margin:0 0 12px;font-size:27px;font-weight:600;line-height:1.4}
+#story .coin{display:inline-block;padding:4px 14px;border-radius:16px;background:#fff3cf;color:#8a5a00;font-weight:800}
+#story button{display:block;width:100%;margin-top:18px;padding:20px;border-radius:24px;border:0;font-size:30px;font-weight:800;cursor:pointer;background:#3fa7ff;color:#fff}
 #setp{position:absolute;inset:0;display:none;pointer-events:auto;background:rgba(15,30,55,.6);backdrop-filter:blur(6px);z-index:70}
 #setp .card{position:absolute;left:36px;right:36px;top:150px;padding:30px;border-radius:34px;background:rgba(235,244,252,.97);color:#1d3a5c;text-shadow:none}
 #setp h2{margin:0 0 14px;font-size:40px}
@@ -93,17 +100,21 @@ export function createHud(root, { touch }) {
     '<div id="charBtn" class="hbtn">☺ Character</div><div id="skillBtn" class="hbtn">★ Skills</div>' +
     '<div id="panel"><div class="card"><h2 id="pTitle"></h2><div class="sub" id="pSub"></div><div id="pRows"></div><div class="bests" id="pBests"></div>' +
     '<div class="btns"><button class="alt" id="pWard">Wardrobe</button><button class="alt" id="pRespawn">Respawn</button><button class="alt" id="pSet">Settings</button><button id="pClose">Continue</button></div></div></div>' +
+    '<div id="story"><div class="card"><small id="stK"></small><h2 id="stT"></h2><div id="stP"></div><button id="stB">OK</button></div></div>' +
     '<div id="setp"><div class="card"><h2>Settings</h2><div id="setRows"></div><button class="done" id="setDone">Done</button></div></div>';
   root.appendChild(el);
   const $ = (id) => el.querySelector('#' + id);
   const speedEl = $('speed'), lvlTxt = $('lvlTxt'), xpFill = $('xpFill'), xpPop = $('xpPop'), balEl = $('bal'), fillEl = $('balFill'),
     goalTxt = $('goalTxt'), goalFill = $('goalFill'), toastEl = $('toast'), hintEl = $('hint'), panel = $('panel');
   const talkTip = $('talkTip'), bannerEl = $('zoneBanner'), dlg = $('dlg');
-  let dlgState = null, bannerTimer = 0;
+  let dlgState = null, bannerTimer = 0, lastStory = false;
   let toastTimer = 0, hintTimer = 9, hintHidden = false, popTimer = 0, popAcc = 0, popGather = 0, panelOpen = false;
   $('charBtn').addEventListener('click', () => el.dispatchEvent(new CustomEvent('character')));
   $('goal').addEventListener('click', () => el.dispatchEvent(new CustomEvent('skipgoal')));
   $('skillBtn').addEventListener('click', () => el.dispatchEvent(new CustomEvent('panel')));
+  let cardOpen = false;
+  function showCard(c) { cardOpen = true; $('stK').textContent = c.kicker || ''; $('stT').textContent = c.title; $('stP').innerHTML = c.html; $('stB').textContent = c.button || 'OK'; $('story').style.display = 'block'; }
+  $('stB').addEventListener('click', () => { cardOpen = false; $('story').style.display = 'none'; el.dispatchEvent(new CustomEvent('cardclose')); });
   $('pClose').addEventListener('click', () => hidePanel());
   $('pWard').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('wardrobe')); });
   $('pRespawn').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('respawn')); });
@@ -176,6 +187,7 @@ export function createHud(root, { touch }) {
     lvlTxt.textContent = 'Lv ' + info.level + ' · ' + info.name;
     xpFill.style.width = Math.round(info.frac * 100) + '%';
     const g = prog.goal(p);
+    { const st = prog.story && prog.story() !== 'done'; if (st !== lastStory) { lastStory = st; $('goal').querySelector('small').textContent = st ? 'STORY' : 'GOAL · tap to skip'; } }
     goalTxt.textContent = g.text; goalFill.style.width = Math.round(g.frac * 100) + '%';
     const gain = prog.popXp(); popAcc += gain; popGather += dt;
     if (popAcc >= 1 && popGather > 0.8) { xpPop.textContent = '+' + Math.round(popAcc) + ' XP'; xpPop.classList.add('show'); popTimer = 1.1; popAcc = 0; popGather = 0; }
@@ -189,5 +201,5 @@ export function createHud(root, { touch }) {
     if (!hintHidden) { hintTimer -= dt; if (hintTimer <= 0) hideHint(); }
   }
   function destroy() { el.remove(); style.remove(); }
-  return { el, update, toast, hideHint, setClock, setCoins, setBuff, setActivity, showPanel, hidePanel, showSettings, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
+  return { el, update, toast, hideHint, setClock, setCoins, setBuff, setActivity, showPanel, hidePanel, showSettings, showCard, get cardOpen() { return cardOpen; }, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
 }

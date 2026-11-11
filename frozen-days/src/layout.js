@@ -4,6 +4,8 @@
 import { clamp } from './util.js';
 
 export const WORLD_HALF = 150;
+// The player's own house in the residential area (south). New games start at the gate, facing the front door.
+export const HOME = { id: 'hn2', x: -14, z: -104, spawn: { x: -14, z: -112.4, h: 0 }, door: [-14, -108.3] };
 export const MAP_HALF = 145; // walkable limit
 const TAU = Math.PI * 2, D2R = Math.PI / 180;
 const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };

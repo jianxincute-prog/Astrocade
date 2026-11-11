@@ -18,9 +18,10 @@ export function createSkater() {
   };
 }
 
-export function respawn(p) {
+export function respawn(p, at) {
   const keep = { falls: p.falls, dist: p.dist, events: p.events };
   Object.assign(p, createSkater(), keep);
+  if (at) { p.x = at.x; p.z = at.z; p.h = at.h; }
 }
 
 function startFall(p, reason) {

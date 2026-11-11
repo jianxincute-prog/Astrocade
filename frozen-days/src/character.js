@@ -1,6 +1,7 @@
 // Detailed stylized-realistic skater (procedural, no external assets).
 // Rig: root(feet) > body(fall pivot) > hips > [legs: thigh > knee > ankle(boot+blade)] + spine > [torso, arms: shoulder > elbow > wrist, neck > head].
 // Limbs are tapered capsules that overlap at the joints, so shoulders/hips/knees/elbows blend with no gaps.
+import { buildItem } from './items3d.js';
 import { clamp, lerp } from './util.js';
 import * as TX from './cloth.js';
 import { toonMat, addOutlines } from './anime.js';
@@ -174,12 +175,16 @@ export function createCharacter(kind, opts = {}) {
     gloveBuild(S.glove, { T, mk, ell, std, TX, P, arms, skinFlat, gloveMat });
     pantsBuild(S.pants, { T, mk, ell, std, TX, P, hips, spine, legs, profile });
   }
-  // handheld props for the eating animation (cup of cocoa / bun), shown only while eating
-  const cupMat = std({ color: 0xf4efe6, roughness: 0.7 }), cocoaMat = std({ color: 0x6a3f24, roughness: 0.6 }), bunMat = std({ color: 0xd9a05a, roughness: 0.8 }), iceMat = std({ color: 0xfff6ea, roughness: 0.7 });
-  const cup = new T.Group(); cup.visible = false; armR.wr.add(cup); cup.position.set(0, -0.11, 0.04);
-  cup.add(mk(new T.CylinderGeometry(0.042, 0.033, 0.095, 12), cupMat, 0, 0, 0)); cup.add(mk(new T.CylinderGeometry(0.037, 0.037, 0.006, 12), cocoaMat, 0, 0.044, 0));
-  const bun = new T.Group(); bun.visible = false; armR.wr.add(bun); bun.position.set(0, -0.085, 0.03);
-  { const b = mk(new T.SphereGeometry(0.042, 12, 9), bunMat, 0, 0, 0); b.scale.y = 0.72; bun.add(b); const ic = mk(new T.SphereGeometry(0.03, 10, 7), iceMat, 0, 0.02, 0); ic.scale.y = 0.4; bun.add(ic); }
+  // handheld prop for the eating animation: the real model of the item being eaten, built on demand
+  const holder = new T.Group(); holder.visible = false; armR.wr.add(holder); holder.position.set(0, -0.1, 0.035);
+  let heldId = null, held = null;
+  const HELD_SIZE = { dr_latte: 0.17, dr_cocoa: 0.15, dr_marsh: 0.15, bk_bun: 0.13, bk_tart: 0.15, bk_loaf: 0.2 };
+  function setHeld(id) {
+    if (id === heldId) return;
+    if (held) { holder.remove(held); if (held.userData.dispose) held.userData.dispose(); held = null; }
+    heldId = id;
+    if (id) { held = buildItem(id, { thick: 0.0028 }); if (held) { const k = HELD_SIZE[id] || (id === 'cup' ? 0.15 : 0.13); holder.scale.setScalar(k); holder.add(held); } }
+  }
 
   // ---------- Neck, collar, scarf
   const neck = new T.Group(); neck.position.y = 0.5; spine.add(neck);
@@ -351,7 +356,7 @@ export function createCharacter(kind, opts = {}) {
       armR.el.rotation.x = lerp(armR.el.rotation.x, -2.12, ea); armR.wr.rotation.x = lerp(armR.wr.rotation.x, -0.2, ea);
       head.rotation.x -= 0.1 * ea;
     }
-    cup.visible = ea > 0.01 && p.eatItem === 'cup'; bun.visible = ea > 0.01 && p.eatItem === 'bun';
+    setHeld(ea > 0.01 ? p.eatItem : null); holder.visible = !!held;
     // scarf tail streams behind
     tail.rotation.x = 0.08 + sf * 1.05 + Math.sin(t * 8) * 0.08 * sf + f * 0.4;
     tail.rotation.z = Math.sin(t * 6 + 1) * 0.1 * sf;

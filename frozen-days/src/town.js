@@ -3,7 +3,7 @@
 // Everything static is merged into a handful of vertex-coloured meshes so the whole town costs few draw calls.
 import { toonMat, addOutlines, computeOutlineNormals } from './anime.js';
 import { mulberry32 } from './util.js';
-import { NETWORK, heightAt, BRIDGE, CREEK, HILL, pathEdgeDist, creekD, lakePt, lakeR, DOCKS, dockPose, ACCESS } from './layout.js';
+import { NETWORK, heightAt, BRIDGE, CREEK, HILL, pathEdgeDist, creekD, lakePt, lakeR, DOCKS, dockPose, ACCESS, HOME } from './layout.js';
 const T = THREE;
 
 // ---------------------------------------------------------------- merge helper
@@ -71,7 +71,7 @@ const SHOPS = [
 ];
 const HOUSE_COLORS = [[0xd9876a, 0x7a3f33], [0x82b0d9, 0x3a5578], [0xe3c778, 0x7a6232], [0x9ac49a, 0x3c6648], [0xc99ad1, 0x62396b], [0xe6a07a, 0x824a30], [0xa7c8e8, 0x45607f], [0xe8d49a, 0x77623a], [0xb5d6b0, 0x41694a], [0xe0a6b8, 0x7a4558]];
 const HOUSES = [];
-[-46, -30, -14, 14, 30, 46].forEach((x, i) => HOUSES.push({ id: 'hn' + i, x, z: -104, w: 9, d: 7.5, h: 4.6 + (i % 3) * 0.3, yaw: Math.PI, wall: HOUSE_COLORS[i][0], roof: HOUSE_COLORS[i][1], front: -109.8, chunk: 'res' }));
+[-46, -30, -14, 14, 30, 46].forEach((x, i) => HOUSES.push({ id: 'hn' + i, home: 'hn' + i === HOME.id, x, z: -104, w: 9, d: 7.5, h: 4.6 + (i % 3) * 0.3, yaw: Math.PI, wall: HOUSE_COLORS[i][0], roof: HOUSE_COLORS[i][1], front: -109.8, chunk: 'res' }));
 [-40, -24, 24, 40].forEach((x, i) => HOUSES.push({ id: 'hs' + i, x, z: -127, w: 9, d: 7.5, h: 4.7 + (i % 2) * 0.3, yaw: 0, wall: HOUSE_COLORS[i + 6][0], roof: HOUSE_COLORS[i + 6][1], front: -121.2, chunk: 'res' }));
 
 export function createTown(scene) {
@@ -145,6 +145,21 @@ export function createTown(scene) {
     g.box(1.1, 2.6, 1.1, w * 0.28, h + rise * 0.6 + 1.2, -d * 0.12, 0x7c7f88); g.box(1.4, 0.3, 1.4, w * 0.28, h + rise * 0.6 + 2.6, -d * 0.12, SNOW);
     const dx = 0;
     g.box(2.3, 3.4, 0.2, dx, 1.7, d / 2, trim); g.box(1.9, 3.1, 0.3, dx, 1.55, d / 2 + 0.1, dk); g.box(3, 0.25, 1.4, dx, 0.12, d / 2 + 0.8, 0x8a8f98);
+    if (b.home) { // the player's own house: wreath, porch lantern, welcome mat, name plaque, shovelled path and a snowman
+      g.geo(new T.TorusGeometry(0.42, 0.11, 8, 20), 0, 2.55, d / 2 + 0.3, 0x2f7a4a); g.box(0.36, 0.2, 0.1, 0, 2.2, d / 2 + 0.36, 0xd94f4f);
+      lg.sph(0.24, 1.75, 3.0, d / 2 + 0.45, WARM); g.box(0.1, 0.5, 0.1, 1.75, 3.35, d / 2 + 0.3, DARK); g.box(0.1, 0.1, 0.35, 1.75, 3.55, d / 2 + 0.3, DARK);
+      g.box(1.7, 0.04, 1.0, 0, 0.27, d / 2 + 1.0, 0x8a3a3a);
+      g.box(2.6, 0.05, 4.2, 0, 0.03, d / 2 + 3.0, 0xe6dccb);
+      const c = Math.cos(b.yaw), sn = Math.sin(b.yaw), wx = (lx, lz) => b.x + lx * c + lz * sn, wz = (lx, lz) => b.z - lx * sn + lz * c;
+      signPlane(['MY HOME', 'Sweet home'], '#7a3f33', '#ffe9e0', 1.7, 0.64, wx(-2.1, d / 2 + 0.2), 2.5, wz(-2.1, d / 2 + 0.2), b.yaw);
+      g.box(1.8, 0.8, 0.12, -2.1, 2.5, d / 2 + 0.1, 0x4a2f1c);
+      glow(wx(1.75, d / 2 + 0.45), 3.0, wz(1.75, d / 2 + 0.45));
+      const sx = wx(-w / 2 - 0.2, d / 2 + 2.2), sz = wz(-w / 2 - 0.2, d / 2 + 2.2), sy = heightAt(sx, sz), sg = body.at(sx, sz, 0, sy);
+      sg.sph(0.6, 0, 0.55, 0, 0xf6f9fd, 0.9); sg.sph(0.44, 0, 1.4, 0, 0xf6f9fd, 0.9); sg.sph(0.32, 0, 2.05, 0, 0xf6f9fd, 0.9);
+      sg.box(0.09, 0.09, 0.42, 0, 2.05, 0.4, 0xe8833a); sg.sph(0.04, -0.12, 2.13, 0.3, 0x222222, 0.9); sg.sph(0.04, 0.12, 2.13, 0.3, 0x222222, 0.9);
+      sg.cyl(0.42, 0.1, 0, 1.72, 0, 0xd94f4f); sg.cyl(0.2, 0.28, 0, 2.33, 0, 0x2c3340); sg.cyl(0.33, 0.04, 0, 2.2, 0, 0x2c3340);
+      colliders.push({ x: sx, z: sz, r: 0.7 });
+    }
     const n = Math.max(2, Math.floor((w - 4) / 3.6)), span = w - 4.4;
     for (let i = 0; i < n; i++) {
       const wx = -span / 2 + (n === 1 ? 0 : (span * i) / (n - 1));

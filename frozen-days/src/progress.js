@@ -18,10 +18,12 @@ export function createProgress(saved) {
   const s = {
     xp: 0, raw: { balance: 0, control: 0, speed: 0, braking: 0, tricks: 0 },
     best: { run: 0, speed: 0 }, totals: { dist: 0, falls: 0, spins: 0, goals: 0 }, goalIdx: 0,
-    friends: {}, zones: {}, coins: 60, owned: {}, worn: {},
+    friends: {}, zones: {}, coins: saved && saved.v === 2 ? 100 : 160, owned: {}, worn: {},
+    story: saved && saved.v === 2 ? 'done' : 'buy', intro: !!(saved && saved.v === 2),
     gifts: {}, rom: { pts: {}, stage: {} }, partner: null, pDay: 0, giftDay: {},
   };
   if (saved && saved.v === 2) {
+    if (saved.story === 'buy' || saved.story === 'lake') s.story = saved.story; s.intro = saved.intro === undefined ? true : !!saved.intro;
     s.xp = num(saved.xp);
     Object.keys(s.raw).forEach((k) => { s.raw[k] = num(saved.raw && saved.raw[k]); });
     s.best.run = num(saved.best && saved.best.run); s.best.speed = num(saved.best && saved.best.speed);
@@ -68,7 +70,9 @@ export function createProgress(saved) {
     s.coins += done.reward; out.push({ type: 'goal', text: done.text, xp: done.reward, coins: done.reward });
     goal = makeGoal();
   }
+  let storyHint = null;
   function goalState(p) {
+    if (s.story !== 'done' && storyHint) return storyHint;
     let f = 0;
     if (goal.type === 'glide') f = (run.dist - run.base) / goal.target;
     else if (goal.type === 'speed') f = Math.min(p.speed / goal.target, 1) * 0.9 + run.hold / 1.2 * 0.1;
@@ -89,12 +93,15 @@ export function createProgress(saved) {
     },
     stats() { return { best: s.best, totals: s.totals, zones: Object.keys(s.zones).length, friends: Object.keys(s.friends).length, partner: s.partner }; },
     goal(p) { return goalState(p); },
-    skipGoal() { s.goalIdx++; run.turn = 0; run.base = run.dist; run.hold = 0; run.braking = false; goal = makeGoal(); dirty = true; },
+    story() { return s.story; }, setStory(v) { s.story = v; dirty = true; }, canSkate() { return s.story !== 'buy'; },
+    introSeen() { return s.intro; }, markIntro() { s.intro = true; dirty = true; },
+    setStoryHint(text, frac) { storyHint = { text, frac }; },
+    skipGoal() { if (s.story !== 'done') return; s.goalIdx++; run.turn = 0; run.base = run.dist; run.hold = 0; run.braking = false; goal = makeGoal(); dirty = true; },
     resetRun() { run.dist = 0; run.base = 0; run.hold = 0; run.turn = 0; run.braking = false; run.wobbling = false; },
     popXp() { const n = pendingXp; pendingXp = 0; return n; },
     isDirty() { return dirty; }, clearDirty() { dirty = false; },
     bestRun() { return s.best.run; },
-    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx, friends: s.friends, zones: s.zones, coins: Math.floor(s.coins), owned: s.owned, worn: s.worn, gifts: s.gifts, rom: s.rom, partner: s.partner, pDay: s.pDay, giftDay: s.giftDay }; },
+    serialize() { return { v: 2, xp: s.xp, raw: s.raw, best: s.best, totals: s.totals, goalIdx: s.goalIdx, friends: s.friends, zones: s.zones, coins: Math.floor(s.coins), owned: s.owned, worn: s.worn, gifts: s.gifts, rom: s.rom, partner: s.partner, pDay: s.pDay, giftDay: s.giftDay, story: s.story, intro: s.intro }; },
 
     // Coins, owned items and the worn outfit.
     coins() { return Math.floor(s.coins); },

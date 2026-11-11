@@ -12,6 +12,12 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 - Touch: the left stick gives a direction relative to the camera. On snow you walk that way; on ice you steer toward it (tilt = glide and turn, push fully = stroke, pull hard behind while fast = brake). PUSH adds a stroke, BRAKE stops.
 - Keyboard: WASD / arrows move relative to the camera, Space brake, E spin (Lv 3+), F talk, drag mouse to look, R respawn.
 
+## Story start
+A new game begins on Day 1 at 09:00 at the gate of the player's own house ("MY HOME", residential area). The player has no skates and 160 coins. The goal card switches to STORY: walk to Blade & Edge in the Town Plaza (golden beam), buy the cheapest skates, then take a first glide on the lake (+25 XP, +30 coins). Without skates the lake edge is a soft wall and Respawn returns to the house. Saves from before this update count as finished story.
+
+## Item art
+Drinks, bakes and gifts are detailed toon models (`src/items3d.js`). The shop renders thumbnails of them, and of clothes worn on the actual character, with its own small renderer (`src/icons.js`). The props held while eating are the same models.
+
 ## Settings and audio
 Skills panel -> Settings: music, sound effects, ambience (wind) and camera sensitivity sliders, plus a vibration toggle. Values are saved with the game.
 All audio is generated live with Web Audio (no asset files): UI and event sounds, blade scrape that follows speed, footsteps on snow, wind that follows the weather, and a soft generative music bed that turns minor at night. Audio starts on the first tap or key press.
