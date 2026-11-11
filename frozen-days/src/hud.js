@@ -43,12 +43,22 @@ const CSS = `
 #panel .btns button{padding:18px 4px;font-size:23px;min-width:0;white-space:nowrap}
 #panel button.alt{background:#d6e3f1;color:#1d3a5c}
 #story{position:absolute;inset:0;display:none;pointer-events:auto;background:rgba(15,30,55,.5);z-index:65;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-#story .card{position:absolute;left:40px;right:40px;top:230px;padding:34px 34px 30px;border-radius:36px;background:rgba(240,246,252,.97);color:#1d3a5c;text-shadow:none;box-shadow:0 14px 50px rgba(8,20,40,.45)}
+#story .card{position:absolute;left:40px;right:40px;top:150px;max-height:1000px;overflow:auto;padding:34px 34px 30px;border-radius:36px;background:rgba(240,246,252,.97);color:#1d3a5c;text-shadow:none;box-shadow:0 14px 50px rgba(8,20,40,.45)}
 #story small{display:block;font-size:22px;font-weight:800;letter-spacing:3px;color:#3fa7ff;margin-bottom:8px}
 #story h2{margin:0 0 14px;font-size:44px;line-height:1.1}
 #story p{margin:0 0 12px;font-size:27px;font-weight:600;line-height:1.4}
 #story .coin{display:inline-block;padding:4px 14px;border-radius:16px;background:#fff3cf;color:#8a5a00;font-weight:800}
 #story button{display:block;width:100%;margin-top:18px;padding:20px;border-radius:24px;border:0;font-size:30px;font-weight:800;cursor:pointer;background:#3fa7ff;color:#fff}
+#story .lb{margin:4px 0 6px}
+#story .lbr{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:18px;font-size:26px;font-weight:700}
+#story .lbr:nth-child(odd){background:rgba(63,167,255,.1)}
+#story .lbr.me{background:#fff3cf;outline:2px solid #e8b84a}
+#story .lbr b{width:44px;text-align:center;font-size:28px;color:#3fa7ff}
+#story .lbr:nth-child(-n+3) b{color:#e0a020}
+#story .lbr img,#story .lbr i{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#cfe0f1;flex:none;font-style:normal;font-weight:800;display:flex;align-items:center;justify-content:center;color:#1d3a5c}
+#story .lbr .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#story .lbr .lv{text-align:right;line-height:1.05}#story .lbr .lv small{display:block;font-size:19px;font-weight:600;opacity:.65}
+#story .mine{text-align:center;font-weight:800}
 #setp{position:absolute;inset:0;display:none;pointer-events:auto;background:rgba(15,30,55,.6);backdrop-filter:blur(6px);z-index:70}
 #setp .card{position:absolute;left:36px;right:36px;top:150px;padding:30px;border-radius:34px;background:rgba(235,244,252,.97);color:#1d3a5c;text-shadow:none}
 #setp h2{margin:0 0 14px;font-size:40px}
@@ -115,6 +125,7 @@ export function createHud(root, { touch }) {
   $('skillBtn').addEventListener('click', () => el.dispatchEvent(new CustomEvent('panel')));
   let cardOpen = false;
   function showCard(c) { cardOpen = true; $('stK').textContent = c.kicker || ''; $('stT').textContent = c.title; $('stP').innerHTML = c.html; $('stB').textContent = c.button || 'OK'; $('story').style.display = 'block'; }
+  function updateCard(html) { $('stP').innerHTML = html; }
   $('stB').addEventListener('click', () => { cardOpen = false; $('story').style.display = 'none'; el.dispatchEvent(new CustomEvent('cardclose')); });
   $('pClose').addEventListener('click', () => hidePanel());
   $('pMenu').addEventListener('click', () => el.dispatchEvent(new CustomEvent('mainmenu')));
@@ -203,5 +214,5 @@ export function createHud(root, { touch }) {
     if (!hintHidden) { hintTimer -= dt; if (hintTimer <= 0) hideHint(); }
   }
   function destroy() { el.remove(); style.remove(); }
-  return { el, update, toast, hideHint, setClock, setCoins, setBuff, setActivity, showPanel, hidePanel, showSettings, showCard, get cardOpen() { return cardOpen; }, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
+  return { el, update, toast, hideHint, setClock, setCoins, setBuff, setActivity, showPanel, hidePanel, showSettings, showCard, updateCard, get cardOpen() { return cardOpen; }, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
 }

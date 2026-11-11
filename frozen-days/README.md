@@ -12,6 +12,9 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 - Touch: the left stick gives a direction relative to the camera. On snow you walk that way; on ice you steer toward it (tilt = glide and turn, push fully = stroke, pull hard behind while fast = brake). PUSH adds a stroke, BRAKE stops.
 - Keyboard: WASD / arrows move relative to the camera, Space brake, E spin (Lv 3+), F talk, drag mouse to look, R respawn.
 
+## Leaderboard
+Top 10 players ranked by level, then XP, shown from Main Menu > Leaderboard. One score number carries both (level x 100000 + XP, XP capped at 99999), submitted at game start, on every level up, and after falls and goals (at most every 30 s). The board is declared in game_config.json (higher is better).
+
 ## Story start
 A new game begins on Day 1 at 09:00 at the gate of the player's own house ("MY HOME", residential area). The player has no skates and 160 coins. The goal card switches to STORY: walk to Blade & Edge in the Town Plaza (golden beam), buy the cheapest skates, then take a first glide on the lake (+25 XP, +30 coins). Without skates the lake edge is a soft wall and Respawn returns to the house. Saves from before this update count as finished story.
 

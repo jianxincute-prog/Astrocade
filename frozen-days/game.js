@@ -148,11 +148,31 @@ function run(mode, loader) {
     lastSave = now; progress.clearDirty();
     try { if (hasLib() && lib.saveUserGameState) lib.saveUserGameState(Object.assign({ character: kind, tod: sky.hour(), day: sky.day(), settings }, progress.serialize())).catch(() => {}); } catch (e) { /* save is optional */ }
   }
-  function maybeSubmitScore() {
-    const now = performance.now(), run = Math.round(progress.bestRun());
-    if (run < 20 || run <= lastScore || now - lastScoreAt < 30000) return;
-    lastScore = run; lastScoreAt = now;
-    try { if (hasLib() && lib.addPlayerScoreToLeaderboard) lib.addPlayerScoreToLeaderboard(run).catch(() => {}); } catch (e) { /* leaderboard is optional */ }
+  // Leaderboard: players are ranked by level, then XP. One number carries both: level * 100000 + XP (XP capped at 99999).
+  const LB_STEP = 100000;
+  function maybeSubmitScore(force) {
+    const now = performance.now(), i = progress.info(), score = i.level * LB_STEP + Math.min(LB_STEP - 1, Math.floor(i.xp));
+    if (i.xp < 1 || score <= lastScore || (!force && now - lastScoreAt < 30000)) return;
+    lastScore = score; lastScoreAt = now;
+    try { if (hasLib() && lib.addPlayerScoreToLeaderboard) lib.addPlayerScoreToLeaderboard(score).catch(() => {}); } catch (e) { /* leaderboard is optional */ }
+  }
+  const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function leaderboardHtml(r) {
+    const list = ((r && r.entries) || []).slice(0, 10);
+    if (!list.length) return '<p>No scores yet. Reach a new level to be the first on the board!</p>';
+    const rows = list.map((e, n) => {
+      const lv = Math.floor(e.score / LB_STEP), xp = Math.round(e.score % LB_STEP), name = esc(e.username || 'Skater');
+      const pic = e.profilePicture ? '<img src="' + esc(e.profilePicture) + '" alt="">' : '<i>' + esc(name.charAt(0).toUpperCase()) + '</i>';
+      return '<div class="lbr' + (r.userRank === n + 1 ? ' me' : '') + '"><b>' + (n + 1) + '</b>' + pic + '<span class="nm">' + name + '</span><span class="lv">Lv ' + lv + '<small>' + xp + ' XP</small></span></div>';
+    }).join('');
+    return '<div class="lb">' + rows + '</div>' + (r.userRank && r.userRank > 10 ? '<p class="mine">Your rank: #' + r.userRank + '</p>' : '');
+  }
+  async function showLeaderboard() {
+    hud.showCard({ kicker: 'LEADERBOARD', title: 'Top 10 skaters', button: 'Close', html: '<p>Loading…</p>' });
+    try {
+      if (!hasLib() || !lib.getTopNEntriesFromLeaderboard) throw new Error('no leaderboard');
+      hud.updateCard(leaderboardHtml(await lib.getTopNEntriesFromLeaderboard(10)));
+    } catch (e) { hud.updateCard('<p>The leaderboard is not available right now.</p>'); }
   }
   function loadState() {
     return new Promise((res) => {
@@ -166,7 +186,7 @@ function run(mode, loader) {
   }
   function startPlay() {
     phase = 'play'; sel.hide(); rig.snap(skater); hasPrev = false;
-    saveState(true);
+    saveState(true); maybeSubmitScore(true);
     if (!progress.introSeen()) {
       progress.markIntro();
       hud.showCard({ kicker: 'DAY 1', title: 'A new home by the frozen lake', button: "Let's go!", html: "<p>You've just moved into this little house at the quiet end of town. The big frozen lake is calling, but your old skates didn't survive the move.</p><p>You saved <span class='coin'>● " + progress.coins() + "</span> for a fresh pair. Walk north along the main street to <b>Blade &amp; Edge</b> in the Town Plaza and buy the cheapest skates.</p><p>Follow the golden beam!</p>" });
@@ -212,6 +232,7 @@ function run(mode, loader) {
         input.setSpinVisible(false); menu.hide(); phase = 'select'; sel.show(); sel.mark(kind);
       },
       onSettings: () => { audio.play('tap'); hud.showSettings(settings); },
+      onBoard: () => { audio.play('tap'); showLeaderboard(); },
       onHow: () => {
         audio.play('tap');
         hud.showCard({ kicker: 'HOW TO PLAY', title: 'Your winter life', button: 'Got it', html: (touch
@@ -261,7 +282,7 @@ function run(mode, loader) {
         spray.burst(skater.x, skater.y + 0.2, skater.z, 28, 3 + Math.min(skater.speed, 12) * 0.3);
         world.scuff(skater.x, skater.z, 0.6);
         buzz('thud');
-        saveState(false); maybeSubmitScore();
+        saveState(false); maybeSubmitScore(false);
       } else if (ev.type === 'up') {
         hud.toast('Back on your feet!', 1.2); audio.play('up');
         buzz('tick');
@@ -446,13 +467,13 @@ function run(mode, loader) {
       if (u.type === 'met') { hud.toast('You met ' + u.name + '!  +10 XP', 2.4); continue; }
       if (u.type === 'zone') { audio.play('zone'); hud.toast('New place discovered!  +' + u.xp + ' XP', 2.4); continue; }
       if (u.type === 'level') {
-        audio.play('level'); hud.toast('LEVEL UP!  Lv ' + u.level + ' · ' + u.name + (u.unlock ? '\n' + u.unlock : ''), 3);
+        audio.play('level'); maybeSubmitScore(true); hud.toast('LEVEL UP!  Lv ' + u.level + ' · ' + u.name + (u.unlock ? '\n' + u.unlock : ''), 3);
         buzz('success');
         saveState(true);
       } else if (u.type === 'goal') {
         audio.play('goal'); hud.toast('Goal complete!  +' + u.xp + ' XP  +' + u.coins + ' coins', 2.2);
         buzz('success');
-        saveState(true); maybeSubmitScore();
+        saveState(true); maybeSubmitScore(true);
       }
     }
     if (progress.spinUnlocked() !== spinWasUnlocked) { spinWasUnlocked = progress.spinUnlocked(); input.setSpinVisible(spinWasUnlocked); }
