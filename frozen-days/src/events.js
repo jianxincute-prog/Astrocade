@@ -74,6 +74,7 @@ export function createEvents(scene, world, hooks = {}) {
   const FPAL = [[1, 0.5, 0.5], [1, 0.85, 0.4], [0.5, 0.8, 1], [0.7, 1, 0.6], [0.9, 0.6, 1], [1, 1, 1]];
   function emit(x, y, z, vx, vy, vz, col, life) { const i = fi; fi = (fi + 1) % NF; fpos.set([x, y, z], i * 3); fvel.set([vx, vy, vz], i * 3); fbase.set(col, i * 3); fcol.set(col, i * 3); flife[i] = life; }
   function burst(x, y, z) {
+    if (hooks.onBurst) hooks.onBurst();
     const col = FPAL[Math.floor(rng() * FPAL.length)], n = 70, ring = rng() > 0.6;
     for (let k = 0; k < n; k++) {
       const a = rng() * Math.PI * 2, b = ring ? 0 : Math.acos(rng() * 2 - 1), sp = 10 + rng() * 7;

@@ -41,6 +41,15 @@ const CSS = `
 #panel .btns{display:flex;gap:16px;margin-top:20px}
 #panel button{flex:1;padding:18px;border-radius:22px;border:0;font-size:28px;font-weight:800;cursor:pointer;background:#3fa7ff;color:#fff}
 #panel button.alt{background:#d6e3f1;color:#1d3a5c}
+#setp{position:absolute;inset:0;display:none;pointer-events:auto;background:rgba(15,30,55,.6);backdrop-filter:blur(6px);z-index:70}
+#setp .card{position:absolute;left:36px;right:36px;top:150px;padding:30px;border-radius:34px;background:rgba(235,244,252,.97);color:#1d3a5c;text-shadow:none}
+#setp h2{margin:0 0 14px;font-size:40px}
+#setp .srow{margin:14px 0;font-size:26px;font-weight:700}
+#setp .srow span{display:flex;justify-content:space-between}
+#setp input[type=range]{width:100%;height:44px;accent-color:#3fa7ff;margin:4px 0 0}
+#setp .tg{display:block;width:100%;margin-top:6px;padding:14px;border-radius:20px;border:0;background:#d6e3f1;color:#1d3a5c;font-size:26px;font-weight:800;cursor:pointer}
+#setp .tg.on{background:#3fa7ff;color:#fff}
+#setp .done{display:block;width:100%;margin-top:22px;padding:18px;border-radius:22px;border:0;font-size:28px;font-weight:800;cursor:pointer;background:#3fa7ff;color:#fff}
 #touch{position:absolute;inset:0;pointer-events:none;font-family:system-ui,sans-serif}
 .shopping #touch,.shopping #hud #goal{visibility:hidden}
 #joyZone{position:absolute;left:0;bottom:0;width:380px;height:560px;pointer-events:auto;touch-action:none}
@@ -83,7 +92,8 @@ export function createHud(root, { touch }) {
     '<div id="dlg"><div class="who"><span id="dName"></span><span class="role" id="dRole"></span></div><div class="hearts" id="dHearts"></div><div class="txt" id="dTxt"></div><div class="ch" id="dCh"></div><div class="nxt">Tap to continue ▶</div></div>' +
     '<div id="charBtn" class="hbtn">☺ Character</div><div id="skillBtn" class="hbtn">★ Skills</div>' +
     '<div id="panel"><div class="card"><h2 id="pTitle"></h2><div class="sub" id="pSub"></div><div id="pRows"></div><div class="bests" id="pBests"></div>' +
-    '<div class="btns"><button class="alt" id="pWard">Wardrobe</button><button class="alt" id="pRespawn">Respawn</button><button id="pClose">Continue</button></div></div></div>';
+    '<div class="btns"><button class="alt" id="pWard">Wardrobe</button><button class="alt" id="pRespawn">Respawn</button><button class="alt" id="pSet">Settings</button><button id="pClose">Continue</button></div></div></div>' +
+    '<div id="setp"><div class="card"><h2>Settings</h2><div id="setRows"></div><button class="done" id="setDone">Done</button></div></div>';
   root.appendChild(el);
   const $ = (id) => el.querySelector('#' + id);
   const speedEl = $('speed'), lvlTxt = $('lvlTxt'), xpFill = $('xpFill'), xpPop = $('xpPop'), balEl = $('bal'), fillEl = $('balFill'),
@@ -97,6 +107,19 @@ export function createHud(root, { touch }) {
   $('pClose').addEventListener('click', () => hidePanel());
   $('pWard').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('wardrobe')); });
   $('pRespawn').addEventListener('click', () => { hidePanel(); el.dispatchEvent(new CustomEvent('respawn')); });
+
+  const SET_DEF = [['music', 'Music', 'range'], ['sfx', 'Sound effects', 'range'], ['amb', 'Ambience (wind)', 'range'], ['sens', 'Camera sensitivity', 'range'], ['haptics', 'Vibration', 'toggle']];
+  let setVals = null;
+  function renderSettings() {
+    $('setRows').innerHTML = SET_DEF.map(([k, l, t]) => t === 'range'
+      ? '<div class="srow"><span>' + l + '<b id="sv_' + k + '">' + Math.round(setVals[k] * 100) + '%</b></span><input type="range" data-k="' + k + '" min="' + (k === 'sens' ? 20 : 0) + '" max="' + (k === 'sens' ? 200 : 100) + '" value="' + Math.round(setVals[k] * 100) + '"></div>'
+      : '<div class="srow">' + l + '<button class="tg' + (setVals[k] ? ' on' : '') + '" data-k="' + k + '">' + (setVals[k] ? 'On' : 'Off') + '</button></div>').join('');
+  }
+  $('setRows').addEventListener('input', (e) => { const k = e.target.dataset.k; if (!k) return; setVals[k] = +e.target.value / 100; $('sv_' + k).textContent = e.target.value + '%'; el.dispatchEvent(new CustomEvent('setting', { detail: { key: k, value: setVals[k] } })); });
+  $('setRows').addEventListener('click', (e) => { const b = e.target.closest('.tg'); if (!b) return; const k = b.dataset.k; setVals[k] = !setVals[k]; b.classList.toggle('on', setVals[k]); b.textContent = setVals[k] ? 'On' : 'Off'; el.dispatchEvent(new CustomEvent('setting', { detail: { key: k, value: setVals[k] } })); });
+  $('pSet').addEventListener('click', () => el.dispatchEvent(new CustomEvent('opensettings')));
+  $('setDone').addEventListener('click', () => { $('setp').style.display = 'none'; el.dispatchEvent(new CustomEvent('settingsclose')); });
+  function showSettings(vals) { setVals = { ...vals }; renderSettings(); $('setp').style.display = 'block'; }
 
   let lastCoins = null;
   function setCoins(n) { const e = $('coins'); if (!e) return; if (n !== lastCoins) { if (lastCoins !== null && n > lastCoins) { e.classList.add('pop'); setTimeout(() => e.classList.remove('pop'), 220); } lastCoins = n; e.textContent = '● ' + n; } }
@@ -166,5 +189,5 @@ export function createHud(root, { touch }) {
     if (!hintHidden) { hintTimer -= dt; if (hintTimer <= 0) hideHint(); }
   }
   function destroy() { el.remove(); style.remove(); }
-  return { el, update, toast, hideHint, setClock, setCoins, setBuff, setActivity, showPanel, hidePanel, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
+  return { el, update, toast, hideHint, setClock, setCoins, setBuff, setActivity, showPanel, hidePanel, showSettings, setTalk, banner, showDialog, get panelOpen() { return panelOpen; }, get dialogOpen() { return !!dlgState; }, destroy };
 }

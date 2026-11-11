@@ -20,9 +20,9 @@ export function createInput(root, canvas, { touch }) {
   window.addEventListener('blur', onBlur);
 
   // Camera drag (mouse or finger on the 3D view).
-  let dragId = null, lastX = 0;
+  let dragId = null, lastX = 0, lookGain = 1;
   const onDown = (e) => { if (dragId === null) { dragId = e.pointerId; lastX = e.clientX; } };
-  const onMove = (e) => { if (e.pointerId === dragId) { lookDx += (e.clientX - lastX) * 0.0075; lastX = e.clientX; } };
+  const onMove = (e) => { if (e.pointerId === dragId) { lookDx += (e.clientX - lastX) * 0.0075 * lookGain; lastX = e.clientX; } };
   const onUp = (e) => { if (e.pointerId === dragId) dragId = null; };
   canvas.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove);
@@ -72,6 +72,7 @@ export function createInput(root, canvas, { touch }) {
     return { mx: x, my: y, push: btnPush ? 1 : 0, brake: Math.max(keys.has(' ') ? 1 : 0, btnBrake ? 1 : 0) };
   }
   function joyDead(jx, jy) { const m = Math.hypot(jx, jy); if (m < 0.12) return [0, 0]; const k = (m - 0.12) / 0.88 / m; return [jx * k, jy * k]; }
+  function setLookGain(g) { lookGain = g; }
   function consumeLook() { const d = lookDx; lookDx = 0; return d; }
   function consumeRespawn() { const r = respawnReq; respawnReq = false; return r; }
   function requestRespawn() { respawnReq = true; }
@@ -86,5 +87,5 @@ export function createInput(root, canvas, { touch }) {
     window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
     if (ui) ui.remove();
   }
-  return { read, consumeLook, consumeRespawn, requestRespawn, consumeSpin, setSpinVisible, consumeTalk, setTalkVisible, setTalkLabel, destroy };
+  return { read, setLookGain, consumeLook, consumeRespawn, requestRespawn, consumeSpin, setSpinVisible, consumeTalk, setTalkVisible, setTalkLabel, destroy };
 }

@@ -19,6 +19,7 @@ import { createInput } from './src/input.js';
 import { createHud } from './src/hud.js';
 import { createSpray } from './src/fx.js';
 import { createSky } from './src/sky.js';
+import { createAudio } from './src/audio.js';
 import { createShop } from './src/shop.js';
 import { createEvents } from './src/events.js';
 import { ROMANCEABLE, NEED_FRIEND, NEED_CONFESS, NEED_PROMISE, SPOTS, DATE_SPOT, TASTE, LINES, STAGE_LABEL, dateWindow } from './src/romance.js';
@@ -66,12 +67,13 @@ function run(mode) {
 
   const npcs = createNpcs(scene, world.heightAt, world.onIce);
   const events = createEvents(scene, world, {
-    onChange: (k, on) => { if (!hud || phase !== 'play') return; const i = events.info[k]; hud.toast(on ? i.name + ' has begun!\n' + i.hint : i.name + ' has ended', on ? 3.8 : 2); },
+    onBurst: () => audio.play('firework'),
+    onChange: (k, on) => { if (!hud || phase !== 'play') return; const i = events.info[k]; if (on) audio.play('event'); hud.toast(on ? i.name + ' has begun!\n' + i.hint : i.name + ' has ended', on ? 3.8 : 2); },
     onLantern: (n, total) => {
       const fest = events.on('festival'), gain = fest ? 6 : 3;
-      progress.addCoins(gain); hud && hud.toast(n >= total ? 'All lanterns lit!  +' + (fest ? 50 : 25) + ' coins' : 'Lantern ' + n + '/' + total + '  +' + gain + ' coins', n >= total ? 3 : 1.2);
+      progress.addCoins(gain); audio.play('lantern'); hud && hud.toast(n >= total ? 'All lanterns lit!  +' + (fest ? 50 : 25) + ' coins' : 'Lantern ' + n + '/' + total + '  +' + gain + ' coins', n >= total ? 3 : 1.2);
       if (n >= total) { progress.addCoins(fest ? 50 : 25); handleUi(progress.addXp(20)); saveState(true); }
-      if (hasLib()) lib.haptics.play(n >= total ? 'success' : 'tick');
+      buzz(n >= total ? 'success' : 'tick');
     },
   });
   // date marker: a soft pink beam above the destination
@@ -84,6 +86,14 @@ function run(mode) {
   let act = null, date = null, dateCool = {}, sitBench = null, coSit = { id: null, t: 0 }, sitHinted = false;
   const lastTalk = {};
   let progress = createProgress(null);
+  // ---- Settings (saved with the game) and audio
+  const settings = { music: 0.5, sfx: 0.8, amb: 0.6, sens: 1, haptics: true };
+  const audio = createAudio();
+  const buzz = (p) => { if (settings.haptics && hasLib() && lib.haptics) lib.haptics.play(p); };
+  function applySettings() { audio.setVolumes({ music: settings.music, sfx: settings.sfx, amb: settings.amb }); if (input) input.setLookGain(settings.sens); }
+  const unlockAudio = () => { audio.unlock(); };
+  window.addEventListener('pointerdown', unlockAudio); window.addEventListener('keydown', unlockAudio);
+  let stepT = 0;
 
   function resize() {
     const w = root.clientWidth || window.innerWidth, h = root.clientHeight || window.innerHeight;
@@ -109,8 +119,6 @@ function run(mode) {
     });
   }
 
-  // Developer hook (only when gameConfig.dev is set): jump to a spot to inspect the town.
-  if (window.gameConfig && window.gameConfig.dev) window.__frozen = { events, get date() { return date; }, startDateWith(id) { const n = npcs.list.find((q) => q.id === id); if (n) startDate(n); }, cam: null, scene, world, sky, rig, get progress() { return progress; }, get shop() { return shop; }, openShopById(id) { openShop(id ? SHOPS.find((s) => s.id === id) : null); }, get buff() { return buff; }, setWorn(w) { outfit = variantFor(w); rebuildPlayer(); }, get act() { return act; }, standUp, startTalkById(id) { const n = npcs.list.find((q) => q.id === id); if (n) startTalk(n); }, teleport(x, z, h) { skater.x = x; skater.z = z; skater.h = h; skater.vx = skater.vz = 0; rig.snap(skater); }, skater, npcs, renderer, get player() { return player; } };
 
   let raf = 0, last = performance.now(), clock = 0, clockT = 1;
   let input = null, hud = null, sel = null, shop = null;
@@ -126,7 +134,7 @@ function run(mode) {
     const now = performance.now();
     if (!force && now - lastSave < 10000) return;
     lastSave = now; progress.clearDirty();
-    try { if (hasLib() && lib.saveUserGameState) lib.saveUserGameState(Object.assign({ character: kind, tod: sky.hour(), day: sky.day() }, progress.serialize())).catch(() => {}); } catch (e) { /* save is optional */ }
+    try { if (hasLib() && lib.saveUserGameState) lib.saveUserGameState(Object.assign({ character: kind, tod: sky.hour(), day: sky.day(), settings }, progress.serialize())).catch(() => {}); } catch (e) { /* save is optional */ }
   }
   function maybeSubmitScore() {
     const now = performance.now(), run = Math.round(progress.bestRun());
@@ -157,6 +165,9 @@ function run(mode) {
     input = createInput(root, renderer.domElement, { touch });
     hud = createHud(root, { touch });
     shop = createShop(root);
+    hud.el.addEventListener('opensettings', () => { hud.hidePanel(); hud.showSettings(settings); });
+    hud.el.addEventListener('setting', (e) => { settings[e.detail.key] = e.detail.value; applySettings(); audio.play('tap'); });
+    hud.el.addEventListener('settingsclose', () => { saveState(true); });
     hud.el.addEventListener('wardrobe', () => openShop(null));
     hud.el.addEventListener('respawn', () => input.requestRespawn());
     hud.el.addEventListener('character', () => openSelect());
@@ -164,7 +175,7 @@ function run(mode) {
     hud.el.addEventListener('dialogchoice', (e) => { if (talkNpc) friendActivity(talkNpc, e.detail); });
     hud.el.addEventListener('dialogend', () => {
       if (talkNpc) {
-        if (clock - (lastTalk[talkNpc.id] === undefined ? -999 : lastTalk[talkNpc.id]) > 40) { progress.addFriend(talkNpc.id); lastTalk[talkNpc.id] = clock; hud.toast('♥ Your friendship with ' + talkNpc.name + ' grew', 2); }
+        if (clock - (lastTalk[talkNpc.id] === undefined ? -999 : lastTalk[talkNpc.id]) > 40) { progress.addFriend(talkNpc.id); lastTalk[talkNpc.id] = clock; hud.toast('♥ Your friendship with ' + talkNpc.name + ' grew', 2); audio.play('heart'); }
         talkNpc = null; saveState(true);
       }
     });
@@ -181,6 +192,8 @@ function run(mode) {
     root._frozenOnHide = onHide;
     loadState().then((saved) => {
       progress = createProgress(saved);
+      if (saved && saved.settings) for (const k of Object.keys(settings)) if (saved.settings[k] !== undefined && typeof saved.settings[k] === typeof settings[k]) settings[k] = saved.settings[k];
+      applySettings();
       outfit = progress.outfit(); rebuildPlayer();
       if (saved && typeof saved.tod === 'number') sky.setHour(saved.tod);
       if (saved && typeof saved.day === 'number') sky.setDay(saved.day);
@@ -196,35 +209,36 @@ function run(mode) {
   function handleEvents(evs) {
     for (const ev of evs) {
       if (ev.type === 'wobble') {
-        hud.toast(TIPS[ev.reason] || 'Wobbly!', 1.6);
-        if (hasLib()) lib.haptics.play('warning');
+        hud.toast(TIPS[ev.reason] || 'Wobbly!', 1.6); audio.play('wobble');
+        buzz('warning');
       } else if (ev.type === 'fall') {
-        hud.toast(FALL_MSG[ev.reason] || 'You fell!', 2.4);
+        hud.toast(FALL_MSG[ev.reason] || 'You fell!', 2.4); audio.play('fall');
         spray.burst(skater.x, skater.y + 0.2, skater.z, 28, 3 + Math.min(skater.speed, 12) * 0.3);
         world.scuff(skater.x, skater.z, 0.6);
-        if (hasLib()) lib.haptics.play('thud');
+        buzz('thud');
         saveState(false); maybeSubmitScore();
       } else if (ev.type === 'up') {
-        hud.toast('Back on your feet!', 1.2);
-        if (hasLib()) lib.haptics.play('tick');
+        hud.toast('Back on your feet!', 1.2); audio.play('up');
+        buzz('tick');
       } else if (ev.type === 'stroke') {
-        if (skater.speed > 1.5 && hasLib()) lib.haptics.play({ intensity: 0.2, sharpness: 0.7 });
+        if (skater.speed > 1.5) { buzz({ intensity: 0.2, sharpness: 0.7 }); audio.play('stroke'); }
         const fx = Math.sin(skater.h), fz = Math.cos(skater.h), side = ev.leg === 0 ? 1 : -1;
         for (let k = 0; k < 3; k++) {
           spray.emit(skater.x - fx * 0.3 + fz * side * 0.25, 0.12, skater.z - fz * 0.3 - fx * side * 0.25,
             -fx * 1.4 + fz * side * 1.1 + (Math.random() - 0.5), 0.8 + Math.random() * 1.2, -fz * 1.4 - fx * side * 1.1 + (Math.random() - 0.5));
         }
       } else if (ev.type === 'spin') {
-        hud.toast('Nice spin!', 1.2);
-        if (hasLib()) lib.haptics.play('success');
+        hud.toast('Nice spin!', 1.2); audio.play('spin');
+        buzz('success');
       } else if (ev.type === 'spinfail') {
-        hud.toast(ev.reason === 'locked' ? 'Spin unlocks at Level 3' : ev.reason === 'land' ? 'Spin on the ice!' : 'Pick up some speed to spin', 1.4);
+        audio.play('err'); hud.toast(ev.reason === 'locked' ? 'Spin unlocks at Level 3' : ev.reason === 'land' ? 'Spin on the ice!' : 'Pick up some speed to spin', 1.4);
       }
     }
   }
   // ---- Shops and wardrobe
   const WEARABLE = (slot) => WEAR_SLOTS.includes(slot);
-  function openShop(def) { // def = a SHOPS entry, or null for the wardrobe (owned items, anywhere)
+  function openShop(def) {
+    audio.play('door'); // def = a SHOPS entry, or null for the wardrobe (owned items, anywhere)
     const tabs = (def ? def.tabs : WEAR_SLOTS).map((slot) => ({ label: SLOT_LABEL[slot], slot, consumable: !WEARABLE(slot), items: (WEARABLE(slot) ? [{ id: null, name: 'Standard', slot }] : []).concat(itemsFor(slot)) }));
     if (def) { // frame the character in front of the door, facing the camera
       const dx = 0 - def.door[0], dz = 104 - def.door[1], l = Math.hypot(dx, dz) || 1;
@@ -236,14 +250,14 @@ function run(mode) {
       coins: () => progress.coins(), price: (it) => progress.priceOf(it), count: (id) => progress.giftCount(id), owns: (id) => progress.owns(id), worn: (slot) => progress.worn()[slot] || null,
       preview: (slot, id) => { const w = progress.worn(); if (slot) { if (id === null) delete w[slot]; else w[slot] = id; } setOutfit(w); },
       equip: (slot, id) => { progress.wear(slot, id); setOutfit(progress.worn()); saveState(true); },
-      buy: (it) => { if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' }; if (hasLib()) lib.haptics.play('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + '!' }; },
+      buy: (it) => { if (!progress.buy(it.id)) { audio.play('err'); return { ok: false, msg: 'Not enough coins' }; } audio.play('coin'); buzz('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + '!' }; },
       consume: (it) => {
-        if (!progress.buy(it.id)) return { ok: false, msg: 'Not enough coins' };
-        if (it.gift) { if (hasLib()) lib.haptics.play('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + ' (×' + progress.giftCount(it.id) + ')' }; }
+        if (!progress.buy(it.id)) { audio.play('err'); return { ok: false, msg: 'Not enough coins' }; } audio.play('coin');
+        if (it.gift) { buzz('success'); saveState(true); return { ok: true, msg: 'Bought ' + it.name + ' (×' + progress.giftCount(it.id) + ')' }; }
         if (it.food.xp) { handleUi(progress.addXp(it.food.xp)); }
         if (it.food.comfort) { buff.mul = it.food.comfort; buff.t = it.food.secs; buff.label = it.name.split(' ').pop(); }
-        startEat(skater, it.slot === 'drinks' ? 'cup' : 'bun');
-        if (hasLib()) lib.haptics.play('success');
+        startEat(skater, it.slot === 'drinks' ? 'cup' : 'bun'); audio.play('eat');
+        buzz('success');
         saveState(true); return { ok: true, msg: it.food.xp ? 'Yum! +' + it.food.xp + ' XP' : 'Ahh, so warm!' };
       },
       onClose: () => { shopView = null; root.classList.remove('shopping'); saveState(true); },
@@ -280,9 +294,10 @@ function run(mode) {
     const pts = Math.max(0, progress.friendPoints(a.npc.id));
     progress.addFriend(a.npc.id, 2); progress.addCoins(20 + Math.min(10, pts)); handleUi(progress.addXp(15));
     hud.toast((a.skate ? 'Great skate with ' : 'Lovely walk with ') + a.name + '!\n♥♥  +15 XP  +' + (20 + Math.min(10, pts)) + ' coins', 3);
-    if (hasLib()) lib.haptics.play('success'); saveState(true);
+    buzz('success'); saveState(true);
   }
   function sitOn(b) {
+    audio.play('sit');
     sitBench = b; skater.sitting = true; skater.h = b.yaw;
     // two seats per bench: take the free one if a neighbour is already sitting
     const rx = Math.cos(b.yaw), rz = -Math.sin(b.yaw), occ = npcs.list.find((q) => q.active && q.s.sitAmt > 0.5 && Math.hypot(q.s.x - b.x, q.s.z - b.z) < 1.4);
@@ -328,7 +343,7 @@ function run(mode) {
     if (ROMANCEABLE.includes(n.id) && progress.friendPoints(n.id) >= NEED_FRIEND) { rom = hate ? 0 : liked ? 3 : 1; if (rom) progress.addRomance(n.id, rom); }
     const pool = L ? (hate ? L.hate : liked ? L.liked : L.ok) : ['Thank you!'];
     hud.toast(n.name + ': "' + pool[n.talks % pool.length] + '"\n' + (hate ? 'Not their taste...' : '♥ +' + (liked ? 2 : 1) + (rom ? '  ❤ +' + rom : '')), 4.2);
-    if (hasLib()) lib.haptics.play(hate ? 'warning' : 'success');
+    buzz(hate ? 'warning' : 'success');
     return { ok: true, msg: hate ? 'Hmm, not a fan.' : liked ? 'They loved it!' : 'They liked it.' };
   }
   function startDate(n) {
@@ -364,7 +379,7 @@ function run(mode) {
       hud.toast('❤ ' + n.name + ' is your Partner!\n+100 coins  +50 XP', 4.2);
       hud.showDialog({ name: n.name, role: n.role, label: 'Partner', hearts: 3, rom: '❤ Partner', lines: L.promise, choices: [] });
     }
-    if (hasLib()) lib.haptics.play('success'); saveState(true);
+    buzz('success'); saveState(true);
   }
   function startTalk(n) {
     const pts = progress.friendPoints(n.id), met = pts >= 0;
@@ -377,19 +392,19 @@ function run(mode) {
     const choices = npcs.choices(n, { points, coins: progress.coins(), cool: (id) => Math.max(0, (actCool[id] || 0) - clock) }).concat(romanceChoices(n));
     hud.showDialog({ name: n.name, role: n.role, label: friendLabel(points), hearts: friendHearts(points), rom: stage >= 1 ? '❤ ' + STAGE_LABEL[stage] : '', lines, choices });
     talkNpc = n;
-    if (hasLib()) lib.haptics.play('tap');
+    buzz('tap');
   }
   function handleUi(list) {
     for (const u of list) {
       if (u.type === 'met') { hud.toast('You met ' + u.name + '!  +10 XP', 2.4); continue; }
-      if (u.type === 'zone') { hud.toast('New place discovered!  +' + u.xp + ' XP', 2.4); continue; }
+      if (u.type === 'zone') { audio.play('zone'); hud.toast('New place discovered!  +' + u.xp + ' XP', 2.4); continue; }
       if (u.type === 'level') {
-        hud.toast('LEVEL UP!  Lv ' + u.level + ' · ' + u.name + (u.unlock ? '\n' + u.unlock : ''), 3);
-        if (hasLib()) lib.haptics.play('success');
+        audio.play('level'); hud.toast('LEVEL UP!  Lv ' + u.level + ' · ' + u.name + (u.unlock ? '\n' + u.unlock : ''), 3);
+        buzz('success');
         saveState(true);
       } else if (u.type === 'goal') {
-        hud.toast('Goal complete!  +' + u.xp + ' XP  +' + u.coins + ' coins', 2.2);
-        if (hasLib()) lib.haptics.play('success');
+        audio.play('goal'); hud.toast('Goal complete!  +' + u.xp + ' XP  +' + u.coins + ' coins', 2.2);
+        buzz('success');
         saveState(true); maybeSubmitScore();
       }
     }
@@ -465,6 +480,8 @@ function run(mode) {
         if (Math.abs(camera.fov - 38) > 0.05) { camera.fov = 38; camera.updateProjectionMatrix(); }
         shop.update(dt);
       }
+      audio.setMotion(skater.mode === 'skate' && !skater.sitting && skater.state === 'ok', skater.speed);
+      if (skater.mode !== 'skate' && !skater.sitting && skater.speed > 1) { stepT -= dt * skater.speed / 5.6; if (stepT <= 0) { stepT = 0.36; audio.play('step'); } }
       hud.update(skater, dt, progress);
       hud.setCoins(progress.coins());
       npcs.pushCrumb(skater.x, skater.z);
@@ -535,6 +552,7 @@ function run(mode) {
     spray.update(dt);
     world.update(dt, camera.position);
     sky.update(dt, camera.position, c);
+    { const ss = sky.state(); audio.setWorld(ss.dark > 0.5 ? 1 : 0, /snow|storm/i.test(ss.weather) ? (/heavy|storm/i.test(ss.weather) ? 1 : 0.6) : 0.15); audio.update(); }
     if (playing && phase === 'play') { events.update(dt, sky.hour(), sky.day(), { x: skater.x, z: skater.z, onIce: skater.mode === 'skate' }); progress.setExtraDiscount(events.on('market') ? 0.15 : 0); }
     clockT += dt;
     if (hud && clockT > 0.5) {
@@ -542,7 +560,6 @@ function run(mode) {
       if (ev.length && Math.floor(clock / 4) % 2 === 1) lab = lab.split('\n')[0] + '\n' + events.info[ev[Math.floor(clock / 8) % ev.length]].name;
       hud.setClock(lab);
     }
-    if (window.__frozen && window.__frozen.cam) { const o = window.__frozen.cam; camera.position.set(o.x, o.y, o.z); camera.lookAt(o.tx, o.ty, o.tz); if ((o.fov && camera.fov !== o.fov) || camera.far !== 1500) { if (o.fov) camera.fov = o.fov; camera.far = 1500; camera.updateProjectionMatrix(); } }
     renderer.render(scene, camera);
   }
   raf = requestAnimationFrame(frame);
@@ -552,6 +569,7 @@ function run(mode) {
     window.removeEventListener('resize', resize);
     if (root._frozenOnHide) { document.removeEventListener('visibilitychange', root._frozenOnHide); root._frozenOnHide = null; }
     if (playing) saveState(true);
+    window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); audio.dispose();
     if (input) input.destroy();
     if (hud) hud.destroy();
     if (sel) sel.destroy();

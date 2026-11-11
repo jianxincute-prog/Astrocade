@@ -12,6 +12,10 @@ anime Male/Female skaters, XP + levels + five skills, goals, Spin trick (Lv 3), 
 - Touch: the left stick gives a direction relative to the camera. On snow you walk that way; on ice you steer toward it (tilt = glide and turn, push fully = stroke, pull hard behind while fast = brake). PUSH adds a stroke, BRAKE stops.
 - Keyboard: WASD / arrows move relative to the camera, Space brake, E spin (Lv 3+), F talk, drag mouse to look, R respawn.
 
+## Settings and audio
+Skills panel -> Settings: music, sound effects, ambience (wind) and camera sensitivity sliders, plus a vibration toggle. Values are saved with the game.
+All audio is generated live with Web Audio (no asset files): UI and event sounds, blade scrape that follows speed, footsteps on snow, wind that follows the weather, and a soft generative music bed that turns minor at night. Audio starts on the first tap or key press.
+
 ## Economy
 Coins come from goals, level-ups, distance skated, new places and new friends. Shops open at set hours (Blade & Edge 08-19, Warm Threads 09-20, Cocoa Corner 07-22, Sweet Bakery 06-17): walk to the door and press ENTER. Clothes and skates are bought once and worn from the shop or from Skills > Wardrobe; drinks give temporary balance comfort and bakes give XP.
 
@@ -53,4 +57,4 @@ Lantern Skate (daily 18:00-24:00: skate through glowing lanterns on the ice), Wi
 - `src/camera.js`, `src/input.js`, `src/hud.js`, `src/fx.js` — chase camera, keyboard/touch input, DOM HUD, spray particles.
 
 ## Roadmap (see GDD)
-Next: settings and audio, then more seasons and a main menu.
+Next: more seasons and a main menu.
