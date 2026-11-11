@@ -1,7 +1,8 @@
 // Game loop and rules: Baldy explores the valley, lost baby penguins follow him, and he leads them home.
 import { WORLD, onIce, layoutWorld, clampHome, finalScore, starsFor, levelPlan } from './terrain.js';
 import { buildScene, buildBeacon, buildFish, buildShadow, buildArrow, buildSparkles } from './world.js';
-import { buildMan, animateMan, buildPenguin, animatePenguin, buildWhirly, animateWhirly } from './character.js';
+import { SLEDS } from './sleds.js';
+import { buildMan, setSled, animateMan, buildPenguin, animatePenguin, buildWhirly, animateWhirly } from './character.js';
 import { createHud } from './hud.js';
 import { createInput } from './input.js';
 import { unlockAudio, stopAudio, setMuted, isMuted, sfx } from './audio.js';
@@ -30,7 +31,8 @@ function readConfig() {
 }
 
 let current = null, restartTimer = 0, savedBest = 0, bestLoaded = false;
-const session = { level: 1, score: 0 };              // carries on from level to level
+const session = { level: 1, score: 0 };
+const store = { fish: 0, owned: ['classic'], sled: 'classic' };   // fish wallet and bought sled skins              // carries on from level to level
 
 export function startGame(mode, autoPlay = false) {
   if (current) current.dispose();
@@ -78,7 +80,7 @@ function createGame(mode, autoPlay) {
   resize(); window.addEventListener('resize', resize);
 
   // ---------- actors ----------
-  const man = buildMan(cfg.jacketColor); scene.add(man.root);
+  const man = buildMan(cfg.jacketColor, store.sled); scene.add(man.root);
   const manShadow = buildShadow(0.6); scene.add(manShadow);
   const player = { x: home.x, z: home.z + 18, y: 0, vx: 0, vz: 0, vy: 0, yaw: 0, grounded: true, sled: false, energy: 1, spin: 0, safe: 0 };
   player.y = H(player.x, player.z);
@@ -129,7 +131,25 @@ function createGame(mode, autoPlay) {
   const hud = createHud({
     tap() { unlockAudio(); sfx.tap(); },
     play() { begin(); },
-    pause() { if (phase === 'play') { phase = 'paused'; input.reset(); hud.show('paused'); } },
+    pause() { if (phase === 'play') { phase = 'paused'; input.reset(); hud.show('paused'); saveProgress(); } },
+    shop() { phase = 'shop'; shopIndex = Math.max(0, SLEDS.findIndex(s => s.id === store.sled)); showShop(); hud.show('shop'); },
+    shopNav(d) { shopIndex = (shopIndex + d + SLEDS.length) % SLEDS.length; showShop(); },
+    shopAct() {
+      const item = SLEDS[shopIndex];
+      if (!store.owned.includes(item.id)) {
+        if (store.fish < item.price) { hud.shopShake(); buzz('error'); return; }
+        store.fish -= item.price; store.owned.push(item.id);
+        sfx.win(); buzz('success'); sparkles.burst('star', player.x, player.y + 1.4, player.z, 14, 4);
+      }
+      store.sled = item.id; saveProgress(); showShop();
+    },
+    shopBack() { setSled(man, store.sled); phase = 'menu'; hud.show('menu'); hud.setWallet(store.fish); },
+    board() {
+      hud.showBoard(null);
+      try {
+        Promise.resolve(lib.getTopNEntriesFromLeaderboard(10)).then(r => { if (!disposed) hud.showBoard(r?.entries || [], r?.userRank); }).catch(() => { if (!disposed) hud.showBoard([]); });
+      } catch (e) { hud.showBoard([]); }
+    },
     resume() { if (phase === 'paused') { phase = 'play'; hud.show('play'); last = performance.now(); } },
     mute() { setMuted(!isMuted()); hud.setMute(isMuted()); },
     next() { session.level++; startGame(mode, true); },
@@ -137,10 +157,16 @@ function createGame(mode, autoPlay) {
   });
   const input = createInput(hud.root, hud.buttons);
   hud.setCounts(0, penguins.length, 0); hud.setFish(0); hud.setMute(isMuted()); hud.setBest(savedBest, session.level);
-  hud.setLevel(plan.level, session.score);
+  hud.setLevel(plan.level, session.score); hud.setWallet(store.fish);
+  let shopIndex = 0;
+  function showShop() {
+    const item = SLEDS[shopIndex], owned = store.owned.includes(item.id);
+    setSled(man, item.id);
+    hud.setShop({ name: item.name, price: item.price, owned, active: store.sled === item.id, fish: store.fish, index: shopIndex, count: SLEDS.length });
+  }
 
   function saveProgress() {
-    try { Promise.resolve(lib.saveUserGameState({ best: savedBest, level: session.level, score: session.score })).catch(() => {}); } catch (e) { /* no saves here */ }
+    try { Promise.resolve(lib.saveUserGameState({ best: savedBest, level: session.level, score: session.score, fish: store.fish, owned: store.owned, sled: store.sled })).catch(() => {}); } catch (e) { /* no saves here */ }
   }
 
   function begin() {
@@ -158,9 +184,12 @@ function createGame(mode, autoPlay) {
       Promise.resolve(lib.getUserGameState()).then(r => {
         const st = r?.state || {}, level = Math.floor(Number(st.level)) || 1;
         savedBest = Number(st.best) || 0;
+        store.fish = Math.max(store.fish, Math.floor(Number(st.fish)) || 0);
+        if (Array.isArray(st.owned)) store.owned = SLEDS.map(s => s.id).filter(id => id === 'classic' || st.owned.includes(id));
+        if (store.owned.includes(st.sled)) store.sled = st.sled;
         if (level > 1 && current && current.inMenu() && session.level === 1) {       // pick up where the player left off
           session.level = level; session.score = Number(st.score) || 0; startGame(mode);
-        } else if (current) current.setBest(savedBest);
+        } else if (current) current.applyStore();
       }).catch(() => {});
     } catch (e) { /* no saves here */ }
   }
@@ -334,7 +363,7 @@ function createGame(mode, autoPlay) {
       f.phase += dt;
       f.mesh.position.set(f.x, f.y + Math.sin(f.phase * 2.2) * 0.2, f.z); f.mesh.rotation.y = f.phase * 1.8;
       if (phase === 'play' && Math.hypot(p.x - f.x, p.z - f.z) < 1.9 && Math.abs(p.y + 1 - f.y) < 2.6) {
-        f.taken = true; f.mesh.visible = false; fishCount++;
+        f.taken = true; f.mesh.visible = false; fishCount++; store.fish++;
         p.energy = Math.min(1, p.energy + 0.3);
         sfx.fish(); buzz('tick'); sparkles.burst('star', f.x, f.y, f.z, 5, 2);
         hud.setFish(fishCount);
@@ -362,14 +391,15 @@ function createGame(mode, autoPlay) {
   const look = new THREE.Vector3();
   function updateCamera(dt) {
     const p = player;
-    if (phase === 'menu' || phase === 'win') camYaw += dt * 0.25;
+    const shop = phase === 'shop';
+    if (phase === 'menu' || phase === 'win') camYaw += dt * 0.25; else if (shop) camYaw += dt * 0.6;
     const won = phase === 'win', tx = won ? home.x : p.x, tz = won ? home.z + 7 : p.z, ty = won ? H(tx, tz) : p.y;
-    const dist = phase === 'menu' ? 6.5 : won ? 17 : camDist, pitch = phase === 'menu' ? 0.2 : won ? 0.5 : camPitch;
+    const dist = shop ? 5.4 : phase === 'menu' ? 6.5 : won ? 17 : camDist, pitch = shop ? 0.34 : phase === 'menu' ? 0.2 : won ? 0.5 : camPitch;
     const cx = tx + Math.sin(camYaw) * Math.cos(pitch) * dist, cz = tz + Math.cos(camYaw) * Math.cos(pitch) * dist;
     const cy = Math.max(ty + 1.7 + Math.sin(pitch) * dist, H(cx, cz) + 0.9);
     const k = phase === 'play' ? Math.min(1, dt * 14) : won ? Math.min(1, dt * 3) : 1;
     camera.position.x += (cx - camera.position.x) * k; camera.position.y += (cy - camera.position.y) * k; camera.position.z += (cz - camera.position.z) * k;
-    look.set(tx, ty + (phase === 'menu' ? 1.5 : 1.9), tz); camera.lookAt(look);
+    look.set(tx, ty + (shop ? 0.75 : phase === 'menu' ? 1.5 : 1.9), tz); camera.lookAt(look);
   }
 
   function updateSnow(dt) {
@@ -434,7 +464,7 @@ function createGame(mode, autoPlay) {
       time += dt; updatePlayer(dt);
       if (winT > 0) { winT -= dt; if (winT <= 0) win(); }
     } else if (phase !== 'edit') {
-      animateMan(man, dt, { speed: 0, grounded: true, sled: false, cheer: phase === 'win' });
+      animateMan(man, dt, { speed: phase === 'shop' ? 6 : 0, grounded: true, sled: phase === 'shop', cheer: phase === 'win' });
       if (phase === 'menu') player.yaw = lerpAngle(player.yaw, camYaw, Math.min(1, dt * 2));
     }
     placeMan(dt);
@@ -449,6 +479,7 @@ function createGame(mode, autoPlay) {
 
   return {
     setBest(best) { hud.setBest(best, session.level); },
+    applyStore() { hud.setBest(savedBest, session.level); hud.setWallet(store.fish); setSled(man, store.sled); },
     inMenu() { return phase === 'menu'; },
     debug: { player, penguins, fishes, whirlies, home, get phase() { return phase; }, get chain() { return chain; }, get delivered() { return delivered; } },
     dispose() {

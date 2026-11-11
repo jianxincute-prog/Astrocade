@@ -11,6 +11,9 @@ them home to the igloo under the orange beam. Penguins waddle behind him in a li
   new hills and layout, a new sky mood, one more penguin, and every other level one more (slightly faster) whirly.
   Score (penguins, fish, time bonus) keeps adding up across levels; progress and best total are saved.
 
+Fish picked up in levels also go into a saved wallet. The main menu has a **Sled Shop** (browse skins on a 3D turntable,
+buy with fish, pick which one to use) and a **Top** leaderboard screen.
+
 ## Controls
 - Touch: left thumbstick moves, drag elsewhere to look, JUMP and SLED buttons on the right.
 - Keyboard: WASD / arrows move, Space jumps, Shift sleds, drag the mouse to look.
@@ -22,6 +25,7 @@ them home to the igloo under the orange beam. Penguins waddle behind him in a li
 - `src/main.js` — game loop and rules: player movement, chase camera, penguin line, delivery, whirlies, fish, win, edit mode.
 - `src/terrain.js` — pure rules: valley height, pond, seeded layout of trees/rocks/penguins/fish, score and stars.
 - `src/world.js` — Three.js scene: terrain, pond, instanced pines and rocks, mountains, igloo, snowfall, beacons, fish, sparkles.
+- `src/sleds.js` — the six sled skins (wooden sled, snow tube, penguin glider, rocket, dragon boat, golden fish), each its own shape.
 - `src/character.js` — procedural models and animation for Baldy, penguins and snow whirlies.
 - `src/hud.js` — DOM HUD and the start / help / pause / win screens.
 - `src/input.js` — thumbstick, buttons, keyboard and camera drag.

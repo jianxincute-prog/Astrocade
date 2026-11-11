@@ -33,6 +33,20 @@ const CSS = `
 .pr-screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:40px;box-sizing:border-box;text-align:center}
 .pr-screen.on{display:flex}
 .pr-dim{background:rgba(30,60,95,.55)}
+.pr-wallet{position:absolute;left:20px;top:20px}
+.pr-rowbtn{display:flex;gap:20px}
+.pr-rowbtn .pr-mid{min-width:230px}
+#pr-shop{justify-content:flex-end;padding-bottom:60px;gap:18px;background:linear-gradient(rgba(30,60,95,0) 55%,rgba(30,60,95,.6))}
+.pr-shop-title{position:absolute;left:0;right:0;top:120px;font-size:64px;font-weight:900;color:#fff;text-shadow:0 6px 0 #2a6fb0,0 12px 0 rgba(36,64,92,.35)}
+.pr-shop-nav{display:flex;align-items:center;gap:16px;width:100%;justify-content:center}
+.pr-arrow{width:110px;height:110px;border-radius:50%;background:#fff;color:#2a6fb0;font-size:54px;font-weight:900;box-shadow:0 8px 0 rgba(36,64,92,.3);flex:none}
+.pr-shop-name{flex:1;max-width:400px;background:rgba(255,255,255,.95);border-radius:36px;padding:14px 10px;font-size:40px;font-weight:900;box-shadow:0 8px 0 rgba(36,64,92,.3)}
+.pr-shop-name small{display:block;font-size:24px;opacity:.55;margin-top:2px}
+#pr-shop-act.locked{background:#9fb1c2;box-shadow:0 12px 0 #72879a}
+#pr-shop-act.used{background:#39b56a;box-shadow:0 12px 0 #23854a}
+#pr-shop-act.shake{animation:prshake .35s}
+@keyframes prshake{25%{transform:translateX(-14px)}50%{transform:translateX(14px)}75%{transform:translateX(-8px)}}
+.pr-you{font-size:30px;font-weight:900;color:#2a6fb0;min-height:36px}
 #pr-menu{justify-content:flex-start;padding-top:110px;background:linear-gradient(rgba(191,228,248,.0) 40%,rgba(30,60,95,.45))}
 .pr-title{font-size:92px;line-height:.95;font-weight:900;color:#fff;text-shadow:0 7px 0 #2a6fb0,0 14px 0 rgba(36,64,92,.35);letter-spacing:1px}
 .pr-title b{display:block;font-size:64px;color:#ffe14a;text-shadow:0 6px 0 #c97a12,0 12px 0 rgba(36,64,92,.35)}
@@ -73,11 +87,35 @@ const HTML = `
   <div id="pr-banner"><div id="pr-banner-t"></div><span id="pr-banner-s"></span></div>
 </div>
 <div class="pr-screen" id="pr-menu">
+  <div class="pr-pill pr-wallet">🐟 <span id="pr-wallet">0</span></div>
   <div class="pr-title">BALDY'S<b>PENGUIN RESCUE</b></div>
   <div class="pr-menu-bottom">
     <div class="pr-best" id="pr-best"></div>
     <button class="pr-big" id="pr-play">▶ PLAY</button>
+    <div class="pr-rowbtn">
+      <button class="pr-mid" id="pr-shop-open">🛷 SHOP</button>
+      <button class="pr-mid" id="pr-board-open">🏆 TOP</button>
+    </div>
     <button class="pr-mid" id="pr-how">❓ HOW TO PLAY</button>
+  </div>
+</div>
+<div class="pr-screen" id="pr-shop">
+  <div class="pr-pill pr-wallet">🐟 <span id="pr-shop-fish">0</span></div>
+  <div class="pr-shop-title">SLED SHOP</div>
+  <div class="pr-shop-nav">
+    <button class="pr-arrow" id="pr-shop-prev" aria-label="Previous">◀</button>
+    <div class="pr-shop-name"><span id="pr-shop-name"></span><small id="pr-shop-pos"></small></div>
+    <button class="pr-arrow" id="pr-shop-next" aria-label="Next">▶</button>
+  </div>
+  <button class="pr-big" id="pr-shop-act"></button>
+  <button class="pr-mid" id="pr-shop-back">◀ BACK</button>
+</div>
+<div class="pr-screen pr-dim" id="pr-board">
+  <div class="pr-card">
+    <h2>🏆 Top rescuers</h2>
+    <div class="pr-lb" id="pr-board-list"></div>
+    <div class="pr-you" id="pr-board-you"></div>
+    <button class="pr-big" id="pr-board-back">OK!</button>
   </div>
 </div>
 <div class="pr-screen pr-dim" id="pr-help">
@@ -119,7 +157,7 @@ export function createHud(handlers) {
   const style = document.createElement('style'); style.id = 'pr-css'; style.textContent = CSS; document.head.appendChild(style);
   const root = document.createElement('div'); root.id = 'pr-ui'; root.innerHTML = HTML; document.body.appendChild(root);
   const $ = id => root.querySelector('#' + id);
-  const screens = ['pr-menu', 'pr-help', 'pr-paused', 'pr-win'];
+  const screens = ['pr-menu', 'pr-help', 'pr-paused', 'pr-win', 'pr-shop', 'pr-board'];
   let helpBack = null, toastTimer = 0;
   const click = (id, fn) => $(id).addEventListener('click', () => { handlers.tap?.(); fn(); });
 
@@ -170,10 +208,34 @@ export function createHud(handlers) {
         a.textContent = `${i + 1}. ${e.username || 'Player'}`; b.textContent = e.score; row.append(a, b); box.appendChild(row);
       });
     },
+    setWallet(fish) { $('pr-wallet').textContent = fish; $('pr-shop-fish').textContent = fish; },
+    setShop({ name, price, owned, active, fish, index, count }) {
+      $('pr-shop-name').textContent = name; $('pr-shop-pos').textContent = `${index + 1} / ${count}`; hud.setWallet(fish);
+      const b = $('pr-shop-act');
+      b.textContent = active ? '✔ IN USE' : owned ? 'USE' : `BUY 🐟 ${price}`;
+      b.classList.toggle('used', active); b.classList.toggle('locked', !owned && fish < price);
+    },
+    shopShake() { const b = $('pr-shop-act'); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); },
+    showBoard(entries, rank) {
+      const box = $('pr-board-list'); box.innerHTML = ''; $('pr-board-you').textContent = '';
+      const line = (left, right) => { const row = document.createElement('div'), a = document.createElement('span'), b = document.createElement('span'); a.textContent = left; b.textContent = right; row.append(a, b); box.appendChild(row); };
+      if (!entries) line('Loading…', '');
+      else if (!entries.length) line('No scores yet', '');
+      else entries.slice(0, 10).forEach((e, i) => line(`${i + 1}. ${e.username || 'Player'}`, e.score));
+      if (rank) $('pr-board-you').textContent = `You: #${rank}`;
+      hud.show('board');
+    },
     dispose() { clearTimeout(toastTimer); root.remove(); style.remove(); },
   };
 
   click('pr-play', () => handlers.play());
+  click('pr-shop-open', () => handlers.shop());
+  click('pr-shop-prev', () => handlers.shopNav(-1));
+  click('pr-shop-next', () => handlers.shopNav(1));
+  click('pr-shop-act', () => handlers.shopAct());
+  click('pr-shop-back', () => handlers.shopBack());
+  click('pr-board-open', () => handlers.board());
+  click('pr-board-back', () => hud.show('menu'));
   click('pr-how', () => { helpBack = 'menu'; hud.show('help'); });
   click('pr-how2', () => { helpBack = 'paused'; hud.show('help'); });
   click('pr-help-ok', () => hud.show(helpBack || 'menu'));

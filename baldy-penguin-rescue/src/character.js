@@ -1,6 +1,8 @@
 // Procedural characters: Baldy (the bald hero), baby penguins, mama penguin and the snow whirly.
 // Every model faces +Z and stands on y = 0.
 
+import { buildSled } from './sleds.js';
+
 const mat = (color, extra) => new THREE.MeshLambertMaterial({ color, ...extra });
 const soft = (color, roughness = 0.8) => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 });
 
@@ -54,7 +56,7 @@ function pufferTexture(bands) {
 }
 
 /** The player: a friendly bald man in a quilted winter jacket, built as smooth continuous shapes. */
-export function buildMan(jacketColor) {
+export function buildMan(jacketColor, sledId = 'classic') {
   const root = new THREE.Group();
   const body = new THREE.Group(); root.add(body);
   const base = new THREE.Color(jacketColor), darker = base.clone().multiplyScalar(0.62);
@@ -160,18 +162,18 @@ export function buildMan(jacketColor) {
   const smile = mesh(new THREE.TorusGeometry(0.065, 0.015, 6, 14, Math.PI), black, 0, 0.045, 0.278, head);
   smile.rotation.z = Math.PI; smile.rotation.x = 0.25;
 
-  // sled, shown only while sledding
+  // sled, shown only while sledding; the skin comes from the shop
   const sled = new THREE.Group(); sled.visible = false; root.add(sled);
-  const wood = soft(0xc98a4b, 0.8), red = soft(0xd9482b, 0.6);
-  for (let i = -1; i <= 1; i++) mesh(new THREE.BoxGeometry(0.24, 0.05, 1.45), i ? wood : red, i * 0.26, 0.22, 0.1, sled);
-  [-1, 1].forEach(side => {
-    mesh(new THREE.BoxGeometry(0.05, 0.05, 1.6), metal, side * 0.3, 0.04, 0.1, sled);
-    const curl = mesh(new THREE.TorusGeometry(0.18, 0.025, 6, 12, Math.PI), metal, side * 0.3, 0.22, 0.9, sled); curl.rotation.y = Math.PI / 2; curl.rotation.x = -Math.PI / 2;
-    [-0.4, 0.5].forEach(z => mesh(new THREE.BoxGeometry(0.04, 0.16, 0.04), metal, side * 0.3, 0.13, z, sled));
-  });
-  mesh(new THREE.BoxGeometry(0.66, 0.04, 0.06), red, 0, 0.22, 0.86, sled);
+  const man = { root, body, torso, head, legs, arms, sled, phase: 0 };
+  setSled(man, sledId);
+  return man;
+}
 
-  return { root, body, torso, head, legs, arms, sled, phase: 0 };
+/** Swap the sled skin. */
+export function setSled(man, id) {
+  while (man.sled.children.length) man.sled.remove(man.sled.children[0]);
+  man.sledModel = buildSled(id); man.sled.add(man.sledModel);
+
 }
 
 /** Pose the man from his movement state. */
@@ -194,6 +196,8 @@ export function animateMan(man, dt, s) {
     if (s.cheer) { armL = armR = -2.7 + Math.sin(man.phase * 5) * 0.25; armSide = 0.45; bodyY = Math.abs(Math.sin(man.phase * 4)) * 0.18; }
   }
   sled.visible = !!s.sled;
+  const flame = man.sledModel?.userData.flame;
+  if (flame && s.sled) { const f = 0.75 + Math.random() * 0.5; flame.scale.set(f, f, 0.45 + Math.min(0.6, (s.speed || 0) * 0.04) + Math.random() * 0.2); }
   legs[0].rotation.x += (legL - legs[0].rotation.x) * k;
   legs[1].rotation.x += (legR - legs[1].rotation.x) * k;
   arms[0].rotation.x += (armL - arms[0].rotation.x) * k;
