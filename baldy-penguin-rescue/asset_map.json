@@ -1,15 +1,15 @@
 {
   "music_bgm": {
-    "animation": null,
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M73T9SAERKV116FR5KSFKXNP_251817bf-2b2a-4bb7-bdab-e3e63c6f223a_1b664b16-3a70-4cfa-8861-2e7990ce072c.mp3",
+    "type": "audio",
+    "prompt": "Cheerful bouncy children's winter adventure music. Playful pizzicato strings, marimba and glockenspiel melody, light sleigh bells, a waddling tuba bass line like penguins marching, happy and warm, simple catchy tune, no vocals, seamless loop.",
+    "description": "Looping cheerful winter penguin-march background music",
+    "subtype": "music",
     "aspect_ratio": null,
     "compression_suggestion": "original",
-    "description": "Looping cheerful winter penguin-march background music",
     "duration_secs": 40.00798185941043,
     "loop": true,
     "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M73T9SAERKV116FR5KSFKXNP_251817bf-2b2a-4bb7-bdab-e3e63c6f223a_1b664b16-3a70-4cfa-8861-2e7990ce072c.ogg",
-    "prompt": "Cheerful bouncy children's winter adventure music. Playful pizzicato strings, marimba and glockenspiel melody, light sleigh bells, a waddling tuba bass line like penguins marching, happy and warm, simple catchy tune, no vocals, seamless loop.",
-    "subtype": "music",
-    "type": "audio",
-    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M73T9SAERKV116FR5KSFKXNP_251817bf-2b2a-4bb7-bdab-e3e63c6f223a_1b664b16-3a70-4cfa-8861-2e7990ce072c.mp3"
+    "animation": null
   }
 }

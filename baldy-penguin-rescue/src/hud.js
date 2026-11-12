@@ -5,7 +5,7 @@ const CSS = `
 .pr-top{position:absolute;left:20px;top:20px;display:flex;gap:12px;align-items:center}
 .pr-pill{background:rgba(255,255,255,.92);border-radius:40px;padding:10px 22px;font-size:36px;font-weight:900;box-shadow:0 5px 0 rgba(36,64,92,.18);display:flex;align-items:center;gap:8px;min-height:60px}
 .pr-pill small{font-size:24px;opacity:.6}
-.pr-row2{position:absolute;left:20px;top:96px;display:flex;gap:10px;align-items:center}
+.pr-row2{position:absolute;left:20px;top:130px;display:flex;gap:10px;align-items:center}
 .pr-chip{background:rgba(255,255,255,.92);border-radius:30px;padding:6px 16px;font-size:28px;font-weight:900;box-shadow:0 4px 0 rgba(36,64,92,.25);white-space:nowrap}
 .pr-chip.low{background:#ff5d73;color:#fff;animation:prpulse .5s infinite alternate}
 @keyframes prpulse{to{transform:scale(1.12)}}
@@ -33,7 +33,7 @@ const CSS = `
 .pr-act span{font-size:56px;line-height:1.1}
 .pr-act.down{transform:translateY(6px);box-shadow:0 2px 0 rgba(0,0,0,.2)}
 #pr-jump{right:36px;bottom:110px;width:170px;height:170px;background:#ff8a3c}
-#pr-sled{right:216px;bottom:60px;width:140px;height:140px;background:#3fa9f5;font-size:24px}
+#pr-sled{right:228px;bottom:48px;width:140px;height:140px;background:#3fa9f5;font-size:24px}
 #pr-sled::before{content:"";position:absolute;inset:-9px;border-radius:50%;background:conic-gradient(#ffe14a calc(var(--e,1)*360deg),rgba(255,255,255,.35) 0);z-index:-1}
 #pr-sled.empty{background:#8fb4cf}
 #pr-toast{position:absolute;left:0;right:0;top:250px;text-align:center;font-size:58px;font-weight:900;color:#fff;text-shadow:0 5px 0 #24405c,0 0 18px rgba(36,64,92,.6);pointer-events:none;opacity:0}

@@ -25,7 +25,7 @@ them home to the igloo under the orange beam. Penguins waddle behind him in a li
 - Edit mode: tap or drag on the snow to move the igloo (saved to `gameConfig.home`); sliders tune counts and speed.
 
 ## Files
-- `index.html` — boot overlay, loads `game.js`.
+- `index.html` — shows a still from the 3D loading screen while Three.js loads, then loads `game.js`.
 - `game.js` — `run(mode)`: loads Three.js from the CDN, registers settings, starts the game.
 - `src/main.js` — game loop and rules: player movement, chase camera, penguin line, delivery, whirlies, fish, win, edit mode.
 - `src/terrain.js` — pure rules: valley height, pond, seeded layout of trees/rocks/penguins/fish, score and stars.
@@ -33,6 +33,7 @@ them home to the igloo under the orange beam. Penguins waddle behind him in a li
 - `src/sleds.js` — the six sled skins (wooden sled, snow tube, penguin glider, rocket, dragon boat, golden fish), each its own shape.
 - `src/character.js` — procedural models and animation for Baldy, penguins and snow whirlies.
 - `src/loading.js` — 3D loading screen (Baldy and the penguins sliding down a mountain) shown at start and between levels.
+- `index.html` — embeds a compact still from the 3D loading screen as an immediate startup fallback while Three.js loads.
 - `src/hud.js` — DOM HUD and the start / help / pause / win screens.
 - `src/input.js` — thumbstick, buttons, keyboard and camera drag.
 - `src/audio.js` — music from `asset_map.json` and synthesised sound effects.

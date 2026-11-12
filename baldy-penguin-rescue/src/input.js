@@ -1,4 +1,4 @@
-// Touch + keyboard + mouse input. Left half of the screen is a thumbstick, the rest drags the camera.
+// Touch + keyboard + mouse input. The lower-left touch zone is a floating thumbstick; the rest drags the camera.
 export function createInput(root, buttons) {
   const state = { mx: 0, my: 0, jump: false, sled: false, lookX: 0, lookY: 0, lookIdle: 9, enabled: false };
   const keys = {};
@@ -19,9 +19,12 @@ export function createInput(root, buttons) {
   on(root, 'pointerdown', e => {
     if (!state.enabled || e.target.closest('button')) return;
     const p = pt(e);
-    if (stickId === null && p.x < 360 && p.y > 520) {
+    if (stickId === null && p.x < 270 && p.y > 520) {
       stickId = e.pointerId; stickOrigin = p;
-      base.style.transform = `translate(${p.x - 110}px,${p.y - 110}px)`; base.classList.add('live'); setStick(0, 0);
+      // Keep the floating stick in its left-side lane so it never covers the SLED button.
+      const left = Math.max(0, Math.min(110, p.x - 110));
+      const top = Math.max(0, Math.min(1060, p.y - 110));
+      base.style.transform = `translate(${left}px,${top}px)`; base.classList.add('live'); setStick(0, 0);
     } else if (lookId === null) { lookId = e.pointerId; lookLast = p; }
   });
   on(window, 'pointermove', e => {
