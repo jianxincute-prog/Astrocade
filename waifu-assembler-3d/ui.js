@@ -29,6 +29,7 @@ export function uiMarkup(editing) {
         <div class="editor-note">Drag a marker on the plan or select a podium to reposition it.</div>
       </section>
       <button id="studio-open" class="studio-open" aria-label="Open the character studio"><span>✦</span><b>STUDIO</b><small>12 FACES</small></button>
+      <button id="sound-toggle" class="sound-toggle" aria-label="Turn music and sound off"><span>♪</span></button>
       <section id="studio" class="studio">
         <div id="studio-stage" class="studio-stage"></div>
         <header class="studio-top"><div><small>CHARACTER STUDIO · 3D FIGURES</small><b id="studio-name">OFFICE-01</b><span id="studio-title"></span></div><button id="studio-close" aria-label="Close the studio">✕</button></header>
@@ -127,6 +128,9 @@ export function installStyles() {
     .editor-note { margin-top:6px;text-align:center;color:#718c9c;font-size:8px; }
     .hud.studio-on > *:not(.studio) { visibility:hidden; }
     .studio-open { pointer-events:auto; position:absolute; left:22px; top:420px; width:158px; height:64px; display:grid; grid-template-columns:34px 1fr; grid-template-rows:1fr 1fr; align-items:center; padding:0 12px; border-radius:16px; border:1px solid rgba(255,156,207,.45); background:linear-gradient(135deg,rgba(60,30,70,.85),rgba(16,16,32,.85)); color:#ffe2f2; text-align:left; box-shadow:0 0 22px rgba(255,120,190,.18); }
+    .sound-toggle { pointer-events:auto; position:absolute; left:22px; top:494px; width:64px; height:64px; display:grid; place-items:center; border-radius:16px; border:1px solid rgba(255,214,150,.45); background:linear-gradient(150deg,rgba(58,46,36,.82),rgba(28,24,22,.88)); color:#ffe2b0; font-size:26px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+    .sound-toggle.off { color:rgba(255,226,176,.45); } .sound-toggle.off span { position:relative; } .sound-toggle.off span::after { content:''; position:absolute; left:-6px; right:-6px; top:50%; height:2px; background:currentColor; transform:rotate(-40deg); }
+    .studio-on .sound-toggle { display:none; }
     .studio-open span { grid-row:span 2; font-size:22px; color:#ffb0dc; } .studio-open b { font-size:13px; letter-spacing:2px; align-self:end; } .studio-open small { font-size:8px; letter-spacing:1.6px; color:#c7a8d8; align-self:start; }
     .studio { display:none; position:absolute; inset:0; pointer-events:auto; z-index:30; }
     .studio.shown { display:block; }
@@ -152,7 +156,7 @@ export function installStyles() {
       .status-card{top:94px;left:14px;right:14px;grid-template-columns:32px 1fr;gap:8px;padding:10px 11px;min-height:65px}
       .status-icon{width:31px;height:31px}.status-target{display:none}
       .map-card{top:169px;left:14px;transform:scale(.9);transform-origin:top left}
-      .studio-open{top:378px;left:14px}.studio-expr button{font-size:11px;min-height:58px}
+      .studio-open{top:378px;left:14px}.sound-toggle{top:452px;left:14px}.studio-expr button{font-size:11px;min-height:58px}
       .blueprint-card{top:169px;right:12px;transform:scale(.9);transform-origin:top right}
       .movement-hint{top:340px;font-size:8px}
       .mobile-controls{left:11px;right:11px;bottom:28px}.stick-zone{width:135px;height:145px}.stick-ring{width:124px;height:124px}.stick-nub{width:56px;height:56px}.mobile-action{width:111px;height:111px;margin-bottom:9px}

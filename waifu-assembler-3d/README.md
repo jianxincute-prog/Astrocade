@@ -8,6 +8,10 @@ Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang te
 - Kamera orang pertama berada di ketinggian mata 3.2 (patung ±5 unit di atas plinth), jadi wajah patung terlihat sejajar dada–wajah pengunjung.
 - Selesaikan lima bagian pada setiap podium untuk memulihkan seluruh figur.
 
+## Audio
+- Musik tema `music_atelier_theme` (piano lembut, string, harpa, music box; loop) dan efek: ambil potongan, pasang potongan, patung selesai, semua patung selesai, tap UI, dan nada lembut saat plinth terlalu jauh. Semua aset ada di `asset_map.json`.
+- Audio dimulai pada sentuhan/tombol pertama, berhenti saat game disembunyikan, musik diredam sejenak saat fanfare. Tombol ♪ di HUD mematikan/menyalakan suara (tersimpan bersama progres); volume musik dan efek bisa diatur di panel pengaturan (`settings.musicVolume`, `settings.sfxVolume`).
+
 ## Editor
 Mode **Edit** menghentikan gameplay; plinth di galeri bisa dipilih dan diseret (ditulis ke `gameConfig.podiumPositions`). Patung otomatis menghadap lorong tengah dan ceruk berwarna di dinding ikut berpindah.
 
@@ -35,4 +39,5 @@ Mode **Edit** menghentikan gameplay; plinth di galeri bisa dipilih dan diseret (
 - `poses.mjs` — 12 pose khas berbasis sendi (bahu → siku → pergelangan, arah tangan, telapak, lekuk jari) beserta propertinya.
 - `world.js` — aula restorasi, galeri patung, plinth patung, plinth fragmen, label, partikel.
 - `ui.js` — markup HUD, CSS, blueprint SVG.
+- `audio.js` — musik tema dan efek suara (Web Audio, aset dari `lib.getAsset`).
 - `tests/logic.test.mjs` — `node --test tests/logic.test.mjs`.

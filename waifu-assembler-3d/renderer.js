@@ -8,6 +8,7 @@ import { PART_OFFSET, buildBust, buildStatuePart, createStatueKit } from './stat
 import { DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
 import { STATUE_POSES } from './poses.mjs';
 import { buildFragment, buildPodium, buildWorld, makeLabel, petalTexture, starTexture } from './world.js';
+import { createAudio } from './audio.js';
 
 // Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead gallery layout editor.
 // The statues stand about 5 units tall on their plinths, so the visitor's eye sits at EYE_HEIGHT to meet them at chest height.
@@ -33,6 +34,9 @@ export function createGame(mode = 'play') {
   const config = window.gameConfig || {};
   const speed = clamp(Number(config.settings?.walkSpeed) || 9, 3, 18);
   const useRange = clamp(Number(config.settings?.interactRange) || 3.6, 2.2, 6);
+  const volumeOf = (value, fallback) => clamp(Number.isFinite(Number(value)) ? Number(value) : fallback, 0, 1);
+  // Theme music and sound effects; edit mode stays silent.
+  const audio = createAudio({ enabled: !editing, musicVolume: volumeOf(config.settings?.musicVolume, 0.35), sfxVolume: volumeOf(config.settings?.sfxVolume, 0.8) });
   const podiumPositions = {};
   for (const set of SETS) {
     const raw = config.podiumPositions?.[set.id] || INITIAL_PODIUMS[set.id];
@@ -40,15 +44,18 @@ export function createGame(mode = 'play') {
   }
   if (editing) {
     window.gameConfig ||= {};
-    window.gameConfig.settings ||= { walkSpeed: 9, interactRange: 3.6 };
+    window.gameConfig.settings ||= { walkSpeed: 9, interactRange: 3.6, musicVolume: 0.35, sfxVolume: 0.8 };
     window.gameConfig.podiumPositions = clonePositions(podiumPositions);
   }
+  function setSetting(key, value) { window.gameConfig ||= {}; window.gameConfig.settings ||= {}; window.gameConfig.settings[key] = value; }
   try {
     window.lib?.showGameParameters?.({
       name: 'Restoration Atelier',
       params: {
         'Walk speed': { key: 'settings.walkSpeed', type: 'slider', min: 4, max: 14, step: 1 },
         'Pickup range': { key: 'settings.interactRange', type: 'slider', min: 2.5, max: 5.5, step: 0.5 },
+        'Music volume': { key: 'settings.musicVolume', type: 'slider', min: 0, max: 1, step: 0.05, onChange: (v) => { setSetting('musicVolume', v); audio.setVolumes({ music: volumeOf(v, 0.35) }); } },
+        'Sound volume': { key: 'settings.sfxVolume', type: 'slider', min: 0, max: 1, step: 0.05, onChange: (v) => { setSetting('sfxVolume', v); audio.setVolumes({ sfx: volumeOf(v, 0.8) }); } },
       },
     });
   } catch (error) { window.lib?.log?.(`Settings panel: ${error.message}`); }
@@ -223,7 +230,7 @@ export function createGame(mode = 'play') {
   const saveProgress = () => {
     const save = window.lib?.saveUserGameState;
     if (!save) return;
-    try { Promise.resolve(save({ waifuAssembler: serializeState(state) })).catch(() => {}); } catch { /* local play remains available */ }
+    try { Promise.resolve(save({ waifuAssembler: serializeState(state), audioMuted: audio.muted })).catch(() => {}); } catch { /* local play remains available */ }
   };
   // ---------- 3D hologram projection inside the HUD card ----------
   // The real statue, rebuilt with the hologram material, floats in front of the camera exactly behind the card's
@@ -332,6 +339,7 @@ export function createGame(mode = 'play') {
       if (getSave) Promise.resolve(getSave()).then((response) => {
         if (disposed) return;
         const saved = response?.state?.waifuAssembler || (response?.state?.placed ? response.state : null);
+        if (response?.state?.audioMuted) { audio.setMuted(true); refreshSoundButton(); }
         if (saved && !hasInteracted) {
           Object.assign(state, restoreState(saved)); refreshFragments(); updateHUD();
           if (isGameComplete(state)) { finishedShown = true; root.querySelector('#finish-banner').classList.add('shown'); }
@@ -525,12 +533,14 @@ export function createGame(mode = 'play') {
       refreshFragments(); saveProgress(); updateHUD();
       const set = getSet(target.fragment.setId);
       toast(`${target.part.label} recovered · ${set.name}`, 'success');
+      audio.play('pickup', { rate: 0.94 + Math.random() * 0.12 });
       return;
     }
     const fragment = getFragment(state.carried);
     const podium = podiums.get(fragment.setId);
     if (distance2(player.x, player.z, podium.group.position.x, podium.group.position.z) > 5.2) {
       toast(`Take it to ${getSet(fragment.setId).name}'s plinth in the gallery`, 'normal');
+      audio.play('notHere', { volume: 0.7 });
       return;
     }
     const next = placeCarried(state, fragment.setId);
@@ -544,6 +554,9 @@ export function createGame(mode = 'play') {
     const done = state.placed[set.id].length === PARTS.length;
     if (done) sparkle(new BAB.Vector3(podium.group.position.x, 5, podium.group.position.z), '#ffffff', 200);
     toast(done ? `${set.name} restored · display complete!` : `${set.name} · ${state.placed[set.id].length}/5 pieces assembled`, 'success');
+    if (isGameComplete(state) && !finishedShown) { audio.play('place', { volume: 0.8 }); audio.play('finale'); audio.duck(6); }
+    else if (done) { audio.play('place', { volume: 0.8 }); audio.play('complete'); audio.duck(4); }
+    else audio.play('place', { rate: 0.96 + state.placed[set.id].length * 0.02 });
     if (isGameComplete(state) && !finishedShown) {
       finishedShown = true;
       root.querySelector('#finish-banner').classList.add('shown');
@@ -692,6 +705,16 @@ export function createGame(mode = 'play') {
     if (!studio.bust) { studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); }
   }
   function closeStudio() { studio.open = false; studioEl.classList.remove('shown'); root.querySelector('.hud').classList.remove('studio-on'); lastFrame = performance.now(); }
+  // UI sounds, the music toggle, and the first gesture that is allowed to start audio
+  const soundButton = root.querySelector('#sound-toggle');
+  function refreshSoundButton() { soundButton.classList.toggle('off', audio.muted); soundButton.setAttribute('aria-label', audio.muted ? 'Turn music and sound on' : 'Turn music and sound off'); }
+  soundButton.addEventListener('click', () => { audio.unlock(); audio.setMuted(!audio.muted); refreshSoundButton(); if (!audio.muted) audio.play('tap', { volume: 0.6 }); saveProgress(); });
+  refreshSoundButton();
+  if (editing) soundButton.style.display = 'none';
+  const unlockAudio = () => audio.unlock();
+  for (const type of ['pointerdown', 'pointerup', 'click']) root.addEventListener(type, unlockAudio, { capture: true }); // touch activation counts on release
+  window.addEventListener('keydown', unlockAudio, { capture: true });
+  for (const sel of ['#studio-open', '#studio-close', '#studio-prev', '#studio-next', '#finish-close', '[data-expr]']) root.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => audio.play('tap', { volume: 0.55 })));
   root.querySelector('#studio-open').addEventListener('click', openStudio);
   root.querySelector('#studio-close').addEventListener('click', closeStudio);
   root.querySelector('#studio-prev').addEventListener('click', () => { studio.index = (studio.index + FACE_PRESETS.length - 1) % FACE_PRESETS.length; studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); });
@@ -808,6 +831,8 @@ export function createGame(mode = 'play') {
     window.removeEventListener('pointercancel', pointerUp);
     window.removeEventListener('keyup', keyUp);
     window.removeEventListener('keydown', keyDown);
+    window.removeEventListener('keydown', unlockAudio, { capture: true });
+    audio.dispose();
     try { window.lib?.haptics?.stop?.(); } catch { /* no-op */ }
     delete window.__waifuDebug;
     try { pipeline?.dispose(); } catch { /* no-op */ }

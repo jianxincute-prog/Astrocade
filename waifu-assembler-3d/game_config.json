@@ -1,7 +1,9 @@
 {
   "settings": {
     "walkSpeed": 9,
-    "interactRange": 3.6
+    "interactRange": 3.6,
+    "musicVolume": 0.35,
+    "sfxVolume": 0.8
   },
   "podiumPositions": {
     "office01": [-12.5, -75],

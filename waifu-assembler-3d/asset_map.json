@@ -1,1 +1,93 @@
-{}
+{
+  "music_atelier_theme": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Calm, warm background music for a sunlit art museum restoration atelier in a cozy anime game. Soft felt piano melody, gentle string quartet pads, light harp arpeggios and a delicate music box counter-melody. Tender, slightly magical and nostalgic, relaxed tempo around 80 BPM, no drums, no harsh highs, comfortable to listen to for a long time while exploring and assembling statues.",
+    "duration_secs": 80.991179138322,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M76RNS7CVAPCKJ1PTYYQYPQF_687872e9-bc35-42fb-879a-eb727cef7060_cae82790-ac62-4145-b3d0-afb95080816e.ogg",
+    "prompt": "Calm, warm background music for a sunlit art museum restoration atelier in a cozy anime game. Soft felt piano melody, gentle string quartet pads, light harp arpeggios and a delicate music box counter-melody. Tender, slightly magical and nostalgic, relaxed tempo around 80 BPM, no drums, no harsh highs, comfortable to listen to for a long time while exploring and assembling statues.",
+    "subtype": "music",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/music/direct_asset_generation_01M76RNS7CVAPCKJ1PTYYQYPQF_687872e9-bc35-42fb-879a-eb727cef7060_cae82790-ac62-4145-b3d0-afb95080816e.mp3"
+  },
+  "sfx_pickup": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Soft magical crystal chime with a gentle sparkle shimmer, picking up a precious porcelain statue piece, warm and pleasant, short",
+    "duration_secs": 2,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNV91DGJY12WWMVBM35XP_330448d1-6a27-4ffb-b7ff-694031cbc17c_174d3cc2-b215-4552-a821-3eb635a0c212.ogg",
+    "prompt": "Soft magical crystal chime with a gentle sparkle shimmer, picking up a precious porcelain statue piece, warm and pleasant, short",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNV91DGJY12WWMVBM35XP_330448d1-6a27-4ffb-b7ff-694031cbc17c_174d3cc2-b215-4552-a821-3eb635a0c212.mp3"
+  },
+  "sfx_place": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Satisfying soft porcelain and marble click as a statue part snaps into place, followed by a short warm magical shimmer, clean and gentle",
+    "duration_secs": 1.96,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNWHMATMRQT3TFJTFB03A_13ba8f44-48bb-4ba4-9fc1-71653b541c31_281ce2cc-d3cd-45a6-bb0a-1c753d0d9c5b.ogg",
+    "prompt": "Satisfying soft porcelain and marble click as a statue part snaps into place, followed by a short warm magical shimmer, clean and gentle",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNWHMATMRQT3TFJTFB03A_13ba8f44-48bb-4ba4-9fc1-71653b541c31_281ce2cc-d3cd-45a6-bb0a-1c753d0d9c5b.mp3"
+  },
+  "sfx_statue_complete": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Uplifting harp glissando and soft celesta bells rising into a warm sparkling chord, a statue fully restored, joyful but gentle, anime game reward sound",
+    "duration_secs": 2.76,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNX8RHSPDHHAXXE2P61AY_3834e26d-3a7c-4287-a108-8687298d862b_49ef2b96-13b7-4dfc-932f-0a75e6287f99.ogg",
+    "prompt": "Uplifting harp glissando and soft celesta bells rising into a warm sparkling chord, a statue fully restored, joyful but gentle, anime game reward sound",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNX8RHSPDHHAXXE2P61AY_3834e26d-3a7c-4287-a108-8687298d862b_49ef2b96-13b7-4dfc-932f-0a75e6287f99.mp3"
+  },
+  "sfx_all_complete": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Short warm orchestral fanfare with strings, French horn and chimes, celebrating completing the whole sculpture gallery, triumphant yet elegant and soft, ends on a bright sustained chord",
+    "duration_secs": 4.1,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNY0HVQGVXGNZBXA1CB0N_4410b9d8-eb9e-4d07-b5cc-0da34c67f615_e5ba5b34-1eb4-450a-bb28-977faabc56ba.ogg",
+    "prompt": "Short warm orchestral fanfare with strings, French horn and chimes, celebrating completing the whole sculpture gallery, triumphant yet elegant and soft, ends on a bright sustained chord",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNY0HVQGVXGNZBXA1CB0N_4410b9d8-eb9e-4d07-b5cc-0da34c67f615_e5ba5b34-1eb4-450a-bb28-977faabc56ba.mp3"
+  },
+  "sfx_ui_tap": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Very soft, clean UI button tap, light wooden click with a tiny bell tone, subtle and pleasant",
+    "duration_secs": 0.96,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNYZ0PZDMCV05W1ZZG87C_efd3de4e-9b6e-4f0c-9e84-cf67fec9ebf6_4a9ae434-6a0a-4c2b-9deb-6d337303f843.ogg",
+    "prompt": "Very soft, clean UI button tap, light wooden click with a tiny bell tone, subtle and pleasant",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNYZ0PZDMCV05W1ZZG87C_efd3de4e-9b6e-4f0c-9e84-cf67fec9ebf6_4a9ae434-6a0a-4c2b-9deb-6d337303f843.mp3"
+  },
+  "sfx_not_here": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Gentle low two-note descending marimba tone meaning not here yet, soft and friendly, not harsh, no buzzer",
+    "duration_secs": 1.61,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNZWCYXDXP65CEY16TBVV_a4897720-783a-4518-a4cd-d6cdcc5e5182_4d9a71fb-b7d0-4841-a680-80992858b091.ogg",
+    "prompt": "Gentle low two-note descending marimba tone meaning not here yet, soft and friendly, not harsh, no buzzer",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNZWCYXDXP65CEY16TBVV_a4897720-783a-4518-a4cd-d6cdcc5e5182_4d9a71fb-b7d0-4841-a680-80992858b091.mp3"
+  }
+}
