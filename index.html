@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Urban Enforcer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+      html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; background: #111; touch-action: none; }
+      #game { position: absolute; inset: 0; width: 100%; height: 100%; }
+      #game > canvas { display: block; width: 100%; height: 100%; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/SkeletonUtils.js"></script>
+</head>
+<body>
+    <div id="game"></div>
+    <script type="module" src="./game.js"></script>
+</body>
+</html>

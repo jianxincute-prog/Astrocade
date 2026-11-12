@@ -1,0 +1,34 @@
+{
+  "player": {
+    "maxHp": 220,
+    "speed": 7.5,
+    "damageMult": 1,
+    "spawnX": 0,
+    "spawnZ": 12
+  },
+  "enemies": {
+    "perGang": 7,
+    "hpMult": 1,
+    "damageMult": 1,
+    "killsForBoss": 8,
+    "maxAttackers": 2
+  },
+  "skills": {
+    "cooldownMult": 1
+  },
+  "visual": {
+    "timeOfDay": "sunset",
+    "cameraHeight": 13
+  },
+  "audio": {
+    "music": true
+  },
+  "intro": {
+    "cutscene": true
+  },
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": false
+    }
+  }
+}

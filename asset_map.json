@@ -1,0 +1,67 @@
+{
+  "music_street": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/16b093100b8c4aeab7bb9858d224e9a2.mp3",
+    "type": "audio",
+    "prompt": null,
+    "description": null,
+    "subtype": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": true,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/16b093100b8c4aeab7bb9858d224e9a2.ogg",
+    "animation": null
+  },
+  "sfx_punch": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/a3bdce0914a04bdab02b6d31b3c00c08.mp3",
+    "type": "audio",
+    "prompt": null,
+    "description": null,
+    "subtype": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/a3bdce0914a04bdab02b6d31b3c00c08.ogg",
+    "animation": null
+  },
+  "sfx_slam": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/42e93ccdb23a45da8c3cc1baa247aeb3.mp3",
+    "type": "audio",
+    "prompt": null,
+    "description": null,
+    "subtype": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/42e93ccdb23a45da8c3cc1baa247aeb3.ogg",
+    "animation": null
+  },
+  "sfx_whoosh": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/2714d96b3e95437cb0f3435d12fe75f4.mp3",
+    "type": "audio",
+    "prompt": null,
+    "description": null,
+    "subtype": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/uploaded/2714d96b3e95437cb0f3435d12fe75f4.ogg",
+    "animation": null
+  },
+  "model_fighter": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/files/efa0922301a34117bd5336ff549b29b9.glb",
+    "type": "model_3d",
+    "prompt": null,
+    "description": null,
+    "subtype": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  }
+}
