@@ -347,11 +347,24 @@ export function buildWorld(scene, shadowGen, sets) {
     const frame = BAB.MeshBuilder.CreateTorus('nicheFrame', { diameter: 7.4, thickness: 0.22, tessellation: 40, arc: 0.5 }, scene);
     frame.position.set(wx - side * 0.05, 10.7, z); frame.rotation.set(Math.PI / 2, Math.PI / 2, 0); frame.material = brass; frame.parent = n;
     for (const s of [-1, 1]) { const j = BAB.MeshBuilder.CreateBox('nicheJamb', { width: 0.2, height: 9, depth: 0.22 }, scene); j.position.set(wx - side * 0.05, 6.2, z + s * 3.6); j.material = brass; j.parent = n; }
+    mergeByMaterial(n); // 5 meshes → 2 draw calls
     for (const m of n.getChildMeshes()) m.isPickable = false;
     return n;
   };
 
   return { root, annexFloor: annexMat, hall, annex, ceilings: [ceil, vault, ...lunettes], niche, colliders };
+}
+// Merge sibling meshes that share a material into one mesh each, keeping them under `parent` in the same place.
+export function mergeByMaterial(parent, meshes = parent.getChildMeshes(true)) {
+  const BAB = B(); const groups = new Map(); const out = [];
+  parent.computeWorldMatrix(true);
+  for (const m of meshes) { if (!groups.has(m.material)) groups.set(m.material, []); groups.get(m.material).push(m); }
+  for (const [mat, list] of groups) {
+    if (list.length === 1) { out.push(list[0]); continue; }
+    const merged = BAB.Mesh.MergeMeshes(list, true, true, undefined, false, false); // baked in world space
+    merged.material = mat; merged.setParent(parent); out.push(merged);
+  }
+  return out;
 }
 const mixHex = (a, b2, t) => { const p = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)); const A = p(a); const Bc = p(b2); return `#${A.map((v, i) => Math.round(v + (Bc[i] - v) * t).toString(16).padStart(2, '0')).join('')}`; };
 
@@ -435,6 +448,9 @@ export function buildPodium(scene, kit, set, position, shadowGen, parts) {
   const portrait = new BAB.PointLight(`portrait-${set.id}`, new BAB.Vector3(0.35, 5.0, 2.4), scene);
   portrait.parent = facing; portrait.diffuse = c3('#ffeedd'); portrait.specular = c3('#f4e8dc'); portrait.intensity = 2.4; portrait.range = 8;
   for (const { ghost, solid } of figureParts.values()) portrait.includedOnlyMeshes.push(...solid.getChildMeshes(), ...ghost.getChildMeshes());
+  // the plinth itself: 5 meshes merged into one draw call per material (stone, band, brass)
+  group.computeWorldMatrix(true); facing.computeWorldMatrix(true);
+  const solidPlinth = mergeByMaterial(facing, [base, trim, top, topGlow, lower]);
   const finish = BAB.MeshBuilder.CreateTorus('finish', { diameter: 2.3, thickness: 0.07, tessellation: 56 }, scene);
   finish.parent = group; finish.position.y = 5.7; finish.material = glowMat(scene, 'finishHalo', '#ffd98a', { intensity: 1.25 }); finish.setEnabled(false); finish.isPickable = false;
   const selection = BAB.MeshBuilder.CreateTorus('selection', { diameter: 5.1, thickness: 0.14, tessellation: 48 }, scene);
@@ -451,12 +467,12 @@ export function buildPodium(scene, kit, set, position, shadowGen, parts) {
   motes.start();
 
   for (const m of group.getChildMeshes(false)) m.isPickable = false;
-  for (const m of [base, trim, top, topGlow, ...figure.getChildMeshes()]) { m.isPickable = true; m.metadata = { ...(m.metadata || {}), podiumSet: set.id }; }
-  if (shadowGen) { shadowGen.addShadowCaster(base); shadowGen.addShadowCaster(top); }
+  for (const m of [...solidPlinth, ...figure.getChildMeshes()]) { m.isPickable = true; m.metadata = { ...(m.metadata || {}), podiumSet: set.id }; }
+  if (shadowGen) for (const m of solidPlinth) shadowGen.addShadowCaster(m);
   const face = () => { // statues on the sides look across the aisle and a little toward the entrance
     const x = group.position.x; const dir = Math.abs(x) < 4 ? [0, 1] : [-Math.sign(x), 0.45];
     facing.rotation.y = Math.atan2(dir[0], dir[1]);
   };
   face();
-  return { group, facing, face, figure, figureParts, poseTurn: pose.turn, finished: finish, selection, motes, label: { setText: label.setText }, labelMesh: label.mesh };
+  return { setId: set.id, group, facing, face, figure, figureParts, portrait, plinthMeshes: solidPlinth, poseTurn: pose.turn, finished: finish, selection, motes, label: { setText: label.setText }, labelMesh: label.mesh };
 }

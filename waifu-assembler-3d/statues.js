@@ -740,9 +740,16 @@ function sectionsFrom(keys, count) {
 }
 
 class Sculptor {
-  constructor(kit, scene, setId, ghost, expr) {
+  // detail < 1 builds a low-poly copy (LOD): ring/segment counts scale by `detail`, lofts keep every n-th section.
+  constructor(kit, scene, setId, ghost, expr, detail = 1) {
     this.kit = kit; this.scene = scene; this.setId = setId; this.ghost = ghost; this.groups = new Map(); this.expr = expr;
-    this.style = STYLE[setId];
+    this.style = STYLE[setId]; this.detail = detail;
+  }
+  res(n, min) { return this.detail >= 1 ? n : Math.max(min, Math.round(n * this.detail)); }
+  thin(secs) { // keep every n-th loft section (always the first and the last) for low-poly copies
+    if (this.detail >= 1 || secs.length < 6) return secs;
+    const step = Math.max(1, Math.round(1 / this.detail));
+    return secs.filter((_, i) => i % step === 0 || i === secs.length - 1);
   }
   addMesh(mesh, kind) {
     const key = this.ghost ? 'holo' : kind;
@@ -752,12 +759,12 @@ class Sculptor {
   // Generic placed primitive (small hardware details only).
   prim(mesh, kind, pos = [0, 0, 0], rot = [0, 0, 0]) { mesh.position.set(...pos); mesh.rotation.set(...rot); return this.addMesh(mesh, kind); }
   box(kind, pos, size, rot) { return this.prim(B().MeshBuilder.CreateBox('b', { width: size[0], height: size[1], depth: size[2] }, this.scene), kind, pos, rot); }
-  cyl(kind, pos, h, dTop, dBot, rot, tess = 24) { return this.prim(B().MeshBuilder.CreateCylinder('c', { height: h, diameterTop: dTop, diameterBottom: dBot, tessellation: tess }, this.scene), kind, pos, rot); }
-  torus(kind, pos, dia, thick, rot, tess = 24) { return this.prim(B().MeshBuilder.CreateTorus('t', { diameter: dia, thickness: thick, tessellation: tess }, this.scene), kind, pos, rot); }
-  ell(kind, pos, dia, rot, seg = 14) { return this.prim(B().MeshBuilder.CreateSphere('e', { diameterX: dia[0], diameterY: dia[1], diameterZ: dia[2], segments: seg }, this.scene), kind, pos, rot); }
+  cyl(kind, pos, h, dTop, dBot, rot, tess = 24) { return this.prim(B().MeshBuilder.CreateCylinder('c', { height: h, diameterTop: dTop, diameterBottom: dBot, tessellation: this.res(tess, 6) }, this.scene), kind, pos, rot); }
+  torus(kind, pos, dia, thick, rot, tess = 24) { return this.prim(B().MeshBuilder.CreateTorus('t', { diameter: dia, thickness: thick, tessellation: this.res(tess, 8) }, this.scene), kind, pos, rot); }
+  ell(kind, pos, dia, rot, seg = 14) { return this.prim(B().MeshBuilder.CreateSphere('e', { diameterX: dia[0], diameterY: dia[1], diameterZ: dia[2], segments: this.res(seg, 4) }, this.scene), kind, pos, rot); }
   // Tapered tube through control points.
   strand(kind, points, r0, r1, tess = 10, samples = 24) {
-    const BAB = B();
+    const BAB = B(); tess = this.res(tess, 4); samples = this.res(samples, 3);
     const curve = BAB.Curve3.CreateCatmullRomSpline(points.map((p) => new BAB.Vector3(p[0], p[1], p[2])), samples, false).getPoints();
     const last = curve.length - 1;
     const mesh = BAB.MeshBuilder.CreateTube('s', {
@@ -768,7 +775,7 @@ class Sculptor {
   }
   // Lofted surface along Y. `secs` from sectionsFrom(). opts: offset (outward), deform(x,y,z,sec), N ring points, flip, cap.
   loft(kind, secs, { offset = 0, deform = null, N = 56, flip = false, caps = false } = {}) {
-    const BAB = B();
+    const BAB = B(); N = this.res(N, 10); secs = this.thin(secs);
     const paths = secs.map((s) => {
       const pts = [];
       for (let k = 0; k < N; k += 1) {
@@ -795,7 +802,7 @@ class Sculptor {
   // Loft along an arbitrary 3D path with elliptical sections. radius(t) -> [ra, rb]; ra lies along `up`
   // (projected off the tangent), rb along the binormal. Parallel transport keeps sections from twisting.
   path(kind, ctrl, radius, { up = [0, 0, 1], t0 = 0, t1 = 1, offset = 0, N = 22, samples = 12, close = true } = {}) {
-    const BAB = B(); const V = BAB.Vector3;
+    const BAB = B(); const V = BAB.Vector3; N = this.res(N, 6); samples = this.res(samples, 3);
     const pts = BAB.Curve3.CreateCatmullRomSpline(ctrl.map((p) => new V(p[0], p[1], p[2])), samples, false).getPoints();
     const cum = [0]; for (let i = 1; i < pts.length; i += 1) cum.push(cum[i - 1] + V.Distance(pts[i], pts[i - 1]));
     const L = cum[cum.length - 1];
@@ -830,7 +837,7 @@ class Sculptor {
   }
   // Lofted surface along Z (shoes): sections {z,cx,cy,rx,ry}.
   loftZ(kind, secs, N = 28, flip = false) {
-    const BAB = B();
+    const BAB = B(); N = this.res(N, 8);
     const paths = secs.map((s) => {
       const pts = [];
       for (let k = 0; k < N; k += 1) { const a = (2 * Math.PI * k) / N; pts.push(new BAB.Vector3(s.cx + s.rx * Math.cos(a), s.cy + s.ry * Math.sin(a), s.z)); }
@@ -950,8 +957,8 @@ const sliceY = (secs, hi, lo) => secs.filter((s) => s.y <= hi + 1e-6 && s.y >= l
 // ======================================================================================================
 // Parts
 // ======================================================================================================
-export function buildStatuePart(kit, scene, partId, setId, ghost = false, expr = DEFAULT_EXPR[setId] || 'neutral') {
-  const sc = new Sculptor(kit, scene, setId, ghost, expr);
+export function buildStatuePart(kit, scene, partId, setId, ghost = false, expr = DEFAULT_EXPR[setId] || 'neutral', detail = 1) {
+  const sc = new Sculptor(kit, scene, setId, ghost, expr, detail);
   ({ head: sculptHead, torso: sculptTorso, armL: (s, id) => sculptArm(s, id, -1), armR: (s, id) => sculptArm(s, id, 1), legs: sculptLegs })[partId](sc, setId);
   return sc.build(`${setId}-${partId}${ghost ? '-holo' : ''}`, PART_OFFSET[partId]);
 }

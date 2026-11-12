@@ -14,6 +14,10 @@ import { createAudio } from './audio.js';
 // The statues stand about 5 units tall on their plinths, so the visitor's eye sits at EYE_HEIGHT to meet them at chest height.
 const EYE_HEIGHT = 3.2;
 const PLAY_FOV = 74 * Math.PI / 180;
+// Statue LOD: a 35%-resolution copy (≈5× fewer triangles) replaces each statue beyond LOD_DIST; eyelashes,
+// corneas, tears, teeth and tongue are not drawn beyond DETAIL_DIST.
+const LOW_DETAIL = 0.35; const LOD_DIST = 22; const DETAIL_DIST = 16;
+const DETAIL_KINDS = new Set(['lash', 'cornea', 'tear', 'teeth', 'tongue']);
 const SPAWN = { x: 0, z: HALL_SIZE / 2 - 10 };
 // Plinths may be moved anywhere inside the gallery, keeping clear of its walls and doorway.
 const POD_X = ANNEX.maxX - 5; const POD_NEAR = ANNEX.nearZ - 8; const POD_FAR = ANNEX.farZ + 6;
@@ -109,7 +113,7 @@ export function createGame(mode = 'play') {
   shadows.getShadowMap().refreshRate = BAB.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
   const refreshShadows = () => shadows.getShadowMap().resetRefreshCounter();
 
-  const hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, -100));
+  let hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, -100));
 
   // ---------- cinematic post-processing ----------
   let pipeline = null;
@@ -231,7 +235,7 @@ export function createGame(mode = 'play') {
     if (!save) return;
     prefs.muted = audio.muted;
     const payload = { waifuAssembler: serializeState(state), playSeconds: Math.round(playSeconds), bestSeconds, prefs: { ...prefs }, audioMuted: audio.muted };
-    try { Promise.resolve(save(payload)).catch(() => {}); } catch { /* local play remains available */ }
+    try { return Promise.resolve(save(payload)).catch(() => {}); } catch { return null; /* local play remains available */ }
   };
   // ---------- 3D hologram projection inside the HUD card ----------
   // The real statue, rebuilt with the hologram material, floats in front of the camera exactly behind the card's
@@ -242,32 +246,42 @@ export function createGame(mode = 'play') {
   heldMat.disableLighting = true; heldMat.backFaceCulling = false; heldMat.alphaMode = BAB.Engine.ALPHA_COMBINE; heldMat.alpha = 0.85; heldMat.needDepthPrePass = true;
   heldMat.emissiveColor = BAB.Color3.FromHexString('#ff3d5e');
   heldMat.emissiveFresnelParameters = new BAB.FresnelParameters({ bias: 0.25, power: 1.6, leftColor: BAB.Color3.FromHexString('#ffd0da'), rightColor: BAB.Color3.FromHexString('#ff2a50') });
-  function rebuildHologram() {
-    const key = state.carried;
-    if (key === holo.key) return;
-    if (holo.root) { holo.root.dispose(false, false); holo.root = null; }
-    holo.key = key;
-    if (!key) return;
-    const fragment = getFragment(key); const pose = STATUE_POSES[fragment.setId];
+  const holoCache = new Map(); // setId → low-poly hologram statue, reused between carries
+  const holoRingMat = new BAB.StandardMaterial('holoRing', scene); holoRingMat.disableLighting = true; holoRingMat.alpha = 0.9;
+  const holoBeamMat = new BAB.StandardMaterial('holoBeamMat', scene); holoBeamMat.disableLighting = true; holoBeamMat.alpha = 0.08; holoBeamMat.backFaceCulling = false;
+  function holoFigure(setId) {
+    if (holoCache.has(setId)) return holoCache.get(setId);
+    const pose = STATUE_POSES[setId];
     const root = new BAB.TransformNode('holoRoot', scene); const spin = new BAB.TransformNode('holoSpin', scene); spin.parent = root;
     const fig = new BAB.TransformNode('holoFig', scene); fig.parent = spin; fig.position.y = -2.15; // centre the 4.3-unit figure
+    const parts = new Map();
     for (const part of PARTS) {
       const anchor = new BAB.TransformNode('holoAnchor', scene); anchor.parent = fig; anchor.position.set(...PART_OFFSET[part.id]);
       if (part.id === 'head' && pose.head) anchor.rotation.set(...pose.head);
-      const mesh = buildStatuePart(kit, scene, part.id, fragment.setId, true); mesh.parent = anchor;
-      if (part.id === fragment.partId) for (const m of mesh.getChildMeshes()) m.material = heldMat;
+      const mesh = buildStatuePart(kit, scene, part.id, setId, true, undefined, LOW_DETAIL); mesh.parent = anchor; // small on screen: low-poly is plenty
+      parts.set(part.id, mesh.getChildMeshes());
     }
-    const set = getSet(fragment.setId); const c = BAB.Color3.FromHexString(set.color);
-    const ringMat = new BAB.StandardMaterial('holoRing', scene); ringMat.disableLighting = true; ringMat.emissiveColor = c.scale(1.1); ringMat.alpha = 0.9;
     for (const [d, y, t] of [[2.2, -2.15, 0.05], [1.5, -2.1, 0.03]]) {
-      const ring = BAB.MeshBuilder.CreateTorus('holoRing', { diameter: d, thickness: t, tessellation: 48 }, scene); ring.parent = spin; ring.position.y = y; ring.material = ringMat;
+      const ring = BAB.MeshBuilder.CreateTorus('holoRing', { diameter: d, thickness: t, tessellation: 48 }, scene); ring.parent = spin; ring.position.y = y; ring.material = holoRingMat;
     }
     const beam = BAB.MeshBuilder.CreateCylinder('holoBeam', { height: 4.4, diameterTop: 1.6, diameterBottom: 2.1, tessellation: 32, cap: BAB.Mesh.NO_CAP }, scene);
-    const beamMat = new BAB.StandardMaterial('holoBeamMat', scene); beamMat.disableLighting = true; beamMat.emissiveColor = c; beamMat.alpha = 0.08; beamMat.backFaceCulling = false;
-    beam.material = beamMat; beam.parent = spin;
+    beam.material = holoBeamMat; beam.parent = spin;
     for (const m of root.getChildMeshes()) { m.renderingGroupId = 1; m.isPickable = false; }
-    root.onDisposeObservable.add(() => { ringMat.dispose(); beamMat.dispose(); });
-    holo.root = root; holo.spin = spin;
+    root.setEnabled(false);
+    const entry = { root, spin, parts }; holoCache.set(setId, entry); return entry;
+  }
+  function rebuildHologram() {
+    const key = state.carried;
+    if (key === holo.key) return;
+    holo.root?.setEnabled(false); holo.root = null;
+    holo.key = key;
+    if (!key) return;
+    const fragment = getFragment(key); const h = holoFigure(fragment.setId);
+    const ghostMat = kit.holoMaterial(fragment.setId);
+    for (const [partId, meshes] of h.parts) for (const m of meshes) m.material = partId === fragment.partId ? heldMat : ghostMat;
+    const c = BAB.Color3.FromHexString(getSet(fragment.setId).color);
+    holoRingMat.emissiveColor = c.scale(1.1); holoBeamMat.emissiveColor = c;
+    holo.root = h.root; holo.spin = h.spin;
   }
   function updateHologram(now) {
     if (!holo.root) return;
@@ -290,7 +304,7 @@ export function createGame(mode = 'play') {
       const podium = podiums.get(set.id);
       const placed = state.placed[set.id] || [];
       podium.label.setText(`${set.name}  ·  ${placed.length}/5`);
-      for (const part of PARTS) {
+      if (!podium.merged) for (const part of PARTS) {
         const built = placed.includes(part.id);
         const entry = podium.figureParts.get(part.id);
         entry.ghost.setEnabled(!built);
@@ -304,8 +318,8 @@ export function createGame(mode = 'play') {
   const refreshFragments = () => {
     for (const fragment of FRAGMENTS) {
       const model = fragments.get(fragment.key);
-      model.absent = state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
-      model.root.setEnabled(!model.absent); model.shown = !model.absent;
+      model.absent = model.gone || state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
+      if (!model.gone) { model.root.setEnabled(!model.absent); model.shown = !model.absent; }
     }
     nearestCache.at = -1;
     if (carriedVisual) {
@@ -314,8 +328,10 @@ export function createGame(mode = 'play') {
     }
     if (state.carried) {
       const fragment = getFragment(state.carried);
-      carriedVisual = buildStatuePart(kit, scene, fragment.partId, fragment.setId, false);
-      carriedVisual.scaling.setAll(0.19);
+      const source = fragments.get(state.carried)?.spin.getChildren()[0];
+      carriedVisual = source ? source.clone('carried', null) : buildStatuePart(kit, scene, fragment.partId, fragment.setId, false);
+      carriedVisual.setEnabled(true); for (const m of carriedVisual.getChildMeshes()) m.setEnabled(true);
+      carriedVisual.position.setAll(0); carriedVisual.scaling.setAll(0.19);
       for (const m of carriedVisual.getChildMeshes()) m.renderingGroupId = 1;
     }
     refreshPodiums();
@@ -579,7 +595,7 @@ export function createGame(mode = 'play') {
       if (allDone) { audio.play('place', { volume: 0.8 }); audio.play('finale'); audio.duck(6); }
       else if (done) { audio.play('place', { volume: 0.8 }); audio.play('complete'); audio.duck(4); }
       else audio.play('place', { rate: 0.96 + count * 0.02 });
-      if (done) { sparkle(new BAB.Vector3(podium.group.position.x, 5, podium.group.position.z), '#ffffff', 200); celebrate(podium, set); }
+      if (done) { sparkle(new BAB.Vector3(podium.group.position.x, 5, podium.group.position.z), '#ffffff', 200); celebrate(podium, set); setTimeout(() => mergeStatue(set.id), 1800); }
       if (allDone) setTimeout(() => {
         if (disposed) return;
         root.querySelector('#finish-time').textContent = `${formatTime(final)}${isBest ? '  ·  NEW BEST' : ''}`;
@@ -617,17 +633,19 @@ export function createGame(mode = 'play') {
     for (let i = effects.length - 1; i >= 0; i -= 1) if (!effects[i](now)) effects.splice(i, 1);
   }
   // a column of warm light and a ring sweeping across the floor when a statue is whole again
+  const celebrateMats = { pillar: new BAB.StandardMaterial('celebratePillarMat', scene), ring: new BAB.StandardMaterial('celebrateRingMat', scene) };
+  Object.assign(celebrateMats.pillar, { disableLighting: true, backFaceCulling: false, fogEnabled: false, alpha: 0.4 }); celebrateMats.pillar.emissiveColor = BAB.Color3.FromHexString('#ffe2a6');
+  Object.assign(celebrateMats.ring, { disableLighting: true, alpha: 0.9 });
   function celebrate(podium, set) {
     const start = performance.now(); const p = podium.group.position;
     const pillar = BAB.MeshBuilder.CreateCylinder('celebratePillar', { height: 16, diameterTop: 2.2, diameterBottom: 3.6, tessellation: 32, cap: BAB.Mesh.NO_CAP }, scene);
     const ring = BAB.MeshBuilder.CreateTorus('celebrateRing', { diameter: 2, thickness: 0.12, tessellation: 64 }, scene);
-    const pm = new BAB.StandardMaterial('celebratePillarMat', scene); pm.disableLighting = true; pm.emissiveColor = BAB.Color3.FromHexString('#ffe2a6'); pm.backFaceCulling = false; pm.fogEnabled = false;
-    const rm = new BAB.StandardMaterial('celebrateRingMat', scene); rm.disableLighting = true; rm.emissiveColor = BAB.Color3.FromHexString(set.color);
+    const pm = celebrateMats.pillar; const rm = celebrateMats.ring; rm.emissiveColor = BAB.Color3.FromHexString(set.color);
     pillar.material = pm; ring.material = rm; pillar.position.set(p.x, 8, p.z); ring.position.set(p.x, 0.08, p.z);
     for (const m of [pillar, ring]) m.isPickable = false;
     effects.push((now) => {
       const t = (now - start) / 2200;
-      if (t >= 1) { pillar.dispose(); ring.dispose(); pm.dispose(); rm.dispose(); return false; }
+      if (t >= 1) { pillar.dispose(); ring.dispose(); return false; }
       pm.alpha = 0.4 * (1 - t) * Math.min(1, t * 6); pillar.scaling.set(1 + t * 0.6, 1, 1 + t * 0.6);
       const r = 1 + ease(Math.min(1, t * 1.4)) * 5; ring.scaling.set(r, 1, r); rm.alpha = 0.9 * (1 - t);
       return true;
@@ -824,7 +842,7 @@ export function createGame(mode = 'play') {
     if (studio.envFrames < 4 && ++studio.envFrames === 4) studio.env.release();
   }
   function render() {
-    if (disposed) return;
+    if (disposed || contextLost) return;
     const now = performance.now();
     const rawDt = Math.max(0, (now - lastFrame) / 1000);
     const dt = Math.min(0.11, Math.max(0.001, rawDt));
@@ -921,12 +939,12 @@ export function createGame(mode = 'play') {
   const nextFrame = () => new Promise((resolve) => { requestAnimationFrame(() => resolve()); setTimeout(resolve, 200); });
   // Plinths show their finished statue (solid) or the hologram of what is still missing.
   function showcase(podium, on) {
-    for (const { ghost, solid } of podium.figureParts.values()) { ghost.setEnabled(!on); solid.setEnabled(on); }
+    if (!podium.merged) for (const { ghost, solid } of podium.figureParts.values()) { ghost.setEnabled(!on); solid.setEnabled(on); }
     if (on) { podium.finished.setEnabled(false); podium.labelMesh.setEnabled(false); podium.figure.setEnabled(true); }
   }
   function showcaseAll(on) { for (const podium of podiums.values()) showcase(podium, on); refreshShadows(); }
   async function boot() {
-    const steps = SETS.length + 2; let step = 0;
+    const steps = SETS.length + 1; let step = 0;
     const progress = (label, advance = true) => { if (advance) step += 1; bootFill.style.width = `${Math.max(4, Math.round((step / steps) * 100))}%`; bootStatus.textContent = label; };
     // Each statue part is sculpted once: the plinth keeps the original (and a merged hologram copy of it), and the
     // fragment waiting in the hall is a clone that shares its geometry and materials.
@@ -937,21 +955,22 @@ export function createGame(mode = 'play') {
       const podium = buildPodium(scene, kit, set, podiumPositions[set.id], shadows, parts);
       podiums.set(set.id, podium);
       niches.set(set.id, world.niche(set, ...podiumPositions[set.id]));
+      for (const fragment of FRAGMENTS) if (fragment.setId === set.id) { // its five fragments: clones sharing the plinth's geometry
+        const part = parts.get(fragment.partId).clone(`frag-part-${fragment.key}`, null);
+        part.setEnabled(true); for (const m of part.getChildMeshes()) m.setEnabled(true);
+        const model = buildFragment(scene, kit, fragment, part);
+        for (const m of model.root.getChildMeshes()) m.isPickable = false;
+        fragments.set(fragment.key, model);
+      }
+      attachLOD(podium); // after the fragment clones, so they don't inherit the LOD levels
       if (!editing) showcase(podium, true);
       refreshShadows(); progress(`${set.name} · RESTORED`);
     }
-    progress('SCATTERING THE FRAGMENTS', false);
-    await nextFrame(); if (disposed) return;
-    for (const fragment of FRAGMENTS) {
-      const source = podiums.get(fragment.setId).figureParts.get(fragment.partId).solid;
-      const part = source.clone(`frag-part-${fragment.key}`, null);
-      part.setEnabled(true); for (const m of part.getChildMeshes()) m.setEnabled(true);
-      const model = buildFragment(scene, kit, fragment, part);
-      for (const m of model.root.getChildMeshes()) m.isPickable = false;
-      fragments.set(fragment.key, model);
-    }
     progress('OPENING THE GALLERY');
     applySave(await savedGame); if (disposed) return;
+    if (!editing) for (const set of SETS) mergeStatue(set.id); // statues already finished in the save
+    bootStatus.textContent = 'PREPARING SHADERS';
+    await precompileShaders(); if (disposed) return;
     ready = true;
     refreshFragments(); updateHUD();
     scene.onAfterRenderObservable.addOnce(freezeStatics); // after the first full frame has compiled every effect
@@ -960,6 +979,126 @@ export function createGame(mode = 'play') {
     await new Promise((resolve) => setTimeout(resolve, 450)); if (disposed) return;
     bootEl.classList.add('done');
     openMenu();
+  }
+  // ---------- statue LOD, merging and shader warm-up ----------
+  // Far LOD: the low-poly copy of each part is melted into ONE vertex-coloured mesh (one shared material) plus the
+  // low-poly face, so a distant statue costs ~2 draw calls instead of ~15. The high meshes hand over to it at LOD_DIST.
+  const farMat = new BAB.PBRMaterial('statueFar', scene); farMat.albedoColor = BAB.Color3.White(); farMat.metallic = 0; farMat.roughness = 0.55;
+  const colourCache = new Map();
+  function averageColour(mat) { // material albedo × average of its painted texture (hair strands, sclera…)
+    if (colourCache.has(mat)) return colourCache.get(mat);
+    let c = (mat.albedoColor || mat.diffuseColor || BAB.Color3.White()).clone();
+    const ctx = mat.albedoTexture?.getContext?.();
+    if (ctx) {
+      const { width, height } = ctx.canvas; const px = ctx.getImageData(0, 0, width, height).data; let r = 0, g = 0, bl = 0, n = 0;
+      for (let i = 0; i < px.length; i += 4 * 97) { r += px[i]; g += px[i + 1]; bl += px[i + 2]; n += 1; }
+      c = c.multiply(new BAB.Color3(r / n / 255, g / n / 255, bl / n / 255));
+    }
+    if (mat.emissiveColor) c = c.add(mat.emissiveColor.scale(0.6));
+    colourCache.set(mat, c); return c;
+  }
+  function paint(mesh, colour) {
+    const n = mesh.getTotalVertices(); const cols = new Float32Array(n * 4);
+    for (let i = 0; i < n; i += 1) { cols[i * 4] = colour.r; cols[i * 4 + 1] = colour.g; cols[i * 4 + 2] = colour.b; cols[i * 4 + 3] = 1; }
+    mesh.setVerticesData(BAB.VertexBuffer.ColorKind, cols, false);
+  }
+  const FAR_SKIP = new Set(['face', 'lens', ...DETAIL_KINDS]); // face keeps its texture; glasses stay transparent
+  function attachLOD(podium) {
+    for (const [partId, entry] of podium.figureParts) {
+      const low = buildStatuePart(kit, scene, partId, podium.setId, false, undefined, LOW_DETAIL);
+      low.parent = entry.anchor;
+      const highs = entry.solid.getChildMeshes(); const lows = low.getChildMeshes();
+      const master = highs.filter((m) => !FAR_SKIP.has(m.metadata?.kind)).sort((x, y) => y.getTotalVertices() - x.getTotalVertices())[0];
+      const melt = lows.filter((m) => !FAR_SKIP.has(m.metadata?.kind));
+      for (const m of melt) paint(m, averageColour(m.material));
+      let far = null;
+      if (master && melt.length) {
+        far = BAB.Mesh.MergeMeshes(melt, true, true, undefined, false, false); // world space…
+        far.computeWorldMatrix(true);
+        far.bakeTransformIntoVertices(master.computeWorldMatrix(true).clone().invert()); // …into the master's frame
+        far.parent = master.parent; far.position.copyFrom(master.position); far.material = farMat; far.isPickable = false;
+        far.metadata = { kind: 'far' }; podium.portrait.includedOnlyMeshes.push(far);
+      }
+      const faceLow = lows.find((m) => m.metadata?.kind === 'face');
+      for (const m of highs) {
+        const kind = m.metadata?.kind;
+        if (DETAIL_KINDS.has(kind)) m.addLODLevel(DETAIL_DIST, null);
+        else if (kind === 'face' && faceLow) { m.addLODLevel(LOD_DIST, faceLow); podium.portrait.includedOnlyMeshes.push(faceLow); }
+        else if (kind === 'lens') continue;
+        else if (m === master && far) m.addLODLevel(LOD_DIST, far);
+        else m.addLODLevel(LOD_DIST, null);
+      }
+      for (const m of lows) if (m !== faceLow && !m.isDisposed()) m.dispose();
+      entry.low = low; entry.far = far; entry.faceLow = faceLow;
+      // the hologram of a missing part gets a low-poly LOD too (its vertices are baked into the part's frame)
+      const ghostMesh = entry.ghost.getChildMeshes()[0];
+      if (ghostMesh) {
+        const lowGhostRoot = buildStatuePart(kit, scene, partId, podium.setId, true, undefined, LOW_DETAIL);
+        const lowGhost = lowGhostRoot.getChildMeshes()[0];
+        lowGhost.parent = entry.ghost; lowGhost.bakeCurrentTransformIntoVertices(); lowGhostRoot.dispose(true);
+        ghostMesh.addLODLevel(LOD_DIST, lowGhost); podium.portrait.includedOnlyMeshes.push(lowGhost);
+      }
+    }
+  }
+  // A finished statue becomes one mesh per material (≈26 → ≈15 draw calls) with a merged low-poly LOD; its parts,
+  // hologram copies and the fragments it was built from are released.
+  function mergeStatue(setId) {
+    const podium = podiums.get(setId);
+    if (!podium || podium.merged || editing || (state.placed[setId]?.length || 0) < PARTS.length) return;
+    if (flights.some((f) => [...podium.figureParts.values()].some((e) => e.solid === f.node))) { setTimeout(() => mergeStatue(setId), 600); return; }
+    const groups = new Map(); const fars = []; const faces = [];
+    for (const entry of podium.figureParts.values()) {
+      if (entry.far) fars.push(entry.far); if (entry.faceLow) faces.push(entry.faceLow);
+      for (const m of entry.solid.getChildMeshes()) {
+        if (m === entry.far || m.metadata?.kind === 'far') continue;
+        const kind = m.metadata?.kind; const key = `${m.material.uniqueId}`;
+        if (!groups.has(key)) groups.set(key, { mat: m.material, kind, high: [] });
+        groups.get(key).high.push(m);
+      }
+    }
+    podium.figure.computeWorldMatrix(true);
+    const node = new BAB.TransformNode(`merged-${setId}`, scene); node.parent = podium.figure;
+    const bake = (list, mat) => { const m = BAB.Mesh.MergeMeshes(list, false, true, undefined, false, false); m.material = mat; m.setParent(node); m.isPickable = false; podium.portrait.includedOnlyMeshes.push(m); return m; };
+    let master = null; let masterVerts = -1; let faceHigh = null;
+    for (const g of groups.values()) {
+      const high = bake(g.high, g.mat); shadows.addShadowCaster(high); g.merged = high;
+      if (DETAIL_KINDS.has(g.kind)) { high.addLODLevel(DETAIL_DIST, null); continue; }
+      if (g.kind === 'face') { faceHigh = high; continue; }
+      if (g.kind === 'lens') continue;
+      if (high.getTotalVertices() > masterVerts) { master = high; masterVerts = high.getTotalVertices(); }
+    }
+    for (const g of groups.values()) if (g.merged !== master && g.merged !== faceHigh && !DETAIL_KINDS.has(g.kind) && g.kind !== 'lens') g.merged.addLODLevel(LOD_DIST, null);
+    if (master && fars.length) master.addLODLevel(LOD_DIST, bake(fars, farMat));
+    if (faceHigh && faces.length) faceHigh.addLODLevel(LOD_DIST, bake(faces, faces[0].material));
+    for (const entry of podium.figureParts.values()) { entry.solid.dispose(false, false); entry.ghost.dispose(false, false); entry.low?.dispose(false, false); }
+    for (const part of PARTS) { const model = fragments.get(`${setId}:${part.id}`); if (model && !model.gone) { model.root.dispose(false, false); model.gone = true; model.absent = true; } }
+    podium.merged = node;
+    for (const m of node.getChildMeshes()) { m.computeWorldMatrix(true); m.freezeWorldMatrix(); }
+    refreshShadows();
+  }
+  // Compile every shader variant the game can show (statue parts with their portrait light, LODs, fragments, held
+  // hologram, celebrations, shadow depth) while the loading screen is up, so no part placement stalls a frame.
+  async function precompileShaders() {
+    const seen = new Set(); const jobs = [];
+    const temp = [];
+    const ghostSample = scene.meshes.find((m) => m.material && m.material.name.endsWith(':holo'));
+    if (ghostSample) jobs.push(heldMat.forceCompilationAsync(ghostSample).catch(() => {}));
+    for (const mat of [celebrateMats.pillar, celebrateMats.ring, holoRingMat, holoBeamMat]) {
+      const t = BAB.MeshBuilder.CreateBox('warm', { size: 0.01 }, scene); t.material = mat; t.setEnabled(false); temp.push(t);
+      jobs.push(mat.forceCompilationAsync(t).catch(() => {}));
+    }
+    const meshes = [...scene.meshes];
+    for (const m of [...meshes]) for (const level of m.getLODLevels?.() || []) if (level.mesh) meshes.push(level.mesh);
+    for (const m of meshes) {
+      if (!m.material || !m.getTotalVertices?.()) continue;
+      const key = `${m.material.uniqueId}|${m.getVerticesDataKinds().join(',')}|${m.receiveShadows}|${(m.lightSources || []).map((l) => l.uniqueId).join(',')}|${m.renderingGroupId}`;
+      if (seen.has(key)) continue; seen.add(key);
+      jobs.push(m.material.forceCompilationAsync(m, { clipPlane: false }).catch(() => {}));
+      if (jobs.length % 24 === 0) { await Promise.all(jobs.splice(0)); await nextFrame(); if (disposed) return; }
+    }
+    try { await shadows.forceCompilationAsync(); } catch { /* compiles on first use instead */ }
+    await Promise.all(jobs);
+    for (const t of temp) t.dispose();
   }
   function applySave(saved) {
     if (!saved) return;
@@ -1091,6 +1230,11 @@ export function createGame(mode = 'play') {
     }
     disarmReset();
     Object.assign(state, createInitialState()); playSeconds = 0; finishedShown = false;
+    if ([...podiums.values()].some((p) => p.merged)) { // finished statues were merged: restart to rebuild their parts
+      resetButton.textContent = 'RESETTING…';
+      Promise.resolve(saveProgress(true)).finally(() => { if (window.run) window.run(mode); else window.location.reload(); });
+      return;
+    }
     refreshFragments(); showcaseAll(true); updateMenuMeta(); updateHUD(); saveProgress();
     resetButton.textContent = 'PROGRESS RESET'; resetTimer = setTimeout(disarmReset, 1800);
   });
@@ -1116,6 +1260,22 @@ export function createGame(mode = 'play') {
       return `<div class="lb-row${res.userRank === i + 1 ? ' me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-avatar">${avatar}</span><span class="lb-name">${name}</span><span class="lb-time">${formatTime(e.score)}</span></div>`;
     }).join('') + mine;
   }
+  // ---------- WebGL context loss (phone backgrounded, GPU reset): pause, save, rebuild, or offer a reload ----------
+  const glLost = root.querySelector('#gl-lost'); let contextLost = false; let lostTimer = 0;
+  engine.onContextLostObservable.add(() => {
+    contextLost = true; glLost.classList.add('shown'); glLost.classList.remove('stuck');
+    saveProgress(true);
+    clearTimeout(lostTimer); lostTimer = setTimeout(() => { if (contextLost) glLost.classList.add('stuck'); }, 6000);
+  });
+  engine.onContextRestoredObservable.add(() => {
+    contextLost = false; clearTimeout(lostTimer); glLost.classList.remove('shown', 'stuck');
+    // the reflection probes' studio domes were released after their first render: build them again
+    try { hallEnv.dispose?.(); } catch { /* already gone */ }
+    hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, -100)); envFrames = 0;
+    if (studio.scene) { try { studio.env.dispose?.(); } catch { /* already gone */ } studio.env = setupStudioReflections(studio.scene, BAB); studio.envFrames = 0; }
+    refreshShadows(); lastFrame = performance.now(); layoutVersion += 1;
+  });
+  root.querySelector('#gl-reload').addEventListener('click', () => { Promise.resolve(saveProgress(true)).finally(() => { if (window.run) window.run(mode); else window.location.reload(); }); });
   boot().catch((error) => { bootStatus.textContent = 'THE ATELIER COULD NOT OPEN'; try { window.lib?.log?.(`Boot failed: ${error.stack || error}`); } catch { /* optional */ } });
 
   // Test/debug hook: lets automated checks pose the camera and state without touching gameplay rules.
@@ -1174,6 +1334,7 @@ function setupStudioReflections(scene, BAB, palette = 'studio', probeAt = new BA
       // Once the probe has rendered, the dome and its sky texture are no longer needed.
       dome.dispose(false, true);
     },
+    dispose() { try { dome.dispose(false, true); } catch { /* released */ } probe.dispose(); },
   };
 }
 

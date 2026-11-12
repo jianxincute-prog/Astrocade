@@ -22,6 +22,13 @@ Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang te
 - Pengunjung tidak bisa menembus patung, plinth, pohon, dan bangku (collider lingkaran).
 - Resolusi dinamis menjaga ±60 fps (turun bertahap saat < 50 fps, naik lagi saat stabil); material statis, plinth, podium, dan ceruk dibekukan setelah loading (hologram fresnel dikecualikan); plinth fragmen tidak lagi ikut bergerak tiap frame; status fragmen & target terdekat di-cache; DOM HUD hanya ditulis saat berubah; rect kartu hologram diukur saat layout berubah saja; save digabung (debounce 1,5 dtk); timer memakai waktu nyata.
 
+## Performa patung (LOD, merge, shader, context)
+- **LOD low-poly**: tiap bagian patung juga dipahat ulang pada 35% resolusi (≈5× lebih sedikit segitiga, `Sculptor.detail`). Mulai 22 unit, bagian patung diganti satu mesh low-poly berwarna per-vertex (satu material bersama) + wajah low-poly → ±2 draw call per patung jauh. Bulu mata, kornea, air mata, gigi, lidah tidak digambar di atas 16 unit. Hologram bagian yang belum terpasang juga punya LOD.
+- **Merge per material**: patung yang selesai digabung jadi satu mesh per material (±26 → ±15 draw call) beserta LOD-nya; bagian asli, hologram, dan klon fragmennya dilepas (mesh di scene 1.463 → ±330 saat semua selesai). Ceruk dan plinth juga digabung per material. Reset progres memuat ulang game untuk membangun ulang patung.
+- **Shader warm-up**: semua varian shader (bagian patung + lampu potret, LOD, fragmen, hologram, perayaan, depth bayangan) dikompilasi saat loading → memasang potongan tidak memicu kompilasi.
+- **WebGL context lost**: render dijeda, progres disimpan, overlay "Restoring the gallery…"; saat pulih, probe refleksi & bayangan dibangun ulang; jika tidak pulih dalam 6 dtk, tombol RELOAD.
+- Hologram kartu HUD memakai patung low-poly yang di-cache per karakter; potongan yang dibawa adalah klon (tanpa memahat ulang).
+
 ## Editor
 Mode **Edit** menghentikan gameplay; plinth di galeri bisa dipilih dan diseret (ditulis ke `gameConfig.podiumPositions`). Patung otomatis menghadap lorong tengah dan ceruk berwarna di dinding ikut berpindah.
 

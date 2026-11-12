@@ -40,6 +40,7 @@ export function uiMarkup(editing) {
       </section>
       ${editing ? '<div class="edit-badge">EDITOR MODE <span>· gameplay paused</span></div>' : ''}
     </div>
+    <div id="gl-lost" class="gl-lost"><div><b>Restoring the gallery…</b><span>The graphics were interrupted. Your progress is saved.</span><button id="gl-reload">RELOAD</button></div></div>
     <div id="boot" class="boot">
       ${logoMarkup()}
       <div class="boot-foot"><div class="boot-bar"><i id="boot-fill"></i></div><div id="boot-status" class="boot-status">PREPARING THE ATELIER</div></div>
@@ -165,6 +166,12 @@ export function installStyles() {
     .editor-picks i { width:6px;height:6px;margin-right:4px;vertical-align:1px; }
     .editor-note { margin-top:6px;text-align:center;color:#93897a;font-size:8px; }
     .hud.offstage > * { visibility:hidden !important; }
+    .gl-lost { display:none; position:absolute; inset:0; z-index:60; align-items:center; justify-content:center; background:rgba(30,22,14,.88); color:#fff3dd; text-align:center; pointer-events:auto; }
+    .gl-lost.shown { display:flex; }
+    .gl-lost b { display:block; font:600 30px Georgia,serif; }
+    .gl-lost span { display:block; margin:12px 40px 0; color:#f2dfc0; font:500 16px system-ui; }
+    .gl-lost button { display:none; margin:26px auto 0; width:220px; height:88px; border-radius:24px; border:1px solid #ffe8b8; background:linear-gradient(180deg,#f6d690,#d59c48); color:#3a2310; font:700 24px Georgia,serif; letter-spacing:3px; }
+    .gl-lost.stuck button { display:block; }
     .menu-open { pointer-events:auto; position:absolute; left:96px; top:494px; width:64px; height:64px; display:grid; place-items:center; border-radius:16px; border:1px solid rgba(255,214,150,.45); background:linear-gradient(150deg,rgba(58,46,36,.82),rgba(28,24,22,.88)); color:#ffe2b0; font-size:26px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
     .studio-on .menu-open, .edit-mode .menu-open, .edit-mode .studio-open, .edit-mode .sound-toggle { display:none; }
     #finish-rank { margin-left:10px; background:#6a4a22; border-color:rgba(243,201,120,.6); }
