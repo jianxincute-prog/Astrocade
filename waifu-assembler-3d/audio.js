@@ -9,6 +9,7 @@ const SFX = {
   finale: 'sfx_all_complete', // all twelve statues restored
   tap: 'sfx_ui_tap', // studio and menu buttons
   notHere: 'sfx_not_here', // the plinth is out of reach
+  step: 'sfx_footstep', // footsteps on stone
 };
 
 export function createAudio({ enabled = true, musicVolume = 0.35, sfxVolume = 0.8, muted = false } = {}) {

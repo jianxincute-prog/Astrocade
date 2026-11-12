@@ -17,6 +17,11 @@ Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang te
 - Musik tema `music_atelier_theme` (piano lembut, string, harpa, music box; loop) dan efek: ambil potongan, pasang potongan, patung selesai, semua patung selesai, tap UI, dan nada lembut saat plinth terlalu jauh. Semua aset ada di `asset_map.json`.
 - Audio dimulai pada sentuhan/tombol pertama, berhenti saat game disembunyikan, musik diredam sejenak saat fanfare. Tombol ♪ di HUD mematikan/menyalakan suara (tersimpan bersama progres); volume musik dan efek bisa diatur di panel pengaturan (`settings.musicVolume`, `settings.sfxVolume`).
 
+## Juice & performa
+- Potongan terbang dari plinth ke tangan saat diambil dan dari tangan ke patung saat dipasang (pop saat mendarat; kilau, suara, dan getar tepat saat mendarat). Patung selesai: pilar cahaya emas + gelombang cincin + halo; FOV kick halus; counter HUD "pop"; langkah kaki di marmer; petunjuk singkat untuk pemain baru.
+- Pengunjung tidak bisa menembus patung, plinth, pohon, dan bangku (collider lingkaran).
+- Resolusi dinamis menjaga ±60 fps (turun bertahap saat < 50 fps, naik lagi saat stabil); material statis, plinth, podium, dan ceruk dibekukan setelah loading (hologram fresnel dikecualikan); plinth fragmen tidak lagi ikut bergerak tiap frame; status fragmen & target terdekat di-cache; DOM HUD hanya ditulis saat berubah; rect kartu hologram diukur saat layout berubah saja; save digabung (debounce 1,5 dtk); timer memakai waktu nyata.
+
 ## Editor
 Mode **Edit** menghentikan gameplay; plinth di galeri bisa dipilih dan diseret (ditulis ke `gameConfig.podiumPositions`). Patung otomatis menghadap lorong tengah dan ceruk berwarna di dinding ikut berpindah.
 

@@ -89,5 +89,18 @@
     "subtype": "effect",
     "type": "audio",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76RNZWCYXDXP65CEY16TBVV_a4897720-783a-4518-a4cd-d6cdcc5e5182_4d9a71fb-b7d0-4841-a680-80992858b091.mp3"
+  },
+  "sfx_footstep": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Single soft footstep of a light shoe on a polished marble museum floor, gentle and clean with a tiny natural room echo, quiet",
+    "duration_secs": 0.36,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76W19QQK08NH7P8EM4Z6WQX_cf6a64ea-9bde-4798-9a9c-2cab4f39dae8_c3097a23-ab86-485c-ab0c-bc0148bb4619.ogg",
+    "prompt": "Single soft footstep of a light shoe on a polished marble museum floor, gentle and clean with a tiny natural room echo, quiet",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76W19QQK08NH7P8EM4Z6WQX_cf6a64ea-9bde-4798-9a9c-2cab4f39dae8_c3097a23-ab86-485c-ab0c-bc0148bb4619.mp3"
   }
 }

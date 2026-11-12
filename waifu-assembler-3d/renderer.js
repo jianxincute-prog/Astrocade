@@ -13,6 +13,7 @@ import { createAudio } from './audio.js';
 // Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead gallery layout editor.
 // The statues stand about 5 units tall on their plinths, so the visitor's eye sits at EYE_HEIGHT to meet them at chest height.
 const EYE_HEIGHT = 3.2;
+const PLAY_FOV = 74 * Math.PI / 180;
 const SPAWN = { x: 0, z: HALL_SIZE / 2 - 10 };
 // Plinths may be moved anywhere inside the gallery, keeping clear of its walls and doorway.
 const POD_X = ANNEX.maxX - 5; const POD_NEAR = ANNEX.nearZ - 8; const POD_FAR = ANNEX.farZ + 6;
@@ -171,10 +172,11 @@ export function createGame(mode = 'play') {
   const state = createInitialState();
   const player = { x: SPAWN.x, z: SPAWN.z, yaw: 0, pitch: -0.06 };
   const eye = { y: EYE_HEIGHT };
-  const forwardVec = () => new BAB.Vector3(-Math.sin(player.yaw) * Math.cos(player.pitch), Math.sin(player.pitch), -Math.cos(player.yaw) * Math.cos(player.pitch));
+  const fwdTmp = new BAB.Vector3(); const aimTmp = new BAB.Vector3();
+  const forwardVec = () => fwdTmp.set(-Math.sin(player.yaw) * Math.cos(player.pitch), Math.sin(player.pitch), -Math.cos(player.yaw) * Math.cos(player.pitch));
   const aimCamera = (y = EYE_HEIGHT) => {
     camera.position.set(player.x, y, player.z);
-    camera.setTarget(camera.position.add(forwardVec()));
+    camera.setTarget(camera.position.addToRef(forwardVec(), aimTmp));
   };
   if (editing) {
     camera.position.set(0, 88, (ANNEX.nearZ + ANNEX.farZ) / 2);
@@ -211,16 +213,20 @@ export function createGame(mode = 'play') {
   const stick = { x: 0, y: 0 };
   const keys = new Set();
 
-  const toast = (message, tone = 'normal') => {
+  const toast = (message, tone = 'normal', ms = 2300) => {
     ui.toast.textContent = message;
     ui.toast.dataset.tone = tone;
     ui.toast.classList.add('visible');
-    toastUntil = performance.now() + 2300;
+    toastUntil = performance.now() + ms;
     if (tone === 'success') safeHaptic('success');
     else if (tone === 'normal') safeHaptic('tap');
   };
   const safeHaptic = (effect) => { try { window.lib?.haptics?.play?.(effect); } catch { /* optional on the host */ } };
-  const saveProgress = () => {
+  let saveTimer = 0;
+  // Coalesces bursts of pickups/placements into one save; `now` flushes immediately (menu, completion, settings).
+  const saveProgress = (now = false) => {
+    clearTimeout(saveTimer);
+    if (!now) { saveTimer = setTimeout(() => saveProgress(true), 1500); return; }
     const save = window.lib?.saveUserGameState;
     if (!save) return;
     prefs.muted = audio.muted;
@@ -230,7 +236,8 @@ export function createGame(mode = 'play') {
   // ---------- 3D hologram projection inside the HUD card ----------
   // The real statue, rebuilt with the hologram material, floats in front of the camera exactly behind the card's
   // transparent window; the component being carried glows red so the player sees where it belongs.
-  const holo = { root: null, spin: null, key: null, base: Math.PI, sway: 0.6 };
+  const holo = { root: null, spin: null, key: null, base: Math.PI, sway: 0.6, rect: null, crect: null, rectAt: -1 };
+  let layoutVersion = 0; // bumped on resize / HUD card changes so cached DOM rects are re-measured
   const heldMat = new BAB.StandardMaterial('holoHeld', scene);
   heldMat.disableLighting = true; heldMat.backFaceCulling = false; heldMat.alphaMode = BAB.Engine.ALPHA_COMBINE; heldMat.alpha = 0.85; heldMat.needDepthPrePass = true;
   heldMat.emissiveColor = BAB.Color3.FromHexString('#ff3d5e');
@@ -264,15 +271,17 @@ export function createGame(mode = 'play') {
   }
   function updateHologram(now) {
     if (!holo.root) return;
-    const rect = ui.blueprintBody.getBoundingClientRect(); const crect = canvas.getBoundingClientRect();
-    if (!rect.height) { holo.root.setEnabled(false); return; }
+    if (!holo.rect || holo.rectAt < layoutVersion) { holo.rect = ui.blueprintBody.getBoundingClientRect(); holo.crect = canvas.getBoundingClientRect(); holo.rectAt = layoutVersion; }
+    const rect = holo.rect; const crect = holo.crect; // measured once per layout change, not every frame
+    if (!rect.height) { holo.root.setEnabled(false); holo.rectAt = -1; return; }
     holo.root.setEnabled(true);
     const dist = 4;
     const ray = scene.createPickingRay(rect.left + rect.width / 2 - crect.left, rect.top + rect.height / 2 - crect.top, BAB.Matrix.Identity(), camera);
     holo.root.position.copyFrom(ray.origin.add(ray.direction.scale(dist)));
     const worldPerPx = (2 * dist * Math.tan(camera.fov / 2)) / crect.height;
     holo.root.scaling.setAll((rect.height * 0.92 * worldPerPx) / 4.4);
-    holo.root.rotationQuaternion = camera.absoluteRotation.clone();
+    if (!holo.root.rotationQuaternion) holo.root.rotationQuaternion = new BAB.Quaternion();
+    holo.root.rotationQuaternion.copyFrom(camera.absoluteRotation);
     holo.spin.rotation.y = holo.base + Math.sin(now * 0.0007) * holo.sway;
     heldMat.alpha = 0.7 + Math.sin(now * 0.008) * 0.25;
   }
@@ -295,9 +304,10 @@ export function createGame(mode = 'play') {
   const refreshFragments = () => {
     for (const fragment of FRAGMENTS) {
       const model = fragments.get(fragment.key);
-      const absent = state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
-      model.root.setEnabled(!absent);
+      model.absent = state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
+      model.root.setEnabled(!model.absent); model.shown = !model.absent;
     }
+    nearestCache.at = -1;
     if (carriedVisual) {
       carriedVisual.dispose(false, false);
       carriedVisual = null;
@@ -320,7 +330,7 @@ export function createGame(mode = 'play') {
     const fragment = getFragment(state.carried);
     const set = getSet(fragment.setId);
     const part = PARTS.find((item) => item.id === fragment.partId);
-    ui.blueprint.classList.add('shown');
+    ui.blueprint.classList.add('shown'); layoutVersion += 1; setTimeout(() => { layoutVersion += 1; }, 260); // after the card's slide-in
     ui.blueprintTitle.textContent = set.name;
     ui.blueprintFoot.textContent = `HELD COMPONENT  /  ${part.short}`;
     ui.blueprint.style.setProperty('--holo', set.color);
@@ -336,8 +346,15 @@ export function createGame(mode = 'play') {
     } catch { return null; } // a first-time player has a clean statue atelier
   })();
 
+  const setHTML = (el, html) => { if (el.__html !== html) { el.innerHTML = html; el.__html = html; } }; // skip identical DOM writes
+  let shownCount = -1;
   const updateHUD = () => {
-    ui.progress.textContent = `${countPlaced(state)} / ${FRAGMENTS.length}`;
+    const count = countPlaced(state);
+    if (count !== shownCount) { // the counter pops whenever a part is placed
+      ui.progress.textContent = `${count} / ${FRAGMENTS.length}`;
+      if (shownCount >= 0 && count > shownCount) { ui.progress.classList.remove('pop'); void ui.progress.offsetWidth; ui.progress.classList.add('pop'); }
+      shownCount = count;
+    }
     const nearest = nearestAvailable();
     if (state.carried) {
       const fragment = getFragment(state.carried);
@@ -345,8 +362,8 @@ export function createGame(mode = 'play') {
       const podium = podiums.get(set.id);
       const dist = distance2(player.x, player.z, podium.group.position.x, podium.group.position.z);
       const inRange = dist <= 5.2;
-      ui.status.innerHTML = `<b>${inRange ? 'PLINTH IN RANGE' : 'TO THE GALLERY'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to its plinth</span>`;
-      ui.target.innerHTML = `<i class="target-dot" style="--dot:${set.color}"></i><span>Carry <b>${fragment.partId.replace('armL', 'left arm').replace('armR', 'right arm')}</b> to its matching plinth</span>`;
+      setHTML(ui.status, `<b>${inRange ? 'PLINTH IN RANGE' : 'TO THE GALLERY'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to its plinth</span>`);
+      setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>Carry <b>${fragment.partId.replace('armL', 'left arm').replace('armR', 'right arm')}</b> to its matching plinth</span>`);
       ui.action.disabled = !inRange;
       ui.action.classList.toggle('ready', inRange);
       ui.actionLabel.textContent = inRange ? 'ASSEMBLE' : 'RESTORE';
@@ -357,24 +374,30 @@ export function createGame(mode = 'play') {
       const angle = Math.atan2(nearest.fragment.x - player.x, -(nearest.fragment.z - player.z)) - player.yaw;
       const arrow = Math.abs(angle) < .35 ? '↑' : Math.abs(angle) < 1.15 ? (angle > 0 ? '↗' : '↖') : Math.abs(angle) < 2.35 ? (angle > 0 ? '→' : '←') : '↓';
       const close = dist <= useRange;
-      ui.status.innerHTML = `<b>${close ? 'FRAGMENT NEARBY' : 'SEARCH THE HALL'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m away</span>`;
-      ui.target.innerHTML = `<i class="target-dot" style="--dot:${set.color}"></i><span>${arrow} &nbsp;${set.name} / ${nearest.part.label}</span>`;
+      setHTML(ui.status, `<b>${close ? 'FRAGMENT NEARBY' : 'SEARCH THE HALL'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m away</span>`);
+      setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>${arrow} &nbsp;${set.name} / ${nearest.part.label}</span>`);
       ui.action.disabled = !close;
       ui.action.classList.toggle('ready', close);
       ui.actionLabel.textContent = close ? 'COLLECT' : 'SEARCH';
       ui.action.setAttribute('aria-label', close ? `Collect ${nearest.part.label}` : 'Find the highlighted statue fragment');
     } else {
-      ui.status.innerHTML = `<b>RESTORATION COMPLETE</b><span>All ${SETS.length} figures are ready for display</span>`;
-      ui.target.innerHTML = `<i class="target-dot" style="--dot:#80e8ce"></i><span>Every piece has found its home. Lovely work.</span>`;
+      setHTML(ui.status, `<b>RESTORATION COMPLETE</b><span>All ${SETS.length} figures are ready for display</span>`);
+      setHTML(ui.target, `<i class="target-dot" style="--dot:#80e8ce"></i><span>Every piece has found its home. Lovely work.</span>`);
       ui.action.disabled = true;
       ui.actionLabel.textContent = 'COMPLETE';
     }
     drawMiniMap();
   };
-  function nearestAvailable() {
+  const nearestCache = { at: -1, x: 0, z: 0, value: null };
+  function nearestAvailable() { // cached per position; fragments only change through refreshFragments()
+    if (nearestCache.at >= 0 && nearestCache.x === player.x && nearestCache.z === player.z) return nearestCache.value;
+    nearestCache.value = findNearest(); nearestCache.at = 1; nearestCache.x = player.x; nearestCache.z = player.z;
+    return nearestCache.value;
+  }
+  function findNearest() {
     let best = null;
     for (const fragment of FRAGMENTS) {
-      if (state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId)) continue;
+      if (fragments.get(fragment.key)?.absent) continue;
       const distance = Math.hypot(player.x - fragment.x, player.z - fragment.z);
       if (!best || distance < best.distance) best = { fragment, distance, part: PARTS.find((part) => part.id === fragment.partId) };
     }
@@ -385,7 +408,7 @@ export function createGame(mode = 'play') {
     const w = ui.map.width;
     const h = ui.map.height;
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(10,15,28,.86)';
+    ctx.fillStyle = 'rgba(24,19,14,.86)';
     roundRect(ctx, 1, 1, w - 2, h - 2, 18); ctx.fill();
     // true-scale plan: the gallery north of the hall, joined by its doorway
     const half = HALL_SIZE / 2; const north = ANNEX.farZ; const span = half - north;
@@ -396,7 +419,7 @@ export function createGame(mode = 'play') {
     ctx.fillRect(px(-half), pz(-half), HALL_SIZE * k, HALL_SIZE * k); ctx.strokeRect(px(-half), pz(-half), HALL_SIZE * k, HALL_SIZE * k);
     ctx.fillStyle = 'rgba(244,238,226,.2)'; ctx.fillRect(px(ANNEX.minX), pz(north), (ANNEX.maxX - ANNEX.minX) * k, (-half - north) * k);
     ctx.strokeRect(px(ANNEX.minX), pz(north), (ANNEX.maxX - ANNEX.minX) * k, (-half - north) * k);
-    ctx.fillStyle = 'rgba(10,15,28,1)'; ctx.fillRect(px(-GALLERY_DOOR), pz(-half) - 1.5, GALLERY_DOOR * 2 * k, 3);
+    ctx.fillStyle = 'rgba(24,19,14,1)'; ctx.fillRect(px(-GALLERY_DOOR), pz(-half) - 1.5, GALLERY_DOOR * 2 * k, 3);
     for (const set of SETS) {
       const p = podiums.get(set.id).group.position; const done = (state.placed[set.id]?.length || 0) === PARTS.length;
       ctx.beginPath(); ctx.arc(px(p.x), pz(p.z), 2.6, 0, Math.PI * 2);
@@ -425,22 +448,22 @@ export function createGame(mode = 'play') {
       const w = ui.editorMap.width, h = ui.editorMap.height;
       ctx.clearRect(0, 0, w, h);
       roundRect(ctx, 1, 1, w - 2, h - 2, 18);
-      ctx.fillStyle = 'rgba(9,15,29,.97)'; ctx.fill();
+      ctx.fillStyle = 'rgba(24,19,13,.97)'; ctx.fill();
       // The gallery is ANNEX wide x long; plinths line both sides of the central aisle.
       const left = 20, top = 18, rw = w - 40, rh = h - 36;
-      ctx.fillStyle = '#131d31'; ctx.fillRect(left, top, rw, rh);
-      ctx.strokeStyle = 'rgba(91,228,237,.55)'; ctx.lineWidth = 2; ctx.strokeRect(left, top, rw, rh);
-      ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(120,175,196,.15)'; ctx.beginPath(); ctx.moveTo(w / 2, top + 12); ctx.lineTo(w / 2, top + rh - 12); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(196,220,234,.42)'; ctx.font = '700 9px system-ui'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#2a211a'; ctx.fillRect(left, top, rw, rh);
+      ctx.strokeStyle = 'rgba(228,185,100,.55)'; ctx.lineWidth = 2; ctx.strokeRect(left, top, rw, rh);
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(196,171,120,.15)'; ctx.beginPath(); ctx.moveTo(w / 2, top + 12); ctx.lineTo(w / 2, top + rh - 12); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(234,221,196,.42)'; ctx.font = '700 9px system-ui'; ctx.textAlign = 'center';
       ctx.fillText('CENTRAL AISLE', w / 2, h / 2 + 3);
-      ctx.font = '700 8px system-ui'; ctx.fillStyle = 'rgba(139,182,201,.54)'; ctx.fillText('SCULPTURE GALLERY · ENTRANCE AT THE TOP', w / 2, h - 5);
+      ctx.font = '700 8px system-ui'; ctx.fillStyle = 'rgba(201,180,139,.54)'; ctx.fillText('SCULPTURE GALLERY · ENTRANCE AT THE TOP', w / 2, h - 5);
       for (const set of SETS) {
         const pos = podiumPositions[set.id];
         const x = left + (pos[0] - ANNEX.minX) / (ANNEX.maxX - ANNEX.minX) * rw;
         const y = top + (ANNEX.nearZ - pos[1]) / (ANNEX.nearZ - ANNEX.farZ) * rh;
         const isSelected = selectedEditorSet === set.id;
         ctx.beginPath(); ctx.arc(x, y, isSelected ? 25 : 21, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? `${set.color}42` : 'rgba(15,24,38,.96)'; ctx.fill();
+        ctx.fillStyle = isSelected ? `${set.color}42` : 'rgba(33,26,20,.96)'; ctx.fill();
         ctx.lineWidth = isSelected ? 3 : 2; ctx.strokeStyle = set.color; ctx.stroke();
         ctx.fillStyle = '#fff'; ctx.font = '700 8px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(isSelected ? '↕' : '✦', x, y);
@@ -515,9 +538,11 @@ export function createGame(mode = 'play') {
       hasInteracted = true;
       Object.assign(state, next);
       const model = fragments.get(target.fragment.key);
-      sparkle(new BAB.Vector3(target.fragment.x, 2.3, target.fragment.z), getSet(target.fragment.setId).color, 60);
-      void model;
+      const from = model.spin.getAbsolutePosition().clone();
+      sparkle(from, getSet(target.fragment.setId).color, 60);
       refreshFragments(); saveProgress(); updateHUD();
+      carriedFly = { start: performance.now(), from, scale: 0.8 }; // the part lifts off its plinth into the visitor's hand
+      kick(0.035); safeHaptic('tap');
       const set = getSet(target.fragment.setId);
       toast(`${target.part.label} recovered · ${set.name}`, 'success');
       audio.play('pickup', { rate: 0.94 + Math.random() * 0.12 });
@@ -533,27 +558,80 @@ export function createGame(mode = 'play') {
     const next = placeCarried(state, fragment.setId);
     if (next === state) return;
     hasInteracted = true;
+    const hand = carriedVisual ? carriedVisual.getAbsolutePosition().clone() : null;
     Object.assign(state, next);
     const set = getSet(fragment.setId);
-    const offset = ({ legs: 1.6, torso: 3.0, head: 4.3, armL: 3.2, armR: 3.2 })[fragment.partId] || 2.4;
-    sparkle(new BAB.Vector3(podium.group.position.x, offset, podium.group.position.z), set.color, 110);
-    refreshFragments(); saveProgress(); updateHUD();
-    const done = state.placed[set.id].length === PARTS.length;
-    if (done) sparkle(new BAB.Vector3(podium.group.position.x, 5, podium.group.position.z), '#ffffff', 200);
-    toast(done ? `${set.name} restored · display complete!` : `${set.name} · ${state.placed[set.id].length}/5 pieces assembled`, 'success');
-    if (isGameComplete(state) && !finishedShown) { audio.play('place', { volume: 0.8 }); audio.play('finale'); audio.duck(6); }
-    else if (done) { audio.play('place', { volume: 0.8 }); audio.play('complete'); audio.duck(4); }
-    else audio.play('place', { rate: 0.96 + state.placed[set.id].length * 0.02 });
-    if (isGameComplete(state) && !finishedShown) {
-      finishedShown = true;
-      const final = Math.max(1, Math.round(playSeconds)); const isBest = !bestSeconds || final < bestSeconds;
+    refreshFragments(); updateHUD();
+    const count = state.placed[set.id].length; const done = count === PARTS.length;
+    const allDone = isGameComplete(state) && !finishedShown;
+    let final = 0; let isBest = false;
+    if (allDone) { // lock the time now; the banner waits for the last part to land
+      finishedShown = true; final = Math.max(1, Math.round(playSeconds)); isBest = !bestSeconds || final < bestSeconds;
       if (isBest) bestSeconds = final;
-      root.querySelector('#finish-time').textContent = `${formatTime(final)}${isBest ? '  ·  NEW BEST' : ''}`;
-      root.querySelector('#finish-banner').classList.add('shown');
-      saveProgress(); submitScore(final);
-      safeHaptic('success');
-      try { window.lib?.log?.('All Waifu Assembler statues restored.'); } catch { /* optional */ }
+      submitScore(final);
     }
+    saveProgress(allDone);
+    flyIn(podium.figureParts.get(fragment.partId), hand, () => { // effects fire when the part lands on the statue
+      const offset = ({ legs: 1.6, torso: 3.0, head: 4.3, armL: 3.2, armR: 3.2 })[fragment.partId] || 2.4;
+      sparkle(new BAB.Vector3(podium.group.position.x, offset, podium.group.position.z), set.color, 110);
+      kick(done ? 0.09 : 0.045); safeHaptic(done ? 'success' : 'tap');
+      toast(done ? `${set.name} restored · display complete!` : `${set.name} · ${count}/5 pieces assembled`, 'success');
+      if (allDone) { audio.play('place', { volume: 0.8 }); audio.play('finale'); audio.duck(6); }
+      else if (done) { audio.play('place', { volume: 0.8 }); audio.play('complete'); audio.duck(4); }
+      else audio.play('place', { rate: 0.96 + count * 0.02 });
+      if (done) { sparkle(new BAB.Vector3(podium.group.position.x, 5, podium.group.position.z), '#ffffff', 200); celebrate(podium, set); }
+      if (allDone) setTimeout(() => {
+        if (disposed) return;
+        root.querySelector('#finish-time').textContent = `${formatTime(final)}${isBest ? '  ·  NEW BEST' : ''}`;
+        root.querySelector('#finish-banner').classList.add('shown');
+        try { window.lib?.log?.('All Waifu Assembler statues restored.'); } catch { /* optional */ }
+      }, 1400);
+    });
+  }
+  // ---------- juice: flights, camera kick, celebration ----------
+  let carriedFly = null; const flights = []; const effects = []; let fovKick = 0;
+  const ease = (t) => 1 - (1 - t) ** 3;
+  const kick = (amount) => { fovKick = Math.min(0.14, fovKick + amount); };
+  const anchorInv = new BAB.Matrix(); const localTmp = new BAB.Vector3();
+  function flyIn(entry, hand, onLand) {
+    if (!hand || !entry) { onLand(); return; }
+    entry.anchor.computeWorldMatrix(true).invertToRef(anchorInv);
+    const from = BAB.Vector3.TransformCoordinates(hand, anchorInv);
+    entry.solid.position.copyFrom(from); entry.solid.scaling.setAll(0.2);
+    flights.push({ node: entry.solid, from, start: performance.now(), dur: 520, onLand, landed: false });
+  }
+  function updateFlights(now) {
+    for (let i = flights.length - 1; i >= 0; i -= 1) {
+      const f = flights[i]; const t = Math.min(1, (now - f.start) / f.dur);
+      if (t < 1) {
+        const e = ease(t);
+        BAB.Vector3.LerpToRef(f.from, BAB.Vector3.ZeroReadOnly, e, localTmp); localTmp.y += Math.sin(Math.PI * t) * 0.9;
+        f.node.position.copyFrom(localTmp); f.node.scaling.setAll(0.2 + 0.8 * e);
+        continue;
+      }
+      if (!f.landed) { f.landed = true; f.node.position.setAll(0); refreshShadows(); f.onLand(); }
+      const p = Math.min(1, (now - f.start - f.dur) / 220); // landing pop: 1.08 → 1
+      f.node.scaling.setAll(1 + 0.08 * Math.sin(Math.PI * p) * (1 - p));
+      if (p >= 1) { f.node.scaling.setAll(1); flights.splice(i, 1); }
+    }
+    for (let i = effects.length - 1; i >= 0; i -= 1) if (!effects[i](now)) effects.splice(i, 1);
+  }
+  // a column of warm light and a ring sweeping across the floor when a statue is whole again
+  function celebrate(podium, set) {
+    const start = performance.now(); const p = podium.group.position;
+    const pillar = BAB.MeshBuilder.CreateCylinder('celebratePillar', { height: 16, diameterTop: 2.2, diameterBottom: 3.6, tessellation: 32, cap: BAB.Mesh.NO_CAP }, scene);
+    const ring = BAB.MeshBuilder.CreateTorus('celebrateRing', { diameter: 2, thickness: 0.12, tessellation: 64 }, scene);
+    const pm = new BAB.StandardMaterial('celebratePillarMat', scene); pm.disableLighting = true; pm.emissiveColor = BAB.Color3.FromHexString('#ffe2a6'); pm.backFaceCulling = false; pm.fogEnabled = false;
+    const rm = new BAB.StandardMaterial('celebrateRingMat', scene); rm.disableLighting = true; rm.emissiveColor = BAB.Color3.FromHexString(set.color);
+    pillar.material = pm; ring.material = rm; pillar.position.set(p.x, 8, p.z); ring.position.set(p.x, 0.08, p.z);
+    for (const m of [pillar, ring]) m.isPickable = false;
+    effects.push((now) => {
+      const t = (now - start) / 2200;
+      if (t >= 1) { pillar.dispose(); ring.dispose(); pm.dispose(); rm.dispose(); return false; }
+      pm.alpha = 0.4 * (1 - t) * Math.min(1, t * 6); pillar.scaling.set(1 + t * 0.6, 1, 1 + t * 0.6);
+      const r = 1 + ease(Math.min(1, t * 1.4)) * 5; ring.scaling.set(r, 1, r); rm.alpha = 0.9 * (1 - t);
+      return true;
+    });
   }
   root.querySelector('#finish-close').addEventListener('click', () => root.querySelector('#finish-banner').classList.remove('shown'));
   root.querySelector('#editor-reset').addEventListener('click', () => {
@@ -567,6 +645,7 @@ export function createGame(mode = 'play') {
     toast('Gallery layout reset: six plinths along each side');
   });
 
+  let stepDistance = 0;
   function movePlayer(dt) {
     const kx = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
     const ky = Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
@@ -586,7 +665,16 @@ export function createGame(mode = 'play') {
     if (band && Math.abs(x) > GALLERY_DOOR - 0.6) {
       if (player.z >= -half) z = -half + pad; else { z = Math.min(z, -half - 1.2 - pad); x = clamp(x, ANNEX.minX + pad, ANNEX.maxX - pad); }
     }
+    // walk around plinths, statues, trees and benches instead of through them
+    const R = 0.55;
+    const push = (cx, cz, r) => { const dx = x - cx; const dz = z - cz; const d = Math.hypot(dx, dz); const min = r + R; if (d < min && d > 1e-4) { x = cx + (dx / d) * min; z = cz + (dz / d) * min; } };
+    for (const [cx, cz, r] of world.colliders) push(cx, cz, r);
+    for (const podium of podiums.values()) push(podium.group.position.x, podium.group.position.z, 2.45);
+    for (const model of fragments.values()) if (!model.absent) push(model.root.position.x, model.root.position.z, 0.75);
+    const moved = Math.hypot(x - player.x, z - player.z);
     player.x = x; player.z = z;
+    stepDistance += moved;
+    if (stepDistance > 2.4) { stepDistance = 0; audio.play('step', { volume: 0.4, rate: 0.9 + Math.random() * 0.2 }); }
     aimCamera(eye.y + Math.sin(performance.now() * 0.008) * Math.min(0.028, magnitude * 0.018));
   }
   const tmpRight = new BAB.Vector3();
@@ -597,43 +685,51 @@ export function createGame(mode = 'play') {
     const up = BAB.Vector3.Cross(tmpRight, fwd);
     carriedVisual.position.copyFrom(camera.position).addInPlace(tmpRight.scale(0.42)).addInPlace(up.scale(-0.3 + Math.sin(now * 0.003) * 0.012)).addInPlace(fwd.scale(1.6));
     carriedVisual.rotation.set(-0.12, player.yaw - 0.28 + Math.sin(now * 0.0022) * 0.07, 0);
+    if (carriedFly) { // pickup flight from the plinth into the hand
+      const t = Math.min(1, (now - carriedFly.start) / 380); const e = ease(t);
+      BAB.Vector3.LerpToRef(carriedFly.from, carriedVisual.position, e, carriedVisual.position);
+      carriedVisual.position.y += Math.sin(Math.PI * t) * 0.5;
+      carriedVisual.scaling.setAll(carriedFly.scale + (0.19 - carriedFly.scale) * e);
+      if (t >= 1) carriedFly = null;
+    }
   }
   const FRAGMENT_VIEW = 46; const STATUE_VIEW = 92;
+  let beaconKey = null;
   function updateObjects(now, dt) {
     for (const fragment of FRAGMENTS) { // only fragments near the visitor are drawn; fog hides the rest anyway
       const model = fragments.get(fragment.key);
-      const absent = state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
-      const near = editing || Math.hypot(player.x - fragment.x, player.z - fragment.z) < FRAGMENT_VIEW;
-      model.root.setEnabled(!absent && near);
+      const near = editing || Math.abs(player.x - fragment.x) + Math.abs(player.z - fragment.z) < FRAGMENT_VIEW * 1.3 && Math.hypot(player.x - fragment.x, player.z - fragment.z) < FRAGMENT_VIEW;
+      const show = !model.absent && near;
+      if (show !== model.shown) { model.root.setEnabled(show); model.shown = show; }
     }
     for (const podium of podiums.values()) {
       const d = Math.hypot(player.x - podium.group.position.x, player.z - podium.group.position.z);
       const show = editing || d < STATUE_VIEW;
       if (show !== podium.figure.isEnabled(false)) { podium.figure.setEnabled(show); refreshShadows(); }
-      podium.labelMesh.setEnabled(editing || d < 30); // only nearby name cards, so the gallery isn't cluttered
+      podium.labelMesh.setEnabled(editing || (d > 7 && d < 30)); // name cards for nearby statues, hidden when standing right at one
     }
     for (const model of fragments.values()) {
       if (!model.root.isEnabled()) continue;
       model.spin.rotation.y += 0.26 * dt;
-      model.root.position.y = model.baseY + Math.sin(now * 0.0018 + model.phase) * 0.13;
-      model.floorGlow.position.y = 0.02 - model.root.position.y;
+      model.spin.position.y = model.baseY + Math.sin(now * 0.0018 + model.phase) * 0.13;
     }
     for (const podium of podiums.values()) {
       if (podium.finished.isEnabled()) {
         podium.finished.rotation.y += dt * 1.1;
         podium.finished.position.y = 5.7 + Math.sin(now * 0.002) * 0.08;
       }
-      podium.figure.rotation.y = podium.poseTurn + Math.sin(now * 0.0005 + podium.group.position.x) * 0.06;
     }
     if (!editing) {
       petalEmitter.set(player.x, 0, player.z);
-      let best = null;
-      if (!state.carried) best = nearestAvailable()?.fragment.key;
-      for (const fragment of FRAGMENTS) {
-        const model = fragments.get(fragment.key);
-        model.beacon.setEnabled(Boolean(best === fragment.key));
-        model.ringMat.alpha = best === fragment.key ? 0.75 + Math.sin(now * 0.006) * 0.2 : 0;
+      const best = state.carried ? null : nearestAvailable()?.fragment.key || null;
+      if (best !== beaconKey) { // only the target fragment carries a beacon and a halo
+        const prev = beaconKey && fragments.get(beaconKey);
+        if (prev) { prev.beacon.setEnabled(false); prev.ring.setEnabled(false); }
+        const next = best && fragments.get(best);
+        if (next) { next.beacon.setEnabled(true); next.ring.setEnabled(true); }
+        beaconKey = best;
       }
+      if (best) fragments.get(best).ringMat.alpha = 0.75 + Math.sin(now * 0.006) * 0.2;
       const target = best ? getFragment(best) : null;
       const showLabel = target && Math.hypot(player.x - target.x, player.z - target.z) < 18;
       nearLabel.mesh.setEnabled(Boolean(showLabel));
@@ -730,11 +826,15 @@ export function createGame(mode = 'play') {
   function render() {
     if (disposed) return;
     const now = performance.now();
-    const dt = Math.min(0.11, Math.max(0.001, (now - lastFrame) / 1000));
+    const rawDt = Math.max(0, (now - lastFrame) / 1000);
+    const dt = Math.min(0.11, Math.max(0.001, rawDt));
     lastFrame = now;
+    adaptResolution(rawDt);
     if (studio.open) { renderStudio(now); return; }
+    updateFlights(now);
     if (phase === 'loading' || phase === 'menu') { renderShowcase(now, dt); return; }
-    if (phase === 'play') { movePlayer(dt); if (!isGameComplete(state)) playSeconds += dt; }
+    if (phase === 'play') { fovKick *= Math.exp(-dt * 5); camera.fov = PLAY_FOV + fovKick; }
+    if (phase === 'play') { movePlayer(dt); if (!isGameComplete(state)) playSeconds += Math.min(rawDt, 1); } // real time, not the capped step
     updateObjects(now, dt);
     updateCarried(now);
     updateHologram(now);
@@ -743,7 +843,7 @@ export function createGame(mode = 'play') {
   }
   engine.runRenderLoop(render);
 
-  function resize() { engine.resize(); }
+  function resize() { engine.resize(); layoutVersion += 1; }
   function pointerDown(event) {
     if (event.target !== canvas || !ready || (!editing && phase !== 'play')) return;
     event.preventDefault();
@@ -854,6 +954,7 @@ export function createGame(mode = 'play') {
     applySave(await savedGame); if (disposed) return;
     ready = true;
     refreshFragments(); updateHUD();
+    scene.onAfterRenderObservable.addOnce(freezeStatics); // after the first full frame has compiled every effect
     if (editing) { phase = 'edit'; refreshEditorMap(); hudEl.classList.remove('offstage'); bootEl.classList.add('done'); return; }
     showcaseAll(true);
     await new Promise((resolve) => setTimeout(resolve, 450)); if (disposed) return;
@@ -877,8 +978,40 @@ export function createGame(mode = 'play') {
     finishedShown = isGameComplete(state);
   }
   function applyQuality() {
-    engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, prefs.quality === 'high' ? 1.5 : 1));
-    key.shadowEnabled = prefs.quality === 'high'; refreshShadows();
+    engine.setHardwareScalingLevel(hardwareLevel());
+    if (key.shadowEnabled !== (prefs.quality === 'high')) {
+      key.shadowEnabled = prefs.quality === 'high';
+      for (const m of frozenMaterials) m.unfreeze(); // shadow defines change: recompile once, then freeze again
+      scene.onAfterRenderObservable.addOnce(() => { for (const m of frozenMaterials) m.freeze(); });
+    }
+    refreshShadows();
+  }
+  // Dynamic resolution: render fewer pixels while the frame rate is under ~50 fps, and creep back up when it is steady.
+  const perf = { scale: 1, frames: 0, time: 0 };
+  function hardwareLevel() { return 1 / (Math.min(window.devicePixelRatio || 1, prefs.quality === 'high' ? 1.5 : 1) * perf.scale); }
+  function adaptResolution(rawDt) {
+    if ((phase !== 'play' && phase !== 'menu') || studio.open || window.__waifuFixedResolution) return;
+    if (rawDt > 0.5) { perf.frames = 0; perf.time = 0; return; } // app switch or a one-off hitch
+    perf.frames += 1; perf.time += rawDt;
+    if (perf.time < 2) return;
+    const fps = perf.frames / perf.time; perf.frames = 0; perf.time = 0;
+    let next = perf.scale;
+    if (fps < 50) next = Math.max(0.55, perf.scale * 0.88);
+    else if (fps > 58 && perf.scale < 1) next = Math.min(1, perf.scale * 1.05);
+    if (next !== perf.scale) { perf.scale = next; engine.setHardwareScalingLevel(hardwareLevel()); }
+  }
+  // Static materials and plinths are frozen once the gallery exists: no per-frame uniform/define/matrix checks.
+  const frozenMaterials = [];
+  function freezeStatics() {
+    if (window.__waifuNoFreeze) return;
+    for (const m of scene.materials) {
+      // animated ones stay live, and fresnel holograms do not survive freezing (they render black)
+      if (m === heldMat || m.isFrozen || m.name.startsWith('halo-') || m.name === 'labelMat' || m.name.endsWith(':holo') || m.emissiveFresnelParameters) continue;
+      m.freeze(); frozenMaterials.push(m);
+    }
+    if (editing) return; // the layout editor moves plinths
+    for (const podium of podiums.values()) for (const m of podium.facing.getChildMeshes(true)) { m.computeWorldMatrix(true); m.freezeWorldMatrix(); }
+    for (const n of niches.values()) for (const m of n.getChildMeshes()) { m.computeWorldMatrix(true); m.freezeWorldMatrix(); }
   }
   // Cinematic glide down the gallery aisle: it follows the statues as they are sculpted, then keeps drifting behind the menu.
   const cine = { t: Math.PI / 2 / 0.045 };
@@ -915,14 +1048,16 @@ export function createGame(mode = 'play') {
     carriedVisual?.setEnabled(false); holo.root?.setEnabled(false);
     camera.fov = 1.02; showcaseAll(true); updateMenuMeta(); closePanels();
     menuEl.classList.add('shown');
-    saveProgress();
+    saveProgress(true);
   }
   function startPlay() {
     closePanels(); menuEl.classList.remove('shown'); hudEl.classList.remove('offstage');
     phase = 'play'; refreshPodiums(); carriedVisual?.setEnabled(true);
-    camera.fov = BAB.Tools.ToRadians(74); lastFrame = performance.now();
+    camera.fov = PLAY_FOV; fovKick = 0; lastFrame = performance.now();
     aimCamera(); updateHUD();
+    if (!countPlaced(state) && !state.carried && !hintShown) { hintShown = true; setTimeout(() => { if (phase === 'play') toast('Find a glowing fragment, then carry it to its statue in the gallery', 'normal', 4200); }, 700); }
   }
+  let hintShown = false;
   function closePanels() { for (const panel of Object.values(panels)) panel.classList.remove('shown'); disarmReset(); }
   function openPanel(name) { closePanels(); panels[name].classList.add('shown'); if (name === 'settings') syncSettings(); else loadLeaderboard(); }
   root.querySelector('#menu-play').addEventListener('click', () => { audio.play('tap', { volume: 0.7 }); startPlay(); });

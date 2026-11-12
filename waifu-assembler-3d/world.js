@@ -290,7 +290,9 @@ export function buildWorld(scene, shadowGen, sets) {
   plaque.material = plaqueMat;
 
   // olive trees in terracotta pots, oak benches
+  const colliders = []; // [x, z, radius] obstacles the visitor walks around
   const tree = (x, z, s = 1) => {
+    colliders.push([x, z, 0.85 * s]);
     b.cyl(pot, x, 0.6 * s, z, 1.2 * s, 1.5 * s, 1.1 * s, 18); b.cyl(brass, x, 1.2 * s, z, 0.08, 1.56 * s, 1.56 * s, 18);
     b.cyl(bark, x, 2.4 * s, z, 2.6 * s, 0.14 * s, 0.22 * s, 8);
     const r = rng(Math.round(x * 13 + z * 7));
@@ -298,6 +300,7 @@ export function buildWorld(scene, shadowGen, sets) {
   };
   for (const [x, z] of [[-54, 54], [54, 54], [-54, -54], [54, -54], [-(door + 3.2), wallZ + 2.6], [door + 3.2, wallZ + 2.6], [-56, -30], [56, 30]]) tree(x, z, x === -(door + 3.2) || x === door + 3.2 ? 1.15 : 1);
   const bench = (x, z, rot) => {
+    for (const s of [-1, 0, 1]) colliders.push([x + (rot ? 0 : s * 1.3), z + (rot ? s * 1.3 : 0), 0.75]);
     const along = rot ? [1.2, 4] : [4, 1.2];
     b.box(wood, x, 0.95, z, along[0], 0.22, along[1]);
     for (const s of [-1, 1]) b.box(stone, x + (rot ? 0 : s * 1.5), 0.42, z + (rot ? s * 1.5 : 0), rot ? 1.0 : 0.5, 0.84, rot ? 0.5 : 1.0);
@@ -348,7 +351,7 @@ export function buildWorld(scene, shadowGen, sets) {
     return n;
   };
 
-  return { root, annexFloor: annexMat, hall, annex, ceilings: [ceil, vault, ...lunettes], niche };
+  return { root, annexFloor: annexMat, hall, annex, ceilings: [ceil, vault, ...lunettes], niche, colliders };
 }
 const mixHex = (a, b2, t) => { const p = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)); const A = p(a); const Bc = p(b2); return `#${A.map((v, i) => Math.round(v + (Bc[i] - v) * t).toString(16).padStart(2, '0')).join('')}`; };
 
@@ -358,10 +361,9 @@ export function buildFragment(scene, kit, fragment, part) {
   const set = getSet(fragment.setId);
   const root = new BAB.TransformNode(`frag-${fragment.key}`, scene);
   const baseY = 2.3;
-  root.position.set(fragment.x, baseY, fragment.z);
-  const spin = new BAB.TransformNode('spin', scene); spin.parent = root; spin.scaling.setAll(0.8);
+  root.position.set(fragment.x, 0, fragment.z); // the root and the plinth never move; only `spin` bobs and turns
+  const spin = new BAB.TransformNode('spin', scene); spin.parent = root; spin.scaling.setAll(0.8); spin.position.y = baseY;
   part.parent = spin;
-  // everything that stands on the floor hangs off `floor`, which the renderer pins while the part bobs
   const floor = new BAB.TransformNode('floor', scene); floor.parent = root;
   const stone = pbrMat(scene, 'plinthStone', '#e6dfd3', { roughness: 0.5 });
   const brass = pbrMat(scene, 'brass', '#c9a466', { metallic: 0.85, roughness: 0.32 });
@@ -381,8 +383,9 @@ export function buildFragment(scene, kit, fragment, part) {
   const ringMat = new BAB.StandardMaterial(`halo-${fragment.key}`, scene);
   ringMat.disableLighting = true; ringMat.emissiveColor = c3(set.color); ringMat.alpha = 0; ringMat.backFaceCulling = false;
   const halo = BAB.MeshBuilder.CreateTorus('halo', { diameter: 1.7, thickness: 0.05, tessellation: 40 }, scene);
-  halo.parent = floor; halo.position.y = 1.1; halo.material = ringMat; halo.isPickable = false;
+  halo.parent = floor; halo.position.y = 1.1; halo.material = ringMat; halo.isPickable = false; halo.setEnabled(false);
   for (const m of root.getChildMeshes()) m.isPickable = false;
+  for (const m of floor.getChildMeshes()) { m.computeWorldMatrix(true); m.freezeWorldMatrix(); } // static stone: no per-frame matrix work
   return { root, spin, beacon: beam, ring: halo, ringMat, floorGlow: floor, baseY, phase: fragment.index * 1.37 + fragment.x * 0.13 };
 }
 
