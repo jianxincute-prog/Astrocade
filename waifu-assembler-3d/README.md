@@ -2,6 +2,11 @@
 
 Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang tersebar di 12 zona, lalu susun kembali dua belas figur (Office, Nurse, CEO, Student, Idol, Janitor, Rin, Aoi, Mei, Yuki, Kana, Sakura) di galeri patung berkubah di utara aula. Blueprint holografik memperlihatkan figur utuh dengan segmen yang sedang dibawa disorot merah.
 
+## Layar pembuka
+- **Loading 3D**: selama dunia dibangun (satu patung per frame), kamera sinematik menyusuri galeri dan tiap patung muncul begitu selesai dipahat; judul + progress bar di atasnya. Sebelum Babylon.js termuat, splash bergaya sama.
+- **Main menu** di atas galeri yang terus bergerak pelan: **PLAY/CONTINUE**, **SETTINGS** (volume musik & efek, audio on/off, sensitivitas kamera, grafis High/Balanced, reset progres dengan konfirmasi dua kali), **RANKING** (leaderboard waktu tercepat memulihkan ke-12 patung; `persistent_storage_config.leaderboard.sort_ascending = true`). Tombol ☰ / Esc di game kembali ke menu.
+- Waktu restorasi hanya dihitung saat bermain, disimpan bersama progres dan preferensi; skor dikirim saat patung terakhir selesai.
+
 ## Bermain
 - Gerak: joystick sentuh atau WASD / panah; geser layar atau seret mouse untuk melihat.
 - Dekati komponen di atas plinth marmer, tekan **COLLECT** (atau E), bawa ke plinth bernama set yang sama di galeri, tekan **ASSEMBLE**.

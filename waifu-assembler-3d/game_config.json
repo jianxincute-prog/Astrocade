@@ -18,5 +18,8 @@
     "yuki01": [12.5, -125],
     "kana01": [-12.5, -137.5],
     "sakura01": [12.5, -137.5]
+  },
+  "persistent_storage_config": {
+    "leaderboard": { "sort_ascending": true }
   }
 }

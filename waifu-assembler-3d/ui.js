@@ -7,7 +7,7 @@ export function uiMarkup(editing) {
     <div class="hud ${editing ? 'edit-mode' : ''}">
       <header class="topbar">
         <div class="brand"><div class="brand-mark">✦</div><div><small>ATELIER K—07</small><strong>WAIFU <em>ASSEMBLER</em></strong></div></div>
-        <div class="score"><small>${editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN'}</small><b id="progress-count">0 <i>/ 30</i></b><span>PARTS PLACED</span></div>
+        <div class="score"><small>${editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN'}</small><b id="progress-count">0 <i>/ 60</i></b><span>PARTS PLACED</span></div>
       </header>
       <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>60 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
       <section class="map-card"><div class="card-cap"><span>FIELD SCAN</span><span class="scan-live">● LIVE</span></div><canvas id="mini-map" width="158" height="188"></canvas><div class="map-legend"><i></i> FRAGMENT <span>◇ GALLERY</span></div></section>
@@ -18,7 +18,7 @@ export function uiMarkup(editing) {
         <button id="mobile-action" class="mobile-action" aria-label="Collect or assemble"><span>✦</span><b id="action-label">SEARCH</b></button>
       </div>
       <div id="toast" class="toast"></div>
-      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Twelve figures.<br>One brilliant curator.</h2><p>All twelve statues stand restored in the sculpture gallery, from Office-01 to Sakura-01. The atelier looks rather pleased with itself.</p><button id="finish-close">BACK TO THE HALL</button></div></div>
+      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Twelve figures.<br>One brilliant curator.</h2><p>All twelve statues stand restored in the sculpture gallery, from Office-01 to Sakura-01. The atelier looks rather pleased with itself.</p><div id="finish-time" class="finish-time"></div><button id="finish-close">BACK TO THE HALL</button><button id="finish-rank">RANKING</button></div></div>
       <section id="editor-panel" class="editor-panel">
         <div class="editor-head"><span>✦ &nbsp; SCULPTURE GALLERY</span><small>NORTH OF THE 120 × 120 HALL</small></div>
         <p>Choose a wall-side podium, then drag it. The spacious center stays open.</p>
@@ -30,6 +30,7 @@ export function uiMarkup(editing) {
       </section>
       <button id="studio-open" class="studio-open" aria-label="Open the character studio"><span>✦</span><b>STUDIO</b><small>12 FACES</small></button>
       <button id="sound-toggle" class="sound-toggle" aria-label="Turn music and sound off"><span>♪</span></button>
+      <button id="menu-open" class="menu-open" aria-label="Open the main menu"><span>☰</span></button>
       <section id="studio" class="studio">
         <div id="studio-stage" class="studio-stage"></div>
         <header class="studio-top"><div><small>CHARACTER STUDIO · 3D FIGURES</small><b id="studio-name">OFFICE-01</b><span id="studio-title"></span></div><button id="studio-close" aria-label="Close the studio">✕</button></header>
@@ -38,7 +39,41 @@ export function uiMarkup(editing) {
         <div class="studio-bottom"><span id="studio-count" class="studio-count">1 / 12</span><div class="studio-expr">${EXPRESSIONS.map((e) => `<button data-expr="${e}">${e}</button>`).join('')}</div></div>
       </section>
       ${editing ? '<div class="edit-badge">EDITOR MODE <span>· gameplay paused</span></div>' : ''}
+    </div>
+    <div id="boot" class="boot">
+      ${logoMarkup()}
+      <div class="boot-foot"><div class="boot-bar"><i id="boot-fill"></i></div><div id="boot-status" class="boot-status">PREPARING THE ATELIER</div></div>
+    </div>
+    <div id="menu" class="menu">
+      ${logoMarkup()}
+      <div class="menu-foot">
+        <div id="menu-meta" class="menu-meta"></div>
+        <div class="menu-buttons">
+          <button id="menu-play" class="menu-btn primary"><span>▶</span><b id="menu-play-label">PLAY</b></button>
+          <div class="menu-row">
+            <button id="menu-settings" class="menu-btn"><span>⚙</span><b>SETTINGS</b></button>
+            <button id="menu-leaderboard" class="menu-btn"><span>♛</span><b>RANKING</b></button>
+          </div>
+        </div>
+      </div>
+      <section id="settings-panel" class="panel" aria-label="Settings">
+        <h2>Settings <button class="panel-close" data-close aria-label="Close settings">✕</button></h2>
+        <div class="set-row"><label>MUSIC <output id="set-music-val"></output></label><input id="set-music" type="range" min="0" max="1" step="0.05"></div>
+        <div class="set-row"><label>SOUND EFFECTS <output id="set-sfx-val"></output></label><input id="set-sfx" type="range" min="0" max="1" step="0.05"></div>
+        <div class="set-row"><label>AUDIO</label><div class="seg" id="set-audio"><button data-v="on">ON</button><button data-v="off">OFF</button></div></div>
+        <div class="set-row"><label>LOOK SENSITIVITY <output id="set-look-val"></output></label><input id="set-look" type="range" min="0.4" max="2" step="0.1"></div>
+        <div class="set-row"><label>GRAPHICS</label><div class="seg" id="set-quality"><button data-v="high">HIGH</button><button data-v="balanced">BALANCED</button></div></div>
+        <button id="set-reset" class="danger">RESET PROGRESS</button>
+      </section>
+      <section id="leaderboard-panel" class="panel" aria-label="Leaderboard">
+        <h2>Fastest Curators <button class="panel-close" data-close aria-label="Close leaderboard">✕</button></h2>
+        <div id="lb-body" class="lb-body"></div>
+      </section>
     </div>`;
+}
+
+function logoMarkup() {
+  return '<div class="logo"><small>ATELIER K—07 · RESTORATION</small><h1>Waifu <em>Assembler</em></h1><p>Twelve statues · one gallery</p></div>';
 }
 
 export function installStyles() {
@@ -46,7 +81,7 @@ export function installStyles() {
   const style = document.createElement('style');
   style.id = 'waifu-assembler-css';
   style.textContent = `
-    #waifu-assembler-root { position:fixed; inset:0; overflow:hidden; width:100%; height:100%; background:#111426; color:#eff6ff; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-user-select:none; user-select:none; }
+    #waifu-assembler-root { position:fixed; inset:0; overflow:hidden; width:100%; height:100%; background:#2b2016; color:#eff6ff; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-user-select:none; user-select:none; }
     #waifu-assembler-root * { box-sizing:border-box; }
     .game-canvas { position:absolute; inset:0; display:block; width:100%; height:100%; touch-action:none; outline:none; }
     .hud { position:absolute; inset:0; pointer-events:none; overflow:hidden; background:linear-gradient(180deg,rgba(8,12,25,.74),transparent 18%,transparent 70%,rgba(8,12,24,.25)); }
@@ -126,6 +161,60 @@ export function installStyles() {
     .editor-picks button.active { border-color:rgba(117,222,229,.58);color:#f4fdff;background:rgba(39,92,102,.34); }
     .editor-picks i { width:6px;height:6px;margin-right:4px;vertical-align:1px; }
     .editor-note { margin-top:6px;text-align:center;color:#718c9c;font-size:8px; }
+    .hud.offstage > * { visibility:hidden !important; }
+    .menu-open { pointer-events:auto; position:absolute; left:96px; top:494px; width:64px; height:64px; display:grid; place-items:center; border-radius:16px; border:1px solid rgba(255,214,150,.45); background:linear-gradient(150deg,rgba(58,46,36,.82),rgba(28,24,22,.88)); color:#ffe2b0; font-size:26px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+    .studio-on .menu-open, .edit-mode .menu-open, .edit-mode .studio-open, .edit-mode .sound-toggle { display:none; }
+    #finish-rank { margin-left:10px; background:#6a4a22; border-color:rgba(243,201,120,.6); }
+    .finish-time { margin:4px 0 6px; color:#f3d38e; font:600 22px Georgia,serif; letter-spacing:1px; }
+    /* ---------- loading screen + main menu: warm museum styling over the live 3D gallery ---------- */
+    .boot, .menu { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; padding:92px 44px 96px; color:#fff6e6;
+      background:linear-gradient(180deg,rgba(38,26,16,.62),rgba(38,26,16,.08) 30%,rgba(38,26,16,0) 52%,rgba(30,20,12,.78)); }
+    .boot { pointer-events:auto; transition:opacity .9s ease, visibility .9s; }
+    .boot.done { opacity:0; visibility:hidden; pointer-events:none; }
+    .menu { display:none; pointer-events:auto; animation:menu-in .7s ease-out; }
+    .menu.shown { display:flex; }
+    @keyframes menu-in { from { opacity:0 } to { opacity:1 } }
+    .logo { text-align:center; text-shadow:0 4px 26px rgba(50,25,8,.55); }
+    .logo small { display:block; color:#f2d49c; font:800 13px system-ui; letter-spacing:4px; }
+    .logo h1 { margin:14px 0 8px; font:600 66px/0.98 Georgia,"Times New Roman",serif; letter-spacing:1px; color:#fff8ec; }
+    .logo h1 em { display:block; color:#f3c978; font-style:italic; }
+    .logo p { margin:0; color:#f8e8cf; font:italic 500 19px Georgia,serif; letter-spacing:1px; }
+    .boot-foot { padding:0 12px; }
+    .boot-bar { height:8px; border-radius:8px; background:rgba(255,240,214,.24); overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.25); }
+    .boot-bar i { display:block; height:100%; width:4%; border-radius:8px; background:linear-gradient(90deg,#d79b45,#f6d38b,#fff3d6); transition:width .45s ease; }
+    .boot-status { margin-top:16px; text-align:center; color:#fbeedb; font:700 14px system-ui; letter-spacing:2.5px; text-shadow:0 2px 10px rgba(40,20,5,.6); }
+    .menu-meta { min-height:24px; margin-bottom:16px; text-align:center; color:#fbe7c8; font:600 15px system-ui; letter-spacing:1.5px; text-shadow:0 2px 10px rgba(40,20,5,.6); }
+    .menu-buttons { display:flex; flex-direction:column; gap:16px; }
+    .menu-row { display:flex; gap:16px; }
+    .menu-btn { flex:1; height:100px; display:flex; align-items:center; justify-content:center; gap:14px; border-radius:26px; border:1px solid rgba(255,226,172,.55);
+      background:rgba(44,31,21,.62); backdrop-filter:blur(12px); color:#fff2db; font:700 22px Georgia,serif; letter-spacing:3px; box-shadow:0 10px 26px rgba(30,15,5,.3); cursor:pointer; touch-action:manipulation; }
+    .menu-btn span { font-size:24px; color:#f3c978; }
+    .menu-btn.primary { height:118px; background:linear-gradient(180deg,#f6d690,#d59c48); color:#3a2310; border-color:#ffe8b8; font-size:32px; box-shadow:0 14px 34px rgba(110,62,18,.45); }
+    .menu-btn.primary span { color:#5a3412; font-size:28px; }
+    .menu-btn:active { transform:scale(.98); }
+    .panel { display:none; position:absolute; left:36px; right:36px; top:50%; transform:translateY(-50%); max-height:84%; overflow:auto; padding:26px 28px 30px; border-radius:30px;
+      background:rgba(251,246,236,.97); color:#3b2a1c; box-shadow:0 30px 90px rgba(40,20,5,.5); border:1px solid #e8d4b0; }
+    .panel.shown { display:block; animation:card-in .25s ease-out; }
+    .panel h2 { margin:0 0 10px; display:flex; justify-content:space-between; align-items:center; font:600 32px Georgia,serif; color:#4a3220; }
+    .panel-close { width:72px; height:72px; border-radius:22px; border:1px solid #dcc59f; background:#fff8ec; color:#6a4a2a; font-size:26px; }
+    .set-row { padding:16px 0; border-bottom:1px solid #eadcc4; }
+    .set-row label { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font:800 15px system-ui; letter-spacing:1.5px; color:#5a4029; }
+    .set-row output { font:600 17px Georgia,serif; color:#a46c25; letter-spacing:0; }
+    .set-row input[type=range] { width:100%; height:44px; accent-color:#c98c3a; }
+    .seg { display:flex; gap:12px; }
+    .seg button { flex:1; height:68px; border-radius:18px; border:1px solid #dcc59f; background:#fff8ec; color:#6a4a2a; font:800 16px system-ui; letter-spacing:1.5px; }
+    .seg button.on { background:linear-gradient(180deg,#e9b763,#c98c3a); border-color:#b97b2b; color:#fff; }
+    .danger { width:100%; height:76px; margin-top:22px; border-radius:20px; border:1px solid #e0a796; background:#fff1ec; color:#a3402c; font:800 16px system-ui; letter-spacing:1.5px; }
+    .danger.armed { background:#c0503a; color:#fff; border-color:#a83e2a; }
+    .lb-body { min-height:240px; }
+    .lb-row { display:grid; grid-template-columns:44px 52px 1fr auto; align-items:center; gap:12px; padding:12px 8px; border-bottom:1px solid #eadcc4; font:600 18px system-ui; color:#4a3220; }
+    .lb-row.me { background:#fbe9c8; border-radius:16px; border-bottom-color:transparent; }
+    .lb-rank { font:700 22px Georgia,serif; color:#b07a2c; text-align:center; }
+    .lb-avatar { width:48px; height:48px; border-radius:50%; background:#ead6b2; display:grid; place-items:center; overflow:hidden; font:800 18px system-ui; color:#6a4a2a; }
+    .lb-avatar img { width:100%; height:100%; object-fit:cover; }
+    .lb-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lb-time { font:700 20px Georgia,serif; color:#3b2a1c; }
+    .lb-note { margin:18px 4px; text-align:center; color:#8a7055; font:500 16px/1.5 system-ui; }
     .hud.studio-on > *:not(.studio) { visibility:hidden; }
     .studio-open { pointer-events:auto; position:absolute; left:22px; top:420px; width:158px; height:64px; display:grid; grid-template-columns:34px 1fr; grid-template-rows:1fr 1fr; align-items:center; padding:0 12px; border-radius:16px; border:1px solid rgba(255,156,207,.45); background:linear-gradient(135deg,rgba(60,30,70,.85),rgba(16,16,32,.85)); color:#ffe2f2; text-align:left; box-shadow:0 0 22px rgba(255,120,190,.18); }
     .sound-toggle { pointer-events:auto; position:absolute; left:22px; top:494px; width:64px; height:64px; display:grid; place-items:center; border-radius:16px; border:1px solid rgba(255,214,150,.45); background:linear-gradient(150deg,rgba(58,46,36,.82),rgba(28,24,22,.88)); color:#ffe2b0; font-size:26px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
@@ -156,7 +245,7 @@ export function installStyles() {
       .status-card{top:94px;left:14px;right:14px;grid-template-columns:32px 1fr;gap:8px;padding:10px 11px;min-height:65px}
       .status-icon{width:31px;height:31px}.status-target{display:none}
       .map-card{top:169px;left:14px;transform:scale(.9);transform-origin:top left}
-      .studio-open{top:378px;left:14px}.sound-toggle{top:452px;left:14px}.studio-expr button{font-size:11px;min-height:58px}
+      .studio-open{top:378px;left:14px}.sound-toggle{top:452px;left:14px}.menu-open{top:452px;left:88px}.studio-expr button{font-size:11px;min-height:58px}
       .blueprint-card{top:169px;right:12px;transform:scale(.9);transform-origin:top right}
       .movement-hint{top:340px;font-size:8px}
       .mobile-controls{left:11px;right:11px;bottom:28px}.stick-zone{width:135px;height:145px}.stick-ring{width:124px;height:124px}.stick-nub{width:56px;height:56px}.mobile-action{width:111px;height:111px;margin-bottom:9px}

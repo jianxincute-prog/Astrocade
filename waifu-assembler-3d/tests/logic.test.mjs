@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FRAGMENTS, PARTS, SETS, countPlaced, createInitialState, isGameComplete,
-  isSetComplete, pickup, placeCarried, restoreState, serializeState, INITIAL_PODIUMS, HALL_SIZE, ANNEX, GALLERY_DOOR,
+  isSetComplete, pickup, placeCarried, restoreState, serializeState, INITIAL_PODIUMS, HALL_SIZE, ANNEX, GALLERY_DOOR, formatTime,
 } from '../logic.mjs';
 import { ARM_LENGTHS, SHOULDER, STATUE_POSES, armJoints } from '../poses.mjs';
 
@@ -137,4 +137,12 @@ test('character face system: 12 presets, 10 expressions, valid defaults and shap
   assert.equal(new Set(lips.map((l) => l.color)).size, 12, 'every face wears its own lip colour');
   assert.ok(new Set(lips.map((l) => l.finish)).size >= 6, 'lip finishes vary across faces');
   assert.ok(Math.min(...lips.map((l) => l.top)) < 0.75 && Math.max(...lips.map((l) => l.top)) > 1.25, 'both thin and full lips exist');
+});
+
+test('restoration times format for the leaderboard', () => {
+  assert.equal(formatTime(0), '0:00');
+  assert.equal(formatTime(65.4), '1:05');
+  assert.equal(formatTime(3725), '1:02:05');
+  assert.equal(formatTime(-3), '0:00');
+  assert.equal(formatTime('nope'), '0:00');
 });

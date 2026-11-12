@@ -1,6 +1,6 @@
 import {
   ANNEX, FRAGMENTS, GALLERY_DOOR, HALL_SIZE, INITIAL_PODIUMS, PARTS, SETS,
-  countPlaced, createInitialState, getFragment, getSet, isGameComplete,
+  countPlaced, createInitialState, formatTime, getFragment, getSet, isGameComplete,
   pickup, placeCarried, restoreState, serializeState,
 } from './logic.mjs';
 import { escapeHtml, installStyles, roundRect, uiMarkup } from './ui.js';
@@ -36,7 +36,9 @@ export function createGame(mode = 'play') {
   const useRange = clamp(Number(config.settings?.interactRange) || 3.6, 2.2, 6);
   const volumeOf = (value, fallback) => clamp(Number.isFinite(Number(value)) ? Number(value) : fallback, 0, 1);
   // Theme music and sound effects; edit mode stays silent.
-  const audio = createAudio({ enabled: !editing, musicVolume: volumeOf(config.settings?.musicVolume, 0.35), sfxVolume: volumeOf(config.settings?.sfxVolume, 0.8) });
+  // Player preferences (Settings panel), saved with progress; the creator's config gives the defaults.
+  const prefs = { music: volumeOf(config.settings?.musicVolume, 0.35), sfx: volumeOf(config.settings?.sfxVolume, 0.8), muted: false, look: 1, quality: 'high' };
+  const audio = createAudio({ enabled: !editing, musicVolume: prefs.music, sfxVolume: prefs.sfx });
   const podiumPositions = {};
   for (const set of SETS) {
     const raw = config.podiumPositions?.[set.id] || INITIAL_PODIUMS[set.id];
@@ -127,22 +129,9 @@ export function createGame(mode = 'play') {
   const kit = createStatueKit(scene, { faceScale: 0.5 });
   const world = buildWorld(scene, shadows, SETS);
   if (editing) for (const ceiling of world.ceilings) ceiling.setEnabled(false); // overhead layout view must see the gallery floor
-  // Each statue part is sculpted once: the plinth keeps the original (and a merged hologram copy of it), and the
-  // fragment waiting in the hall is a clone that shares its geometry and materials.
+  // Statues and fragments are built in stages by boot() (one statue per frame) behind the 3D loading screen.
   const podiums = new Map(); const niches = new Map();
-  for (const set of SETS) {
-    const parts = new Map(PARTS.map((part) => [part.id, buildStatuePart(kit, scene, part.id, set.id, false)]));
-    podiums.set(set.id, buildPodium(scene, kit, set, podiumPositions[set.id], shadows, parts));
-    niches.set(set.id, world.niche(set, ...podiumPositions[set.id]));
-  }
   const fragments = new Map();
-  for (const fragment of FRAGMENTS) {
-    const source = podiums.get(fragment.setId).figureParts.get(fragment.partId).solid;
-    const part = source.clone(`frag-part-${fragment.key}`, null);
-    part.setEnabled(true); for (const m of part.getChildMeshes()) m.setEnabled(true);
-    fragments.set(fragment.key, buildFragment(scene, kit, fragment, part));
-  }
-  for (const model of fragments.values()) for (const m of model.root.getChildMeshes()) m.isPickable = false;
   // one museum card floats over the fragment the visitor is looking for
   const nearLabel = makeLabel(scene, '', '#c9a466', 3.6, 0.9); nearLabel.mesh.setEnabled(false);
 
@@ -211,6 +200,10 @@ export function createGame(mode = 'play') {
   let hasInteracted = false;
   let finishedShown = false;
   let disposed = false;
+  let ready = false; // the gallery and fragments exist
+  let phase = 'loading'; // loading → menu ⇄ play (edit mode: loading → edit)
+  let playSeconds = 0; // restoration time, counted only while playing
+  let bestSeconds = null;
   let lastFrame = performance.now();
   let lookPointer = null;
   let editPointer = null;
@@ -230,7 +223,9 @@ export function createGame(mode = 'play') {
   const saveProgress = () => {
     const save = window.lib?.saveUserGameState;
     if (!save) return;
-    try { Promise.resolve(save({ waifuAssembler: serializeState(state), audioMuted: audio.muted })).catch(() => {}); } catch { /* local play remains available */ }
+    prefs.muted = audio.muted;
+    const payload = { waifuAssembler: serializeState(state), playSeconds: Math.round(playSeconds), bestSeconds, prefs: { ...prefs }, audioMuted: audio.muted };
+    try { Promise.resolve(save(payload)).catch(() => {}); } catch { /* local play remains available */ }
   };
   // ---------- 3D hologram projection inside the HUD card ----------
   // The real statue, rebuilt with the hologram material, floats in front of the camera exactly behind the card's
@@ -330,23 +325,16 @@ export function createGame(mode = 'play') {
     ui.blueprintFoot.textContent = `HELD COMPONENT  /  ${part.short}`;
     ui.blueprint.style.setProperty('--holo', set.color);
   }
-  refreshPodiums();
-  refreshFragments();
-
-  if (!editing) {
+  // Saved progress and preferences are requested right away and applied once the gallery is built.
+  const savedGame = (async () => {
+    if (editing) return null;
     try {
       const getSave = window.lib?.getUserGameState;
-      if (getSave) Promise.resolve(getSave()).then((response) => {
-        if (disposed) return;
-        const saved = response?.state?.waifuAssembler || (response?.state?.placed ? response.state : null);
-        if (response?.state?.audioMuted) { audio.setMuted(true); refreshSoundButton(); }
-        if (saved && !hasInteracted) {
-          Object.assign(state, restoreState(saved)); refreshFragments(); updateHUD();
-          if (isGameComplete(state)) { finishedShown = true; root.querySelector('#finish-banner').classList.add('shown'); }
-        }
-      }).catch(() => {});
-    } catch { /* a first-time player has a clean statue atelier */ }
-  }
+      if (!getSave) return null;
+      const response = await Promise.race([Promise.resolve(getSave()), new Promise((resolve) => setTimeout(() => resolve(null), 6000))]);
+      return response?.state || null;
+    } catch { return null; } // a first-time player has a clean statue atelier
+  })();
 
   const updateHUD = () => {
     ui.progress.textContent = `${countPlaced(state)} / ${FRAGMENTS.length}`;
@@ -469,8 +457,7 @@ export function createGame(mode = 'play') {
     const writeEditorConfig = () => {
       window.gameConfig.podiumPositions = clonePositions(podiumPositions);
     };
-    drawEditorMap();
-    refreshEditorMap = drawEditorMap;
+    refreshEditorMap = drawEditorMap; // first drawn by boot() once the plinths exist
     ui.editorMap.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       const rect = ui.editorMap.getBoundingClientRect();
@@ -519,7 +506,7 @@ export function createGame(mode = 'play') {
   }
 
   function updateAction() {
-    if (editing) return;
+    if (editing || phase !== 'play') return;
     if (!state.carried) {
       const target = nearestAvailable();
       if (!target || target.distance > useRange) return;
@@ -559,7 +546,11 @@ export function createGame(mode = 'play') {
     else audio.play('place', { rate: 0.96 + state.placed[set.id].length * 0.02 });
     if (isGameComplete(state) && !finishedShown) {
       finishedShown = true;
+      const final = Math.max(1, Math.round(playSeconds)); const isBest = !bestSeconds || final < bestSeconds;
+      if (isBest) bestSeconds = final;
+      root.querySelector('#finish-time').textContent = `${formatTime(final)}${isBest ? '  ·  NEW BEST' : ''}`;
       root.querySelector('#finish-banner').classList.add('shown');
+      saveProgress(); submitScore(final);
       safeHaptic('success');
       try { window.lib?.log?.('All Waifu Assembler statues restored.'); } catch { /* optional */ }
     }
@@ -708,13 +699,13 @@ export function createGame(mode = 'play') {
   // UI sounds, the music toggle, and the first gesture that is allowed to start audio
   const soundButton = root.querySelector('#sound-toggle');
   function refreshSoundButton() { soundButton.classList.toggle('off', audio.muted); soundButton.setAttribute('aria-label', audio.muted ? 'Turn music and sound on' : 'Turn music and sound off'); }
-  soundButton.addEventListener('click', () => { audio.unlock(); audio.setMuted(!audio.muted); refreshSoundButton(); if (!audio.muted) audio.play('tap', { volume: 0.6 }); saveProgress(); });
+  soundButton.addEventListener('click', () => { audio.unlock(); audio.setMuted(!audio.muted); prefs.muted = audio.muted; refreshSoundButton(); if (!audio.muted) audio.play('tap', { volume: 0.6 }); saveProgress(); });
   refreshSoundButton();
   if (editing) soundButton.style.display = 'none';
   const unlockAudio = () => audio.unlock();
   for (const type of ['pointerdown', 'pointerup', 'click']) root.addEventListener(type, unlockAudio, { capture: true }); // touch activation counts on release
   window.addEventListener('keydown', unlockAudio, { capture: true });
-  for (const sel of ['#studio-open', '#studio-close', '#studio-prev', '#studio-next', '#finish-close', '[data-expr]']) root.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => audio.play('tap', { volume: 0.55 })));
+  for (const sel of ['#studio-open', '#studio-close', '#studio-prev', '#studio-next', '#finish-close', '#finish-rank', '[data-expr]', '#menu-open', '#menu-settings', '#menu-leaderboard', '[data-close]', '.seg button', '#set-reset']) root.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => audio.play('tap', { volume: 0.55 })));
   root.querySelector('#studio-open').addEventListener('click', openStudio);
   root.querySelector('#studio-close').addEventListener('click', closeStudio);
   root.querySelector('#studio-prev').addEventListener('click', () => { studio.index = (studio.index + FACE_PRESETS.length - 1) % FACE_PRESETS.length; studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); });
@@ -742,7 +733,8 @@ export function createGame(mode = 'play') {
     const dt = Math.min(0.11, Math.max(0.001, (now - lastFrame) / 1000));
     lastFrame = now;
     if (studio.open) { renderStudio(now); return; }
-    if (!editing) movePlayer(dt);
+    if (phase === 'loading' || phase === 'menu') { renderShowcase(now, dt); return; }
+    if (phase === 'play') { movePlayer(dt); if (!isGameComplete(state)) playSeconds += dt; }
     updateObjects(now, dt);
     updateCarried(now);
     updateHologram(now);
@@ -753,7 +745,7 @@ export function createGame(mode = 'play') {
 
   function resize() { engine.resize(); }
   function pointerDown(event) {
-    if (event.target !== canvas) return;
+    if (event.target !== canvas || !ready || (!editing && phase !== 'play')) return;
     event.preventDefault();
     if (editing) {
       const rect = canvas.getBoundingClientRect();
@@ -771,8 +763,8 @@ export function createGame(mode = 'play') {
     if (!lookPointer || lookPointer.id !== event.pointerId) return;
     const dx = event.clientX - lookPointer.x, dy = event.clientY - lookPointer.y;
     if (!editing || !lookPointer.isDrag) {
-      player.yaw -= dx * 0.0042;
-      player.pitch = clamp(player.pitch - dy * 0.0032, -1.18, 1.18);
+      player.yaw -= dx * 0.0042 * prefs.look;
+      player.pitch = clamp(player.pitch - dy * 0.0032 * prefs.look, -1.18, 1.18);
     }
     lookPointer.x = event.clientX; lookPointer.y = event.clientY;
   }
@@ -784,6 +776,8 @@ export function createGame(mode = 'play') {
   window.addEventListener('resize', resize);
   const keyDown = (event) => {
     const k = event.key.toLowerCase();
+    if (k === 'escape' && phase === 'play' && !studio.open) { openMenu(); return; }
+    if (!editing && phase !== 'play') return;
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) event.preventDefault();
     keys.add(k);
     if ((k === 'e' || k === ' ') && !event.repeat && !editing) updateAction();
@@ -816,10 +810,181 @@ export function createGame(mode = 'play') {
   stickZone.addEventListener('pointerup', clearStick);
   stickZone.addEventListener('pointercancel', clearStick);
   ui.action.addEventListener('click', updateAction);
-  updateHUD();
+
+  // ---------- 3D loading screen, main menu, settings and ranking ----------
+  const hudEl = root.querySelector('.hud');
+  const bootEl = root.querySelector('#boot'); const bootFill = root.querySelector('#boot-fill'); const bootStatus = root.querySelector('#boot-status');
+  const menuEl = root.querySelector('#menu');
+  const panels = { settings: root.querySelector('#settings-panel'), leaderboard: root.querySelector('#leaderboard-panel') };
+  hudEl.classList.add('offstage');
+  if (!editing) camera.fov = 1.02;
+  const nextFrame = () => new Promise((resolve) => { requestAnimationFrame(() => resolve()); setTimeout(resolve, 200); });
+  // Plinths show their finished statue (solid) or the hologram of what is still missing.
+  function showcase(podium, on) {
+    for (const { ghost, solid } of podium.figureParts.values()) { ghost.setEnabled(!on); solid.setEnabled(on); }
+    if (on) { podium.finished.setEnabled(false); podium.labelMesh.setEnabled(false); podium.figure.setEnabled(true); }
+  }
+  function showcaseAll(on) { for (const podium of podiums.values()) showcase(podium, on); refreshShadows(); }
+  async function boot() {
+    const steps = SETS.length + 2; let step = 0;
+    const progress = (label, advance = true) => { if (advance) step += 1; bootFill.style.width = `${Math.max(4, Math.round((step / steps) * 100))}%`; bootStatus.textContent = label; };
+    // Each statue part is sculpted once: the plinth keeps the original (and a merged hologram copy of it), and the
+    // fragment waiting in the hall is a clone that shares its geometry and materials.
+    for (const set of SETS) {
+      progress(`SCULPTING ${set.name}`, false);
+      await nextFrame(); if (disposed) return;
+      const parts = new Map(PARTS.map((part) => [part.id, buildStatuePart(kit, scene, part.id, set.id, false)]));
+      const podium = buildPodium(scene, kit, set, podiumPositions[set.id], shadows, parts);
+      podiums.set(set.id, podium);
+      niches.set(set.id, world.niche(set, ...podiumPositions[set.id]));
+      if (!editing) showcase(podium, true);
+      refreshShadows(); progress(`${set.name} · RESTORED`);
+    }
+    progress('SCATTERING THE FRAGMENTS', false);
+    await nextFrame(); if (disposed) return;
+    for (const fragment of FRAGMENTS) {
+      const source = podiums.get(fragment.setId).figureParts.get(fragment.partId).solid;
+      const part = source.clone(`frag-part-${fragment.key}`, null);
+      part.setEnabled(true); for (const m of part.getChildMeshes()) m.setEnabled(true);
+      const model = buildFragment(scene, kit, fragment, part);
+      for (const m of model.root.getChildMeshes()) m.isPickable = false;
+      fragments.set(fragment.key, model);
+    }
+    progress('OPENING THE GALLERY');
+    applySave(await savedGame); if (disposed) return;
+    ready = true;
+    refreshFragments(); updateHUD();
+    if (editing) { phase = 'edit'; refreshEditorMap(); hudEl.classList.remove('offstage'); bootEl.classList.add('done'); return; }
+    showcaseAll(true);
+    await new Promise((resolve) => setTimeout(resolve, 450)); if (disposed) return;
+    bootEl.classList.add('done');
+    openMenu();
+  }
+  function applySave(saved) {
+    if (!saved) return;
+    const progress = saved.waifuAssembler || (saved.placed ? saved : null);
+    if (progress) Object.assign(state, restoreState(progress));
+    playSeconds = Math.max(0, Number(saved.playSeconds) || 0);
+    bestSeconds = Number(saved.bestSeconds) > 0 ? Math.round(Number(saved.bestSeconds)) : null;
+    const p = saved.prefs || {};
+    if (Number.isFinite(p.music)) prefs.music = clamp(p.music, 0, 1);
+    if (Number.isFinite(p.sfx)) prefs.sfx = clamp(p.sfx, 0, 1);
+    if (Number.isFinite(p.look)) prefs.look = clamp(p.look, 0.4, 2);
+    if (p.quality === 'high' || p.quality === 'balanced') prefs.quality = p.quality;
+    prefs.muted = Boolean(p.muted ?? saved.audioMuted);
+    audio.setVolumes({ music: prefs.music, sfx: prefs.sfx }); audio.setMuted(prefs.muted);
+    refreshSoundButton(); applyQuality();
+    finishedShown = isGameComplete(state);
+  }
+  function applyQuality() {
+    engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, prefs.quality === 'high' ? 1.5 : 1));
+    key.shadowEnabled = prefs.quality === 'high'; refreshShadows();
+  }
+  // Cinematic glide down the gallery aisle: it follows the statues as they are sculpted, then keeps drifting behind the menu.
+  const cine = { t: Math.PI / 2 / 0.045 };
+  const cineTarget = new BAB.Vector3();
+  function renderShowcase(now, dt) {
+    if (!editing) {
+      cine.t += dt;
+      const t = cine.t;
+      const z = -100 + 28 * Math.sin(t * 0.045);
+      camera.position.set(1.4 * Math.sin(t * 0.09), 4.3 + 0.3 * Math.sin(t * 0.07), z);
+      cineTarget.set(8 * Math.sin(t * 0.11), 3.6, z - 12); // down the aisle, turning toward one row then the other
+      camera.setTarget(cineTarget);
+      petalEmitter.set(0, 0, z);
+      for (const podium of podiums.values()) podium.figure.rotation.y = podium.poseTurn + Math.sin(now * 0.0005 + podium.group.position.x) * 0.06;
+    }
+    scene.render();
+    if (envFrames < 4 && ++envFrames === 4) hallEnv.release();
+  }
+  function updateMenuMeta() {
+    const placed = countPlaced(state); const complete = isGameComplete(state);
+    const parts = [];
+    if (placed) parts.push(`${placed} / ${FRAGMENTS.length} RESTORED`);
+    if (placed) parts.push(formatTime(playSeconds));
+    if (bestSeconds) parts.push(`BEST ${formatTime(bestSeconds)}`);
+    root.querySelector('#menu-meta').textContent = parts.join('  ·  ');
+    root.querySelector('#menu-play-label').textContent = complete ? 'EXPLORE' : placed ? 'CONTINUE' : 'PLAY';
+  }
+  function openMenu() {
+    if (editing) return;
+    phase = 'menu'; keys.clear(); lookPointer = null; stick.x = 0; stick.y = 0; stickPointer = null;
+    root.querySelector('#stick-nub').style.transform = 'translate(0,0)';
+    root.querySelector('#finish-banner').classList.remove('shown');
+    hudEl.classList.add('offstage'); nearLabel.mesh.setEnabled(false);
+    carriedVisual?.setEnabled(false); holo.root?.setEnabled(false);
+    camera.fov = 1.02; showcaseAll(true); updateMenuMeta(); closePanels();
+    menuEl.classList.add('shown');
+    saveProgress();
+  }
+  function startPlay() {
+    closePanels(); menuEl.classList.remove('shown'); hudEl.classList.remove('offstage');
+    phase = 'play'; refreshPodiums(); carriedVisual?.setEnabled(true);
+    camera.fov = BAB.Tools.ToRadians(74); lastFrame = performance.now();
+    aimCamera(); updateHUD();
+  }
+  function closePanels() { for (const panel of Object.values(panels)) panel.classList.remove('shown'); disarmReset(); }
+  function openPanel(name) { closePanels(); panels[name].classList.add('shown'); if (name === 'settings') syncSettings(); else loadLeaderboard(); }
+  root.querySelector('#menu-play').addEventListener('click', () => { audio.play('tap', { volume: 0.7 }); startPlay(); });
+  root.querySelector('#menu-settings').addEventListener('click', () => openPanel('settings'));
+  root.querySelector('#menu-leaderboard').addEventListener('click', () => openPanel('leaderboard'));
+  root.querySelector('#menu-open').addEventListener('click', () => { if (phase === 'play') openMenu(); });
+  root.querySelector('#finish-rank').addEventListener('click', () => { openMenu(); openPanel('leaderboard'); });
+  root.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closePanels));
+  // settings
+  const setInputs = { music: root.querySelector('#set-music'), sfx: root.querySelector('#set-sfx'), look: root.querySelector('#set-look') };
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  function syncSettings() {
+    setInputs.music.value = prefs.music; setInputs.sfx.value = prefs.sfx; setInputs.look.value = prefs.look;
+    root.querySelector('#set-music-val').textContent = pct(prefs.music); root.querySelector('#set-sfx-val').textContent = pct(prefs.sfx);
+    root.querySelector('#set-look-val').textContent = `${prefs.look.toFixed(1)}×`;
+    root.querySelectorAll('#set-audio button').forEach((b) => b.classList.toggle('on', (b.dataset.v === 'off') === audio.muted));
+    root.querySelectorAll('#set-quality button').forEach((b) => b.classList.toggle('on', b.dataset.v === prefs.quality));
+  }
+  setInputs.music.addEventListener('input', () => { prefs.music = Number(setInputs.music.value); audio.setVolumes({ music: prefs.music }); syncSettings(); });
+  setInputs.sfx.addEventListener('input', () => { prefs.sfx = Number(setInputs.sfx.value); audio.setVolumes({ sfx: prefs.sfx }); syncSettings(); });
+  setInputs.look.addEventListener('input', () => { prefs.look = Number(setInputs.look.value); syncSettings(); });
+  for (const input of Object.values(setInputs)) input.addEventListener('change', () => { if (input === setInputs.sfx) audio.play('pickup', { volume: 0.8 }); saveProgress(); });
+  root.querySelectorAll('#set-audio button').forEach((b) => b.addEventListener('click', () => { audio.unlock(); audio.setMuted(b.dataset.v === 'off'); prefs.muted = audio.muted; refreshSoundButton(); syncSettings(); saveProgress(); }));
+  root.querySelectorAll('#set-quality button').forEach((b) => b.addEventListener('click', () => { prefs.quality = b.dataset.v; applyQuality(); syncSettings(); saveProgress(); }));
+  const resetButton = root.querySelector('#set-reset'); let resetTimer = 0;
+  function disarmReset() { clearTimeout(resetTimer); resetButton.classList.remove('armed'); resetButton.textContent = 'RESET PROGRESS'; }
+  resetButton.addEventListener('click', () => {
+    if (!resetButton.classList.contains('armed')) { // irreversible: ask for a second tap
+      resetButton.classList.add('armed'); resetButton.textContent = 'TAP AGAIN TO ERASE ALL PROGRESS';
+      clearTimeout(resetTimer); resetTimer = setTimeout(disarmReset, 3500); return;
+    }
+    disarmReset();
+    Object.assign(state, createInitialState()); playSeconds = 0; finishedShown = false;
+    refreshFragments(); showcaseAll(true); updateMenuMeta(); updateHUD(); saveProgress();
+    resetButton.textContent = 'PROGRESS RESET'; resetTimer = setTimeout(disarmReset, 1800);
+  });
+  // ranking: fastest full restoration (lower time is better)
+  async function submitScore(seconds) {
+    try { await window.lib?.addPlayerScoreToLeaderboard?.(seconds, 10); } catch (error) { try { window.lib?.log?.(`Leaderboard: ${error.message}`); } catch { /* optional */ } }
+  }
+  async function loadLeaderboard() {
+    const body = root.querySelector('#lb-body');
+    body.innerHTML = '<div class="lb-note">Loading the ranking…</div>';
+    let res = null;
+    try { res = await window.lib?.getTopNEntriesFromLeaderboard?.(10); } catch { res = null; }
+    if (disposed || !panels.leaderboard.classList.contains('shown')) return;
+    const mine = bestSeconds
+      ? `<div class="lb-note">Your best: <b>${formatTime(bestSeconds)}</b>${res?.userRank ? `  ·  rank #${res.userRank}` : ''}</div>`
+      : '<div class="lb-note">Restore all twelve statues to set your time.</div>';
+    const entries = Array.isArray(res?.entries) ? res.entries : [];
+    if (!res) { body.innerHTML = `<div class="lb-note">The ranking is unavailable right now.</div>${mine}`; return; }
+    if (!entries.length) { body.innerHTML = `<div class="lb-note">No restorations recorded yet. Be the first curator!</div>${mine}`; return; }
+    body.innerHTML = entries.map((e, i) => {
+      const name = escapeHtml(e.username || 'Curator');
+      const avatar = e.profilePicture ? `<img src="${escapeHtml(e.profilePicture)}" alt="">` : escapeHtml(name.slice(0, 1).toUpperCase());
+      return `<div class="lb-row${res.userRank === i + 1 ? ' me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-avatar">${avatar}</span><span class="lb-name">${name}</span><span class="lb-time">${formatTime(e.score)}</span></div>`;
+    }).join('') + mine;
+  }
+  boot().catch((error) => { bootStatus.textContent = 'THE ATELIER COULD NOT OPEN'; try { window.lib?.log?.(`Boot failed: ${error.stack || error}`); } catch { /* optional */ } });
 
   // Test/debug hook: lets automated checks pose the camera and state without touching gameplay rules.
-  window.__waifuDebug = { holo, scene, camera, player, eye, state, podiums, fragments, aimCamera, refreshFragments, updateHUD, studio };
+  window.__waifuDebug = { holo, scene, camera, player, eye, state, podiums, fragments, aimCamera, refreshFragments, updateHUD, studio, startPlay, openMenu, openPanel, get ready() { return ready; }, get phase() { return phase; } };
 
   return () => {
     disposed = true;

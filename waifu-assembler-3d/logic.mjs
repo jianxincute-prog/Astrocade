@@ -119,3 +119,11 @@ export function serializeState(state) {
     placed: Object.fromEntries(SETS.map((set) => [set.id, (state.placed[set.id] ?? []).slice()])),
   };
 }
+
+// Restoration time for the leaderboard (whole seconds, lower is better) shown as m:ss or h:mm:ss.
+export function formatTime(totalSeconds) {
+  const s = Math.max(0, Math.round(Number(totalSeconds) || 0));
+  const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return h ? `${h}:${pad(m)}:${pad(r)}` : `${m}:${pad(r)}`;
+}
