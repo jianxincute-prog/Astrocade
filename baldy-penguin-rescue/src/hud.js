@@ -138,7 +138,8 @@ const HTML = `
     <div class="pr-row"><i>🐧</i>Find the lost baby penguins under the blue lights.</div>
     <div class="pr-row"><i>🏠</i>Lead them home to the igloo with the orange light.</div>
     <div class="pr-row"><i>🐟</i>Grab golden fish for more stars and sled power.</div>
-    <div class="pr-row"><i>❤️</i>Dodge whirlies, ice spikes, snowballs and ice holes. You have 3 hearts!</div>
+    <div class="pr-row"><i>❤️</i>You have 3 hearts. Dodge whirlies and rolling snowballs!</div>
+    <div class="pr-row"><i>✨</i>Glittering snow and cracked ice hide traps. Walk around them or jump!</div>
     <div class="pr-row"><i>⏱</i>Get everyone home before the time runs out.</div>
     <button class="pr-big" id="pr-help-ok">OK!</button>
   </div>

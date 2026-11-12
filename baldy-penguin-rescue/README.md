@@ -10,6 +10,10 @@ them home to the igloo under the orange beam. Penguins waddle behind him in a li
   snow whirlies (also scatter the penguin line), ice spikes (jump over them), rolling snowballs (step aside; they burst on
   trees and rocks) and fishing holes in the lake ice (jump over them). One spare heart floats somewhere in each level.
   No hearts or no time left means game over: the total goes to the leaderboard and the next run starts at level 1.
+- **Hidden traps.** Ice spikes sleep under mounds of glittering snow and the lake's fishing holes hide under thin, faintly
+  cracked ice. Step on one and it springs a split second later (spikes shoot up, the ice breaks), so go around it or be in
+  the air when it goes off. Spotting the glints is the skill, and a soft chime plays when a trap is near. A third of the
+  spikes guard a fish. Once sprung, a trap stays visible.
 - **Endless levels in four places** that rotate: Pine Valley, Frozen Lake (a huge slippery lake with huts and ice holes),
   Crystal Fields (giant ice crystals, extra spikes) and Snowman Hills (tall hills, snowmen, extra snowballs). Each level
   has a new igloo spot, hills and layout, one more penguin and steadily more hazards. Score keeps adding up.

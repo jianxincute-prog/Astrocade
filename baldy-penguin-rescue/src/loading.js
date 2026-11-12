@@ -2,7 +2,7 @@
 import { buildPenguin, animatePenguin, buildMan, animateMan } from './character.js';
 
 const SKY = 0xa9dcf7, SPEED = 26, TILT = 0.42;
-const TIPS = ['Blue lights mark lost penguins', 'Jump over ice spikes', 'Fish buy new sleds in the shop', 'A spare heart hides in every level', 'Fish add time to the clock'];
+const TIPS = ['Glittering snow hides a trap', 'Cracked ice breaks, so keep moving', 'Blue lights mark lost penguins', 'Jump over ice spikes', 'Fish buy new sleds in the shop', 'A spare heart hides in every level', 'Fish add time to the clock'];
 const CSS = `
 #ld-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:20;display:block;transition:opacity .45s}
 #ld-ui{position:fixed;inset:0;z-index:21;pointer-events:none;font-family:"Trebuchet MS",system-ui,sans-serif;text-align:center;transition:opacity .45s;overflow:hidden}

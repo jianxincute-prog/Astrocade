@@ -65,6 +65,8 @@ export const sfx = {
   tick() { tone(980, 0, 0.07, 'square', 0.1); },
   pop() { noise(0.25, 0.35, 700, 200); },
   lose() { [392, 330, 262, 196].forEach((f, i) => tone(f, i * 0.2, 0.32, 'triangle', 0.3)); },
+  crack() { noise(0.22, 0.5, 3200, 700); tone(180, 0, 0.12, 'square', 0.12, 90); },
+  tink() { tone(2400, 0, 0.09, 'sine', 0.07); tone(3200, 0.06, 0.12, 'sine', 0.05); },
   tap() { tone(700, 0, 0.06, 'triangle', 0.2); },
   win() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.13, 0.28, 'triangle', 0.32)); },
 };

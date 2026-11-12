@@ -461,27 +461,76 @@ function createGame(mode, autoPlay) {
     return true;
   }
 
+  // ---------- hidden traps ----------
+  // Spikes sleep under a glittering mound and the lake's holes hide under thin, cracked ice. Stepping on one
+  // makes it spring after a split second: go around it, or be in the air (jump) when it goes off.
+  const SPIKE_TRIG = 1.8, SPIKE_KILL = 2.1, SPIKE_WIND = 0.35, HOLE_WIND = 0.42;
+  const traps = world.traps;
+  let tinkT = 0;
+  function fallIn(hole, ox, oz, d) {
+    const p = player, sp = Math.hypot(p.vx, p.vz), bx = sp > 0.5 ? -p.vx / sp : ox / (d || 1), bz = sp > 0.5 ? -p.vz / sp : oz / (d || 1);
+    const wasSafe = p.safe > 0;
+    sfx.splash(); sparkles.burst('snow', hole.x, 0.6, hole.z, 12, 4);
+    p.x = hole.x + bx * (hole.r + 1.6); p.z = hole.z + bz * (hole.r + 1.6);          // climb out on the side you came from
+    if (wasSafe) { p.vx = p.vz = 0; } else if (hurt(bx, bz, 3)) hud.toast('💦 Thin ice!');
+  }
+
+  function updateTraps(dt, playing) {
+    const p = player, low = p.y - H(p.x, p.z) < 0.9;
+    let nearest = 99;
+    tinkT -= dt;
+    traps.spikes.forEach(t => {
+      const ox = p.x - t.x, oz = p.z - t.z, d = Math.hypot(ox, oz), nx = ox / (d || 1), nz = oz / (d || 1);
+      if (t.state === 'hidden' || t.state === 'warn') {
+        nearest = Math.min(nearest, d);
+        t.glints.forEach((s, k) => {                                              // the only clue: twinkling sparkles
+          const w = Math.max(0, Math.sin(clock * (d < 9 ? 5 : 2.4) + t.phase + k * 2.1));
+          s.material.opacity = 0.1 + 0.9 * w; s.scale.setScalar(0.5 + 0.5 * w);
+        });
+      }
+      if (t.state === 'hidden') {
+        if (playing && low && d < SPIKE_TRIG) { t.state = 'warn'; t.t = SPIKE_WIND; sfx.crack(); buzz('tick'); }
+      } else if (t.state === 'warn') {
+        t.t -= dt;
+        const k = 1 - Math.max(0, t.t) / SPIKE_WIND;
+        t.g.position.set(t.x + (Math.random() - 0.5) * 0.2 * k, t.y, t.z + (Math.random() - 0.5) * 0.2 * k);
+        t.mound.scale.y = 0.16 + 0.4 * k;
+        if (t.t <= 0) {
+          t.state = 'up'; t.rise = 0; t.g.position.set(t.x, t.y, t.z);
+          t.glints.forEach(s => { s.visible = false; }); t.ring.visible = true;
+          sfx.pop(); sparkles.burst('snow', t.x, t.y + 0.5, t.z, 12, 4);
+          if (playing && low && d < SPIKE_KILL && hurt(nx, nz, 10)) hud.toast('⚡ Hidden spikes!');
+        }
+      } else {
+        t.rise = Math.min(1, t.rise + dt * 8);
+        const e = 1 - (1 - t.rise) ** 3;
+        t.blades.position.y = -1.6 * (1 - e); t.mound.scale.y = 0.16 + 0.4 * (1 - e); t.mound.visible = t.rise < 1;
+        if (playing && low && d < t.r + 0.35) { hurt(nx, nz, 10); p.x = t.x + nx * (t.r + 0.5); p.z = t.z + nz * (t.r + 0.5); }
+      }
+    });
+    traps.holes.forEach(t => {
+      const ox = p.x - t.x, oz = p.z - t.z, d = Math.hypot(ox, oz);
+      if (t.state === 'thin') {
+        nearest = Math.min(nearest, d);
+        if (playing && p.grounded && d < t.r - 0.2) { t.state = 'crack'; t.t = HOLE_WIND; t.warn.visible = true; t.warn.material.opacity = 0; sfx.crack(); buzz('tick'); }
+      } else if (t.state === 'crack') {
+        t.t -= dt;
+        const k = 1 - Math.max(0, t.t) / HOLE_WIND;
+        t.warn.material.opacity = Math.min(1, k * 2.2);
+        t.thin.position.x = t.x + (Math.random() - 0.5) * 0.14 * k; t.thin.position.z = t.z + (Math.random() - 0.5) * 0.14 * k;
+        if (t.t <= 0) {
+          t.state = 'open'; t.thin.visible = t.warn.visible = false; t.water.visible = t.edge.visible = true;
+          if (playing && p.grounded && d < t.r + 0.1) fallIn(t, ox, oz, d);
+          else { sfx.splash(); sparkles.burst('snow', t.x, 0.6, t.z, 14, 5); }
+        }
+      } else if (playing && p.grounded && d < t.r - 0.3) fallIn(t, ox, oz, d);
+    });
+    if (playing && nearest < 7 && tinkT <= 0) { sfx.tink(); tinkT = 1.1; }          // a soft chime when a trap is close
+  }
+
   function updateHazards(dt) {
     const p = player, playing = phase === 'play', ground = H(p.x, p.z), low = p.y - ground < 1.0;
-    if (playing && low) {
-      for (const sp of layout.spikes) {
-        const ox = p.x - sp.x, oz = p.z - sp.z, d = Math.hypot(ox, oz);
-        if (d < sp.r + 0.35) { hurt(ox / (d || 1), oz / (d || 1), 10); p.x = sp.x + ox / (d || 1) * (sp.r + 0.5); p.z = sp.z + oz / (d || 1) * (sp.r + 0.5); break; }
-      }
-    }
-    if (playing && p.grounded) {
-      for (const hole of layout.holes) {
-        const ox = p.x - hole.x, oz = p.z - hole.z, d = Math.hypot(ox, oz);
-        if (d < hole.r - 0.3) {                                    // splash! climb out on the side you came from
-          const sp = Math.hypot(p.vx, p.vz), bx = sp > 0.5 ? -p.vx / sp : ox / (d || 1), bz = sp > 0.5 ? -p.vz / sp : oz / (d || 1);
-          const wasSafe = p.safe > 0;
-          sfx.splash(); sparkles.burst('snow', hole.x, 0.6, hole.z, 12, 4);
-          p.x = hole.x + bx * (hole.r + 1.6); p.z = hole.z + bz * (hole.r + 1.6);
-          if (wasSafe) { p.vx = p.vz = 0; } else hurt(bx, bz, 3);
-          break;
-        }
-      }
-    }
+    updateTraps(dt, playing);
     balls.forEach(b => {
       b.grow = Math.min(1, b.grow + dt * 2);
       b.x += b.dx * plan.ballSpeed * dt; b.z += b.dz * plan.ballSpeed * dt;
@@ -601,7 +650,7 @@ function createGame(mode, autoPlay) {
     applyStore() { hud.setBest(savedBest, session.level); hud.setWallet(store.fish); setSled(man, store.sled); },
     inMenu() { return phase === 'menu'; },
     begin() { if (phase === 'menu') begin(); },
-    debug: { player, penguins, fishes, whirlies, home, layout, balls, plan, get hearts() { return hearts; }, set timeLeft(v) { timeLeft = v; }, get timeLeft() { return timeLeft; }, get phase() { return phase; }, get chain() { return chain; }, get delivered() { return delivered; } },
+    debug: { player, penguins, fishes, whirlies, home, layout, balls, plan, traps, get hearts() { return hearts; }, set hearts(v) { hearts = v; hud.setHearts(v); }, set timeLeft(v) { timeLeft = v; }, get timeLeft() { return timeLeft; }, get phase() { return phase; }, get chain() { return chain; }, get delivered() { return delivered; } },
     dispose() {
       disposed = true; cancelAnimationFrame(raf); clearTimeout(restartTimer);
       window.removeEventListener('resize', resize);

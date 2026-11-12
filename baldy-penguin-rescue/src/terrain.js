@@ -131,11 +131,18 @@ export function layoutWorld(home, penguinCount, fishCount, seed = 20261, opts = 
   const clearOf = (x, z, gap) => !solidAll.some(t => Math.hypot(x - t.x, z - t.z) < t.r + gap) && !penguins.some(q => Math.hypot(x - q.x, z - q.z) < gap + 3);
   // hazards: ice spikes on the snow, fishing holes in the lake ice
   const spikes = [], holes = [];
-  for (let i = 0, tries = 0; i < (opts.spikes || 0) && tries < 400; tries++) {
-    const a = rand() * 6.283, r = 16 + Math.sqrt(rand()) * (WORLD.radius - 26), x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (Math.hypot(x - home.x, z - home.z) < 24 || onIce(x, z) || !clearOf(x, z, 2.5) || spikes.some(t => Math.hypot(x - t.x, z - t.z) < 14)) continue;
+  const bait = fish.length ? Math.ceil((opts.spikes || 0) / 3) : 0;          // a third of the spikes guard a fish
+  for (let i = 0, tries = 0; i < (opts.spikes || 0) && tries < 600; tries++) {
+    let x, z, gap = 14;
+    if (i < bait) { const f = fish[Math.floor(rand() * fish.length)], a = rand() * 6.283; x = f.x + Math.cos(a) * 2.5; z = f.z + Math.sin(a) * 2.5; gap = 6; }
+    else { const a = rand() * 6.283, r = 16 + Math.sqrt(rand()) * (WORLD.radius - 26); x = Math.cos(a) * r; z = Math.sin(a) * r; }
+    if (Math.hypot(x - home.x, z - home.z) < 24 || onIce(x, z) || !clearOf(x, z, 2.5) || spikes.some(t => Math.hypot(x - t.x, z - t.z) < gap)) continue;
     spikes.push({ x, z, r: 1.25, rot: rand() * 6.283 }); i++;
   }
+  fish.forEach(f => spikes.forEach(sp => {                                    // never bury a fish inside a spike patch
+    const dx = f.x - sp.x, dz = f.z - sp.z, d = Math.hypot(dx, dz);
+    if (d < 2.1) { const k = 2.6 / (d || 1); f.x = sp.x + (dx || 1) * k; f.z = sp.z + dz * k; }
+  }));
   for (let i = 0, tries = 0; i < (opts.holes || 0) && tries < 400; tries++) {
     const a = rand() * 6.283, r = Math.sqrt(rand()) * (WORLD.pond.r - 6), x = WORLD.pond.x + Math.cos(a) * r, z = WORLD.pond.z + Math.sin(a) * r;
     if (Math.hypot(x - home.x, z - home.z) < 22 || !clearOf(x, z, 3) || holes.some(t => Math.hypot(x - t.x, z - t.z) < 9)) continue;

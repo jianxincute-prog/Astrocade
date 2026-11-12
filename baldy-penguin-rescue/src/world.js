@@ -120,23 +120,59 @@ export function buildScene(home, layout, snowfall, theme = 0, biome = 'valley') 
     g.position.set(hut.x, 0.06, hut.z); g.rotation.y = hut.rot; scene.add(g);
   });
 
-  // ---- hazards: fishing holes and ice spikes ----
+  // ---- hidden traps: spikes sleep under glittering snow, thin ice hides the fishing holes ----
+  const traps = { spikes: [], holes: [] };
+  const glintTex = canvasTexture(64, (x, s) => {
+    const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.18, 'rgba(90,200,255,0.95)'); g.addColorStop(0.5, 'rgba(90,200,255,0.35)'); g.addColorStop(1, 'rgba(90,200,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, s, s);
+    x.fillStyle = '#e9fbff'; x.strokeStyle = '#5ac8ff'; x.lineWidth = 1.5;
+    x.beginPath(); x.moveTo(s / 2, 2); x.lineTo(s / 2 + 4, s / 2 - 4); x.lineTo(s - 2, s / 2); x.lineTo(s / 2 + 4, s / 2 + 4); x.lineTo(s / 2, s - 2); x.lineTo(s / 2 - 4, s / 2 + 4); x.lineTo(2, s / 2); x.lineTo(s / 2 - 4, s / 2 - 4); x.closePath(); x.fill(); x.stroke();
+  });
+  const crackTex = (strong, seed) => canvasTexture(256, (x, s) => {
+    const g = x.createRadialGradient(s / 2, s / 2, s * 0.08, s / 2, s / 2, s / 2);
+    g.addColorStop(0, strong ? 'rgba(200,228,250,0.55)' : 'rgba(236,247,255,0.5)'); g.addColorStop(0.82, strong ? 'rgba(190,222,248,0.35)' : 'rgba(214,236,255,0.38)'); g.addColorStop(1, 'rgba(214,236,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, s, s); x.lineCap = 'round'; x.lineJoin = 'round';
+    const r0 = rng(seed);
+    for (let i = 0; i < (strong ? 12 : 9); i++) {
+      let a = i / 9 * 6.283 + r0() * 0.5, px = s / 2, py = s / 2;
+      const pts = [[px, py]];
+      for (let k = 0; k < 6; k++) { a += (r0() - 0.5) * 0.9; px += Math.cos(a) * s * 0.075; py += Math.sin(a) * s * 0.075; pts.push([px, py]); }
+      const stroke = (w, c) => { x.lineWidth = w; x.strokeStyle = c; x.beginPath(); pts.forEach((q, j) => (j ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]))); x.stroke(); };
+      if (strong) { stroke(6, 'rgba(255,255,255,0.9)'); stroke(2.8, 'rgba(24,62,112,0.95)'); } else stroke(1.6, 'rgba(255,255,255,0.9)');
+    }
+  });
+  const thinTex = crackTex(false, 11), warnTex = crackTex(true, 23);
   (layout.holes || []).forEach(hole => {
-    const water = new THREE.Mesh(new THREE.CircleGeometry(hole.r, 20), new THREE.MeshPhongMaterial({ color: 0x1f5f9a, shininess: 140, specular: 0xbfe6ff }));
-    water.rotation.x = -Math.PI / 2; water.position.set(hole.x, 0.1, hole.z); scene.add(water);
+    const flat = (mesh, y) => { mesh.rotation.set(-Math.PI / 2, 0, hole.x); mesh.position.set(hole.x, y, hole.z); scene.add(mesh); return mesh; };
+    const decal = map => new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const thin = flat(new THREE.Mesh(new THREE.CircleGeometry(hole.r + 0.15, 28), decal(thinTex)), 0.1);
+    const warn = flat(new THREE.Mesh(new THREE.CircleGeometry(hole.r + 0.15, 28), decal(warnTex)), 0.11); warn.visible = false;
+    const water = flat(new THREE.Mesh(new THREE.CircleGeometry(hole.r, 20), new THREE.MeshPhongMaterial({ color: 0x1f5f9a, shininess: 140, specular: 0xbfe6ff })), 0.1); water.visible = false;
     const edge = new THREE.Mesh(new THREE.TorusGeometry(hole.r + 0.12, 0.2, 6, 9), new THREE.MeshLambertMaterial({ color: 0xeaf7ff, flatShading: true }));
-    edge.rotation.x = Math.PI / 2; edge.rotation.z = hole.x; edge.position.set(hole.x, 0.1, hole.z); edge.scale.z = 0.6; scene.add(edge);
+    edge.rotation.x = Math.PI / 2; edge.rotation.z = hole.x; edge.position.set(hole.x, 0.1, hole.z); edge.scale.z = 0.6; edge.visible = false; scene.add(edge);
+    traps.holes.push({ x: hole.x, z: hole.z, r: hole.r, thin, warn, water, edge, state: 'thin', t: 0 });
   });
   if (layout.spikes?.length) {
     const spikeM = new THREE.MeshPhongMaterial({ color: 0xbfeaff, emissive: 0x38a0e8, emissiveIntensity: 0.35, shininess: 130, specular: 0xffffff, flatShading: true });
-    const tips = [];
-    layout.spikes.forEach(sp => [[0, 0, 1.5, 0], [0.55, 0.2, 1.0, 0.35], [-0.5, 0.3, 0.9, -0.35], [0.1, -0.6, 1.1, 0.2], [-0.25, 0.65, 0.7, -0.2], [0.6, -0.5, 0.6, 0.4]].forEach(([ox, oz, h, tilt]) => {
-      const c = Math.cos(sp.rot), s2 = Math.sin(sp.rot);
-      tips.push({ x: sp.x + ox * c - oz * s2, z: sp.z + ox * s2 + oz * c, h, tilt, rot: sp.rot });
-    }));
-    inst(new THREE.ConeGeometry(0.34, 1, 5), spikeM, tips, (t, d) => { d.position.set(t.x, H(t.x, t.z) + t.h * 0.45, t.z); d.scale.set(1, t.h, 1); d.rotation.set(t.tilt, t.rot, t.tilt * 0.6); });
-    inst(new THREE.RingGeometry(1.1, 1.5, 20), new THREE.MeshBasicMaterial({ color: 0xff5d73, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }), layout.spikes,
-      (sp, d) => { d.position.set(sp.x, H(sp.x, sp.z) + 0.12, sp.z); d.scale.setScalar(1); d.rotation.set(-Math.PI / 2, 0, 0); });
+    const moundM = new THREE.MeshLambertMaterial({ color: 0xeef7ff });
+    const ringM = new THREE.MeshBasicMaterial({ color: 0xff5d73, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+    const cone = new THREE.ConeGeometry(0.34, 1, 5), dome = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const DEF = [[0, 0, 1.5, 0], [0.55, 0.2, 1.0, 0.35], [-0.5, 0.3, 0.9, -0.35], [0.1, -0.6, 1.1, 0.2], [-0.25, 0.65, 0.7, -0.2], [0.6, -0.5, 0.6, 0.4]];
+    layout.spikes.forEach((sp, idx) => {
+      const g = new THREE.Group(), y = H(sp.x, sp.z); g.position.set(sp.x, y, sp.z); scene.add(g);
+      const blades = new THREE.Group(); blades.position.y = -1.6; blades.rotation.y = sp.rot; g.add(blades);   // asleep below the snow
+      DEF.forEach(([ox, oz, h, tilt]) => {
+        const m = new THREE.Mesh(cone, spikeM); m.position.set(ox, h * 0.45, oz); m.scale.set(1, h, 1); m.rotation.set(tilt, 0, tilt * 0.6); blades.add(m);
+      });
+      const mound = new THREE.Mesh(dome, moundM); mound.scale.set(sp.r * 1.15, 0.16, sp.r * 1.15); mound.position.y = -0.02; g.add(mound);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.5, 20), ringM); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.14; ring.visible = false; g.add(ring);
+      const glints = [0, 1, 2].map(k => {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTex, transparent: true, depthWrite: false, opacity: 0 }));
+        const a = idx * 1.7 + k * 2.1; s.position.set(Math.cos(a) * sp.r * 0.7, 0.45 + (k % 2) * 0.25, Math.sin(a) * sp.r * 0.7); s.scale.setScalar(0.7); g.add(s); return s;
+      });
+      traps.spikes.push({ x: sp.x, z: sp.z, y, r: sp.r, g, blades, mound, ring, glints, state: 'hidden', t: 0, rise: 0, phase: idx * 1.3 });
+    });
   }
 
   // ---- rocks ----
@@ -167,7 +203,7 @@ export function buildScene(home, layout, snowfall, theme = 0, biome = 'valley') 
     snow.frustumCulled = false; scene.add(snow);
   }
 
-  return { scene, ground, igloo, snow, H };
+  return { scene, ground, igloo, snow, H, traps };
 }
 
 function buildIgloo() {
