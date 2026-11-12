@@ -10,6 +10,11 @@ const SFX = {
   tap: 'sfx_ui_tap', // studio and menu buttons
   notHere: 'sfx_not_here', // the plinth is out of reach
   step: 'sfx_footstep', // footsteps on stone
+  chest: 'sfx_chest_open', // a hidden chest is opened
+  curtain: 'sfx_curtain_open', // a curtained alcove is drawn open
+  rotate: 'sfx_rotate_tick', // one notch of the turn-and-fit puzzle
+  fit: 'sfx_fit_lock', // the part lines up with its socket
+  medal: 'sfx_medal', // a statue earns its medal
 };
 
 export function createAudio({ enabled = true, musicVolume = 0.35, sfxVolume = 0.8, muted = false } = {}) {
@@ -59,13 +64,17 @@ export function createAudio({ enabled = true, musicVolume = 0.35, sfxVolume = 0.
     for (const id of Object.values(SFX)) load(id);
     startMusic();
   }
-  function play(name, { volume = 1, rate = 1 } = {}) {
+  function play(name, { volume = 1, rate = 1, duration = 0 } = {}) {
     if (!ctx || !started || isMuted) return;
     load(SFX[name]).then((buffer) => {
       if (!buffer || !ctx) return;
       const src = ctx.createBufferSource(); src.buffer = buffer; src.playbackRate.value = rate;
       const g = ctx.createGain(); g.gain.value = volume;
       src.connect(g); g.connect(sfxGain); src.start();
+      if (duration > 0) { // clip long takes (e.g. the rotate tick) with a short fade so they stay snappy
+        const end = ctx.currentTime + duration;
+        g.gain.setValueAtTime(volume, end - 0.05); g.gain.linearRampToValueAtTime(0, end); src.stop(end + 0.02);
+      }
     });
   }
   function setMuted(next) {

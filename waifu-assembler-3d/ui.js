@@ -11,14 +11,26 @@ export function uiMarkup(editing) {
       </header>
       <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>60 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
       <section class="map-card"><div class="card-cap"><span>FIELD SCAN</span><span class="scan-live">● LIVE</span></div><canvas id="mini-map" width="158" height="188"></canvas><div class="map-legend"><i></i> FRAGMENT <span>◇ GALLERY</span></div></section>
-      <section class="blueprint-card" id="blueprint-card"><div class="card-cap"><span>HOLOGRAM / 3D</span><span class="scan-live">● LINKED</span></div><b id="blueprint-title">OFFICE-01</b><div id="blueprint-drawing"><i class="holo-scan"></i><i class="holo-corner a"></i><i class="holo-corner b"></i><i class="holo-corner c"></i><i class="holo-corner d"></i></div><small id="blueprint-foot">HELD COMPONENT / HEAD</small></section>
+      <section class="blueprint-card" id="blueprint-card"><div class="card-cap"><span>HOLOGRAM / 3D</span><span class="scan-live">● LINKED</span></div><b id="blueprint-title">OFFICE-01</b><div id="blueprint-drawing"><i class="holo-scan"></i><i class="holo-corner a"></i><i class="holo-corner b"></i><i class="holo-corner c"></i><i class="holo-corner d"></i></div><small id="blueprint-foot">HELD COMPONENT / HEAD</small><div id="statue-clock" class="statue-clock"></div></section>
       <div class="movement-hint"><span class="hint-key">DRAG</span> to look <i>·</i> <span class="hint-key">WASD</span> to walk <i>·</i> <span class="hint-key">E</span> to interact</div>
       <div class="mobile-controls">
         <div id="stick-zone" class="stick-zone" aria-label="Move"><div class="stick-ring"></div><div id="stick-nub" class="stick-nub"><span>✦</span></div><small>MOVE</small></div>
         <button id="mobile-action" class="mobile-action" aria-label="Collect or assemble"><span>✦</span><b id="action-label">SEARCH</b></button>
       </div>
       <div id="toast" class="toast"></div>
-      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Twelve figures.<br>One brilliant curator.</h2><p>All twelve statues stand restored in the sculpture gallery, from Office-01 to Sakura-01. The atelier looks rather pleased with itself.</p><div id="finish-time" class="finish-time"></div><button id="finish-close">BACK TO THE HALL</button><button id="finish-rank">RANKING</button></div></div>
+      <section id="fit-panel" class="fit-panel" aria-label="Turn and fit puzzle">
+        <div class="fit-head"><small>TURN &amp; FIT</small><b id="fit-title">HEAD</b><span>Turn the piece until it matches the glowing outline</span></div>
+        <button id="fit-cancel" class="fit-cancel" aria-label="Stop fitting and keep carrying the piece">✕</button>
+        <div class="fit-pad">
+          <button id="fit-left" aria-label="Turn left"><span>⟲</span><b>TURN</b></button>
+          <button id="fit-flip" aria-label="Flip over"><span>⤾</span><b>FLIP</b></button>
+          <button id="fit-right" aria-label="Turn right"><span>⟳</span><b>TURN</b></button>
+        </div>
+        <div id="fit-target" class="fit-target">TARGET</div>
+        <div id="fit-hint" class="fit-hint">SWIPE ← → TO TURN · ↑ ↓ TO FLIP</div>
+      </section>
+      <div id="medal-pop" class="medal-pop"><div class="medal-disc" id="medal-disc"><span>★</span></div><div><small id="medal-kind">GOLD MEDAL</small><b id="medal-name">OFFICE-01</b><span id="medal-time">1:12 · par 1:42</span></div></div>
+      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Twelve figures.<br>One brilliant curator.</h2><p>All twelve statues stand restored in the sculpture gallery, from Office-01 to Sakura-01. The atelier looks rather pleased with itself.</p><div id="finish-time" class="finish-time"></div><div id="finish-medals" class="finish-medals"></div><button id="finish-close">BACK TO THE HALL</button><button id="finish-rank">RANKING</button></div></div>
       <section id="editor-panel" class="editor-panel">
         <div class="editor-head"><span>✦ &nbsp; SCULPTURE GALLERY</span><small>NORTH OF THE 120 × 120 HALL</small></div>
         <p>Choose a wall-side podium, then drag it. The spacious center stays open.</p>
@@ -33,10 +45,12 @@ export function uiMarkup(editing) {
       <button id="menu-open" class="menu-open" aria-label="Open the main menu"><span>☰</span></button>
       <section id="studio" class="studio">
         <div id="studio-stage" class="studio-stage"></div>
-        <header class="studio-top"><div><small>CHARACTER STUDIO · 3D FIGURES</small><b id="studio-name">OFFICE-01</b><span id="studio-title"></span></div><button id="studio-close" aria-label="Close the studio">✕</button></header>
+        <header class="studio-top"><div><small>CHARACTER STUDIO · 3D FIGURES</small><b id="studio-name">OFFICE-01</b><span id="studio-title"></span><i id="studio-stars" class="studio-stars">★ 0</i></div><button id="studio-close" aria-label="Close the studio">✕</button></header>
+        <div id="studio-lock" class="studio-lock"><b>🔒 LOCKED PORTRAIT</b><span id="studio-lock-text">Restore this statue in the gallery to unlock her portrait.</span></div>
+        <button id="studio-costume" class="studio-costume" aria-label="Switch outfit"><span>✦</span><b id="studio-costume-label">GALA OUTFIT</b></button>
         <button id="studio-prev" class="studio-arrow left" aria-label="Previous figure">‹</button>
         <button id="studio-next" class="studio-arrow right" aria-label="Next figure">›</button>
-        <div class="studio-bottom"><span id="studio-count" class="studio-count">1 / 12</span><div class="studio-expr">${EXPRESSIONS.map((e) => `<button data-expr="${e}">${e}</button>`).join('')}</div></div>
+        <div class="studio-bottom"><span id="studio-count" class="studio-count">1 / 12</span><div class="studio-expr">${EXPRESSIONS.map((e) => `<button data-expr="${e}"><b>${e}</b><i></i></button>`).join('')}</div></div>
       </section>
       ${editing ? '<div class="edit-badge">EDITOR MODE <span>· gameplay paused</span></div>' : ''}
     </div>
@@ -49,12 +63,14 @@ export function uiMarkup(editing) {
       ${logoMarkup()}
       <div class="menu-foot">
         <div id="menu-meta" class="menu-meta"></div>
+        <div id="daily-card" class="daily-card"><div class="daily-icon">☀</div><div><small id="daily-head">TODAY'S CHALLENGE</small><b id="daily-text"></b><span id="daily-status"></span></div></div>
         <div class="menu-buttons">
           <button id="menu-play" class="menu-btn primary"><span>▶</span><b id="menu-play-label">PLAY</b></button>
           <div class="menu-row">
             <button id="menu-settings" class="menu-btn"><span>⚙</span><b>SETTINGS</b></button>
             <button id="menu-leaderboard" class="menu-btn"><span>♛</span><b>RANKING</b></button>
           </div>
+          <button id="menu-newrun" class="menu-btn newrun"><span>↻</span><b>NEW RUN</b><small>keep medals &amp; stars</small></button>
         </div>
       </div>
       <section id="settings-panel" class="panel" aria-label="Settings">
@@ -226,6 +242,53 @@ export function installStyles() {
     .lb-time { font:700 20px Georgia,serif; color:#3b2a1c; }
     .lb-note { margin:18px 4px; text-align:center; color:#8a7055; font:500 16px/1.5 system-ui; }
     .hud.studio-on > *:not(.studio) { visibility:hidden; }
+    /* per-statue medal clock inside the hologram card */
+    .statue-clock { margin-top:6px; padding:5px 6px; border-radius:9px; background:rgba(255,236,200,.08); color:#f3dfb7; font:800 9px system-ui; letter-spacing:1px; text-align:center; }
+    .statue-clock i { font-style:normal; padding:1px 6px; border-radius:7px; margin-left:4px; color:#2b1c0c; }
+    .statue-clock i.gold { background:#f2c35f; } .statue-clock i.silver { background:#cfd5de; } .statue-clock i.bronze { background:#c88a5a; }
+    /* turn-and-fit puzzle */
+    .fit-panel { display:none; position:absolute; inset:0; pointer-events:none; z-index:12; }
+    .fit-panel.shown { display:block; }
+    .fit-head { position:absolute; left:0; right:0; margin:0 auto; top:108px; width:min(70%,420px); box-sizing:border-box; padding:14px 18px; border-radius:20px; text-align:center; background:rgba(28,21,15,.82); border:1px solid rgba(242,195,95,.45); color:#fbeedb; box-shadow:0 10px 30px rgba(0,0,0,.3); animation:card-in .25s ease-out; }
+    .fit-head small { display:block; color:#f2c35f; font:900 10px system-ui; letter-spacing:3px; } .fit-head b { display:block; margin:4px 0; font:600 26px Georgia,serif; } .fit-head span { color:#dccbb0; font-size:13px; }
+    .fit-cancel { pointer-events:auto; position:absolute; right:20px; top:108px; width:64px; height:64px; border-radius:18px; border:1px solid rgba(255,255,255,.25); background:rgba(23,19,15,.75); color:#fff; font-size:22px; }
+    .fit-pad { position:absolute; left:50%; bottom:64px; transform:translateX(-50%); display:flex; gap:16px; pointer-events:auto; }
+    .fit-pad button { width:110px; height:110px; border-radius:28px; border:1px solid rgba(255,226,172,.6); background:rgba(44,31,21,.82); color:#fff2db; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; touch-action:manipulation; box-shadow:0 10px 26px rgba(30,15,5,.35); }
+    .fit-pad button span { font-size:40px; line-height:40px; color:#f3c978; } .fit-pad button b { font:800 11px system-ui; letter-spacing:2px; }
+    .fit-pad button:active { transform:scale(.94); }
+    .fit-hint { position:absolute; left:0; right:0; bottom:22px; text-align:center; color:rgba(251,238,219,.8); font:800 10px system-ui; letter-spacing:2px; text-shadow:0 2px 8px rgba(0,0,0,.6); }
+    .fit-target { position:absolute; left:0; top:0; padding:4px 10px; border-radius:10px; background:rgba(118,216,255,.16); border:1px solid rgba(118,216,255,.55); color:#cdeeff; font:900 10px system-ui; letter-spacing:2.5px; pointer-events:none; white-space:nowrap; }
+    .fit-panel.solved .fit-head { border-color:#8fe0b0; } .fit-panel.solved .fit-head small { color:#8fe0b0; }
+    .hud.fitting .mobile-controls, .hud.fitting .movement-hint, .hud.fitting .status-card, .hud.fitting .map-card, .hud.fitting .studio-open, .hud.fitting .menu-open, .hud.fitting .sound-toggle, .hud.fitting .blueprint-card, .hud.fitting .toast { display:none; }
+    /* medal pop */
+    .medal-pop { position:absolute; left:50%; top:200px; transform:translate(-50%,-20px) scale(.9); opacity:0; display:flex; align-items:center; gap:16px; padding:14px 22px 14px 14px; border-radius:24px; background:rgba(28,21,15,.9); border:1px solid rgba(242,195,95,.5); color:#fbeedb; pointer-events:none; transition:opacity .3s, transform .35s cubic-bezier(.2,1.6,.4,1); z-index:14; }
+    .medal-pop.shown { opacity:1; transform:translate(-50%,0) scale(1); }
+    .medal-disc { width:68px; height:68px; border-radius:50%; display:grid; place-items:center; font-size:30px; color:rgba(96,62,16,.6); text-shadow:0 1px 0 rgba(255,255,255,.5); background:radial-gradient(circle at 35% 30%,#fff3c4,#f2c35f 45%,#a8761e); box-shadow:0 0 26px rgba(242,195,95,.55), inset 0 -3px 6px rgba(0,0,0,.25); animation:medal-spin 1.2s ease-out; }
+    .medal-disc.silver { background:radial-gradient(circle at 35% 30%,#ffffff,#cfd5de 45%,#7d8794); box-shadow:0 0 22px rgba(220,226,236,.5); }
+    .medal-disc.bronze { background:radial-gradient(circle at 35% 30%,#ffd9b8,#c88a5a 45%,#7a4a24); box-shadow:0 0 22px rgba(200,138,90,.45); }
+    @keyframes medal-spin { from { transform:rotateY(540deg) scale(.4); } to { transform:rotateY(0) scale(1); } }
+    .medal-pop small { display:block; color:#f2c35f; font:900 10px system-ui; letter-spacing:2.5px; } .medal-pop b { display:block; font:600 22px Georgia,serif; margin:2px 0; } .medal-pop span { color:#dccbb0; font-size:13px; }
+    .finish-medals { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin:4px 0 10px; }
+    .finish-medals i { width:22px; height:22px; border-radius:50%; font-style:normal; } .finish-medals i.gold { background:#f2c35f; } .finish-medals i.silver { background:#cfd5de; } .finish-medals i.bronze { background:#c88a5a; }
+    /* daily challenge + new run */
+    .daily-card { display:flex; gap:16px; align-items:center; margin:0 0 16px; padding:14px 20px; border-radius:24px; background:rgba(44,31,21,.62); backdrop-filter:blur(12px); border:1px solid rgba(255,226,172,.45); color:#fff2db; }
+    .daily-card.done { border-color:#8fe0b0; }
+    .daily-icon { width:54px; height:54px; flex:none; border-radius:16px; display:grid; place-items:center; font-size:28px; color:#3a2310; background:linear-gradient(180deg,#f6d690,#d59c48); }
+    .daily-card.done .daily-icon { background:linear-gradient(180deg,#bff0cf,#62c08a); }
+    .daily-card small { display:block; color:#f3c978; font:900 11px system-ui; letter-spacing:2.5px; } .daily-card b { display:block; margin:3px 0; font:600 19px Georgia,serif; } .daily-card span { color:#e8d6ba; font:600 13px system-ui; letter-spacing:.5px; }
+    .menu-buttons > .menu-btn { flex:none; } .menu-btn.newrun { display:none; height:76px; font-size:20px; } .menu-btn.newrun small { font:600 12px system-ui; letter-spacing:1px; color:#e8d6ba; }
+    .menu.complete .menu-btn.newrun { display:flex; } .menu-btn.newrun.armed { background:#c0503a; border-color:#ffb9a6; }
+    .finish-stars { margin-left:8px; color:#f6d690; font:800 15px system-ui; }
+    .studio-costume.locked { opacity:.8; border-style:dashed; }
+    /* studio rewards */
+    .studio-stars { display:inline-block; margin-top:8px; padding:4px 12px; border-radius:14px; background:rgba(242,195,95,.18); border:1px solid rgba(242,195,95,.5); color:#f6d690; font:900 13px system-ui; font-style:normal; letter-spacing:1.5px; }
+    .studio-lock { display:none; position:absolute; left:50%; top:58%; transform:translate(-50%,-50%); width:min(80%,360px); padding:16px 20px; text-align:center; border-radius:20px; background:rgba(23,19,15,.8); border:1px solid rgba(255,190,225,.35); color:#f3e6fb; pointer-events:none; }
+    .studio-lock.shown { display:block; } .studio-lock b { display:block; font:900 13px system-ui; letter-spacing:2px; color:#ffd7ee; margin-bottom:6px; } .studio-lock span { font-size:14px; line-height:1.45; }
+    .studio-costume { display:none; position:absolute; right:22px; top:104px; height:56px; padding:0 16px; gap:8px; align-items:center; border-radius:16px; border:1px solid rgba(242,195,95,.6); background:rgba(40,30,18,.8); color:#f6d690; font:900 12px system-ui; letter-spacing:1.5px; pointer-events:auto; }
+    .studio-costume.shown { display:flex; } .studio-costume.on { background:linear-gradient(135deg,#f6d690,#c98c3a); color:#3a2310; }
+    .studio-expr button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+    .studio-expr button i { font-style:normal; font-size:10px; letter-spacing:.5px; color:#f6d690; }
+    .studio-expr button.locked { opacity:.55; } .studio-expr button.locked b { filter:blur(.3px); }
     .studio-open { pointer-events:auto; position:absolute; left:22px; top:420px; width:158px; height:64px; display:grid; grid-template-columns:34px 1fr; grid-template-rows:1fr 1fr; align-items:center; padding:0 12px; border-radius:16px; border:1px solid rgba(255,156,207,.45); background:linear-gradient(135deg,rgba(60,30,70,.85),rgba(28,24,20,.85)); color:#ffe2f2; text-align:left; box-shadow:0 0 22px rgba(255,120,190,.18); }
     .sound-toggle { pointer-events:auto; position:absolute; left:22px; top:494px; width:64px; height:64px; display:grid; place-items:center; border-radius:16px; border:1px solid rgba(255,214,150,.45); background:linear-gradient(150deg,rgba(58,46,36,.82),rgba(28,24,22,.88)); color:#ffe2b0; font-size:26px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
     .sound-toggle.off { color:rgba(255,226,176,.45); } .sound-toggle.off span { position:relative; } .sound-toggle.off span::after { content:''; position:absolute; left:-6px; right:-6px; top:50%; height:2px; background:currentColor; transform:rotate(-40deg); }
@@ -259,6 +322,11 @@ export function installStyles() {
       .blueprint-card{top:169px;right:12px;transform:scale(.9);transform-origin:top right}
       .movement-hint{top:340px;font-size:8px}
       .mobile-controls{left:11px;right:11px;bottom:28px}.stick-zone{width:135px;height:145px}.stick-ring{width:124px;height:124px}.stick-nub{width:56px;height:56px}.mobile-action{width:111px;height:111px;margin-bottom:9px}
+      .fit-head{top:96px;left:14px;right:92px;width:auto;margin:0;padding:10px 14px}.fit-head span{display:none}.fit-head b{font-size:19px;margin:2px 0 0}.fit-cancel{top:96px;right:14px}
+      .fit-pad{bottom:50px;gap:12px}.fit-pad button{width:94px;height:94px;border-radius:24px}.fit-pad button span{font-size:34px;line-height:34px}.fit-hint{bottom:18px;font-size:9px}
+      .medal-pop{top:150px;width:calc(100% - 40px);box-sizing:border-box}.medal-disc{width:56px;height:56px;flex:none}.medal-pop b{font-size:19px}.medal-pop span{font-size:12px}
+      .daily-card{padding:12px 14px;gap:12px}.daily-icon{width:44px;height:44px;font-size:22px}.daily-card b{font-size:16px}.daily-card span{font-size:12px}
+      .studio-costume{top:150px;right:14px;height:48px;padding:0 12px;font-size:10px}
       .toast{bottom:185px;font-size:11px}.editor-panel{left:12px;top:167px;width:min(340px,calc(100vw - 24px))}.edit-badge{right:12px;bottom:24px;font-size:8px}
     }
   `;

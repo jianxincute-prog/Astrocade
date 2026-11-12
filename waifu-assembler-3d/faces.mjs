@@ -79,3 +79,19 @@ export const LIP_STYLE = {
   kana01: { name: 'Overlined nude gloss', w: 120, top: 1.35, bot: 1.45, bow: 0.8, peak: 0.3, corner: 2, color: '#e07a8c', finish: 'gloss', liner: '#9a4456' },
   sakura01: { name: 'Beni crimson', w: 98, top: 0.95, bot: 1.12, bow: 1.45, peak: 0.26, corner: 0, color: '#c01c36', finish: 'beni' },
 };
+
+// Gala costumes: an alternative colourway per figure for the Character Studio, unlocked by a gold medal on that statue.
+export const COSTUMES = {
+  office01: { name: 'Evening Gala', cloth: '#1d1b2c', suit: '#7a1f3d', suitDark: '#4a1026', accent: '#f2c35f', gold: '#f2c35f' },
+  nurse01: { name: 'Mint Ward', cloth: '#f2fbf8', suit: '#f2fbf8', suitDark: '#9ad6c6', accent: '#3fae9a', gold: '#cfeee6' },
+  ceo01: { name: 'Ivory Suit', cloth: '#1a1a22', suit: '#f1ece2', suitDark: '#c9bfae', accent: '#c9a466', gold: '#e8c87a' },
+  student01: { name: 'Festival Blue', suit: '#2d4a7a', suitDark: '#1d3258', accent: '#f2c35f' },
+  idol01: { name: 'Violet Stage', suit: '#6a4ae0', suitDark: '#4a2ab0', accent: '#7ff0ff', shoe: '#6a4ae0' },
+  janitor01: { name: 'Coral Crew', suit: '#e8735a', suitDark: '#b8452c', accent: '#2f8a74' },
+  rin01: { name: 'Wine Sailor', suit: '#7a1f2e', suitDark: '#4e1220', accent: '#f2c35f' },
+  aoi01: { name: 'Night Match', cloth: '#1d2333', suit: '#ff7a3c', suitDark: '#c4501e', accent: '#ffffff' },
+  mei01: { name: 'White Tea Party', suit: '#f6f2ff', suitDark: '#d8d0ee', cloth: '#22202a', accent: '#7fd0ff' },
+  yuki01: { name: 'Frost Queen', suit: '#bfe6ff', suitDark: '#6aa8e0', accent: '#ffffff', gold: '#e0f4ff' },
+  kana01: { name: 'Lime Pop', suit: '#a8dc72', suitDark: '#4f9a3c', accent: '#ff86b8' },
+  sakura01: { name: 'Indigo Shrine', suit: '#2a3a7a', suitDark: '#1a2656', accent: '#f2c35f' },
+};

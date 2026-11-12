@@ -83,8 +83,9 @@ export function createStatueKit(scene, { faceScale = 1 } = {}) {
     return m;
   };
 
+  const costumes = new Map(); // setId → colour overrides (Studio gala costumes)
   function materialFor(setId, fullKind) {
-    const s = STYLE[setId];
+    const s = costumes.has(setId) ? { ...STYLE[setId], ...costumes.get(setId) } : STYLE[setId];
     const key = `${setId}:${fullKind}`;
     const [kind, expr = DEFAULT_EXPR[setId] || 'neutral'] = fullKind.split('@');
     switch (kind) {
@@ -265,6 +266,13 @@ export function createStatueKit(scene, { faceScale = 1 } = {}) {
 
   return {
     // Studio previews swap faces often; free the 2048² face texture of a preset/expression no longer on screen.
+    // Swap a figure's colourway; its cloth/suit/accent materials are rebuilt on the next build.
+    setCostume(setId, overrides) {
+      const next = overrides || null; const prev = costumes.get(setId) || null;
+      if (next === prev) return;
+      if (next) costumes.set(setId, next); else costumes.delete(setId);
+      for (const [key, m] of mats) if (key.startsWith(`${setId}:`) && !key.includes(':face') && !key.endsWith(':holo')) { m.dispose(); mats.delete(key); }
+    },
     releaseFace(setId, expr) {
       const m = mats.get(`${setId}:face@${expr}`); if (m) { m.dispose(); mats.delete(`${setId}:face@${expr}`); }
       for (const tk of [`${setId}@${expr}`, `${setId}@${expr}#surf`]) { const t = faceTextures.get(tk); if (t) { t.dispose(); faceTextures.delete(tk); } }

@@ -2,12 +2,14 @@ import {
   ANNEX, FRAGMENTS, GALLERY_DOOR, HALL_SIZE, INITIAL_PODIUMS, PARTS, SETS,
   countPlaced, createInitialState, formatTime, getFragment, getSet, isGameComplete,
   pickup, placeCarried, restoreState, serializeState,
+  DAILY_STARS, EXPRESSION_UNLOCKS, HIDDEN_FRAGMENTS, betterMedal, countStars, dailyChallenge, dailyMet,
+  isExpressionUnlocked, medalFor, puzzleSolved, puzzleStart, reveal, statuePar,
 } from './logic.mjs';
 import { escapeHtml, installStyles, roundRect, uiMarkup } from './ui.js';
 import { PART_OFFSET, buildBust, buildStatuePart, createStatueKit } from './statues.js';
-import { DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
+import { COSTUMES, DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
 import { STATUE_POSES } from './poses.mjs';
-import { buildFragment, buildPodium, buildWorld, makeLabel, petalTexture, starTexture } from './world.js';
+import { buildContainer, buildFragment, buildPodium, buildWorld, makeLabel, petalTexture, starTexture } from './world.js';
 import { createAudio } from './audio.js';
 
 // Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead gallery layout editor.
@@ -193,7 +195,7 @@ export function createGame(mode = 'play') {
     actionLabel: root.querySelector('#action-label'), toast: root.querySelector('#toast'),
     blueprint: root.querySelector('#blueprint-card'), blueprintTitle: root.querySelector('#blueprint-title'),
     blueprintBody: root.querySelector('#blueprint-drawing'), blueprintFoot: root.querySelector('#blueprint-foot'),
-    map: root.querySelector('#mini-map'), editorMap: root.querySelector('#editor-map'),
+    map: root.querySelector('#mini-map'), editorMap: root.querySelector('#editor-map'), clock: root.querySelector('#statue-clock'),
     selected: root.querySelector('#editor-selected'), editorCoords: root.querySelector('#editor-coords'),
   };
   const miniCtx = ui.map.getContext('2d');
@@ -210,6 +212,15 @@ export function createGame(mode = 'play') {
   let phase = 'loading'; // loading → menu ⇄ play (edit mode: loading → edit)
   let playSeconds = 0; // restoration time, counted only while playing
   let bestSeconds = null;
+  // Meta progress outlives a NEW RUN: the best medal per statue, the statues ever restored (Studio portraits),
+  // stars from daily challenges and the daily streak. statueTimes is this run's medal clock per statue.
+  const freshMeta = () => ({ medals: {}, restored: [], dailyStars: 0, daily: null, streak: 0, lastDailyDay: null });
+  const meta = freshMeta();
+  let statueTimes = {};
+  let clocking = []; // statues whose clock is running: a piece collected, not yet whole
+  const pars = Object.fromEntries(SETS.map((set) => [set.id, statuePar(set.id, podiumPositions[set.id], speed)]));
+  const containers = new Map(); // fragment key → chest / curtained alcove hiding it
+  let puzzle = null; // the turn-and-fit puzzle in progress
   let lastFrame = performance.now();
   let lookPointer = null;
   let editPointer = null;
@@ -234,7 +245,8 @@ export function createGame(mode = 'play') {
     const save = window.lib?.saveUserGameState;
     if (!save) return;
     prefs.muted = audio.muted;
-    const payload = { waifuAssembler: serializeState(state), playSeconds: Math.round(playSeconds), bestSeconds, prefs: { ...prefs }, audioMuted: audio.muted };
+    const times = Object.fromEntries(Object.entries(statueTimes).map(([id, t]) => [id, Math.round(t * 10) / 10]));
+    const payload = { waifuAssembler: serializeState(state), playSeconds: Math.round(playSeconds), bestSeconds, prefs: { ...prefs }, audioMuted: audio.muted, meta: { ...meta }, statueTimes: times };
     try { return Promise.resolve(save(payload)).catch(() => {}); } catch { return null; /* local play remains available */ }
   };
   // ---------- 3D hologram projection inside the HUD card ----------
@@ -303,7 +315,8 @@ export function createGame(mode = 'play') {
     for (const set of SETS) {
       const podium = podiums.get(set.id);
       const placed = state.placed[set.id] || [];
-      podium.label.setText(`${set.name}  ·  ${placed.length}/5`);
+      const medal = placed.length === PARTS.length && meta.medals[set.id];
+      podium.label.setText(medal ? `${set.name}  ·  ${medal.toUpperCase()}` : `${set.name}  ·  ${placed.length}/5`);
       if (!podium.merged) for (const part of PARTS) {
         const built = placed.includes(part.id);
         const entry = podium.figureParts.get(part.id);
@@ -319,8 +332,12 @@ export function createGame(mode = 'play') {
     for (const fragment of FRAGMENTS) {
       const model = fragments.get(fragment.key);
       model.absent = model.gone || state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
-      if (!model.gone) { model.root.setEnabled(!model.absent); model.shown = !model.absent; }
+      model.locked = Boolean(model.container) && !state.revealed.includes(fragment.key);
+      if (!model.gone) { model.root.setEnabled(!model.absent); model.shown = !model.absent; model.spin.setEnabled(!model.locked); }
+      const box = model.container;
+      if (box && !model.locked && !box.opened && !box.opening) { box.animate(1); box.opened = true; } // opened in an earlier session
     }
+    clocking = SETS.filter((set) => (state.placed[set.id]?.length || 0) < PARTS.length && state.collected.some((k) => k.startsWith(`${set.id}:`))).map((set) => set.id);
     nearestCache.at = -1;
     if (carriedVisual) {
       carriedVisual.dispose(false, false);
@@ -380,6 +397,8 @@ export function createGame(mode = 'play') {
       const inRange = dist <= 5.2;
       setHTML(ui.status, `<b>${inRange ? 'PLINTH IN RANGE' : 'TO THE GALLERY'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to its plinth</span>`);
       setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>Carry <b>${fragment.partId.replace('armL', 'left arm').replace('armR', 'right arm')}</b> to its matching plinth</span>`);
+      const t = statueTimes[set.id] || 0; const pace = medalFor(t, pars[set.id]);
+      setHTML(ui.clock, `⏱ ${formatTime(t)} &nbsp;·&nbsp; GOLD ≤ ${formatTime(pars[set.id])}<i class="${pace}">${pace.toUpperCase()}</i>`);
       ui.action.disabled = !inRange;
       ui.action.classList.toggle('ready', inRange);
       ui.actionLabel.textContent = inRange ? 'ASSEMBLE' : 'RESTORE';
@@ -390,12 +409,14 @@ export function createGame(mode = 'play') {
       const angle = Math.atan2(nearest.fragment.x - player.x, -(nearest.fragment.z - player.z)) - player.yaw;
       const arrow = Math.abs(angle) < .35 ? '↑' : Math.abs(angle) < 1.15 ? (angle > 0 ? '↗' : '↖') : Math.abs(angle) < 2.35 ? (angle > 0 ? '→' : '←') : '↓';
       const close = dist <= useRange;
-      setHTML(ui.status, `<b>${close ? 'FRAGMENT NEARBY' : 'SEARCH THE HALL'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m away</span>`);
-      setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>${arrow} &nbsp;${set.name} / ${nearest.part.label}</span>`);
+      const hidden = nearest.locked ? HIDDEN_FRAGMENTS[nearest.fragment.key] : null;
+      const where = hidden === 'chest' ? 'locked in a chest' : 'behind a velvet curtain';
+      setHTML(ui.status, `<b>${close ? (hidden ? 'SOMETHING IS HIDDEN HERE' : 'FRAGMENT NEARBY') : 'SEARCH THE HALL'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m away</span>`);
+      setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>${arrow} &nbsp;${set.name} / ${hidden ? `<b>?</b> ${where}` : nearest.part.label}</span>`);
       ui.action.disabled = !close;
       ui.action.classList.toggle('ready', close);
-      ui.actionLabel.textContent = close ? 'COLLECT' : 'SEARCH';
-      ui.action.setAttribute('aria-label', close ? `Collect ${nearest.part.label}` : 'Find the highlighted statue fragment');
+      ui.actionLabel.textContent = close ? (hidden ? 'OPEN' : 'COLLECT') : 'SEARCH';
+      ui.action.setAttribute('aria-label', close ? (hidden ? `Open the ${hidden === 'chest' ? 'chest' : 'curtain'}` : `Collect ${nearest.part.label}`) : 'Find the highlighted statue fragment');
     } else {
       setHTML(ui.status, `<b>RESTORATION COMPLETE</b><span>All ${SETS.length} figures are ready for display</span>`);
       setHTML(ui.target, `<i class="target-dot" style="--dot:#80e8ce"></i><span>Every piece has found its home. Lovely work.</span>`);
@@ -415,7 +436,7 @@ export function createGame(mode = 'play') {
     for (const fragment of FRAGMENTS) {
       if (fragments.get(fragment.key)?.absent) continue;
       const distance = Math.hypot(player.x - fragment.x, player.z - fragment.z);
-      if (!best || distance < best.distance) best = { fragment, distance, part: PARTS.find((part) => part.id === fragment.partId) };
+      if (!best || distance < best.distance) best = { fragment, distance, part: PARTS.find((part) => part.id === fragment.partId), locked: Boolean(fragments.get(fragment.key)?.locked) };
     }
     return best;
   }
@@ -444,6 +465,10 @@ export function createGame(mode = 'play') {
     }
     for (const f of FRAGMENTS) {
       if (state.collected.includes(f.key) || state.placed[f.setId]?.includes(f.partId)) continue;
+      if (fragments.get(f.key)?.locked) { // secrets show as a "?" until their chest or curtain is opened
+        ctx.globalAlpha = 1; ctx.fillStyle = '#f2c35f'; ctx.font = '900 9px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('?', px(f.x), pz(f.z)); ctx.textBaseline = 'alphabetic'; continue;
+      }
       ctx.beginPath(); ctx.arc(px(f.x), pz(f.z), 1.8, 0, Math.PI * 2);
       ctx.fillStyle = getSet(f.setId).color; ctx.globalAlpha = 0.93; ctx.fill();
     }
@@ -545,10 +570,11 @@ export function createGame(mode = 'play') {
   }
 
   function updateAction() {
-    if (editing || phase !== 'play') return;
+    if (editing || phase !== 'play' || puzzle) return;
     if (!state.carried) {
       const target = nearestAvailable();
       if (!target || target.distance > useRange) return;
+      if (target.locked) { openContainer(target.fragment, target.part); return; }
       const next = pickup(state, target.fragment.key);
       if (next === state) return;
       hasInteracted = true;
@@ -571,14 +597,182 @@ export function createGame(mode = 'play') {
       audio.play('notHere', { volume: 0.7 });
       return;
     }
+    startPuzzle(fragment); // the part must be turned to match its socket before it can be assembled
+  }
+  // ---------- hidden pieces: chests and curtained alcoves ----------
+  function openContainer(fragment, part) {
+    const box = containers.get(fragment.key); const model = fragments.get(fragment.key);
+    const next = reveal(state, fragment.key);
+    if (!box || next === state) return;
+    hasInteracted = true; Object.assign(state, next);
+    const start = performance.now(); box.opening = true;
+    effects.push((now) => { const t = Math.min(1, (now - start) / 820); box.animate(t); if (t >= 1) { box.opening = false; box.opened = true; return false; } return true; });
+    model.rise = { start: start + 260 };
+    refreshFragments(); updateHUD();
+    const set = getSet(fragment.setId);
+    sparkle(new BAB.Vector3(fragment.x, box.kind === 'chest' ? 1.3 : 2.2, fragment.z), '#ffe2a6', 90);
+    setTimeout(() => sparkle(new BAB.Vector3(fragment.x, model.baseY, fragment.z), set.color, 70), 650);
+    audio.play(box.kind === 'chest' ? 'chest' : 'curtain'); kick(0.03);
+    toast(`Secret found · ${set.name} ${part.label}`, 'success');
+    ensureDaily().reveals += 1; checkDaily(); saveProgress();
+  }
+  // ---------- turn-and-fit puzzle ----------
+  // The carried part floats in front of the camera, turned away from its true orientation; a glowing outline shows
+  // how it must sit. Turn it in 45° steps (buttons, swipe left/right, A/D) and flip it (swipe up/down, W/S) to fit.
+  const fitEl = { panel: root.querySelector('#fit-panel'), title: root.querySelector('#fit-title'), target: root.querySelector('#fit-target') };
+  // a dim velvet backdrop behind the puzzle keeps the part readable against the busy gallery
+  const fitBackdrop = BAB.MeshBuilder.CreatePlane('fitBackdrop', { size: 14 }, scene);
+  const fitBackdropMat = new BAB.StandardMaterial('fitBackdropMat', scene);
+  Object.assign(fitBackdropMat, { disableLighting: true, backFaceCulling: false, fogEnabled: false, alpha: 0.86 }); fitBackdropMat.emissiveColor = BAB.Color3.FromHexString('#1e150e');
+  fitBackdrop.material = fitBackdropMat; fitBackdrop.renderingGroupId = 1; fitBackdrop.isPickable = false; fitBackdrop.setEnabled(false);
+  const qTmp = { base: new BAB.Quaternion(), flip: new BAB.Quaternion(), yaw: new BAB.Quaternion() };
+  const AXIS_X = new BAB.Vector3(1, 0, 0); const AXIS_Y = new BAB.Vector3(0, 1, 0);
+  function startPuzzle(fragment) {
+    if (!carriedVisual) { placeNow(fragment); return; }
+    const p = puzzleStart(`${fragment.key}:${Math.floor(playSeconds)}`);
+    const hand = carriedVisual.getAbsolutePosition().clone();
+    // centre the part on its own bounds so it turns in place, then size it to fill the middle of the screen
+    carriedVisual.parent = null; carriedVisual.position.setAll(0); carriedVisual.rotation.setAll(0); carriedVisual.scaling.setAll(1);
+    carriedVisual.computeWorldMatrix(true); for (const m of carriedVisual.getChildMeshes()) m.computeWorldMatrix(true);
+    const { min, max } = carriedVisual.getHierarchyBoundingVectors(true);
+    const centre = min.add(max).scale(0.5); const size = Math.max(max.x - min.x, max.y - min.y, max.z - min.z, 0.3);
+    const rig = new BAB.TransformNode('fitRig', scene); rig.rotationQuaternion = new BAB.Quaternion();
+    const inner = new BAB.TransformNode('fitInner', scene); inner.parent = rig; inner.position.copyFrom(centre.negate());
+    carriedVisual.parent = inner;
+    const ghostRig = new BAB.TransformNode('fitGhostRig', scene); ghostRig.rotationQuaternion = new BAB.Quaternion();
+    const ghostInner = new BAB.TransformNode('fitGhostInner', scene); ghostInner.parent = ghostRig; ghostInner.position.copyFrom(inner.position);
+    const ghost = carriedVisual.clone('fitGhost', ghostInner);
+    const holoMat = kit.holoMaterial(fragment.setId);
+    for (const m of ghost.getChildMeshes()) { m.material = holoMat; m.renderingGroupId = 1; m.isPickable = false; }
+    puzzle = { fragment, yaw: p.yaw, flip: p.flip, vy: p.yaw * Math.PI / 4, vf: p.flip * Math.PI / 2, start: performance.now(), last: performance.now(), hand, rig, ghostRig, scale: 1.3 / size, solvedAt: 0, moves: 0 };
+    fitBackdrop.setEnabled(true);
+    keys.clear(); stick.x = 0; stick.y = 0; stickPointer = null; lookPointer = null; root.querySelector('#stick-nub').style.transform = 'translate(0,0)';
+    hudEl.classList.add('fitting'); fitEl.panel.classList.remove('solved'); fitEl.panel.classList.add('shown');
+    fitEl.title.textContent = `${getSet(fragment.setId).name} · ${PARTS.find((x) => x.id === fragment.partId).label}`;
+    audio.play('rotate', { duration: 0.3, rate: 0.9 }); safeHaptic('tap');
+    updatePuzzle(performance.now());
+  }
+  function turnPuzzle(dYaw, dFlip) {
+    if (!puzzle || puzzle.solvedAt) return;
+    puzzle.yaw += dYaw; puzzle.flip += dFlip; puzzle.moves += 1;
+    audio.play('rotate', { duration: 0.24, rate: 0.92 + Math.random() * 0.16, volume: 0.8 }); safeHaptic('tap');
+    if (puzzleSolved(puzzle)) {
+      puzzle.solvedAt = performance.now();
+      fitEl.panel.classList.add('solved'); fitEl.title.textContent = 'PERFECT FIT';
+      setTimeout(() => {
+        if (!puzzle || disposed) return;
+        audio.play('fit'); safeHaptic('success'); kick(0.04);
+        sparkle(puzzle.rig.getAbsolutePosition(), getSet(puzzle.fragment.setId).color, 80);
+      }, 160);
+      setTimeout(() => { if (puzzle && !disposed) placeNow(puzzle.fragment); }, 560);
+    }
+  }
+  function endPuzzle() { // put the part back in the hand (cancel) or let placeNow take it
+    if (!puzzle) return;
+    if (carriedVisual) { carriedVisual.parent = null; carriedVisual.scaling.setAll(0.19); }
+    puzzle.rig.dispose(false, false); puzzle.ghostRig.dispose(false, false);
+    puzzle = null; hudEl.classList.remove('fitting'); fitEl.panel.classList.remove('shown', 'solved'); lastFrame = performance.now();
+    fitBackdrop.setEnabled(false);
+  }
+  function cancelPuzzle() { if (!puzzle || puzzle.solvedAt) return; endPuzzle(); audio.play('tap', { volume: 0.5 }); }
+  const fitPos = new BAB.Vector3(); const fitTarget = new BAB.Vector3(); const fitRight = new BAB.Vector3(); const fitUp = new BAB.Vector3(); const fitScreen = new BAB.Vector3();
+  function updatePuzzle(now) {
+    const dt = Math.min(0.1, (now - puzzle.last) / 1000); puzzle.last = now;
+    const k = 1 - Math.exp(-dt * 13);
+    puzzle.vy += (puzzle.yaw * Math.PI / 4 - puzzle.vy) * k; puzzle.vf += (puzzle.flip * Math.PI / 2 - puzzle.vf) * k;
+    const fwd = forwardVec();
+    fitRight.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw)); BAB.Vector3.CrossToRef(fitRight, fwd, fitUp);
+    // the part sits low in the middle of the view; a small hologram of how it must sit floats at the upper right
+    const halfW = Math.min(1.05, 2.5 * Math.tan(camera.fov / 2) * engine.getAspectRatio(camera));
+    fitPos.copyFrom(camera.position).addInPlace(fwd.scale(2.5)).addInPlace(fitUp.scale(-0.3));
+    fitTarget.copyFrom(camera.position).addInPlace(fwd.scale(2.5)).addInPlace(fitUp.scale(0.62)).addInPlace(fitRight.scale(halfW * 0.6));
+    fitBackdrop.position.copyFrom(camera.position).addInPlace(fwd.scale(4.5));
+    if (!fitBackdrop.rotationQuaternion) fitBackdrop.rotationQuaternion = new BAB.Quaternion();
+    fitBackdrop.rotationQuaternion.copyFrom(camera.absoluteRotation);
+    const intro = ease(Math.min(1, (now - puzzle.start) / 320)); // glides from the hand to the middle of the view
+    fitBackdropMat.alpha = 0.86 * intro;
+    BAB.Vector3.LerpToRef(puzzle.hand, fitPos, intro, puzzle.rig.position);
+    const sc = 0.19 + (puzzle.scale - 0.19) * intro;
+    BAB.Quaternion.RotationYawPitchRollToRef(player.yaw + 0.42, -0.12, 0, qTmp.base);
+    BAB.Quaternion.RotationAxisToRef(AXIS_X, puzzle.vf, qTmp.flip); BAB.Quaternion.RotationAxisToRef(AXIS_Y, puzzle.vy, qTmp.yaw);
+    qTmp.base.multiplyToRef(qTmp.flip, puzzle.rig.rotationQuaternion); puzzle.rig.rotationQuaternion.multiplyInPlace(qTmp.yaw);
+    const pop = puzzle.solvedAt ? 1 + 0.12 * Math.sin(Math.min(1, (now - puzzle.solvedAt) / 300) * Math.PI) : 1;
+    puzzle.rig.scaling.setAll(sc * pop);
+    // once it fits, the target hologram swoops onto the part and melts into it
+    const merge = puzzle.solvedAt ? ease(Math.min(1, (now - puzzle.solvedAt) / 260)) : 0;
+    BAB.Vector3.LerpToRef(fitTarget, fitPos, merge, puzzle.ghostRig.position);
+    puzzle.ghostRig.rotationQuaternion.copyFrom(qTmp.base);
+    puzzle.ghostRig.scaling.setAll(puzzle.scale * (0.42 + 0.62 * merge) * intro);
+    puzzle.ghostRig.setEnabled(!puzzle.solvedAt || now - puzzle.solvedAt < 280);
+    if (carriedVisual) carriedVisual.position.setAll(0);
+    // "TARGET" caption under the hologram
+    BAB.Vector3.ProjectToRef(fitTarget, BAB.Matrix.IdentityReadOnly, scene.getTransformMatrix(), camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight()), fitScreen);
+    const kx = canvas.clientWidth / engine.getRenderWidth(); const ky = canvas.clientHeight / engine.getRenderHeight();
+    fitEl.target.style.transform = `translate(${Math.round(fitScreen.x * kx)}px, ${Math.round(fitScreen.y * ky + puzzle.scale * 0.42 * 0.55 * canvas.clientHeight / (2 * 2.5 * Math.tan(camera.fov / 2)))}px) translate(-50%, 0)`;
+    fitEl.target.style.opacity = puzzle.solvedAt ? '0' : String(intro);
+  }
+  // ---------- assembly, per-statue medals, daily challenge ----------
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const dayBefore = (day) => { const d = new Date(`${day}T12:00:00`); d.setDate(d.getDate() - 1); return dayKey(d); };
+  function ensureDaily() {
+    const day = dayKey();
+    if (!meta.daily || meta.daily.day !== day) meta.daily = { day, done: false, reveals: 0, completions: [] };
+    return meta.daily;
+  }
+  function checkDaily() {
+    const daily = ensureDaily(); const challenge = dailyChallenge(daily.day);
+    if (daily.done || !dailyMet(challenge, daily)) return;
+    daily.done = true; meta.dailyStars += DAILY_STARS;
+    meta.streak = meta.lastDailyDay === dayBefore(daily.day) ? meta.streak + 1 : 1; meta.lastDailyDay = daily.day;
+    saveProgress(true);
+    setTimeout(() => { if (disposed) return; toast(`Daily challenge complete · +${DAILY_STARS}★ · ${meta.streak}-day streak`, 'success', 3600); audio.play('medal', { volume: 0.8 }); }, 2600);
+  }
+  const MEDAL_COLOURS = { gold: '#f2c35f', silver: '#d4d9e1', bronze: '#c88a5a' };
+  const medalMats = Object.fromEntries(Object.entries(MEDAL_COLOURS).map(([medal, hex]) => {
+    const m = new BAB.PBRMaterial(`medal-${medal}`, scene); m.albedoColor = BAB.Color3.FromHexString(hex); m.metallic = 0.9; m.roughness = 0.28;
+    m.emissiveColor = BAB.Color3.FromHexString(hex).scale(0.12); return [medal, m];
+  }));
+  function setMedalBadge(setId) { // a medal stands on the plinth's front edge once the statue has earned one
+    const podium = podiums.get(setId); const medal = meta.medals[setId];
+    if (!podium || !medal || podium.badgeMedal === medal) return;
+    podium.badge?.dispose(false, false);
+    const disc = BAB.MeshBuilder.CreateCylinder('medalBadge', { height: 0.06, diameter: 0.56, tessellation: 32 }, scene);
+    const rim = BAB.MeshBuilder.CreateTorus('medalRim', { diameter: 0.56, thickness: 0.05, tessellation: 32 }, scene);
+    rim.parent = disc; disc.material = medalMats[medal]; rim.material = medalMats[medal];
+    disc.parent = podium.facing; disc.rotation.x = Math.PI / 2; disc.position.set(0, 1.1, 1.78);
+    for (const m of [disc, rim]) { m.isPickable = false; m.computeWorldMatrix(true); m.freezeWorldMatrix(); }
+    podium.badge = disc; podium.badgeMedal = medal;
+  }
+  const medalEl = { pop: root.querySelector('#medal-pop'), disc: root.querySelector('#medal-disc'), kind: root.querySelector('#medal-kind'), name: root.querySelector('#medal-name'), time: root.querySelector('#medal-time') };
+  let medalTimer = 0;
+  function showMedal(set, medal, seconds, improved) {
+    medalEl.disc.className = `medal-disc ${medal}`;
+    medalEl.kind.textContent = `${medal.toUpperCase()} MEDAL${improved ? ' · NEW BEST' : ''}`;
+    medalEl.name.textContent = set.name;
+    medalEl.time.textContent = `${formatTime(seconds)}  ·  gold ≤ ${formatTime(pars[set.id])}  ·  ★ ${countStars(meta)}`;
+    medalEl.pop.classList.remove('shown'); void medalEl.pop.offsetWidth; medalEl.pop.classList.add('shown');
+    clearTimeout(medalTimer); medalTimer = setTimeout(() => medalEl.pop.classList.remove('shown'), 3400);
+    audio.play('medal', { volume: medal === 'gold' ? 1 : 0.8 });
+  }
+  function placeNow(fragment) {
+    const podium = podiums.get(fragment.setId);
     const next = placeCarried(state, fragment.setId);
     if (next === state) return;
     hasInteracted = true;
     const hand = carriedVisual ? carriedVisual.getAbsolutePosition().clone() : null;
+    endPuzzle();
     Object.assign(state, next);
     const set = getSet(fragment.setId);
     refreshFragments(); updateHUD();
     const count = state.placed[set.id].length; const done = count === PARTS.length;
+    let medal = null; let improved = false; const seconds = Math.max(1, Math.round(statueTimes[set.id] || 0));
+    if (done) { // the statue's clock stops: award its medal, remember the portrait, count it for today's challenge
+      medal = medalFor(seconds, pars[set.id]); const prev = meta.medals[set.id];
+      meta.medals[set.id] = betterMedal(prev, medal); improved = Boolean(prev) && meta.medals[set.id] !== prev;
+      if (!meta.restored.includes(set.id)) meta.restored.push(set.id);
+      ensureDaily().completions.push({ setId: set.id, seconds, medal }); checkDaily();
+    }
     const allDone = isGameComplete(state) && !finishedShown;
     let final = 0; let isBest = false;
     if (allDone) { // lock the time now; the banner waits for the last part to land
@@ -595,10 +789,14 @@ export function createGame(mode = 'play') {
       if (allDone) { audio.play('place', { volume: 0.8 }); audio.play('finale'); audio.duck(6); }
       else if (done) { audio.play('place', { volume: 0.8 }); audio.play('complete'); audio.duck(4); }
       else audio.play('place', { rate: 0.96 + count * 0.02 });
-      if (done) { sparkle(new BAB.Vector3(podium.group.position.x, 5, podium.group.position.z), '#ffffff', 200); celebrate(podium, set); setTimeout(() => mergeStatue(set.id), 1800); }
+      if (done) {
+        sparkle(new BAB.Vector3(podium.group.position.x, 5, podium.group.position.z), '#ffffff', 200); celebrate(podium, set); setTimeout(() => mergeStatue(set.id), 1800);
+        setTimeout(() => { if (disposed) return; setMedalBadge(set.id); refreshPodiums(); showMedal(set, medal, seconds, improved); }, allDone ? 300 : 900);
+      }
       if (allDone) setTimeout(() => {
         if (disposed) return;
         root.querySelector('#finish-time').textContent = `${formatTime(final)}${isBest ? '  ·  NEW BEST' : ''}`;
+        root.querySelector('#finish-medals').innerHTML = SETS.map((x) => `<i class="${meta.medals[x.id] || ''}" title="${x.name}"></i>`).join('') + `<b class="finish-stars">★ ${countStars(meta)}</b>`;
         root.querySelector('#finish-banner').classList.add('shown');
         try { window.lib?.log?.('All Waifu Assembler statues restored.'); } catch { /* optional */ }
       }, 1400);
@@ -697,6 +895,7 @@ export function createGame(mode = 'play') {
   }
   const tmpRight = new BAB.Vector3();
   function updateCarried(now) {
+    if (puzzle) { updatePuzzle(now); return; }
     if (!carriedVisual) return;
     const fwd = forwardVec();
     tmpRight.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
@@ -719,6 +918,8 @@ export function createGame(mode = 'play') {
       const near = editing || Math.abs(player.x - fragment.x) + Math.abs(player.z - fragment.z) < FRAGMENT_VIEW * 1.3 && Math.hypot(player.x - fragment.x, player.z - fragment.z) < FRAGMENT_VIEW;
       const show = !model.absent && near;
       if (show !== model.shown) { model.root.setEnabled(show); model.shown = show; }
+      const box = model.container;
+      if (box && box.shown !== near) { box.root.setEnabled(near); box.shown = near; }
     }
     for (const podium of podiums.values()) {
       const d = Math.hypot(player.x - podium.group.position.x, player.z - podium.group.position.z);
@@ -727,9 +928,14 @@ export function createGame(mode = 'play') {
       podium.labelMesh.setEnabled(editing || (d > 7 && d < 30)); // name cards for nearby statues, hidden when standing right at one
     }
     for (const model of fragments.values()) {
-      if (!model.root.isEnabled()) continue;
+      if (!model.root.isEnabled() || model.locked) continue;
       model.spin.rotation.y += 0.26 * dt;
       model.spin.position.y = model.baseY + Math.sin(now * 0.0018 + model.phase) * 0.13;
+      if (model.rise) { // a freshly revealed piece floats up out of its chest or alcove
+        const t = clamp((now - model.rise.start) / 750, 0, 1); const e = ease(t);
+        model.spin.position.y -= 1.3 * (1 - e); model.spin.scaling.setAll(0.8 * (0.12 + 0.88 * e)); model.spin.rotation.y += dt * 6 * (1 - e);
+        if (t >= 1) { model.rise = null; model.spin.scaling.setAll(0.8); }
+      }
     }
     for (const podium of podiums.values()) {
       if (podium.finished.isEnabled()) {
@@ -753,8 +959,9 @@ export function createGame(mode = 'play') {
       nearLabel.mesh.setEnabled(Boolean(showLabel));
       if (showLabel) {
         const set = getSet(target.setId); const part = PARTS.find((p) => p.id === target.partId);
-        nearLabel.setText(`${set.name} · ${part.short}`, set.color);
-        nearLabel.mesh.position.set(target.x, 4.35, target.z);
+        const hidden = fragments.get(best).locked ? HIDDEN_FRAGMENTS[best] : null;
+        nearLabel.setText(hidden ? `${set.name} · ${hidden === 'chest' ? 'LOCKED CHEST' : 'CURTAINED ALCOVE'}` : `${set.name} · ${part.short}`, hidden ? '#c9a466' : set.color);
+        nearLabel.mesh.position.set(target.x, HIDDEN_FRAGMENTS[best] === 'curtain' ? 5.2 : 4.35, target.z);
       }
       const elapsed = now - stateChangedAt;
       if (elapsed > 190) { stateChangedAt = now; updateHUD(); }
@@ -763,7 +970,7 @@ export function createGame(mode = 'play') {
   }
   let envFrames = 0;
   // ---------- Character Studio: 12 figures × 10 expressions in their own studio-lit scene ----------
-  const studio = { open: false, scene: null, kit: null, holder: null, bust: null, index: 0, expr: 'neutral', yaw: 0, pitch: 0, drag: null, idleAt: 0, env: null, envFrames: 0, fx: null };
+  const studio = { open: false, scene: null, kit: null, holder: null, bust: null, index: 0, expr: 'neutral', yaw: 0, pitch: 0, drag: null, idleAt: 0, env: null, envFrames: 0, fx: null, costumes: new Set() };
   const studioEl = root.querySelector('#studio');
   function ensureStudio() {
     if (studio.scene) return;
@@ -793,21 +1000,55 @@ export function createGame(mode = 'play') {
     studio.scene = s; studio.kit = createStatueKit(s);
     studio.holder = new BAB.TransformNode('studioHolder', s); studio.holder.position.set(0, 3.8, 0);
   }
-  function showStudioFigure() {
+  // Rewards: a statue's portrait unlocks once it has been restored, expressions unlock with stars (medals and daily
+  // challenges), and a gold medal unlocks that figure's gala outfit. The creator's editor preview shows everything.
+  const portraitUnlocked = (id) => editing || meta.restored.includes(id);
+  const exprUnlocked = (id, expr) => editing || expr === (DEFAULT_EXPR[id] || 'neutral') || isExpressionUnlocked(expr, countStars(meta));
+  const studioLock = root.querySelector('#studio-lock'); const studioLockText = root.querySelector('#studio-lock-text');
+  const costumeButton = root.querySelector('#studio-costume');
+  let noticeTimer = 0;
+  function studioNotice(text) {
+    studioLockText.textContent = text; studioLock.classList.add('shown');
+    clearTimeout(noticeTimer); noticeTimer = setTimeout(() => refreshStudioLock(), 2600);
+  }
+  function refreshStudioLock() {
     const preset = FACE_PRESETS[studio.index];
-    if (studio.bust) { const { id, expr } = studio.bustInfo; studio.bust.dispose(false, false); studio.kit.releaseFace(id, expr); }
-    studio.bust = buildBust(studio.kit, studio.scene, preset.id, studio.expr);
-    studio.bustInfo = { id: preset.id, expr: studio.expr };
+    const locked = !portraitUnlocked(preset.id);
+    studioLock.classList.toggle('shown', locked);
+    studioLockText.textContent = `Restore ${preset.name} in the gallery to unlock this portrait, her expressions and outfits.`;
+  }
+  function showStudioFigure() {
+    const preset = FACE_PRESETS[studio.index]; const id = preset.id;
+    const unlocked = portraitUnlocked(id); const stars = countStars(meta);
+    if (!exprUnlocked(id, studio.expr)) studio.expr = DEFAULT_EXPR[id] || 'neutral';
+    const gold = meta.medals[id] === 'gold' || editing;
+    const wear = unlocked && gold && studio.costumes.has(id);
+    studio.kit.setCostume(id, wear ? COSTUMES[id] : null);
+    if (studio.bust) { const { id: oldId, expr } = studio.bustInfo; studio.bust.dispose(false, false); studio.kit.releaseFace(oldId, expr); }
+    studio.bust = buildBust(studio.kit, studio.scene, id, studio.expr);
+    studio.bustInfo = { id, expr: studio.expr };
     studio.bust.parent = studio.holder; studio.bust.position.set(0, -3.8, 0);
+    if (!unlocked) { const ghost = studio.kit.holoMaterial(id); for (const m of studio.bust.getChildMeshes()) m.material = ghost; } // a hologram until restored
     root.querySelector('#studio-name').textContent = preset.name;
     root.querySelector('#studio-title').textContent = preset.title;
     root.querySelector('#studio-count').textContent = `${studio.index + 1} / ${FACE_PRESETS.length}`;
-    root.querySelectorAll('[data-expr]').forEach((b) => b.classList.toggle('active', b.dataset.expr === studio.expr));
+    root.querySelector('#studio-stars').textContent = `★ ${stars}  ·  ${meta.restored.length}/${FACE_PRESETS.length} PORTRAITS`;
+    root.querySelectorAll('[data-expr]').forEach((b) => {
+      const e = b.dataset.expr; const open = unlocked && exprUnlocked(id, e);
+      b.classList.toggle('active', e === studio.expr); b.classList.toggle('locked', !open);
+      b.querySelector('i').textContent = open ? '' : unlocked ? `🔒 ${EXPRESSION_UNLOCKS[e]}★` : '🔒';
+    });
+    const costume = COSTUMES[id];
+    costumeButton.classList.toggle('shown', unlocked && Boolean(costume));
+    costumeButton.classList.toggle('on', wear); costumeButton.classList.toggle('locked', !gold);
+    root.querySelector('#studio-costume-label').textContent = gold ? (wear ? costume.name.toUpperCase() : `WEAR ${costume?.name.toUpperCase()}`) : `🔒 GOLD · ${costume?.name.toUpperCase()}`;
+    refreshStudioLock();
     studio.idleAt = performance.now();
   }
   function openStudio() {
     ensureStudio(); studio.open = true; studioEl.classList.add('shown'); root.querySelector('.hud').classList.add('studio-on');
-    if (!studio.bust) { studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); }
+    if (!studio.bust) studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral';
+    showStudioFigure(); // rewards may have changed since it was last open
   }
   function closeStudio() { studio.open = false; studioEl.classList.remove('shown'); root.querySelector('.hud').classList.remove('studio-on'); lastFrame = performance.now(); }
   // UI sounds, the music toggle, and the first gesture that is allowed to start audio
@@ -824,7 +1065,18 @@ export function createGame(mode = 'play') {
   root.querySelector('#studio-close').addEventListener('click', closeStudio);
   root.querySelector('#studio-prev').addEventListener('click', () => { studio.index = (studio.index + FACE_PRESETS.length - 1) % FACE_PRESETS.length; studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); });
   root.querySelector('#studio-next').addEventListener('click', () => { studio.index = (studio.index + 1) % FACE_PRESETS.length; studio.expr = DEFAULT_EXPR[FACE_PRESETS[studio.index].id] || 'neutral'; showStudioFigure(); });
-  root.querySelectorAll('[data-expr]').forEach((b) => b.addEventListener('click', () => { studio.expr = b.dataset.expr; showStudioFigure(); }));
+  root.querySelectorAll('[data-expr]').forEach((b) => b.addEventListener('click', () => {
+    const id = FACE_PRESETS[studio.index].id; const e = b.dataset.expr;
+    if (!portraitUnlocked(id)) { refreshStudioLock(); return; }
+    if (!exprUnlocked(id, e)) { studioNotice(`“${e}” unlocks at ${EXPRESSION_UNLOCKS[e]}★ — you have ${countStars(meta)}★. Medals give 1–3★, daily challenges +${DAILY_STARS}★.`); return; }
+    studio.expr = e; showStudioFigure();
+  }));
+  costumeButton.addEventListener('click', () => {
+    const id = FACE_PRESETS[studio.index].id; audio.play('tap', { volume: 0.6 });
+    if (meta.medals[id] !== 'gold' && !editing) { studioNotice(`Earn a gold medal on ${FACE_PRESETS[studio.index].name} to unlock her ${COSTUMES[id].name} outfit.`); return; }
+    if (studio.costumes.has(id)) studio.costumes.delete(id); else studio.costumes.add(id);
+    showStudioFigure();
+  });
   const stage = root.querySelector('#studio-stage');
   stage.addEventListener('pointerdown', (e) => { studio.drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; stage.setPointerCapture(e.pointerId); });
   stage.addEventListener('pointermove', (e) => {
@@ -852,7 +1104,12 @@ export function createGame(mode = 'play') {
     updateFlights(now);
     if (phase === 'loading' || phase === 'menu') { renderShowcase(now, dt); return; }
     if (phase === 'play') { fovKick *= Math.exp(-dt * 5); camera.fov = PLAY_FOV + fovKick; }
-    if (phase === 'play') { movePlayer(dt); if (!isGameComplete(state)) playSeconds += Math.min(rawDt, 1); } // real time, not the capped step
+    if (phase === 'play') {
+      if (!puzzle) movePlayer(dt);
+      const step = Math.min(rawDt, 1); // real time, not the capped step
+      if (!isGameComplete(state)) playSeconds += step;
+      for (const id of clocking) statueTimes[id] = (statueTimes[id] || 0) + step; // per-statue medal clocks
+    }
     updateObjects(now, dt);
     updateCarried(now);
     updateHologram(now);
@@ -874,9 +1131,11 @@ export function createGame(mode = 'play') {
         refreshEditorMap();
         lookPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, isDrag: true };
       } else lookPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, isDrag: false };
-    } else lookPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, isDrag: false };
+    } else if (puzzle) fitSwipe = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    else lookPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, isDrag: false };
     canvas.setPointerCapture?.(event.pointerId);
   }
+  let fitSwipe = null;
   function pointerMove(event) {
     if (!lookPointer || lookPointer.id !== event.pointerId) return;
     const dx = event.clientX - lookPointer.x, dy = event.clientY - lookPointer.y;
@@ -886,7 +1145,14 @@ export function createGame(mode = 'play') {
     }
     lookPointer.x = event.clientX; lookPointer.y = event.clientY;
   }
-  function pointerUp(event) { if (lookPointer?.id === event.pointerId) lookPointer = null; }
+  function pointerUp(event) {
+    if (lookPointer?.id === event.pointerId) lookPointer = null;
+    if (fitSwipe?.id === event.pointerId) { // swipe left/right turns the part, up/down flips it
+      const dx = event.clientX - fitSwipe.x; const dy = event.clientY - fitSwipe.y; fitSwipe = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 36) return;
+      if (Math.abs(dx) > Math.abs(dy)) turnPuzzle(dx > 0 ? 1 : -1, 0); else turnPuzzle(0, dy > 0 ? 1 : -1);
+    }
+  }
   canvas.addEventListener('pointerdown', pointerDown);
   window.addEventListener('pointermove', pointerMove, { passive: false });
   window.addEventListener('pointerup', pointerUp);
@@ -894,6 +1160,16 @@ export function createGame(mode = 'play') {
   window.addEventListener('resize', resize);
   const keyDown = (event) => {
     const k = event.key.toLowerCase();
+    if (puzzle && phase === 'play') { // the fit puzzle has the keyboard to itself
+      if (event.repeat) return;
+      if (k === 'escape') cancelPuzzle();
+      else if (k === 'a' || k === 'arrowleft' || k === 'q') turnPuzzle(-1, 0);
+      else if (k === 'd' || k === 'arrowright') turnPuzzle(1, 0);
+      else if (k === 'w' || k === 'arrowup') turnPuzzle(0, -1);
+      else if (k === 's' || k === 'arrowdown' || k === 'f') turnPuzzle(0, 1);
+      else return;
+      event.preventDefault(); return;
+    }
     if (k === 'escape' && phase === 'play' && !studio.open) { openMenu(); return; }
     if (!editing && phase !== 'play') return;
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) event.preventDefault();
@@ -928,6 +1204,10 @@ export function createGame(mode = 'play') {
   stickZone.addEventListener('pointerup', clearStick);
   stickZone.addEventListener('pointercancel', clearStick);
   ui.action.addEventListener('click', updateAction);
+  root.querySelector('#fit-left').addEventListener('click', () => turnPuzzle(-1, 0));
+  root.querySelector('#fit-right').addEventListener('click', () => turnPuzzle(1, 0));
+  root.querySelector('#fit-flip').addEventListener('click', () => turnPuzzle(0, 1));
+  root.querySelector('#fit-cancel').addEventListener('click', cancelPuzzle);
 
   // ---------- 3D loading screen, main menu, settings and ranking ----------
   const hudEl = root.querySelector('.hud');
@@ -961,6 +1241,15 @@ export function createGame(mode = 'play') {
         const model = buildFragment(scene, kit, fragment, part);
         for (const m of model.root.getChildMeshes()) m.isPickable = false;
         fragments.set(fragment.key, model);
+        const kind = HIDDEN_FRAGMENTS[fragment.key];
+        if (kind) { // a secret piece waits inside a chest or behind a curtain until the visitor opens it
+          const box = buildContainer(scene, fragment, kind);
+          containers.set(fragment.key, box); world.colliders.push(box.collider); model.container = box;
+          if (kind === 'chest') { // it floats up out of the chest instead of standing on a plinth
+            for (const m of model.floorGlow.getChildMeshes()) if (m !== model.beacon && m !== model.ring) m.setEnabled(false);
+            model.baseY = 1.95; model.spin.position.y = model.baseY;
+          }
+        }
       }
       attachLOD(podium); // after the fragment clones, so they don't inherit the LOD levels
       if (!editing) showcase(podium, true);
@@ -968,7 +1257,7 @@ export function createGame(mode = 'play') {
     }
     progress('OPENING THE GALLERY');
     applySave(await savedGame); if (disposed) return;
-    if (!editing) for (const set of SETS) mergeStatue(set.id); // statues already finished in the save
+    if (!editing) for (const set of SETS) { mergeStatue(set.id); setMedalBadge(set.id); } // statues already finished in the save
     bootStatus.textContent = 'PREPARING SHADERS';
     await precompileShaders(); if (disposed) return;
     ready = true;
@@ -1083,7 +1372,10 @@ export function createGame(mode = 'play') {
     const temp = [];
     const ghostSample = scene.meshes.find((m) => m.material && m.material.name.endsWith(':holo'));
     if (ghostSample) jobs.push(heldMat.forceCompilationAsync(ghostSample).catch(() => {}));
-    for (const mat of [celebrateMats.pillar, celebrateMats.ring, holoRingMat, holoBeamMat]) {
+    const sample = fragments.values().next().value?.spin.getChildMeshes() || []; // the fit puzzle's outline: part meshes in hologram
+    const sampleHolo = kit.holoMaterial(SETS[0].id); const kindsSeen = new Set();
+    for (const m of sample) { const k = m.getVerticesDataKinds().join(','); if (kindsSeen.has(k) || !m.getTotalVertices()) continue; kindsSeen.add(k); jobs.push(sampleHolo.forceCompilationAsync(m).catch(() => {})); }
+    for (const mat of [celebrateMats.pillar, celebrateMats.ring, holoRingMat, holoBeamMat, ...Object.values(medalMats)]) {
       const t = BAB.MeshBuilder.CreateBox('warm', { size: 0.01 }, scene); t.material = mat; t.setEnabled(false); temp.push(t);
       jobs.push(mat.forceCompilationAsync(t).catch(() => {}));
     }
@@ -1112,6 +1404,16 @@ export function createGame(mode = 'play') {
     if (Number.isFinite(p.look)) prefs.look = clamp(p.look, 0.4, 2);
     if (p.quality === 'high' || p.quality === 'balanced') prefs.quality = p.quality;
     prefs.muted = Boolean(p.muted ?? saved.audioMuted);
+    const m = saved.meta || {}; const ids = new Set(SETS.map((set) => set.id)); const MEDALS = ['gold', 'silver', 'bronze'];
+    meta.medals = Object.fromEntries(Object.entries(m.medals || {}).filter(([id, medal]) => ids.has(id) && MEDALS.includes(medal)));
+    meta.restored = Array.isArray(m.restored) ? [...new Set(m.restored.filter((id) => ids.has(id)))] : [];
+    for (const set of SETS) if ((state.placed[set.id]?.length || 0) === PARTS.length && !meta.restored.includes(set.id)) meta.restored.push(set.id);
+    meta.dailyStars = Math.max(0, Math.round(Number(m.dailyStars) || 0));
+    meta.streak = Math.max(0, Math.round(Number(m.streak) || 0));
+    meta.lastDailyDay = typeof m.lastDailyDay === 'string' ? m.lastDailyDay.slice(0, 10) : null;
+    const d = m.daily;
+    meta.daily = d && typeof d.day === 'string' ? { day: d.day.slice(0, 10), done: Boolean(d.done), reveals: Math.max(0, Number(d.reveals) || 0), completions: Array.isArray(d.completions) ? d.completions.filter((c) => ids.has(c?.setId)).slice(-24) : [] } : null;
+    statueTimes = Object.fromEntries(Object.entries(saved.statueTimes || {}).filter(([id, t]) => ids.has(id) && Number.isFinite(Number(t))).map(([id, t]) => [id, Math.max(0, Number(t))]));
     audio.setVolumes({ music: prefs.music, sfx: prefs.sfx }); audio.setMuted(prefs.muted);
     refreshSoundButton(); applyQuality();
     finishedShown = isGameComplete(state);
@@ -1145,7 +1447,7 @@ export function createGame(mode = 'play') {
     if (window.__waifuNoFreeze) return;
     for (const m of scene.materials) {
       // animated ones stay live, and fresnel holograms do not survive freezing (they render black)
-      if (m === heldMat || m.isFrozen || m.name.startsWith('halo-') || m.name === 'labelMat' || m.name.endsWith(':holo') || m.emissiveFresnelParameters) continue;
+      if (m === heldMat || m === fitBackdropMat || m.isFrozen || m.name.startsWith('halo-') || m.name === 'labelMat' || m.name.endsWith(':holo') || m.emissiveFresnelParameters) continue;
       m.freeze(); frozenMaterials.push(m);
     }
     if (editing) return; // the layout editor moves plinths
@@ -1175,11 +1477,23 @@ export function createGame(mode = 'play') {
     if (placed) parts.push(`${placed} / ${FRAGMENTS.length} RESTORED`);
     if (placed) parts.push(formatTime(playSeconds));
     if (bestSeconds) parts.push(`BEST ${formatTime(bestSeconds)}`);
+    const stars = countStars(meta); if (stars || Object.keys(meta.medals).length) parts.push(`★ ${stars}`);
     root.querySelector('#menu-meta').textContent = parts.join('  ·  ');
     root.querySelector('#menu-play-label').textContent = complete ? 'EXPLORE' : placed ? 'CONTINUE' : 'PLAY';
+    menuEl.classList.toggle('complete', placed > 0); disarmNewRun();
+    // today's challenge
+    const daily = ensureDaily(); const c = dailyChallenge(daily.day);
+    let status;
+    if (daily.done) status = `✓ COMPLETE · +${DAILY_STARS}★ earned · ${meta.streak}-day streak`;
+    else if (c.kind === 'secrets') status = `${Math.min(daily.reveals, c.count)} / ${c.count} opened today · reward +${DAILY_STARS}★`;
+    else if (c.kind === 'speed' && (state.placed[c.setId]?.length || 0) === PARTS.length) status = `Already restored this run · start a NEW RUN to try · +${DAILY_STARS}★`;
+    else status = `Reward +${DAILY_STARS}★${meta.streak && meta.lastDailyDay === dayBefore(daily.day) ? ` · keep your ${meta.streak}-day streak` : ''}`;
+    root.querySelector('#daily-text').textContent = c.text; root.querySelector('#daily-status').textContent = status;
+    root.querySelector('#daily-card').classList.toggle('done', daily.done);
   }
   function openMenu() {
     if (editing) return;
+    if (puzzle && !puzzle.solvedAt) endPuzzle();
     phase = 'menu'; keys.clear(); lookPointer = null; stick.x = 0; stick.y = 0; stickPointer = null;
     root.querySelector('#stick-nub').style.transform = 'translate(0,0)';
     root.querySelector('#finish-banner').classList.remove('shown');
@@ -1221,6 +1535,19 @@ export function createGame(mode = 'play') {
   for (const input of Object.values(setInputs)) input.addEventListener('change', () => { if (input === setInputs.sfx) audio.play('pickup', { volume: 0.8 }); saveProgress(); });
   root.querySelectorAll('#set-audio button').forEach((b) => b.addEventListener('click', () => { audio.unlock(); audio.setMuted(b.dataset.v === 'off'); prefs.muted = audio.muted; refreshSoundButton(); syncSettings(); saveProgress(); }));
   root.querySelectorAll('#set-quality button').forEach((b) => b.addEventListener('click', () => { prefs.quality = b.dataset.v; applyQuality(); syncSettings(); saveProgress(); }));
+  // NEW RUN: a fresh restoration (new times, closed chests) that keeps medals, portraits, stars and the streak
+  const newRunButton = root.querySelector('#menu-newrun'); let newRunTimer = 0;
+  function disarmNewRun() { clearTimeout(newRunTimer); newRunButton.classList.remove('armed'); newRunButton.querySelector('b').textContent = 'NEW RUN'; }
+  newRunButton.addEventListener('click', () => {
+    audio.play('tap', { volume: 0.6 });
+    if (!isGameComplete(state) && !newRunButton.classList.contains('armed')) { // unfinished run: confirm first
+      newRunButton.classList.add('armed'); newRunButton.querySelector('b').textContent = 'TAP AGAIN · RESTART THIS RUN';
+      clearTimeout(newRunTimer); newRunTimer = setTimeout(disarmNewRun, 3500); return;
+    }
+    Object.assign(state, createInitialState()); playSeconds = 0; statueTimes = {}; finishedShown = false;
+    newRunButton.querySelector('b').textContent = 'STARTING…';
+    Promise.resolve(saveProgress(true)).finally(() => { if (window.run) window.run(mode); else window.location.reload(); });
+  });
   const resetButton = root.querySelector('#set-reset'); let resetTimer = 0;
   function disarmReset() { clearTimeout(resetTimer); resetButton.classList.remove('armed'); resetButton.textContent = 'RESET PROGRESS'; }
   resetButton.addEventListener('click', () => {
@@ -1229,8 +1556,10 @@ export function createGame(mode = 'play') {
       clearTimeout(resetTimer); resetTimer = setTimeout(disarmReset, 3500); return;
     }
     disarmReset();
-    Object.assign(state, createInitialState()); playSeconds = 0; finishedShown = false;
-    if ([...podiums.values()].some((p) => p.merged)) { // finished statues were merged: restart to rebuild their parts
+    const opened = state.revealed.length > 0 || Object.keys(meta.medals).length > 0;
+    Object.assign(state, createInitialState()); playSeconds = 0; finishedShown = false; statueTimes = {};
+    Object.assign(meta, freshMeta());
+    if (opened || [...podiums.values()].some((p) => p.merged)) { // merged statues, open chests and medal badges: rebuild
       resetButton.textContent = 'RESETTING…';
       Promise.resolve(saveProgress(true)).finally(() => { if (window.run) window.run(mode); else window.location.reload(); });
       return;
@@ -1279,7 +1608,12 @@ export function createGame(mode = 'play') {
   boot().catch((error) => { bootStatus.textContent = 'THE ATELIER COULD NOT OPEN'; try { window.lib?.log?.(`Boot failed: ${error.stack || error}`); } catch { /* optional */ } });
 
   // Test/debug hook: lets automated checks pose the camera and state without touching gameplay rules.
-  window.__waifuDebug = { holo, scene, camera, player, eye, state, podiums, fragments, aimCamera, refreshFragments, updateHUD, studio, startPlay, openMenu, openPanel, get ready() { return ready; }, get phase() { return phase; } };
+  window.__waifuDebug = {
+    holo, scene, camera, player, eye, state, podiums, fragments, containers, meta, pars, aimCamera, refreshFragments, updateHUD, studio, startPlay, openMenu, openPanel, updateAction, turnPuzzle,
+    solvePuzzle() { if (!puzzle) return false; puzzle.yaw = 1; puzzle.flip = 0; turnPuzzle(-1, 0); return true; },
+    showMedal: (setId, medal, seconds) => showMedal(getSet(setId), medal, seconds, false),
+    get statueTimes() { return statueTimes; }, get puzzle() { return puzzle; }, get ready() { return ready; }, get phase() { return phase; },
+  };
 
   return () => {
     disposed = true;

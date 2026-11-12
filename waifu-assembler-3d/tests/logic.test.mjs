@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   FRAGMENTS, PARTS, SETS, countPlaced, createInitialState, isGameComplete,
   isSetComplete, pickup, placeCarried, restoreState, serializeState, INITIAL_PODIUMS, HALL_SIZE, ANNEX, GALLERY_DOOR, formatTime,
+  HIDDEN_FRAGMENTS, isHidden, reveal, medalFor, betterMedal, countStars, EXPRESSION_UNLOCKS, isExpressionUnlocked,
+  dailyChallenge, dailyMet, puzzleStart, puzzleSolved, statuePar,
 } from '../logic.mjs';
 import { ARM_LENGTHS, SHOULDER, STATUE_POSES, armJoints } from '../poses.mjs';
 
@@ -17,9 +19,9 @@ test('60 fragments cover twelve five-part statue sets inside the restoration hal
 
 test('pickup is one-at-a-time and matching parts snap into the right set', () => {
   const start = createInitialState();
-  const head = pickup(start, 'office01:head');
+  const head = pickup(reveal(start, 'office01:head'), 'office01:head');
   assert.equal(head.carried, 'office01:head');
-  assert.equal(pickup(head, 'nurse01:legs'), head);
+  assert.equal(pickup(reveal(head, 'nurse01:legs'), 'nurse01:legs').carried, 'office01:head', 'only one part at a time');
   assert.equal(placeCarried(head, 'nurse01'), head, 'wrong podium leaves the part in hand');
   const placed = placeCarried(head, 'office01');
   assert.equal(placed.carried, null);
@@ -31,6 +33,8 @@ test('pickup is one-at-a-time and matching parts snap into the right set', () =>
 test('all 60 pieces complete the display, and repeated placements cannot duplicate parts', () => {
   let state = createInitialState();
   for (const fragment of FRAGMENTS) {
+    if (isHidden(fragment.key)) assert.equal(pickup(state, fragment.key), state, 'a hidden part cannot be taken before it is opened');
+    state = reveal(state, fragment.key);
     state = pickup(state, fragment.key);
     state = placeCarried(state, fragment.setId);
     assert.equal(pickup(state, fragment.key), state);
@@ -102,7 +106,7 @@ test('posed arms stay attached at the shoulder with fixed bone lengths', () => {
 
 test('saved progress is validated and round-trips safely', () => {
   const state = createInitialState();
-  const carrying = pickup(state, 'ceo01:legs');
+  const carrying = pickup(reveal(state, 'ceo01:legs'), 'ceo01:legs');
   const restored = restoreState(serializeState(carrying));
   assert.equal(restored.carried, 'ceo01:legs');
   const clean = restoreState({ placed: { office01: ['head', 'nope', 'head'] }, collected: ['fake'] });
@@ -112,7 +116,7 @@ test('saved progress is validated and round-trips safely', () => {
 });
 
 test('character face system: 12 presets, 10 expressions, valid defaults and shapes', async () => {
-  const { FACE_PRESETS, EXPRESSIONS, EXPR, DEFAULT_EXPR, SHAPE, LIP_STYLE, LIP_FINISHES } = await import('../faces.mjs');
+  const { FACE_PRESETS, EXPRESSIONS, EXPR, DEFAULT_EXPR, SHAPE, LIP_STYLE, LIP_FINISHES, COSTUMES } = await import('../faces.mjs');
   assert.equal(FACE_PRESETS.length, 12);
   assert.equal(new Set(FACE_PRESETS.map((p) => p.id)).size, 12);
   for (const { id } of SETS) assert.ok(FACE_PRESETS.some((p) => p.id === id), `${id} is a face preset`);
@@ -133,6 +137,7 @@ test('character face system: 12 presets, 10 expressions, valid defaults and shap
     assert.ok(lip.w >= 85 && lip.w <= 125 && lip.top >= 0.55 && lip.top <= 1.5 && lip.bot >= 0.75 && lip.bot <= 1.5, `${id} lip size in range`);
     assert.match(lip.color, /^#[0-9a-f]{6}$/);
   }
+  for (const { id } of FACE_PRESETS) assert.ok(COSTUMES[id]?.name && Object.keys(COSTUMES[id]).length > 2, `${id} has a gala costume`);
   const lips = Object.values(LIP_STYLE);
   assert.equal(new Set(lips.map((l) => l.color)).size, 12, 'every face wears its own lip colour');
   assert.ok(new Set(lips.map((l) => l.finish)).size >= 6, 'lip finishes vary across faces');
@@ -145,4 +150,57 @@ test('restoration times format for the leaderboard', () => {
   assert.equal(formatTime(3725), '1:02:05');
   assert.equal(formatTime(-3), '0:00');
   assert.equal(formatTime('nope'), '0:00');
+});
+
+test('hidden fragments: two per statue, chests and curtains, opened before pickup and saved', () => {
+  const keys = Object.keys(HIDDEN_FRAGMENTS);
+  assert.equal(keys.length, 24);
+  for (const { id } of SETS) assert.equal(keys.filter((k) => k.startsWith(`${id}:`)).length, 2, `${id} hides two parts`);
+  assert.ok(Object.values(HIDDEN_FRAGMENTS).includes('chest') && Object.values(HIDDEN_FRAGMENTS).includes('curtain'));
+  const key = keys[0]; let s = createInitialState();
+  assert.equal(pickup(s, key), s);
+  s = reveal(s, key); assert.deepEqual(s.revealed, [key]); assert.equal(reveal(s, key), s, 'opening twice changes nothing');
+  assert.deepEqual(restoreState(serializeState(s)).revealed, [key]);
+  assert.deepEqual(restoreState({ revealed: ['office01:torso-fake', key] }).revealed, [key]);
+});
+
+test('medals, stars and expression unlocks', () => {
+  assert.equal(medalFor(60, 100), 'gold'); assert.equal(medalFor(100, 100), 'gold'); assert.equal(medalFor(101, 100), 'silver');
+  assert.equal(medalFor(150, 100), 'silver'); assert.equal(medalFor(151, 100), 'bronze'); assert.equal(medalFor(NaN, 100), 'bronze');
+  for (const set of SETS) { // every statue has a fair, finite par; far-flung statues get more time
+    const par = statuePar(set.id); assert.ok(par > 60 && par < 260, `${set.id} par ${par}`);
+  }
+  assert.ok(statuePar('rin01') > statuePar('office01'));
+  assert.ok(statuePar('office01', INITIAL_PODIUMS.office01, 18) < statuePar('office01'), 'faster walking lowers par');
+  assert.equal(betterMedal('silver', 'gold'), 'gold'); assert.equal(betterMedal('gold', 'bronze'), 'gold'); assert.equal(betterMedal(undefined, 'bronze'), 'bronze');
+  assert.equal(countStars({ medals: { office01: 'gold', nurse01: 'silver', ceo01: 'bronze' }, dailyStars: 3 }), 9);
+  assert.equal(countStars({}), 0);
+  assert.ok(isExpressionUnlocked('neutral', 0) && isExpressionUnlocked('smiling', 0) && !isExpressionUnlocked('happy', 1));
+  assert.ok(isExpressionUnlocked('crying', 36), 'every expression is reachable with all gold medals');
+  assert.ok(Math.max(...Object.values(EXPRESSION_UNLOCKS)) <= 36);
+});
+
+test('daily challenge is deterministic per day and checkable', () => {
+  const a = dailyChallenge('2026-11-12'); assert.deepEqual(a, dailyChallenge('2026-11-12T23:59:00Z'));
+  const kinds = new Set(Array.from({ length: 30 }, (_, i) => dailyChallenge(`2026-12-${String(i + 1).padStart(2, '0')}`).kind));
+  assert.deepEqual([...kinds].sort(), ['gold', 'secrets', 'speed']);
+  const speed = { kind: 'speed', setId: 'aoi01', seconds: 120 };
+  assert.equal(dailyMet(speed, { completions: [{ setId: 'aoi01', seconds: 119 }] }), true);
+  assert.equal(dailyMet(speed, { completions: [{ setId: 'aoi01', seconds: 130 }, { setId: 'mei01', seconds: 50 }] }), false);
+  assert.equal(dailyMet({ kind: 'gold' }, { completions: [{ setId: 'x', seconds: 90, medal: 'gold' }] }), true);
+  assert.equal(dailyMet({ kind: 'gold' }, { completions: [{ setId: 'x', seconds: 90, medal: 'silver' }] }), false);
+  for (let i = 1; i <= 30; i += 1) { const c = dailyChallenge(`2027-01-${String(i).padStart(2, '0')}`); if (c.kind === 'speed') assert.ok(c.seconds > statuePar(c.setId), 'speed challenges are slower than gold'); }
+  assert.equal(dailyMet({ kind: 'secrets', count: 4 }, { reveals: 3 }), false);
+  assert.equal(dailyMet({ kind: 'secrets', count: 4 }, { reveals: 4 }), true);
+});
+
+test('turn-and-fit puzzle starts off and solves at zero', () => {
+  for (const f of FRAGMENTS) {
+    const p = puzzleStart(f.key);
+    assert.ok(p.yaw >= 2 && p.yaw <= 6 && (p.flip === 0 || p.flip === 2));
+    assert.equal(puzzleSolved(p), false);
+    assert.equal(puzzleSolved({ yaw: p.yaw + (8 - p.yaw), flip: p.flip + (4 - p.flip) % 4 }), true);
+  }
+  assert.equal(puzzleSolved({ yaw: -8, flip: 4 }), true);
+  assert.ok(FRAGMENTS.some((f) => puzzleStart(f.key).flip === 2), 'some parts arrive upside down');
 });

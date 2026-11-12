@@ -402,6 +402,46 @@ export function buildFragment(scene, kit, fragment, part) {
   return { root, spin, beacon: beam, ring: halo, ringMat, floorGlow: floor, baseY, phase: fragment.index * 1.37 + fragment.x * 0.13 };
 }
 
+// ---------- secret containers: a wooden chest or a curtained booth hiding a fragment ----------
+// animate(t) opens it (0 closed … 1 open). The fragment itself is shown by the renderer once it is open.
+export function buildContainer(scene, fragment, kind) {
+  const BAB = B();
+  const root = new BAB.TransformNode(`hide-${fragment.key}`, scene);
+  root.position.set(fragment.x, 0, fragment.z);
+  root.rotation.y = Math.atan2(-fragment.x, -fragment.z); // its front faces the middle of the hall
+  const wood = pbrMat(scene, 'chestWood', '#8a5a36', { roughness: 0.62 });
+  const dark = pbrMat(scene, 'boothWood', '#6b4630', { roughness: 0.7 });
+  const brass = pbrMat(scene, 'brass', '#c9a466', { metallic: 0.85, roughness: 0.32 });
+  const velvet = pbrMat(scene, 'velvet', '#7d2236', { roughness: 0.92 });
+  const box = (mat, x, y, z, w, h, d, parent = root) => { const m = BAB.MeshBuilder.CreateBox('c', { width: w, height: h, depth: d }, scene); m.position.set(x, y, z); m.material = mat; m.parent = parent; m.isPickable = false; return m; };
+  const moving = [];
+  let animate;
+  if (kind === 'chest') {
+    box(wood, 0, 0.45, 0, 1.6, 0.9, 1.05);
+    for (const x of [-0.55, 0.55]) box(brass, x, 0.45, 0, 0.08, 0.92, 1.08);
+    box(brass, 0, 0.62, 0.53, 0.2, 0.24, 0.04); // lock plate
+    const hinge = new BAB.TransformNode('lidHinge', scene); hinge.parent = root; hinge.position.set(0, 0.9, -0.52);
+    const lid = box(wood, 0, 0.14, 0.52, 1.62, 0.28, 1.07, hinge);
+    for (const x of [-0.55, 0.55]) moving.push(box(brass, x, 0.14, 0.52, 0.08, 0.3, 1.1, hinge));
+    moving.push(lid);
+    animate = (t) => { hinge.rotation.x = -1.95 * (1 - (1 - t) ** 3); };
+  } else {
+    box(dark, 0, 2.15, -1.05, 2.7, 4.3, 0.12); // back
+    for (const x of [-1.32, 1.32]) box(dark, x, 2.15, 0, 0.12, 4.3, 2.1); // sides
+    box(dark, 0, 4.36, 0, 2.8, 0.16, 2.2); // roof
+    box(brass, 0, 4.1, 1.02, 2.7, 0.08, 0.08); // curtain rail
+    const panels = [-1, 1].map((side) => { const m = box(velvet, side * 0.64, 2.1, 1.02, 1.3, 3.95, 0.07); moving.push(m); return { m, side }; });
+    animate = (t) => { const e = 1 - (1 - t) ** 3; for (const { m, side } of panels) { m.scaling.x = 1 - 0.8 * e; m.position.x = side * (0.64 + 0.52 * e); } };
+  }
+  // one draw call per material: the static shell is merged, and so is the chest lid with its brass straps
+  root.computeWorldMatrix(true);
+  const hinge = root.getChildren().find((n) => n.name === 'lidHinge');
+  const lid = hinge ? mergeByMaterial(hinge, hinge.getChildMeshes()) : [];
+  mergeByMaterial(root, root.getChildMeshes(true).filter((m) => !moving.includes(m)));
+  for (const m of root.getChildMeshes()) { m.isPickable = false; m.computeWorldMatrix(true); if (!moving.includes(m) && !lid.includes(m)) m.freezeWorldMatrix(); }
+  return { root, kind, animate, collider: [fragment.x, fragment.z, kind === 'chest' ? 1.0 : 1.45] };
+}
+
 // ---------- statue plinth in the gallery ----------
 // `parts` gives one prebuilt solid statue part per part id; the ghost preview is merged from a copy of it.
 export function buildPodium(scene, kit, set, position, shadowGen, parts) {
@@ -438,6 +478,10 @@ export function buildPodium(scene, kit, set, position, shadowGen, parts) {
     const solid = parts.get(part.id); solid.parent = anchor; solid.position.set(0, 0, 0); solid.setEnabled(false);
     // ghost: one merged mesh sharing nothing with the solid, in the hologram material
     const copies = solid.getChildMeshes().map((m) => { const c = m.clone(`${m.name}-g`, null); c.setEnabled(true); c.parent = null; c.position.copyFrom(m.position); c.rotationQuaternion = null; c.rotation.copyFrom(m.rotation); c.scaling.copyFrom(m.scaling); return c; });
+    // MergeMeshes appends the other meshes' indices onto the FIRST source's index array; that copy shares its geometry
+    // with the solid part, so give it its own first (otherwise the solid's CPU-side indices grow and a later merge of the
+    // finished statue draws stray triangles from them)
+    copies[0]?.makeGeometryUnique();
     const ghostMesh = BAB.Mesh.MergeMeshes(copies, true, true, undefined, false, false);
     const ghost = new BAB.TransformNode(`ghost-${part.id}`, scene); ghost.parent = anchor;
     ghostMesh.parent = ghost; ghostMesh.material = holo; ghostMesh.isPickable = true;

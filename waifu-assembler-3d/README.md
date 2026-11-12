@@ -13,8 +13,19 @@ Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang te
 - Kamera orang pertama berada di ketinggian mata 3.2 (patung ±5 unit di atas plinth), jadi wajah patung terlihat sejajar dada–wajah pengunjung.
 - Selesaikan lima bagian pada setiap podium untuk memulihkan seluruh figur.
 
+## Kedalaman gameplay
+- **Potongan tersembunyi**: 24 dari 60 potongan (2 per patung) disimpan di dalam **peti kayu** (11) atau di balik **tirai beludru** (13). Di peta tampil sebagai "?", HUD menulis *SOMETHING IS HIDDEN HERE*, tombol jadi **OPEN**. Saat dibuka: tutup peti berengsel / tirai tersibak (animasi 0,8 dtk), potongan melayang naik, kilau + SFX peti/tirai. Status terbuka tersimpan (`revealed`).
+- **Mini-puzzle "putar & pas-kan"**: tekan ASSEMBLE di plinth → potongan melayang besar di tengah layar dengan latar gelap, diputar acak 90°–270° (sebagian juga terbalik). Hologram **TARGET** kecil di kanan atas menunjukkan posisi yang benar. Putar 45° dengan tombol ⟲ ⟳ / swipe kiri-kanan / A-D, balik dengan ⤾ / swipe atas-bawah / W-S. Saat pas: hologram menyatu ke potongan, "PERFECT FIT", klik + chime, getar, lalu potongan terbang ke patung. ✕ / Esc membatalkan.
+- **Medali per patung**: jam tiap patung berjalan dari potongan pertamanya diambil sampai potongan kelima terpasang (hanya saat bermain). Par dihitung per patung dari rute sebenarnya (jalan plinth → potongan → kembali lewat pintu galeri + 5 dtk per puzzle + 2 dtk per wadah): emas ≤ par, perak ≤ 1,5× par, selain itu perunggu. Kartu hologram menampilkan jam + target emas + medali saat ini. Saat selesai: pop-up medali + SFX, lencana medali 3D di depan plinth, label patung menulis medalinya. Fokus pada satu patung = medali lebih baik.
+- **Hadiah di Studio** (bintang: emas 3★, perak 2★, perunggu 1★, tantangan harian +3★):
+  - Potret karakter terkunci (hologram + 🔒) sampai patungnya dipulihkan.
+  - Ekspresi terbuka dengan bintang: happy 2★, shy 4★, wink 7★, surprised 10★, smug 14★, sad 18★, angry 22★, crying 27★ (neutral, smiling, dan ekspresi khas karakter selalu terbuka).
+  - Medali emas membuka **kostum gala** karakter itu (mis. *Evening Gala*, *Mint Ward*, *Indigo Shrine*), bisa dipakai/dilepas di Studio.
+- **Tantangan harian** (sama untuk semua pemain per tanggal): pulihkan patung tertentu dalam batas waktu, dapatkan medali emas, atau buka N peti/tirai. Kartu di menu menunjukkan tugas, progres, dan streak; selesai = +3★ sekali per hari, streak bertambah bila kemarin juga selesai.
+- **NEW RUN** di menu: mulai restorasi baru (waktu, peti, potongan direset) tetapi medali, potret, bintang, dan streak tetap. RESET PROGRESS di Settings menghapus semuanya.
+
 ## Audio
-- Musik tema `music_atelier_theme` (piano lembut, string, harpa, music box; loop) dan efek: ambil potongan, pasang potongan, patung selesai, semua patung selesai, tap UI, dan nada lembut saat plinth terlalu jauh. Semua aset ada di `asset_map.json`.
+- Musik tema `music_atelier_theme` (piano lembut, string, harpa, music box; loop) dan efek: ambil potongan, pasang potongan, patung selesai, semua patung selesai, tap UI, nada lembut saat plinth terlalu jauh, peti dibuka, tirai disibak, putaran puzzle, potongan "klik" pas, dan medali. Semua aset ada di `asset_map.json`.
 - Audio dimulai pada sentuhan/tombol pertama, berhenti saat game disembunyikan, musik diredam sejenak saat fanfare. Tombol ♪ di HUD mematikan/menyalakan suara (tersimpan bersama progres); volume musik dan efek bisa diatur di panel pengaturan (`settings.musicVolume`, `settings.sfxVolume`).
 
 ## Juice & performa
@@ -24,7 +35,7 @@ Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang te
 
 ## Performa patung (LOD, merge, shader, context)
 - **LOD low-poly**: tiap bagian patung juga dipahat ulang pada 35% resolusi (≈5× lebih sedikit segitiga, `Sculptor.detail`). Mulai 22 unit, bagian patung diganti satu mesh low-poly berwarna per-vertex (satu material bersama) + wajah low-poly → ±2 draw call per patung jauh. Bulu mata, kornea, air mata, gigi, lidah tidak digambar di atas 16 unit. Hologram bagian yang belum terpasang juga punya LOD.
-- **Merge per material**: patung yang selesai digabung jadi satu mesh per material (±26 → ±15 draw call) beserta LOD-nya; bagian asli, hologram, dan klon fragmennya dilepas (mesh di scene 1.463 → ±330 saat semua selesai). Ceruk dan plinth juga digabung per material. Reset progres memuat ulang game untuk membangun ulang patung.
+- **Merge per material**: patung yang selesai digabung jadi satu mesh per material (±26 → ±15 draw call) beserta LOD-nya; bagian asli, hologram, dan klon fragmennya dilepas (mesh di scene 1.463 → ±330 saat semua selesai). Ceruk dan plinth juga digabung per material. Reset progres memuat ulang game untuk membangun ulang patung. (Perbaikan: salinan hologram tidak lagi berbagi array indeks dengan patung asli — sebelumnya merge patung jadi bisa menggambar garis liar, terlihat di OFFICE-01.)
 - **Shader warm-up**: semua varian shader (bagian patung + lampu potret, LOD, fragmen, hologram, perayaan, depth bayangan) dikompilasi saat loading → memasang potongan tidak memicu kompilasi.
 - **WebGL context lost**: render dijeda, progres disimpan, overlay "Restoring the gallery…"; saat pulih, probe refleksi & bayangan dibangun ulang; jika tidak pulih dalam 6 dtk, tombol RELOAD.
 - Hologram kartu HUD memakai patung low-poly yang di-cache per karakter; potongan yang dibawa adalah klon (tanpa memahat ulang).
@@ -49,12 +60,12 @@ Mode **Edit** menghentikan gameplay; plinth di galeri bisa dipilih dan diseret (
 
 ## Struktur kode
 - `game.js` — entry Astrocade (`window.run`), memuat Babylon.js dari CDN.
-- `logic.mjs` — aturan murni (pecahan, pengambilan, pemasangan, save).
+- `logic.mjs` — aturan murni (pecahan, pengambilan, pemasangan, save, potongan tersembunyi, par & medali, bintang, unlock ekspresi, tantangan harian, puzzle).
 - `renderer.js` — scene, kamera, cahaya, pipeline, input, HUD, editor.
 - `statues.js` — model patung, wajah anime bertekstur, rambut, seragam, dan hologram.
-- `faces.mjs` — data preset wajah, ekspresi, ekspresi default, bentuk wajah dan gaya bibir (diuji di Node).
+- `faces.mjs` — data preset wajah, ekspresi, ekspresi default, bentuk wajah, gaya bibir, dan kostum gala (diuji di Node).
 - `poses.mjs` — 12 pose khas berbasis sendi (bahu → siku → pergelangan, arah tangan, telapak, lekuk jari) beserta propertinya.
-- `world.js` — aula restorasi, galeri patung, plinth patung, plinth fragmen, label, partikel.
+- `world.js` — aula restorasi, galeri patung, plinth patung, plinth fragmen, peti & bilik tirai, label, partikel.
 - `ui.js` — markup HUD, CSS, blueprint SVG.
 - `audio.js` — musik tema dan efek suara (Web Audio, aset dari `lib.getAsset`).
 - `tests/logic.test.mjs` — `node --test tests/logic.test.mjs`.

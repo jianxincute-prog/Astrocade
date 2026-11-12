@@ -102,5 +102,70 @@
     "subtype": "effect",
     "type": "audio",
     "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M76W19QQK08NH7P8EM4Z6WQX_cf6a64ea-9bde-4798-9a9c-2cab4f39dae8_c3097a23-ab86-485c-ab0c-bc0148bb4619.mp3"
+  },
+  "sfx_chest_open": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Small wooden treasure chest lid creaking open with a soft latch click, then a gentle magical sparkle shimmer revealing a treasure, warm and pleasant",
+    "duration_secs": 1.53,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775TXQM4GEH021GBVJCRKH5_6904e585-5052-42fe-b173-0307109113f3_2fe1e4e2-6531-4ee6-8a39-83783ecc714e.ogg",
+    "prompt": "Small wooden treasure chest lid creaking open with a soft latch click, then a gentle magical sparkle shimmer revealing a treasure, warm and pleasant",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775TXQM4GEH021GBVJCRKH5_6904e585-5052-42fe-b173-0307109113f3_2fe1e4e2-6531-4ee6-8a39-83783ecc714e.mp3"
+  },
+  "sfx_curtain_open": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Heavy velvet theatre curtain swishing open on brass rings sliding along a rail, soft fabric whoosh, elegant museum reveal",
+    "duration_secs": 1.71,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775TZ0JR2HJPCEJPXNGDQQD_db7673c2-bd6a-4fd7-8302-7350ddac3439_5c68ab87-09e9-47ac-bdd9-a764bdd9489a.ogg",
+    "prompt": "Heavy velvet theatre curtain swishing open on brass rings sliding along a rail, soft fabric whoosh, elegant museum reveal",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775TZ0JR2HJPCEJPXNGDQQD_db7673c2-bd6a-4fd7-8302-7350ddac3439_5c68ab87-09e9-47ac-bdd9-a764bdd9489a.mp3"
+  },
+  "sfx_rotate_tick": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Very short soft stone-on-stone rotate tick, like turning a smooth marble puzzle piece one notch, subtle and tactile",
+    "duration_secs": 1.99,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775TZS9S7ZGMEWH1KJPAZRR_17163e95-84b7-490d-b25d-0468d8e72d33_8b7cdf31-c595-4898-9eff-5d7fe9906903.ogg",
+    "prompt": "Very short soft stone-on-stone rotate tick, like turning a smooth marble puzzle piece one notch, subtle and tactile",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775TZS9S7ZGMEWH1KJPAZRR_17163e95-84b7-490d-b25d-0468d8e72d33_8b7cdf31-c595-4898-9eff-5d7fe9906903.mp3"
+  },
+  "sfx_fit_lock": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Satisfying puzzle piece locking perfectly into place: firm porcelain click followed by a bright short two-note chime, rewarding",
+    "duration_secs": 0.43,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775V0VN2TMNKQ4F21QVHS7D_2a83e5ac-aed5-452c-b753-36628bc0840c_24d2501a-9336-45cd-a5f0-ea66d0608e6a.ogg",
+    "prompt": "Satisfying puzzle piece locking perfectly into place: firm porcelain click followed by a bright short two-note chime, rewarding",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775V0VN2TMNKQ4F21QVHS7D_2a83e5ac-aed5-452c-b753-36628bc0840c_24d2501a-9336-45cd-a5f0-ea66d0608e6a.mp3"
+  },
+  "sfx_medal": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Bright award medal reveal: shiny metallic ding with sparkling bells rising, short celebratory jingle, gentle and premium",
+    "duration_secs": 2.2,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775V219DG2C6A7SPZRHB9AK_1929e40b-2480-4f50-9cae-580db5d6e9c3_79a6ae1c-7bd3-4497-9abe-035bffab9895.ogg",
+    "prompt": "Bright award medal reveal: shiny metallic ding with sparkling bells rising, short celebratory jingle, gentle and premium",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M775V219DG2C6A7SPZRHB9AK_1929e40b-2480-4f50-9cae-580db5d6e9c3_79a6ae1c-7bd3-4497-9abe-035bffab9895.mp3"
   }
 }
