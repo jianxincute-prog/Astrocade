@@ -3,7 +3,7 @@
 // Figure space: +Y up, feet at y=0, +Z is the front. Each part is built in figure space, then recentred on PART_OFFSET.
 import { getSet } from './logic.mjs';
 import { armJoints } from './poses.mjs';
-import { DEFAULT_EXPR, EXPR, SHAPE } from './faces.mjs';
+import { DEFAULT_EXPR, EXPR, LIP_STYLE, SHAPE } from './faces.mjs';
 
 const B = () => window.BABYLON;
 const hex = (value) => B().Color3.FromHexString(value);
@@ -105,7 +105,9 @@ export function createStatueKit(scene) {
         m.clearCoat.isEnabled = true; m.clearCoat.intensity = 1; m.clearCoat.roughness = 0.02; m.emissiveColor = hex('#bfe0ff').scale(0.25);
       });
       case 'face': return pbr(key, (m) => {
-        m.albedoTexture = faceTexture(setId, expr); m.roughness = 0.48;
+        m.albedoTexture = faceTexture(setId, expr); m.roughness = 1; m.metallic = 0;
+        m.metallicTexture = faceSurface(setId, expr); m.useRoughnessFromMetallicTextureGreen = true; m.useMetallnessFromMetallicTextureBlue = true;
+        m.useRoughnessFromMetallicTextureAlpha = false; m.useAmbientOcclusionFromMetallicTextureRed = false;
         m.useAlphaFromAlbedoTexture = true; m.transparencyMode = BAB.PBRMaterial.PBRMATERIAL_ALPHATEST; m.alphaCutOff = 0.5;
         m.emissiveTexture = faceTexture(setId, expr); m.emissiveColor = hex('#ffffff').scale(0.12);
         m.sheen.isEnabled = true; m.sheen.intensity = 0.3; m.sheen.color = hex('#ffcdbf');
@@ -250,12 +252,22 @@ export function createStatueKit(scene) {
     faceTextures.set(tk, tex);
     return tex;
   }
+  function faceSurface(setId, expr) { // small roughness map (green) matching the face texture: skin 0.48, lips per finish
+    const tk = `${setId}@${expr}#surf`;
+    if (faceTextures.has(tk)) return faceTextures.get(tk);
+    const tex = new BAB.DynamicTexture(`face-surf-${setId}@${expr}`, { width: 512, height: 256 }, scene, true);
+    drawFaceSurface(tex.getContext(), 512, 256, setId, expr);
+    tex.update(true);
+    tex.wrapU = BAB.Texture.WRAP_ADDRESSMODE; tex.wrapV = BAB.Texture.CLAMP_ADDRESSMODE;
+    faceTextures.set(tk, tex);
+    return tex;
+  }
 
   return {
     // Studio previews swap faces often; free the 2048² face texture of a preset/expression no longer on screen.
     releaseFace(setId, expr) {
       const m = mats.get(`${setId}:face@${expr}`); if (m) { m.dispose(); mats.delete(`${setId}:face@${expr}`); }
-      const t = faceTextures.get(`${setId}@${expr}`); if (t) { t.dispose(); faceTextures.delete(`${setId}@${expr}`); }
+      for (const tk of [`${setId}@${expr}`, `${setId}@${expr}#surf`]) { const t = faceTextures.get(tk); if (t) { t.dispose(); faceTextures.delete(tk); } }
     },
     materialFor,
     holoMaterial,
@@ -359,21 +371,21 @@ function drawFace(ctx, W, H, setId, expr = 'neutral') {
 }
 // Per-character beauty profile: every face shares the same anatomy but gets its own make-up and feature details.
 //  shadow/shadow2: eyeshadow (lid → crease) · liner: wing length px · lashes/lashLen: lash count and length
-//  iris2: inner iris ring colour · brow: [arch, lift, thickness] · lip: [width, fullness, cupid's bow, gloss]
+//  iris2: inner iris ring colour · brow: [arch, lift, thickness] (lips: LIP_STYLE in faces.mjs)
 //  blush · contour · extras: beauty marks, freckles, glitter, smile lines, under-eye highlight
 export const LOOK = {
-  office01: { shadow: '#b48a9e', shadow2: '#6e4f6c', liner: 12, lashes: 10, lashLen: 1.0, iris2: '#c49a62', brow: [18, 5, 1.0], lip: [80, 0.92, 1.0, 0.45], blush: 0.26, contour: 0.15, mark: [[0.118, 0.24]] },
-  nurse01: { shadow: '#f2a5bd', shadow2: '#d27896', liner: 6, lashes: 12, lashLen: 1.08, iris2: '#ffc4d6', brow: [15, 1, 0.85], lip: [82, 1.02, 0.9, 0.65], blush: 0.42, contour: 0.08, sparkle: 0.5 },
-  ceo01: { shadow: '#a0646e', shadow2: '#4b2433', liner: 26, lashes: 13, lashLen: 1.22, iris2: '#e4b04a', brow: [27, 15, 1.08], lip: [88, 1.12, 1.35, 0.22], blush: 0.2, contour: 0.24, mark: [[0.055, 0.075]] },
-  student01: { shadow: '#f4bcae', shadow2: '#e09a8c', liner: 0, lashes: 9, lashLen: 0.86, iris2: '#d8806a', brow: [13, -1, 0.8], lip: [72, 0.86, 0.85, 0.55], blush: 0.5, contour: 0.05, freckles: 26 },
-  janitor01: { shadow: '#b49280', shadow2: '#7c5c4a', liner: 4, lashes: 8, lashLen: 0.92, iris2: '#b8a060', brow: [19, 7, 1.18], lip: [84, 0.98, 1.05, 0.3], blush: 0.28, contour: 0.18, mark: [[-0.112, 0.235]] },
-  idol01: { shadow: '#ff9cc4', shadow2: '#d06aa0', liner: 14, lashes: 15, lashLen: 1.28, iris2: '#bdf0ff', brow: [16, 2, 0.75], lip: [80, 1.06, 1.1, 0.8], blush: 0.46, contour: 0.08, glitter: true, sparkle: 1, lowerLash: true },
-  rin01: { shadow: '#a8b0d8', shadow2: '#5a6090', liner: 10, lashes: 10, lashLen: 1.0, iris2: '#d0f0ff', brow: [10, 0, 0.8], lip: [70, 0.82, 0.9, 0.4], blush: 0.18, contour: 0.12 },
-  aoi01: { shadow: '#e8b090', shadow2: '#b07050', liner: 3, lashes: 9, lashLen: 0.9, iris2: '#c8f070', brow: [16, 4, 1.05], lip: [84, 0.95, 1, 0.4], blush: 0.34, contour: 0.1, freckles: 12 },
-  mei01: { shadow: '#d8a0e0', shadow2: '#8a5aa8', liner: 8, lashes: 13, lashLen: 1.15, iris2: '#f0c0ff', brow: [14, 0, 0.8], lip: [72, 0.9, 0.95, 0.6], blush: 0.45, contour: 0.06, sparkle: 0.5 },
-  yuki01: { shadow: '#c0c8f0', shadow2: '#8090c8', liner: 6, lashes: 12, lashLen: 1.15, iris2: '#ff9aa8', brow: [14, 2, 0.7], lip: [76, 0.9, 1, 0.55], blush: 0.3, contour: 0.06, sparkle: 0.6 },
-  kana01: { shadow: '#ffb070', shadow2: '#c06a30', liner: 22, lashes: 15, lashLen: 1.35, iris2: '#ffc0e0', brow: [20, 8, 0.9], lip: [86, 1.15, 1.2, 0.85], blush: 0.3, contour: 0.2, sparkle: 0.8, mark: [[-0.06, 0.07]] },
-  sakura01: { shadow: '#f0a0a8', shadow2: '#b04050', liner: 16, lashes: 12, lashLen: 1.1, iris2: '#d8b0ff', brow: [12, 0, 0.85], lip: [74, 0.95, 1.1, 0.35], blush: 0.24, contour: 0.1 },
+  office01: { shadow: '#b48a9e', shadow2: '#6e4f6c', liner: 12, lashes: 10, lashLen: 1.0, iris2: '#c49a62', brow: [18, 5, 1.0], blush: 0.26, contour: 0.15, mark: [[0.118, 0.24]] },
+  nurse01: { shadow: '#f2a5bd', shadow2: '#d27896', liner: 6, lashes: 12, lashLen: 1.08, iris2: '#ffc4d6', brow: [15, 1, 0.85], blush: 0.42, contour: 0.08, sparkle: 0.5 },
+  ceo01: { shadow: '#a0646e', shadow2: '#4b2433', liner: 26, lashes: 13, lashLen: 1.22, iris2: '#e4b04a', brow: [27, 15, 1.08], blush: 0.2, contour: 0.24, mark: [[0.055, 0.075]] },
+  student01: { shadow: '#f4bcae', shadow2: '#e09a8c', liner: 0, lashes: 9, lashLen: 0.86, iris2: '#d8806a', brow: [13, -1, 0.8], blush: 0.5, contour: 0.05, freckles: 26 },
+  janitor01: { shadow: '#b49280', shadow2: '#7c5c4a', liner: 4, lashes: 8, lashLen: 0.92, iris2: '#b8a060', brow: [19, 7, 1.18], blush: 0.28, contour: 0.18, mark: [[-0.112, 0.235]] },
+  idol01: { shadow: '#ff9cc4', shadow2: '#d06aa0', liner: 14, lashes: 15, lashLen: 1.28, iris2: '#bdf0ff', brow: [16, 2, 0.75], blush: 0.46, contour: 0.08, glitter: true, sparkle: 1, lowerLash: true },
+  rin01: { shadow: '#a8b0d8', shadow2: '#5a6090', liner: 10, lashes: 10, lashLen: 1.0, iris2: '#d0f0ff', brow: [10, 0, 0.8], blush: 0.18, contour: 0.12 },
+  aoi01: { shadow: '#e8b090', shadow2: '#b07050', liner: 3, lashes: 9, lashLen: 0.9, iris2: '#c8f070', brow: [16, 4, 1.05], blush: 0.34, contour: 0.1, freckles: 12 },
+  mei01: { shadow: '#d8a0e0', shadow2: '#8a5aa8', liner: 8, lashes: 13, lashLen: 1.15, iris2: '#f0c0ff', brow: [14, 0, 0.8], blush: 0.45, contour: 0.06, sparkle: 0.5 },
+  yuki01: { shadow: '#c0c8f0', shadow2: '#8090c8', liner: 6, lashes: 12, lashLen: 1.15, iris2: '#ff9aa8', brow: [14, 2, 0.7], blush: 0.3, contour: 0.06, sparkle: 0.6 },
+  kana01: { shadow: '#ffb070', shadow2: '#c06a30', liner: 22, lashes: 15, lashLen: 1.35, iris2: '#ffc0e0', brow: [20, 8, 0.9], blush: 0.3, contour: 0.2, sparkle: 0.8, mark: [[-0.06, 0.07]] },
+  sakura01: { shadow: '#f0a0a8', shadow2: '#b04050', liner: 16, lashes: 12, lashLen: 1.1, iris2: '#d8b0ff', brow: [12, 0, 0.85], blush: 0.24, contour: 0.1 },
 };
 // Eye opening per character, in face-texture pixels (the texture is 2048 x 1024 over the head loft).
 const TEX_W = 2048; const TEX_H = 1024; const PXX = 1900;
@@ -560,61 +572,121 @@ function drawBrow(ctx, bx, by, side, s, rnd, setId, E = EXPR.neutral) {
   }
 }
 // Mouth layout in face-texture pixels, shared by the painted lips and the 3D cavity so they always line up.
+const lipStyle = (id) => LIP_STYLE[id] || LIP_STYLE.office01;
 function mouthGeom(id, exprName) {
-  const E = EXPR[exprName] || EXPR.neutral; const [hw0, full, bow, gloss] = LOOK[id].lip;
+  const E = EXPR[exprName] || EXPR.neutral; const LS = lipStyle(id);
   const kind = E.mouth;
-  const hw = hw0 * (kind === 'small' ? 0.72 : kind === 'o' ? 0.55 : 1) * (SHAPE[id]?.lips ?? 1);
+  const hw = LS.w * (kind === 'small' ? 0.74 : kind === 'o' ? 0.56 : 1);
+  const T = 27 * LS.top * (kind === 'o' ? 0.85 : 1); const Bt = 40 * LS.bot; // upper / lower lip thickness (px)
   const lx = TEX_W / 2; const ly = TEX_H * (1 - vOfH(F.mouth));
-  const cy = -E.smile * 14;
+  const cy = -E.smile * 14 - LS.corner;
   const cl = kind === 'smirk' ? cy * 0.2 : cy; const cr = kind === 'smirk' ? cy * 1.6 : cy;
   const oh = E.open * (kind === 'o' ? 64 : 54);
   const mw = hw * (kind === 'o' ? 1 : 0.86);
   const L = [lx - mw, ly + cl]; const R = [lx + mw, ly + cr];
   const topC = [lx, ly - oh * 0.7 + (cl + cr) * 0.5]; const botC = [lx, ly + oh * 1.7 + (cl + cr) * 0.25];
   const topY = 0.25 * (L[1] + R[1]) + 0.5 * topC[1]; const botY = 0.25 * (L[1] + R[1]) + 0.5 * botC[1];
-  return { E, kind, hw, mw, full, bow, gloss, lx, ly, cl, cr, oh, L, R, topC, botC, topY, botY };
+  return { E, kind, LS, hw, mw, T, Bt, lx, ly, cl, cr, oh, L, R, topC, botC, topY, botY };
 }
 function mouthOpening(ctx, g, k = 1) {
   const sx = (p) => [g.lx + (p[0] - g.lx) * k, g.ly + (p[1] - g.ly) * k];
   const [L, R, T, Bc] = [sx(g.L), sx(g.R), sx(g.topC), sx(g.botC)];
   ctx.beginPath(); ctx.moveTo(...L); ctx.quadraticCurveTo(...T, ...R); ctx.quadraticCurveTo(...Bc, ...L); ctx.closePath();
 }
+// Lip outlines as path builders: the upper lip carries the cupid's bow, the lower lip its own fullness.
+function lipPaths(ctx, g) {
+  const { lx, ly, hw, T, Bt, L, R, LS } = g; const pk = LS.peak; const bow = LS.bow;
+  const upperEdge = (y0) => { // left corner → bow peak → centre dip → bow peak → right corner
+    const top = y0 - T; const dip = y0 - T * (1 - 0.3 * bow);
+    ctx.moveTo(...L);
+    ctx.bezierCurveTo(lx - hw * 0.72, y0 - T * 0.42, lx - hw * (pk + 0.16), top, lx - hw * pk, top);
+    ctx.bezierCurveTo(lx - hw * pk * 0.5, top, lx - hw * 0.06, dip, lx, dip);
+    ctx.bezierCurveTo(lx + hw * 0.06, dip, lx + hw * pk * 0.5, top, lx + hw * pk, top);
+    ctx.bezierCurveTo(lx + hw * (pk + 0.16), top, lx + hw * 0.72, y0 - T * 0.42, ...R);
+  };
+  const parting = () => { // right corner → left corner along the line where the lips meet
+    ctx.bezierCurveTo(lx + hw * 0.45, ly + 5, lx + hw * 0.15, ly + 3, lx, ly + 6);
+    ctx.bezierCurveTo(lx - hw * 0.15, ly + 3, lx - hw * 0.45, ly + 5, ...L);
+  };
+  return {
+    upper: () => { ctx.beginPath(); if (g.oh > 0) { upperEdge(g.topY - 2); ctx.quadraticCurveTo(...g.topC, ...L); } else { upperEdge(ly); parting(); } ctx.closePath(); },
+    lower: () => {
+      ctx.beginPath();
+      if (g.oh > 0) { ctx.moveTo(...L); ctx.quadraticCurveTo(...g.botC, ...R); ctx.quadraticCurveTo(lx, g.botY + Bt * 1.1 + (g.botY - ly) * 0.4, ...L); }
+      else { ctx.moveTo(L[0] + 2, L[1] + 1); ctx.bezierCurveTo(lx - hw * 0.5, ly + 4, lx + hw * 0.5, ly + 4, R[0] - 2, R[1] + 1); ctx.bezierCurveTo(lx + hw * 0.64, ly + Bt * 1.15, lx - hw * 0.64, ly + Bt * 1.15, L[0] + 2, L[1] + 1); }
+      ctx.closePath();
+    },
+    lowerTop: g.oh > 0 ? g.botY : ly + 3, lowerBot: g.oh > 0 ? g.botY + Bt * 0.9 : ly + Bt * 0.86,
+    upperTop: (g.oh > 0 ? g.topY : ly) - T, upperBot: g.oh > 0 ? g.topY : ly + 4,
+  };
+}
+const mixHex = (a, b, t) => { // blend two #rrggbb colours → #rrggbb
+  const p = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)); const A = p(a); const B2 = p(b);
+  return `#${A.map((v, i) => Math.round(v + (B2[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
+};
 function drawMouth(ctx, setId, E) {
   const s = STYLE[setId]; const exprName = Object.keys(EXPR).find((k) => EXPR[k] === E) || 'neutral';
-  const g = mouthGeom(setId, exprName); const { lx, ly, hw, full, bow, gloss, L, R } = g; const base = s.lip;
-  const lipTop = (y0) => { // upper outline with the cupid's bow, from the left corner to the right corner
-    ctx.moveTo(...L);
-    ctx.bezierCurveTo(lx - hw * 0.55, y0 - 22 * full, lx - hw * 0.2, y0 - 30 * full * (0.9 + 0.1 * bow), lx, y0 - 17 * full / bow);
-    ctx.bezierCurveTo(lx + hw * 0.2, y0 - 30 * full * (0.9 + 0.1 * bow), lx + hw * 0.55, y0 - 22 * full, ...R);
+  const g = mouthGeom(setId, exprName); const { lx, ly, hw, T, Bt, L, R, LS } = g; const lp = lipPaths(ctx, g);
+  const col = LS.color; const fin = LS.finish; const rnd = mulberry(setId.length * 131 + 3);
+  const deep = mixHex(col, '#2a0610', 0.45); const light = mixHex(col, '#ffffff', 0.28);
+  const lipBase = fin === 'bare' ? mixHex(col, s.skin, 0.3) : fin === 'frost' ? mixHex(col, '#ffffff', 0.15) : fin === 'gradient' ? mixHex(col, s.skin, 0.74) : col;
+  const paint = (path, y0, y1, lower) => {
+    // soft edge so the colour melts into the skin, then the lip itself
+    ctx.save(); path(); ctx.shadowColor = hexA(lipBase, fin === 'bare' ? 0.5 : 0.35); ctx.shadowBlur = fin === 'bare' ? 14 : 7; ctx.fillStyle = lipBase; ctx.fill(); ctx.restore();
+    ctx.save(); path(); ctx.clip();
+    const gr = ctx.createLinearGradient(0, y0, 0, y1);
+    if (lower) { gr.addColorStop(0, mixHex(lipBase, deep, 0.55)); gr.addColorStop(0.45, mixHex(lipBase, light, 0.35)); gr.addColorStop(1, mixHex(lipBase, deep, 0.25)); }
+    else { gr.addColorStop(0, mixHex(lipBase, light, 0.2)); gr.addColorStop(1, mixHex(lipBase, deep, 0.6)); }
+    ctx.fillStyle = gr; ctx.fillRect(lx - hw * 1.3, y0 - 30, hw * 2.6, y1 - y0 + 60);
+    if (fin === 'gradient') { // Korean ombré: saturated centre that fades out to bare edges
+      radial(ctx, lx, (lower ? y0 : y1), hw * 0.66, (y1 - y0) * 1.5, hexA(col, 0.9));
+      radial(ctx, lx, (lower ? y0 : y1), hw * 0.32, (y1 - y0) * 0.9, hexA(mixHex(col, '#900028', 0.3), 0.85));
+    }
+    if (fin === 'beni') { // traditional beni: brighter centre, a faint gold sheen on the lower lip
+      radial(ctx, lx, (y0 + y1) / 2, hw * 0.4, (y1 - y0) * 0.5, hexA(mixHex(col, '#ff6060', 0.3), 0.6));
+      if (lower) radial(ctx, lx, y0 + (y1 - y0) * 0.45, hw * 0.22, (y1 - y0) * 0.22, hexA('#e8c068', 0.3));
+    }
+    for (const p of [L, R]) radial(ctx, p[0], p[1], hw * 0.28, (y1 - y0) * 0.9, hexA(deep, 0.45)); // corners tuck in
+    if (fin === 'matte' || fin === 'bare' || fin === 'beni') { // fine vertical lip lines
+      ctx.lineWidth = 1.4; ctx.strokeStyle = hexA(deep, fin === 'bare' ? 0.1 : 0.14);
+      for (let i = 0; i < 16; i += 1) { const x = lx - hw * 0.8 + hw * 1.6 * (i / 15) + (rnd() - 0.5) * 6; ctx.beginPath(); ctx.moveTo(x, y0 + (y1 - y0) * 0.15); ctx.lineTo(x + (rnd() - 0.5) * 4, y1 - (y1 - y0) * 0.15); ctx.stroke(); }
+    }
+    const shine = { gloss: 0.75, gradient: 0.6, frost: 0.45, satin: 0.32, beni: 0.12, bare: 0.12, matte: 0.04 }[fin];
+    if (lower) {
+      radial(ctx, lx - hw * 0.12, y0 + (y1 - y0) * 0.42, hw * 0.4, (y1 - y0) * 0.2, hexA('#ffffff', shine));
+      if (fin === 'gloss' || fin === 'gradient') { radial(ctx, lx - hw * 0.1, y0 + (y1 - y0) * 0.4, hw * 0.16, (y1 - y0) * 0.07, hexA('#ffffff', 0.9)); radial(ctx, lx + hw * 0.3, y0 + (y1 - y0) * 0.5, hw * 0.07, (y1 - y0) * 0.05, hexA('#ffffff', 0.8)); }
+    } else radial(ctx, lx - hw * 0.28, y0 + (y1 - y0) * 0.5, hw * 0.2, (y1 - y0) * 0.16, hexA('#ffffff', shine * 0.7));
+    if (fin === 'frost' || LS.glitter) for (let i = 0; i < 32; i += 1) { // fine shimmer, densest where the light hits
+      const t = rnd(); ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,.55)' : 'rgba(255,220,240,.45)';
+      ctx.beginPath(); ctx.arc(lx + (rnd() - 0.5) * hw * (0.6 + t), y0 + (0.25 + rnd() * 0.5) * (y1 - y0), 0.6 + rnd() * 0.9, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    if (LS.liner) { ctx.save(); path(); ctx.strokeStyle = hexA(LS.liner, 0.55); ctx.lineWidth = 3; ctx.stroke(); ctx.restore(); }
   };
-  if (g.oh > 0) {
-    // open mouth: upper lip band, dark gap (cut out later for the 3D cavity), lower lip band
-    const top = g.topY;
-    ctx.beginPath(); lipTop(top - 2); ctx.quadraticCurveTo(...g.topC, ...L); ctx.closePath();
-    let gr = ctx.createLinearGradient(0, top - 32, 0, top); gr.addColorStop(0, shadeHex(base, 14)); gr.addColorStop(1, shadeHex(base, -30)); ctx.fillStyle = gr; ctx.fill();
-    ctx.fillStyle = '#3a0c16'; mouthOpening(ctx, g, 1); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(...L); ctx.quadraticCurveTo(...g.botC, ...R); ctx.quadraticCurveTo(lx, g.botY + 44 * full + (g.botY - ly) * 0.4, ...L); ctx.closePath();
-    gr = ctx.createLinearGradient(0, g.botY, 0, g.botY + 30 * full); gr.addColorStop(0, shadeHex(base, -10)); gr.addColorStop(0.5, shadeHex(base, 16)); gr.addColorStop(1, shadeHex(base, -8)); ctx.fillStyle = gr; ctx.fill();
-    radial(ctx, lx - 8, g.botY + 14 * full, 34, 7, hexA('#ffffff', gloss));
-  } else {
-    // closed lips: corners follow the smile (or frown / smirk)
-    ctx.beginPath(); lipTop(ly);
-    ctx.bezierCurveTo(lx + hw * 0.55, ly + 4, lx + hw * 0.2, ly + 3, lx, ly + 6);
-    ctx.bezierCurveTo(lx - hw * 0.2, ly + 3, lx - hw * 0.55, ly + 4, ...L); ctx.closePath();
-    let gr = ctx.createLinearGradient(0, ly - 34, 0, ly + 6); gr.addColorStop(0, shadeHex(base, 14)); gr.addColorStop(1, shadeHex(base, -36)); ctx.fillStyle = gr; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(L[0] + 2, L[1] + 1);
-    ctx.bezierCurveTo(lx - hw * 0.5, ly + 4, lx + hw * 0.5, ly + 4, R[0] - 2, R[1] + 1);
-    ctx.bezierCurveTo(lx + hw * 0.62, ly + 46 * full, lx - hw * 0.62, ly + 46 * full, L[0] + 2, L[1] + 1); ctx.closePath();
-    gr = ctx.createLinearGradient(0, ly + 2, 0, ly + 44); gr.addColorStop(0, shadeHex(base, -18)); gr.addColorStop(0.5, shadeHex(base, 16)); gr.addColorStop(1, shadeHex(base, -8)); ctx.fillStyle = gr; ctx.fill();
-    radial(ctx, lx - 10, ly + 22 * full, 40, 8, hexA('#ffffff', gloss)); radial(ctx, lx + 20, ly + 28 * full, 11, 4, hexA('#ffffff', gloss * 0.7));
-    ctx.strokeStyle = hexA('#4a1424', 0.85); ctx.lineWidth = 4.2; ctx.lineCap = 'round';
+  if (g.oh > 0) { ctx.fillStyle = "#3a0c16"; mouthOpening(ctx, g, 1); ctx.fill(); } // dark gap (cut out later for the 3D cavity)
+  paint(lp.upper, lp.upperTop, lp.upperBot, false);
+  paint(lp.lower, lp.lowerTop, lp.lowerBot, true);
+  if (g.oh <= 0) { // the line where the lips meet
+    ctx.strokeStyle = hexA(mixHex(col, '#2a0610', 0.7), fin === 'bare' ? 0.6 : 0.85); ctx.lineWidth = 4; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(...L); ctx.bezierCurveTo(lx - hw * 0.4, ly + 6, lx + hw * 0.4, ly + 6, ...R); ctx.stroke();
     for (const [p, sgn] of [[L, -1], [R, 1]]) if (g.E.smile > 0.3) { // little smile dimples at the corners
       ctx.lineWidth = 2.4; ctx.strokeStyle = hexA('#8a3a3e', 0.35); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.quadraticCurveTo(p[0] + sgn * 8, p[1] - 4, p[0] + sgn * 10, p[1] - 12); ctx.stroke();
     }
   }
-  radial(ctx, lx, ly - 26 * full, 16, 6, hexA('#ffffff', 0.2)); // cupid's bow highlight
-  radial(ctx, lx, Math.max(ly, g.botY) + 62, 50, 16, hexA('#7a4a40', 0.18)); // shadow above the chin
+  radial(ctx, lx, lp.upperTop - 3, hw * 0.16, 6, hexA('#ffffff', 0.22)); // cupid's bow highlight on the skin
+  radial(ctx, lx, lp.lowerBot + 22, hw * 0.5, 15, hexA('#7a4a40', 0.18)); // shadow above the chin
+}
+function drawFaceSurface(ctx, W, H, setId, expr) { // roughness map: green = roughness (skin 0.48), blue = metallic 0
+  ctx.fillStyle = 'rgb(0,122,0)'; ctx.fillRect(0, 0, W, H);
+  const g = mouthGeom(setId, expr); const r = { gloss: 0.1, gradient: 0.16, frost: 0.2, satin: 0.27, beni: 0.4, bare: 0.4, matte: 0.62 }[g.LS.finish] ?? 0.48;
+  ctx.save(); ctx.scale(W / TEX_W, H / TEX_H); const lp = lipPaths(ctx, g);
+  ctx.fillStyle = `rgb(0,${Math.round(r * 255)},0)`; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 3;
+  lp.upper(); ctx.fill(); lp.lower(); ctx.fill();
+  if (g.oh <= 0) { // the crease where the lips meet stays satin so it doesn't catch a hard highlight
+    const { lx, ly, hw, L, R } = g; ctx.shadowBlur = 0; ctx.strokeStyle = 'rgb(0,122,0)'; ctx.lineWidth = 14;
+    ctx.beginPath(); ctx.moveTo(...L); ctx.bezierCurveTo(lx - hw * 0.4, ly + 6, lx + hw * 0.4, ly + 6, ...R); ctx.stroke();
+  }
+  ctx.restore();
 }
 function radial(ctx, x, y, rx, ry, color) {
   ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx);
@@ -830,10 +902,11 @@ function faceDeformFor(sh, mx, shut) {
     dz += S.nose * 0.006 * gauss(h, F.noseTip - 0.004, 0.016) * gauss(Math.abs(x), 0.026, 0.011) * front;
     dz += 0.004 * gauss(h, 0.15, 0.03) * gauss(x, 0, 0.04) * front; // fill under the nose so it doesn't shadow
     // lips follow the expression: they part around the mouth opening and the cheeks lift with a smile
-    const up = mx && mx.open ? mx.hTop + 0.008 : F.mouth + 0.014; const lo = mx && mx.open ? mx.hBot - 0.01 : F.mouth - 0.013; const lw = S.lips;
-    dz += 0.0035 * lw * gauss(h, up, 0.012) * gauss(x, 0, 0.04 * lw) * front;
-    dz += (mx && mx.open ? 0.005 : 0.009) * lw * gauss(h, lo, 0.014) * gauss(x, 0, 0.036 * lw) * front;
-    if (!mx || !mx.open) dz -= 0.0025 * gauss(h, F.mouth, 0.004) * gauss(x, 0, 0.05) * front;
+    const LP = S.lip || { w: 100, top: 1, bot: 1 }; const lw = LP.w / 100;
+    const up = mx && mx.open ? mx.hTop + 0.008 : F.mouth + 0.004 + 0.008 * LP.top; const lo = mx && mx.open ? mx.hBot - 0.01 : F.mouth - 0.004 - 0.009 * LP.bot;
+    dz += 0.0035 * (0.5 + 0.55 * LP.top) * gauss(h, up, 0.012 * (0.8 + 0.25 * LP.top)) * gauss(x, 0, 0.042 * lw) * front;
+    dz += (mx && mx.open ? 0.005 : 0.009) * (0.45 + 0.6 * LP.bot) * gauss(h, lo, 0.014 * (0.8 + 0.25 * LP.bot)) * gauss(x, 0, 0.038 * lw) * front;
+    if (!mx || !mx.open) dz -= 0.0025 * gauss(h, F.mouth, 0.004) * gauss(x, 0, 0.05 * lw) * front;
     if (mx && mx.smile > 0) dz += 0.004 * mx.smile * gauss(h, 0.19, 0.03) * gauss(Math.abs(x), 0.1, 0.04) * front; // cheeks rise
     return [x + dx, y, z + dz];
   };
@@ -899,7 +972,7 @@ function sculptHead(sc, id) {
   const E = EXPR[sc.expr] || EXPR.neutral;
   const mg = mouthGeom(id, sc.expr);
   const mx = { open: mg.oh > 0, smile: E.smile, hTop: texToHead(mg.lx, mg.topY)[1], hBot: texToHead(mg.lx, mg.botY)[1] };
-  sc.faceDef = faceDeformFor(SHAPE[id], mx, shutEyes(EXPR[sc.expr] || EXPR.neutral));
+  sc.faceDef = faceDeformFor({ ...SHAPE[id], lip: lipStyle(id) }, mx, shutEyes(EXPR[sc.expr] || EXPR.neutral));
   sc.faceMesh = sc.loft('face', headSecs(), { N: 120, deform: sc.faceDef, flip: false });
   if (mg.oh > 0) { // mouth cavity with teeth and tongue, inside the head behind the opening
     const w = (mg.mw / PXX) * 0.9; const yT = CHIN + mx.hTop; const yB = CHIN + mx.hBot; const yc = (yT + yB) / 2; const hh = Math.max(0.006, (yT - yB) / 2);

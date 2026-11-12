@@ -100,7 +100,7 @@ test('saved progress is validated and round-trips safely', () => {
 });
 
 test('character face system: 12 presets, 10 expressions, valid defaults and shapes', async () => {
-  const { FACE_PRESETS, EXPRESSIONS, EXPR, DEFAULT_EXPR, SHAPE } = await import('../faces.mjs');
+  const { FACE_PRESETS, EXPRESSIONS, EXPR, DEFAULT_EXPR, SHAPE, LIP_STYLE, LIP_FINISHES } = await import('../faces.mjs');
   assert.equal(FACE_PRESETS.length, 12);
   assert.equal(new Set(FACE_PRESETS.map((p) => p.id)).size, 12);
   for (const { id } of SETS) assert.ok(FACE_PRESETS.some((p) => p.id === id), `${id} is a face preset`);
@@ -115,6 +115,14 @@ test('character face system: 12 presets, 10 expressions, valid defaults and shap
   assert.ok(EXPR.crying.tears && EXPR.happy.happy.every(Boolean));
   for (const { id } of FACE_PRESETS) {
     assert.ok(EXPRESSIONS.includes(DEFAULT_EXPR[id]), `${id} has a valid signature expression`);
-    const sh = SHAPE[id]; assert.ok(sh && ['jaw', 'chin', 'nose', 'lips'].every((k) => sh[k] > 0.6 && sh[k] < 1.4), `${id} face shape in range`);
+    const sh = SHAPE[id]; assert.ok(sh && ['jaw', 'chin', 'nose'].every((k) => sh[k] > 0.6 && sh[k] < 1.4), `${id} face shape in range`);
+    const lip = LIP_STYLE[id]; assert.ok(lip, `${id} has a lip style`);
+    assert.ok(LIP_FINISHES.includes(lip.finish), `${id} lip finish is known`);
+    assert.ok(lip.w >= 85 && lip.w <= 125 && lip.top >= 0.55 && lip.top <= 1.5 && lip.bot >= 0.75 && lip.bot <= 1.5, `${id} lip size in range`);
+    assert.match(lip.color, /^#[0-9a-f]{6}$/);
   }
+  const lips = Object.values(LIP_STYLE);
+  assert.equal(new Set(lips.map((l) => l.color)).size, 12, 'every face wears its own lip colour');
+  assert.ok(new Set(lips.map((l) => l.finish)).size >= 6, 'lip finishes vary across faces');
+  assert.ok(Math.min(...lips.map((l) => l.top)) < 0.75 && Math.max(...lips.map((l) => l.top)) > 1.25, 'both thin and full lips exist');
 });

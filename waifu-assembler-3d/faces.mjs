@@ -44,18 +44,38 @@ export const DEFAULT_EXPR = {
   rin01: 'neutral', aoi01: 'happy', mei01: 'smiling', yuki01: 'neutral', kana01: 'wink', sakura01: 'smiling',
 };
 
-// Face shape per preset: jaw width, chin projection, nose and lip size (1 = base anatomy).
+// Face shape per preset: jaw width, chin projection and nose size (1 = base anatomy).
 export const SHAPE = {
-  office01: { jaw: 1, chin: 1, nose: 1, lips: 1 },
-  nurse01: { jaw: 1.03, chin: 0.8, nose: 0.9, lips: 1 },
-  ceo01: { jaw: 0.96, chin: 1.25, nose: 1.1, lips: 1.15 },
-  student01: { jaw: 1.04, chin: 0.75, nose: 0.85, lips: 0.9 },
-  idol01: { jaw: 1, chin: 0.9, nose: 0.9, lips: 1.05 },
-  janitor01: { jaw: 1.03, chin: 1.1, nose: 1.1, lips: 1 },
-  rin01: { jaw: 0.96, chin: 1.15, nose: 0.95, lips: 0.85 },
-  aoi01: { jaw: 1.02, chin: 1, nose: 1, lips: 1 },
-  mei01: { jaw: 1.05, chin: 0.7, nose: 0.85, lips: 0.95 },
-  yuki01: { jaw: 0.97, chin: 1.05, nose: 0.9, lips: 0.95 },
-  kana01: { jaw: 0.98, chin: 1.1, nose: 1, lips: 1.2 },
-  sakura01: { jaw: 0.97, chin: 1.1, nose: 0.95, lips: 1 },
+  office01: { jaw: 1, chin: 1, nose: 1 },
+  nurse01: { jaw: 1.03, chin: 0.8, nose: 0.9 },
+  ceo01: { jaw: 0.96, chin: 1.25, nose: 1.1 },
+  student01: { jaw: 1.04, chin: 0.75, nose: 0.85 },
+  idol01: { jaw: 1, chin: 0.9, nose: 0.9 },
+  janitor01: { jaw: 1.03, chin: 1.1, nose: 1.1 },
+  rin01: { jaw: 0.96, chin: 1.15, nose: 0.95 },
+  aoi01: { jaw: 1.02, chin: 1, nose: 1 },
+  mei01: { jaw: 1.05, chin: 0.7, nose: 0.85 },
+  yuki01: { jaw: 0.97, chin: 1.05, nose: 0.9 },
+  kana01: { jaw: 0.98, chin: 1.1, nose: 1 },
+  sakura01: { jaw: 0.97, chin: 1.1, nose: 0.95 },
+};
+
+// Lips per preset. w: half-width of the mouth (face-texture px) · top / bot: upper and lower lip fullness ·
+// bow: cupid's bow (0.5 soft and rounded … 1.6 sharp) · peak: spacing of the bow peaks · corner: corner lift (px, + up)
+// color: lipstick · finish: matte | satin | gloss | gradient | frost | bare | beni · liner: lip-liner colour · glitter
+// The finish also sets how shiny the lips are in 3D (a roughness map on the face material).
+export const LIP_FINISHES = ['matte', 'satin', 'gloss', 'gradient', 'frost', 'bare', 'beni'];
+export const LIP_STYLE = {
+  office01: { name: 'Rosewood satin', w: 104, top: 1.0, bot: 1.06, bow: 1.2, peak: 0.3, corner: 0, color: '#c24d68', finish: 'satin', liner: '#8e2f48' },
+  nurse01: { name: 'Baby-pink gloss', w: 100, top: 1.05, bot: 1.32, bow: 0.65, peak: 0.26, corner: 2, color: '#f0879f', finish: 'gloss' },
+  ceo01: { name: 'Classic red matte', w: 114, top: 1.2, bot: 1.25, bow: 1.6, peak: 0.34, corner: 4, color: '#b3122b', finish: 'matte', liner: '#7a0a1c' },
+  student01: { name: 'Natural tint', w: 92, top: 0.72, bot: 1.0, bow: 0.8, peak: 0.24, corner: 0, color: '#e8909a', finish: 'bare' },
+  idol01: { name: 'Gradient coral + shimmer', w: 100, top: 1.05, bot: 1.2, bow: 0.9, peak: 0.27, corner: 3, color: '#ff3d6c', finish: 'gradient', glitter: true },
+  janitor01: { name: 'Bare lips', w: 108, top: 0.7, bot: 0.92, bow: 0.9, peak: 0.3, corner: -1, color: '#bd7468', finish: 'bare' },
+  rin01: { name: 'Cool mauve matte', w: 96, top: 0.62, bot: 0.84, bow: 1.35, peak: 0.3, corner: -2, color: '#9c5a74', finish: 'matte' },
+  aoi01: { name: 'Peach balm', w: 104, top: 0.9, bot: 1.05, bow: 1.0, peak: 0.28, corner: 1, color: '#f07f60', finish: 'satin' },
+  mei01: { name: 'Cherry gloss', w: 88, top: 1.15, bot: 1.35, bow: 0.55, peak: 0.24, corner: 2, color: '#e02848', finish: 'gloss' },
+  yuki01: { name: 'Icy pink frost', w: 96, top: 0.82, bot: 0.98, bow: 1.1, peak: 0.28, corner: 0, color: '#eaa2b8', finish: 'frost' },
+  kana01: { name: 'Overlined nude gloss', w: 120, top: 1.35, bot: 1.45, bow: 0.8, peak: 0.3, corner: 2, color: '#e07a8c', finish: 'gloss', liner: '#9a4456' },
+  sakura01: { name: 'Beni crimson', w: 98, top: 0.95, bot: 1.12, bow: 1.45, peak: 0.26, corner: 0, color: '#c01c36', finish: 'beni' },
 };
