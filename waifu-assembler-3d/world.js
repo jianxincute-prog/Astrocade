@@ -69,7 +69,7 @@ const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t =
 function travertineTexture(scene) { // warm cream stone tiles, 4 x 4 per texture
   const t = new (B().DynamicTexture)('travertine', 1024, scene, true); const ctx = t.getContext(); const r = rng(11);
   for (let i = 0; i < 4; i += 1) for (let j = 0; j < 4; j += 1) {
-    const l = 226 + Math.floor(r() * 14); ctx.fillStyle = `rgb(${l},${l - 8},${l - 22})`; ctx.fillRect(i * 256, j * 256, 256, 256);
+    const l = 214 + Math.floor(r() * 12); ctx.fillStyle = `rgb(${l},${l - 8},${l - 22})`; ctx.fillRect(i * 256, j * 256, 256, 256);
     for (let k = 0; k < 7; k += 1) { // soft travertine banding
       ctx.strokeStyle = `rgba(${150 + r() * 40},${130 + r() * 30},${100 + r() * 20},${0.05 + r() * 0.06})`; ctx.lineWidth = 2 + r() * 6;
       const y = j * 256 + r() * 256; ctx.beginPath(); ctx.moveTo(i * 256, y); ctx.bezierCurveTo(i * 256 + 90, y + (r() - 0.5) * 30, i * 256 + 170, y + (r() - 0.5) * 30, i * 256 + 256, y + (r() - 0.5) * 20); ctx.stroke();
@@ -203,12 +203,12 @@ export function buildWorld(scene, shadowGen, sets) {
   // floors
   const trav = travertineTexture(scene); trav.uScale = HALL_SIZE / 12; trav.vScale = HALL_SIZE / 12;
   const floorMat = new BAB.PBRMaterial('hallFloor', scene);
-  floorMat.albedoTexture = trav; floorMat.metallic = 0; floorMat.roughness = 0.42; floorMat.environmentIntensity = 0.55;
+  floorMat.albedoTexture = trav; floorMat.metallic = 0; floorMat.roughness = 0.58; floorMat.environmentIntensity = 0.4; floorMat.albedoColor = new BAB.Color3(0.93, 0.92, 0.9);
   const hall = BAB.MeshBuilder.CreateGround('hall', { width: HALL_SIZE, height: HALL_SIZE }, scene);
   hall.position.y = -0.02; hall.material = floorMat; hall.parent = root; hall.isPickable = false; hall.receiveShadows = true;
   const marble = marbleTexture(scene); marble.uScale = (gw * 2) / 8; marble.vScale = gLen / 8;
   const annexMat = new BAB.StandardMaterial('galleryFloor', scene);
-  annexMat.diffuseTexture = marble; annexMat.specularColor = new BAB.Color3(0.35, 0.35, 0.35); annexMat.specularPower = 180;
+  annexMat.diffuseTexture = marble; annexMat.diffuseColor = new BAB.Color3(0.86, 0.84, 0.81); annexMat.specularColor = new BAB.Color3(0.16, 0.15, 0.14); annexMat.specularPower = 120;
   const annex = BAB.MeshBuilder.CreateGround('gallery', { width: gw * 2, height: gLen }, scene);
   annex.position.set(0, -0.015, gz); annex.material = annexMat; annex.parent = root; annex.isPickable = false; annex.receiveShadows = true;
   const medal = BAB.MeshBuilder.CreateDisc('medallion', { radius: 7.5, tessellation: 64 }, scene);
@@ -217,10 +217,10 @@ export function buildWorld(scene, shadowGen, sets) {
   medalMat.specularColor = new BAB.Color3(0.2, 0.2, 0.2); medalMat.backFaceCulling = false; medal.material = medalMat;
 
   // materials
-  const plaster = pbrMat(scene, 'plaster', '#efe7da', { roughness: 0.92 });
-  const wainscot = pbrMat(scene, 'wainscot', '#d6c3a2', { roughness: 0.7 });
+  const plaster = pbrMat(scene, 'plaster', '#e4dbca', { roughness: 0.94 });
+  const wainscot = pbrMat(scene, 'wainscot', '#b89c76', { roughness: 0.72 });
   const brass = pbrMat(scene, 'brass', '#c9a466', { metallic: 0.85, roughness: 0.32 });
-  const stone = pbrMat(scene, 'stoneWhite', '#f2eee6', { roughness: 0.38 });
+  const stone = pbrMat(scene, 'stoneWhite', '#e4ddd0', { roughness: 0.5 });
   const wood = pbrMat(scene, 'oak', '#a97b50', { roughness: 0.55 });
   const leaf = pbrMat(scene, 'leaf', '#6f9550', { roughness: 0.85 });
   const leaf2 = pbrMat(scene, 'leaf2', '#87a964', { roughness: 0.85 });
@@ -228,10 +228,10 @@ export function buildWorld(scene, shadowGen, sets) {
   const pot = pbrMat(scene, 'terracotta', '#c27d58', { roughness: 0.8 });
   const carpet = pbrMat(scene, 'carpet', '#a3544a', { roughness: 0.95 });
   const ceilMat = new BAB.StandardMaterial('ceiling', scene);
-  ceilMat.diffuseColor = BAB.Color3.FromHexString('#f4efe6'); ceilMat.emissiveColor = BAB.Color3.FromHexString('#b3aa9c'); ceilMat.specularColor = BAB.Color3.Black(); ceilMat.backFaceCulling = false;
-  const skylight = glowMat(scene, 'skylight', '#fbfcff', { intensity: 1.0 });
+  ceilMat.diffuseColor = BAB.Color3.FromHexString('#ddd4c5'); ceilMat.emissiveColor = BAB.Color3.FromHexString('#6e675c'); ceilMat.specularColor = BAB.Color3.Black(); ceilMat.backFaceCulling = false;
+  const skylight = glowMat(scene, 'skylight', '#f6efe2', { intensity: 0.78 }); // soft diffused daylight, not a glare panel
   const sky = new BAB.StandardMaterial('windowGlass', scene);
-  sky.emissiveTexture = skyTexture(scene); sky.disableLighting = true; sky.backFaceCulling = false; sky.fogEnabled = false;
+  sky.emissiveTexture = skyTexture(scene); sky.emissiveTexture.level = 0.78; sky.disableLighting = true; sky.backFaceCulling = false; sky.fogEnabled = false;
 
   const b = new Batch(scene, root);
   const wall = (x, z, sx, sz, h = WALL_H, y0 = 0, mat = plaster) => b.box(mat, x, y0 + h / 2, z, sx, h, sz);
@@ -363,7 +363,7 @@ export function buildFragment(scene, kit, fragment, part) {
   part.parent = spin;
   // everything that stands on the floor hangs off `floor`, which the renderer pins while the part bobs
   const floor = new BAB.TransformNode('floor', scene); floor.parent = root;
-  const stone = pbrMat(scene, 'plinthStone', '#f1ece3', { roughness: 0.4 });
+  const stone = pbrMat(scene, 'plinthStone', '#e6dfd3', { roughness: 0.5 });
   const brass = pbrMat(scene, 'brass', '#c9a466', { metallic: 0.85, roughness: 0.32 });
   const band = pbrMat(scene, `band-${set.id}`, set.color, { roughness: 0.45, emissive: set.color, emissiveScale: 0.18 });
   const plinth = BAB.MeshBuilder.CreateCylinder('plinth', { height: 0.95, diameterTop: 1.15, diameterBottom: 1.35, tessellation: 24 }, scene);
@@ -393,7 +393,7 @@ export function buildPodium(scene, kit, set, position, shadowGen, parts) {
   const group = new BAB.TransformNode(`podium-${set.id}`, scene);
   group.position.set(position[0], 0, position[1]);
   const facing = new BAB.TransformNode('facing', scene); facing.parent = group; // turns toward the aisle
-  const stone = pbrMat(scene, 'podStone', '#f2eee7', { roughness: 0.32 });
+  const stone = pbrMat(scene, 'podStone', '#e7e0d4', { roughness: 0.42 });
   const brass = pbrMat(scene, 'brass', '#c9a466', { metallic: 0.85, roughness: 0.32 });
   const band = pbrMat(scene, `podBand-${set.id}`, mixHex(set.color, '#ffffff', 0.15), { roughness: 0.4, emissive: set.color, emissiveScale: 0.12 });
 
@@ -430,7 +430,7 @@ export function buildPodium(scene, kit, set, position, shadowGen, parts) {
   }
   // soft portrait light in front of the face, affecting only this statue
   const portrait = new BAB.PointLight(`portrait-${set.id}`, new BAB.Vector3(0.35, 5.0, 2.4), scene);
-  portrait.parent = facing; portrait.diffuse = c3('#fff2e8'); portrait.specular = c3('#fff6f0'); portrait.intensity = 3.2; portrait.range = 8;
+  portrait.parent = facing; portrait.diffuse = c3('#ffeedd'); portrait.specular = c3('#f4e8dc'); portrait.intensity = 2.4; portrait.range = 8;
   for (const { ghost, solid } of figureParts.values()) portrait.includedOnlyMeshes.push(...solid.getChildMeshes(), ...ghost.getChildMeshes());
   const finish = BAB.MeshBuilder.CreateTorus('finish', { diameter: 2.3, thickness: 0.07, tessellation: 56 }, scene);
   finish.parent = group; finish.position.y = 5.7; finish.material = glowMat(scene, 'finishHalo', '#ffd98a', { intensity: 1.25 }); finish.setEnabled(false); finish.isPickable = false;

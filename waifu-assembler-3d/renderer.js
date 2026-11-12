@@ -69,10 +69,10 @@ export function createGame(mode = 'play') {
   const scene = new BAB.Scene(engine);
   scene.useRightHandedSystem = true;
   scene.skipPointerMovePicking = true;
-  scene.clearColor = BAB.Color4.FromHexString('#efe9dfff');
+  scene.clearColor = BAB.Color4.FromHexString('#d6cdbfff');
   scene.fogMode = BAB.Scene.FOGMODE_EXP2;
-  scene.fogColor = BAB.Color3.FromHexString('#e9e0d1');
-  scene.fogDensity = 0.0034;
+  scene.fogColor = BAB.Color3.FromHexString('#d3c9b9');
+  scene.fogDensity = 0.0028;
   scene.ambientColor = BAB.Color3.FromHexString('#3a352e');
 
   const camera = new BAB.FreeCamera('eye', new BAB.Vector3(SPAWN.x, EYE_HEIGHT, SPAWN.z), scene);
@@ -83,18 +83,18 @@ export function createGame(mode = 'play') {
 
   // ---------- lighting: soft daylight from skylights and tall windows ----------
   const hemi = new BAB.HemisphericLight('hemi', new BAB.Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.72; hemi.diffuse = BAB.Color3.FromHexString('#fff7ec'); hemi.groundColor = BAB.Color3.FromHexString('#b9ab94'); hemi.specular = BAB.Color3.FromHexString('#2a2620');
+  hemi.intensity = 0.56; hemi.diffuse = BAB.Color3.FromHexString('#fbefdc'); hemi.groundColor = BAB.Color3.FromHexString('#7d705e'); hemi.specular = BAB.Color3.FromHexString('#1a1712');
   // the sun falls through the gallery skylight; its shadow map covers the plinths
   const key = new BAB.DirectionalLight('key', new BAB.Vector3(-0.32, -1, -0.22).normalize(), scene);
   key.position = new BAB.Vector3(20, 60, -100);
-  key.diffuse = BAB.Color3.FromHexString('#fff0da'); key.intensity = 1.35;
+  key.diffuse = BAB.Color3.FromHexString('#ffe6c4'); key.intensity = 1.1;
   key.autoUpdateExtends = false; key.orthoLeft = -32; key.orthoRight = 32; key.orthoBottom = -56; key.orthoTop = 56; key.shadowMinZ = 4; key.shadowMaxZ = 130;
   const fill = new BAB.DirectionalLight('fill', new BAB.Vector3(0.4, -0.45, 0.8).normalize(), scene);
-  fill.diffuse = BAB.Color3.FromHexString('#e4ecff'); fill.intensity = 0.42; fill.specular = BAB.Color3.Black();
+  fill.diffuse = BAB.Color3.FromHexString('#d8e0ee'); fill.intensity = 0.28; fill.specular = BAB.Color3.Black();
   const shadows = new BAB.ShadowGenerator(2048, key);
   shadows.usePercentageCloserFiltering = true;
   shadows.filteringQuality = BAB.ShadowGenerator.QUALITY_MEDIUM;
-  shadows.bias = 0.0006; shadows.normalBias = 0.02; shadows.setDarkness(0.45);
+  shadows.bias = 0.0006; shadows.normalBias = 0.02; shadows.setDarkness(0.35);
   // The plinths and statues only change when a part is placed, so the shadow map is redrawn on demand, not every frame.
   shadows.getShadowMap().refreshRate = BAB.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
   const refreshShadows = () => shadows.getShadowMap().resetRefreshCounter();
@@ -106,13 +106,13 @@ export function createGame(mode = 'play') {
   try {
     pipeline = new BAB.DefaultRenderingPipeline('cinema', true, scene, [camera]);
     pipeline.fxaaEnabled = true;
-    pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.92; pipeline.bloomWeight = 0.18; pipeline.bloomKernel = 48; pipeline.bloomScale = 0.5;
+    pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.96; pipeline.bloomWeight = 0.1; pipeline.bloomKernel = 48; pipeline.bloomScale = 0.5;
     pipeline.imageProcessingEnabled = true;
   } catch (error) { window.lib?.log?.(`Post-processing unavailable: ${error.message}`); }
   const ip = scene.imageProcessingConfiguration;
   ip.toneMappingEnabled = true; ip.toneMappingType = BAB.ImageProcessingConfiguration.TONEMAPPING_ACES;
-  ip.exposure = 1.0; ip.contrast = 1.14;
-  ip.vignetteEnabled = true; ip.vignetteWeight = 0.7; ip.vignetteStretch = 0.5; ip.vignetteColor = new BAB.Color4(0.25, 0.18, 0.1, 0); ip.vignetteBlendMode = BAB.ImageProcessingConfiguration.VIGNETTEMODE_MULTIPLY;
+  ip.exposure = 0.92; ip.contrast = 1.08;
+  ip.vignetteEnabled = true; ip.vignetteWeight = 1.1; ip.vignetteStretch = 0.5; ip.vignetteColor = new BAB.Color4(0.25, 0.18, 0.1, 0); ip.vignetteBlendMode = BAB.ImageProcessingConfiguration.VIGNETTEMODE_MULTIPLY;
   scene.setRenderingAutoClearDepthStencil(1, true, true, true);
 
   // ---------- world ----------
@@ -823,7 +823,7 @@ function setupStudioReflections(scene, BAB, palette = 'studio', probeAt = new BA
   const tex = new BAB.DynamicTexture('studioSky', { width: 1024, height: 512 }, scene, true);
   const ctx = tex.getContext();
   const g = ctx.createLinearGradient(0, 0, 0, 512);
-  if (palette === 'daylight') { g.addColorStop(0, '#f8fbff'); g.addColorStop(0.42, '#eef1f4'); g.addColorStop(0.52, '#efe6d8'); g.addColorStop(0.7, '#d8ccb8'); g.addColorStop(1, '#b4a68e'); }
+  if (palette === 'daylight') { g.addColorStop(0, '#dfe4ea'); g.addColorStop(0.42, '#d9d8d2'); g.addColorStop(0.52, '#d6cbb9'); g.addColorStop(0.7, '#b3a58f'); g.addColorStop(1, '#7f725f'); }
   else { g.addColorStop(0, '#9084d8'); g.addColorStop(0.32, '#d08cb8'); g.addColorStop(0.5, '#e0b9a2'); g.addColorStop(0.68, '#463a76'); g.addColorStop(1, '#120d26'); }
   ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 512);
   const softbox = (x, y, w, h, color) => {
@@ -843,7 +843,7 @@ function setupStudioReflections(scene, BAB, palette = 'studio', probeAt = new BA
   probe.renderList.push(dome);
   probe.refreshRate = BAB.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
   scene.environmentTexture = probe.cubeTexture;
-  scene.environmentIntensity = palette === 'daylight' ? 0.75 : 0.5;
+  scene.environmentIntensity = palette === 'daylight' ? 0.55 : 0.5;
   return {
     release() {
       // Once the probe has rendered, the dome and its sky texture are no longer needed.
