@@ -57,8 +57,9 @@ export function uiMarkup(editing) {
     </div>
     <div id="gl-lost" class="gl-lost"><div><b>Restoring the gallery…</b><span>The graphics were interrupted. Your progress is saved.</span><button id="gl-reload">RELOAD</button></div></div>
     <div id="boot" class="boot">
-      ${logoMarkup()}
-      <div class="boot-foot"><div class="boot-bar"><i id="boot-fill"></i></div><div id="boot-status" class="boot-status">PREPARING THE ATELIER</div></div>
+      <div class="boot-mark">✦</div>
+      <div class="boot-title">Waifu <em>Assembler</em></div>
+      <div class="boot-foot"><div class="boot-bar"><i id="boot-fill"></i></div><div class="boot-row"><span id="boot-status" class="boot-status">PREPARING THE ATELIER</span><b id="boot-pct">0%</b></div></div>
     </div>
     <div id="menu" class="menu">
       ${logoMarkup()}
@@ -197,7 +198,14 @@ export function installStyles() {
     /* ---------- loading screen + main menu: warm museum styling over the live 3D gallery ---------- */
     .boot, .menu { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; padding:92px 44px 96px; color:#fff6e6;
       background:linear-gradient(180deg,rgba(38,26,16,.62),rgba(38,26,16,.08) 30%,rgba(38,26,16,0) 52%,rgba(30,20,12,.78)); }
-    .boot { pointer-events:auto; transition:opacity .9s ease, visibility .9s; }
+    /* simple 2D loading screen: opaque, centred, quick to fade */
+    .boot { pointer-events:auto; z-index:40; justify-content:center; align-items:center; gap:22px; padding:0 48px; background:radial-gradient(ellipse at 50% 42%,#4f3a29,#2a1e15 62%,#1b130d); transition:opacity .3s ease, visibility .3s; }
+    .boot-mark { width:64px; height:64px; display:grid; place-items:center; border-radius:20px; border:1px solid rgba(243,201,120,.55); color:#f3c978; font-size:30px; animation:boot-spin 2.4s linear infinite; }
+    @keyframes boot-spin { to { transform:rotate(360deg); } }
+    .boot-title { font:600 40px/1.05 Georgia,"Times New Roman",serif; color:#fff8ec; text-align:center; } .boot-title em { color:#f3c978; }
+    .boot .boot-foot { width:min(100%,420px); padding:0; }
+    .boot-row { display:flex; justify-content:space-between; align-items:center; margin-top:12px; } .boot-row b { color:#f3c978; font:800 13px system-ui; letter-spacing:1px; }
+    .boot .boot-status { margin-top:0; text-align:left; font-size:11px; letter-spacing:2px; color:#d9c6a6; text-shadow:none; }
     .boot.done { opacity:0; visibility:hidden; pointer-events:none; }
     .menu { display:none; pointer-events:auto; animation:menu-in .7s ease-out; }
     .menu.shown { display:flex; }
@@ -208,8 +216,8 @@ export function installStyles() {
     .logo h1 em { display:block; color:#f3c978; font-style:italic; }
     .logo p { margin:0; color:#f8e8cf; font:italic 500 19px Georgia,serif; letter-spacing:1px; }
     .boot-foot { padding:0 12px; }
-    .boot-bar { height:8px; border-radius:8px; background:rgba(255,240,214,.24); overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.25); }
-    .boot-bar i { display:block; height:100%; width:4%; border-radius:8px; background:linear-gradient(90deg,#d79b45,#f6d38b,#fff3d6); transition:width .45s ease; }
+    .boot-bar { height:6px; border-radius:8px; background:rgba(255,240,214,.24); overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.25); }
+    .boot-bar i { display:block; height:100%; width:4%; border-radius:8px; background:linear-gradient(90deg,#d79b45,#f6d38b,#fff3d6); transition:width .25s ease; }
     .boot-status { margin-top:16px; text-align:center; color:#fbeedb; font:700 14px system-ui; letter-spacing:2.5px; text-shadow:0 2px 10px rgba(40,20,5,.6); }
     .menu-meta { min-height:24px; margin-bottom:16px; text-align:center; color:#fbe7c8; font:600 15px system-ui; letter-spacing:1.5px; text-shadow:0 2px 10px rgba(40,20,5,.6); }
     .menu-buttons { display:flex; flex-direction:column; gap:16px; }

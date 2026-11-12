@@ -1102,7 +1102,9 @@ export function createGame(mode = 'play') {
     adaptResolution(rawDt);
     if (studio.open) { renderStudio(now); return; }
     updateFlights(now);
-    if (phase === 'loading' || phase === 'menu') { renderShowcase(now, dt); return; }
+    if (phase === 'loading') return; // the simple 2D loading screen covers everything: no 3D frames while the gallery is built
+    pumpLOD();
+    if (phase === 'menu') { renderShowcase(now, dt); return; }
     if (phase === 'play') { fovKick *= Math.exp(-dt * 5); camera.fov = PLAY_FOV + fovKick; }
     if (phase === 'play') {
       if (!puzzle) movePlayer(dt);
@@ -1213,7 +1215,7 @@ export function createGame(mode = 'play') {
 
   // ---------- 3D loading screen, main menu, settings and ranking ----------
   const hudEl = root.querySelector('.hud');
-  const bootEl = root.querySelector('#boot'); const bootFill = root.querySelector('#boot-fill'); const bootStatus = root.querySelector('#boot-status');
+  const bootEl = root.querySelector('#boot'); const bootFill = root.querySelector('#boot-fill'); const bootStatus = root.querySelector('#boot-status'); const bootPct = root.querySelector('#boot-pct');
   const menuEl = root.querySelector('#menu');
   const panels = { settings: root.querySelector('#settings-panel'), leaderboard: root.querySelector('#leaderboard-panel') };
   hudEl.classList.add('offstage');
@@ -1227,7 +1229,11 @@ export function createGame(mode = 'play') {
   function showcaseAll(on) { for (const podium of podiums.values()) showcase(podium, on); refreshShadows(); }
   async function boot() {
     const steps = SETS.length + 1; let step = 0;
-    const progress = (label, advance = true) => { if (advance) step += 1; bootFill.style.width = `${Math.max(4, Math.round((step / steps) * 100))}%`; bootStatus.textContent = label; };
+    const progress = (label, advance = true) => {
+      if (advance) step += 1;
+      const pct = Math.max(4, Math.round((step / steps) * 100));
+      bootFill.style.width = `${pct}%`; bootPct.textContent = `${pct}%`; bootStatus.textContent = label;
+    };
     // Each statue part is sculpted once: the plinth keeps the original (and a merged hologram copy of it), and the
     // fragment waiting in the hall is a clone that shares its geometry and materials.
     for (const set of SETS) {
@@ -1253,11 +1259,12 @@ export function createGame(mode = 'play') {
           }
         }
       }
-      attachLOD(podium); // after the fragment clones, so they don't inherit the LOD levels
+      queueLOD(podium); // after the fragment clones, so they don't inherit the LOD levels
+      if (set === SETS[0]) attachLOD(podium); // one statue's LODs now, so their shaders are compiled with the rest
       if (!editing) showcase(podium, true);
-      refreshShadows(); progress(`${set.name} · RESTORED`);
+      progress(`${set.name} · RESTORED`);
     }
-    progress('OPENING THE GALLERY');
+    refreshShadows(); progress('OPENING THE GALLERY');
     applySave(await savedGame); if (disposed) return;
     if (!editing) for (const set of SETS) { mergeStatue(set.id); setMedalBadge(set.id); } // statues already finished in the save
     bootStatus.textContent = 'PREPARING SHADERS';
@@ -1267,7 +1274,6 @@ export function createGame(mode = 'play') {
     scene.onAfterRenderObservable.addOnce(freezeStatics); // after the first full frame has compiled every effect
     if (editing) { phase = 'edit'; refreshEditorMap(); hudEl.classList.remove('offstage'); bootEl.classList.add('done'); return; }
     showcaseAll(true);
-    await new Promise((resolve) => setTimeout(resolve, 450)); if (disposed) return;
     bootEl.classList.add('done');
     openMenu();
   }
@@ -1294,8 +1300,24 @@ export function createGame(mode = 'play') {
     mesh.setVerticesData(BAB.VertexBuffer.ColorKind, cols, false);
   }
   const FAR_SKIP = new Set(['face', 'lens', ...DETAIL_KINDS]); // face keeps its texture; glasses stay transparent
-  function attachLOD(podium) {
-    for (const [partId, entry] of podium.figureParts) {
+  // LODs take most of the build time, so only the first statue gets them during loading (which also warms their
+  // shaders); the rest are added part by part in the background once the menu is up. A statue is always completed
+  // before it is merged.
+  const lodQueue = [];
+  function attachLOD(podium) { for (const partId of [...(podium.lodPending || [])]) attachPartLOD(podium, partId); }
+  function queueLOD(podium) { podium.lodPending = new Set(PARTS.map((p) => p.id)); for (const p of PARTS) lodQueue.push([podium, p.id]); }
+  let lodTick = 0;
+  function pumpLOD() { // one part every few frames: small steps, so the menu and play stay smooth
+    if (!lodQueue.length || ++lodTick % (phase === 'play' ? 4 : 2)) return;
+    while (lodQueue.length) {
+      const [podium, partId] = lodQueue.shift();
+      if (podium.lodPending?.has(partId) && !podium.merged) { attachPartLOD(podium, partId); return; }
+    }
+  }
+  function attachPartLOD(podium, partId) {
+    podium.lodPending?.delete(partId);
+    const entry = podium.figureParts.get(partId);
+    {
       const low = buildStatuePart(kit, scene, partId, podium.setId, false, undefined, LOW_DETAIL);
       low.parent = entry.anchor;
       const highs = entry.solid.getChildMeshes(); const lows = low.getChildMeshes();
@@ -1336,6 +1358,7 @@ export function createGame(mode = 'play') {
   function mergeStatue(setId) {
     const podium = podiums.get(setId);
     if (!podium || podium.merged || editing || (state.placed[setId]?.length || 0) < PARTS.length) return;
+    attachLOD(podium); // any parts whose low-poly copy is still queued
     if (flights.some((f) => [...podium.figureParts.values()].some((e) => e.solid === f.node))) { setTimeout(() => mergeStatue(setId), 600); return; }
     const groups = new Map(); const fars = []; const faces = [];
     for (const entry of podium.figureParts.values()) {
@@ -1665,7 +1688,7 @@ export function createGame(mode = 'play') {
     holo, scene, camera, player, eye, state, podiums, fragments, containers, meta, pars, aimCamera, refreshFragments, updateHUD, studio, startPlay, openMenu, openPanel, updateAction, turnPuzzle,
     solvePuzzle() { if (!puzzle) return false; puzzle.yaw = 1; puzzle.flip = 0; turnPuzzle(-1, 0); return true; },
     showMedal: (setId, medal, seconds) => showMedal(getSet(setId), medal, seconds, false),
-    get statueTimes() { return statueTimes; }, get tutorial() { return tutorial; }, get puzzle() { return puzzle; }, get ready() { return ready; }, get phase() { return phase; },
+    get statueTimes() { return statueTimes; }, get lodLeft() { return lodQueue.length; }, get tutorial() { return tutorial; }, get puzzle() { return puzzle; }, get ready() { return ready; }, get phase() { return phase; },
   };
 
   return () => {
