@@ -1,4 +1,4 @@
-// Rest poses are data, deliberately separate from rendering so the three silhouettes can be tested and tuned.
+// Rest poses are data, deliberately separate from rendering so the twelve silhouettes can be tested and tuned.
 // Arms are posed by joint directions, not by rotating a rigid mesh: the sculptor walks shoulder → elbow → wrist
 // with fixed bone lengths, so every pose keeps the arm attached at the shoulder and bends only at the elbow.
 // Vectors are figure space (+X right of the figure, +Y up, +Z toward the viewer). Directions need not be unit length.
@@ -69,6 +69,69 @@ export const STATUE_POSES = {
       L: { upper: [-0.08, -1, 0.04], fore: [0.05, -1, 0.2], hand: [0.05, -1, 0.2], palm: [1, 0, 0], curl: 0.45 },
       // grips an upright mop handle in front of her right hip
       R: { upper: [0.1, -1, 0.15], fore: [-0.05, -0.3, 1], hand: [-0.6, 0, 0.8], palm: [-0.7, 0, -0.5], curl: 0.9, prop: 'mop' },
+    },
+  },
+  rin01: {
+    turn: 0.06,
+    head: [-0.04, 0.14, 0.0], // cool, chin slightly raised, glancing aside
+    gesture: 'book',
+    arms: {
+      // a closed book held flat against her hip
+      L: { upper: [-0.12, -1, -0.06], fore: [-0.02, -0.12, 1], hand: [0, -0.3, 1], palm: [1, 0, 0], curl: 0.6, prop: 'book' },
+      R: { upper: [0.1, -1, -0.02], fore: [0.02, -1, 0.15], hand: [-0.02, -1, 0.1], palm: [-1, 0, 0.1], curl: 0.4 },
+    },
+  },
+  aoi01: {
+    turn: -0.04,
+    head: [-0.05, -0.06, 0.06],
+    gesture: 'victory',
+    arms: {
+      // hand on hip
+      L: { upper: [-0.62, -0.78, -0.1], fore: [0.6, -0.8, 0.12], hand: [0.35, -0.55, 0.55], palm: [1, 0, 0], curl: 0.3 },
+      // victory fist punched up above her shoulder
+      R: { upper: [0.8, 0.15, 0.12], fore: [0.05, 1, 0.12], hand: [0.02, 1, 0.05], palm: [0, 0, 1], curl: 0.95 },
+    },
+  },
+  mei01: {
+    turn: 0.04,
+    head: [0.04, 0.08, 0.06], // polite, slightly bowed
+    gesture: 'tray',
+    arms: {
+      // serving tray balanced on her palm in front of her
+      L: { upper: [-0.16, -1, 0.04], fore: [0.05, 0.05, 1], hand: [0.05, 0.05, 1], palm: [0, 1, 0], curl: 0.15, prop: 'tray' },
+      // pinches the side of her skirt
+      R: { upper: [0.16, -1, 0.04], fore: [0.12, -1, 0.12], hand: [0.1, -1, 0.1], palm: [-1, 0, 0], curl: 0.6 },
+    },
+  },
+  yuki01: {
+    turn: -0.06,
+    head: [0.06, -0.12, 0.0], // gazing down at the snowflake in her hand
+    gesture: 'snowflake',
+    arms: {
+      L: { upper: [-0.15, -1, 0.0], fore: [-0.1, -1, 0.15], hand: [-0.05, -1, 0.25], palm: [1, 0, 0.3], curl: 0.3 },
+      // open palm raised in front, a crystal snowflake hovering above it
+      R: { upper: [0.25, -0.95, 0.2], fore: [-0.12, 0.35, 1], hand: [-0.05, 0.2, 1], palm: [0, 1, 0], curl: 0.2, prop: 'snow' },
+    },
+  },
+  kana01: {
+    turn: 0.08,
+    head: [0.0, -0.14, -0.1], // selfie head tilt toward the phone
+    gesture: 'selfie',
+    arms: {
+      // open hand near her cheek
+      L: { upper: [-0.35, -0.9, 0.2], fore: [0.15, 1, 0.25], hand: [0.08, 1, 0.12], palm: [0, 0, 1], curl: 0.08 },
+      // phone held up high to the side for a selfie
+      R: { upper: [0.45, -0.35, 0.6], fore: [0.05, 0.95, 0.3], hand: [0.05, 0.95, -0.15], palm: [-0.6, 0, -0.8], curl: 0.75, prop: 'phone' },
+    },
+  },
+  sakura01: {
+    turn: -0.03,
+    head: [0.03, 0.06, 0.03],
+    gesture: 'broom',
+    arms: {
+      L: { upper: [-0.08, -1, 0.06], fore: [0.08, -1, 0.25], hand: [0.08, -1, 0.25], palm: [1, 0, 0], curl: 0.45 },
+      // shrine broom held upright in front of her hip
+      R: { upper: [0.1, -1, 0.15], fore: [-0.05, -0.3, 1], hand: [-0.6, 0, 0.8], palm: [-0.7, 0, -0.5], curl: 0.9, prop: 'broom' },
     },
   },
 };

@@ -1,19 +1,23 @@
 # Waifu Assembler 3D
 
-Jelajahi aula pameran 150 × 150, temukan 30 segmen patung yang tersebar, lalu susun kembali Office-01, Nurse-01, CEO-01, Student-01, Idol-01, dan Janitor-01 di annex restorasi di luar aula. Blueprint holografik memperlihatkan figur utuh dengan segmen yang sedang dibawa disorot merah.
+Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang tersebar di 12 zona, lalu susun kembali dua belas figur (Office, Nurse, CEO, Student, Idol, Janitor, Rin, Aoi, Mei, Yuki, Kana, Sakura) di galeri patung berkubah di utara aula. Blueprint holografik memperlihatkan figur utuh dengan segmen yang sedang dibawa disorot merah.
 
 ## Bermain
 - Gerak: joystick sentuh atau WASD / panah; geser layar atau seret mouse untuk melihat.
-- Dekati komponen, tekan **COLLECT** (atau E), bawa ke podium bernama set yang sama, tekan **ASSEMBLE**.
+- Dekati komponen di atas plinth marmer, tekan **COLLECT** (atau E), bawa ke plinth bernama set yang sama di galeri, tekan **ASSEMBLE**.
+- Kamera orang pertama berada di ketinggian mata 3.2 (patung ±5 unit di atas plinth), jadi wajah patung terlihat sejajar dada–wajah pengunjung.
 - Selesaikan lima bagian pada setiap podium untuk memulihkan seluruh figur.
 
 ## Editor
-Mode **Edit** menghentikan gameplay; podium annex bisa dipilih dan diseret (ditulis ke `gameConfig.podiumPositions`).
+Mode **Edit** menghentikan gameplay; plinth di galeri bisa dipilih dan diseret (ditulis ke `gameConfig.podiumPositions`). Patung otomatis menghadap lorong tengah dan ceruk berwarna di dinding ikut berpindah.
 
 ## Visual (Babylon.js 9.35)
-- Scene right-handed, PBR, bayangan PCF di annex, pantulan cermin lembut di lantai annex, probe refleksi studio untuk emas/rambut/sepatu.
-- Post-processing: bloom, FXAA, tone mapping ACES, vignette. Kelopak sakura + percikan bintang saat mengambil/memasang bagian.
-- Patung: wajah anime bertekstur dengan iris berkilau, ekspresi dan blush khas; rambut, aksesori, dan seragam berbeda tiap set. Office memegang clipboard, Nurse melambai, CEO berpose presentasi; bagian belum terpasang tampil sebagai hologram.
+- Tema museum siang hari (tanpa neon): lantai travertin, dinding plester hangat dengan wainscot kayu dan list kuningan, jendela taman lengkung, langit-langit berkoffer dengan skylight, pohon zaitun, bangku, medali lantai 12 sinar.
+- Galeri patung 40 × 92: kubah dengan skylight memanjang, lantai marmer, karpet di lorong tengah, enam plinth di tiap sisi, ceruk pastel warna khas tiap karakter, jendela apse di ujung.
+- Scene right-handed, PBR, cahaya hemisfer + matahari + fill, bayangan PCF yang digambar ulang hanya saat isi galeri berubah, probe refleksi siang untuk emas/rambut/sepatu.
+- Performa ponsel: geometri tiap bagian patung dipahat sekali (fragmen = clone yang berbagi geometri), tekstur wajah in-game 1024×512, fragmen/patung jauh tidak digambar, label hanya untuk objek dekat.
+- Post-processing: bloom lembut, FXAA, tone mapping ACES, vignette hangat. Kelopak sakura + percikan bintang saat mengambil/memasang bagian.
+- Patung: wajah anime bertekstur dengan iris berkilau, ekspresi dan blush khas; rambut, aksesori, dan seragam berbeda tiap set. Office memegang clipboard, Nurse melambai, CEO berpose presentasi, Student membawa tas, Idol memegang mikrofon, Janitor memegang pel, Rin memegang buku, Aoi mengepalkan tangan, Mei membawa nampan teh, Yuki memunculkan kristal salju, Kana ber-selfie, Sakura memegang sapu kuil; bagian belum terpasang tampil sebagai hologram.
 
 ## Sistem karakter (Character Studio)
 - 12 preset wajah (`faces.mjs`): 6 patung + Rin, Aoi, Mei, Yuki, Kana, Sakura — tiap preset punya bentuk rahang/dagu/hidung/bibir, mata, riasan, rambut (potongan, poni, gaya ikat) dan aksesori sendiri.
@@ -28,7 +32,7 @@ Mode **Edit** menghentikan gameplay; podium annex bisa dipilih dan diseret (ditu
 - `renderer.js` — scene, kamera, cahaya, pipeline, input, HUD, editor.
 - `statues.js` — model patung, wajah anime bertekstur, rambut, seragam, dan hologram.
 - `faces.mjs` — data preset wajah, ekspresi, ekspresi default, bentuk wajah dan gaya bibir (diuji di Node).
-- `poses.mjs` — pose khas berbasis sendi (bahu → siku → pergelangan, arah tangan, telapak, lekuk jari): Office membawa clipboard di pinggul, Nurse melambai, CEO tangan di pinggang sambil presentasi.
-- `world.js` — aula, annex, podium, pedestal fragmen, label, partikel.
+- `poses.mjs` — 12 pose khas berbasis sendi (bahu → siku → pergelangan, arah tangan, telapak, lekuk jari) beserta propertinya.
+- `world.js` — aula restorasi, galeri patung, plinth patung, plinth fragmen, label, partikel.
 - `ui.js` — markup HUD, CSS, blueprint SVG.
 - `tests/logic.test.mjs` — `node --test tests/logic.test.mjs`.

@@ -9,8 +9,8 @@ export function uiMarkup(editing) {
         <div class="brand"><div class="brand-mark">✦</div><div><small>ATELIER K—07</small><strong>WAIFU <em>ASSEMBLER</em></strong></div></div>
         <div class="score"><small>${editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN'}</small><b id="progress-count">0 <i>/ 30</i></b><span>PARTS PLACED</span></div>
       </header>
-      <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>30 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
-      <section class="map-card"><div class="card-cap"><span>FIELD SCAN</span><span class="scan-live">● LIVE</span></div><canvas id="mini-map" width="158" height="188"></canvas><div class="map-legend"><i></i> FRAGMENT <span>◇ ANNEX</span></div></section>
+      <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>60 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
+      <section class="map-card"><div class="card-cap"><span>FIELD SCAN</span><span class="scan-live">● LIVE</span></div><canvas id="mini-map" width="158" height="188"></canvas><div class="map-legend"><i></i> FRAGMENT <span>◇ GALLERY</span></div></section>
       <section class="blueprint-card" id="blueprint-card"><div class="card-cap"><span>HOLOGRAM / 3D</span><span class="scan-live">● LINKED</span></div><b id="blueprint-title">OFFICE-01</b><div id="blueprint-drawing"><i class="holo-scan"></i><i class="holo-corner a"></i><i class="holo-corner b"></i><i class="holo-corner c"></i><i class="holo-corner d"></i></div><small id="blueprint-foot">HELD COMPONENT / HEAD</small></section>
       <div class="movement-hint"><span class="hint-key">DRAG</span> to look <i>·</i> <span class="hint-key">WASD</span> to walk <i>·</i> <span class="hint-key">E</span> to interact</div>
       <div class="mobile-controls">
@@ -18,9 +18,9 @@ export function uiMarkup(editing) {
         <button id="mobile-action" class="mobile-action" aria-label="Collect or assemble"><span>✦</span><b id="action-label">SEARCH</b></button>
       </div>
       <div id="toast" class="toast"></div>
-      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Six figures.<br>One brilliant curator.</h2><p>Office-01, Nurse-01, CEO-01, Student-01, Idol-01 and Janitor-01 are all back on display. The atelier looks rather pleased with itself.</p><button id="finish-close">BACK TO THE HALL</button></div></div>
+      <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Twelve figures.<br>One brilliant curator.</h2><p>All twelve statues stand restored in the sculpture gallery, from Office-01 to Sakura-01. The atelier looks rather pleased with itself.</p><button id="finish-close">BACK TO THE HALL</button></div></div>
       <section id="editor-panel" class="editor-panel">
-        <div class="editor-head"><span>✦ &nbsp; RESTORATION ANNEX</span><small>OUTSIDE THE 150 × 150 HALL</small></div>
+        <div class="editor-head"><span>✦ &nbsp; SCULPTURE GALLERY</span><small>NORTH OF THE 120 × 120 HALL</small></div>
         <p>Choose a wall-side podium, then drag it. The spacious center stays open.</p>
         <canvas id="editor-map" width="320" height="276" aria-label="Drag a podium to reposition it"></canvas>
         <div class="editor-selected" id="editor-selected"></div>
@@ -120,7 +120,7 @@ export function installStyles() {
     .editor-selected b { color:#e7f5fa; }
     .editor-bottom { display:flex;align-items:center;justify-content:space-between;color:#a3bac8;font-size:9px;letter-spacing:1px; }
     .editor-bottom button { min-height:36px;padding:0 10px;border:1px solid rgba(176,203,218,.22);border-radius:10px;color:#c9d8e4;background:rgba(40,52,72,.54);font-size:8px;font-weight:850;letter-spacing:1px; }
-    .editor-picks { display:flex;gap:4px;margin-top:7px; }
+    .editor-picks { display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:7px; }
     .editor-picks button { flex:1;min-width:0;min-height:42px;padding:3px;border:1px solid rgba(174,203,217,.15);border-radius:10px;color:#b8c8d5;background:rgba(22,32,49,.76);font-size:7px;letter-spacing:.3px;font-weight:850; }
     .editor-picks button.active { border-color:rgba(117,222,229,.58);color:#f4fdff;background:rgba(39,92,102,.34); }
     .editor-picks i { width:6px;height:6px;margin-right:4px;vertical-align:1px; }

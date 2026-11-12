@@ -69,7 +69,7 @@ export const STYLE = {
 // Bust / hip fullness per character; the student keeps a youthful, modest silhouette.
 const FIGURE = { office01: [0.071, 0.047], nurse01: [0.071, 0.047], ceo01: [0.071, 0.047], student01: [0.03, 0.025], janitor01: [0.058, 0.045], idol01: [0.058, 0.04], rin01: [0.05, 0.035], aoi01: [0.05, 0.04], mei01: [0.04, 0.03], yuki01: [0.05, 0.035], kana01: [0.068, 0.045], sakura01: [0.05, 0.035] };
 
-export function createStatueKit(scene) {
+export function createStatueKit(scene, { faceScale = 1 } = {}) {
   const BAB = B();
   const mats = new Map();
   const faceTextures = new Map();
@@ -186,8 +186,7 @@ export function createStatueKit(scene) {
     const c = hex(set.color);
     m.disableLighting = true;
     m.emissiveColor = c.scale(0.7);
-    m.alpha = 0.5;
-    m.alphaMode = BAB.Engine.ALPHA_ADD;
+    m.alpha = 0.42; // alpha-blended (not additive) so the ghost still reads against a bright room
     m.backFaceCulling = false;
     m.needDepthPrePass = true;
     m.emissiveFresnelParameters = new BAB.FresnelParameters({ bias: 0.18, power: 1.7, leftColor: c.scale(1.7), rightColor: c.scale(0.4) });
@@ -243,9 +242,10 @@ export function createStatueKit(scene) {
   function faceTexture(setId, expr) {
     const tk = `${setId}@${expr}`;
     if (faceTextures.has(tk)) return faceTextures.get(tk);
-    const tex = new BAB.DynamicTexture(`face-${tk}`, { width: 2048, height: 1024 }, scene, true);
+    const tex = new BAB.DynamicTexture(`face-${tk}`, { width: 2048 * faceScale, height: 1024 * faceScale }, scene, true);
     tex.hasAlpha = true;
-    drawFace(tex.getContext(), 2048, 1024, setId, expr);
+    const ctx = tex.getContext(); ctx.save(); ctx.scale(faceScale, faceScale); // painted in 2048 x 1024 units at any size
+    drawFace(ctx, 2048, 1024, setId, expr); ctx.restore();
     tex.update(true);
     tex.anisotropicFilteringLevel = 8;
     tex.wrapU = BAB.Texture.WRAP_ADDRESSMODE; tex.wrapV = BAB.Texture.CLAMP_ADDRESSMODE;
@@ -816,6 +816,7 @@ class Sculptor {
       }
       rings.push(ring);
     }
+    if (rings.length < 2) return null; // band narrower than one sample step: nothing to draw
     if (close && rings.length) { // rounded end caps
       const capRing = (ring, centre, shrink) => ring.map((p) => centre.add(p.subtract(centre).scale(shrink)));
       const c0 = rings[0].reduce((a, p) => a.add(p), V.Zero()).scale(1 / N); const c1 = rings[rings.length - 1].reduce((a, p) => a.add(p), V.Zero()).scale(1 / N);
@@ -1379,6 +1380,76 @@ function sculptTorso(sc, id) {
     sc.box('gold', [0, 2.45, 0.235], [0.06, 0.045, 0.012]);
     sc.box('suitDark', [0.27, 2.36, 0.1], [0.05, 0.13, 0.11], [0, 0.6, 0]); // pouch on the belt
     skirt(sc, 'suit', [{ y: 2.4, rx: 0.33, rz: 0.225 }, { y: 2.2, rx: 0.41, rz: 0.282 }, { y: 2.0, rx: 0.42, rz: 0.285 }]);
+  } else if (id === 'rin01') {
+    // navy sailor uniform: white blouse, navy sailor collar with a white stripe, sky-blue scarf, navy pleated skirt
+    const vNeck = (x, z, zf) => (zf > 0.1 ? 3.45 - Math.max(0, 0.16 - Math.abs(x) * 1.4) * smooth(0.1, 0.6, zf) : null);
+    cap('cloth', 3.47, 2.42, 0.016, bustG, vNeck);
+    sailorCollar(sc);
+    sc.ell('accent', [0, 3.22, 0.245], [0.06, 0.05, 0.04], [0, 0, 0], 12); // scarf knot
+    for (const side of [-1, 1]) hairLock(sc, 'accent', [[side * 0.01, 3.2, 0.25], [side * 0.035, 3.08, 0.262], [side * 0.05, 2.95, 0.255]], 0.04, 0.008, [0, 0, 1], true);
+    pleatedSkirt(sc, 'suit', [{ y: 2.62, rx: 0.242, rz: 0.172 }, { y: 2.44, rx: 0.31, rz: 0.215 }, { y: 2.23, rx: 0.4, rz: 0.275 }, { y: 1.98, rx: 0.45, rz: 0.33 }, { y: 1.68, rx: 0.5, rz: 0.39 }]);
+    hemBand(sc, 'cloth', 1.7, 0.505, 0.395);
+  } else if (id === 'aoi01') {
+    // tennis whites: polo shirt with a blue collar and placket, white pleated skort with a blue hem stripe
+    const vNeck = (x, z, zf) => (zf > 0.1 ? 3.45 - Math.max(0, 0.07 - Math.abs(x) * 0.8) * smooth(0.1, 0.6, zf) : null);
+    cap('cloth', 3.47, 2.45, 0.016, bustG, vNeck);
+    for (const side of [-1, 1]) sc.ell('suit', [side * 0.07, 3.45, 0.09], [0.13, 0.022, 0.09], [0.45, 0, side * -0.55]);
+    sc.box('suit', [0, 3.28, 0.232], [0.035, 0.16, 0.01], [-0.1, 0, 0]); // placket
+    for (const y of [3.33, 3.25]) sc.ell('cloth', [0, y, 0.24], [0.014, 0.014, 0.008]);
+    sc.ell('accent', [0.15, 3.12, 0.255], [0.05, 0.05, 0.012], [-0.12, 0.25, 0], 10); // club badge
+    pleatedSkirt(sc, 'cloth', [{ y: 2.62, rx: 0.242, rz: 0.172 }, { y: 2.44, rx: 0.31, rz: 0.215 }, { y: 2.23, rx: 0.4, rz: 0.275 }, { y: 2.06, rx: 0.45, rz: 0.33 }, { y: 1.9, rx: 0.49, rz: 0.37 }]);
+    hemBand(sc, 'suit', 1.92, 0.495, 0.375);
+    belt(sc, 'suit', 2.6, 0.243, 0.174);
+  } else if (id === 'mei01') {
+    // classic maid: black dress, white collar and pink ribbon, frilled white apron with a bow at the back
+    cap('suit', 3.47, 2.45, 0.014, bustG);
+    for (const side of [-1, 1]) sc.ell('cloth', [side * 0.07, 3.44, 0.1], [0.14, 0.024, 0.1], [0.45, 0, side * -0.5]);
+    bow(sc, 'accent', [0, 3.39, 0.17], 0, 0.75);
+    // apron bib: a front panel only (everything outside it collapses onto the waistline)
+    sc.loft('cloth', sliceY(body, 3.18, 2.6), { N: 60, offset: 0.02, deform: trimmed(bustG, (x, z, zf) => (zf > 0.5 && Math.abs(x) < 0.14 ? 3.18 : 2.6)) });
+    for (const side of [-1, 1]) sc.strand('cloth', [[side * 0.13, 3.18, 0.2], [side * 0.18, 3.36, 0.12], [side * 0.15, 3.46, -0.02]], 0.012, 0.012, 6, 6); // bib straps
+    skirt(sc, 'suit', [{ y: 2.6, rx: 0.242, rz: 0.172 }, { y: 2.42, rx: 0.312, rz: 0.215 }, { y: 2.23, rx: 0.41, rz: 0.285 }, { y: 1.95, rx: 0.5, rz: 0.39 }, { y: 1.62, rx: 0.58, rz: 0.47 }]);
+    pleatedSkirt(sc, 'cloth', [{ y: 1.7, rx: 0.565, rz: 0.455 }, { y: 1.56, rx: 0.61, rz: 0.5 }]); // petticoat lace
+    // apron skirt: the front of a skirt-shaped loft; the back collapses up onto the waistband
+    const apronKeys = [{ y: 2.58, rx: 0.25, rz: 0.18 }, { y: 2.4, rx: 0.33, rz: 0.235 }, { y: 2.2, rx: 0.43, rz: 0.305 }, { y: 1.95, rx: 0.52, rz: 0.41 }, { y: 1.74, rx: 0.585, rz: 0.475 }].map((k) => ({ cx: 0, cz: -0.008, n: 2.3, ...k }));
+    sc.loft('cloth', sectionsFrom(apronKeys, 30), { N: 60, offset: 0.03, deform: trimmed(bodyDeform(0, 0.03), (x, z, zf) => (zf > 0.3 && Math.abs(x) < 0.34 ? -10 : 2.58), true) });
+    hemBand(sc, 'cloth', 1.74, 0.6, 0.49);
+    belt(sc, 'cloth', 2.585, 0.245, 0.176);
+    bow(sc, 'cloth', [0, 2.6, -0.2], Math.PI, 1.3);
+  } else if (id === 'yuki01') {
+    // snow princess: pale ice-blue sweetheart bodice with silver trim, floor-length gown, snowflake brooch
+    const heart = (x, z, zf) => (zf > 0.05 ? 3.38 - 0.06 * Math.max(0, 1 - Math.pow(Math.abs(Math.abs(x) - 0.1) / 0.1, 2)) * smooth(0.05, 0.5, zf) + 0.04 * gauss(x, 0, 0.03) * smooth(0.05, 0.5, zf) : null);
+    cap('suit', 3.4, 2.45, 0.014, bustG, heart);
+    trimLine(sc, 'gold', (x, zf) => (zf > 0.05 ? 3.38 - 0.06 * Math.max(0, 1 - Math.pow(Math.abs(Math.abs(x) - 0.1) / 0.1, 2)) * smooth(0.05, 0.5, zf) + 0.04 * gauss(x, 0, 0.03) * smooth(0.05, 0.5, zf) : 3.38), body, 0.015, bustG, 0.01);
+    star(sc, 'accent', [0, 3.22, 0.262], 0.022, 6);
+    skirt(sc, 'suit', [{ y: 2.6, rx: 0.242, rz: 0.172 }, { y: 2.42, rx: 0.31, rz: 0.215 }, { y: 2.2, rx: 0.42, rz: 0.3 }, { y: 1.7, rx: 0.56, rz: 0.46 }, { y: 1.0, rx: 0.72, rz: 0.62 }, { y: 0.45, rx: 0.84, rz: 0.74 }, { y: 0.1, rx: 0.9, rz: 0.8 }]);
+    hemBand(sc, 'suitDark', 0.12, 0.905, 0.805);
+    for (let k = 0; k < 7; k += 1) star(sc, 'accent', [Math.sin(k * 0.9 - 2.7) * 0.7, 0.55 + (k % 3) * 0.32, Math.cos(k * 0.9 - 2.7) * 0.62 + 0.01], 0.02, 6);
+    belt(sc, 'gold', 2.585, 0.243, 0.174);
+  } else if (id === 'kana01') {
+    // gyaru: open white shirt with a loose ribbon, oversized pink cardigan, short pleated skirt, gold necklace
+    const vNeck = (x, z, zf) => (zf > 0.1 ? 3.45 - Math.max(0, 0.2 - Math.abs(x) * 1.5) * smooth(0.1, 0.6, zf) : null);
+    cap('cloth', 3.47, 2.45, 0.014, bustG, vNeck);
+    const open = (x, z, zf) => (zf > 0.1 ? 3.0 + Math.min(0.5, Math.max(0, Math.abs(x) - 0.06) * 4) * smooth(0.1, 0.55, zf) - (Math.abs(x) < 0.07 ? 1 : 0) : null);
+    cap('suit', 3.46, 2.35, 0.03, bustG, open);
+    for (const side of [-1, 1]) sc.strand('suitDark', [[side * 0.075, 3.38, 0.23], [side * 0.085, 2.9, 0.28], [side * 0.09, 2.4, 0.27]], 0.012, 0.012, 6, 8); // cardigan edges
+    sc.ell('accent', [0, 3.2, 0.25], [0.05, 0.04, 0.03], [0, 0, 0], 10);
+    for (const side of [-1, 1]) hairLock(sc, 'accent', [[side * 0.01, 3.19, 0.255], [side * 0.03, 3.05, 0.27], [side * 0.03, 2.92, 0.265]], 0.03, 0.007, [0, 0, 1], true);
+    sc.strand('gold', Array.from({ length: 13 }, (_, i) => { const a = -0.9 + (i / 12) * 1.8; return [Math.sin(a) * 0.12, 3.36 - Math.cos(a * 1.2) * 0.07, 0.17 + Math.cos(a) * 0.06]; }), 0.005, 0.005, 6, 2);
+    sc.ell('gold', [0, 3.28, 0.235], [0.03, 0.03, 0.012], [0, 0, 0.78], 8);
+    pleatedSkirt(sc, 'suitDark', [{ y: 2.62, rx: 0.242, rz: 0.172 }, { y: 2.44, rx: 0.31, rz: 0.215 }, { y: 2.23, rx: 0.4, rz: 0.275 }, { y: 2.04, rx: 0.45, rz: 0.33 }, { y: 1.86, rx: 0.49, rz: 0.37 }]);
+    belt(sc, 'gold', 2.6, 0.244, 0.175);
+  } else if (id === 'sakura01') {
+    // shrine maiden: white kimono top with a crossed collar over a red under-collar, wide pleated red hakama
+    cap('cloth', 3.47, 2.4, 0.02, bustG);
+    for (const side of [-1, 1]) { // crossed collar: left panel over right, each edged in red
+      const pts = [[side * 0.13, 3.45, 0.05], [side * 0.1, 3.4, 0.17], [side * 0.03, 3.2, 0.245], [-side * 0.06, 2.95, 0.265]];
+      sc.path('suit', pts, () => [0.008, 0.02], { up: [0, 0.2, 1], N: 8, samples: 8 });
+      sc.path('cloth', pts.map(([x, y, z]) => [x + side * 0.02, y - 0.01, z + 0.012]), () => [0.01, 0.025], { up: [0, 0.2, 1], N: 8, samples: 8 });
+    }
+    pleatedSkirt(sc, 'suit', [{ y: 2.66, rx: 0.26, rz: 0.19 }, { y: 2.45, rx: 0.33, rz: 0.235 }, { y: 2.2, rx: 0.42, rz: 0.3 }, { y: 1.6, rx: 0.52, rz: 0.4 }, { y: 0.9, rx: 0.6, rz: 0.48 }, { y: 0.32, rx: 0.64, rz: 0.52 }]);
+    belt(sc, 'suit', 2.62, 0.262, 0.192);
+    bow(sc, 'suit', [0, 2.6, 0.24], 0, 1.1); // hakama ties
   } else {
     // tailored navy blazer with a deep V over a white blouse, gold buttons, pencil skirt
     cap('cloth', 3.45, 2.62, 0.008, bustG, (x, z, zf) => (zf > 0.0 ? 3.46 - 0.16 * smooth(0.0, 0.6, zf) : null));
@@ -1484,6 +1555,31 @@ function sculptArm(sc, id, side) {
     sc.path('suitDark', ctrl, R, { ...opts, t0: atElbow * 0.56, t1: atElbow * 0.62, offset: 0.022, close: false });
     sc.path('accent', ctrl, R, { ...opts, t0: 0.72, t1: 1, offset: 0.006, close: false });
     sc.path('accent', ctrl, R, { ...opts, t0: 0.72, t1: 0.75, offset: 0.012, close: false });
+  } else if (id === 'rin01') { // long white sailor sleeve with a navy cuff and white stripe
+    sc.path('cloth', ctrl, R, { ...opts, t1: 0.9, offset: 0.014, close: false });
+    sc.path('suit', ctrl, R, { ...opts, t0: 0.86, t1: 0.94, offset: 0.019, close: false });
+    sc.path('cloth', ctrl, R, { ...opts, t0: 0.885, t1: 0.915, offset: 0.022, close: false, N: 16 });
+  } else if (id === 'aoi01') { // short polo sleeve with a blue band, blue terry wristband
+    sc.path('cloth', ctrl, R, { ...opts, t1: atElbow * 0.6, offset: 0.016, close: false });
+    sc.path('suit', ctrl, R, { ...opts, t0: atElbow * 0.56, t1: atElbow * 0.62, offset: 0.02, close: false });
+    sc.path('suit', ctrl, R, { ...opts, t0: 0.9, t1: 0.97, offset: 0.012, close: false });
+  } else if (id === 'mei01') { // puffed black sleeve with a white frilled band, white wrist cuffs
+    sc.path('suit', ctrl, R, { ...opts, t1: atElbow * 0.45, offset: 0.034, close: false });
+    sc.path('cloth', ctrl, R, { ...opts, t0: atElbow * 0.42, t1: atElbow * 0.5, offset: 0.03, close: false });
+    sc.path('cloth', ctrl, R, { ...opts, t0: 0.9, t1: 0.97, offset: 0.012, close: false });
+  } else if (id === 'yuki01') { // long ice-blue sleeve that flares into a silver-trimmed bell cuff
+    sc.path('suit', ctrl, R, { ...opts, t1: 0.86, offset: 0.012, close: false });
+    sc.path('suit', ctrl, R, { ...opts, t0: 0.8, t1: 0.93, offset: 0.03, close: false });
+    sc.path('gold', ctrl, R, { ...opts, t0: 0.92, t1: 0.94, offset: 0.034, close: false, N: 16 });
+  } else if (id === 'kana01') { // oversized cardigan sleeve pushed up past the elbow, stacked gold bangles
+    sc.path('suit', ctrl, R, { ...opts, t1: atElbow * 1.12, offset: 0.026, close: false });
+    sc.path('suitDark', ctrl, R, { ...opts, t0: atElbow * 1.04, t1: atElbow * 1.14, offset: 0.032, close: false });
+    for (const t of [0.92, 0.95]) sc.path('gold', ctrl, R, { ...opts, t0: t, t1: t + 0.02, offset: 0.01, close: false, N: 16 });
+  } else if (id === 'sakura01') { // wide white kimono sleeve edged in red, hanging in a deep drape below the forearm
+    sc.path('cloth', ctrl, R, { ...opts, t1: 0.82, offset: 0.05, close: false });
+    sc.path('suit', ctrl, R, { ...opts, t0: 0.8, t1: 0.83, offset: 0.054, close: false });
+    const mid = v3.lerp(E, W, 0.35);
+    sc.ell('cloth', [mid[0] + side * 0.01, mid[1] - 0.15, mid[2]], [0.07, 0.34, 0.24], [0, 0, 0], 14);
   } else { // tailored blazer sleeve, crisp white cuff
     sc.path('suit', ctrl, R, { ...opts, t1: 0.88, offset: 0.019, close: false });
     sc.path('cloth', ctrl, R, { ...opts, t0: 0.86, t1: 0.93, offset: 0.012, close: false });
@@ -1493,6 +1589,11 @@ function sculptArm(sc, id, side) {
   if (arm.prop === 'bag') schoolBag(sc, W, arm);
   if (arm.prop === 'mop') mop(sc, W, arm, side);
   if (arm.prop === 'mic') microphone(sc, W, arm);
+  if (arm.prop === 'book') book(sc, W, arm);
+  if (arm.prop === 'tray') tray(sc, W, arm);
+  if (arm.prop === 'snow') snowflake(sc, W, arm);
+  if (arm.prop === 'phone') phone(sc, W, arm);
+  if (arm.prop === 'broom') broom(sc, W, arm);
 }
 
 // A slender, feminine hand: palm loft + four jointed fingers + thumb, curled toward the palm.
@@ -1562,6 +1663,61 @@ function mop(sc, W, arm, side) {
   }
   void side;
 }
+function book(sc, W, arm) {
+  // hard-cover book held flat against the hip, spine in the palm
+  const n = v3.unit(arm.palm);
+  const c = v3.add(W, [n[0] * 0.05, -0.17, -0.12]);
+  sc.box('suit', c, [0.07, 0.34, 0.26], [0.05, 0, 0]);
+  sc.box('cloth', v3.add(c, [0, 0, 0.004]), [0.058, 0.33, 0.255], [0.05, 0, 0]);
+  sc.box('accent', v3.add(c, [-0.036, 0.06, 0]), [0.004, 0.04, 0.2], [0.05, 0, 0]);
+}
+function tray(sc, W, arm) {
+  // round silver tray on the upturned palm with a teacup and a little teapot
+  const d = v3.unit(arm.hand);
+  const t = v3.add(W, v3.add(v3.mul(d, 0.08), [0, 0.035, 0]));
+  sc.cyl('gold', t, 0.014, 0.42, 0.4, [0, 0, 0], 32);
+  sc.cyl('gold', v3.add(t, [0, 0.012, 0]), 0.012, 0.43, 0.43, [0, 0, 0], 32);
+  sc.cyl('cloth', v3.add(t, [0.08, 0.012, 0.03]), 0.01, 0.13, 0.12, [0, 0, 0], 20); // saucer
+  sc.cyl('cloth', v3.add(t, [0.08, 0.05, 0.03]), 0.07, 0.085, 0.06, [0, 0, 0], 20); // cup
+  sc.cyl('accent', v3.add(t, [0.08, 0.086, 0.03]), 0.004, 0.078, 0.078, [0, 0, 0], 20); // tea
+  sc.ell('cloth', v3.add(t, [-0.08, 0.07, -0.03]), [0.13, 0.11, 0.13], [0, 0, 0], 16); // teapot
+  sc.cyl('cloth', v3.add(t, [-0.15, 0.08, -0.03]), 0.08, 0.02, 0.03, [0, 0, 0.9], 10);
+  sc.ell('accent', v3.add(t, [-0.08, 0.13, -0.03]), [0.03, 0.025, 0.03], [0, 0, 0], 8);
+}
+function snowflake(sc, W, arm) {
+  // ice crystal hovering above the open palm
+  const c = v3.add(W, v3.add(v3.mul(v3.unit(arm.hand), 0.07), [0, 0.2, 0]));
+  for (let k = 0; k < 3; k += 1) {
+    const a = (k / 3) * Math.PI;
+    sc.box('accent', c, [0.012, 0.22, 0.012], [0, 0, a]);
+    for (const s of [-1, 1]) for (const u of [0.06, 0.09]) {
+      const p = [c[0] - Math.sin(a) * s * u, c[1] + Math.cos(a) * s * u, c[2]];
+      sc.box('accent', p, [0.008, 0.05, 0.008], [0, 0, a + 0.8]); sc.box('accent', p, [0.008, 0.05, 0.008], [0, 0, a - 0.8]);
+    }
+  }
+  sc.ell('gold', c, [0.04, 0.04, 0.02], [0, 0, 0], 10);
+}
+function phone(sc, W, arm) {
+  // smartphone in a pink case held up for a selfie, screen toward her face
+  const d = v3.unit(arm.hand); const n = v3.unit(arm.palm);
+  const c = v3.add(W, v3.add(v3.mul(d, 0.09), v3.mul(n, 0.03)));
+  const yaw = Math.atan2(n[0], n[2]);
+  sc.box('suitDark', c, [0.085, 0.17, 0.014], [0, yaw, 0]);
+  sc.box('lens', v3.add(c, v3.mul(n, 0.008)), [0.074, 0.155, 0.002], [0, yaw, 0]);
+  sc.ell('accent', v3.add(c, [0, -0.11, 0]), [0.025, 0.025, 0.012], [0, yaw, 0], 8); // charm
+}
+function broom(sc, W, arm) {
+  // bamboo shrine broom: the handle passes through the fist, the brush of twigs rests on the floor
+  const d = v3.unit(arm.hand);
+  const g = v3.add(W, v3.mul(d, 0.075));
+  const top = g[1] + 0.7; const base = 0.32; const h = top - base;
+  sc.cyl('gold', [g[0], base + h / 2, g[2]], h, 0.03, 0.03, [0, 0, 0], 14);
+  sc.cyl('suit', [g[0], base + 0.02, g[2]], 0.05, 0.05, 0.05, [0, 0, 0], 14);
+  for (let k = 0; k < 22; k += 1) {
+    const a = (k / 22) * Math.PI * 2; const r = 0.1 + 0.05 * Math.sin(k * 3.1);
+    sc.strand('gold', [[g[0], base + 0.02, g[2]], [g[0] + Math.cos(a) * r * 0.45, base - 0.15, g[2] + Math.sin(a) * r * 0.45], [g[0] + Math.cos(a) * r, 0.015, g[2] + Math.sin(a) * r]], 0.01, 0.005, 5, 6);
+  }
+}
 function clipboard(sc, W, arm) {
   // board stands in the arm's sagittal plane, its front-top edge in the palm
   const n = v3.unit(arm.palm);
@@ -1608,6 +1764,9 @@ function sculptLegs(sc, id) {
       sc.loft('suitDark', pant.filter((s) => s.y < ay + 0.12), { N: 36, offset: 0.026, flip });
     }
     if (id === 'nurse01') sc.loft('accent', sliceY(secs, 1.54, 1.49), { N: 36, offset: 0.007, flip });
+    if (id === 'rin01' || id === 'mei01') sc.loft(id === 'rin01' ? 'stock' : 'accent', sliceY(secs, st.stockTo + 0.015, st.stockTo - 0.02), { N: 36, offset: 0.008, flip }); // stocking band
+    if (id === 'aoi01') sc.loft('suit', sliceY(secs, st.stockTo + 0.01, st.stockTo - 0.025), { N: 36, offset: 0.008, flip }); // sock stripe
+    if (id === 'kana01') sc.loft('stock', sliceY(secs, 0.62, 0.28).map((q) => ({ ...q, rx: q.rx + 0.02 * smooth(0.62, 0.3, q.y), rz: q.rz + 0.02 * smooth(0.62, 0.3, q.y) })), { N: 36, offset: 0.012, flip }); // slouchy loose socks
     // shoe: pitched foot loft along Z, with heel and instep
     const sole = (z) => Math.max(0, heel * (0.27 - z) / 0.34);
     const foot = [[-0.07, 0.05, 0.042], [-0.035, 0.056, 0.045], [0.02, 0.05, 0.046], [0.1, 0.04, 0.05], [0.18, 0.03, 0.045], [0.235, 0.022, 0.032], [0.265, 0.012, 0.015]]
@@ -1616,7 +1775,13 @@ function sculptLegs(sc, id) {
     if (heel > 0.05) sc.cyl('shoe', [side * 0.106, heel * 0.5, -0.05], heel, 0.044, id === 'ceo01' ? 0.02 : 0.034, [0, 0, 0], 14);
     if (id === 'nurse01') sc.strand('accent', Array.from({ length: 17 }, (_, i) => { const a = (i / 16) * Math.PI * 2; return [side * 0.106 + Math.cos(a) * 0.05, ay - 0.02, Math.sin(a) * 0.053]; }), 0.005, 0.005, 6, 1);
     if (id === 'ceo01') sc.box('gold', [side * 0.106, heel + 0.06, 0.012], [0.06, 0.008, 0.01]);
-    if (id === 'student01') sc.box('suitDark', [side * 0.106, 0.09, 0.12], [0.075, 0.014, 0.03]); // loafer strap
+    if (id === 'student01' || id === 'kana01') sc.box('suitDark', [side * 0.106, 0.09, 0.12], [0.075, 0.014, 0.03]); // loafer strap
+    if (id === 'aoi01') { // tennis shoe sole + laces
+      sc.loftZ('gold', [[-0.075, 0.046], [0.0, 0.05], [0.12, 0.052], [0.25, 0.036], [0.275, 0.018]].map(([z, rx]) => ({ z, cx: side * 0.106, cy: 0.012, rx, ry: 0.013 })), 20, flip);
+      for (let k = 0; k < 3; k += 1) sc.box('suit', [side * 0.106, 0.085 - k * 0.008, 0.07 + k * 0.035], [0.05, 0.006, 0.008], [0.35, 0, 0]);
+    }
+    if (id === 'sakura01') sc.box('suit', [side * 0.106, 0.075, 0.13], [0.02, 0.012, 0.08], [0.3, 0, 0]); // red zori thong
+    if (id === 'mei01') sc.box('shoe', [side * 0.106, 0.1, 0.1], [0.08, 0.012, 0.02]); // mary-jane strap
     if (id === 'janitor01') { // sneaker sole + laces
       sc.loftZ('suitDark', [[-0.075, 0.046], [0.0, 0.05], [0.12, 0.052], [0.25, 0.036], [0.275, 0.018]].map(([z, rx]) => ({ z, cx: side * 0.106, cy: 0.012, rx, ry: 0.013 })), 20, flip);
       for (let k = 0; k < 3; k += 1) sc.box('accent', [side * 0.106, 0.085 - k * 0.008, 0.07 + k * 0.035], [0.05, 0.006, 0.008], [0.35, 0, 0]);

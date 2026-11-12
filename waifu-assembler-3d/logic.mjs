@@ -6,6 +6,12 @@ export const SETS = [
   { id: 'student01', name: 'STUDENT-01', label: 'Student-01', color: '#b9a3ff', accent: '#26306a', cloth: '#f6f6fa', skin: '#fadccd', hair: '#3a2622', hairLight: '#7a5040', eyes: '#7b5bd6', lip: '#e78a98' },
   { id: 'idol01', name: 'IDOL-01', label: 'Idol-01', color: '#ff5a7a', accent: '#ffd84d', cloth: '#ffffff', skin: '#fbdccf', hair: '#f0d9a0', hairLight: '#ffb7c8', eyes: '#2fa0e0', lip: '#f2708c' },
   { id: 'janitor01', name: 'JANITOR-01', label: 'Janitor-01', color: '#5fd8a8', accent: '#2f8a74', cloth: '#2f8a74', skin: '#efc8ab', hair: '#4a2f25', hairLight: '#8a5a40', eyes: '#3e7a5c', lip: '#c96f73' },
+  { id: 'rin01', name: 'RIN-01', label: 'Rin-01', color: '#7fb4e8', accent: '#2a3050', cloth: '#f2f4fa', skin: '#f6dcd2', hair: '#b9b4d6', hairLight: '#e6e2ff', eyes: '#5fb4e6', lip: '#9c5a74' },
+  { id: 'aoi01', name: 'AOI-01', label: 'Aoi-01', color: '#f2a03c', accent: '#2f6fd0', cloth: '#ffffff', skin: '#f3cdb2', hair: '#8a3a22', hairLight: '#d07a4a', eyes: '#3a9a5a', lip: '#f07f60' },
+  { id: 'mei01', name: 'MEI-01', label: 'Mei-01', color: '#c46ad8', accent: '#1a1820', cloth: '#ffffff', skin: '#f8ddd0', hair: '#1a1420', hairLight: '#4a3a60', eyes: '#9a5ad8', lip: '#e02848' },
+  { id: 'yuki01', name: 'YUKI-01', label: 'Yuki-01', color: '#8fc8f0', accent: '#9aa8c8', cloth: '#ffffff', skin: '#fbe6df', hair: '#eef0f6', hairLight: '#c8d8ff', eyes: '#d0384a', lip: '#eaa2b8' },
+  { id: 'kana01', name: 'KANA-01', label: 'Kana-01', color: '#ff86b8', accent: '#ffd84d', cloth: '#ffffff', skin: '#e3b08a', hair: '#e8b86a', hairLight: '#fff0c0', eyes: '#e05aa0', lip: '#e07a8c' },
+  { id: 'sakura01', name: 'SAKURA-01', label: 'Sakura-01', color: '#e0465a', accent: '#c8202e', cloth: '#ffffff', skin: '#f8e0d6', hair: '#120c14', hairLight: '#3a2440', eyes: '#8a4ac8', lip: '#c01c36' },
 ];
 
 export const PARTS = [
@@ -16,27 +22,29 @@ export const PARTS = [
   { id: 'legs', label: 'Legs', short: 'LEGS' },
 ];
 
-export const HALL_SIZE = 150;
-export const ANNEX = { minX: -58, maxX: 58, nearZ: -86, farZ: -145 };
+// Restoration hall (fragments are scattered here): x and z within ±HALL_SIZE/2. The statue gallery opens north
+// of it through a single doorway: a long sculpture nave with six plinths along each side of a central aisle.
+export const HALL_SIZE = 120;
+export const ANNEX = { minX: -20, maxX: 20, nearZ: -62, farZ: -152 };
+export const GALLERY_DOOR = 7; // half-width of the doorway between hall and gallery
+const ROW_X = 12.5;
+const ROW_Z = [-75, -87.5, -100, -112.5, -125, -137.5];
 export const INITIAL_PODIUMS = {
-  office01: [-47, -101],
-  nurse01: [47, -101],
-  ceo01: [-47, -130],
-  student01: [47, -130],
-  janitor01: [0, -138],
-  idol01: [0, -116], // centre stage of the annex
+  office01: [-ROW_X, ROW_Z[0]], nurse01: [ROW_X, ROW_Z[0]],
+  ceo01: [-ROW_X, ROW_Z[1]], student01: [ROW_X, ROW_Z[1]],
+  idol01: [-ROW_X, ROW_Z[2]], janitor01: [ROW_X, ROW_Z[2]],
+  rin01: [-ROW_X, ROW_Z[3]], aoi01: [ROW_X, ROW_Z[3]],
+  mei01: [-ROW_X, ROW_Z[4]], yuki01: [ROW_X, ROW_Z[4]],
+  kana01: [-ROW_X, ROW_Z[5]], sakura01: [ROW_X, ROW_Z[5]],
 };
 
-// Three tidy, searchable fragment zones inside the 150 x 150 exhibition hall.
+// Twelve searchable fragment zones (4 x 3) inside the restoration hall, one per statue.
 const ZONES = {
-  office01: [-42, -28],
-  nurse01: [42, 19],
-  ceo01: [0, 20],
-  student01: [-42, 42],
-  janitor01: [42, -45],
-  idol01: [0, -45],
+  office01: [-39, -36], nurse01: [13, 36], ceo01: [39, -2], student01: [-13, -2],
+  idol01: [-39, 36], janitor01: [13, -36], rin01: [39, 36], aoi01: [-13, 36],
+  mei01: [13, -2], yuki01: [-39, -2], kana01: [39, -36], sakura01: [-13, -36],
 };
-const FRAGMENT_OFFSETS = [[-26, -22], [22, -24], [-23, 24], [25, 23], [0, 0]];
+const FRAGMENT_OFFSETS = [[-8, -7], [7, -8], [-7, 8], [8, 7], [0, 0]];
 
 export const FRAGMENTS = SETS.flatMap((set) => PARTS.map((part, index) => {
   const [zx, zz] = ZONES[set.id];

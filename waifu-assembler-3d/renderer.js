@@ -1,5 +1,5 @@
 import {
-  ANNEX, FRAGMENTS, INITIAL_PODIUMS, PARTS, SETS,
+  ANNEX, FRAGMENTS, GALLERY_DOOR, HALL_SIZE, INITIAL_PODIUMS, PARTS, SETS,
   countPlaced, createInitialState, getFragment, getSet, isGameComplete,
   pickup, placeCarried, restoreState, serializeState,
 } from './logic.mjs';
@@ -7,9 +7,14 @@ import { escapeHtml, installStyles, roundRect, uiMarkup } from './ui.js';
 import { PART_OFFSET, buildBust, buildStatuePart, createStatueKit } from './statues.js';
 import { DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
 import { STATUE_POSES } from './poses.mjs';
-import { buildFragment, buildPodium, buildWorld, petalTexture, starTexture } from './world.js';
+import { buildFragment, buildPodium, buildWorld, makeLabel, petalTexture, starTexture } from './world.js';
 
-// Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead annex layout editor.
+// Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead gallery layout editor.
+// The statues stand about 5 units tall on their plinths, so the visitor's eye sits at EYE_HEIGHT to meet them at chest height.
+const EYE_HEIGHT = 3.2;
+const SPAWN = { x: 0, z: HALL_SIZE / 2 - 10 };
+// Plinths may be moved anywhere inside the gallery, keeping clear of its walls and doorway.
+const POD_X = ANNEX.maxX - 5; const POD_NEAR = ANNEX.nearZ - 8; const POD_FAR = ANNEX.farZ + 6;
 // Right-handed scene so the gameplay maths (yaw, +Z toward the player) are unchanged from the original renderer.
 
 export function createGame(mode = 'play') {
@@ -31,7 +36,7 @@ export function createGame(mode = 'play') {
   const podiumPositions = {};
   for (const set of SETS) {
     const raw = config.podiumPositions?.[set.id] || INITIAL_PODIUMS[set.id];
-    podiumPositions[set.id] = [clamp(Number(raw[0]) || 0, -52, 52), clamp(Number(raw[1]) || -100, -140, -92)];
+    podiumPositions[set.id] = [clamp(Number(raw[0]) || 0, -POD_X, POD_X), clamp(Number(raw[1]) || -100, POD_FAR, POD_NEAR)];
   }
   if (editing) {
     window.gameConfig ||= {};
@@ -64,73 +69,87 @@ export function createGame(mode = 'play') {
   const scene = new BAB.Scene(engine);
   scene.useRightHandedSystem = true;
   scene.skipPointerMovePicking = true;
-  scene.clearColor = new BAB.Color4(0.075, 0.07, 0.15, 1);
+  scene.clearColor = BAB.Color4.FromHexString('#efe9dfff');
   scene.fogMode = BAB.Scene.FOGMODE_EXP2;
-  scene.fogColor = new BAB.Color3(0.13, 0.12, 0.25);
-  scene.fogDensity = 0.0027;
+  scene.fogColor = BAB.Color3.FromHexString('#e9e0d1');
+  scene.fogDensity = 0.0034;
+  scene.ambientColor = BAB.Color3.FromHexString('#3a352e');
 
-  const camera = new BAB.FreeCamera('eye', new BAB.Vector3(0, 1.65, 32), scene);
+  const camera = new BAB.FreeCamera('eye', new BAB.Vector3(SPAWN.x, EYE_HEIGHT, SPAWN.z), scene);
   camera.inputs.clear();
-  camera.minZ = 0.08; camera.maxZ = 260;
+  camera.minZ = 0.08; camera.maxZ = 320;
   camera.fov = BAB.Tools.ToRadians(editing ? 102 : 74);
   scene.activeCamera = camera;
 
-  // ---------- lighting ----------
+  // ---------- lighting: soft daylight from skylights and tall windows ----------
   const hemi = new BAB.HemisphericLight('hemi', new BAB.Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.55; hemi.diffuse = BAB.Color3.FromHexString('#cdd6ff'); hemi.groundColor = BAB.Color3.FromHexString('#6b5a86'); hemi.specular = BAB.Color3.Black();
-  const key = new BAB.DirectionalLight('key', new BAB.Vector3(-0.35, -1, -0.5).normalize(), scene);
-  key.position = new BAB.Vector3(14, 46, -96);
-  key.diffuse = BAB.Color3.FromHexString('#ffe4cc'); key.intensity = 1.55;
-  key.autoUpdateExtends = false; key.orthoLeft = -66; key.orthoRight = 66; key.orthoBottom = -42; key.orthoTop = 42; key.shadowMinZ = 4; key.shadowMaxZ = 120;
-  const rim = new BAB.DirectionalLight('rim', new BAB.Vector3(-0.25, -0.5, 1).normalize(), scene);
-  rim.diffuse = BAB.Color3.FromHexString('#ff9fd0'); rim.intensity = 1.1;
+  hemi.intensity = 0.72; hemi.diffuse = BAB.Color3.FromHexString('#fff7ec'); hemi.groundColor = BAB.Color3.FromHexString('#b9ab94'); hemi.specular = BAB.Color3.FromHexString('#2a2620');
+  // the sun falls through the gallery skylight; its shadow map covers the plinths
+  const key = new BAB.DirectionalLight('key', new BAB.Vector3(-0.32, -1, -0.22).normalize(), scene);
+  key.position = new BAB.Vector3(20, 60, -100);
+  key.diffuse = BAB.Color3.FromHexString('#fff0da'); key.intensity = 1.35;
+  key.autoUpdateExtends = false; key.orthoLeft = -32; key.orthoRight = 32; key.orthoBottom = -56; key.orthoTop = 56; key.shadowMinZ = 4; key.shadowMaxZ = 130;
+  const fill = new BAB.DirectionalLight('fill', new BAB.Vector3(0.4, -0.45, 0.8).normalize(), scene);
+  fill.diffuse = BAB.Color3.FromHexString('#e4ecff'); fill.intensity = 0.42; fill.specular = BAB.Color3.Black();
   const shadows = new BAB.ShadowGenerator(2048, key);
   shadows.usePercentageCloserFiltering = true;
   shadows.filteringQuality = BAB.ShadowGenerator.QUALITY_MEDIUM;
-  shadows.bias = 0.0006; shadows.normalBias = 0.02; shadows.setDarkness(0.38);
+  shadows.bias = 0.0006; shadows.normalBias = 0.02; shadows.setDarkness(0.45);
+  // The plinths and statues only change when a part is placed, so the shadow map is redrawn on demand, not every frame.
+  shadows.getShadowMap().refreshRate = BAB.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
+  const refreshShadows = () => shadows.getShadowMap().resetRefreshCounter();
 
-  const hallEnv = setupStudioReflections(scene, BAB);
+  const hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, -100));
 
   // ---------- cinematic post-processing ----------
   let pipeline = null;
   try {
     pipeline = new BAB.DefaultRenderingPipeline('cinema', true, scene, [camera]);
     pipeline.fxaaEnabled = true;
-    pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.72; pipeline.bloomWeight = 0.42; pipeline.bloomKernel = 56; pipeline.bloomScale = 0.5;
+    pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.92; pipeline.bloomWeight = 0.18; pipeline.bloomKernel = 48; pipeline.bloomScale = 0.5;
     pipeline.imageProcessingEnabled = true;
   } catch (error) { window.lib?.log?.(`Post-processing unavailable: ${error.message}`); }
   const ip = scene.imageProcessingConfiguration;
   ip.toneMappingEnabled = true; ip.toneMappingType = BAB.ImageProcessingConfiguration.TONEMAPPING_ACES;
-  ip.exposure = 1.05; ip.contrast = 1.18;
-  ip.vignetteEnabled = true; ip.vignetteWeight = 1.7; ip.vignetteStretch = 0.4; ip.vignetteColor = new BAB.Color4(0.06, 0.02, 0.14, 0); ip.vignetteBlendMode = BAB.ImageProcessingConfiguration.VIGNETTEMODE_MULTIPLY;
+  ip.exposure = 1.0; ip.contrast = 1.14;
+  ip.vignetteEnabled = true; ip.vignetteWeight = 0.7; ip.vignetteStretch = 0.5; ip.vignetteColor = new BAB.Color4(0.25, 0.18, 0.1, 0); ip.vignetteBlendMode = BAB.ImageProcessingConfiguration.VIGNETTEMODE_MULTIPLY;
   scene.setRenderingAutoClearDepthStencil(1, true, true, true);
 
   // ---------- world ----------
-  const kit = createStatueKit(scene);
-  const world = buildWorld(scene, shadows);
-  if (editing) for (const ceiling of world.ceilings) ceiling.setEnabled(false); // overhead layout view must see the annex floor
+  // In-game statues are seen from a few metres away: their painted faces use a 1024 x 512 texture (the studio keeps 2048).
+  const kit = createStatueKit(scene, { faceScale: 0.5 });
+  const world = buildWorld(scene, shadows, SETS);
+  if (editing) for (const ceiling of world.ceilings) ceiling.setEnabled(false); // overhead layout view must see the gallery floor
+  // Each statue part is sculpted once: the plinth keeps the original (and a merged hologram copy of it), and the
+  // fragment waiting in the hall is a clone that shares its geometry and materials.
+  const podiums = new Map(); const niches = new Map();
+  for (const set of SETS) {
+    const parts = new Map(PARTS.map((part) => [part.id, buildStatuePart(kit, scene, part.id, set.id, false)]));
+    podiums.set(set.id, buildPodium(scene, kit, set, podiumPositions[set.id], shadows, parts));
+    niches.set(set.id, world.niche(set, ...podiumPositions[set.id]));
+  }
   const fragments = new Map();
-  for (const fragment of FRAGMENTS) fragments.set(fragment.key, buildFragment(scene, kit, fragment));
-  const podiums = new Map();
-  for (const set of SETS) podiums.set(set.id, buildPodium(scene, kit, set, podiumPositions[set.id], shadows));
+  for (const fragment of FRAGMENTS) {
+    const source = podiums.get(fragment.setId).figureParts.get(fragment.partId).solid;
+    const part = source.clone(`frag-part-${fragment.key}`, null);
+    part.setEnabled(true); for (const m of part.getChildMeshes()) m.setEnabled(true);
+    fragments.set(fragment.key, buildFragment(scene, kit, fragment, part));
+  }
   for (const model of fragments.values()) for (const m of model.root.getChildMeshes()) m.isPickable = false;
+  // one museum card floats over the fragment the visitor is looking for
+  const nearLabel = makeLabel(scene, '', '#c9a466', 3.6, 0.9); nearLabel.mesh.setEnabled(false);
 
-  // Soft mirror on the annex floor
-  const mirror = new BAB.MirrorTexture('annexMirror', 1024, scene, true);
-  mirror.mirrorPlane = new BAB.Plane(0, -1, 0, -0.055);
-  mirror.level = 0.34; mirror.adaptiveBlurKernel = 28; mirror.refreshRate = 2;
-  for (const podium of podiums.values()) for (const m of podium.group.getChildMeshes()) if (m !== podium.cone && m !== podium.group) mirror.renderList.push(m);
-  world.annexFloor.reflectionTexture = mirror;
-  scene.onDisposeObservable.add(() => mirror.dispose());
+  // The polished gallery marble relies on its specular sheen and the daylight probe instead of a mirror pass:
+  // re-rendering twelve statues every other frame would double the gallery's draw calls on phones.
 
   // Ambient sakura petals + one reusable sparkle burst
   const petals = new BAB.ParticleSystem('petals', 240, scene);
   petals.particleTexture = petalTexture(scene);
   const petalEmitter = new BAB.Vector3(0, 0, 32);
   petals.emitter = petalEmitter;
-  petals.minEmitBox = new BAB.Vector3(-36, 7, -36); petals.maxEmitBox = new BAB.Vector3(36, 9.5, 36);
+  petals.minEmitBox = new BAB.Vector3(-30, 9, -30); petals.maxEmitBox = new BAB.Vector3(30, 13, 30);
   petals.direction1 = new BAB.Vector3(-0.5, -1, -0.2); petals.direction2 = new BAB.Vector3(0.2, -1, 0.5);
-  petals.minEmitPower = 0.5; petals.maxEmitPower = 1.0; petals.minLifeTime = 9; petals.maxLifeTime = 14; petals.emitRate = 17;
+  petals.minEmitPower = 0.5; petals.maxEmitPower = 1.0; petals.minLifeTime = 10; petals.maxLifeTime = 15; petals.emitRate = 9;
   petals.minSize = 0.14; petals.maxSize = 0.3; petals.minAngularSpeed = -2.2; petals.maxAngularSpeed = 2.2;
   petals.color1 = new BAB.Color4(1, 0.88, 0.94, 0.95); petals.color2 = new BAB.Color4(1, 0.66, 0.82, 0.95); petals.colorDead = new BAB.Color4(1, 0.8, 0.9, 0);
   petals.gravity = new BAB.Vector3(0.12, -0.25, 0.08); petals.preWarmCycles = 120; petals.preWarmStepOffset = 8; petals.updateSpeed = 0.016;
@@ -154,16 +173,16 @@ export function createGame(mode = 'play') {
   };
 
   const state = createInitialState();
-  const player = { x: 0, z: 32, yaw: 0, pitch: 0 };
-  const eye = { y: 1.65 };
+  const player = { x: SPAWN.x, z: SPAWN.z, yaw: 0, pitch: -0.06 };
+  const eye = { y: EYE_HEIGHT };
   const forwardVec = () => new BAB.Vector3(-Math.sin(player.yaw) * Math.cos(player.pitch), Math.sin(player.pitch), -Math.cos(player.yaw) * Math.cos(player.pitch));
-  const aimCamera = (y = 1.65) => {
+  const aimCamera = (y = EYE_HEIGHT) => {
     camera.position.set(player.x, y, player.z);
     camera.setTarget(camera.position.add(forwardVec()));
   };
   if (editing) {
-    camera.position.set(0, 72, -116);
-    camera.setTarget(new BAB.Vector3(0, 0, -116.01));
+    camera.position.set(0, 88, (ANNEX.nearZ + ANNEX.farZ) / 2);
+    camera.setTarget(new BAB.Vector3(0, 0, (ANNEX.nearZ + ANNEX.farZ) / 2 - 0.01));
   } else aimCamera();
 
   const ui = {
@@ -211,7 +230,7 @@ export function createGame(mode = 'play') {
   // transparent window; the component being carried glows red so the player sees where it belongs.
   const holo = { root: null, spin: null, key: null, base: Math.PI, sway: 0.6 };
   const heldMat = new BAB.StandardMaterial('holoHeld', scene);
-  heldMat.disableLighting = true; heldMat.backFaceCulling = false; heldMat.alphaMode = BAB.Engine.ALPHA_ADD; heldMat.alpha = 0.85; heldMat.needDepthPrePass = true;
+  heldMat.disableLighting = true; heldMat.backFaceCulling = false; heldMat.alphaMode = BAB.Engine.ALPHA_COMBINE; heldMat.alpha = 0.85; heldMat.needDepthPrePass = true;
   heldMat.emissiveColor = BAB.Color3.FromHexString('#ff3d5e');
   heldMat.emissiveFresnelParameters = new BAB.FresnelParameters({ bias: 0.25, power: 1.6, leftColor: BAB.Color3.FromHexString('#ffd0da'), rightColor: BAB.Color3.FromHexString('#ff2a50') });
   function rebuildHologram() {
@@ -230,12 +249,12 @@ export function createGame(mode = 'play') {
       if (part.id === fragment.partId) for (const m of mesh.getChildMeshes()) m.material = heldMat;
     }
     const set = getSet(fragment.setId); const c = BAB.Color3.FromHexString(set.color);
-    const ringMat = new BAB.StandardMaterial('holoRing', scene); ringMat.disableLighting = true; ringMat.emissiveColor = c.scale(1.3); ringMat.alpha = 0.9; ringMat.alphaMode = BAB.Engine.ALPHA_ADD;
+    const ringMat = new BAB.StandardMaterial('holoRing', scene); ringMat.disableLighting = true; ringMat.emissiveColor = c.scale(1.1); ringMat.alpha = 0.9;
     for (const [d, y, t] of [[2.2, -2.15, 0.05], [1.5, -2.1, 0.03]]) {
       const ring = BAB.MeshBuilder.CreateTorus('holoRing', { diameter: d, thickness: t, tessellation: 48 }, scene); ring.parent = spin; ring.position.y = y; ring.material = ringMat;
     }
     const beam = BAB.MeshBuilder.CreateCylinder('holoBeam', { height: 4.4, diameterTop: 1.6, diameterBottom: 2.1, tessellation: 32, cap: BAB.Mesh.NO_CAP }, scene);
-    const beamMat = new BAB.StandardMaterial('holoBeamMat', scene); beamMat.disableLighting = true; beamMat.emissiveColor = c; beamMat.alpha = 0.06; beamMat.alphaMode = BAB.Engine.ALPHA_ADD; beamMat.backFaceCulling = false;
+    const beamMat = new BAB.StandardMaterial('holoBeamMat', scene); beamMat.disableLighting = true; beamMat.emissiveColor = c; beamMat.alpha = 0.08; beamMat.backFaceCulling = false;
     beam.material = beamMat; beam.parent = spin;
     for (const m of root.getChildMeshes()) { m.renderingGroupId = 1; m.isPickable = false; }
     root.onDisposeObservable.add(() => { ringMat.dispose(); beamMat.dispose(); });
@@ -267,8 +286,8 @@ export function createGame(mode = 'play') {
         entry.solid.setEnabled(built);
       }
       podium.finished.setEnabled(placed.length === PARTS.length);
-      podium.motes.emitRate = 6 + placed.length * 6;
-      podium.floorGlow.alpha = 0.45 + placed.length * 0.1;
+      podium.motes.emitRate = placed.length ? 2 + placed.length * 3 : 0;
+      refreshShadows();
     }
   };
   const refreshFragments = () => {
@@ -330,7 +349,7 @@ export function createGame(mode = 'play') {
       const podium = podiums.get(set.id);
       const dist = distance2(player.x, player.z, podium.group.position.x, podium.group.position.z);
       const inRange = dist <= 5.2;
-      ui.status.innerHTML = `<b>${inRange ? 'PODIUM IN RANGE' : 'RESTORATION ROUTE'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to display</span>`;
+      ui.status.innerHTML = `<b>${inRange ? 'PLINTH IN RANGE' : 'TO THE GALLERY'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to its plinth</span>`;
       ui.target.innerHTML = `<i class="target-dot" style="--dot:${set.color}"></i><span>Carry <b>${fragment.partId.replace('armL', 'left arm').replace('armR', 'right arm')}</b> to its matching plinth</span>`;
       ui.action.disabled = !inRange;
       ui.action.classList.toggle('ready', inRange);
@@ -372,34 +391,34 @@ export function createGame(mode = 'play') {
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = 'rgba(10,15,28,.86)';
     roundRect(ctx, 1, 1, w - 2, h - 2, 18); ctx.fill();
-    const hallLeft = 18, hallTop = 32, hallWidth = w - 36, hallHeight = 124;
-    ctx.strokeStyle = 'rgba(143,192,218,.23)'; ctx.lineWidth = 1; ctx.strokeRect(hallLeft, hallTop, hallWidth, hallHeight);
-    ctx.fillStyle = 'rgba(115,155,188,.045)'; ctx.fillRect(hallLeft + 1, hallTop + 1, hallWidth - 2, hallHeight - 2);
-    const px = (x) => hallLeft + (x + 75) / 150 * hallWidth;
-    const pz = (z) => hallTop + (z + 75) / 150 * hallHeight;
-    // A separate, true annex mini-plan is drawn north of the 150 x 150 hall map.
-    const annexLeft = 22, annexTop = 6, annexWidth = w - 44, annexHeight = 22;
-    ctx.fillStyle = 'rgba(71,204,213,.09)'; ctx.fillRect(annexLeft, annexTop, annexWidth, annexHeight);
-    ctx.strokeStyle = 'rgba(91,228,237,.65)'; ctx.setLineDash([3, 3]); ctx.strokeRect(annexLeft, annexTop, annexWidth, annexHeight); ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(91,228,237,.5)'; ctx.beginPath(); ctx.moveTo(w / 2, annexTop + annexHeight); ctx.lineTo(w / 2, hallTop); ctx.stroke();
+    // true-scale plan: the gallery north of the hall, joined by its doorway
+    const half = HALL_SIZE / 2; const north = ANNEX.farZ; const span = half - north;
+    const k = Math.min((w - 24) / HALL_SIZE, (h - 30) / span);
+    const ox = w / 2; const oy = 8 - north * k;
+    const px = (x) => ox + x * k; const pz = (z) => oy + z * k;
+    ctx.fillStyle = 'rgba(236,226,206,.13)'; ctx.strokeStyle = 'rgba(232,214,180,.55)'; ctx.lineWidth = 1;
+    ctx.fillRect(px(-half), pz(-half), HALL_SIZE * k, HALL_SIZE * k); ctx.strokeRect(px(-half), pz(-half), HALL_SIZE * k, HALL_SIZE * k);
+    ctx.fillStyle = 'rgba(244,238,226,.2)'; ctx.fillRect(px(ANNEX.minX), pz(north), (ANNEX.maxX - ANNEX.minX) * k, (-half - north) * k);
+    ctx.strokeRect(px(ANNEX.minX), pz(north), (ANNEX.maxX - ANNEX.minX) * k, (-half - north) * k);
+    ctx.fillStyle = 'rgba(10,15,28,1)'; ctx.fillRect(px(-GALLERY_DOOR), pz(-half) - 1.5, GALLERY_DOOR * 2 * k, 3);
     for (const set of SETS) {
-      const podium = podiums.get(set.id).group.position;
-      const x = annexLeft + (podium.x - ANNEX.minX) / (ANNEX.maxX - ANNEX.minX) * annexWidth;
-      const y = annexTop + (-86 - podium.z) / (145 - 86) * annexHeight;
-      ctx.fillStyle = set.color; ctx.globalAlpha = 0.95; ctx.fillRect(x - 2.5, y - 2.5, 5, 5);
+      const p = podiums.get(set.id).group.position; const done = (state.placed[set.id]?.length || 0) === PARTS.length;
+      ctx.beginPath(); ctx.arc(px(p.x), pz(p.z), 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = set.color; ctx.globalAlpha = done ? 1 : 0.55; ctx.fill();
+      ctx.globalAlpha = 1; ctx.strokeStyle = done ? '#ffe2a8' : 'rgba(255,255,255,.5)'; ctx.stroke();
     }
     for (const f of FRAGMENTS) {
       if (state.collected.includes(f.key) || state.placed[f.setId]?.includes(f.partId)) continue;
-      const set = getSet(f.setId);
-      ctx.beginPath(); ctx.arc(px(f.x), pz(f.z), 2.25, 0, Math.PI * 2);
-      ctx.fillStyle = set.color; ctx.globalAlpha = 0.93; ctx.fill();
+      ctx.beginPath(); ctx.arc(px(f.x), pz(f.z), 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = getSet(f.setId).color; ctx.globalAlpha = 0.93; ctx.fill();
     }
     ctx.globalAlpha = 1;
     const x = px(player.x), y = pz(player.z);
     ctx.save(); ctx.translate(x, y); ctx.rotate(player.yaw);
     ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(5, 5); ctx.lineTo(0, 3); ctx.lineTo(-5, 5); ctx.closePath();
-    ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#7beaff'; ctx.shadowBlur = 9; ctx.fill(); ctx.restore();
-    ctx.fillStyle = 'rgba(208,229,246,.7)'; ctx.font = '700 9px system-ui'; ctx.fillText('HALL · 150 × 150', 20, h - 10);
+    ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#ffd98a'; ctx.shadowBlur = 8; ctx.fill(); ctx.restore();
+    ctx.fillStyle = 'rgba(232,222,204,.75)'; ctx.font = '700 8px system-ui'; ctx.textAlign = 'left'; ctx.fillText(`HALL ${HALL_SIZE}×${HALL_SIZE}`, 10, h - 7);
+    ctx.textAlign = 'right'; ctx.fillText('GALLERY ▲', w - 10, h - 7); ctx.textAlign = 'left';
   }
 
   const editorPanel = root.querySelector('#editor-panel');
@@ -411,18 +430,18 @@ export function createGame(mode = 'play') {
       ctx.clearRect(0, 0, w, h);
       roundRect(ctx, 1, 1, w - 2, h - 2, 18);
       ctx.fillStyle = 'rgba(9,15,29,.97)'; ctx.fill();
-      // Annex footprints are 116 x 59 units; the open central floor is intentionally left clear.
+      // The gallery is ANNEX wide x long; plinths line both sides of the central aisle.
       const left = 20, top = 18, rw = w - 40, rh = h - 36;
       ctx.fillStyle = '#131d31'; ctx.fillRect(left, top, rw, rh);
       ctx.strokeStyle = 'rgba(91,228,237,.55)'; ctx.lineWidth = 2; ctx.strokeRect(left, top, rw, rh);
       ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(120,175,196,.15)'; ctx.beginPath(); ctx.moveTo(w / 2, top + 12); ctx.lineTo(w / 2, top + rh - 12); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(196,220,234,.42)'; ctx.font = '700 9px system-ui'; ctx.textAlign = 'center';
-      ctx.fillText('OPEN DISPLAY FLOOR', w / 2, h / 2 + 3);
-      ctx.font = '700 8px system-ui'; ctx.fillStyle = 'rgba(139,182,201,.54)'; ctx.fillText('OUTSIDE THE 150 × 150 HALL', w / 2, h - 5);
+      ctx.fillText('CENTRAL AISLE', w / 2, h / 2 + 3);
+      ctx.font = '700 8px system-ui'; ctx.fillStyle = 'rgba(139,182,201,.54)'; ctx.fillText('SCULPTURE GALLERY · ENTRANCE AT THE TOP', w / 2, h - 5);
       for (const set of SETS) {
         const pos = podiumPositions[set.id];
         const x = left + (pos[0] - ANNEX.minX) / (ANNEX.maxX - ANNEX.minX) * rw;
-        const y = top + (-pos[1] - 86) / (145 - 86) * rh;
+        const y = top + (ANNEX.nearZ - pos[1]) / (ANNEX.nearZ - ANNEX.farZ) * rh;
         const isSelected = selectedEditorSet === set.id;
         ctx.beginPath(); ctx.arc(x, y, isSelected ? 25 : 21, 0, Math.PI * 2);
         ctx.fillStyle = isSelected ? `${set.color}42` : 'rgba(15,24,38,.96)'; ctx.fill();
@@ -455,7 +474,7 @@ export function createGame(mode = 'play') {
       for (const set of SETS) {
         const pos = podiumPositions[set.id];
         const x = left + (pos[0] - ANNEX.minX) / (ANNEX.maxX - ANNEX.minX) * rw;
-        const y = top + (-pos[1] - 86) / (145 - 86) * rh;
+        const y = top + (ANNEX.nearZ - pos[1]) / (ANNEX.nearZ - ANNEX.farZ) * rh;
         const d = Math.hypot(mx - x, my - y);
         if (!nearest || d < nearest.distance) nearest = { id: set.id, distance: d };
       }
@@ -476,8 +495,8 @@ export function createGame(mode = 'play') {
       const my = (event.clientY - rect.top) * (ui.editorMap.height / rect.height);
       const left = 20, top = 18, rw = ui.editorMap.width - 40, rh = ui.editorMap.height - 36;
       const x = ANNEX.minX + (mx - left) / rw * (ANNEX.maxX - ANNEX.minX);
-      const z = -(86 + (my - top) / rh * (145 - 86));
-      podiumPositions[selectedEditorSet] = [clamp(x, -52, 52), clamp(z, -140, -92)];
+      const z = ANNEX.nearZ - (my - top) / rh * (ANNEX.nearZ - ANNEX.farZ);
+      podiumPositions[selectedEditorSet] = [clamp(x, -POD_X, POD_X), clamp(z, POD_FAR, POD_NEAR)];
       movePodium(selectedEditorSet, podiumPositions[selectedEditorSet]);
       writeEditorConfig();
     }
@@ -485,7 +504,10 @@ export function createGame(mode = 'play') {
   function movePodium(setId, position) {
     const podium = podiums.get(setId);
     podium.group.position.set(position[0], 0, position[1]);
+    podium.face(); refreshShadows();
     podium.motes.emitter = new BAB.Vector3(position[0], 0.8, position[1]);
+    niches.get(setId)?.dispose(false, true);
+    niches.set(setId, world.niche(getSet(setId), position[0], position[1]));
   }
 
   function updateAction() {
@@ -498,7 +520,7 @@ export function createGame(mode = 'play') {
       hasInteracted = true;
       Object.assign(state, next);
       const model = fragments.get(target.fragment.key);
-      sparkle(new BAB.Vector3(target.fragment.x, 1.4, target.fragment.z), getSet(target.fragment.setId).color, 60);
+      sparkle(new BAB.Vector3(target.fragment.x, 2.3, target.fragment.z), getSet(target.fragment.setId).color, 60);
       void model;
       refreshFragments(); saveProgress(); updateHUD();
       const set = getSet(target.fragment.setId);
@@ -508,7 +530,7 @@ export function createGame(mode = 'play') {
     const fragment = getFragment(state.carried);
     const podium = podiums.get(fragment.setId);
     if (distance2(player.x, player.z, podium.group.position.x, podium.group.position.z) > 5.2) {
-      toast(`Follow the annex marker to ${getSet(fragment.setId).name}`, 'normal');
+      toast(`Take it to ${getSet(fragment.setId).name}'s plinth in the gallery`, 'normal');
       return;
     }
     const next = placeCarried(state, fragment.setId);
@@ -538,7 +560,7 @@ export function createGame(mode = 'play') {
     selectedEditorSet = SETS[0].id;
     window.gameConfig.podiumPositions = clonePositions(podiumPositions);
     refreshEditorMap();
-    toast('Display layout reset to the wall-side arrangement');
+    toast('Gallery layout reset: six plinths along each side');
   });
 
   function movePlayer(dt) {
@@ -551,11 +573,16 @@ export function createGame(mode = 'play') {
     const forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(player.yaw);
     const nx = player.x + (rightX * mx + forwardX * my) * speed * dt;
     const nz = player.z + (rightZ * mx + forwardZ * my) * speed * dt;
-    player.x = clamp(nx, -71.4, 71.4);
-    let proposedZ = clamp(nz, -142.5, 72.5);
-    // Partition between the 150x150 hall and the separate annex, with a single central doorway.
-    if (proposedZ < -75 && proposedZ > -86 && Math.abs(player.x) > 12) proposedZ = player.z < -75 ? -86 : -75;
-    player.z = proposedZ;
+    const half = HALL_SIZE / 2; const pad = 1.4;
+    let x = clamp(nx, -half + pad, half - pad);
+    let z = clamp(nz, ANNEX.farZ + pad, half - pad);
+    // The hall and the gallery meet at one doorway in the wall at z = -half.
+    const band = z < -half + pad && z > -half - 1.2 - pad;
+    if (z <= -half - 1.2 - pad) x = clamp(x, ANNEX.minX + pad, ANNEX.maxX - pad);
+    if (band && Math.abs(x) > GALLERY_DOOR - 0.6) {
+      if (player.z >= -half) z = -half + pad; else { z = Math.min(z, -half - 1.2 - pad); x = clamp(x, ANNEX.minX + pad, ANNEX.maxX - pad); }
+    }
+    player.x = x; player.z = z;
     aimCamera(eye.y + Math.sin(performance.now() * 0.008) * Math.min(0.028, magnitude * 0.018));
   }
   const tmpRight = new BAB.Vector3();
@@ -564,10 +591,23 @@ export function createGame(mode = 'play') {
     const fwd = forwardVec();
     tmpRight.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
     const up = BAB.Vector3.Cross(tmpRight, fwd);
-    carriedVisual.position.copyFrom(camera.position).addInPlace(tmpRight.scale(0.38)).addInPlace(up.scale(-0.22 + Math.sin(now * 0.003) * 0.012)).addInPlace(fwd.scale(1.55));
+    carriedVisual.position.copyFrom(camera.position).addInPlace(tmpRight.scale(0.42)).addInPlace(up.scale(-0.3 + Math.sin(now * 0.003) * 0.012)).addInPlace(fwd.scale(1.6));
     carriedVisual.rotation.set(-0.12, player.yaw - 0.28 + Math.sin(now * 0.0022) * 0.07, 0);
   }
+  const FRAGMENT_VIEW = 46; const STATUE_VIEW = 92;
   function updateObjects(now, dt) {
+    for (const fragment of FRAGMENTS) { // only fragments near the visitor are drawn; fog hides the rest anyway
+      const model = fragments.get(fragment.key);
+      const absent = state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
+      const near = editing || Math.hypot(player.x - fragment.x, player.z - fragment.z) < FRAGMENT_VIEW;
+      model.root.setEnabled(!absent && near);
+    }
+    for (const podium of podiums.values()) {
+      const d = Math.hypot(player.x - podium.group.position.x, player.z - podium.group.position.z);
+      const show = editing || d < STATUE_VIEW;
+      if (show !== podium.figure.isEnabled(false)) { podium.figure.setEnabled(show); refreshShadows(); }
+      podium.labelMesh.setEnabled(editing || d < 30); // only nearby name cards, so the gallery isn't cluttered
+    }
     for (const model of fragments.values()) {
       if (!model.root.isEnabled()) continue;
       model.spin.rotation.y += 0.26 * dt;
@@ -577,7 +617,7 @@ export function createGame(mode = 'play') {
     for (const podium of podiums.values()) {
       if (podium.finished.isEnabled()) {
         podium.finished.rotation.y += dt * 1.1;
-        podium.finished.position.y = 5.4 + Math.sin(now * 0.002) * 0.08;
+        podium.finished.position.y = 5.7 + Math.sin(now * 0.002) * 0.08;
       }
       podium.figure.rotation.y = podium.poseTurn + Math.sin(now * 0.0005 + podium.group.position.x) * 0.06;
     }
@@ -588,7 +628,15 @@ export function createGame(mode = 'play') {
       for (const fragment of FRAGMENTS) {
         const model = fragments.get(fragment.key);
         model.beacon.setEnabled(Boolean(best === fragment.key));
-        model.ringMat.alpha = best === fragment.key ? 0.8 + Math.sin(now * 0.006) * 0.16 : 0.26;
+        model.ringMat.alpha = best === fragment.key ? 0.75 + Math.sin(now * 0.006) * 0.2 : 0;
+      }
+      const target = best ? getFragment(best) : null;
+      const showLabel = target && Math.hypot(player.x - target.x, player.z - target.z) < 18;
+      nearLabel.mesh.setEnabled(Boolean(showLabel));
+      if (showLabel) {
+        const set = getSet(target.setId); const part = PARTS.find((p) => p.id === target.partId);
+        nearLabel.setText(`${set.name} · ${part.short}`, set.color);
+        nearLabel.mesh.position.set(target.x, 4.35, target.z);
       }
       const elapsed = now - stateChangedAt;
       if (elapsed > 190) { stateChangedAt = now; updateHUD(); }
@@ -771,11 +819,12 @@ export function createGame(mode = 'play') {
 }
 
 // A hidden "photo studio" dome is rendered once into a cube map so PBR gold, hair clear-coat and shoes pick up soft, flattering reflections.
-function setupStudioReflections(scene, BAB) {
+function setupStudioReflections(scene, BAB, palette = 'studio', probeAt = new BAB.Vector3(0, 3, -115)) {
   const tex = new BAB.DynamicTexture('studioSky', { width: 1024, height: 512 }, scene, true);
   const ctx = tex.getContext();
   const g = ctx.createLinearGradient(0, 0, 0, 512);
-  g.addColorStop(0, '#9084d8'); g.addColorStop(0.32, '#d08cb8'); g.addColorStop(0.5, '#e0b9a2'); g.addColorStop(0.68, '#463a76'); g.addColorStop(1, '#120d26');
+  if (palette === 'daylight') { g.addColorStop(0, '#f8fbff'); g.addColorStop(0.42, '#eef1f4'); g.addColorStop(0.52, '#efe6d8'); g.addColorStop(0.7, '#d8ccb8'); g.addColorStop(1, '#b4a68e'); }
+  else { g.addColorStop(0, '#9084d8'); g.addColorStop(0.32, '#d08cb8'); g.addColorStop(0.5, '#e0b9a2'); g.addColorStop(0.68, '#463a76'); g.addColorStop(1, '#120d26'); }
   ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 512);
   const softbox = (x, y, w, h, color) => {
     const r = ctx.createRadialGradient(x, y, 4, x, y, Math.max(w, h));
@@ -790,11 +839,11 @@ function setupStudioReflections(scene, BAB) {
   dm.disableLighting = true; dm.emissiveTexture = tex; dm.fogEnabled = false; dm.backFaceCulling = false;
   dome.material = dm; dome.isPickable = false; dome.infiniteDistance = true;
   const probe = new BAB.ReflectionProbe('studioProbe', 256, scene, true);
-  probe.position = new BAB.Vector3(0, 3, -115);
+  probe.position = probeAt;
   probe.renderList.push(dome);
   probe.refreshRate = BAB.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
   scene.environmentTexture = probe.cubeTexture;
-  scene.environmentIntensity = 0.5;
+  scene.environmentIntensity = palette === 'daylight' ? 0.75 : 0.5;
   return {
     release() {
       // Once the probe has rendered, the dome and its sky texture are no longer needed.

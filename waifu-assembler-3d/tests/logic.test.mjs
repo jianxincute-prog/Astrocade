@@ -2,15 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FRAGMENTS, PARTS, SETS, countPlaced, createInitialState, isGameComplete,
-  isSetComplete, pickup, placeCarried, restoreState, serializeState, INITIAL_PODIUMS,
+  isSetComplete, pickup, placeCarried, restoreState, serializeState, INITIAL_PODIUMS, HALL_SIZE, ANNEX, GALLERY_DOOR,
 } from '../logic.mjs';
 import { ARM_LENGTHS, SHOULDER, STATUE_POSES, armJoints } from '../poses.mjs';
 
-test('30 fragments cover six five-part statue sets in the 150x150 hall', () => {
-  assert.equal(FRAGMENTS.length, 30);
-  assert.equal(SETS.length, 6);
+test('60 fragments cover twelve five-part statue sets inside the restoration hall', () => {
+  assert.equal(FRAGMENTS.length, 60);
+  assert.equal(SETS.length, 12);
   assert.equal(PARTS.length, 5);
-  assert.ok(FRAGMENTS.every(({ x, z }) => Math.abs(x) <= 75 && Math.abs(z) <= 75));
+  assert.equal(HALL_SIZE, 120);
+  const inner = HALL_SIZE / 2 - 4; // keep clear of the walls, pilasters and windows
+  assert.ok(FRAGMENTS.every(({ x, z }) => Math.abs(x) <= inner && Math.abs(z) <= inner));
 });
 
 test('pickup is one-at-a-time and matching parts snap into the right set', () => {
@@ -26,7 +28,7 @@ test('pickup is one-at-a-time and matching parts snap into the right set', () =>
   assert.equal(countPlaced(placed), 1);
 });
 
-test('all 30 pieces complete the display, and repeated placements cannot duplicate parts', () => {
+test('all 60 pieces complete the display, and repeated placements cannot duplicate parts', () => {
   let state = createInitialState();
   for (const fragment of FRAGMENTS) {
     state = pickup(state, fragment.key);
@@ -35,7 +37,7 @@ test('all 30 pieces complete the display, and repeated placements cannot duplica
   }
   assert.equal(isGameComplete(state), true);
   assert.ok(SETS.every(({ id }) => isSetComplete(state, id)));
-  assert.equal(countPlaced(state), 30);
+  assert.equal(countPlaced(state), 60);
 });
 
 test('each statue has a distinct, testable presentation pose and signature gesture', () => {
@@ -60,17 +62,27 @@ test('each statue has a distinct, testable presentation pose and signature gestu
   assert.equal(mic.arm.prop, 'mic');
   assert.ok(mic.W[1] > 3.1 && mic.W[2] > 0.3, 'idol holds the mic up in front of her chin');
   assert.ok(armJoints('idol01', -1).W[1] > armJoints('idol01', -1).E[1] + 0.35, 'idol waves with a raised forearm');
+  const gestures = { rin01: ['book', -1], aoi01: ['victory'], mei01: ['tray', -1], yuki01: ['snowflake', 1], kana01: ['selfie', 1], sakura01: ['broom', 1] };
+  for (const [id, [gesture, side]] of Object.entries(gestures)) {
+    assert.equal(STATUE_POSES[id].gesture, gesture);
+    if (side) assert.ok(armJoints(id, side).arm.prop, `${id} holds a prop`);
+  }
+  assert.ok(armJoints('aoi01', 1).W[1] > 3.8, 'Aoi punches her fist up above her shoulder');
+  assert.ok(armJoints('kana01', 1).W[1] > 3.5, 'Kana holds the phone up for a selfie');
+  assert.equal(new Set(Object.values(STATUE_POSES).map((p) => p.gesture)).size, 12, 'every statue has its own gesture');
 });
 
-test('fragments are spread out and podiums sit inside the annex', () => {
+test('fragments are spread out and the twelve plinths line the sculpture gallery', () => {
   for (let i = 0; i < FRAGMENTS.length; i += 1) for (let j = i + 1; j < FRAGMENTS.length; j += 1) {
     const a = FRAGMENTS[i]; const b = FRAGMENTS[j];
     assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= 5, `${a.key} and ${b.key} overlap`);
   }
   for (const { id } of SETS) {
     const [x, z] = INITIAL_PODIUMS[id];
-    assert.ok(Math.abs(x) <= 52 && z <= -92 && z >= -140, `${id} podium inside annex`);
+    assert.ok(Math.abs(x) <= ANNEX.maxX - 5 && z <= ANNEX.nearZ - 8 && z >= ANNEX.farZ + 6, `${id} plinth inside the gallery`);
+    assert.ok(Math.abs(x) > GALLERY_DOOR, `${id} plinth keeps the central aisle clear`);
   }
+  assert.equal(SETS.filter(({ id }) => INITIAL_PODIUMS[id][0] < 0).length, 6, 'six plinths on each side');
   const ids = SETS.map(({ id }) => id);
   for (let i = 0; i < ids.length; i += 1) for (let j = i + 1; j < ids.length; j += 1) {
     const [ax, az] = INITIAL_PODIUMS[ids[i]]; const [bx, bz] = INITIAL_PODIUMS[ids[j]];
