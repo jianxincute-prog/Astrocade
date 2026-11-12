@@ -13,6 +13,10 @@ Jelajahi aula restorasi 120 × 120 yang terang, temukan 60 segmen patung yang te
 - Kamera orang pertama berada di ketinggian mata 3.2 (patung ±5 unit di atas plinth), jadi wajah patung terlihat sejajar dada–wajah pengunjung.
 - Selesaikan lima bagian pada setiap podium untuk memulihkan seluruh figur.
 
+## Tutorial interaktif
+- Saat pertama kali bermain, kartu pemandu muncul di atas kontrol dan maju sendiri begitu pemain benar-benar melakukan langkahnya: **1** lihat sekeliling (seret layar) → **2** berjalan (stick/WASD) → **3** ambil potongan (atau OPEN peti/tirai) → **4** bawa ke plinth bernama sama di galeri → **5** ASSEMBLE dan putar sampai pas dengan TARGET.
+- Kontrol yang sedang dibahas berdenyut (stick, tombol aksi, peta). Langkah yang sudah terpenuhi dilewati otomatis. Tombol **SKIP** menutupnya; **REPLAY TUTORIAL** di Settings memulainya lagi. Status selesai tersimpan (`meta.tutorialDone`), tetap setelah NEW RUN, terhapus oleh RESET PROGRESS.
+
 ## Kedalaman gameplay
 - **Potongan tersembunyi**: 24 dari 60 potongan (2 per patung) disimpan di dalam **peti kayu** (11) atau di balik **tirai beludru** (13). Di peta tampil sebagai "?", HUD menulis *SOMETHING IS HIDDEN HERE*, tombol jadi **OPEN**. Saat dibuka: tutup peti berengsel / tirai tersibak (animasi 0,8 dtk), potongan melayang naik, kilau + SFX peti/tirai. Status terbuka tersimpan (`revealed`).
 - **Mini-puzzle "putar & pas-kan"**: tekan ASSEMBLE di plinth → potongan melayang besar di tengah layar dengan latar gelap, diputar acak 90°–270° (sebagian juga terbalik). Hologram **TARGET** kecil di kanan atas menunjukkan posisi yang benar. Putar 45° dengan tombol ⟲ ⟳ / swipe kiri-kanan / A-D, balik dengan ⤾ / swipe atas-bawah / W-S. Saat pas: hologram menyatu ke potongan, "PERFECT FIT", klik + chime, getar, lalu potongan terbang ke patung. ✕ / Esc membatalkan.

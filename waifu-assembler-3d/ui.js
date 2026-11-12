@@ -18,6 +18,7 @@ export function uiMarkup(editing) {
         <button id="mobile-action" class="mobile-action" aria-label="Collect or assemble"><span>✦</span><b id="action-label">SEARCH</b></button>
       </div>
       <div id="toast" class="toast"></div>
+      <section id="coach" class="coach" aria-live="polite"><div id="coach-icon" class="coach-icon">☝</div><div class="coach-body"><small id="coach-step">TUTORIAL · 1 / 5</small><b id="coach-title"></b><span id="coach-text"></span></div><button id="coach-skip" aria-label="Skip the tutorial">SKIP</button></section>
       <section id="fit-panel" class="fit-panel" aria-label="Turn and fit puzzle">
         <div class="fit-head"><small>TURN &amp; FIT</small><b id="fit-title">HEAD</b><span>Turn the piece until it matches the glowing outline</span></div>
         <button id="fit-cancel" class="fit-cancel" aria-label="Stop fitting and keep carrying the piece">✕</button>
@@ -80,6 +81,7 @@ export function uiMarkup(editing) {
         <div class="set-row"><label>AUDIO</label><div class="seg" id="set-audio"><button data-v="on">ON</button><button data-v="off">OFF</button></div></div>
         <div class="set-row"><label>LOOK SENSITIVITY <output id="set-look-val"></output></label><input id="set-look" type="range" min="0.4" max="2" step="0.1"></div>
         <div class="set-row"><label>GRAPHICS</label><div class="seg" id="set-quality"><button data-v="high">HIGH</button><button data-v="balanced">BALANCED</button></div></div>
+        <button id="set-tutorial" class="set-tutorial">REPLAY TUTORIAL</button>
         <button id="set-reset" class="danger">RESET PROGRESS</button>
       </section>
       <section id="leaderboard-panel" class="panel" aria-label="Leaderboard">
@@ -242,6 +244,20 @@ export function installStyles() {
     .lb-time { font:700 20px Georgia,serif; color:#3b2a1c; }
     .lb-note { margin:18px 4px; text-align:center; color:#8a7055; font:500 16px/1.5 system-ui; }
     .hud.studio-on > *:not(.studio) { visibility:hidden; }
+    /* interactive tutorial coach card + highlight on the control it talks about */
+    .coach { display:none; position:absolute; left:0; right:0; margin:0 auto; bottom:290px; width:min(84%,460px); box-sizing:border-box; grid-template-columns:52px 1fr auto; gap:14px; align-items:center; padding:14px 14px 14px 16px; border-radius:22px;
+      background:rgba(28,21,15,.9); border:1px solid rgba(242,195,95,.55); color:#fbeedb; box-shadow:0 12px 34px rgba(0,0,0,.35); pointer-events:auto; z-index:11; }
+    .coach.shown { display:grid; animation:coach-in .35s cubic-bezier(.2,1.5,.4,1); }
+    @keyframes coach-in { from { opacity:0; transform:translateY(14px) scale(.96); } to { opacity:1; transform:none; } }
+    .coach-icon { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; font-size:26px; color:#3a2310; background:linear-gradient(180deg,#f6d690,#d59c48); animation:coach-bob 1.6s ease-in-out infinite; }
+    @keyframes coach-bob { 50% { transform:translateY(-4px); } }
+    .coach-body small { display:block; color:#f2c35f; font:900 10px system-ui; letter-spacing:2.2px; } .coach-body b { display:block; margin:3px 0 2px; font:600 20px Georgia,serif; } .coach-body span { display:block; color:#e3d3ba; font-size:13px; line-height:1.4; }
+    #coach-skip { align-self:start; min-width:64px; height:44px; border-radius:14px; border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.06); color:#e8d6ba; font:800 11px system-ui; letter-spacing:1.5px; }
+    .coach-hl { animation:coach-pulse 1.2s ease-in-out infinite !important; }
+    @keyframes coach-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(242,195,95,.75), 0 8px 26px rgba(0,0,0,.38); } 50% { box-shadow:0 0 0 12px rgba(242,195,95,0), 0 8px 26px rgba(0,0,0,.38); } }
+    .stick-zone.coach-hl { border-radius:50%; }
+    .hud.fitting .coach, .hud.offstage .coach { display:none; }
+    .set-tutorial { width:100%; height:68px; margin-top:22px; border-radius:20px; border:1px solid #dcc59f; background:#fff8ec; color:#6a4a2a; font:800 16px system-ui; letter-spacing:1.5px; }
     /* per-statue medal clock inside the hologram card */
     .statue-clock { margin-top:6px; padding:5px 6px; border-radius:9px; background:rgba(255,236,200,.08); color:#f3dfb7; font:800 9px system-ui; letter-spacing:1px; text-align:center; }
     .statue-clock i { font-style:normal; padding:1px 6px; border-radius:7px; margin-left:4px; color:#2b1c0c; }
@@ -327,6 +343,7 @@ export function installStyles() {
       .medal-pop{top:150px;width:calc(100% - 40px);box-sizing:border-box}.medal-disc{width:56px;height:56px;flex:none}.medal-pop b{font-size:19px}.medal-pop span{font-size:12px}
       .daily-card{padding:12px 14px;gap:12px}.daily-icon{width:44px;height:44px;font-size:22px}.daily-card b{font-size:16px}.daily-card span{font-size:12px}
       .studio-costume{top:150px;right:14px;height:48px;padding:0 12px;font-size:10px}
+      .coach{bottom:200px;width:calc(100% - 28px);grid-template-columns:42px 1fr auto;gap:10px;padding:11px 11px 11px 12px}.coach-icon{width:42px;height:42px;font-size:21px}.coach-body b{font-size:17px}.coach-body span{font-size:12px}#coach-skip{min-width:52px;height:38px;font-size:10px}
       .toast{bottom:185px;font-size:11px}.editor-panel{left:12px;top:167px;width:min(340px,calc(100vw - 24px))}.edit-badge{right:12px;bottom:24px;font-size:8px}
     }
   `;

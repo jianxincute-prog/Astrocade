@@ -214,7 +214,7 @@ export function createGame(mode = 'play') {
   let bestSeconds = null;
   // Meta progress outlives a NEW RUN: the best medal per statue, the statues ever restored (Studio portraits),
   // stars from daily challenges and the daily streak. statueTimes is this run's medal clock per statue.
-  const freshMeta = () => ({ medals: {}, restored: [], dailyStars: 0, daily: null, streak: 0, lastDailyDay: null });
+  const freshMeta = () => ({ medals: {}, restored: [], dailyStars: 0, daily: null, streak: 0, lastDailyDay: null, tutorialDone: false });
   const meta = freshMeta();
   let statueTimes = {};
   let clocking = []; // statues whose clock is running: a piece collected, not yet whole
@@ -889,7 +889,7 @@ export function createGame(mode = 'play') {
     for (const model of fragments.values()) if (!model.absent) push(model.root.position.x, model.root.position.z, 0.75);
     const moved = Math.hypot(x - player.x, z - player.z);
     player.x = x; player.z = z;
-    stepDistance += moved;
+    stepDistance += moved; if (tutorial) tutorial.walk += moved;
     if (stepDistance > 2.4) { stepDistance = 0; audio.play('step', { volume: 0.4, rate: 0.9 + Math.random() * 0.2 }); }
     aimCamera(eye.y + Math.sin(performance.now() * 0.008) * Math.min(0.028, magnitude * 0.018));
   }
@@ -1109,6 +1109,7 @@ export function createGame(mode = 'play') {
       const step = Math.min(rawDt, 1); // real time, not the capped step
       if (!isGameComplete(state)) playSeconds += step;
       for (const id of clocking) statueTimes[id] = (statueTimes[id] || 0) + step; // per-statue medal clocks
+      if (tutorial) updateTutorial();
     }
     updateObjects(now, dt);
     updateCarried(now);
@@ -1142,6 +1143,7 @@ export function createGame(mode = 'play') {
     if (!editing || !lookPointer.isDrag) {
       player.yaw -= dx * 0.0042 * prefs.look;
       player.pitch = clamp(player.pitch - dy * 0.0032 * prefs.look, -1.18, 1.18);
+      if (tutorial) tutorial.look += Math.abs(dx) * 0.0042 + Math.abs(dy) * 0.0032;
     }
     lookPointer.x = event.clientX; lookPointer.y = event.clientY;
   }
@@ -1411,6 +1413,7 @@ export function createGame(mode = 'play') {
     meta.dailyStars = Math.max(0, Math.round(Number(m.dailyStars) || 0));
     meta.streak = Math.max(0, Math.round(Number(m.streak) || 0));
     meta.lastDailyDay = typeof m.lastDailyDay === 'string' ? m.lastDailyDay.slice(0, 10) : null;
+    meta.tutorialDone = Boolean(m.tutorialDone);
     const d = m.daily;
     meta.daily = d && typeof d.day === 'string' ? { day: d.day.slice(0, 10), done: Boolean(d.done), reveals: Math.max(0, Number(d.reveals) || 0), completions: Array.isArray(d.completions) ? d.completions.filter((c) => ids.has(c?.setId)).slice(-24) : [] } : null;
     statueTimes = Object.fromEntries(Object.entries(saved.statueTimes || {}).filter(([id, t]) => ids.has(id) && Number.isFinite(Number(t))).map(([id, t]) => [id, Math.max(0, Number(t))]));
@@ -1508,9 +1511,59 @@ export function createGame(mode = 'play') {
     phase = 'play'; refreshPodiums(); carriedVisual?.setEnabled(true);
     camera.fov = PLAY_FOV; fovKick = 0; lastFrame = performance.now();
     aimCamera(); updateHUD();
-    if (!countPlaced(state) && !state.carried && !hintShown) { hintShown = true; setTimeout(() => { if (phase === 'play') toast('Find a glowing fragment, then carry it to its statue in the gallery', 'normal', 4200); }, 700); }
+    if (!tutorial && !meta.tutorialDone && !countPlaced(state) && !state.carried) startTutorial();
+    else if (tutorial) showTutorialStep();
   }
-  let hintShown = false;
+  // ---------- interactive tutorial: five short steps that advance as the player actually does each thing ----------
+  const TUTORIAL = [
+    { icon: '☝', title: 'Look around', text: 'Drag anywhere on the screen to look around the hall.', hl: null,
+      done: (t) => t.look > 0.9 },
+    { icon: '✥', title: 'Take a walk', text: 'Use the stick at the bottom left (or WASD) to walk.', hl: '#stick-zone',
+      done: (t) => t.walk > 5 },
+    { icon: '✦', title: 'Find a fragment', text: 'Follow the beam of light to the nearest fragment and tap COLLECT. Some hide in chests or behind curtains: tap OPEN first.', hl: '#mobile-action',
+      done: (t) => Boolean(state.carried) || countPlaced(state) > t.placed },
+    { icon: '⌖', title: 'Bring it home', text: 'Carry it north into the sculpture gallery, to the plinth with the same name. The map shows where it is.', hl: '.map-card',
+      done: (t) => Boolean(puzzle) || countPlaced(state) > t.placed || (state.carried && carriedInRange()) },
+    { icon: '⟳', title: 'Turn & fit', text: 'Tap ASSEMBLE, then turn the piece until it matches the glowing TARGET.', hl: '#mobile-action',
+      done: (t) => countPlaced(state) > t.placed },
+  ];
+  let tutorial = null;
+  const coach = { card: root.querySelector('#coach'), icon: root.querySelector('#coach-icon'), step: root.querySelector('#coach-step'), title: root.querySelector('#coach-title'), text: root.querySelector('#coach-text') };
+  function carriedInRange() {
+    const podium = podiums.get(getFragment(state.carried).setId);
+    return distance2(player.x, player.z, podium.group.position.x, podium.group.position.z) <= 5.2;
+  }
+  function startTutorial() {
+    // with nothing left to collect (a finished run) only the look and walk steps can be shown
+    tutorial = { index: 0, look: 0, walk: 0, placed: countPlaced(state), last: isGameComplete(state) ? 1 : TUTORIAL.length - 1 };
+    showTutorialStep();
+  }
+  function showTutorialStep() {
+    const step = TUTORIAL[tutorial.index];
+    coach.icon.textContent = step.icon; coach.title.textContent = step.title; coach.text.textContent = step.text;
+    coach.step.textContent = `TUTORIAL · ${tutorial.index + 1} / ${tutorial.last + 1}`;
+    coach.card.classList.remove('shown'); void coach.card.offsetWidth; coach.card.classList.add('shown');
+    root.querySelectorAll('.coach-hl').forEach((el) => el.classList.remove('coach-hl'));
+    if (step.hl) root.querySelector(step.hl)?.classList.add('coach-hl');
+  }
+  function endTutorial(completed) {
+    coach.card.classList.remove('shown');
+    root.querySelectorAll('.coach-hl').forEach((el) => el.classList.remove('coach-hl'));
+    tutorial = null; meta.tutorialDone = true; saveProgress();
+    if (completed) { toast('Tutorial complete · now restore all twelve statues!', 'success', 3400); audio.play('complete', { volume: 0.6 }); }
+  }
+  function updateTutorial() {
+    // jump past every step whose goal is already met, including later ones (picking up a fragment also proves walking)
+    let next = tutorial.index;
+    for (let j = tutorial.last; j >= tutorial.index; j -= 1) if (TUTORIAL[j].done(tutorial)) { next = j + 1; break; }
+    if (next === tutorial.index) return;
+    if (next > tutorial.last) { endTutorial(true); return; }
+    tutorial.index = next; showTutorialStep(); audio.play('tap', { volume: 0.7 }); safeHaptic('tap');
+  }
+  root.querySelector('#coach-skip').addEventListener('click', () => { audio.play('tap', { volume: 0.5 }); endTutorial(false); });
+  root.querySelector('#set-tutorial').addEventListener('click', () => { // replay from Settings
+    audio.play('tap', { volume: 0.6 }); meta.tutorialDone = false; closePanels(); startPlay(); if (!tutorial) startTutorial();
+  });
   function closePanels() { for (const panel of Object.values(panels)) panel.classList.remove('shown'); disarmReset(); }
   function openPanel(name) { closePanels(); panels[name].classList.add('shown'); if (name === 'settings') syncSettings(); else loadLeaderboard(); }
   root.querySelector('#menu-play').addEventListener('click', () => { audio.play('tap', { volume: 0.7 }); startPlay(); });
@@ -1612,7 +1665,7 @@ export function createGame(mode = 'play') {
     holo, scene, camera, player, eye, state, podiums, fragments, containers, meta, pars, aimCamera, refreshFragments, updateHUD, studio, startPlay, openMenu, openPanel, updateAction, turnPuzzle,
     solvePuzzle() { if (!puzzle) return false; puzzle.yaw = 1; puzzle.flip = 0; turnPuzzle(-1, 0); return true; },
     showMedal: (setId, medal, seconds) => showMedal(getSet(setId), medal, seconds, false),
-    get statueTimes() { return statueTimes; }, get puzzle() { return puzzle; }, get ready() { return ready; }, get phase() { return phase; },
+    get statueTimes() { return statueTimes; }, get tutorial() { return tutorial; }, get puzzle() { return puzzle; }, get ready() { return ready; }, get phase() { return phase; },
   };
 
   return () => {
