@@ -1,5 +1,6 @@
 // Pure player controller: movement, combo chain, dodge i-frames, skills & cooldowns.
 import { MOVES, COMBO, angleDiff } from './combat.js';
+import { SPEED_MULT } from './items.js';
 
 export function createPlayer(opts = {}) {
   return {
@@ -13,6 +14,7 @@ export function createPlayer(opts = {}) {
     stun: 0, dead: false, invuln: 0,
     knockX: 0, knockZ: 0,
     sinceHurt: 99, poison: null,
+    shield: 0, speedT: 0,            // bubble items: shield = hits it still blocks, speedT = seconds of speed boost left
   };
 }
 
@@ -81,6 +83,7 @@ export function updatePlayer(p, input, dt) {
   for (const k in p.cd) p.cd[k] = Math.max(0, p.cd[k] - dt);
   p.comboTimer -= dt;
   p.invuln = Math.max(0, p.invuln - dt);
+  p.speedT = Math.max(0, (p.speedT || 0) - dt);
   p.sinceHurt += dt;
   let dx = 0, dz = 0;
 
@@ -156,7 +159,7 @@ export function updatePlayer(p, input, dt) {
     const target = Math.atan2(input.mx, input.mz);
     const turn = angleDiff(p.facing, target);
     p.facing += turn * Math.min(1, dt * 14);
-    const sp = p.speed * mag;
+    const sp = p.speed * mag * (p.speedT > 0 ? SPEED_MULT : 1);
     const h = Math.hypot(input.mx, input.mz);
     dx += (input.mx / h) * sp * dt;
     dz += (input.mz / h) * sp * dt;
@@ -167,9 +170,19 @@ export function updatePlayer(p, input, dt) {
   return { events, dx, dz };
 }
 
-/** Apply damage to player. Returns true if it landed. */
+/**
+ * Apply damage to player. Returns true if it landed, 'blocked' if a shield charge absorbed it
+ * (no damage, no flinch, a small shove), false if it missed (dead / dodge i-frames).
+ */
 export function damagePlayer(p, dmg, fromX, fromZ, kb = 6) {
   if (p.dead || isInvulnerable(p)) return false;
+  if (p.shield > 0) {
+    p.shield--;
+    p.invuln = 0.45;                    // a brief grace so one swing can't pop both charges
+    const a = Math.atan2(p.x - fromX, p.z - fromZ);
+    p.knockX = Math.sin(a) * kb * 0.3; p.knockZ = Math.cos(a) * kb * 0.3;
+    return 'blocked';
+  }
   p.hp = Math.max(0, p.hp - dmg);
   p.sinceHurt = 0;
   const a = Math.atan2(p.x - fromX, p.z - fromZ);

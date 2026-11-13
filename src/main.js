@@ -12,6 +12,8 @@ import { MOVES, inHitSector, computeDamage, nearestTarget, angleDiff } from './l
 import { createPlayer, updatePlayer, damagePlayer, regen, applyDot, applyPoison, tickPoison } from './logic/player.js';
 import { createEnemy, updateEnemy, damageEnemy, ENEMY_TYPES } from './logic/enemy.js';
 import { BOSSES } from './logic/boss.js';
+import { ITEMS, SPEED_TIME, createBag, bagAdd, bagCanTake, bagCount, bagFind, bagSort, useSlot } from './logic/items.js';
+import { createPickups, addPickup, updatePickups, stepSpawner, dropsFor } from './logic/pickups.js';
 import { createField, addProjectile, addZone, addMeteor, updateField, clearOwner, clearAll } from './logic/hazards.js';
 import { buildGrid, moveCircle, separate } from './logic/physics.js';
 import { cameraRelative, followYaw, thirdPersonRig, nextCameraMode, TOPDOWN_YAW } from './logic/camera.js';
@@ -22,7 +24,8 @@ import { SkinnedCharacter } from './render/skinned.js';
 import { buildWorld } from './render/world.js';
 import { FX, makeEnemyAdornments } from './render/fx.js';
 import { BossFX } from './render/bossfx.js';
-import { HUD, Controls } from './ui/hud.js';
+import { ItemFX } from './render/pickups.js';
+import { HUD, Controls, em } from './ui/hud.js';
 import { Audio } from './ui/audio.js';
 import { Cutscene } from './ui/cutscene.js';
 
@@ -65,11 +68,12 @@ export class Game {
     this.setupRenderer();
     this.setupWorld();
     this.hud = new HUD(this.root);
-    this.controls = new Controls(this.hud.el, [MOVES.skill1.label, MOVES.skill2.label, MOVES.skill3.label]);
+    this.controls = new Controls(this.hud, [MOVES.skill1.label, MOVES.skill2.label, MOVES.skill3.label]);
     this.audio = new Audio(this.lib);
     this.audio.musicOn = !!this.cfg.audio.music;
     this.fx = new FX(this.T, this.scene);
     this.bossfx = new BossFX(this.T, this.scene, this.fx);   // boss telegraphs, projectiles, meteors, zones
+    this.itemfx = new ItemFX(this.T, this.scene);           // item bubbles + shield dome (render/pickups.js)
     this.field = createField();                             // logic/hazards.js
     this.clock = 0; this.dotAcc = 0; this.lastDot = 0; this.lastHurt = 0;
     this.resetRun();
@@ -222,6 +226,17 @@ export class Game {
       }
     }
     clearAll(this.field); if (this.bossfx) this.bossfx.clear();
+    // items: empty backpack and a few starter bubbles around the spawn point
+    this.bag = createBag(); this.pickups = createPickups(); this.speedFxT = 0;
+    if (this.itemfx) this.itemfx.clear();
+    // within the narrow strip of screen the HUD and thumb controls leave free
+    [['heal', -2.3, 2.4], ['shield', 2.6, -2.4], ['speed', 0.2, -4.4]].forEach(([type, ox, oz]) => {
+      for (let t = 0; t < 12; t++) {
+        const x = spawn.x + ox + (t ? (this.rnd() - 0.5) * 3 : 0), z = spawn.z + oz + (t ? (this.rnd() - 0.5) * 3 : 0);
+        if (!blockedAt(this.obstacles, x, z, 1.2)) { addPickup(this.pickups, type, x, z, 90); break; }
+      }
+    });
+    if (this.hud) { this.refreshBagUI(); if (this.hud.bagOpen) this.closeBag(true); }
     this.playerActionId = 0;
     this.shake = 0; this.hitstop = 0; this.state = 'ready';
     this.lastTerritory = -2; this.deadT = 0; this.endT = 0;
@@ -250,12 +265,16 @@ export class Game {
     this.camMode = this.cfg.visual.cameraMode === 'third' ? 'third' : 'topdown';
     this.camYaw = this.player ? this.player.facing : TOPDOWN_YAW;
     this.camHold = 0;
-    const b = document.createElement('div');
-    b.className = 'btn camtoggle';
-    b.style.cssText = 'width:104px;height:104px;right:73px;top:248px;border-radius:26px;background:radial-gradient(circle at 40% 35%,#5b6470,#22272e)';
-    this.hud.el.appendChild(b);
+    const b = this.hud.addTool('cam', 'C');
     this.camBtn = b;
     this.controls.btns.cam = b;
+    this.bagBtn = this.hud.addTool('bag', 'B');
+    this.hud.setTool(this.bagBtn, '🎒', 'BACKPACK');
+    this.bagBtn.addEventListener('pointerdown', () => { if (this.state === 'play' || this.state === 'bag') this.toggleBag(); });
+    this.hud.setBagHandlers({ use: (i) => this.useBagSlot(i), sort: () => { bagSort(this.bag); this.refreshBagUI(); }, close: () => this.closeBag() });
+    this.onItemKey = (e) => this.handleItemKey(e);
+    window.addEventListener('keydown', this.onItemKey);
+    this.refreshBagUI();
     const toggle = (e) => { if (e) e.preventDefault(); this.setCameraMode(nextCameraMode(this.camMode)); };
     b.addEventListener('pointerdown', toggle);
     this.onCamKey = (e) => { if (e.key && e.key.toLowerCase() === 'c' && this.mode === 'play') this.setCameraMode(nextCameraMode(this.camMode)); };
@@ -285,7 +304,7 @@ export class Game {
     // third person: frame the hero above the thumb controls
     if (third) this.camera.setViewOffset(720, 1280, 0, 170, 720, 1280); else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
-    this.camBtn.innerHTML = `<div class="ic" style="font-size:36px">${third ? '🎥' : '🗺️'}</div><div class="lb">${third ? 'THIRD PERSON' : 'TOP DOWN'}</div>`;
+    this.hud.setTool(this.camBtn, third ? '🎥' : '🗺️', third ? '3RD PERSON' : 'TOP DOWN');
     this.camPos = null;
     if (!silent) {
       this.hud.showBanner(third ? 'THIRD-PERSON CAMERA' : 'TOP-DOWN CAMERA', third ? 'Drag the empty screen to rotate the camera' : 'View from above', 1.6);
@@ -304,8 +323,9 @@ export class Game {
       <h2>Free the city from 3 gangs!</h2>
       <p>Defeat ${this.progress.killsForBoss} members of each gang to lure their <b>BOSS</b> out of the hideout.
       Take down all three bosses to take back the city.</p>
-      <p style="font-size:18px;opacity:.75">🕹 Left joystick to move • 👊 combo • 💨 dodge (brief invulnerability) • 💥🌀🐂 skills<br>
-      Keyboard: WASD • J attack • K/Space dodge • 1 2 3 skills</p>
+      <p style="font-size:${em(19)};opacity:.78">🕹 Left joystick to move • 👊 combo • 💨 dodge (brief invulnerability) • 💥🌀🐂 skills<br>
+      🫧 Walk into floating bubbles to collect Medkits, Shields and Swift Boots, then use them from the 🎒 backpack.<br>
+      Keyboard: WASD • J attack • K/Space dodge • 1 2 3 skills • B backpack • Q/E/R quick-use items</p>
       <button class="go">START</button>`);
     o.querySelector('.go').addEventListener('pointerdown', (e) => { e.preventDefault(); this.startPlay(); });
   }
@@ -346,7 +366,7 @@ export class Game {
       const o = this.hud.overlay(`
         <h1>${victory ? 'CITY<br>FREED!' : 'KO!'}</h1>
         <h2>${victory ? 'All three gangs have fallen.' : 'The Enforcer has fallen in the streets...'}</h2>
-        <p style="font-size:30px">Score: <b style="color:#ffcf3a">${score.toLocaleString('en-US')}</b><br>
+        <p style="font-size:${em(30)}">Score: <b style="color:#ffcf3a">${score.toLocaleString('en-US')}</b><br>
         Enemies defeated: ${this.progress.totalKills} • Best combo: ${this.progress.bestCombo}x<br>
         Territories liberated: ${this.progress.gangs.filter((g) => g.liberated).length}/3</p>
         <button class="go">PLAY AGAIN</button>`);
@@ -357,8 +377,7 @@ export class Game {
   // ------------------------------------------------------------------ edit mode
   setupEdit() {
     this.controls.setVisible(false);
-    this.hud.el.querySelector('.hpwrap').style.display = 'none';
-    this.hud.el.querySelector('#minimap').style.display = 'none';
+    this.hud.el.querySelector('.top').style.display = 'none';
     this.hud.showBanner('EDIT MODE', 'Drag the Enforcer to move the starting point • drag the screen to pan the camera', 9999);
     this.editCam = { x: this.player.x, z: this.player.z };
     const canvas = this.renderer.domElement;
@@ -415,6 +434,7 @@ export class Game {
     this.fx.update(dt);
     this.bossfx.syncField(this.field);
     this.bossfx.update(dt);
+    this.itemfx.sync(this.pickups.list, dt);
     this.hud.update(dt);
     this.world.update(now / 1000);
     this.renderer.render(this.scene, this.camera);
@@ -448,6 +468,7 @@ export class Game {
       this.hud.setPoison(!!p.poison);
     }
     tickProgress(this.progress, dt);
+    this.stepItems(dt);
 
     // enemies
     const ctx = { px: p.x, pz: p.z, playerDead: p.dead, attackSlots: this.slots, rnd: this.rnd, minions: 0 };
@@ -487,6 +508,7 @@ export class Game {
 
     // HUD
     this.hud.setPlayerHp(p.hp, p.maxHp);
+    this.hud.setBuffs(p.shield, p.speedT, SPEED_TIME);
     this.hud.setScore(this.progress.score);
     this.hud.setCombo(this.progress.combo);
     this.hud.setGangs(this.progress, this.progress.killsForBoss);
@@ -494,7 +516,103 @@ export class Game {
     const boss = this.enemies.find((e) => e.isBoss && !e.dead && Math.hypot(e.x - p.x, e.z - p.z) < 35);
     if (boss) this.hud.setBoss(BOSS_NAMES[boss.gang], boss.hp, boss.maxHp, BOSSES[boss.gang].css, boss.boss.phase); else this.hud.setBoss(null);
     this.mmT = (this.mmT || 0) - dt;
-    if (this.mmT <= 0) { this.mmT = 0.1; this.hud.drawMinimap(p.x, p.z, p.facing, this.enemies, this.progress, this.city.hqs); }
+    if (this.mmT <= 0) { this.mmT = 0.1; this.hud.drawMinimap(p.x, p.z, p.facing, this.enemies, this.progress, this.city.hqs, this.pickups.list); }
+  }
+
+  // ------------------------------------------------------------------ items & backpack
+  /** Bubbles (spawn / drift / collect), the shield dome, and the speed-boost trail. */
+  stepItems(dt) {
+    const p = this.player;
+    stepSpawner(this.pickups, dt, { rnd: this.rnd, px: p.x, pz: p.z, hpFrac: p.hp / p.maxHp, free: (x, z) => !blockedAt(this.obstacles, x, z, 1.2) });
+    for (const ev of updatePickups(this.pickups, dt, p.x, p.z, p.dead ? () => false : (t) => bagCanTake(this.bag, t))) {
+      const b = ev.pick, it = ITEMS[b.type];
+      if (ev.type === 'collect') {
+        bagAdd(this.bag, b.type);
+        this.fx.ring(b.x, b.z, 2.2, it.color, 0.45); this.fx.burst(b.x, 1.5, b.z, it.color, 16, 6); this.fx.burst(b.x, 1.5, b.z, 0xffffff, 6, 4);
+        this.chime(); this.haptic('tick');
+        this.hud.toast(`+ ${it.name}`, it.css, 1.3);
+        this.refreshBagUI();
+      } else if (ev.type === 'full') this.hud.toast('Backpack is full!', '#ff8a6a', 1.2);
+      else if (ev.type === 'expire') { this.fx.burst(b.x, 1.5, b.z, it.color, 6, 3); }
+    }
+    this.speedFxT -= dt;
+    if (p.speedT > 0 && p.moveSpeed > 0.5 && this.speedFxT <= 0) {
+      this.speedFxT = 0.07;
+      this.fx.burst(p.x - Math.sin(p.facing) * 0.4, 0.25, p.z - Math.cos(p.facing) * 0.4, 0xffd23a, 2, 2.5);
+    }
+  }
+
+  chime() { const a = this.audio; a.tone(660, 0.09, 0.1, 'sine', 0); a.tone(880, 0.1, 0.1, 'sine', 0.07); a.tone(1320, 0.18, 0.09, 'sine', 0.14); }
+
+  onShieldBlock() {
+    const p = this.player;
+    this.itemfx.flashShield();
+    this.fx.ring(p.x, p.z, 2.6, 0x4aa8ff, 0.4, 1.0); this.fx.burst(p.x, 1.4, p.z, 0x9fd4ff, 14, 8);
+    this.audio.tone(1180, 0.09, 0.12, 'triangle', 0); this.audio.tone(760, 0.14, 0.1, 'triangle', 0.05);
+    this.shake = Math.max(this.shake, 0.3); this.haptic({ intensity: 0.5, sharpness: 0.9, duration: 50 });
+    const sp = this.toScreen(p.x, 2.6, p.z);
+    if (sp) this.hud.damageNumber(sp.x, sp.y, p.shield > 0 ? 'BLOCKED!' : 'SHIELD BROKEN!', '#7cc4ff', p.shield <= 0);
+    if (p.shield <= 0) { this.fx.burst(p.x, 1.2, p.z, 0x4aa8ff, 30, 11); this.audio.sweep(900, 200, 0.4, 0.1, 'triangle'); }
+  }
+
+  refreshBagUI() {
+    if (!this.hud || !this.bag || !this.bagBtn) return;
+    this.hud.setBadge(this.bagBtn, bagCount(this.bag));
+    this.hud.refreshBag(this.bag);
+  }
+
+  toggleBag() { if (this.hud.bagOpen) this.closeBag(); else this.openBag(); }
+
+  openBag() {
+    if (this.state !== 'play' || this.hud.bagOpen) return;
+    this.state = 'bag';
+    this.controls.enabled = false; this.controls.jx = this.controls.jy = 0; this.controls.attackHeld = false; this.controls.consume();
+    this.controls.relayout();
+    this.hud.openBag(this.bag);
+  }
+
+  closeBag(silent) {
+    this.hud.closeBag();
+    if (this.state === 'bag') { this.state = 'play'; this.controls.enabled = true; this.controls.consume(); }
+    void silent;
+  }
+
+  /** Use the item in a backpack slot (from the bag UI). */
+  useBagSlot(i) {
+    const p = this.player, s = this.bag.slots[i];
+    if (!s) return;
+    const type = s.type, it = ITEMS[type];
+    const r = useSlot(this.bag, p, i);
+    if (!r.ok) {
+      this.hud.toast(r.reason === 'full' ? (type === 'heal' ? 'Health is already full' : 'Shield is already full') : 'Cannot use that now', '#ffb347', 1.3);
+      return;
+    }
+    this.fx.ring(p.x, p.z, 2.4, it.color, 0.5); this.fx.burst(p.x, 1.4, p.z, it.color, 22, 8);
+    this.chime(); this.haptic('success');
+    const sp = this.toScreen(p.x, 2.7, p.z);
+    if (type === 'heal') { if (sp) this.hud.damageNumber(sp.x, sp.y, '+' + r.healed, '#6dff9a', true); this.hud.toast(`${it.name}  +${r.healed} HP`, it.css); }
+    else if (type === 'shield') { this.itemfx.flashShield(); this.hud.toast('Shield up — blocks 2 hits', it.css); }
+    else { this.hud.toast(`Swift Boots — ${SPEED_TIME}s of speed`, it.css); this.fx.puff(p.x, p.z, 6, 1.4); }
+    this.refreshBagUI();
+    if (this.hud.bagOpen && this.hud.bagData && !this.bag.slots[i]) this.hud.selectSlot(this.bag.slots.findIndex((q) => q) );
+  }
+
+  /** B toggles the backpack, Esc closes it, 1-9 use a slot while it is open, Q/E/R quick-use during play. */
+  handleItemKey(e) {
+    if (this.mode !== 'play' || !e.key || e.repeat) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b') { this.toggleBag(); return; }
+    if (this.state === 'bag') {
+      if (k === 'escape') this.closeBag();
+      else if (k >= '1' && k <= '9') { this.hud.selectSlot(+k - 1); this.useBagSlot(+k - 1); }
+      else if (k === 'enter' && this.hud.bagSel >= 0) this.useBagSlot(this.hud.bagSel);
+      return;
+    }
+    if (this.state !== 'play') return;
+    const quick = { q: 'heal', e: 'shield', r: 'speed' }[k];
+    if (!quick) return;
+    const i = bagFind(this.bag, quick);
+    if (i < 0) this.hud.toast(`No ${ITEMS[quick].name} in the backpack`, '#ffb347', 1.1); else this.useBagSlot(i);
   }
 
   haptic(effect) { try { this.lib && this.lib.haptics && this.lib.haptics.play(effect); } catch (e) { /* */ } }
@@ -550,6 +668,17 @@ export class Game {
 
   onKill(e) {
     const evs = registerKill(this.progress, e.gang, e.isBoss);
+    if (!e.summoned) {
+      const drops = dropsFor(this.rnd, e.isBoss, this.player.hp / this.player.maxHp);
+      drops.forEach((t, i) => {
+        const a = e.facing + (i - (drops.length - 1) / 2) * 1.2 + Math.PI;
+        const dist = e.isBoss ? 3 : 0.8;
+        let x = e.x + Math.sin(a) * dist, z = e.z + Math.cos(a) * dist;
+        if (blockedAt(this.obstacles, x, z, 0.8)) { x = e.x; z = e.z; }
+        addPickup(this.pickups, t, x, z, 60);
+        this.fx.ring(x, z, 1.8, ITEMS[t].color, 0.5);
+      });
+    }
     e.respawnT = e.isBoss || e.summoned ? Infinity : 10;
     if (e.isBoss) this.onBossDeath(e);
     for (const ev of evs) {
@@ -582,7 +711,9 @@ export class Game {
       } else this.audio.play('sfx_whoosh', 0.35, 0.9);
       if (ok) {
         const dmg = Math.round(ev.dmg * this.cfg.enemies.damageMult);
-        if (damagePlayer(p, dmg, e.x, e.z, ev.aoe ? 12 : 6)) {
+        const res = damagePlayer(p, dmg, e.x, e.z, ev.aoe ? 12 : 6);
+        if (res === 'blocked') this.onShieldBlock();
+        else if (res) {
           this.playerChar.hitFlash();
           this.fx.burst(p.x, 1.6, p.z, 0xff5a3a, 10, 6);
           this.audio.play('sfx_punch', 0.8, 0.8);
@@ -625,7 +756,9 @@ export class Game {
       if (d > 0) { this.dotFeedback(d, color); return 'hit'; }
       return 'none';
     }
-    if (!damagePlayer(p, real, fromX, fromZ, kb)) {
+    const res = damagePlayer(p, real, fromX, fromZ, kb);
+    if (res === 'blocked') { this.onShieldBlock(); return 'blocked'; }
+    if (!res) {
       const sp = this.toScreen(p.x, 2.6, p.z);
       if (sp) this.hud.damageNumber(sp.x, sp.y, 'DODGED!', '#6fd0ff');
       return 'dodged';
@@ -806,6 +939,7 @@ export class Game {
     else if (p.action) { clip = MOVES[p.action].clip; u = p.actionT / MOVES[p.action].dur; }
     if (this.cut && this.cut.pose) { clip = this.cut.pose.clip; u = this.cut.pose.u; key = 'cut'; }
     pc.update(dt, { moveSpeed: p.moveSpeed, clip, u, key, groundY: this.playerY });
+    this.itemfx.updateShield(dt, p.x, p.z, this.playerY || 0, p.shield || 0);
 
     for (const e of this.enemies) {
       const v = e.visual, ch = v.char;
@@ -904,6 +1038,7 @@ export class Game {
   resize() {
     const w = this.root.clientWidth || window.innerWidth, h = this.root.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
+    this.hud.resize(w, h); this.controls.relayout();
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -913,6 +1048,8 @@ export class Game {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onCamKey);
+    window.removeEventListener('keydown', this.onItemKey);
+    this.itemfx.dispose();
     window.removeEventListener('pointermove', this.onOrbitMove);
     window.removeEventListener('pointerup', this.onOrbitUp);
     if (this.editMove) { window.removeEventListener('pointermove', this.editMove); window.removeEventListener('pointerup', this.editUp); }

@@ -85,3 +85,14 @@ casts ENRAGED! (shockwave), recovers ~35-40% faster and its skills grow. Casting
 - Visuals: `src/render/bossfx.js` (filling cone / circle / line telegraphs, projectiles, meteors with landing markers, zones, flame stream, slash flashes);
   signature gear in `src/render/bossgear.js` (wolf ears + mane + steel claws, dragon horns + dorsal spines + glowing eyes, cobra patterned hood).
 - New clips in `anim.js`: `claw`, `pounce`, `howl`, `breath`, `meteor`, `spit`, `coil`. HUD shows the cast name under the boss bar, a 50% phase tick, and a green border while poisoned.
+
+## Items, bubbles and the backpack
+
+- **Floating bubbles** drift around the city (a few near the start, one every 12–20 s, and some enemy kills drop one — bosses always drop three). Walk into one to collect it; bubbles close to you drift toward you. Rings on the minimap show where they are. Uncollected bubbles pop after ~45 s.
+- **Items:** 🩹 *Medkit* restores 40% of max health (kept if you're already full) • 🛡 *Guard Shield* blocks the next **2 hits** (a dodge roll never wastes a charge; poison / burning ground still tick) • ⚡ *Swift Boots* +50% move speed for 10 s.
+- **Backpack:** a 3×3 grid (9 slots, up to 3 of the same item per slot). Open it with the 🎒 button or **B**; the game pauses while it is open. Tap an item, then **USE** (double-tap also uses it), **SORT** merges stacks. Keyboard: 1–9 use a slot, Esc closes. Quick-use outside the bag: **Q** Medkit, **E** Shield, **R** Boots.
+- Code: rules in `src/logic/items.js` and `src/logic/pickups.js` (pure, unit-tested), shield/boost in `src/logic/player.js`, visuals in `src/render/pickups.js`, UI in `src/ui/hud.js`.
+
+## HUD layout
+
+Every HUD size is in design pixels (`em` in the stylesheet = `calc(N * var(--u))`, with `--u` set from the screen size in `HUD.resize`), so the interface scales on phones, tablets and desktop, portrait or landscape. Top row: player card (health with a trailing damage bar, score, active buffs) + gang progress card • boss bar (under the cards in portrait, centred in landscape) • minimap, camera / backpack buttons and the combo counter. Bottom: floating joystick and an arc of action buttons around ATTACK.

@@ -8,35 +8,36 @@ import {
   taxiAt, heroAt, phoneAt, subtitleAt, cameraAt, fadeAt, ringStartsBetween, angleDelta,
 } from '../logic/intro.js';
 import { GANGS, groundHeight } from '../logic/city.js';
+import { scaleCss } from './hud.js';
 
 const CSS = `
 .cs{position:absolute;inset:0;pointer-events:none;overflow:hidden;font-family:'Arial Black',Impact,system-ui,sans-serif;color:#fff}
 .cs *{box-sizing:border-box}
-.cs-bar{position:absolute;left:0;right:0;height:120px;background:#000;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.cs-bar{position:absolute;left:0;right:0;height:120em;background:#000;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
 .cs-bar.t{top:0;transform:translateY(-100%)}
 .cs-bar.b{bottom:0;transform:translateY(100%)}
 .cs.on .cs-bar{transform:none}
-.cs-loc{position:absolute;left:0;right:0;top:230px;text-align:center;font-size:54px;letter-spacing:10px;text-shadow:0 4px 18px #000;opacity:0;transition:opacity .6s}
-.cs-loc small{display:block;margin:12px auto 0;width:120px;height:4px;background:#ffcf3a;box-shadow:0 0 12px #ffcf3a}
-.cs-call{position:absolute;left:50%;top:150px;width:460px;margin-left:-230px;display:flex;align-items:center;gap:18px;padding:14px 20px;border-radius:22px;background:rgba(10,14,12,.78);border:2px solid #7dff8a66;opacity:0;transform:translateY(-20px);transition:opacity .35s,transform .35s}
+.cs-loc{position:absolute;left:0;right:0;top:230em;text-align:center;font-size:54em;letter-spacing:10em;text-shadow:0 4em 18em #000;opacity:0;transition:opacity .6s}
+.cs-loc small{display:block;margin:12em auto 0;width:120em;height:4em;background:#ffcf3a;box-shadow:0 0 12em #ffcf3a}
+.cs-call{position:absolute;left:50%;top:150em;width:460em;margin-left:-230em;display:flex;align-items:center;gap:18em;padding:14em 20em;border-radius:22em;background:rgba(10,14,12,.78);border:2em solid #7dff8a66;opacity:0;transform:translateY(-20em);transition:opacity .35s,transform .35s}
 .cs-call.show{opacity:1;transform:none}
-.cs-call .av{width:64px;height:64px;border-radius:50%;background:#1f8a3a;display:flex;align-items:center;justify-content:center;font-size:32px;flex:none}
+.cs-call .av{width:64em;height:64em;border-radius:50%;background:#1f8a3a;display:flex;align-items:center;justify-content:center;font-size:32em;flex:none}
 .cs-call.ring .av{animation:csring .35s infinite alternate}
-.cs-call .nm{font-size:26px;letter-spacing:1px}
-.cs-call .st{font-family:system-ui,sans-serif;font-weight:800;font-size:20px;color:#7dff8a;margin-top:4px}
+.cs-call .nm{font-size:26em;letter-spacing:1em}
+.cs-call .st{font-family:system-ui,sans-serif;font-weight:800;font-size:20em;color:#7dff8a;margin-top:4em}
 @keyframes csring{from{transform:rotate(-14deg) scale(1)}to{transform:rotate(14deg) scale(1.1)}}
-.cs-sub{position:absolute;left:36px;right:36px;bottom:158px;min-height:130px;padding:18px 24px;border-radius:20px;background:rgba(0,0,0,.62);opacity:0;transition:opacity .25s}
+.cs-sub{position:absolute;left:36em;right:36em;bottom:158em;min-height:130em;padding:18em 24em;border-radius:20em;background:rgba(0,0,0,.62);opacity:0;transition:opacity .25s}
 .cs-sub.show{opacity:1}
-.cs-sub .who{font-size:20px;letter-spacing:3px;margin-bottom:8px}
-.cs-sub .tx{font-family:system-ui,sans-serif;font-weight:800;font-size:30px;line-height:1.3;text-shadow:0 2px 4px #000}
-.cs-mission{position:absolute;left:0;right:0;top:380px;padding:46px 0 52px;background:linear-gradient(transparent,rgba(0,0,0,.72) 22%,rgba(0,0,0,.72) 78%,transparent);text-align:center;opacity:0;transform:scale(1.15);transition:opacity .5s,transform .5s}
+.cs-sub .who{font-size:20em;letter-spacing:3em;margin-bottom:8em}
+.cs-sub .tx{font-family:system-ui,sans-serif;font-weight:800;font-size:30em;line-height:1.3;text-shadow:0 2em 4em #000}
+.cs-mission{position:absolute;left:0;right:0;top:380em;padding:46em 0 52em;background:linear-gradient(transparent,rgba(0,0,0,.72) 22%,rgba(0,0,0,.72) 78%,transparent);text-align:center;opacity:0;transform:scale(1.15);transition:opacity .5s,transform .5s}
 .cs-mission.show{opacity:1;transform:none}
-.cs-mission .mh{font-size:26px;letter-spacing:8px;color:#ff5a3a;text-shadow:0 3px 8px #000}
-.cs-mission .mt{font-size:58px;line-height:1.05;margin:12px 40px 0;color:#ffcf3a;text-shadow:0 6px 0 #8a2a00,0 10px 30px #000}
-.cs-mission .mg{margin:26px auto 0;width:520px;text-align:left;font-family:system-ui,sans-serif;font-weight:800;font-size:24px;line-height:1.7;text-shadow:0 2px 4px #000;background:rgba(0,0,0,.5);border-radius:16px;padding:12px 24px}
+.cs-mission .mh{font-size:26em;letter-spacing:8em;color:#ff5a3a;text-shadow:0 3em 8em #000}
+.cs-mission .mt{font-size:58em;line-height:1.05;margin:12em 40em 0;color:#ffcf3a;text-shadow:0 6em 0 #8a2a00,0 10em 30em #000}
+.cs-mission .mg{margin:26em auto 0;width:520em;text-align:left;font-family:system-ui,sans-serif;font-weight:800;font-size:24em;line-height:1.7;text-shadow:0 2em 4em #000;background:rgba(0,0,0,.5);border-radius:16em;padding:12em 24em}
 .cs-mission .mg b{float:right;opacity:.7;font-weight:700}
-.cs-mission .dot{display:inline-block;width:16px;height:16px;border-radius:50%;margin-right:12px;vertical-align:-1px;border:2px solid #0008}
-.cs-skip{position:absolute;right:24px;top:12px;width:190px;height:96px;border-radius:48px;border:2px solid #fff5;background:rgba(0,0,0,.55);color:#fff;font:inherit;font-size:24px;pointer-events:auto;touch-action:none}
+.cs-mission .dot{display:inline-block;width:16em;height:16em;border-radius:50%;margin-right:12em;vertical-align:-1px;border:2em solid #0008}
+.cs-skip{position:absolute;right:24em;top:12em;width:190em;height:96em;border-radius:48em;border:2em solid #fff5;background:rgba(0,0,0,.55);color:#fff;font:inherit;font-size:24em;pointer-events:auto;touch-action:none}
 .cs-skip:active{transform:scale(.94)}
 .cs-fade{position:absolute;inset:0;background:#000;opacity:1}
 `;
@@ -72,7 +73,7 @@ export class Cutscene {
   // ------------------------------------------------------------------ DOM
   buildDom() {
     const g = this.g;
-    this.style = document.createElement('style'); this.style.textContent = CSS; document.head.appendChild(this.style);
+    this.style = document.createElement('style'); this.style.textContent = scaleCss(CSS); document.head.appendChild(this.style);
     const r = this.root = document.createElement('div'); r.className = 'cs';
     r.innerHTML = `
       <div class="cs-bar t"></div><div class="cs-bar b"></div>

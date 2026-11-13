@@ -312,3 +312,99 @@ test('poison and damage over time: ticks, refreshes, ignores i-frames and never 
 });
 
 console.log(`\n${n} tests passed`);
+
+// ---------------------------------------------------------------- items / backpack / bubbles
+import { createBag, bagAdd, bagTake, bagCanTake, bagSort, bagSwap, bagCount, bagFind, applyItem, useSlot, BAG_SLOTS, STACK_MAX, SHIELD_HITS, SPEED_TIME, SPEED_MULT } from '../src/logic/items.js';
+import { createPickups, addPickup, updatePickups, stepSpawner, dropsFor, randomType, PICK_RADIUS } from '../src/logic/pickups.js';
+
+test('backpack is a 3x3 grid that stacks up to 3 per slot', () => {
+  const bag = createBag();
+  assert.equal(bag.slots.length, 9); assert.equal(BAG_SLOTS, 9);
+  for (let i = 0; i < STACK_MAX; i++) assert.equal(bagAdd(bag, 'heal'), 0);       // same stack
+  assert.equal(bagAdd(bag, 'heal'), 1);                                           // stack full -> next slot
+  assert.equal(bagAdd(bag, 'shield'), 2);
+  assert.equal(bagCount(bag), 5);
+  assert.equal(bagFind(bag, 'shield'), 2);
+  assert.equal(bagTake(bag, 2), 'shield'); assert.equal(bag.slots[2], null); assert.equal(bagTake(bag, 2), null);
+});
+
+test('a full backpack rejects new items; sort merges stacks; swap moves slots', () => {
+  const bag = createBag();
+  for (let i = 0; i < 9; i++) bagAdd(bag, i % 2 ? 'speed' : 'heal');             // alternating types fill by stack first
+  for (let i = 0; i < 40; i++) bagAdd(bag, 'shield');
+  assert.equal(bagCanTake(bag, 'shield'), false);
+  assert.equal(bagAdd(bag, 'shield'), -1);
+  const b2 = createBag(); bagAdd(b2, 'speed'); bagAdd(b2, 'heal'); bagTake(b2, 0); bagAdd(b2, 'heal');
+  bagAdd(b2, 'speed'); bagAdd(b2, 'speed'); bagAdd(b2, 'speed');
+  bagSort(b2);
+  assert.equal(b2.slots[0].type, 'heal'); assert.equal(b2.slots[0].n, 2);
+  assert.equal(b2.slots[1].type, 'speed'); assert.equal(b2.slots[1].n, 3);
+  bagSwap(b2, 0, 5); assert.equal(b2.slots[0], null); assert.equal(b2.slots[5].type, 'heal');
+});
+
+test('heal restores 40% and is kept when health is full', () => {
+  const p = createPlayer({ maxHp: 200 });
+  p.hp = 50;
+  const bag = createBag(); bagAdd(bag, 'heal'); bagAdd(bag, 'heal');
+  const r = useSlot(bag, p, 0);
+  assert.ok(r.ok); assert.equal(p.hp, 130); assert.equal(r.healed, 80); assert.equal(bagCount(bag), 1);
+  p.hp = 200;
+  assert.equal(useSlot(bag, p, 0).ok, false); assert.equal(bagCount(bag), 1);   // not wasted
+});
+
+test('shield blocks exactly 2 hits, then hits land again', () => {
+  const p = createPlayer({ maxHp: 100 });
+  assert.ok(applyItem(p, 'shield').ok); assert.equal(p.shield, SHIELD_HITS);
+  assert.equal(damagePlayer(p, 30, 0, -1), 'blocked'); assert.equal(p.hp, 100); assert.equal(p.stun, 0);
+  stepN(p, idle, 0.6);                                                          // grace period ends
+  assert.equal(damagePlayer(p, 30, 0, -1), 'blocked'); assert.equal(p.hp, 100); assert.equal(p.shield, 0);
+  stepN(p, idle, 0.6);
+  assert.equal(damagePlayer(p, 30, 0, -1), true); assert.equal(p.hp, 70);
+});
+
+test('shield is not wasted on a dodge roll, and cannot be stacked past 2', () => {
+  const p = createPlayer({ maxHp: 100 });
+  applyItem(p, 'shield');
+  assert.equal(applyItem(p, 'shield').ok, false);
+  updatePlayer(p, { ...idle, dodge: true }, 0.05);
+  assert.ok(isInvulnerable(p));
+  assert.equal(damagePlayer(p, 30, 0, -1), false); assert.equal(p.shield, 2);
+});
+
+test('speed boost moves 50% faster for 10 seconds, then wears off', () => {
+  const run = (p) => { const r = updatePlayer(p, { ...idle, mx: 1, mz: 0 }, 0.1); return Math.hypot(r.dx, r.dz); };
+  const a = createPlayer({ speed: 8 }), b = createPlayer({ speed: 8 });
+  applyItem(b, 'speed'); assert.equal(b.speedT, SPEED_TIME);
+  assert.ok(Math.abs(run(b) / run(a) - SPEED_MULT) < 1e-6);
+  for (let i = 0; i < 101; i++) updatePlayer(b, idle, 0.1);
+  assert.equal(b.speedT, 0);
+  const c = createPlayer({ speed: 8 }); assert.ok(Math.abs(run(b) / run(c) - 1) < 1e-6);
+});
+
+test('bubbles: drift to the player, collect when close, wait when the bag is full, pop on timeout', () => {
+  const st = createPickups();
+  const b = addPickup(st, 'heal', 3, 0, 5);
+  const ev0 = updatePickups(st, 0.1, 0, 0, () => true);
+  assert.equal(ev0.length, 0); assert.ok(b.x < 3);                              // magnet pulled it in
+  let got = null; for (let i = 0; i < 40 && !got; i++) got = updatePickups(st, 0.05, 0, 0, () => true).find((e) => e.type === 'collect');
+  assert.ok(got); assert.equal(st.list.length, 0);
+  const f = createPickups(); addPickup(f, 'speed', 0.5, 0, 5);
+  const evF = updatePickups(f, 0.1, 0, 0, () => false);
+  assert.equal(evF[0].type, 'full'); assert.equal(f.list.length, 1);           // still there
+  const e = createPickups(); addPickup(e, 'shield', 30, 30, 1);
+  assert.equal(updatePickups(e, 1.1, 0, 0, () => true)[0].type, 'expire'); assert.equal(e.list.length, 0);
+  assert.ok(PICK_RADIUS > 1);
+});
+
+test('spawner keeps a cap and avoids blocked spots; drops: bosses always pay out', () => {
+  const st = createPickups(); let k = 0; const rnd = () => ((k = (k * 7 + 3) % 11) / 11);
+  let spawned = 0;
+  for (let i = 0; i < 4000; i++) if (stepSpawner(st, 0.1, { rnd, px: 0, pz: 0, hpFrac: 1, free: () => true })) spawned++;
+  assert.ok(spawned > 0 && st.list.length <= 7);
+  const none = createPickups(); none.spawnT = 0;
+  assert.equal(stepSpawner(none, 0.1, { rnd, px: 0, pz: 0, hpFrac: 1, free: () => false }), null);
+  assert.ok(dropsFor(() => 0.5, true).length >= 3);
+  assert.equal(dropsFor(() => 0.9, false).length, 0);
+  assert.equal(dropsFor(() => 0.1, false).length, 1);
+  assert.equal(randomType(() => 0.01, 0.2), 'heal');
+});
