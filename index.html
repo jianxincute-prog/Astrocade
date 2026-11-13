@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Astro World</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b33ee; --panel2:#1d2646; --line:#2c3868; --txt:#e8ecff; --dim:#8f9bd0; --acc:#ffcf4a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:crosshair}
+  #top{position:fixed;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);z-index:5}
+  #title{font-weight:800;letter-spacing:.5px;color:var(--acc);white-space:nowrap}
+  #stats{display:flex;gap:6px;flex:1;overflow-x:auto;scrollbar-width:none;min-width:0}
+  #stats::-webkit-scrollbar{display:none}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ctl{display:flex;gap:4px}
+  button{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+  button:hover{border-color:#5668b8}
+  button.on{background:#34457f;border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+  .sm{padding:5px 9px;font-size:14px;min-width:34px}
+  #bottom{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom));z-index:5}
+  #tabs{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+  .tab{padding:5px 12px;font-size:13px;border-radius:999px}
+  #brushbox{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+  #brush{width:110px;accent-color:var(--acc)}
+  #tools{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  #tools::-webkit-scrollbar{display:none}
+  .tool{flex:0 0 auto;width:64px;padding:6px 0 5px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .tool .ic{font-size:22px;line-height:1.1}
+  .tool .nm{font-size:11px;color:var(--dim)}
+  .tool.on .nm{color:var(--txt)}
+  #info{position:fixed;left:10px;bottom:118px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;line-height:1.5;z-index:6;display:none;max-width:70vw}
+  #toast{position:fixed;left:50%;top:56px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;z-index:7;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+  @media (max-width:560px){ #title{display:none} .tool{width:58px} #brush{width:80px} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <div id="title">🌍 ASTRO WORLD</div>
+  <div id="stats"></div>
+  <div class="ctl">
+    <button class="sm" id="b-hand" title="Geser peta (atau klik kanan / spasi + seret)">✋</button>
+    <button class="sm" id="b-pause">⏸</button>
+    <button class="sm on" data-speed="1">1×</button>
+    <button class="sm" data-speed="3">3×</button>
+    <button class="sm" data-speed="8">8×</button>
+  </div>
+</div>
+
+<div id="info"></div>
+<div id="toast"></div>
+
+<div id="bottom">
+  <div id="tabs"></div>
+  <div id="tools"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================== KONSTANTA ============================== */
+const W = 200, H = 130, N = W * H;
+const T = { DEEP:0, SHALLOW:1, SAND:2, GRASS:3, FOREST:4, HILL:5, MOUNTAIN:6, SNOW:7, LAVA:8, BURNT:9 };
+const COL = [
+  [24,72,140],   // deep
+  [48,128,196],  // shallow
+  [226,208,144], // sand
+  [96,176,72],   // grass
+  [40,116,56],   // forest
+  [150,140,98],  // hill
+  [118,118,128], // mountain
+  [240,244,250], // snow
+  [236,90,26],   // lava
+  [62,56,52],    // burnt
+];
+const LADDER = [T.DEEP, T.SHALLOW, T.SAND, T.GRASS, T.HILL, T.MOUNTAIN, T.SNOW];
+const BUILDABLE = new Set([T.SAND, T.GRASS, T.FOREST, T.HILL, T.BURNT]);
+const FLAM = [0,0,0,0.07,0.22,0,0,0,0,0];
+
+const RACES = {
+  human: { col:'#4aa3ff', hp:30, dmg:4, mv:2, civ:1, cap:90, life:[1000,1700], foes:['orc','wolf'],           build:[T.GRASS,T.SAND],           bi:1 },
+  elf:   { col:'#e2a9ff', hp:24, dmg:4, mv:2, civ:1, cap:70, life:[1800,2800], foes:['orc','wolf'],           build:[T.FOREST,T.GRASS],         bi:2 },
+  dwarf: { col:'#ff9a2e', hp:38, dmg:5, mv:3, civ:1, cap:70, life:[1400,2200], foes:['orc','wolf'],           build:[T.HILL,T.GRASS],           bi:3 },
+  orc:   { col:'#ff3d3d', hp:44, dmg:6, mv:2, civ:1, cap:80, life:[800,1300],  foes:['human','elf','dwarf'], build:[T.GRASS,T.HILL,T.BURNT,T.SAND], bi:4 },
+  sheep: { col:'#ffffff', hp:10, dmg:0, mv:3, civ:0, cap:180, life:[600,1100],  foes:[], build:[], bi:0 },
+  wolf:  { col:'#2b2e36', hp:22, dmg:5, mv:1, civ:0, cap:45,  life:[900,1500],  foes:['sheep'], hunt:1, build:[], bi:0 },
+};
+const RN = ['human','elf','dwarf','orc','sheep','wolf'];
+const BUILD_OWNER = [null,'human','elf','dwarf','orc'];
+const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺' };
+const NAMES = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala' };
+const TPS = 8;           // tick simulasi per detik pada 1×
+const MAX_CREATURES = 1800;
+
+/* ============================== STATE ============================== */
+const tiles = new Uint8Array(N);
+const bld   = new Uint8Array(N);   // 0 = kosong, 1..4 = rumah milik ras
+const fire  = new Uint8Array(N);
+const jit   = new Int8Array(N);
+let creatures = [];
+let nextId = 1;
+let tick = 0;
+let speed = 1, paused = false;
+let counts = {}, houseCount = 0, hb = [0,0,0,0,0];
+let dayNight = true;
+const effects = [];
+
+/* ============================== NOISE & GENERASI ============================== */
+function hash(x, y, s) {
+  let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 1274126177)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);
+  const a = hash(xi,yi,s), b = hash(xi+1,yi,s), c = hash(xi,yi+1,s), d = hash(xi+1,yi+1,s);
+  return a + (b-a)*u + (c-a)*v + (a-b-c+d)*u*v;
+}
+function fbm(x, y, s) {
+  let a = 0, amp = .5, f = 1, n = 0;
+  for (let o = 0; o < 5; o++) { a += amp * vnoise(x*f, y*f, s + o*17); n += amp; amp *= .5; f *= 2; }
+  return a / n;
+}
+function generate(seed) {
+  creatures = []; effects.length = 0;
+  bld.fill(0); fire.fill(0);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = x + y*W;
+    const nx = (x/W - .5)*2, ny = (y/H - .5)*2;
+    const d = Math.sqrt(nx*nx + ny*ny);
+    let e = fbm(x/34, y/34, seed) * 1.05 + 0.22 - d*d*0.42 - d*0.18;
+    const m = fbm(x/20 + 50, y/20 + 50, seed + 99);
+    let t;
+    if (e < .40) t = T.DEEP;
+    else if (e < .47) t = T.SHALLOW;
+    else if (e < .51) t = T.SAND;
+    else if (e < .70) t = (m > .52 ? T.FOREST : T.GRASS);
+    else if (e < .78) t = T.HILL;
+    else if (e < .88) t = T.MOUNTAIN;
+    else t = T.SNOW;
+    tiles[i] = t;
+    jit[i] = Math.floor((hash(x, y, 7) - .5) * 14);
+  }
+}
+function emptyWorld() {
+  creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
+  for (let i = 0; i < N; i++) jit[i] = Math.floor((Math.random() - .5) * 14);
+}
+
+/* ============================== UTIL ============================== */
+const rnd = (a, b) => a + Math.random() * (b - a);
+const ri  = (a, b) => Math.floor(rnd(a, b + 1));
+const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+function walkable(t, tile) {
+  if (tile <= T.SHALLOW || tile === T.LAVA) return false;
+  if (tile === T.MOUNTAIN || tile === T.SNOW) return t === 'dwarf';
+  return true;
+}
+function forDisc(cx, cy, r, fn) {
+  const rr = r*r + (r > 0 ? .6 : 0);
+  for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) {
+    if (x*x + y*y <= rr) { const tx = cx+x, ty = cy+y; if (inb(tx, ty)) fn(tx, ty, tx + ty*W); }
+  }
+}
+function setTile(i, t) {
+  tiles[i] = t;
+  if (t <= T.SHALLOW || t === T.LAVA) { fire[i] = 0; bld[i] = 0; }
+  else if (t === T.MOUNTAIN || t === T.SNOW) bld[i] = 0;
+}
+function ignite(i) {
+  if (fire[i]) return;
+  const t = tiles[i];
+  if (bld[i]) fire[i] = 14;
+  else if (t === T.FOREST) fire[i] = 16;
+  else if (t === T.GRASS) fire[i] = 7;
+}
+function fx(kind, x, y, extra) { effects.push(Object.assign({ k:kind, x, y, t:0 }, extra || {})); }
+
+/* ============================== MAKHLUK ============================== */
+function spawn(type, x, y, force) {
+  if (!force && (creatures.length >= MAX_CREATURES || (counts[type]||0) >= RACES[type].cap + 60)) return null;
+  if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
+  const R = RACES[type];
+  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0 };
+  creatures.push(c);
+  counts[type] = (counts[type]||0) + 1;
+  return c;
+}
+function spawnNear(type, x, y) {
+  for (let k = 0; k < 8; k++) {
+    const c = spawn(type, x + ri(-1,1), y + ri(-1,1));
+    if (c) return c;
+  }
+  return null;
+}
+
+const DIRS = [[0,0],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+const GW = Math.ceil(W/8), GH = Math.ceil(H/8);
+const cells = Array.from({length:GW*GH}, () => []);
+
+function tryMove(c, nx, ny) {
+  if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W])) { c.x = nx; c.y = ny; return true; }
+  return false;
+}
+function findTarget(c) {
+  const R = RACES[c.t];
+  let rad = 8;
+  let foes = R.foes;
+  if (R.hunt) {
+    if (c.en > 75) return null;
+    rad = 11;
+    if (c.en < 45) foes = ['sheep','human','elf','dwarf'];
+  }
+  if (!foes.length) return null;
+  const cx = c.x >> 3, cy = c.y >> 3, cr = Math.ceil(rad/8);
+  let best = null, bd = 1e9;
+  for (let gy = Math.max(0,cy-cr); gy <= Math.min(GH-1,cy+cr); gy++)
+    for (let gx = Math.max(0,cx-cr); gx <= Math.min(GW-1,cx+cr); gx++) {
+      const list = cells[gy*GW + gx];
+      for (let k = 0; k < list.length; k++) {
+        const o = list[k];
+        if (o.hp <= 0 || o === c || !foes.includes(o.t)) continue;
+        const d = Math.max(Math.abs(o.x - c.x), Math.abs(o.y - c.y));
+        if (d < bd && d <= rad) { bd = d; best = o; }
+      }
+    }
+  return best;
+}
+function countHouses(x, y, r, owner) {
+  let n = 0;
+  for (let yy = Math.max(0,y-r); yy <= Math.min(H-1,y+r); yy++)
+    for (let xx = Math.max(0,x-r); xx <= Math.min(W-1,x+r); xx++) if (bld[xx + yy*W] === owner) n++;
+  return n;
+}
+
+function stepCreature(c) {
+  const R = RACES[c.t];
+  const idx = c.x + c.y*W;
+  c.age++;
+  if (c.age > c.life) { c.hp = 0; return; }
+  if (!walkable(c.t, tiles[idx])) { c.hp = 0; fx('splash', c.x, c.y); return; }
+  if (fire[idx]) { c.hp -= 9; if (c.hp <= 0) return; }
+  if (R.hunt) { c.en -= 0.2; if (c.en <= 0) { c.hp = 0; return; } }
+  if ((tick + c.id) % R.mv !== 0) return;
+
+  // target
+  let tg = c.tgt;
+  if (tg && (tg.hp <= 0 || Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y)) > 13)) tg = c.tgt = null;
+  if (!tg && (tick + c.id) % 3 === 0) tg = c.tgt = findTarget(c);
+
+  if (tg) {
+    const d = Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y));
+    if (d <= 1 && R.dmg > 0) {
+      tg.hp -= R.dmg * (.5 + Math.random());
+      fx('hit', tg.x, tg.y);
+      if (tg.hp <= 0) { c.kills++; if (R.hunt) c.en = Math.min(100, c.en + 45); c.tgt = null; }
+      return;
+    }
+    const sx = Math.sign(tg.x - c.x), sy = Math.sign(tg.y - c.y);
+    if (tryMove(c, c.x+sx, c.y+sy) || tryMove(c, c.x+sx, c.y) || tryMove(c, c.x, c.y+sy)) return;
+  }
+
+  if (R.civ) {
+    // serang rumah musuh di sekitar
+    if (Math.random() < .3) {
+      for (let k = 1; k < 9; k++) {
+        const nx = c.x + DIRS[k][0], ny = c.y + DIRS[k][1];
+        if (!inb(nx, ny)) continue;
+        const o = bld[nx + ny*W];
+        if (o && R.foes.includes(BUILD_OWNER[o]) && Math.random() < .4) { bld[nx + ny*W] = 0; fx('hit', nx, ny); break; }
+      }
+    }
+    // bangun rumah
+    if (bld[idx] === 0 && Math.random() < .02 && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
+        && (hb[R.bi]||0) < R.cap*.3 && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
+      bld[idx] = R.bi; fx('puff', c.x, c.y);
+    }
+  } else if (c.t === 'sheep') {
+    if (Math.random() < .02 && (counts.sheep||0) < R.cap && cells[(c.y>>3)*GW + (c.x>>3)].length < 14 && tiles[idx] === T.GRASS) spawnNear('sheep', c.x, c.y);
+  } else if (R.hunt) {
+    if (c.en > 70 && Math.random() < .01 && (counts.wolf||0) < R.cap) { c.en -= 30; spawnNear('wolf', c.x, c.y); }
+  }
+
+  // jalan-jalan acak
+  if (Math.random() < .3) c.dir = ri(0, 8);
+  const d = DIRS[c.dir];
+  if (d[0] || d[1]) { if (!tryMove(c, c.x + d[0], c.y + d[1])) c.dir = ri(0, 8); }
+}
+
+/* ============================== DUNIA: API TICK ============================== */
+function step() {
+  tick++;
+  // grid spasial
+  for (const l of cells) l.length = 0;
+  for (const c of creatures) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
+
+  for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
+  creatures = creatures.filter(c => c.hp > 0);
+  counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
+
+  // api + rumah
+  const spread = [];
+  houseCount = 0; hb = [0,0,0,0,0];
+  for (let i = 0; i < N; i++) {
+    const b = bld[i];
+    if (b) {
+      houseCount++; hb[b]++;
+      const race = BUILD_OWNER[b];
+      if (Math.random() < .005 && (counts[race]||0) < RACES[race].cap) {
+        const x = i % W, y = (i / W) | 0;
+        if (cells[(y>>3)*GW + (x>>3)].length < 12) spawnNear(race, x, y);
+      }
+    }
+    const f = fire[i];
+    if (f) {
+      fire[i] = f - 1;
+      if (f - 1 === 0) {
+        if (bld[i]) bld[i] = 0;
+        if (tiles[i] === T.FOREST || tiles[i] === T.GRASS) tiles[i] = T.BURNT;
+      }
+      const x = i % W, y = (i / W) | 0;
+      for (let k = 0; k < 4; k++) {
+        const nx = x + (k===0) - (k===1), ny = y + (k===2) - (k===3);
+        if (!inb(nx, ny)) continue;
+        const ni = nx + ny*W;
+        if (fire[ni]) continue;
+        const fl = Math.max(FLAM[tiles[ni]], bld[ni] ? .3 : 0);
+        if (fl && Math.random() < fl) spread.push(ni);
+      }
+    }
+  }
+  for (const i of spread) ignite(i);
+
+  // alam: pertumbuhan acak
+  for (let s = 0; s < 120; s++) {
+    const i = (Math.random() * N) | 0, t = tiles[i];
+    if (t === T.BURNT) { if (Math.random() < .3) tiles[i] = T.GRASS; }
+    else if (t === T.GRASS) {
+      if (Math.random() < .03) {
+        const x = i % W, y = (i / W) | 0;
+        const o = DIRS[ri(1, 8)];
+        if (inb(x+o[0], y+o[1]) && tiles[x+o[0] + (y+o[1])*W] === T.FOREST && !bld[i]) tiles[i] = T.FOREST;
+      }
+    } else if (t === T.LAVA) {
+      const x = i % W, y = (i / W) | 0;
+      for (let k = 1; k < 9; k += 2) { const nx = x+DIRS[k][0], ny = y+DIRS[k][1]; if (inb(nx,ny) && Math.random() < .35) ignite(nx + ny*W); }
+      if (Math.random() < .03) tiles[i] = T.HILL;
+    }
+    if (bld[i] && Math.random() < .01) bld[i] = 0;
+  }
+}
+
+function populate() {
+  const tryPlace = (type, n, pred) => {
+    let guard = 0;
+    while (n > 0 && guard++ < 4000) {
+      const x = ri(0, W-1), y = ri(0, H-1);
+      if (pred(tiles[x + y*W]) && walkable(type, tiles[x + y*W])) {
+        const group = type === 'sheep' ? 4 : 3;
+        for (let k = 0; k < group && n > 0; k++) if (spawnNear(type, x, y)) n--; else n--;
+      }
+    }
+  };
+  tryPlace('sheep', 40, t => t === T.GRASS);
+  tryPlace('wolf', 5, t => t === T.GRASS || t === T.FOREST);
+  tryPlace('human', 8, t => t === T.GRASS);
+  tryPlace('elf', 7, t => t === T.FOREST);
+  tryPlace('dwarf', 7, t => t === T.HILL);
+  tryPlace('orc', 6, t => t === T.GRASS || t === T.HILL);
+}
+
+/* ============================== KAMERA / CANVAS ============================== */
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const off = document.createElement('canvas'); off.width = W; off.height = H;
+const octx = off.getContext('2d');
+const img = octx.createImageData(W, H);
+let vw = 0, vh = 0, dpr = 1;
+let sc = 4, ox = 0, oy = 0;
+let frame = 0;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  vw = window.innerWidth; vh = window.innerHeight;
+  cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
+}
+function fitCamera() {
+  const topH = 48, botH = 120;
+  sc = Math.max(2, Math.min(vw / W, (vh - topH - botH) / H));
+  ox = (vw - W*sc) / 2;
+  oy = topH + (vh - topH - botH - H*sc) / 2;
+}
+function clampCam() {
+  ox = Math.min(vw*.75, Math.max(-(W*sc - vw*.25), ox));
+  oy = Math.min(vh*.75, Math.max(-(H*sc - vh*.25), oy));
+}
+function zoomAt(px, py, f) {
+  const ns = Math.min(48, Math.max(2, sc * f));
+  const wx = (px - ox) / sc, wy = (py - oy) / sc;
+  sc = ns; ox = px - wx*sc; oy = py - wy*sc; clampCam();
+}
+const toWorld = (px, py) => [Math.floor((px - ox)/sc), Math.floor((py - oy)/sc)];
+
+function renderTerrain() {
+  const d = img.data;
+  for (let i = 0; i < N; i++) {
+    const t = tiles[i], c = COL[t];
+    let j = jit[i];
+    if (t <= 1) j += Math.sin(frame*.05 + (i % W)*.55 + ((i / W)|0)*.35) * 7;
+    let r = c[0] + j, g = c[1] + j, b = c[2] + j;
+    if (fire[i]) {
+      const fl = (frame*7 + i*13) % 3;
+      r = 255; g = fl === 0 ? 220 : fl === 1 ? 140 : 80; b = 20;
+    }
+    const k = i*4;
+    d[k] = r; d[k+1] = g; d[k+2] = b; d[k+3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
+}
+
+function draw() {
+  frame++;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, vw, vh);
+  renderTerrain();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, ox, oy, W*sc, H*sc);
+
+  const x0 = Math.max(0, Math.floor(-ox/sc) - 1), x1 = Math.min(W-1, Math.ceil((vw-ox)/sc));
+  const y0 = Math.max(0, Math.floor(-oy/sc) - 1), y1 = Math.min(H-1, Math.ceil((vh-oy)/sc));
+
+  // rumah
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const b = bld[x + y*W]; if (!b) continue;
+    const px = ox + x*sc, py = oy + y*sc, col = RACES[BUILD_OWNER[b]].col;
+    if (sc < 5) { ctx.fillStyle = '#2a2018'; ctx.fillRect(px+sc*.1, py+sc*.1, sc*.8, sc*.8); ctx.fillStyle = col; ctx.fillRect(px+sc*.2, py+sc*.2, sc*.6, sc*.6); }
+    else {
+      ctx.fillStyle = '#e9dcc0'; ctx.fillRect(px+sc*.12, py+sc*.42, sc*.76, sc*.5);
+      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(px+sc*.04, py+sc*.46); ctx.lineTo(px+sc*.5, py+sc*.06); ctx.lineTo(px+sc*.96, py+sc*.46); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#3b2a1a'; ctx.fillRect(px+sc*.42, py+sc*.64, sc*.16, sc*.28);
+    }
+  }
+
+  // makhluk
+  const cs = Math.max(2, sc * .7);
+  for (const c of creatures) {
+    c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3;
+    if (c.dx < x0-1 || c.dx > x1+1 || c.dy < y0-1 || c.dy > y1+1) continue;
+    const px = ox + (c.dx + .5)*sc - cs/2, py = oy + (c.dy + .5)*sc - cs/2;
+    if (sc >= 5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(px-1, py-1, cs+2, cs+2); }
+    ctx.fillStyle = RACES[c.t].col; ctx.fillRect(px, py, cs, cs);
+    if (sc >= 9) {
+      if (c.t === 'wolf') { ctx.fillStyle = '#ff5050'; ctx.fillRect(px+cs*.55, py+cs*.2, cs*.2, cs*.2); }
+      if (c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(px-1, py-4, cs+2, 3); ctx.fillStyle = '#4f4'; ctx.fillRect(px, py-3, cs*Math.max(0,c.hp/c.mhp), 1.5); }
+    }
+  }
+
+  drawEffects();
+
+  if (dayNight) {
+    const a = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2)) * .38;
+    if (a > .01) { ctx.fillStyle = `rgba(6,10,50,${a})`; ctx.fillRect(0, 0, vw, vh); }
+  }
+
+  // kursor kuas
+  if (hover && tool !== 'hand' && tool !== 'inspect') {
+    const r = brushR();
+    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(ox + (hover[0]+.5)*sc, oy + (hover[1]+.5)*sc, (r + .5)*sc, 0, 7); ctx.stroke();
+  }
+}
+
+function drawEffects() {
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const e = effects[i]; e.t++;
+    const px = ox + (e.x + .5)*sc, py = oy + (e.y + .5)*sc;
+    let life = 14;
+    if (e.k === 'bolt') {
+      life = 10; ctx.strokeStyle = `rgba(255,255,200,${1 - e.t/life})`; ctx.lineWidth = Math.max(2, sc*.5);
+      ctx.beginPath(); let cx = px + (e.seed%7-3)*sc, cy = py - 22*sc; ctx.moveTo(cx, cy);
+      for (let k = 1; k <= 8; k++) { cx += ((hash(k, e.seed, 3) - .5) * 4 * sc) * (k===8?0:1); cy += (py - cy) / (9 - k) ; ctx.lineTo(k===8?px:cx, cy); }
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255,255,255,${.5*(1 - e.t/life)})`; ctx.fillRect(0, 0, vw, vh);
+    } else if (e.k === 'boom') {
+      life = 26; const p = e.t/life;
+      ctx.fillStyle = `rgba(255,${200 - p*150|0},40,${1-p})`; ctx.beginPath(); ctx.arc(px, py, e.r*sc*(.3 + p*1.3), 0, 7); ctx.fill();
+      ctx.strokeStyle = `rgba(255,255,255,${1-p})`; ctx.lineWidth = 2; ctx.stroke();
+    } else if (e.k === 'rain') {
+      life = 12; ctx.strokeStyle = `rgba(150,200,255,${1 - e.t/life})`; ctx.lineWidth = 1.2;
+      const yy = py - (life - e.t) * sc * .9;
+      ctx.beginPath(); ctx.moveTo(px, yy); ctx.lineTo(px - sc*.15, yy + sc*1.2); ctx.stroke();
+    } else if (e.k === 'smite') {
+      life = 16; const p = e.t/life; ctx.strokeStyle = `rgba(255,70,70,${1-p})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, sc*(1+p*2), 0, 7); ctx.stroke();
+    } else if (e.k === 'bless') {
+      life = 20; const p = e.t/life; ctx.fillStyle = `rgba(150,255,170,${1-p})`;
+      ctx.fillRect(px - 1, py - p*sc*2.5, 3, 3);
+    } else if (e.k === 'hit') {
+      life = 6; ctx.fillStyle = `rgba(255,255,255,${1 - e.t/life})`; ctx.fillRect(px - sc*.3, py - sc*.3, Math.max(2,sc*.6), Math.max(2,sc*.6));
+    } else if (e.k === 'puff') {
+      life = 12; ctx.strokeStyle = `rgba(255,255,255,${.8 - e.t/life})`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(px, py, sc*(.3 + e.t/life), 0, 7); ctx.stroke();
+    } else if (e.k === 'splash') {
+      life = 12; ctx.strokeStyle = `rgba(200,230,255,${1 - e.t/life})`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(px, py, sc*(.4 + e.t/life*1.2), 0, 7); ctx.stroke();
+    } else if (e.k === 'spawn') {
+      life = 14; ctx.strokeStyle = `rgba(255,255,255,${1 - e.t/life})`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(px, py, sc*(.2 + e.t/life*.9), 0, 7); ctx.stroke();
+    }
+    if (e.t >= life) effects.splice(i, 1);
+  }
+}
+
+/* ============================== ALAT & KUAS ============================== */
+let tool = 'raise', hover = null, painting = false, panning = false, spaceDown = false;
+let brush = 3, lastApply = 0, lastPointer = [0, 0];
+const brushR = () => brush - 1;
+
+const TOOLS = {
+  raise:  { g:'terrain', ic:'⛰️', nm:'Naikkan', ms:140 },
+  lower:  { g:'terrain', ic:'🌊', nm:'Turunkan', ms:140 },
+  grass:  { g:'terrain', ic:'🌱', nm:'Rumput', ms:40 },
+  forest: { g:'terrain', ic:'🌲', nm:'Hutan', ms:40 },
+  sand:   { g:'terrain', ic:'🏖️', nm:'Pasir', ms:40 },
+  lava:   { g:'terrain', ic:'🌋', nm:'Lava', ms:60 },
+  human:  { g:'life', ic:'🧑', nm:'Manusia', ms:140, spawn:1 },
+  elf:    { g:'life', ic:'🧝', nm:'Elf', ms:140, spawn:1 },
+  dwarf:  { g:'life', ic:'🧔', nm:'Kurcaci', ms:140, spawn:1 },
+  orc:    { g:'life', ic:'👹', nm:'Orc', ms:140, spawn:1 },
+  sheep:  { g:'life', ic:'🐑', nm:'Domba', ms:140, spawn:1 },
+  wolf:   { g:'life', ic:'🐺', nm:'Serigala', ms:140, spawn:1 },
+  rain:   { g:'powers', ic:'🌧️', nm:'Hujan', ms:40 },
+  fire:   { g:'powers', ic:'🔥', nm:'Api', ms:50 },
+  bolt:   { g:'powers', ic:'⚡', nm:'Petir', ms:250 },
+  meteor: { g:'powers', ic:'☄️', nm:'Meteor', ms:700 },
+  bless:  { g:'powers', ic:'✨', nm:'Berkati', ms:120 },
+  smite:  { g:'powers', ic:'💀', nm:'Bunuh', ms:90 },
+  inspect:{ g:'powers', ic:'🔍', nm:'Periksa', ms:0 },
+};
+
+function applyTool(wx, wy) {
+  const r = brushR();
+  const T_ = TOOLS[tool];
+  if (!T_ || !inb(wx, wy)) return;
+  switch (tool) {
+    case 'raise': case 'lower': {
+      const dir = tool === 'raise' ? 1 : -1;
+      forDisc(wx, wy, r, (x, y, i) => {
+        if (Math.random() > .75) return;
+        let t = tiles[i];
+        if (t === T.FOREST || t === T.BURNT) t = T.GRASS;
+        if (t === T.LAVA) t = dir > 0 ? T.HILL : T.SAND;
+        let k = LADDER.indexOf(t);
+        if (k < 0) k = 3;
+        k = Math.max(0, Math.min(LADDER.length - 1, k + dir));
+        setTile(i, LADDER[k]);
+      });
+      break;
+    }
+    case 'grass':  forDisc(wx, wy, r, (x, y, i) => setTile(i, T.GRASS)); break;
+    case 'sand':   forDisc(wx, wy, r, (x, y, i) => setTile(i, T.SAND)); break;
+    case 'lava':   forDisc(wx, wy, r, (x, y, i) => { setTile(i, T.LAVA); }); break;
+    case 'forest': forDisc(wx, wy, r, (x, y, i) => { const t = tiles[i]; if (t === T.GRASS || t === T.SAND || t === T.BURNT || t === T.HILL) { if (Math.random() < .85) setTile(i, T.FOREST); } }); break;
+    case 'rain': {
+      forDisc(wx, wy, r, (x, y, i) => {
+        fire[i] = 0;
+        if (tiles[i] === T.BURNT) tiles[i] = T.GRASS;
+        else if (tiles[i] === T.GRASS && Math.random() < .03) tiles[i] = T.FOREST;
+        if (Math.random() < .25) fx('rain', x, y);
+      });
+      break;
+    }
+    case 'fire': forDisc(wx, wy, r, (x, y, i) => { if (Math.random() < .7) ignite(i); }); break;
+    case 'bolt': {
+      const rr = Math.max(1, r >> 1);
+      fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 });
+      forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
+      for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
+      break;
+    }
+    case 'meteor': {
+      const R = 4 + (r >> 1);
+      fx('boom', wx, wy, { r: R + 2 });
+      forDisc(wx, wy, R, (x, y, i) => {
+        const d = Math.hypot(x - wx, y - wy);
+        bld[i] = 0;
+        if (tiles[i] > T.SHALLOW) {
+          if (d < R*.45) setTile(i, T.LAVA);
+          else if (d < R*.8) setTile(i, T.BURNT);
+        } else if (d < R*.35) setTile(i, T.SHALLOW);
+      });
+      forDisc(wx, wy, R + 3, (x, y, i) => { if (Math.random() < .6) ignite(i); });
+      for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= (R+1)**2) c.hp = 0;
+      break;
+    }
+    case 'smite': {
+      fx('smite', wx, wy);
+      for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= r*r + .6) { c.hp = 0; fx('hit', c.x, c.y); }
+      break;
+    }
+    case 'bless': {
+      const add = [];
+      for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= r*r + .6) {
+        c.hp = c.mhp; c.en = 100; fx('bless', c.x, c.y);
+        if (Math.random() < .12) add.push(c);
+      }
+      for (const c of add) spawnNear(c.t, c.x, c.y);
+      break;
+    }
+    default:
+      if (T_.spawn) {
+        const n = Math.max(1, Math.round(brush * brush * .45));
+        let placed = 0;
+        for (let k = 0; k < n * 3 && placed < n; k++) {
+          const a = Math.random() * 6.283, d = Math.sqrt(Math.random()) * r;
+          const c = spawn(tool, Math.round(wx + Math.cos(a)*d), Math.round(wy + Math.sin(a)*d));
+          if (c) { placed++; if (placed <= 4) fx('spawn', c.x, c.y); }
+        }
+        if (!placed) { const c = spawn(tool, wx, wy); if (c) fx('spawn', c.x, c.y); }
+      }
+  }
+}
+
+function inspectAt(wx, wy) {
+  const el = document.getElementById('info');
+  let best = null, bd = 9;
+  for (const c of creatures) { const d = (c.x-wx)**2 + (c.y-wy)**2; if (d < bd) { bd = d; best = c; } }
+  if (best) {
+    const c = best, R = RACES[c.t];
+    el.innerHTML = `<b>${EMOJI[c.t]} ${NAMES[c.t]}</b><br>HP ${Math.ceil(c.hp)}/${c.mhp} · Umur ${(c.age/120).toFixed(1)}/${(c.life/120).toFixed(1)} th`
+      + (R.hunt ? `<br>Energi ${Math.round(c.en)}` : '') + (c.kills ? `<br>Membunuh: ${c.kills}` : '');
+  } else if (inb(wx, wy)) {
+    const i = wx + wy*W, nm = ['Laut dalam','Laut dangkal','Pasir','Rumput','Hutan','Bukit','Gunung','Salju','Lava','Tanah hangus'][tiles[i]];
+    el.innerHTML = `<b>${nm}</b>` + (bld[i] ? `<br>Rumah ${NAMES[BUILD_OWNER[bld[i]]]}` : '') + (fire[i] ? '<br>🔥 Terbakar' : '');
+  }
+  el.style.display = 'block';
+  clearTimeout(inspectAt.t); inspectAt.t = setTimeout(() => el.style.display = 'none', 4000);
+}
+
+/* ============================== INPUT ============================== */
+const ptrs = new Map();
+let pinchD = 0;
+const pdist = () => { const a = [...ptrs.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); };
+const pmid = () => { const a = [...ptrs.values()]; return [(a[0].x + a[1].x)/2, (a[0].y + a[1].y)/2]; };
+
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  lastPointer = [e.clientX, e.clientY];
+  if (ptrs.size >= 2) { painting = false; panning = true; pinchD = pdist(); return; }
+  if (tool === 'hand' || e.button === 1 || e.button === 2 || spaceDown) { panning = true; return; }
+  if (e.button === 0 || e.pointerType !== 'mouse') {
+    hover = toWorld(e.clientX, e.clientY);
+    if (tool === 'inspect') inspectAt(hover[0], hover[1]);
+    else { painting = true; lastApply = 0; }
+  }
+});
+cv.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId);
+  hover = toWorld(e.clientX, e.clientY);
+  if (!p) { return; }
+  const ddx = e.clientX - p.x, ddy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 2) {
+    const nd = pdist(), m = pmid();
+    if (pinchD > 0) zoomAt(m[0], m[1], nd / pinchD);
+    pinchD = nd;
+    ox += ddx / 2; oy += ddy / 2; clampCam();
+  } else if (panning) { ox += ddx; oy += ddy; clampCam(); }
+  lastPointer = [e.clientX, e.clientY];
+});
+const endPtr = e => {
+  ptrs.delete(e.pointerId);
+  if (ptrs.size === 0) { painting = false; panning = false; }
+  else if (ptrs.size === 1) { painting = false; panning = true; }
+};
+cv.addEventListener('pointerup', endPtr);
+cv.addEventListener('pointercancel', endPtr);
+cv.addEventListener('pointerleave', () => { if (!ptrs.size) hover = null; });
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1/1.15); }, { passive:false });
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { spaceDown = true; e.preventDefault(); }
+  if (e.code === 'KeyP') togglePause();
+  if (e.key === '[') setBrush(brush - 1);
+  if (e.key === ']') setBrush(brush + 1);
+});
+window.addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; });
+window.addEventListener('resize', resize);
+
+/* ============================== UI ============================== */
+const GROUPS = [['terrain','⛰️ Medan'], ['life','🧑 Makhluk'], ['powers','⚡ Kekuatan'], ['world','🌍 Dunia']];
+let group = 'terrain';
+const tabsEl = document.getElementById('tabs'), toolsEl = document.getElementById('tools');
+const toastEl = document.getElementById('toast');
+function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTimeout(toast.t); toast.t = setTimeout(() => toastEl.style.opacity = 0, 1800); }
+
+const WORLD_ACTIONS = [
+  { ic:'🗺️', nm:'Dunia baru', fn: () => { generate((Math.random()*1e6)|0); populate(); toast('Dunia baru tercipta'); } },
+  { ic:'🌊', nm:'Lautan kosong', fn: () => { emptyWorld(); toast('Mulai dari lautan — bangun daratanmu!'); } },
+  { ic:'🐾', nm:'Isi kehidupan', fn: () => { populate(); toast('Makhluk bermunculan'); } },
+  { ic:'🧹', nm:'Hapus makhluk', fn: () => { creatures = []; bld.fill(0); toast('Semua makhluk & rumah dihapus'); } },
+  { ic:'🌗', nm:'Siang/Malam', fn: () => { dayNight = !dayNight; toast(dayNight ? 'Siklus siang-malam aktif' : 'Siklus siang-malam mati'); } },
+  { ic:'🔎', nm:'Pas layar', fn: () => fitCamera() },
+];
+
+function renderTabs() {
+  tabsEl.innerHTML = '';
+  for (const [g, label] of GROUPS) {
+    const b = document.createElement('button');
+    b.className = 'tab' + (g === group ? ' on' : ''); b.textContent = label;
+    b.onclick = () => { group = g; renderTabs(); renderTools(); };
+    tabsEl.appendChild(b);
+  }
+  const bb = document.createElement('div'); bb.id = 'brushbox';
+  bb.innerHTML = `Kuas <input type="range" id="brush" min="1" max="10" value="${brush}"><span id="bv">${brush}</span>`;
+  tabsEl.appendChild(bb);
+  const sl = bb.querySelector('input');
+  sl.oninput = () => setBrush(+sl.value);
+}
+function setBrush(v) {
+  brush = Math.max(1, Math.min(10, v));
+  const sl = document.getElementById('brush'); if (sl) sl.value = brush;
+  const bv = document.getElementById('bv'); if (bv) bv.textContent = brush;
+}
+function renderTools() {
+  toolsEl.innerHTML = '';
+  const add = (ic, nm, on, fn) => {
+    const b = document.createElement('button');
+    b.className = 'tool' + (on ? ' on' : '');
+    b.innerHTML = `<span class="ic">${ic}</span><span class="nm">${nm}</span>`;
+    b.onclick = fn; toolsEl.appendChild(b);
+  };
+  if (group === 'world') {
+    for (const a of WORLD_ACTIONS) add(a.ic, a.nm, false, a.fn);
+  } else {
+    for (const [id, t] of Object.entries(TOOLS)) if (t.g === group) add(t.ic, t.nm, tool === id, () => selectTool(id));
+  }
+}
+function selectTool(id) {
+  tool = id;
+  document.getElementById('b-hand').classList.toggle('on', id === 'hand');
+  cv.style.cursor = id === 'hand' ? 'grab' : 'crosshair';
+  if (id !== 'hand' && TOOLS[id]) group = TOOLS[id].g;
+  renderTabs(); renderTools();
+}
+function togglePause() {
+  paused = !paused;
+  document.getElementById('b-pause').textContent = paused ? '▶' : '⏸';
+  document.getElementById('b-pause').classList.toggle('on', paused);
+}
+document.getElementById('b-hand').onclick = () => selectTool(tool === 'hand' ? 'raise' : 'hand');
+document.getElementById('b-pause').onclick = togglePause;
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
+  speed = +b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b));
+});
+
+const statsEl = document.getElementById('stats');
+function updateStats() {
+  const year = Math.floor(tick / 120);
+  let h = `<span class="chip">📅 Tahun ${year}</span>`;
+  for (const r of RN) h += `<span class="chip">${EMOJI[r]} ${counts[r] || 0}</span>`;
+  h += `<span class="chip">🏠 ${houseCount}</span>`;
+  statsEl.innerHTML = h;
+}
+
+/* ============================== LOOP ============================== */
+let lastT = performance.now(), acc = 0, statT = 0;
+function loop(now) {
+  const dt = Math.min(.25, (now - lastT) / 1000); lastT = now;
+  if (!paused) {
+    acc += dt * TPS * speed;
+    let n = 0;
+    while (acc >= 1 && n < 30) { step(); acc--; n++; }
+    if (acc > 30) acc = 0;
+  }
+  if (painting && now - lastApply >= (TOOLS[tool]?.ms ?? 100)) {
+    lastApply = now;
+    const [wx, wy] = toWorld(lastPointer[0], lastPointer[1]);
+    hover = [wx, wy];
+    applyTool(wx, wy);
+  }
+  draw();
+  if (now - statT > 250) { statT = now; updateStats(); }
+  requestAnimationFrame(loop);
+}
+
+/* ============================== START ============================== */
+resize();
+generate((Math.random() * 1e6) | 0);
+populate();
+counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
+fitCamera();
+renderTabs(); renderTools();
+toast('Pilih alat di bawah, lalu seret di dunia. Roda mouse = zoom, klik kanan = geser');
+requestAnimationFrame(loop);
+
+// hook debug/test
+window.__world = { tiles, bld, fire, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, setBrush, W, H, T };
+})();
+</script>
+</body>
+</html>
