@@ -154,6 +154,81 @@ function rleDecode(s) {
   return true;
 }
 
+/* ============================== SPRITES (10x10 pixel art, defined in code) ============================== */
+// Creatures: frames A,B (walk) and C (attack). Houses: frame A. '.' = transparent.
+const OUT = '#1c1420';
+const SPRITES = {
+  human: {
+    pal: { o:OUT, h:'#6b4423', s:'#f1c27d', e:OUT, c:'#4aa3ff', d:'#2a6fc0', p:'#3b4a7a', b:'#3a2a20', w:'#dfe6f0' },
+    A: ["...oooo...","..ohhhho..","..ohhhho..","..oseeso..","..osssso..","..occcco..",".osccccso.",".osddddso.","..opppo...","..ob.bo..."],
+    B: ["...oooo...","..ohhhho..","..ohhhho..","..oseeso..","..osssso..","..occcco..",".osccccso.",".osddddso.","..opppo...","...obbo..."],
+    C: ["...oooo..w","..ohhhho.w","..ohhhho.w","..oseeso.w","..osssso.w","..occcco.w",".osccccssb",".osddddso.","..opppo...","..ob.bo..."],
+  },
+  elf: {
+    pal: { o:OUT, h:'#f3e7a0', s:'#f6d9b8', e:'#3b7a3b', c:'#c58cf0', d:'#8f5cc4', b:'#4a3a58', w:'#dfe6f0' },
+    A: ["...oooo...","..ohhhho..","oshhhhhhso",".osseesso.","..osssso..","..occcco..",".ohccccho.",".ohddddho.","..occcco..","..ob..bo.."],
+    B: ["...oooo...","..ohhhho..","oshhhhhhso",".osseesso.","..osssso..","..occcco..",".ohccccho.",".ohddddho.","..occcco..","...obbo..."],
+    C: ["...oooo...","..ohhhho..","oshhhhhhso",".osseesso.","..osssso..","..occcco..",".ohccccsww",".ohddddho.","..occcco..","..ob..bo.."],
+  },
+  dwarf: {
+    pal: { o:OUT, g:'#a9b2c0', G:'#6f7886', s:'#f0b48a', e:OUT, r:'#c0642a', c:'#ff9a2e', p:'#5a3a22', b:'#3a2a20', x:'#8a5a34', W:'#dfe6f0' },
+    A: ["...occo...","..oggggo..",".oGggggGo.",".osseesso.",".orrssrro.",".orrrrrro.",".orrrrrro.","osgrrrrgso",".opccccpo.","..obo.obo."],
+    B: ["...occo...","..oggggo..",".oGggggGo.",".osseesso.",".orrssrro.",".orrrrrro.",".orrrrrro.","osgrrrrgso",".opccccpo.","...obbbo.."],
+    C: ["...occo...","..oggggo..",".oGggggGWW",".osseesoWx",".orrssrrox",".orrrrrrox",".orrrrrrsx","osgrrrrgo.",".opccccpo.","..obo.obo."],
+  },
+  orc: {
+    pal: { o:OUT, g:'#5fa84a', G:'#3f7a30', e:'#ffe14a', w:'#f4f1e6', c:'#ff3d3d', d:'#b02020', b:'#4a2a20', x:'#8a5a34', X:'#6a4424' },
+    A: ["...oooo...","..oggggo..","..ogeego..","..oggggo..","..owGGwo..",".occcccco.","ogccddccgo","ogccccccgo",".odbbbbdo.",".obo..obo."],
+    B: ["...oooo...","..oggggo..","..ogeego..","..oggggo..","..owGGwo..",".occcccco.","ogccddccgo","ogccccccgo",".odbbbbdo.","..obbbbo.."],
+    C: ["...oooo.XX","..oggggoXX","..ogeego.x","..oggggo.x","..owGGwo.x",".occccccox","ogccddccgx","ogccccccgo",".odbbbbdo.",".obo..obo."],
+  },
+  sheep: {
+    pal: { o:OUT, w:'#ffffff', v:'#d6dbe6', d:'#5a4a52', e:'#ffffff', b:'#3a2a30' },
+    A: ["..........","..oo.oo...",".owwowwo.o","owwwwwwodo","owwvwwwdeo","owwwwwwddo","owwwwwwwoo",".owwwwwo..","..ob..bo..","..ob..bo.."],
+    B: ["..........","..oo.oo...",".owwowwo.o","owwwwwwodo","owwvwwwdeo","owwwwwwddo","owwwwwwwoo",".owwwwwo..","...obbo...","...b..b..."],
+  },
+  wolf: {
+    pal: { o:OUT, g:'#5b6070', l:'#9aa0b0', e:'#ff5050', n:'#1c1c24', d:'#3a3e4c', b:'#2a2d38', w:'#ffffff', r:'#c02030' },
+    A: ["..........","........o.","o.....oggo","og...oggeo",".ogoggggno",".ogggggggo",".oggglllo.",".ogdgoodo.",".ob.bo.bo.",".oo.oo.oo."],
+    B: ["..........","........o.",".o....oggo","og...oggeo",".ogoggggno",".ogggggggo",".oggglllo.","..ogdoodo.","..ob.bobo.","..oo.oooo."],
+    C: ["..........",".......o.o","o.....oggo","og...oggeo",".ogoggggwo",".ogggggrro",".ogglllgwo",".ogdgoodo.",".ob.bo.bo.",".oo.oo.oo."],
+  },
+};
+// Houses (owner race). One frame, drawn bottom-anchored.
+const HOUSES = {
+  human: { // thatched hut, blue banner
+    pal: { o:OUT, y:'#e0b84a', Y:'#b8902c', w:'#d8b98a', k:'#4a3020', f:'#4aa3ff' },
+    A: ["....oo....","...oyyo...","..oyYyyo.f",".oyyyYyyo.","oyYyyyyYyo",".owwwwwwo.",".owkkwfwo.",".owkkwwwo.",".owkkwwwo.",".oooooooo."],
+  },
+  elf: { // tree house, lilac blossoms
+    pal: { o:OUT, g:'#3f9a4a', G:'#2a7038', p:'#c58cf0', t:'#8a5a34', k:'#3a2418' },
+    A: ["..oooooo..",".ogggGgggo","oggGggpggo","ogggggggGo",".oGgggpgo.","...otto...","..otkkto..","..otkkto..",".ottkktto.",".oooooooo."],
+  },
+  dwarf: { // stone house, orange door, chimney
+    pal: { o:OUT, S:'#9ea6b2', s:'#b9c0ca', R:'#5a5f6e', d:'#ff9a2e' },
+    A: ["......oo..",".oooooSSo.","oRRRRRRRRo","oRRRRRRRRo",".oSSsSSsSo",".oSsSSsSSo",".oSdddSsSo",".oSdddSSSo",".oSdddSsSo",".oooooooo."],
+  },
+  orc: { // hide tent, red stripe, skull
+    pal: { o:OUT, R:'#9a6a44', r:'#ff3d3d', k:'#2a1a14', w:'#f4f1e6' },
+    A: ["....wo....","...oRRo...","..oRrRRo..",".oRRrRRRo.",".oRRwwRRo.","oRRRkkRRRo","oRrkkkkRro","oRRkkkkRRo","oRRkkkkRRo","oooooooooo"],
+  },
+};
+function buildSprite(def, frame) {
+  const rows = def[frame] || def.A;
+  const c = document.createElement('canvas'); c.width = 10; c.height = 10;
+  const x = c.getContext('2d');
+  for (let y = 0; y < 10; y++) for (let i = 0; i < 10; i++) {
+    const ch = rows[y][i]; if (ch === '.') continue;
+    x.fillStyle = def.pal[ch] || '#f0f'; x.fillRect(i, y, 1, 1);
+  }
+  return c;
+}
+
+const ATLAS = {}, HATLAS = {};
+for (const k in SPRITES) { ATLAS[k] = {}; for (const f of ['A','B','C']) ATLAS[k][f] = buildSprite(SPRITES[k], f); }
+for (const k in HOUSES) HATLAS[RACES[k].bi] = buildSprite(HOUSES[k], 'A');
+let SPR_K = 1;      // integer sprite scale: 10px per sprite pixel-block, ~1.7 tiles at the base zoom
+
 /* ============================== UTIL ============================== */
 const rnd = (a, b) => a + Math.random() * (b - a);
 const ri = (a, b) => Math.floor(rnd(a, b + 1));
@@ -187,7 +262,7 @@ function spawn(type, x, y, force) {
   if (!force && (creatures.length >= MAX_CREATURES || (counts[type]||0) >= RACES[type].cap + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
-  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0 };
+  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'' };
   creatures.push(c); counts[type] = (counts[type]||0) + 1; dirty = true;
   return c;
 }
@@ -200,7 +275,7 @@ const GW = Math.ceil(W/8), GH = Math.ceil(H/8);
 const cells = Array.from({length:GW*GH}, () => []);
 
 function tryMove(c, nx, ny) {
-  if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W])) { c.x = nx; c.y = ny; return true; }
+  if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W])) { if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny; return true; }
   return false;
 }
 function findTarget(c) {
@@ -230,7 +305,7 @@ function countHouses(x, y, r, owner) {
 function stepCreature(c) {
   const R = RACES[c.t], idx = c.x + c.y*W;
   c.age++;
-  if (c.age > c.life) { c.hp = 0; return; }
+  if (c.age > c.life) { c.hp = 0; c.cause = 'old'; return; }
   if (!walkable(c.t, tiles[idx])) { c.hp = 0; fx('splash', c.x, c.y); return; }
   if (fire[idx]) { c.hp -= 9; if (c.hp <= 0) return; }
   if (R.hunt) { c.en -= 0.2; if (c.en <= 0) { c.hp = 0; return; } }
@@ -242,6 +317,7 @@ function stepCreature(c) {
   if (tg) {
     const d = Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y));
     if (d <= 1 && R.dmg > 0) {
+      c.atk = 10; c.face = tg.x > c.x ? 1 : tg.x < c.x ? -1 : c.face;
       tg.hp -= R.dmg * (.5 + Math.random()); fx('hit', tg.x, tg.y);
       if (tg.hp <= 0) { c.kills++; if (R.hunt) c.en = Math.min(100, c.en + 45); c.tgt = null; }
       return;
@@ -273,13 +349,21 @@ function stepCreature(c) {
 }
 
 /* ============================== WORLD TICK ============================== */
+function reapDead() {
+  let any = false;
+  for (const c of creatures) if (c.hp <= 0) {
+    any = true;
+    if (effects.length < 400) fx('death', c.x, c.y, { type: c.t, face: c.face, old: c.cause === 'old' });
+  }
+  if (any) creatures = creatures.filter(c => c.hp > 0);
+  counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
+}
 function step() {
   tick++;
   for (const l of cells) l.length = 0;
   for (const c of creatures) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
-  creatures = creatures.filter(c => c.hp > 0);
-  counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
+  reapDead();
 
   const spread = []; houseCount = 0; hb = [0,0,0,0,0];
   for (let i = 0; i < N; i++) {
@@ -395,27 +479,28 @@ function draw() {
   const x0 = Math.max(0, Math.floor((VIEW.x-ox)/sc) - 1), x1 = Math.min(W-1, Math.ceil((VIEW.x+VIEW.w-ox)/sc));
   const y0 = Math.max(0, Math.floor((VIEW.y-oy)/sc) - 1), y1 = Math.min(H-1, Math.ceil((VIEW.y+VIEW.h-oy)/sc));
 
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-    const b = bld[x + y*W]; if (!b) continue;
-    const px = ox + x*sc, py = oy + y*sc, col = RACES[BUILD_OWNER[b]].col;
-    if (sc < 8) { ctx.fillStyle = '#2a2018'; ctx.fillRect(px+sc*.05, py+sc*.05, sc*.9, sc*.9); ctx.fillStyle = col; ctx.fillRect(px+sc*.2, py+sc*.2, sc*.6, sc*.6); }
-    else {
-      ctx.fillStyle = '#e9dcc0'; ctx.fillRect(px+sc*.12, py+sc*.42, sc*.76, sc*.5);
-      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(px+sc*.04, py+sc*.46); ctx.lineTo(px+sc*.5, py+sc*.06); ctx.lineTo(px+sc*.96, py+sc*.46); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#3b2a1a'; ctx.fillRect(px+sc*.42, py+sc*.64, sc*.16, sc*.28);
-    }
+  SPR_K = Math.max(1, Math.round(sc / 6));
+  const S = 10 * SPR_K;
+  for (let y = y0; y <= Math.min(H-1, y1 + 2); y++) for (let x = x0; x <= x1; x++) {
+    const idx = x + y*W, b = bld[idx]; if (!b) continue;
+    const cx = ox + (x + .5)*sc, fy = oy + (y + 1)*sc - sc*.05;
+    ctx.drawImage(HATLAS[b], cx - S/2, fy - S, S, S);
+    if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(cx - S*.3, fy - S*.85, S*.6, S*.55); }
   }
-  const cs = Math.max(3, sc * .7);
-  for (const c of creatures) {
-    c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3;
-    if (c.dx < x0-1 || c.dx > x1+1 || c.dy < y0-1 || c.dy > y1+1) continue;
-    const px = ox + (c.dx + .5)*sc - cs/2, py = oy + (c.dy + .5)*sc - cs/2;
-    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(px-1, py-1, cs+2, cs+2);
-    ctx.fillStyle = RACES[c.t].col; ctx.fillRect(px, py, cs, cs);
-    if (sc >= 11) {
-      if (c.t === 'wolf') { ctx.fillStyle = '#ff5050'; ctx.fillRect(px+cs*.55, py+cs*.2, cs*.2, cs*.2); }
-      if (c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(px-1, py-5, cs+2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(px, py-4, cs*Math.max(0,c.hp/c.mhp), 2); }
-    }
+  for (const c of creatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
+  const order = creatures.slice().sort((a, b) => a.dy - b.dy);
+  for (const c of order) {
+    if (c.dx < x0-2 || c.dx > x1+2 || c.dy < y0-2 || c.dy > y1+3) continue;
+    const cx = ox + (c.dx + .5)*sc, fy = oy + (c.dy + 1)*sc - sc*.08;
+    const moving = Math.abs(c.x - c.dx) + Math.abs(c.y - c.dy) > .12;
+    let f = 'A';
+    if (c.atk > 0) { f = 'C'; c.atk--; } else if (moving && ((frame >> 3) + c.id) % 2) f = 'B';
+    const lunge = c.atk > 3 ? 2 * SPR_K : 0;
+    const spr = ATLAS[c.t][f];
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - S*.3, fy - Math.max(1, S*.08), S*.6, Math.max(1, S*.1));
+    if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -S/2 + lunge, fy - S, S, S); ctx.restore(); }
+    else ctx.drawImage(spr, cx - S/2 + lunge, fy - S, S, S);
+    if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - S*.4 - 1, fy - S - 5, S*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - S*.4, fy - S - 4, S*.8*Math.max(0, c.hp/c.mhp), 2); }
   }
   drawEffects();
   if (cfg.settings.dayNight) {
@@ -458,6 +543,16 @@ function drawEffects() {
     } else if (e.k === 'splash') {
       life = 12; ctx.strokeStyle = `rgba(200,230,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, sc*(.4 + e.t/life*1.2), 0, 7); ctx.stroke();
+    } else if (e.k === 'death') {
+      life = 30; const S = 10 * SPR_K, sp = ATLAS[e.type].A, fy = py + sc*.42;
+      ctx.save();
+      if (e.old) { ctx.globalAlpha = Math.max(0, .7*(1 - e.t/life)); ctx.drawImage(sp, px - S/2, fy - S - e.t*.25*SPR_K, S, S); }
+      else {
+        ctx.globalAlpha = e.t < 14 ? 1 : Math.max(0, 1 - (e.t - 14)/16);
+        ctx.translate(px, fy); ctx.scale(e.face || 1, 1); ctx.rotate(Math.min(1, e.t/8) * Math.PI/2);
+        ctx.drawImage(sp, -S/2, -S, S, S);
+      }
+      ctx.restore();
     } else if (e.k === 'spawn') {
       life = 14; ctx.strokeStyle = `rgba(255,255,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, sc*(.2 + e.t/life*.9), 0, 7); ctx.stroke();
@@ -727,7 +822,7 @@ function loop(now) {
   if (painting && now - lastApply >= (TOOLS[tool] ? TOOLS[tool].ms : 100)) {
     lastApply = now;
     const [wx, wy] = toWorld(lastPointer[0], lastPointer[1]); hover = [wx, wy];
-    applyTool(wx, wy);
+    applyTool(wx, wy); reapDead();
   }
   draw();
   if (now - statT > 250) { statT = now; updateStats(); }
@@ -761,7 +856,7 @@ async function start() {
 }
 start();
 
-window.__world = { tiles, bld, fire, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, W, H, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, tiles, bld, fire, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, W, H, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
