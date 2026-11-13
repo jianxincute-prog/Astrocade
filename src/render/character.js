@@ -8,6 +8,7 @@ import {
   stridePhaseRate, CLIPS,
 } from '../logic/anim.js';
 import { buildHeadGeometry, buildHairGeometry } from './headmesh.js';
+import { BAT_LEN, batWoodGeometry, batTapeGeometry, batNailsGeometry, pipeBodyGeometry, pipeTapeGeometry, woodTexture, tapeTexture, steelTexture } from './weapons.js';
 import { chestGeometry, absGeometry, neckGeometry, upperArmGeometry, foreArmGeometry, thighGeometry, shinGeometry, fistGeometry, shoeGeometry } from './bodymesh.js';
 
 const MIRROR = { rSh: 1, rEl: 1, rHip: 1, rKn: 1, rAn: 1 };
@@ -49,6 +50,20 @@ function addGloss(mat) {
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat *= vGloss;\n#endif');
   };
   mat.customProgramCacheKey = () => prevKey + 'gloss';
+}
+
+/** Hair material: discards pixels whose interpolated hair weight (aGloss) is low -> a smooth, curved hairline. */
+function addHairCut(mat) {
+  const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aGloss;\nvarying float vHairW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHairW = aGloss;');
+    sh.fragmentShader = 'varying float vHairW;\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', 'if ( vHairW < 0.32 ) discard;\n#include <map_fragment>');
+  };
+  mat.customProgramCacheKey = () => prevKey + 'haircut';
 }
 
 /**
@@ -483,12 +498,22 @@ export class Character {
       this.buildFist(fist, o.gloves ? this.mat(o.gloves, 0.5) : skin, ab, sx, !!o.wraps);
       this.acc = true;
       if (side === 'r' && o.weapon === 'bat') {
-        const bat = this.mesh(this.geo('bat', () => new T.CylinderGeometry(0.045, 0.024, 0.95, 10)), this.mat(0x8a5a2b, 0.55), fist, 0, -0.02, 0.42);
-        bat.rotation.x = Math.PI / 2;
+        // turned wood bat: knob, neck, barrel, spiral grip tape (+ brass nails on the spiked variant); axis y -> +z
+        const wood = this.mat(0xffffff, 0.6, { map: woodTexture(T) });
+        const tape = this.mat(0xffffff, 0.85, { map: tapeTexture(T, '#e8e3d4', '#1b1b1e', 'bat') });
+        const seg = this.hi ? 32 : 20, put = (g, m) => this.mesh(g, m, fist, 0, -0.02, -0.13, 1, 1, 1, Math.PI / 2, 0, 0);
+        put(this.geo('batWood', () => batWoodGeometry(T, seg)), wood);
+        put(this.geo('batTape', () => batTapeGeometry(T, seg)), tape);
+        if (o.nails) put(this.geo('batNails', () => batNailsGeometry(T)), this.mat(0xb8903a, 0.33, { metalness: 0.85 }));
+        void BAT_LEN;
       }
       if (side === 'r' && o.weapon === 'pipe') {
-        const pipe = this.mesh(this.geo('pipe', () => new T.CylinderGeometry(0.03, 0.03, 0.9, 10)), this.mat(0x9aa3ad, 0.3, { metalness: 0.8 }), fist, 0, -0.02, 0.4);
-        pipe.rotation.x = Math.PI / 2;
+        // weathered steel pipe: threaded coupling, domed end cap, cloth-wrapped grip, rust
+        const steel = this.mat(0xffffff, 0.38, { map: steelTexture(T), metalness: 0.7 });
+        const cloth = this.mat(0xffffff, 0.9, { map: tapeTexture(T, '#3b3b40', '#151517', 'pipe'), side: T.DoubleSide });
+        const seg = this.hi ? 28 : 18, put = (g, m) => this.mesh(g, m, fist, 0, -0.02, -0.13, 1, 1, 1, Math.PI / 2, 0, 0);
+        put(this.geo('pipeBody', () => pipeBodyGeometry(T, seg)), steel);
+        put(this.geo('pipeTape', () => pipeTapeGeometry(T, seg)), cloth);
       }
       this.acc = false;
       if (side === 'l') this.fistL = fist; else this.fistR = fist;
@@ -572,6 +597,7 @@ export class Character {
     if (o.hair) {
       // hair cap with a real hairline (thickness fades to zero) instead of a ball on the skull
       const hm = this.mat(o.hair, 0.92, { map: this.hairTexture(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      addHairCut(hm);
       this.mesh(buildHairGeometry(T, { hi }), hm, head, 0, 0, 0);
     }
     this.acc = !!o.accHead;
@@ -584,13 +610,25 @@ export class Character {
       this.mesh(box, bm, head, -0.018, 0.12, -0.152, 0.024, 0.075, 0.006, 0.3, 0, -0.22);
     }
     if (o.shades) {
-      // glossy lenses on a bridge with temple arms
-      const sm = this.mat(0x050505, 0.12, { metalness: 0.65 });
+      // aviator-style shades: glossy tinted lenses in metal rims, arched bridge, double brow bar, hinged temple arms
+      const lens = this.mat(0x07080c, 0.06, { metalness: 0.35 });
+      const frame = this.mat(0xc7a13a, 0.32, { metalness: 0.85 });
+      const glint = this.mat(0xffffff, 0.2, { transparent: true, opacity: 0.3, depthWrite: false });
+      const rimGeo = this.geo('lensRim', () => new T.TorusGeometry(1, 0.085, 10, 40));
+      const bridgeGeo = this.geo('lensBridge', () => new T.TorusGeometry(1, 0.2, 8, 16, Math.PI));
+      const quad = this.geo('lensGlint', () => new T.PlaneGeometry(1, 1));
       for (const sx of [1, -1]) {
-        this.blob(sm, head, sx * 0.044, 0.136, 0.124, 0.034, 0.021, 0.011);
-        this.mesh(box, sm, head, sx * 0.101, 0.139, 0.058, 0.005, 0.007, 0.13, 0, sx * 0.05, 0);
+        this.blob(lens, head, sx * 0.044, 0.136, 0.1235, 0.0345, 0.0215, 0.011);                                   // lens
+        this.mesh(rimGeo, frame, head, sx * 0.044, 0.136, 0.1275, 0.0365, 0.0235, 0.012);                          // metal rim
+        this.mesh(quad, glint, head, sx * 0.053, 0.141, 0.1352, 0.005, 0.026, 1, 0, 0, sx * -0.55);                // long reflection streak
+        this.mesh(quad, glint, head, sx * 0.037, 0.129, 0.1352, 0.0035, 0.0035, 1, 0, 0, 0.78);                    // small glint
+        this.mesh(box, frame, head, sx * 0.0825, 0.139, 0.12, 0.006, 0.008, 0.007);                                // hinge block
+        this.mesh(box, frame, head, sx * 0.1005, 0.139, 0.062, 0.0035, 0.0055, 0.118, 0, sx * 0.06, 0);            // temple arm
+        this.mesh(box, frame, head, sx * 0.115, 0.131, -0.008, 0.0035, 0.0055, 0.045, -0.5, sx * 0.12, 0);         // tip hooks down behind the ear
+        this.blob(frame, head, sx * 0.011, 0.127, 0.131, 0.003, 0.0045, 0.0025);                                    // nose pad
       }
-      this.mesh(box, sm, head, 0, 0.14, 0.131, 0.02, 0.006, 0.006);
+      this.mesh(bridgeGeo, frame, head, 0, 0.1445, 0.1335, 0.0105, 0.0105, 0.0105);                                // arched bridge
+      this.mesh(box, frame, head, 0, 0.1555, 0.1345, 0.092, 0.0035, 0.004);                                         // double brow bar
     }
     this.acc = false;
   }

@@ -179,7 +179,7 @@ export class Game {
 
   makeEnemyChar(gang, type) {
     const look = { ...GANG_LOOKS[gang] };
-    if (type === 'bat') look.weapon = gang === 1 ? 'pipe' : 'bat';
+    if (type === 'bat') { look.weapon = gang === 1 ? 'pipe' : 'bat'; look.nails = gang === 2; } // Kobra Emas swing nailed bats
     if (type === 'boss') { look.bulk = 1.35; look.shades = true; look.top = GANGS[gang].color; look.accent = 0x111111; look.topSleeves = true; look.fullSleeves = false; look.gloves = 0x111111; }
     look.rim = GANGS[gang].color;
     look.scale = ENEMY_TYPES[type].scale * (type === 'boss' ? 1 : 0.9 + this.rnd() * 0.06);

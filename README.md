@@ -65,3 +65,7 @@ evaluated per pixel in the chest material (`addChestShader`), so there is no pat
 - Shoes (`shoeGeometry`): foot, toe cap, heel and sole slab as one shoe with a dark painted sole, resting on the ground.
 - Enemy hair is a real cap (`buildHairGeometry`) whose thickness fades to nothing at the hairline; mohawk is a ridge of tapered spikes; bandana has a
   knot and tails; shades are glossy lenses with a bridge and temple arms. Enemy heads reuse the sculpted head at 120x90.
+- Weapons (`src/render/weapons.js`, lathe profiles + canvas textures): the bat is turned wood (knob, neck, barrel, grain) with spiral grip tape and end rings,
+  Kobra Emas swing it with brass nails; the pipe is weathered steel with rust, a threaded coupling, domed end cap and cloth-wrapped grip.
+- Shades are aviators: glossy lenses with reflection streaks in gold metal rims, arched bridge, double brow bar, nose pads and hinged temple arms.
+- The hairline is cut per pixel from the hair weight, so it is a smooth curve (no stair-steps).

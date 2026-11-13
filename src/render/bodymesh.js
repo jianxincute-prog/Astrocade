@@ -8,7 +8,7 @@ import { smin, smax, ellipsoid, smoothstep as ss, surfaceMesh } from './sdf.js';
 const CACHE = new Map();
 
 /** Smooth radius function through [[r, y], ...] points sorted by y (Catmull-Rom, clamped >= 0). */
-function profileFn(points) {
+export function profileFn(points) {
   const P = points.map(([r, y]) => ({ r, y }));
   return (y) => {
     if (y <= P[0].y) return P[0].r;

@@ -132,7 +132,8 @@ export function buildHairGeometry(T, { hi }) {
     const f = headField(), t = 0.014;
     CACHE.set(key, surfaceMesh(T, (x, y, z) => f(x, y, z) - t * hairWeight(x, y, z), {
       center: [0, 0.1, 0.015], rMax: 0.28, nu: hi ? 120 : 56, nv: hi ? 90 : 42, iters: hi ? 16 : 12,
-      keepFn: (x, y, z) => hairWeight(x, y, z) > 0.1,
+      glossFn: hairWeight,                               // per-vertex hair weight; the material cuts the hairline from it per pixel
+      keepFn: (x, y, z) => hairWeight(x, y, z) > 0.02,
     }));
   }
   return CACHE.get(key);
