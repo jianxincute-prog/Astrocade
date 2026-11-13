@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8"><title>Sprite preview</title>
+<style>
+ body{margin:0;background:#0b1020;color:#e8ecff;font-family:system-ui,sans-serif;padding:24px;width:1100px}
+ h1{font-size:22px;margin:0 0 4px} p{color:#8f9bd0;margin:0 0 18px;font-size:14px}
+ .row{display:flex;align-items:center;gap:18px;background:#141b33;border:1px solid #2c3868;border-radius:12px;padding:12px 16px;margin-bottom:10px}
+ .nm{width:90px;font-size:18px} canvas{image-rendering:pixelated;background:#60b048;border-radius:6px}
+ .lbl{font-size:11px;color:#8f9bd0;text-align:center;margin-top:3px}
+ .sec{font-size:16px;margin:22px 0 8px;color:#ffcf4a}
+</style>
+<h1>Astro World — sprite 10×10</h1><p>Frame A & B (animasi jalan). Kiri→kanan: ukuran asli 1×, 2×, 4×, 8×.</p>
+<div id="rows"></div>
+<div class="sec">Di atas medan (ukuran 4×)</div><div id="terr"></div>
+<div class="sec">Mini adegan (3× — kira-kira tampilan zoom sedang)</div><canvas id="scene" width="1050" height="300" style="image-rendering:pixelated"></canvas>
+<script src="sprites.js"></script>
+<script>
+const NAMES={human:'Manusia',elf:'Elf',dwarf:'Kurcaci',orc:'Orc',sheep:'Domba',wolf:'Serigala'};
+const rows=document.getElementById('rows');
+for(const k in SPRITES){
+  const r=document.createElement('div');r.className='row';
+  r.innerHTML=`<div class="nm">${NAMES[k]}</div>`;
+  for(const s of [1,2,4,8]){
+    const box=document.createElement('div');
+    for(const f of ['A','B']){
+      const c=document.createElement('canvas');c.width=10*s+4;c.height=10*s+4;c.style.marginRight='6px';
+      const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(buildSprite(SPRITES[k],f),2,2,10*s,10*s);
+      box.appendChild(c);
+    }
+    const l=document.createElement('div');l.className='lbl';l.textContent=s+'×';box.appendChild(l);r.appendChild(box);
+  }
+  rows.appendChild(r);
+}
+const T={grass:'#60b048',forest:'#287438',sand:'#e2d090',hill:'#968c62',snow:'#f0f4fa',mount:'#767680'};
+const terr=document.getElementById('terr');
+for(const [tn,col] of Object.entries(T)){
+  const c=document.createElement('canvas');c.width=6*46+10;c.height=10*4+16;c.style.background=col;c.style.marginRight='8px';
+  const x=c.getContext('2d');x.imageSmoothingEnabled=false;let i=0;
+  for(const k in SPRITES){x.drawImage(buildSprite(SPRITES[k],'A'),8+i*46,8,40,40);i++}
+  terr.appendChild(c);
+}
+const sc=document.getElementById('scene'),x=sc.getContext('2d');x.imageSmoothingEnabled=false;
+// terrain backdrop
+for(let gy=0;gy<10;gy++)for(let gx=0;gx<35;gx++){const t=Math.sin(gx*.5)+Math.cos(gy*.7);x.fillStyle=t>1.1?T.forest:t>-.6?T.grass:t>-1.2?T.sand:T.hill;x.fillRect(gx*30,gy*30,30,30);}
+const keys=Object.keys(SPRITES);let seed=7;const R=()=>(seed=(seed*16807)%2147483647)/2147483647;
+for(let n=0;n<42;n++){const k=keys[n%6];x.drawImage(buildSprite(SPRITES[k],R()<.5?'A':'B'),Math.floor(R()*33)*30+0,Math.floor(R()*9)*30,30,30);}
+</script>
