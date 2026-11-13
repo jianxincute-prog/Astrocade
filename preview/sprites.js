@@ -31,6 +31,16 @@ const SPRITES = {
     A: ["..........","..oo.oo...",".owwowwo.o","owwwwwwodo","owwvwwwdeo","owwwwwwddo","owwwwwwwoo",".owwwwwo..","..ob..bo..","..ob..bo.."],
     B: ["..........","..oo.oo...",".owwowwo.o","owwwwwwodo","owwvwwwdeo","owwwwwwddo","owwwwwwwoo",".owwwwwo..","...obbo...","...b..b..."],
   },
+  rabbit: {
+    pal: { o:OUT, b:'#b8895a', B:'#e6cfa8', p:'#f0a0b0', e:OUT, w:'#ffffff' },
+    A: ["......o.o.",".....obobo",".....obpbo","...oobbbbo","..obbbbbeo",".obbbbbbbp","owbbbbbbo.",".obbbbbbo.","..obobbo..","..oo.oo..."],
+    B: ["......o.o.",".....obobo",".....obpbo","...oobbbbo","..obbbbbeo",".obbbbbbbp","owbbbbbbo.",".obbbbbbo.","...obobbo.","...oo.oo.."],
+  },
+  deer: {
+    pal: { o:OUT, t:'#c68a4e', T:'#9a6232', w:'#f4e6cc', a:'#e6d9a8', e:OUT, n:'#3a2a20' },
+    A: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..",".oto.oto..",".oo..oo..."],
+    B: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..","..oto.oto.","..oo..oo.."],
+  },
   wolf: {
     pal: { o:OUT, g:'#5b6070', l:'#9aa0b0', e:'#ff5050', n:'#1c1c24', d:'#3a3e4c', b:'#2a2d38', w:'#ffffff', r:'#c02030' },
     A: ["..........","........o.","o.....oggo","og...oggeo",".ogoggggno",".ogggggggo",".oggglllo.",".ogdgoodo.",".ob.bo.bo.",".oo.oo.oo."],

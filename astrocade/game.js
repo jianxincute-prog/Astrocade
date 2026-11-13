@@ -36,12 +36,17 @@ const RACES = {
   elf:   { col:'#e2a9ff', hp:24, dmg:4, mv:2, civ:1, cap:70, life:[1800,2800], foes:['orc','wolf'], build:[T.FOREST,T.GRASS], bi:2 },
   dwarf: { col:'#ff9a2e', hp:38, dmg:5, mv:3, civ:1, cap:70, life:[1400,2200], foes:['orc','wolf'], build:[T.HILL,T.GRASS], bi:3 },
   orc:   { col:'#ff3d3d', hp:44, dmg:6, mv:2, civ:1, cap:80, life:[800,1300],  foes:['human','elf','dwarf'], build:[T.GRASS,T.HILL,T.BURNT,T.SAND], bi:4 },
-  sheep: { col:'#ffffff', hp:10, dmg:0, mv:3, civ:0, cap:130, life:[600,1100], foes:[], build:[], bi:0 },
-  wolf:  { col:'#2b2e36', hp:22, dmg:5, mv:1, civ:0, cap:35,  life:[900,1500], foes:['sheep'], hunt:1, build:[], bi:0 },
+  // Wild fauna. prey = wolf food; br = breeding (p per move, tiles, max animals per 8x8 cell); flee = runs from wolves.
+  sheep:  { col:'#ffffff', hp:10, dmg:0, mv:3, civ:0, cap:110, life:[600,1100], foes:[], build:[], bi:0, prey:1, br:{ p:.02,  tiles:[T.GRASS], dens:14 } },
+  rabbit: { col:'#c9a37a', hp:6,  dmg:0, mv:2, civ:0, cap:160, life:[500,900],  foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.035, tiles:[T.GRASS,T.FOREST,T.HILL], dens:16 } },
+  deer:   { col:'#c68a4e', hp:16, dmg:0, mv:2, civ:0, cap:70,  life:[900,1500], foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.014, tiles:[T.FOREST,T.GRASS], dens:8 } },
+  wolf:   { col:'#2b2e36', hp:28, dmg:5, mv:1, civ:0, cap:28,  life:[900,1500], foes:['sheep','rabbit','deer'], hunt:1, build:[], bi:0 },
 };
-const RN = ['human','elf','dwarf','orc','sheep','wolf'];
+const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer'];     // index order is part of the save format
+const STAT_ORDER = ['human','elf','dwarf','orc','sheep','rabbit','deer','wolf'];
+const GAIN = { rabbit:25, sheep:45, deer:60 };                               // wolf energy per kill (default 45)
 const BUILD_OWNER = [null,'human','elf','dwarf','orc'];
-const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺' };
+const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺', rabbit:'🐇', deer:'🦌' };
 const TPS = 8;
 const MAX_CREATURES = 1500;           // multiplied by CAPK
 const capOf = t => Math.round(RACES[t].cap * CAPK);
@@ -65,8 +70,9 @@ style.textContent = `
   .awb.on{background:#34457f;border-color:#ffcf4a}
   #awtop{position:absolute;left:0;top:0;width:720px;height:150px;background:#141b33;border-bottom:3px solid #2c3868}
   #awbtns{position:absolute;left:6px;top:4px;display:flex;gap:8px}
-  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:4px;align-items:center;font-size:21px;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 6px}
+  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:3px;align-items:center;font-size:19px;overflow-x:auto;scrollbar-width:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 5px;flex:0 0 auto}
+  #awyear{position:absolute;right:10px;top:30px;font-size:30px;background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:4px 16px;font-variant-numeric:tabular-nums}
   #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:#141b33;border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
   #awbrush{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:36px;font-weight:700;color:#ffcf4a}
@@ -85,7 +91,7 @@ cv.width = SCREEN_W * DPR; cv.height = SCREEN_H * DPR;
 app.appendChild(cv);
 const ctx = cv.getContext('2d');
 const el = (tag, id, parent) => { const e = document.createElement(tag); if (id) e.id = id; (parent || app).appendChild(e); return e; };
-const topBar = el('div', 'awtop'), btns = el('div', 'awbtns', topBar), statsEl = el('div', 'awstats', topBar);
+const topBar = el('div', 'awtop'), btns = el('div', 'awbtns', topBar), statsEl = el('div', 'awstats', topBar), yearEl = el('div', 'awyear', topBar);
 const bot = el('div', 'awbot'), row1 = el('div', 'awrow1', bot), row2 = el('div', 'awrow2', bot);
 const infoEl = el('div', 'awinfo'), toastEl = el('div', 'awtoast');
 
@@ -224,6 +230,16 @@ const SPRITES = {
     A: ["..........","..oo.oo...",".owwowwo.o","owwwwwwodo","owwvwwwdeo","owwwwwwddo","owwwwwwwoo",".owwwwwo..","..ob..bo..","..ob..bo.."],
     B: ["..........","..oo.oo...",".owwowwo.o","owwwwwwodo","owwvwwwdeo","owwwwwwddo","owwwwwwwoo",".owwwwwo..","...obbo...","...b..b..."],
   },
+  rabbit: {
+    pal: { o:OUT, b:'#b8895a', B:'#e6cfa8', p:'#f0a0b0', e:OUT, w:'#ffffff' },
+    A: ["......o.o.",".....obobo",".....obpbo","...oobbbbo","..obbbbbeo",".obbbbbbbp","owbbbbbbo.",".obbbbbbo.","..obobbo..","..oo.oo..."],
+    B: ["......o.o.",".....obobo",".....obpbo","...oobbbbo","..obbbbbeo",".obbbbbbbp","owbbbbbbo.",".obbbbbbo.","...obobbo.","...oo.oo.."],
+  },
+  deer: {
+    pal: { o:OUT, t:'#c68a4e', T:'#9a6232', w:'#f4e6cc', a:'#e6d9a8', e:OUT, n:'#3a2a20' },
+    A: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..",".oto.oto..",".oo..oo..."],
+    B: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..","..oto.oto.","..oo..oo.."],
+  },
   wolf: {
     pal: { o:OUT, g:'#5b6070', l:'#9aa0b0', e:'#ff5050', n:'#1c1c24', d:'#3a3e4c', b:'#2a2d38', w:'#ffffff', r:'#c02030' },
     A: ["..........","........o.","o.....oggo","og...oggeo",".ogoggggno",".ogggggggo",".oggglllo.",".ogdgoodo.",".ob.bo.bo.",".oo.oo.oo."],
@@ -299,7 +315,7 @@ function spawn(type, x, y, force) {
   if (!force && (creatures.length >= MAX_CREATURES * CAPK || (counts[type]||0) >= capOf(type) + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
-  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'' };
+  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, avoid:0, avoidUntil:0 };
   creatures.push(c); counts[type] = (counts[type]||0) + 1; dirty = true;
   return c;
 }
@@ -313,10 +329,7 @@ function tryMove(c, nx, ny) {
   if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W])) { if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny; return true; }
   return false;
 }
-function findTarget(c) {
-  const R = RACES[c.t]; let rad = 8, foes = R.foes;
-  if (R.hunt) { if (c.en > 75) return null; rad = 11; if (c.en < 45) foes = ['sheep','human','elf','dwarf']; }
-  if (!foes.length) return null;
+function findNearest(c, foes, rad) {
   const cx = c.x >> 3, cy = c.y >> 3, cr = Math.ceil(rad/8);
   let best = null, bd = 1e9;
   for (let gy = Math.max(0,cy-cr); gy <= Math.min(GH-1,cy+cr); gy++)
@@ -325,11 +338,28 @@ function findTarget(c) {
       for (let k = 0; k < list.length; k++) {
         const o = list[k];
         if (o.hp <= 0 || o === c || !foes.includes(o.t)) continue;
+        if (c.avoidUntil > tick && o.id === c.avoid) continue;       // recently unreachable
         const d = Math.max(Math.abs(o.x - c.x), Math.abs(o.y - c.y));
         if (d < bd && d <= rad) { bd = d; best = o; }
       }
     }
   return best;
+}
+const CIVS = ['human','elf','dwarf','orc'];
+function fleeFrom(c, foes, rad) {
+  const f = findNearest(c, foes, rad);
+  if (!f) return false;
+  const sx = -Math.sign(f.x - c.x), sy = -Math.sign(f.y - c.y);
+  return tryMove(c, c.x+sx, c.y+sy) || tryMove(c, c.x+sx, c.y) || tryMove(c, c.x, c.y+sy) || tryMove(c, c.x + ri(-1,1), c.y + ri(-1,1));
+}
+function findTarget(c) {
+  const R = RACES[c.t]; let rad = 8, foes = R.foes;
+  if (R.hunt) { if (c.en > 75) return null; rad = 22; if (c.en < 45) foes = ['sheep','rabbit','deer','human','elf','dwarf']; }
+  if (!foes.length) return null;
+  if (R.civ && foes.includes('wolf')) {            // settlers only fight wolves that come close
+    return findNearest(c, foes.filter(f => f !== 'wolf'), rad) || findNearest(c, ['wolf'], 2);
+  }
+  return findNearest(c, foes, rad);
 }
 function countHouses(x, y, r, owner) {
   let n = 0;
@@ -343,22 +373,27 @@ function stepCreature(c) {
   if (c.age > c.life) { c.hp = 0; c.cause = 'old'; return; }
   if (!walkable(c.t, tiles[idx])) { c.hp = 0; fx('splash', c.x, c.y); return; }
   if (fire[idx]) { c.hp -= 9; if (c.hp <= 0) return; }
-  if (R.hunt) { c.en -= 0.2; if (c.en <= 0) { c.hp = 0; return; } }
+  if (R.hunt) { c.en -= 0.12; if (c.en <= 0) { c.hp = 0; return; } }
   if ((tick + c.id) % R.mv !== 0) return;
 
   let tg = c.tgt;
-  if (tg && (tg.hp <= 0 || Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y)) > 13)) tg = c.tgt = null;
+  if (tg && (tg.hp <= 0 || Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y)) > (R.hunt ? 24 : 13))) tg = c.tgt = null;
   if (!tg && (tick + c.id) % 3 === 0) tg = c.tgt = findTarget(c);
   if (tg) {
     const d = Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y));
     if (d <= 1 && R.dmg > 0) {
       c.atk = 10; c.face = tg.x > c.x ? 1 : tg.x < c.x ? -1 : c.face;
       tg.hp -= R.dmg * (.5 + Math.random()); fx('hit', tg.x, tg.y);
-      if (tg.hp <= 0) { c.kills++; if (R.hunt) c.en = Math.min(100, c.en + 45); c.tgt = null; }
+      if (tg.hp <= 0) { c.kills++; if (R.hunt) c.en = Math.min(100, c.en + (GAIN[tg.t] || 45)); c.tgt = null; }
       return;
     }
     const sx = Math.sign(tg.x - c.x), sy = Math.sign(tg.y - c.y);
-    if (tryMove(c, c.x+sx, c.y+sy) || tryMove(c, c.x+sx, c.y) || tryMove(c, c.x, c.y+sy)) return;
+    if (tryMove(c, c.x+sx, c.y+sy) || tryMove(c, c.x+sx, c.y) || tryMove(c, c.x, c.y+sy)) { c.fail = 0; return; }
+    if (++c.fail > 3) { c.avoid = tg.id; c.avoidUntil = tick + 240; c.tgt = null; c.fail = 0; }   // can't reach it: give up for a while
+  }
+  if ((tick + c.id) % 2 === 0) {
+    if (R.flee && fleeFrom(c, ['wolf'], 6)) return;                       // rabbits and deer run from wolves
+    if (R.hunt && c.en > 40 && fleeFrom(c, CIVS, 5)) return;              // fed wolves keep away from settlements
   }
   if (R.civ) {
     if (Math.random() < .3) {
@@ -373,12 +408,13 @@ function stepCreature(c) {
         && (hb[R.bi]||0) < capOf(c.t)*.3 && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
       bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
     }
-  } else if (c.t === 'sheep') {
-    if (Math.random() < .02 && (counts.sheep||0) < capOf('sheep') && cells[(c.y>>3)*GW + (c.x>>3)].length < 14 && tiles[idx] === T.GRASS) spawnNear('sheep', c.x, c.y);
+  } else if (R.br) {
+    if (Math.random() < R.br.p && (counts[c.t]||0) < capOf(c.t) && cells[(c.y>>3)*GW + (c.x>>3)].length < R.br.dens && R.br.tiles.includes(tiles[idx])) spawnNear(c.t, c.x, c.y);
   } else if (R.hunt) {
-    if (c.en > 70 && Math.random() < .01 && (counts.wolf||0) < capOf('wolf')) { c.en -= 30; spawnNear('wolf', c.x, c.y); }
+    if (c.en > 85 && Math.random() < .006 && (counts.wolf||0) < capOf('wolf')) { c.en -= 35; spawnNear('wolf', c.x, c.y); }
   }
-  if (Math.random() < .3) c.dir = ri(0, 8);
+  const roam = R.hunt && c.en <= 75;                          // hungry wolves roam in straight lines to find prey
+  if (Math.random() < (roam ? .06 : .3)) c.dir = roam ? ri(1, 8) : ri(0, 8);
   const d = DIRS[c.dir];
   if (d[0] || d[1]) { if (!tryMove(c, c.x + d[0], c.y + d[1])) c.dir = ri(0, 8); }
 }
@@ -393,12 +429,29 @@ function reapDead() {
   if (any) creatures = creatures.filter(c => c.hp > 0);
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
 }
+// Safety net: if wolves get scarce, a small pack wanders in from wild land (far from settlements, near prey).
+function wolfPack() {
+  const levels = [[12, 8], [7, 4], [4, 2]];             // [min distance to settlers, min distance to houses]: relax if the world is crowded
+  for (const [cd, hd] of levels) for (let g = 0; g < 60; g++) {
+    const x = ri(1, W - 2), y = ri(1, H - 2), t = tiles[x + y*W];
+    if (t !== T.FOREST && t !== T.GRASS && t !== T.HILL) continue;
+    const probe = { x, y, id: 0, avoid: 0, avoidUntil: 0 };
+    if (findNearest(probe, CIVS, cd)) continue;
+    if (countHouses(x, y, hd, 1) + countHouses(x, y, hd, 2) + countHouses(x, y, hd, 3) + countHouses(x, y, hd, 4) > 0) continue;
+    if (!findNearest(probe, ['sheep','rabbit','deer'], 10)) continue;
+    let n = 0; for (let k = 0; k < 3; k++) if (spawnNear('wolf', x, y)) n++;
+    if (n) return true;
+  }
+  return false;
+}
 function step() {
   tick++;
   for (const l of cells) l.length = 0;
   for (const c of creatures) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
   reapDead();
+  const wc = counts.wolf || 0;
+  if (wc < 4 * CAPK && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
 
   const spread = []; houseCount = 0; hb = [0,0,0,0,0];
   for (let i = 0; i < N; i++) {
@@ -461,8 +514,14 @@ function populate(scale) {
       }
     }
   };
-  tryPlace('sheep', 30, t => t === T.GRASS);
-  tryPlace('wolf', 4, t => t === T.GRASS || t === T.FOREST);
+  tryPlace('sheep', 24, t => t === T.GRASS);
+  tryPlace('rabbit', 28, t => t === T.GRASS || t === T.FOREST || t === T.HILL);
+  tryPlace('deer', 10, t => t === T.FOREST || t === T.GRASS);
+  const prey = creatures.filter(c => RACES[c.t].prey);               // wolves start next to food
+  for (let n = Math.round(4 * sc * CAPK), g = 0; n > 0 && prey.length && g < 400; g++) {
+    const p = prey[ri(0, prey.length - 1)];
+    if (spawnNear('wolf', p.x + ri(-5, 5), p.y + ri(-5, 5))) n--;
+  }
   tryPlace('human', 7, t => t === T.GRASS);
   tryPlace('elf', 6, t => t === T.FOREST);
   tryPlace('dwarf', 6, t => t === T.HILL);
@@ -646,6 +705,8 @@ const TOOLS = {
   dwarf:  { g:'life', ic:'🧔', nm:'Kurcaci', ms:140, spawn:1 },
   orc:    { g:'life', ic:'👹', nm:'Orc', ms:140, spawn:1 },
   sheep:  { g:'life', ic:'🐑', nm:'Domba', ms:140, spawn:1 },
+  rabbit: { g:'life', ic:'🐇', nm:'Kelinci', ms:140, spawn:1 },
+  deer:   { g:'life', ic:'🦌', nm:'Rusa', ms:140, spawn:1 },
   wolf:   { g:'life', ic:'🐺', nm:'Serigala', ms:140, spawn:1 },
   rain:   { g:'powers', ic:'🌧️', nm:'Hujan', ms:40 },
   fire:   { g:'powers', ic:'🔥', nm:'Api', ms:50 },
@@ -734,7 +795,7 @@ let infoT = 0;
 function inspectAt(wx, wy) {
   let best = null, bd = 9;
   for (const c of creatures) { const d = (c.x-wx)**2 + (c.y-wy)**2; if (d < bd) { bd = d; best = c; } }
-  const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala' };
+  const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa' };
   if (best) {
     const c = best, R = RACES[c.t];
     infoEl.innerHTML = `<b>${EMOJI[c.t]} ${NM[c.t]}</b><br>❤️ ${Math.ceil(c.hp)}/${c.mhp} · ⏳ ${(c.age/120).toFixed(1)}/${(c.life/120).toFixed(1)}`
@@ -854,10 +915,10 @@ mkBtn(btns, '+', () => zoomBy(1.5));
 
 function updateStats() {
   let h = '';
-  if (editMode) h = '<span>✏️</span>';
+  if (editMode) yearEl.textContent = '✏️';
   else {
-    h += `<span>📅${Math.floor(tick / 120)}</span>`;
-    for (const r of RN) h += `<span>${EMOJI[r]}${counts[r] || 0}</span>`;
+    yearEl.textContent = '📅 ' + Math.floor(tick / 120);
+    for (const r of STAT_ORDER) h += `<span>${EMOJI[r]}${counts[r] || 0}</span>`;
     h += `<span>🏠${houseCount}</span>`;
   }
   statsEl.innerHTML = h;
@@ -867,19 +928,19 @@ function updateStats() {
 function clearSave() { try { lib.deleteUserGameState && lib.deleteUserGameState(); } catch (e) {} }
 function serialize() {
   const bl = []; for (let i = 0; i < N; i++) if (bld[i]) bl.push(i * 8 + bld[i]);
-  return { v: 2, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, tick,
-    cr: creatures.map(c => (c.y * W + c.x) * 6 + RN.indexOf(c.t)) };      // one packed int per creature
+  return { v: 3, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, tick,
+    cr: creatures.map(c => (c.y * W + c.x) * 8 + RN.indexOf(c.t)) };      // one packed int per creature
 }
 function restore(s) {
-  if (!s || (s.v !== 1 && s.v !== 2)) return false;
-  setSize(s.v === 2 ? s.z : 0);                                                 // v1 saves were the small map
+  if (!s || (s.v !== 1 && s.v !== 2 && s.v !== 3)) return false;
+  setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
   currentSeed = s.seed || 0; tick = s.tick || 0;
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 4) bld[i] = b; }
   for (const v of s.cr || []) {
     let ti, x, y, age = -1;
     if (Array.isArray(v)) { ti = v[0]; x = v[1]; y = v[2]; age = v[3]; }
-    else { ti = v % 6; const pos = (v / 6) | 0; x = pos % W; y = (pos / W) | 0; }
+    else { const m = s.v === 3 ? 8 : 6; ti = v % m; const pos = (v / m) | 0; x = pos % W; y = (pos / W) | 0; }
     const c = RN[ti] ? spawn(RN[ti], x, y, true) : null;
     if (c) c.age = age >= 0 ? age : Math.floor(c.life * rnd(0, .4));
   }

@@ -10,3 +10,5 @@ Edit mode: sim frozen; sculpt terrain / regenerate world; changes are written to
 
 World sizes: S 120x148, M 200x246 (default), L 240x296. M/L use a multi-continent generator; population caps scale with size.
 Far zoom (tile < 5px) draws dots instead of sprites. Destructive world actions need a second tap.
+
+Wildlife: sheep, rabbits and deer are prey (rabbits/deer flee); wolves hunt them, avoid settlements when fed, and a small pack migrates in from wild land when wolves get scarce so they never stay extinct.
