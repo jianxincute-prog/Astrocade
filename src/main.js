@@ -437,6 +437,8 @@ export class Game {
     this.itemfx.sync(this.pickups.list, dt);
     this.hud.update(dt);
     this.world.update(now / 1000);
+    if (this.world.sky) this.world.sky.dome.position.copy(this.camera.position);
+    if (this.world.setFocus) { const fp = this.player; if (this.state === 'cutscene') this.world.setFocus(this.camera.position, this.camera.position.x, this.camera.position.y, this.camera.position.z); else this.world.setFocus(this.camera.position, fp.x, 1.3, fp.z); }
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -495,7 +497,7 @@ export class Game {
     if (t !== this.lastTerritory) {
       if (this.lastTerritory !== -2) {
         if (t < 0) this.hud.showBanner('CITY PLAZA', 'Neutral zone', 2);
-        else this.hud.showBanner(GANGS[t].name.toUpperCase() + ' TERRITORY', this.progress.gangs[t].liberated ? 'Already liberated' : 'Careful, gang members are roaming!', 2.2, GANGS[t].css);
+        else this.hud.showBanner(GANGS[t].name.toUpperCase() + ' TERRITORY', this.progress.gangs[t].liberated ? `${GANGS[t].district} — already liberated` : `${GANGS[t].district} — careful, gang members are roaming!`, 2.4, GANGS[t].css);
       }
       this.lastTerritory = t;
     }
@@ -1010,7 +1012,7 @@ export class Game {
     const T = this.T, p = this.player;
     this.camHold = Math.max(0, this.camHold - dt);
     this.camYaw = followYaw(this.camYaw, p.facing, dt, p.moveSpeed > 0.5, this.camHold + (this.orbit ? 1 : 0));
-    const blds = this.city.buildings;
+    const blds = this.city.tall;
     const rig = thirdPersonRig(p.x, p.z, this.camYaw, {}, (x, z) => blockedAt(blds, x, z, 0.4));
     const gy = this.playerY || 0;
     const target = new T.Vector3(rig.eye.x, rig.eye.y + gy, rig.eye.z);

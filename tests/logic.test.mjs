@@ -408,3 +408,49 @@ test('spawner keeps a cap and avoids blocked spots; drops: bosses always pay out
   assert.equal(dropsFor(() => 0.1, false).length, 1);
   assert.equal(randomType(() => 0.01, 0.2), 'heal');
 });
+
+// ---------------------------------------------------------------- city plan: districts, HQ compounds
+import { COMPOUNDS, cellCenter, cellIndex, CELL } from '../src/logic/city.js';
+
+test('territories are whole blocks: every point of a block belongs to the same gang, the plaza is neutral', () => {
+  const c = generateCity(1337);
+  for (const p of c.plan) {
+    const want = p.kind === 'plaza' ? -1 : p.gang;
+    for (const [dx, dz] of [[-12, -12], [12, 12], [0, 0], [-12, 12], [12, -12]]) assert.equal(territoryAt(p.x + dx, p.z + dz), want, `cell ${p.i},${p.j}`);
+  }
+  assert.equal(c.plan.filter((p) => p.kind === 'plaza').length, 4);
+  for (let g = 0; g < 3; g++) { const n = c.plan.filter((p) => p.gang === g).length; assert.ok(n >= 15 && n <= 25, `gang ${g} owns ${n} blocks`); }
+  assert.equal(cellIndex(cellCenter(5)), 5); assert.ok(CELL > 30);
+});
+
+test('districts are themed: each gang only gets its own block kinds', () => {
+  const c = generateCity(1337);
+  const ok = [['scrapyard', 'warehouse', 'containers', 'factory', 'tenement', 'lot', 'hq'], ['market', 'shophouse', 'garden', 'tower', 'hq'], ['casino', 'deco', 'boulevard', 'hotel', 'hq']];
+  for (const p of c.plan) if (p.gang >= 0) assert.ok(ok[p.gang].includes(p.kind), `${p.kind} in gang ${p.gang}`);
+  for (const [g, k] of [[0, 'factory'], [1, 'market'], [2, 'casino']]) assert.ok(c.plan.some((p) => p.gang === g && p.kind === k), `gang ${g} has its landmark`);
+});
+
+test('HQ compounds: open arena, gate on the plaza side, clear approach street, hall behind the arena', () => {
+  const c = generateCity(1337);
+  assert.equal(COMPOUNDS.length, 3);
+  for (const k of COMPOUNDS) {
+    for (let a = 0; a < 360; a += 20) for (const r of [2, 5, 8]) assert.equal(blockedAt(c.buildings, k.x + Math.cos(a * Math.PI / 180) * r, k.z + Math.sin(a * Math.PI / 180) * r, 0.6), false, `arena ${k.name}`);
+    assert.equal(blockedAt(c.buildings, k.gate.x, k.gate.z, 1), false, `${k.name} gate is open`);
+    // the approach runs from the plaza edge straight to the gate along a street
+    const [sx, sz] = k.gate.side === 'S' ? [0, -37.5] : [k.gate.side === 'W' ? 40 : -40, 37.5];
+    for (let t = 0; t <= 1.0001; t += 0.02) assert.equal(blockedAt(c.buildings, sx + (k.gate.x - sx) * t, sz + (k.gate.z - sz) * t, 0.6), false, `${k.name} approach`);
+    // main hall sits at the back, farther from the plaza than the arena centre
+    const hall = c.buildings.find((b) => b.kind === 'hq-hall' && b.hq === k.gang);
+    assert.ok(hall && Math.hypot(hall.x, hall.z) > Math.hypot(k.x, k.z), `${k.name} hall is behind the arena`);
+    assert.ok(c.buildings.some((b) => b.kind === 'fence' && b.hq === k.gang), `${k.name} is fenced`);
+    assert.equal(groundHeight(k.x, k.z), 0.22);
+    assert.equal(territoryAt(k.x, k.z), k.gang);
+  }
+});
+
+test('opening-cutscene corridor, hero spawn and the plaza stay free of solids', () => {
+  const c = generateCity(1337);
+  for (let z = 5; z <= 70; z += 1) for (let x = -5; x <= 5; x += 1) assert.equal(blockedAt(c.buildings, x, z, 0.5), false);
+  for (const [x, z] of [[0, 12], [1, 12], [0, 0], [-20, 0], [20, 0]]) assert.equal(blockedAt(c.buildings, x, z, 0.6), false);
+  assert.ok(c.tall.length > 80 && c.tall.every((b) => !b.low && b.h >= 4));
+});

@@ -96,3 +96,19 @@ casts ENRAGED! (shockwave), recovers ~35-40% faster and its skills grow. Casting
 ## HUD layout
 
 Every HUD size is in design pixels (`em` in the stylesheet = `calc(N * var(--u))`, with `--u` set from the screen size in `HUD.resize`), so the interface scales on phones, tablets and desktop, portrait or landscape. Top row: player card (health with a trailing damage bar, score, active buffs) + gang progress card • boss bar (under the cards in portrait, centred in landscape) • minimap, camera / backpack buttons and the combo counter. Bottom: floating joystick and an arc of action buttons around ATTACK.
+
+## The city (redesigned map)
+
+An 8 × 8 block grid (37.5 m pitch, 10 m streets) around a 2 × 2 central plaza. Every gang owns whole blocks, so a territory border is always a street:
+
+| Gang | Where | District | Blocks |
+|---|---|---|---|
+| Red Wolves | north | **The Docks** — brick and steel | warehouses with sawtooth roofs, smoking factories, fire-escape tenements, scrapyards, container yards |
+| Blue Dragons | south-east | **Dragon Quarter** — lantern-lit old town | tiled-roof shophouses with blade signs, night markets, koi gardens, neon towers |
+| Golden Cobras | south-west | **Golden Strip** — art-deco casino row | stepped gold-crowned towers, casinos with marquees and searchlights, palm boulevards |
+
+- **Plaza:** compass-rose mosaic, two fountains, clock tower, bandstand, gang-colour banners; the north–south boulevard through it stays clear (the opening cutscene drives along it).
+- **HQs** are fenced compounds spanning two blocks and the street between them, with the gate on the street that leads in from the plaza and the main building at the back, leaving a clear boss arena with a glowing floor emblem: **The Den** (brick warehouse fortress, container walls, watch towers, bonfires), **Dragon Temple** (three-tier pagoda, lacquer gate, lion guardians, lantern ring, koi pond), **Golden Palace** (art-deco ziggurat, red carpet, cobra gate, fountains, searchlights).
+- **Streets:** double-yellow centre lines, lane dashes, crosswalks, stop lines, manholes, street lamps with ground glow, traffic lights, hydrants, benches, bus stops, themed street trees (autumn / cherry blossom / palm) and parked cars.
+- **Atmosphere:** procedural sky dome (sunset / day / night with stars), distant skyline, perimeter wall, lit windows, animated flags, fires, smoke, fountains and searchlights. Buildings between the camera and the hero are dithered out (x-ray cut-away) so the fight is never hidden.
+- Code: layout in `src/logic/city.js` (pure, unit-tested); `src/render/world.js` (ground, streets, plaza, sky, street life), `buildings.js` (themed blocks), `hq.js` (compounds), `props.js` (furniture), `textures.js` (canvas textures), `geo.js` (merges thousands of pieces into ~200 draw calls).
