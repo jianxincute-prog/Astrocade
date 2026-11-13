@@ -58,7 +58,7 @@ For the player (detail 'high', tank top) `src/render/bodymesh.js` replaces the l
 surface per segment: chest (ribcage + pecs + lats + upper back + traps), abdomen + obliques, neck + SCM, upper arm (deltoid, biceps, triceps),
 forearm (elbow, brachioradialis), thigh (quads, rounded hip cap) and shin (knee, calf). Each is a revolved profile with the muscle masses
 melted in by smooth-union SDFs and swept into a mesh with gradient normals. The tank top's V-neck / traps / straps are skin-vs-knit zones
-evaluated per pixel in the chest material (`addSkinMix`), so there is no patch edge. Enemies now use the same smooth segments at half resolution (jacket zipper stripes are painted in the chest shader).
+evaluated per pixel in the chest material (`addChestShader`), so there is no patch edge. Enemies now use the same smooth segments at half resolution (jacket zipper stripes are painted in the chest shader).
 
 ## Enemies, fists, shoes, hair
 - Fists (`fistGeometry`, player + NPCs): palm, knuckles, folded fingers, tucked tips, thumb across the fingers and soft finger grooves melted into one mesh.
