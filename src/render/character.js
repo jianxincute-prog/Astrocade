@@ -7,6 +7,7 @@ import {
   zeroPose, blendPoses, blendPosesAngular, sampleClip, idlePose, idleGestures, locomotionPose,
   stridePhaseRate, CLIPS,
 } from '../logic/anim.js';
+import { buildHeadGeometry } from './headmesh.js';
 
 const MIRROR = { rSh: 1, rEl: 1, rHip: 1, rKn: 1, rAn: 1 };
 const GEO = new Map();
@@ -33,6 +34,22 @@ function limbProfile(T, L, rTop, rMid, rBot, midAt, n = 12) {
   return pts;
 }
 
+/** Per-vertex gloss (attribute aGloss, 0..1): shiny where 1 — lowers roughness and scales the clearcoat. */
+function addGloss(mat) {
+  const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aGloss;\nvarying float vGloss;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGloss = aGloss;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vGloss;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, roughnessFactor * 0.3, vGloss);')
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat *= vGloss;\n#endif');
+  };
+  mat.customProgramCacheKey = () => prevKey + 'gloss';
+}
+
 /** Inject a fresnel rim light so the silhouette pops against the city. */
 export function addRim(mat, color, strength) {
   mat.userData.rim = { value: new mat.color.constructor(color) };
@@ -52,11 +69,14 @@ export function addRim(mat, color, strength) {
  *         shades, mohawk, bandana, gloves, scar, detail:'high'|'low', tattoo, wraps, rim, xray }
  */
 export class Character {
+  /** Prefiltered studio environment (set by the game once the renderer exists) for glossy skin. */
+  static env = null;
+
   constructor(THREE, opts = {}) {
     this.T = THREE;
     this.opts = opts;
     this.hi = opts.detail === 'high';
-    this.seg = this.hi ? 24 : 14;
+    this.seg = this.hi ? 40 : 14;
     this.mats = [];
     this.joints = {};
     this.group = new THREE.Group();
@@ -84,6 +104,7 @@ export class Character {
     const m = physical && this.hi
       ? new T.MeshPhysicalMaterial({ color, roughness: rough, metalness: 0, ...extra })
       : new T.MeshStandardMaterial({ color, roughness: rough, metalness: 0, ...extra });
+    if (physical && this.hi && Character.env) { m.envMap = Character.env; m.envMapIntensity = extra.envMapIntensity ?? 0.4; }
     if (this.opts.rim) addRim(m, this.opts.rim, this.hi ? 0.28 : 0.22);
     this.mats.push(m);
     return m;
@@ -91,11 +112,11 @@ export class Character {
 
   geo(key, fn) { return cached(GEO, key + ':' + this.seg, fn); }
 
-  sphere() { return this.geo('sph', () => new this.T.SphereGeometry(1, this.hi ? 20 : 12, this.hi ? 16 : 9)); }
+  sphere() { return this.geo('sph', () => new this.T.SphereGeometry(1, this.hi ? 40 : 12, this.hi ? 28 : 9)); }
 
   lathe(key, pts) { return this.geo('lathe:' + key, () => new this.T.LatheGeometry(pts(), this.seg)); }
 
-  limb(key, L, a, b, c, mid) { return this.lathe(key, () => limbProfile(this.T, L, a, b, c, mid)); }
+  limb(key, L, a, b, c, mid) { return this.lathe(key, () => limbProfile(this.T, L, a, b, c, mid, this.hi ? 24 : 12)); }
 
   mesh(geo, mat, parent, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1, rx = 0, ry = 0, rz = 0) {
     if (this.opts.noMesh && !this.acc) {
@@ -126,15 +147,32 @@ export class Character {
   }
 
   skinTexture(tattoo) {
-    const T = this.T, base = this.opts.skin || 0xc28a62;
-    return cached(TEX, 'skin' + base + (tattoo ? 't' : ''), () => {
-      const c = document.createElement('canvas'); c.width = c.height = 256;
+    const T = this.T, base = this.opts.skin || 0xc28a62, hi = this.hi;
+    return cached(TEX, 'skin' + base + (tattoo ? 't' : '') + (hi ? 'h' : ''), () => {
+      const S = hi ? 512 : 256;
+      const c = document.createElement('canvas'); c.width = c.height = S;
       const x = c.getContext('2d');
+      x.scale(S / 256, S / 256); // everything below is authored on a 256 grid
       const col = new T.Color(base);
       x.fillStyle = '#' + col.getHexString(); x.fillRect(0, 0, 256, 256);
-      for (let i = 0; i < 2600; i++) {
+      if (hi) {
+        // soft mottling: warm / cool blotches so the skin is never one flat tone
+        for (let i = 0; i < 70; i++) {
+          const px = Math.random() * 256, py = Math.random() * 256, pr = 14 + Math.random() * 34;
+          const g = x.createRadialGradient(px, py, 0, px, py, pr);
+          const warm = Math.random() < 0.5;
+          g.addColorStop(0, warm ? 'rgba(200,90,60,0.07)' : 'rgba(255,225,190,0.06)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+          x.fillStyle = g; x.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+        }
+      }
+      for (let i = 0; i < (hi ? 5200 : 2600); i++) {
         x.fillStyle = `rgba(${Math.random() < 0.5 ? '90,40,20' : '255,220,190'},${Math.random() * 0.06})`;
         x.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+      }
+      if (hi) {
+        // pores: tiny darker pits + the odd freckle
+        for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(70,32,18,${0.04 + Math.random() * 0.07})`; x.fillRect(Math.random() * 256, Math.random() * 256, 0.8, 0.8); }
+        for (let i = 0; i < 160; i++) { x.fillStyle = `rgba(110,60,35,${0.05 + Math.random() * 0.08})`; x.beginPath(); x.arc(Math.random() * 256, Math.random() * 256, 0.8 + Math.random() * 1.2, 0, 6.3); x.fill(); }
       }
       if (tattoo) {
         // tribal band wrapped around the upper arm (lathe: u around, v along length)
@@ -154,8 +192,55 @@ export class Character {
       }
       const t = new T.CanvasTexture(c);
       if (T.sRGBEncoding) t.encoding = T.sRGBEncoding;
+      t.anisotropy = 4;
       return t;
     });
+  }
+
+  /** Fine skin relief (pores / micro wrinkles) for the head's bump map. */
+  bumpTexture() {
+    const T = this.T;
+    return cached(TEX, 'bump', () => {
+      const c = document.createElement('canvas'); c.width = c.height = 512;
+      const x = c.getContext('2d');
+      x.fillStyle = '#808080'; x.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 22000; i++) { const v = 90 + Math.random() * 70; x.fillStyle = `rgba(${v},${v},${v},0.55)`; x.fillRect(Math.random() * 512, Math.random() * 512, 1.5, 1.5); }
+      for (let i = 0; i < 700; i++) { x.strokeStyle = `rgba(60,60,60,${0.05 + Math.random() * 0.07})`; x.lineWidth = 1; x.beginPath(); const px = Math.random() * 512, py = Math.random() * 512; x.moveTo(px, py); x.lineTo(px + (Math.random() - 0.5) * 22, py + (Math.random() - 0.5) * 22); x.stroke(); }
+      return new T.CanvasTexture(c);
+    });
+  }
+
+  /** Eyeball: veined sclera, ringed brown iris, black pupil. Iris faces +z (u .25, v .5 on a sphere). */
+  eyeTexture() {
+    const T = this.T;
+    return cached(TEX, 'eye', () => {
+      const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+      const x = c.getContext('2d');
+      x.fillStyle = '#ece4d8'; x.fillRect(0, 0, 256, 128);
+      for (let i = 0; i < 60; i++) { x.strokeStyle = `rgba(190,70,60,${0.05 + Math.random() * 0.1})`; x.lineWidth = 0.6; x.beginPath(); const a = Math.random() * 6.28, r0 = 24 + Math.random() * 14; x.moveTo(64 + Math.cos(a) * r0, 64 + Math.sin(a) * r0); x.lineTo(64 + Math.cos(a + 0.2) * (r0 + 12 + Math.random() * 18), 64 + Math.sin(a + 0.2) * (r0 + 12 + Math.random() * 18)); x.stroke(); }
+      const ir = 20;
+      let g = x.createRadialGradient(64, 64, 2, 64, 64, ir);
+      g.addColorStop(0, '#0a0604'); g.addColorStop(0.32, '#2a170c'); g.addColorStop(0.62, '#6b4220'); g.addColorStop(0.9, '#3a2412'); g.addColorStop(1, '#120a05');
+      x.fillStyle = g; x.beginPath(); x.arc(64, 64, ir, 0, 6.3); x.fill();
+      for (let i = 0; i < 40; i++) { const a = (i / 40) * 6.283; x.strokeStyle = `rgba(190,140,80,${0.12 + Math.random() * 0.12})`; x.lineWidth = 0.7; x.beginPath(); x.moveTo(64 + Math.cos(a) * 7, 64 + Math.sin(a) * 7); x.lineTo(64 + Math.cos(a) * (ir - 2), 64 + Math.sin(a) * (ir - 2)); x.stroke(); }
+      x.fillStyle = '#030201'; x.beginPath(); x.arc(64, 64, 7.5, 0, 6.3); x.fill();
+      const t = new T.CanvasTexture(c);
+      if (T.sRGBEncoding) t.encoding = T.sRGBEncoding;
+      return t;
+    });
+  }
+
+  /** The head's own material: vertex-coloured skin, pore bump, soft sheen, glossy clearcoat crown. */
+  headMaterial() {
+    const hi = this.hi;
+    if (!hi) return this.mat(0xffffff, 0.6, { map: this.skinTexture(false), vertexColors: true });
+    const m = this.mat(0xffffff, 0.52, {
+      color: new this.T.Color(1.22, 1.14, 1.08), // lifts the textured skin to match the body
+      map: this.skinTexture(false), vertexColors: true, bumpMap: this.bumpTexture(), bumpScale: 0.02,
+      clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.35, sheenRoughness: 0.55, sheenColor: new this.T.Color(0xffb596), envMapIntensity: 0.55,
+    }, true);
+    addGloss(m);
+    return m;
   }
 
   fabricTexture(color, kind) {
@@ -185,7 +270,6 @@ export class Character {
     const skinCol = o.skin || 0xc28a62;
     const skin = this.mat(0xffffff, 0.55, { map: this.skinTexture(false) }, true);
     const tatSkin = o.tattoo ? this.mat(0xffffff, 0.55, { map: this.skinTexture(true) }, true) : skin;
-    const scalpMat = this.mat(0xffffff, 0.36, hi ? { map: this.skinTexture(false), clearcoat: 0.3, clearcoatRoughness: 0.5 } : { map: this.skinTexture(false) }, true);
     void skinCol;
     const top = this.mat(0xffffff, 0.88, { map: this.fabricTexture(o.top || 0x1b1b1d, 'knit'), color: 0xffffff });
     const pantsTex = this.fabricTexture(o.pants || 0x2c3442, 'denim');
@@ -253,7 +337,7 @@ export class Character {
     const head = this.joint('head', neck, 0, 0.11, 0.01);
     const headMesh = new T.Group(); headMesh.scale.setScalar(this.hi ? 1.1 : 1.04); head.add(headMesh);
     const prevAcc = this.acc; if (o.headMeshes) this.acc = true;
-    this.buildHead(headMesh, skin, scalpMat);
+    this.buildHead(headMesh, skin);
     this.acc = prevAcc;
     this.headMesh = headMesh;
 
@@ -322,59 +406,30 @@ export class Character {
     this.blob(mat, fist, -sx * 0.045 * b, -0.03, 0.03, 0.017, 0.035, 0.018, 0.4, 0, sx * 0.5); // thumb
   }
 
-  buildHead(head, skin, scalpMat) {
+  buildHead(head, skin) {
     const T = this.T, o = this.opts, hi = this.hi;
-    const scalp = o.hair ? skin : scalpMat;
     const box = this.geo('box', () => new T.BoxGeometry(1, 1, 1));
-    // cranium (slightly long, flat sides)
-    this.blob(scalp, head, 0, 0.135, -0.01, 0.118, 0.135, 0.138);
-    // occipital bulge + neck roll at the back of a bald head
-    this.blob(scalp, head, 0, 0.09, -0.07, 0.1, 0.08, 0.08);
-    // square, heavy jaw and chin
-    this.blob(skin, head, 0, 0.045, 0.035, 0.103, 0.075, 0.098);
-    this.blob(skin, head, 0, 0.02, 0.095, 0.05, 0.04, 0.035);
-    // cheekbones
-    this.blob(skin, head, 0.06, 0.1, 0.085, 0.035, 0.026, 0.03);
-    this.blob(skin, head, -0.06, 0.1, 0.085, 0.035, 0.026, 0.03);
-    // brow ridge (heavy, scowling)
-    this.blob(skin, head, 0, 0.158, 0.1, 0.095, 0.025, 0.04);
-    // nose: bridge + tip + nostrils
-    this.mesh(box, skin, head, 0, 0.125, 0.13, 0.03, 0.06, 0.035, -0.25);
-    this.blob(skin, head, 0, 0.098, 0.145, 0.022, 0.018, 0.02);
-    if (hi) { this.blob(skin, head, 0.016, 0.094, 0.137, 0.012, 0.011, 0.012); this.blob(skin, head, -0.016, 0.094, 0.137, 0.012, 0.011, 0.012); }
-    // ears
-    for (const sx of [1, -1]) {
-      this.blob(skin, head, sx * 0.118, 0.115, -0.005, 0.018, 0.038, 0.026);
-      if (hi) this.blob(this.mat(0x7a4a32, 0.8), head, sx * 0.124, 0.115, 0.0, 0.008, 0.022, 0.014);
-    }
-    // eyes: deep sockets, whites, dark irises
-    const socket = this.mat(0x5a3626, 0.9);
-    const white = this.mat(0xe8e0d4, 0.3);
-    const iris = this.mat(0x1a120c, 0.2);
-    for (const sx of [1, -1]) {
-      this.blob(socket, head, sx * 0.043, 0.135, 0.108, 0.027, 0.016, 0.012);
-      this.blob(white, head, sx * 0.043, 0.135, 0.114, 0.017, 0.009, 0.008);
-      this.blob(iris, head, sx * 0.04, 0.135, 0.12, 0.007, 0.007, 0.004);
-    }
-    // angry brows (V-shape)
-    const brow = this.mat(0x1d140f, 0.9);
-    this.mesh(box, brow, head, 0.048, 0.157, 0.122, 0.07, 0.016, 0.025, 0, 0, -0.35);
-    this.mesh(box, brow, head, -0.048, 0.157, 0.122, 0.07, 0.016, 0.025, 0, 0, 0.35);
-    // mouth: tight frown + lips
-    this.mesh(box, this.mat(0x4a2a20, 0.7), head, 0, 0.06, 0.128, 0.05, 0.009, 0.01);
-    if (hi) {
-      this.blob(this.mat(0x8f5a45, 0.6), head, 0, 0.052, 0.125, 0.026, 0.008, 0.008);
-      this.yawnMouth = this.blob(this.mat(0x1a0909, 0.95, { side: T.DoubleSide }), head, 0, 0.058, 0.145, 0.026, 0.003, 0.007);
-    }
-    if (o.beard) {
-      const bm = this.mat(o.beard, 0.97, { transparent: true, opacity: 0.85 });
-      this.blob(bm, head, 0, 0.04, 0.04, 0.107, 0.072, 0.1); // stubble shell over the jaw
-      this.blob(bm, head, 0, 0.018, 0.1, 0.045, 0.04, 0.03); // goatee
-      this.mesh(box, bm, head, 0, 0.073, 0.128, 0.06, 0.014, 0.012); // moustache
-    }
-    if (o.scar) {
-      const sm = this.mat(0x9a4a3a, 0.5);
-      if (hi) this.mesh(box, sm, head, 0.05, 0.15, 0.123, 0.006, 0.05, 0.006, 0, 0, 0.2); // through the eyebrow
+    const skipGeo = this.opts.noMesh && !this.acc; // driver-only rig: keep joints, skip geometry
+    if (!skipGeo) {
+      // one smooth sculpted skull / face (brows, stubble, lips, scar are painted vertex colours)
+      const geo = buildHeadGeometry(T, { hi, beard: !!o.beard, scar: !!(o.scar && hi) });
+      this.mesh(geo, this.headMaterial(), head, 0, 0, 0);
+      // eyes: wet, textured eyeballs sitting in the carved lid openings
+      const eyeGeo = this.geo('eye', () => new T.SphereGeometry(1, hi ? 36 : 12, hi ? 26 : 8));
+      const eyeMat = this.mat(0xffffff, 0.25, { map: this.eyeTexture(), ...(hi ? { clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.1 } : {}) }, true);
+      for (const sx of [1, -1]) this.mesh(eyeGeo, eyeMat, head, sx * 0.0445, 0.135, 0.108, 0.0195, 0.0195, 0.0195, 0, 0, 0);
+      // ears: smooth disc with a raised helix rim and a darker inner bowl
+      const earGeo = this.geo('ear', () => new T.SphereGeometry(1, hi ? 28 : 10, hi ? 20 : 8));
+      const rimGeo = this.geo('earRim', () => new T.TorusGeometry(1, 0.2, hi ? 10 : 6, hi ? 28 : 12, Math.PI * 1.75));
+      const inner = hi ? this.mat(0x6e4130, 0.75) : null;
+      for (const sx of [1, -1]) {
+        this.mesh(earGeo, skin, head, sx * 0.116, 0.115, -0.005, 0.011, 0.036, 0.025, 0, 0, sx * -0.12);
+        if (hi) {
+          this.mesh(rimGeo, skin, head, sx * 0.121, 0.116, -0.004, 0.0045, 0.0295, 0.0215, 0, sx * Math.PI / 2, sx * 0.1).rotation.z += Math.PI * 0.12;
+          this.mesh(earGeo, inner, head, sx * 0.119, 0.113, 0.001, 0.0045, 0.02, 0.013);
+        }
+      }
+      if (hi) this.yawnMouth = this.blob(this.mat(0x1a0909, 0.95, { side: T.DoubleSide }), head, 0, 0.0575, 0.136, 0.026, 0.003, 0.007);
     }
     if (o.hair) this.blob(this.mat(o.hair, 0.95), head, 0, 0.17, -0.02, 0.123, 0.11, 0.142);
     this.acc = !!o.accHead;

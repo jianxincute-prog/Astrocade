@@ -91,6 +91,7 @@ export class SkinnedCharacter {
       const m = o.material.clone();
       if (m.map) m.map = recolorTexture(T, m.map, opts.look, opts.tint || 0xffffff, opts.model.texCache);
       m.roughness = 0.65; m.metalness = 0.1;
+      if (opts.look === 'player' && Character.env) { m.envMap = Character.env; m.envMapIntensity = 0.35; } // faint studio sheen on the armour
       if (opts.rim) addRim(m, opts.rim, opts.look === 'player' ? 0.3 : 0.22);
       o.material = m;
       this.mats.push(m);

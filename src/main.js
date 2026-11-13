@@ -15,6 +15,7 @@ import { buildGrid, moveCircle, separate } from './logic/physics.js';
 import { cameraRelative, followYaw, thirdPersonRig, nextCameraMode, TOPDOWN_YAW } from './logic/camera.js';
 import { createProgress, registerHit, registerKill, tickProgress, finalScore } from './logic/progress.js';
 import { Character } from './render/character.js';
+import { makeStudioEnv } from './render/env.js';
 import { SkinnedCharacter } from './render/skinned.js';
 import { buildWorld } from './render/world.js';
 import { FX, makeEnemyAdornments } from './render/fx.js';
@@ -115,6 +116,8 @@ export class Game {
     r.toneMappingExposure = 0.95;
     this.root.appendChild(r.domElement);
     this.renderer = r;
+    // studio reflections for the hero's glossy skin (applied per material, not to the whole city)
+    try { this.env = makeStudioEnv(T, r); Character.env = this.env; } catch (e) { this.env = null; Character.env = null; }
     this.scene = new T.Scene();
     this.camera = new T.PerspectiveCamera(42, 720 / 1280, 0.5, 400);
     const tod = this.cfg.visual.timeOfDay;
@@ -719,6 +722,7 @@ export class Game {
     this.audio.dispose();
     this.controls.dispose();
     try { this.lib && this.lib.haptics && this.lib.haptics.stop(); } catch (e) { /* */ }
+    if (this.env) { if (Character.env === this.env) Character.env = null; this.env.dispose(); this.env = null; }
     this.renderer.dispose();
     this.renderer.domElement.remove();
     this.hud.dispose();

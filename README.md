@@ -13,7 +13,7 @@ Tinju Banteng (bull-rush dash + finisher). Keyboard: WASD, J, K/Space, 1/2/3.
 - `game.js` – entry, `window.run(mode)`.
 - `src/main.js` – Game shell: renderer, loop, hit resolution, HUD wiring, edit mode (drag the player to set spawn → `gameConfig.player.spawnX/Z`, drag to pan).
 - `src/logic/` (pure, tested): `intro.js` opening-cutscene script (timeline, taxi/hero motion, dialogue, camera), `city.js` layout/territories, `anim.js` poses + keyframe clips + procedural idle/run cycles, `combat.js` move data & hit sectors, `player.js` state machine, `enemy.js` AI, `physics.js` collision, `progress.js` campaign/score.
-- `src/render/` – `character.js` procedural rigged character: lathe-sculpted V-taper torso & tapered limbs, layered muscles, detailed face, fists with knuckles/wraps, boots, tattoo, fresnel rim light, x-ray silhouette behind walls (player = 'high' detail, enemies 'low'), crossfaded pose animation; `world.js` city meshes, `fx.js` particles/rings/telegraphs.
+- `src/render/` – `character.js` procedural rigged character: lathe-sculpted V-taper torso & tapered limbs, layered muscles, detailed face, fists with knuckles/wraps, boots, tattoo, fresnel rim light, x-ray silhouette behind walls (player = 'high' detail, enemies 'low'), crossfaded pose animation; `headmesh.js` + `sdf.js` sculpted smooth head, `env.js` studio reflections, `world.js` city meshes, `fx.js` particles/rings/telegraphs.
 - `src/ui/` – `hud.js` HUD, minimap, touch/keyboard controls; `audio.js` SFX + music + synthesized cutscene sounds (ring, blips, engine); `cutscene.js` opening cutscene (taxi mesh, phone prop, letterbox, subtitles, mission card, skip).
 - `tests/logic.test.mjs` – run `node tests/logic.test.mjs`.
 
@@ -43,3 +43,12 @@ territories (mission card lists the gangs). Everything is a pure function of the
 builds meshes/DOM and drives the player rig (`CLIPS.phone` arm pose, phone prop on the right fist) and camera. Skip: LEWATI button,
 Enter/Esc/Space. Replays ("MAIN LAGI") skip it. Toggle with the "Cutscene Pembuka" setting (`intro.cutscene` in game_config.json).
 The scene is staged at a fixed plaza spot and the hero is moved to `player.spawnX/Z` during the closing fade.
+
+## Premium head
+The hero's head is no longer a pile of spheres: `src/render/headmesh.js` melts ~25 ellipsoids (skull, heavy jaw, cheekbones, brow ridge,
+nose, lips, eye pockets) into ONE surface with smooth-union SDFs (`src/render/sdf.js`), meshed at 220x165 with gradient normals, so there are
+no seams. Brows, stubble, lips, nostrils, eye shading and the scar are painted as vertex colours; `aGloss` marks the bald crown so the
+material (`Character.headMaterial`, MeshPhysical) drives roughness/clearcoat per vertex. `src/render/env.js` builds a PMREM "photo studio"
+(softboxes + overhead strip + rim) applied per material (`Character.env`, set by the game) so the dome shows long soft highlights that slide
+as he turns. Also: textured wet eyeballs, ears with a helix rim, pore bump + mottled skin texture, sheen. The rigged model's armour gets a
+faint studio sheen too. Low-detail enemies reuse the same head at lower resolution.
