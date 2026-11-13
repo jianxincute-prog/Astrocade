@@ -12,7 +12,7 @@ export function createPlayer(opts = {}) {
     cd: { skill1: 0, skill2: 0, skill3: 0 },
     stun: 0, dead: false, invuln: 0,
     knockX: 0, knockZ: 0,
-    sinceHurt: 99,
+    sinceHurt: 99, poison: null,
   };
 }
 
@@ -185,6 +185,31 @@ export function damagePlayer(p, dmg, fromX, fromZ, kb = 6) {
   p.invuln = 0.25;
   if (p.hp <= 0) { p.dead = true; p.action = null; }
   return true;
+}
+
+/** Damage over time (poison / burning ground): no flinch, but a dodge roll's i-frames still protect. Returns damage dealt. */
+export function applyDot(p, dmg) {
+  if (p.dead || dmg <= 0 || isInvulnerable(p)) return 0;
+  const d = Math.min(p.hp, dmg);
+  p.hp -= d; p.sinceHurt = 0;
+  if (p.hp <= 0) { p.hp = 0; p.dead = true; p.action = null; }
+  return d;
+}
+
+/** Venom: refreshes a poison that deals dps damage per second for `dur` seconds. */
+export function applyPoison(p, dur = 4, dps = 5) {
+  if (p.dead) return;
+  p.poison = { t: Math.max(p.poison ? p.poison.t : 0, dur), dps: Math.max(p.poison ? p.poison.dps : 0, dps), acc: p.poison ? p.poison.acc : 0 };
+}
+
+/** Tick the poison; damage lands every half second. Returns damage dealt this call. */
+export function tickPoison(p, dt) {
+  if (!p.poison || p.dead) return 0;
+  p.poison.t -= dt; p.poison.acc += dt;
+  let dealt = 0;
+  while (p.poison.acc >= 0.5) { p.poison.acc -= 0.5; dealt += applyDot(p, p.poison.dps * 0.5); }
+  if (p.poison.t <= 0) p.poison = null;
+  return dealt;
 }
 
 /** Out of combat regeneration. */

@@ -69,3 +69,19 @@ evaluated per pixel in the chest material (`addChestShader`), so there is no pat
   the Golden Cobras swing it with brass nails; the pipe is weathered steel with rust, a threaded coupling, domed end cap and cloth-wrapped grip.
 - Shades are aviators: glossy lenses with reflection streaks in gold metal rims, arched bridge, double brow bar, nose pads and hinged temple arms.
 - The hairline is cut per pixel from the hair weight, so it is a smooth curve (no stair-steps).
+
+## Boss kits (one unique fight per gang)
+Each boss has its own health pool, speed, look and a scripted skill cycle (`src/logic/boss.js`, pure + unit-tested). Every skill has a ground
+telegraph that FILLS while it winds up, a strike on a fixed schedule, then a recovery window where the boss is vulnerable. At 50% HP the boss
+casts ENRAGED! (shockwave), recovers ~35-40% faster and its skills grow. Casting bosses have super armor; only launchers flinch them (which cancels the cast).
+
+| Boss | Style | Cycle (phase 1) | Skills |
+|---|---|---|---|
+| **Wolf King** (Red Wolves) | fast melee predator | Claws → Pounce → Claws → Howl | *Rending Claws* 4 alternating cone slashes with lunges (5 in phase 2); *Blood Pounce* long line telegraph, charge + landing slam (gap closer when you are far); *Blood Howl* shockwave + summons 2 wolves (max 4), frenzy in phase 2 |
+| **Black Dragon** (Blue Dragons) | slow zoner | Breath → Meteor → Breath → Meteor | *Inferno Breath* flame cone that sweeps (ping-pongs in phase 2); *Meteor Storm* 5 falling meteors on your position (8 with scatter in phase 2) that leave burning ground; *Tail Sweep* close-range punish when you hug it |
+| **Giant Cobra** (Golden Cobras) | poison controller | Spit → Coil → Pool → Spit → Coil | *Venom Spit* fan of 5 poison globs (second 7-glob volley in phase 2); *Coil Strike* long lunge with a big recovery window (+ fang lash in phase 2); *Toxic Pools* poison zones along your path / ring around you |
+
+- Simulation of projectiles, delayed meteors and lingering zones: `src/logic/hazards.js`; poison / damage-over-time: `applyPoison` / `applyDot` in `player.js` (a dodge roll's i-frames still protect).
+- Visuals: `src/render/bossfx.js` (filling cone / circle / line telegraphs, projectiles, meteors with landing markers, zones, flame stream, slash flashes);
+  signature gear in `src/render/bossgear.js` (wolf ears + mane + steel claws, dragon horns + dorsal spines + glowing eyes, cobra patterned hood).
+- New clips in `anim.js`: `claw`, `pounce`, `howl`, `breath`, `meteor`, `spit`, `coil`. HUD shows the cast name under the boss bar, a 50% phase tick, and a green border while poisoned.

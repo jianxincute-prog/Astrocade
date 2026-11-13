@@ -9,8 +9,10 @@
  */
 import { generateCity, GANGS, territoryAt, groundHeight, randomPointInTerritory, mulberry32, blockedAt } from './logic/city.js';
 import { MOVES, inHitSector, computeDamage, nearestTarget, angleDiff } from './logic/combat.js';
-import { createPlayer, updatePlayer, damagePlayer, regen } from './logic/player.js';
+import { createPlayer, updatePlayer, damagePlayer, regen, applyDot, applyPoison, tickPoison } from './logic/player.js';
 import { createEnemy, updateEnemy, damageEnemy, ENEMY_TYPES } from './logic/enemy.js';
+import { BOSSES } from './logic/boss.js';
+import { createField, addProjectile, addZone, addMeteor, updateField, clearOwner, clearAll } from './logic/hazards.js';
 import { buildGrid, moveCircle, separate } from './logic/physics.js';
 import { cameraRelative, followYaw, thirdPersonRig, nextCameraMode, TOPDOWN_YAW } from './logic/camera.js';
 import { createProgress, registerHit, registerKill, tickProgress, finalScore } from './logic/progress.js';
@@ -19,6 +21,7 @@ import { makeStudioEnv } from './render/env.js';
 import { SkinnedCharacter } from './render/skinned.js';
 import { buildWorld } from './render/world.js';
 import { FX, makeEnemyAdornments } from './render/fx.js';
+import { BossFX } from './render/bossfx.js';
 import { HUD, Controls } from './ui/hud.js';
 import { Audio } from './ui/audio.js';
 import { Cutscene } from './ui/cutscene.js';
@@ -66,6 +69,9 @@ export class Game {
     this.audio = new Audio(this.lib);
     this.audio.musicOn = !!this.cfg.audio.music;
     this.fx = new FX(this.T, this.scene);
+    this.bossfx = new BossFX(this.T, this.scene, this.fx);   // boss telegraphs, projectiles, meteors, zones
+    this.field = createField();                             // logic/hazards.js
+    this.clock = 0; this.dotAcc = 0; this.lastDot = 0; this.lastHurt = 0;
     this.resetRun();
     this.setupCameraModes();
     this.last = performance.now();
@@ -180,9 +186,15 @@ export class Game {
   makeEnemyChar(gang, type) {
     const look = { ...GANG_LOOKS[gang] };
     if (type === 'bat') { look.weapon = gang === 1 ? 'pipe' : 'bat'; look.nails = gang === 2; } // Golden Cobras swing nailed bats
-    if (type === 'boss') { look.bulk = 1.35; look.shades = true; look.top = GANGS[gang].color; look.accent = 0x111111; look.topSleeves = true; look.fullSleeves = false; look.gloves = 0x111111; }
+    if (type === 'boss') {
+      // every boss gets its own silhouette (see render/bossgear.js)
+      Object.assign(look, { bulk: 1.35, topSleeves: true, fullSleeves: false, flair: ['wolf', 'dragon', 'cobra'][gang] });
+      if (gang === 0) Object.assign(look, { top: 0x8e1d17, accent: 0x161616, shades: false, scar: true, beard: 0x1b130d, gloves: undefined, bandana: undefined, hair: undefined });
+      if (gang === 1) Object.assign(look, { top: 0x14304f, accent: 0x66d4ff, shades: false, gloves: 0x0e1822, bandana: undefined, hair: undefined, bulk: 1.45 });
+      if (gang === 2) Object.assign(look, { top: 0x1f5a2e, accent: 0xe0a91f, shades: true, gloves: 0x111111, mohawk: undefined, bulk: 1.3 });
+    }
     look.rim = GANGS[gang].color;
-    look.scale = ENEMY_TYPES[type].scale * (type === 'boss' ? 1 : 0.9 + this.rnd() * 0.06);
+    look.scale = type === 'boss' ? BOSSES[gang].scale : ENEMY_TYPES[type].scale * (0.9 + this.rnd() * 0.06);
     const c = false
       ? new SkinnedCharacter(this.T, { model: this.model, look: 'gang', tint: GANGS[gang].color, weapon: look.weapon, rim: GANGS[gang].color, scale: look.scale * (type === 'boss' ? 1 : 1.04) })
       : new Character(this.T, look);
@@ -209,6 +221,7 @@ export class Game {
         this.spawnEnemy(k % 3 === 2 ? 'bat' : 'thug', g, pt.x, pt.z);
       }
     }
+    clearAll(this.field); if (this.bossfx) this.bossfx.clear();
     this.playerActionId = 0;
     this.shake = 0; this.hitstop = 0; this.state = 'ready';
     this.lastTerritory = -2; this.deadT = 0; this.endT = 0;
@@ -217,7 +230,7 @@ export class Game {
 
   spawnEnemy(type, gang, x, z) {
     const e = createEnemy(type, gang, x, z, this.cfg.enemies.hpMult);
-    e.radius = type === 'boss' ? 0.95 : 0.5;
+    e.radius = type === 'boss' ? 0.65 * BOSSES[gang].scale : 0.5;
     e.visual = this.makeEnemyChar(gang, type);
     e.visual.char.group.position.set(x, 0, z);
     e.actionId = 0; e.prevState = e.state;
@@ -400,6 +413,8 @@ export class Game {
     this.animate(dt);
     this.updateCamera(dt);
     this.fx.update(dt);
+    this.bossfx.syncField(this.field);
+    this.bossfx.update(dt);
     this.hud.update(dt);
     this.world.update(now / 1000);
     this.renderer.render(this.scene, this.camera);
@@ -426,11 +441,20 @@ export class Game {
     p.x = np.x; p.z = np.z;
     for (const ev of res.events) this.onPlayerEvent(ev);
     regen(p, dt);
+    this.clock += dt;
+    {
+      const pd = tickPoison(p, dt);
+      if (pd > 0) this.dotFeedback(pd, '#7dff5a');
+      this.hud.setPoison(!!p.poison);
+    }
     tickProgress(this.progress, dt);
 
     // enemies
-    const ctx = { px: p.x, pz: p.z, playerDead: p.dead, attackSlots: this.slots, rnd: this.rnd };
+    const ctx = { px: p.x, pz: p.z, playerDead: p.dead, attackSlots: this.slots, rnd: this.rnd, minions: 0 };
+    const minions = [0, 0, 0];
+    for (const e of this.enemies) if (e.summoned && !e.dead) minions[e.gang]++;
     for (const e of this.enemies) {
+      ctx.minions = minions[e.gang];
       const d = Math.hypot(e.x - p.x, e.z - p.z);
       e.active = d < 70 || e.isBoss;
       if (!e.active && !e.dead) { e.visual.char.group.visible = false; e.visual.ad.marker.visible = false; continue; }
@@ -441,6 +465,8 @@ export class Game {
       if (e.state !== e.prevState) { e.actionId++; e.prevState = e.state; }
       if (e.dead) this.handleDead(e, dt);
     }
+    if (this.enemies.some((q) => q.remove)) this.enemies = this.enemies.filter((q) => !q.remove);
+    this.stepField(dt);
     separate([p, ...this.enemies.filter((e) => e.active && !e.dead)]);
 
     // territory banner
@@ -466,7 +492,7 @@ export class Game {
     this.hud.setGangs(this.progress, this.progress.killsForBoss);
     for (const k of ['skill1', 'skill2', 'skill3']) this.controls.setCooldown(k, p.cd[k], MOVES[k].cd * c.skills.cooldownMult);
     const boss = this.enemies.find((e) => e.isBoss && !e.dead && Math.hypot(e.x - p.x, e.z - p.z) < 35);
-    if (boss) this.hud.setBoss(BOSS_NAMES[boss.gang], boss.hp, boss.maxHp); else this.hud.setBoss(null);
+    if (boss) this.hud.setBoss(BOSS_NAMES[boss.gang], boss.hp, boss.maxHp, BOSSES[boss.gang].css, boss.boss.phase); else this.hud.setBoss(null);
     this.mmT = (this.mmT || 0) - dt;
     if (this.mmT <= 0) { this.mmT = 0.1; this.hud.drawMinimap(p.x, p.z, p.facing, this.enemies, this.progress, this.city.hqs); }
   }
@@ -524,7 +550,8 @@ export class Game {
 
   onKill(e) {
     const evs = registerKill(this.progress, e.gang, e.isBoss);
-    e.respawnT = e.isBoss ? Infinity : 10;
+    e.respawnT = e.isBoss || e.summoned ? Infinity : 10;
+    if (e.isBoss) this.onBossDeath(e);
     for (const ev of evs) {
       if (ev === 'bossSummon') {
         const hq = this.city.hqs[e.gang];
@@ -542,6 +569,7 @@ export class Game {
   }
 
   onEnemyEvent(e, ev) {
+    if (e.isBoss) return this.onBossEvent(e, ev);
     const p = this.player;
     if (ev.type === 'strike') {
       const ok = ev.aoe
@@ -573,11 +601,180 @@ export class Game {
     }
   }
 
+  // ------------------------------------------------------------------ boss combat
+  bossColor(gang) { return [0xff3a2a, 0x2f8cff, 0x8cff2a][gang]; }
+
+  /** Small floating damage + soft vignette for damage-over-time (poison, flames, burning ground). */
+  dotFeedback(d, color) {
+    const p = this.player;
+    this.dotAcc += d;
+    if (this.clock - this.lastDot > 0.45) {
+      const sp = this.toScreen(p.x, 2.5, p.z);
+      if (sp) this.hud.damageNumber(sp.x, sp.y, '-' + Math.max(1, Math.round(this.dotAcc)), color);
+      this.dotAcc = 0; this.lastDot = this.clock;
+    }
+    if (this.clock - this.lastHurt > 0.35) { this.hud.hurt(); this.lastHurt = this.clock; }
+    if (p.dead) this.deadT = 0;
+  }
+
+  /** Apply a boss attack to the player (flinch + knockback), or only DoT damage when dot = true. Returns 'hit' | 'dodged' | 'none'. */
+  hurtPlayer(dmg, fromX, fromZ, kb, { dot = false, color = '#ff5a4a' } = {}) {
+    const p = this.player, real = Math.round(dmg * this.cfg.enemies.damageMult);
+    if (dot) {
+      const d = applyDot(p, real);
+      if (d > 0) { this.dotFeedback(d, color); return 'hit'; }
+      return 'none';
+    }
+    if (!damagePlayer(p, real, fromX, fromZ, kb)) {
+      const sp = this.toScreen(p.x, 2.6, p.z);
+      if (sp) this.hud.damageNumber(sp.x, sp.y, 'DODGED!', '#6fd0ff');
+      return 'dodged';
+    }
+    this.playerChar.hitFlash();
+    this.fx.burst(p.x, 1.6, p.z, 0xff5a3a, 10, 6);
+    this.audio.play('sfx_punch', 0.8, 0.8);
+    this.hud.hurt();
+    this.shake = Math.max(this.shake, kb > 8 ? 0.7 : 0.45);
+    this.haptic({ intensity: 0.9, sharpness: 0.35, duration: 70 });
+    const sp = this.toScreen(p.x, 2.5, p.z);
+    if (sp) this.hud.damageNumber(sp.x, sp.y, '-' + real, color);
+    this.progress.combo = 0;
+    if (p.dead) this.deadT = 0;
+    return 'hit';
+  }
+
+  onBossEvent(e, ev) {
+    const p = this.player, def = BOSSES[e.gang], col = this.bossColor(e.gang);
+    switch (ev.type) {
+      case 'alert': this.audio.sweep(180, 90, 0.6, 0.14); break;
+      case 'cast': e.actionId++; this.hud.setBossCast(ev.name, def.css); break;
+      case 'telegraph': this.bossfx.telegraph(ev, e, col); this.haptic('tick'); break;
+      case 'strike': this.bossStrike(e, ev, col); break;
+      case 'projectile': addProjectile(this.field, { owner: e.gang, kind: ev.kind, x: ev.x, z: ev.z, vx: ev.vx, vz: ev.vz, r: ev.r, dmg: ev.dmg, life: ev.life, poison: ev.poison }); break;
+      case 'meteor': addMeteor(this.field, { owner: e.gang, x: ev.x, z: ev.z, delay: ev.delay, r: ev.r, dmg: ev.dmg, kb: ev.kb, burn: ev.burn }); break;
+      case 'zone': addZone(this.field, { owner: e.gang, kind: ev.kind, x: ev.x, z: ev.z, r: ev.r, arm: ev.arm, dur: ev.dur, dps: ev.dps, poison: ev.poison }); break;
+      case 'summon': {
+        const alive = this.enemies.filter((q) => q.summoned && !q.dead && q.gang === e.gang).length;
+        const n = Math.min(ev.n, Math.max(0, ev.max - alive));
+        for (let i = 0; i < n; i++) {
+          const a = e.facing + (i % 2 ? 1 : -1) * (1.1 + i * 0.35);
+          let x = e.x + Math.sin(a) * 4.2, z = e.z + Math.cos(a) * 4.2;
+          if (blockedAt(this.obstacles, x, z, 0.8)) { x = e.x; z = e.z + 1.5; }
+          const m = this.spawnEnemy(ev.unit, e.gang, x, z);
+          m.summoned = true; m.state = 'chase'; m.respawnT = Infinity;
+          this.fx.ring(x, z, 2.6, col, 0.5); this.fx.puff(x, z, 8, 1.4); this.fx.burst(x, 0.5, z, col, 12, 7);
+        }
+        break;
+      }
+      case 'buff':
+        this.hud.showBanner('FRENZY!', `${def.name} is faster for a few seconds`, 2, def.css);
+        this.fx.ring(e.x, e.z, 6, col, 0.6); this.haptic('warning');
+        break;
+      case 'phase':
+        this.hud.showBanner(`${def.name.toUpperCase()} IS ENRAGED!`, 'Faster attacks, deadlier skills!', 3.2, def.css);
+        this.shake = 1; this.haptic('warning');
+        for (let k = 0; k < 3; k++) this.fx.ring(e.x, e.z, 5 + k * 3, col, 0.5 + k * 0.15);
+        this.fx.burst(e.x, 2, e.z, col, 30, 12);
+        break;
+      case 'cue': this.bossCue(ev.name); break;
+      default: break;
+    }
+    void p;
+  }
+
+  bossCue(name) {
+    const a = this.audio;
+    switch (name) {
+      case 'howl': a.sweep(260, 640, 0.8, 0.18); a.sweep(640, 300, 1.0, 0.18, 'sawtooth', 0.8); this.shake = Math.max(this.shake, 0.5); this.haptic('warning'); break;
+      case 'roar': a.noise(1.0, 0.2, 450); a.sweep(150, 70, 1.0, 0.2); this.shake = Math.max(this.shake, 0.4); break;
+      case 'breath': a.noise(1.5, 0.17, 1700); this.haptic({ intensity: 0.4, sharpness: 0.3, duration: 400 }); break;
+      case 'tail': a.sweep(520, 200, 0.5, 0.1, 'triangle'); a.play('sfx_whoosh', 0.7, 0.7); break;
+      case 'leap': a.play('sfx_whoosh', 0.8, 0.65); a.sweep(420, 160, 0.4, 0.1); break;
+      case 'spit': a.sweep(1100, 320, 0.15, 0.12, 'square'); a.noise(0.18, 0.08, 2600); break;
+      case 'hiss': a.noise(0.7, 0.14, 3600); break;
+      case 'slam': a.play('sfx_slam', 0.9, 0.8); this.shake = Math.max(this.shake, 0.6); break;
+      default: break;
+    }
+  }
+
+  /** Hit test + visuals for one boss strike (cone / circle / line). */
+  bossStrike(e, ev, col) {
+    const p = this.player, s = e.visual.char.group.scale.x;
+    // visuals
+    switch (ev.fx) {
+      case 'claw': {
+        if (ev.shape === 'line') { for (let i = 1; i <= 6; i++) this.fx.puff(ev.x + Math.sin(ev.facing) * ev.len * i / 6, ev.z + Math.cos(ev.facing) * ev.len * i / 6, 2, 1); this.bossfx.slash(e.x, e.z, ev.facing, 4.5, 170, col); }
+        else this.bossfx.slash(ev.x, ev.z, ev.facing, ev.range, ev.arc, col);
+        this.audio.play('sfx_whoosh', 0.55, 1.15); break;
+      }
+      case 'fang': this.bossfx.slash(e.x, e.z, ev.facing ?? e.facing, 4.5, 120, col); this.audio.play('sfx_whoosh', 0.5, 1.5); break;
+      case 'slam': this.fx.ring(ev.x, ev.z, ev.r * 1.2, col, 0.45); this.fx.puff(ev.x, ev.z, 12, 2); this.fx.burst(ev.x, 0.4, ev.z, 0xc9b79a, 18, 9); this.shake = Math.max(this.shake, 0.7); this.audio.play('sfx_slam', 0.9, 0.9); break;
+      case 'howl': for (let k = 0; k < 3; k++) this.fx.ring(ev.x, ev.z, ev.r * (1 - k * 0.28), k === 1 ? 0xffffff : col, 0.45 + k * 0.1); this.fx.puff(ev.x, ev.z, 14, 3); this.shake = Math.max(this.shake, 0.9); this.haptic('thud'); this.audio.play('sfx_slam', 0.7, 0.7); break;
+      case 'tail': this.fx.ring(ev.x, ev.z, ev.r, col, 0.5); this.fx.ring(ev.x, ev.z, ev.r * 0.6, 0xffffff, 0.35); this.fx.puff(ev.x, ev.z, 14, 2.4); this.shake = Math.max(this.shake, 0.6); this.audio.play('sfx_slam', 0.8, 1.1); break;
+      case 'flame': this.bossfx.flame(e.x, 2.1 * s, e.z, ev.facing, ev.range, 6, col); break;
+      default: break;
+    }
+    // hit test
+    let hit = false;
+    if (ev.shape === 'cone') hit = inHitSector(ev.x, ev.z, ev.facing, p.x, p.z, ev.range, ev.arc, p.radius);
+    else if (ev.shape === 'circle') hit = Math.hypot(p.x - ev.x, p.z - ev.z) < ev.r + p.radius;
+    else if (ev.shape === 'line') {
+      const dx = p.x - ev.x, dz = p.z - ev.z, ux = Math.sin(ev.facing), uz = Math.cos(ev.facing);
+      const along = dx * ux + dz * uz, across = Math.abs(dx * uz - dz * ux);
+      hit = along > -0.5 && along < ev.len + 0.5 && across < ev.width / 2 + p.radius;
+    }
+    if (!hit) return;
+    const r = this.hurtPlayer(ev.dmg, ev.shape === 'line' ? e.x : ev.x, ev.shape === 'line' ? e.z : ev.z, ev.kb, { dot: ev.dot, color: ev.fx === 'flame' ? '#8fdcff' : '#ff5a4a' });
+    if (r === 'hit' && ev.poison) applyPoison(p, 4, 5);
+  }
+
+  /** Projectiles / meteors / zones simulated by logic/hazards.js. */
+  stepField(dt) {
+    const p = this.player;
+    const evs = updateField(this.field, dt, p, { blocked: (x, z) => blockedAt(this.city.buildings, x, z, 0.1) });
+    for (const f of evs) {
+      switch (f.type) {
+        case 'projectileHit': {
+          const venom = f.kind === 'venom';
+          this.fx.burst(f.x, 1.3, f.z, venom ? 0x8dff5a : 0x9fe4ff, 12, 6); this.audio.play('sfx_punch', 0.5, venom ? 1.4 : 1.0);
+          const r = this.hurtPlayer(f.dmg, f.x - f.vx * 0.2, f.z - f.vz * 0.2, 4, { color: venom ? '#9dff6a' : '#ff5a4a' });
+          if (r === 'hit' && f.poison) applyPoison(p, 4, 5);
+          break;
+        }
+        case 'projectileEnd': this.fx.burst(f.x, 0.5, f.z, f.kind === 'venom' ? 0x8dff5a : 0x9fe4ff, 6, 4); this.fx.puff(f.x, f.z, 2, 0.8); break;
+        case 'meteorLand':
+          this.fx.ring(f.x, f.z, f.r * 1.6, 0x8fdcff, 0.5); this.fx.ring(f.x, f.z, f.r, 0xffffff, 0.35); this.fx.puff(f.x, f.z, 10, 2); this.fx.burst(f.x, 0.5, f.z, 0x8fdcff, 26, 11);
+          this.shake = Math.max(this.shake, 0.8); this.audio.play('sfx_slam', 0.85, 1.05); this.haptic('thud');
+          if (f.hit) this.hurtPlayer(f.dmg, f.x, f.z, f.kb || 8);
+          break;
+        case 'zoneStart': this.fx.ring(f.x, f.z, f.r * 1.1, f.kind === 'poison' ? 0x9dff6a : 0xffb347, 0.4); this.audio.noise(0.3, 0.07, 3000); break;
+        case 'zoneTick': {
+          const d = applyDot(p, f.dmg * this.cfg.enemies.damageMult);
+          if (f.poison) applyPoison(p, 2.5, 4);
+          if (d > 0) this.dotFeedback(d, f.kind === 'poison' ? '#7dff5a' : '#ffb347');
+          break;
+        }
+        default: break;
+      }
+    }
+  }
+
+  onBossDeath(e) {
+    clearOwner(this.field, e.gang);
+    for (const t of this.bossfx.tele) if (t.owner === e) t.life = 0;
+    const col = this.bossColor(e.gang);
+    for (let k = 0; k < 4; k++) this.fx.ring(e.x, e.z, 4 + k * 3, k % 2 ? 0xffffff : col, 0.6 + k * 0.15);
+    this.fx.burst(e.x, 2, e.z, col, 40, 14); this.fx.puff(e.x, e.z, 16, 3);
+    this.shake = 1.2; this.haptic('success'); this.audio.sweep(300, 40, 1.4, 0.2);
+    this.hud.setBossCast('', '#fff');
+  }
+
   handleDead(e, dt) {
     if (e.deadT > 2.4) e.visual.char.setOpacity(Math.max(0, 1 - (e.deadT - 2.4)));
     if (e.deadT > 3.5) {
       e.visual.char.group.visible = false;
       if (e.isBoss) return;
+      if (e.summoned) { e.remove = true; this.removeEnemyVisual(e); return; }
       e.respawnT -= dt;
       if (e.respawnT <= 0 && !this.progress.gangs[e.gang].liberated) {
         // respawn far from player
@@ -621,12 +818,13 @@ export class Game {
       const T = ENEMY_TYPES[e.type];
       let c = null, eu = 0;
       if (e.dead) { c = 'death'; eu = Math.min(1, e.deadT / 1.2); }
+      else if (e.isBoss && e.cast) { c = e.cast.clip; eu = Math.min(1, e.cast.t / e.cast.dur); }
       else if (e.state === 'attack') { c = T.clip; eu = e.t / T.dur; }
       else if (e.state === 'stagger') { c = 'hit'; eu = Math.min(1, e.t / (e.staggerDur || 0.4)); }
       ch.update(dt, { moveSpeed: e.moveSpeed, clip: c, u: eu, key: e.actionId });
       // telegraph
       const tele = v.ad.tele;
-      if (e.state === 'attack' && e.t / T.dur < T.hitT) {
+      if (!e.isBoss && e.state === 'attack' && e.t / T.dur < T.hitT) {
         const k = (e.t / T.dur) / T.hitT;
         tele.material.opacity = 0.15 + 0.35 * k;
         const r = T.range * (T.aoe ? 1.15 : 0.9);
@@ -719,6 +917,7 @@ export class Game {
     window.removeEventListener('pointerup', this.onOrbitUp);
     if (this.editMove) { window.removeEventListener('pointermove', this.editMove); window.removeEventListener('pointerup', this.editUp); }
     if (this.cut) { this.cut.dispose(); this.cut = null; }
+    this.bossfx.dispose();
     this.audio.dispose();
     this.controls.dispose();
     try { this.lib && this.lib.haptics && this.lib.haptics.stop(); } catch (e) { /* */ }

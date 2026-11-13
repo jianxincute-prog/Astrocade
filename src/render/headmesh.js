@@ -109,9 +109,11 @@ export function buildHeadGeometry(T, { hi, beard, scar }) {
   if (!CACHE.has(key)) {
     CACHE.set(key, surfaceMesh(T, headField(), {
       center: [0, 0.1, 0.015], rMax: 0.26,
-      nu: hi ? 220 : 120, nv: hi ? 165 : 90, iters: hi ? 18 : 14,
+      nu: hi ? 168 : 64, nv: hi ? 126 : 48, iters: hi ? 18 : 14,
       colorFn: colorFn({ beard, scar }), glossFn,
     }));
+    // cheap twin used for the x-ray silhouette copy (only a flat colour is drawn with it)
+    if (hi) CACHE.get(key).userData.proxy = buildHeadGeometry(T, { hi: false, beard, scar });
   }
   return CACHE.get(key);
 }
@@ -131,7 +133,7 @@ export function buildHairGeometry(T, { hi }) {
   if (!CACHE.has(key)) {
     const f = headField(), t = 0.014;
     CACHE.set(key, surfaceMesh(T, (x, y, z) => f(x, y, z) - t * hairWeight(x, y, z), {
-      center: [0, 0.1, 0.015], rMax: 0.28, nu: hi ? 120 : 56, nv: hi ? 90 : 42, iters: hi ? 16 : 12,
+      center: [0, 0.1, 0.015], rMax: 0.28, nu: hi ? 96 : 40, nv: hi ? 72 : 30, iters: hi ? 16 : 12,
       glossFn: hairWeight,                               // per-vertex hair weight; the material cuts the hairline from it per pixel
       keepFn: (x, y, z) => hairWeight(x, y, z) > 0.02,
     }));

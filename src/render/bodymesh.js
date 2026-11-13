@@ -89,10 +89,16 @@ function sweep(T, f, { y0, y1, ny, nu, rMax = 0.6, attrFn, iters = 18, eps = 0.0
 
 const E = ellipsoid;
 const cached = (key, fn) => { if (!CACHE.has(key)) CACHE.set(key, fn()); return CACHE.get(key); };
+/** Attaches a cheap low-res twin (geometry.userData.proxy) used for the x-ray silhouette copy, built once per cached geometry. */
+const withProxy = (fn, lower) => (T, o) => {
+  const g = fn(T, o);
+  if (!g.userData.proxy && !o.noProxy) g.userData.proxy = fn(T, { ...o, ...lower(o), noProxy: true });
+  return g;
+};
 
 /** Chest in chest-joint space: ribcage + pecs + lats + upper back + traps + tank straps. `skinMix` paints
  *  V-neck / traps / shoulders as skin (aSkin 1) against the knit fabric (aSkin 0). */
-export function chestGeometry(T, { bulk, skinMix, seg = 1 }) {
+function chestGeometryRaw(T, { bulk, skinMix, seg = 1 }) {
   return cached(`chest${bulk}${skinMix ? 's' : 'f'}${seg}`, () => {
     const b = bulk;
     const r = profileFn([[0.02, -0.075], [0.172, -0.06], [0.2, 0.02], [0.24, 0.12], [0.268, 0.21], [0.262, 0.27], [0.225, 0.32], [0.14, 0.36], [0.03, 0.378]]);
@@ -117,7 +123,7 @@ export function chestGeometry(T, { bulk, skinMix, seg = 1 }) {
 }
 
 /** Abdomen in spine space (+ obliques). */
-export function absGeometry(T, { bulk, seg = 1 }) {
+function absGeometryRaw(T, { bulk, seg = 1 }) {
   return cached(`abs${bulk}${seg}`, () => {
     const b = bulk;
     const r = profileFn([[0.03, -0.035], [0.165, -0.02], [0.16, 0.08], [0.168, 0.18], [0.18, 0.28], [0.03, 0.312]]);
@@ -128,7 +134,7 @@ export function absGeometry(T, { bulk, seg = 1 }) {
 }
 
 /** Neck in neck-joint space (+ sternocleidomastoid ridges). */
-export function neckGeometry(T, { bulk, seg = 1 }) {
+function neckGeometryRaw(T, { bulk, seg = 1 }) {
   return cached(`neck${bulk}${seg}`, () => {
     const b = bulk, r = limbFn(0.13, 0.072, 0.08, 0.09, 0.5, 0.12);
     const base = revolved(r, -0.01, 0.12, b * 0.95, b * 0.92);
@@ -138,7 +144,7 @@ export function neckGeometry(T, { bulk, seg = 1 }) {
 }
 
 /** Upper arm in shoulder-joint space: arm + deltoid cap + biceps + triceps. side = +1 left / -1 right. */
-export function upperArmGeometry(T, { ab, side, seg = 1 }) {
+function upperArmGeometryRaw(T, { ab, side, seg = 1 }) {
   return cached(`uarm${ab}${side}${seg}`, () => {
     const r = limbFn(0.32, 0.085 * ab, 0.093 * ab, 0.064 * ab, 0.45);
     const base = revolved(r, -0.32, 0.0, 1, 0.95);
@@ -152,7 +158,7 @@ export function upperArmGeometry(T, { ab, side, seg = 1 }) {
 }
 
 /** Forearm in elbow-joint space: forearm + elbow + brachioradialis. */
-export function foreArmGeometry(T, { ab, side, seg = 1 }) {
+function foreArmGeometryRaw(T, { ab, side, seg = 1 }) {
   return cached(`farm${ab}${side}${seg}`, () => {
     const r = limbFn(0.28, 0.068 * ab, 0.074 * ab, 0.047 * ab, 0.25);
     const base = revolved(r, -0.28, 0.0, 1, 1);
@@ -165,7 +171,7 @@ export function foreArmGeometry(T, { ab, side, seg = 1 }) {
 }
 
 /** Thigh in hip-joint space (+ quads). */
-export function thighGeometry(T, { lb, side, seg = 1 }) {
+function thighGeometryRaw(T, { lb, side, seg = 1 }) {
   return cached(`thigh${lb}${side}${seg}`, () => {
     const rl = limbFn(0.47, 0.12 * lb, 0.122 * lb, 0.078 * lb, 0.3);
     // round off the top of the thigh so it tucks into the hip instead of ending in a hard disc
@@ -177,7 +183,7 @@ export function thighGeometry(T, { lb, side, seg = 1 }) {
 }
 
 /** Shin in knee-joint space (+ knee cap and calf). */
-export function shinGeometry(T, { lb, seg = 1 }) {
+function shinGeometryRaw(T, { lb, seg = 1 }) {
   return cached(`shin${lb}${seg}`, () => {
     const r = limbFn(0.45, 0.078 * lb, 0.082 * lb, 0.056 * lb, 0.3);
     const base = revolved(r, -0.45, 0.0, 1, 1);
@@ -194,7 +200,7 @@ export function shinGeometry(T, { lb, seg = 1 }) {
  * Palm, four knuckles, folded fingers, tucked tips, thumb across the middle phalanges, soft grooves between
  * fingers, all melted into one mesh. b = hand bulk, side = +1 left / -1 right (thumb on the inside).
  */
-export function fistGeometry(T, { b, side, hi }) {
+function fistGeometryRaw(T, { b, side, hi }) {
   return cached(`fist${b}${side}${hi ? 1 : 0}`, () => {
     const xs = [0, 1, 2, 3].map((k) => (-0.033 + k * 0.022) * b);
     const th = -side;                                   // thumb side
@@ -214,12 +220,12 @@ export function fistGeometry(T, { b, side, hi }) {
       for (let i = 0; i < grooves.length; i++) d = smax(d, -grooves[i](x, y, z), 0.003);
       return d;
     };
-    return surfaceMesh(T, f, { center: [0, -0.03, 0.015], rMax: 0.2, nu: hi ? 72 : 36, nv: hi ? 54 : 28, iters: 16 });
+    return surfaceMesh(T, f, { center: [0, -0.03, 0.015], rMax: 0.2, nu: hi ? 52 : 26, nv: hi ? 40 : 20, iters: 16 });
   });
 }
 
 /** Sneaker / boot foot in ankle-joint space: foot, toe cap, heel and sole slab melted together; the sole is painted dark. */
-export function shoeGeometry(T, { hi }) {
+function shoeGeometryRaw(T, { hi }) {
   return cached(`shoe${hi ? 1 : 0}`, () => {
     const Y = 0.036; // lifts the shoe so the sole rests ON the ground (it used to sink ~3 cm and show the x-ray silhouette)
     const parts = [
@@ -230,6 +236,24 @@ export function shoeGeometry(T, { hi }) {
     ];
     const f = (x, y, z) => { let d = parts[0](x, y, z); for (let i = 1; i < parts.length; i++) d = smin(d, parts[i](x, y, z), 0.022); return d; };
     const colorFn = (x, y, z) => { const m = 1 - ss(-0.062 + Y, -0.074 + Y, y) * 0.72; return [m, m, m]; }; // dark rubber sole, upper keeps the shoe colour
-    return surfaceMesh(T, f, { center: [0, -0.04 + Y, 0.04], rMax: 0.3, nu: hi ? 64 : 32, nv: hi ? 44 : 22, iters: 16, colorFn });
+    return surfaceMesh(T, f, { center: [0, -0.04 + Y, 0.04], rMax: 0.3, nu: hi ? 48 : 26, nv: hi ? 34 : 18, iters: 16, colorFn });
   });
 }
+
+export const chestGeometry = withProxy(chestGeometryRaw, o=>({seg:(o.seg??1)*0.4}));
+
+export const absGeometry = withProxy(absGeometryRaw, o=>({seg:(o.seg??1)*0.4}));
+
+export const neckGeometry = withProxy(neckGeometryRaw, o=>({seg:(o.seg??1)*0.5}));
+
+export const upperArmGeometry = withProxy(upperArmGeometryRaw, o=>({seg:(o.seg??1)*0.4}));
+
+export const foreArmGeometry = withProxy(foreArmGeometryRaw, o=>({seg:(o.seg??1)*0.4}));
+
+export const thighGeometry = withProxy(thighGeometryRaw, o=>({seg:(o.seg??1)*0.4}));
+
+export const shinGeometry = withProxy(shinGeometryRaw, o=>({seg:(o.seg??1)*0.4}));
+
+export const fistGeometry = withProxy(fistGeometryRaw, o=>({hi:false}));
+
+export const shoeGeometry = withProxy(shoeGeometryRaw, o=>({hi:false}));

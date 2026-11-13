@@ -1,5 +1,6 @@
 // Pure gang-member AI: patrol -> chase -> windup/strike -> recover, stagger, death.
 import { angleDiff } from './combat.js';
+import { BOSSES, createBossState, updateBoss } from './boss.js';
 
 export const ENEMY_TYPES = {
   thug: { hp: 40, speed: 4.6, dmg: 10, range: 1.9, windup: 0.5, dur: 0.9, hitT: 0.58, clip: 'swing', scale: 1.0, aggro: 16, weapon: 'none' },
@@ -9,14 +10,16 @@ export const ENEMY_TYPES = {
 
 export function createEnemy(type, gang, x, z, mult = 1) {
   const t = ENEMY_TYPES[type];
+  const baseHp = type === 'boss' ? BOSSES[gang].hp : t.hp; // every boss has its own health pool and skill kit (logic/boss.js)
   return {
     type, gang, x, z, homeX: x, homeZ: z,
-    hp: Math.round(t.hp * mult), maxHp: Math.round(t.hp * mult),
+    hp: Math.round(baseHp * mult), maxHp: Math.round(baseHp * mult),
     facing: Math.random() * Math.PI * 2,
     state: 'patrol', t: 0, wanderX: x, wanderZ: z, wanderT: 0,
     moveSpeed: 0, knockX: 0, knockZ: 0, lift: 0, liftV: 0,
     dead: false, deadT: 0, hitDone: false, cool: Math.random(),
     isBoss: type === 'boss',
+    boss: type === 'boss' ? createBossState(gang) : null, cast: null,
   };
 }
 
@@ -38,7 +41,8 @@ export function updateEnemy(e, dt, ctx) {
   }
   e.t += dt;
   e.cool -= dt;
-  if (e.dead) { e.deadT += dt; e.moveSpeed = 0; return { dx, dz, events }; }
+  if (e.dead) { e.deadT += dt; e.moveSpeed = 0; e.cast = null; return { dx, dz, events }; }
+  if (e.isBoss) { const r = updateBoss(e, dt, ctx); return { dx: dx + r.dx, dz: dz + r.dz, events: r.events }; }
 
   const ddx = ctx.px - e.x, ddz = ctx.pz - e.z;
   const dist = Math.hypot(ddx, ddz);
@@ -124,12 +128,12 @@ export function damageEnemy(e, dmg, fromX, fromZ, kb, launch, ctx) {
   const wasAttacking = e.state === 'attack';
   const armor = e.isBoss && wasAttacking && !launch;
   if (!armor) {
-    if (wasAttacking && ctx && ctx.attackSlots) ctx.attackSlots.used = Math.max(0, ctx.attackSlots.used - 1);
+    if (wasAttacking && !e.isBoss && ctx && ctx.attackSlots) ctx.attackSlots.used = Math.max(0, ctx.attackSlots.used - 1);
     e.state = 'stagger'; e.t = 0; e.staggerDur = e.isBoss ? 0.25 : 0.42;
     if (launch && !e.isBoss) { e.liftV = 9; e.lift = 0.01; e.staggerDur = 0.7; }
   }
   if (e.hp <= 0) {
-    if (e.state === 'attack' && ctx && ctx.attackSlots) ctx.attackSlots.used = Math.max(0, ctx.attackSlots.used - 1);
+    if (e.state === 'attack' && !e.isBoss && ctx && ctx.attackSlots) ctx.attackSlots.used = Math.max(0, ctx.attackSlots.used - 1);
     e.hp = 0; e.dead = true; e.state = 'dead'; e.deadT = 0;
     return { killed: true };
   }

@@ -20,6 +20,11 @@ const CSS = `
 .bossbar{position:absolute;left:110px;right:110px;top:250px;display:none;text-align:center;font-size:20px;text-shadow:0 2px 4px #000}
 .bossbar .hpbar{height:18px}
 .bossbar .hpfill{background:linear-gradient(#c56cff,#6a1ea8)}
+.bossbar .hpbar{position:relative}
+.bossbar .hpbar::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fffa;box-shadow:0 0 6px #fff}
+.bossbar .bc{height:30px;margin-top:6px;font-size:24px;letter-spacing:2px;opacity:0;transition:opacity .25s;text-shadow:0 2px 6px #000,0 0 14px currentColor}
+.bossbar .bc.on{opacity:1}
+.pois{position:absolute;inset:0;box-shadow:inset 0 0 130px 36px #38d63a;opacity:0;transition:opacity .3s;pointer-events:none}
 #joy{position:absolute;left:0;bottom:0;width:50%;height:48%;pointer-events:auto;touch-action:none}
 .jbase{position:absolute;width:230px;height:230px;margin:-115px 0 0 -115px;border-radius:50%;background:radial-gradient(#ffffff22,#ffffff0a);border:3px solid #ffffff44}
 .jknob{position:absolute;width:100px;height:100px;margin:-50px 0 0 -50px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#bbb);opacity:.85;box-shadow:0 4px 10px #0007}
@@ -37,7 +42,7 @@ const CSS = `
 .overlay .go:active{transform:translateY(4px)}
 .dmg{position:absolute;left:0;top:0;font-size:30px;color:#fff;text-shadow:0 2px 0 #000,0 0 8px #000;will-change:transform,opacity;pointer-events:none}
 .vign{position:absolute;inset:0;box-shadow:inset 0 0 160px 40px #c00;opacity:0;transition:opacity .25s;pointer-events:none}
-#ui.cine .hpwrap,#ui.cine #minimap,#ui.cine .combo,#ui.cine .bossbar,#ui.cine .banner,#ui.cine .vign{display:none}
+#ui.cine .hpwrap,#ui.cine #minimap,#ui.cine .combo,#ui.cine .bossbar,#ui.cine .banner,#ui.cine .vign,#ui.cine .pois{display:none}
 `;
 
 export class HUD {
@@ -46,12 +51,12 @@ export class HUD {
     this.style = st;
     this.el = document.createElement('div'); this.el.id = 'ui'; root.appendChild(this.el);
     this.el.innerHTML = `
-      <div class="vign"></div>
+      <div class="vign"></div><div class="pois"></div>
       <div class="hpwrap"><div class="hpname">THE ENFORCER</div><div class="hpbar"><div class="hpfill"></div></div>
         <div class="score">0</div><div class="gangs"></div></div>
       <canvas id="minimap" width="210" height="210"></canvas>
       <div class="combo"><span class="cn">0</span><small>COMBO</small></div>
-      <div class="bossbar"><div class="bn">BOSS</div><div class="hpbar"><div class="hpfill"></div></div></div>
+      <div class="bossbar"><div class="bn">BOSS</div><div class="hpbar"><div class="hpfill"></div></div><div class="bc"></div></div>
       <div class="banner"></div>`;
     this.q = (s) => this.el.querySelector(s);
     this.hpFill = this.q('.hpwrap .hpfill');
@@ -60,7 +65,7 @@ export class HUD {
     this.comboEl = this.q('.combo'); this.comboN = this.q('.cn');
     this.banner = this.q('.banner');
     this.bossbar = this.q('.bossbar'); this.bossFill = this.q('.bossbar .hpfill'); this.bossName = this.q('.bn');
-    this.vign = this.q('.vign');
+    this.vign = this.q('.vign'); this.pois = this.q('.pois'); this.bossCast = this.q('.bossbar .bc'); this.bossCastT = 0;
     this.mm = this.q('#minimap').getContext('2d');
     this.dmgPool = [];
     this.lastGangHtml = '';
@@ -84,12 +89,19 @@ export class HUD {
     this.banner.innerHTML = `<span style="color:${color}">${title}</span><small>${sub}</small>`;
     this.banner.style.opacity = 1; this.bannerT = dur;
   }
-  setBoss(name, hp, max) {
+  setBoss(name, hp, max, color = '#c56cff', phase = 1) {
     if (!name) { this.bossbar.style.display = 'none'; return; }
     this.bossbar.style.display = 'block';
-    this.bossName.textContent = name;
+    this.bossName.textContent = phase > 1 ? name + '  ☠ ENRAGED' : name;
+    this.bossName.style.color = color;
+    this.bossFill.style.background = `linear-gradient(${color},#2a0a40)`;
     this.bossFill.style.transform = `scaleX(${Math.max(0, hp / max)})`;
   }
+  /** Name of the skill the boss is casting, shown under its health bar for a moment. */
+  setBossCast(text, color = '#fff') {
+    this.bossCast.textContent = text; this.bossCast.style.color = color; this.bossCast.classList.add('on'); this.bossCastT = 1.6;
+  }
+  setPoison(on) { this.pois.style.opacity = on ? 0.55 : 0; }
   hurt() { this.vign.style.opacity = 0.55; clearTimeout(this.vt); this.vt = setTimeout(() => (this.vign.style.opacity = 0), 180); }
 
   damageNumber(sx, sy, text, color = '#fff', big = false) {
@@ -105,6 +117,7 @@ export class HUD {
 
   update(dt) {
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) this.banner.style.opacity = 0; }
+    if (this.bossCastT > 0) { this.bossCastT -= dt; if (this.bossCastT <= 0) this.bossCast.classList.remove('on'); }
     for (const d of this.dmgPool) {
       if (d.life <= 0) continue;
       d.life -= dt; d.y -= 70 * dt;

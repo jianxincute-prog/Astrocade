@@ -9,6 +9,7 @@ import {
 } from '../logic/anim.js';
 import { buildHeadGeometry, buildHairGeometry } from './headmesh.js';
 import { BAT_LEN, batWoodGeometry, batTapeGeometry, batNailsGeometry, pipeBodyGeometry, pipeTapeGeometry, woodTexture, tapeTexture, steelTexture } from './weapons.js';
+import { wolfEarGeometry, clawGeometry, maneGeometry, hornGeometry, spinesGeometry, hoodGeometry, hoodTexture } from './bossgear.js';
 import { chestGeometry, absGeometry, neckGeometry, upperArmGeometry, foreArmGeometry, thighGeometry, shinGeometry, fistGeometry, shoeGeometry } from './bodymesh.js';
 
 const MIRROR = { rSh: 1, rEl: 1, rHip: 1, rKn: 1, rAn: 1 };
@@ -388,7 +389,7 @@ export class Character {
     const armMat = sleeves ? top : skin;
     // player-grade body: smooth sculpted segments instead of a lathe + overlapping muscle ellipsoids
     const smooth = !o.noMesh;           // player AND enemies; enemies use half-resolution meshes
-    const sg = hi ? 1 : 0.5;
+    const sg = hi ? 0.8 : 0.35;
     const shoeMat = smooth ? this.mat(o.shoes || 0x151515, 0.55, { vertexColors: true }) : shoes;
     let chestMat = top;
     if (smooth && (!sleeves || o.accent)) {
@@ -459,6 +460,10 @@ export class Character {
     const neck = this.joint('neck', chest, 0, 0.33, 0);
     if (smooth) this.mesh(neckGeometry(T, { bulk, seg: sg }), skin, neck, 0, 0, 0);
     else this.mesh(this.limb('neck', 0.13, 0.072, 0.08, 0.09, 0.5), skin, neck, 0, 0.12, 0.0, bulk * 0.95, 1, bulk * 0.92);
+    if (o.flair === 'wolf') this.mesh(maneGeometry(T, bulk), this.mat(0x3a1512, 0.95), neck, 0, 0.0, 0);                       // wolf mane
+    // cobra hood: rides on the neck (not the head), so it stays flared whichever way the head tilts
+    if (o.flair === 'cobra') this.mesh(hoodGeometry(T), this.mat(0xffffff, 0.55, { map: hoodTexture(T), metalness: 0.15 }), neck, 0, 0.135, -0.095, 1, 1, 1, -0.08, 0, 0);
+    if (o.flair === 'dragon') this.mesh(spinesGeometry(T, bulk), this.mat(0x17324a, 0.4, { metalness: 0.55 }), chest, 0, 0.09, 0); // dorsal spines
     if (hi && !smooth) {
       this.blob(skin, neck, 0.035 * bulk, 0.05, 0.045, 0.022, 0.075, 0.02, 0.35, 0, 0.25);
       this.blob(skin, neck, -0.035 * bulk, 0.05, 0.045, 0.022, 0.075, 0.02, 0.35, 0, -0.25);
@@ -496,6 +501,7 @@ export class Character {
       fist.position.set(0, -0.31, 0.0);
       el.add(fist);
       this.buildFist(fist, o.gloves ? this.mat(o.gloves, 0.5) : skin, ab, sx, !!o.wraps);
+      if (o.flair === 'wolf') this.mesh(clawGeometry(T), this.mat(0xcfd6de, 0.25, { metalness: 0.9 }), fist, 0, 0, 0); // steel claws
       this.acc = true;
       if (side === 'r' && o.weapon === 'bat') {
         // turned wood bat: knob, neck, barrel, spiral grip tape (+ brass nails on the spiked variant); axis y -> +z
@@ -630,6 +636,15 @@ export class Character {
       this.mesh(bridgeGeo, frame, head, 0, 0.1445, 0.1335, 0.0105, 0.0105, 0.0105);                                // arched bridge
       this.mesh(box, frame, head, 0, 0.1555, 0.1345, 0.092, 0.0035, 0.004);                                         // double brow bar
     }
+    if (o.flair === 'wolf') {
+      const fur = this.mat(0x3a1512, 0.95);
+      for (const sx of [1, -1]) this.mesh(wolfEarGeometry(T), fur, head, 0, 0, 0, sx, 1, 1);
+    } else if (o.flair === 'dragon') {
+      const horn = this.mat(0x232a36, 0.35, { metalness: 0.55 });
+      for (const sx of [1, -1]) this.mesh(hornGeometry(T), horn, head, 0, 0, 0, sx, 1, 1);
+      const glow = new T.MeshBasicMaterial({ color: 0x8fecff, toneMapped: false });         // not in this.mats: the hit flash must not wipe it
+      for (const sx of [1, -1]) this.mesh(box, glow, head, sx * 0.044, 0.137, 0.131, 0.027, 0.0075, 0.006, 0, 0, sx * -0.28);
+    }
     this.acc = false;
   }
 
@@ -640,7 +655,7 @@ export class Character {
     const list = [];
     this.pivot.traverse((m) => { if (m.isMesh) list.push(m); });
     for (const m of list) {
-      const x = new T.Mesh(m.geometry, xm);
+      const x = new T.Mesh(m.geometry.userData.proxy || m.geometry, xm); // low-res twin where available
       x.position.copy(m.position); x.rotation.copy(m.rotation); x.scale.copy(m.scale);
       x.renderOrder = 1;
       m.renderOrder = 2;

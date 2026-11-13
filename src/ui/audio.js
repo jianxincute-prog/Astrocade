@@ -63,6 +63,29 @@ export class Audio {
     }
   }
 
+  /** Pitch sweep f0 -> f1 (Hz) over dur seconds. */
+  sweep(f0, f1, dur, vol = 0.12, type = 'sawtooth', delay = 0) {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain(), f = this.ctx.createBiquadFilter();
+    o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
+    f.type = 'lowpass'; f.frequency.value = Math.max(f0, f1) * 3;
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.08, dur * 0.2)); g.gain.linearRampToValueAtTime(0, t0 + dur);
+    o.connect(f); f.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+
+  /** Filtered noise burst (hiss / breath / roar body). centre = band-pass frequency. */
+  noise(dur, vol = 0.12, centre = 1500, delay = 0) {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime + delay, n = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    const s = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+    s.buffer = buf; f.type = 'bandpass'; f.frequency.value = centre; f.Q.value = 0.8;
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.12, dur * 0.25)); g.gain.linearRampToValueAtTime(0, t0 + dur);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t0);
+  }
+
   /** Tiny talking blip for the typewriter subtitles. */
   blip(pitch = 1) { this.tone(190 * pitch * (0.9 + Math.random() * 0.25), 0.045, 0.05, 'triangle'); }
 
