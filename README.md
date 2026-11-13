@@ -12,4 +12,4 @@ Buka `index.html` di browser (desktop atau HP).
 
 ## Kontrol
 - Seret = pakai alat. Klik kanan / spasi + seret / tombol ✋ = geser peta.
-- Roda mouse atau pinch = zoom. `P` = jeda. `[` dan `]` = ukuran kuas.
+- Zoom pakai tombol + / − (mentok di full map). `P` = jeda. `[` dan `]` = ukuran kuas.

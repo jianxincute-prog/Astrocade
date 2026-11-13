@@ -354,18 +354,20 @@ const off = document.createElement('canvas'); off.width = W; off.height = H;
 const octx = off.getContext('2d');
 const img = octx.createImageData(W, H);
 let sc = 6, ox = 0, oy = VIEW.y, frame = 0;
-function fitCamera() {
-  sc = Math.min(VIEW.w / W, VIEW.h / H);
-  ox = VIEW.x + (VIEW.w - W*sc) / 2; oy = VIEW.y + (VIEW.h - H*sc) / 2;
-}
+const fitScale = () => Math.min(VIEW.w / W, VIEW.h / H);      // full-map zoom = minimum zoom
+const MAX_SC = 36;
+function fitCamera() { sc = fitScale(); clampCam(); }
 function clampCam() {
-  ox = Math.min(VIEW.x + VIEW.w*.8, Math.max(VIEW.x - (W*sc - VIEW.w*.2), ox));
-  oy = Math.min(VIEW.y + VIEW.h*.8, Math.max(VIEW.y - (H*sc - VIEW.h*.2), oy));
+  // when the map is smaller than the viewport on an axis, centre it; otherwise never show empty space
+  const cw = W*sc, ch = H*sc;
+  ox = cw <= VIEW.w ? VIEW.x + (VIEW.w - cw) / 2 : Math.min(VIEW.x, Math.max(VIEW.x + VIEW.w - cw, ox));
+  oy = ch <= VIEW.h ? VIEW.y + (VIEW.h - ch) / 2 : Math.min(VIEW.y, Math.max(VIEW.y + VIEW.h - ch, oy));
 }
 function zoomAt(px, py, f) {
-  const ns = Math.min(40, Math.max(3, sc * f)), wx = (px - ox) / sc, wy = (py - oy) / sc;
+  const ns = Math.min(MAX_SC, Math.max(fitScale(), sc * f)), wx = (px - ox) / sc, wy = (py - oy) / sc;
   sc = ns; ox = px - wx*sc; oy = py - wy*sc; clampCam();
 }
+const zoomBy = f => zoomAt(VIEW.x + VIEW.w/2, VIEW.y + VIEW.h/2, f);
 const toWorld = (px, py) => [Math.floor((px - ox)/sc), Math.floor((py - oy)/sc)];
 
 function renderTerrain() {
@@ -581,9 +583,7 @@ function inspectAt(wx, wy) {
 }
 
 /* ============================== INPUT ============================== */
-const ptrs = new Map(); let pinchD = 0;
-const pdist = () => { const a = [...ptrs.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); };
-const pmid = () => { const a = [...ptrs.values()]; return [(a[0].x + a[1].x)/2, (a[0].y + a[1].y)/2]; };
+const ptrs = new Map();
 function cpos(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * SCREEN_W / r.width, (e.clientY - r.top) * SCREEN_H / r.height]; }
 const inView = (p) => p[0] >= VIEW.x && p[0] <= VIEW.x + VIEW.w && p[1] >= VIEW.y && p[1] <= VIEW.y + VIEW.h;
 
@@ -594,7 +594,7 @@ cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId, { x: p[0], y: p[1] });
   lastPointer = p;
-  if (ptrs.size >= 2) { painting = false; panning = true; pinchD = pdist(); return; }
+  if (ptrs.size >= 2) { painting = false; panning = true; return; }
   if (tool === 'hand' || e.button === 1 || e.button === 2) { panning = true; return; }
   hover = toWorld(p[0], p[1]);
   if (tool === 'inspect') inspectAt(hover[0], hover[1]);
@@ -606,9 +606,7 @@ cv.addEventListener('pointermove', e => {
   const s = ptrs.get(e.pointerId); if (!s) return;
   const ddx = p[0] - s.x, ddy = p[1] - s.y; s.x = p[0]; s.y = p[1];
   if (ptrs.size === 2) {
-    const nd = pdist(), m = pmid();
-    if (pinchD > 0) zoomAt(m[0], m[1], nd / pinchD);
-    pinchD = nd; ox += ddx / 2; oy += ddy / 2; clampCam();
+    ox += ddx / 2; oy += ddy / 2; clampCam();
   } else if (panning) { ox += ddx; oy += ddy; clampCam(); }
   lastPointer = p;
 });
@@ -619,7 +617,7 @@ const endPtr = e => {
 };
 cv.addEventListener('pointerup', endPtr);
 cv.addEventListener('pointercancel', endPtr);
-cv.addEventListener('wheel', e => { e.preventDefault(); const p = cpos(e); zoomAt(p[0], p[1], e.deltaY < 0 ? 1.15 : 1/1.15); }, { passive:false });
+cv.addEventListener('wheel', e => e.preventDefault(), { passive:false });   // zoom is button-only
 const onKey = e => { if (e.code === 'KeyP' && !editMode) togglePause(); if (e.key === '[') setBrush(brush - 1); if (e.key === ']') setBrush(brush + 1); };
 window.addEventListener('keydown', onKey);
 
@@ -647,7 +645,6 @@ const WORLD_ACTIONS = [
     { ic:'🧹', fn: () => { creatures = []; bld.fill(0); dirty = true; toast('🧹'); } },
   ]),
   { ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
-  { ic:'🔎', fn: () => fitCamera() },
 ];
 
 const tabBtns = [];
@@ -680,7 +677,8 @@ if (!editMode) pauseBtn = mkBtn(btns, '⏸', togglePause);
 const speeds = [1, 3, 8];
 const speedBtn = editMode ? null : mkBtn(btns, '1×', b => { speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length]; b.textContent = speed + '×'; });
 const handBtn = mkBtn(btns, '✋', () => selectTool(tool === 'hand' ? 'raise' : 'hand'));
-mkBtn(btns, '🔎', () => fitCamera());
+mkBtn(btns, '−', () => zoomBy(1/1.5));
+mkBtn(btns, '+', () => zoomBy(1.5));
 
 function updateStats() {
   let h = '';
