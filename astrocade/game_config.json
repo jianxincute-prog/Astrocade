@@ -1,5 +1,16 @@
 {
-  "settings": { "dayNight": true, "population": 1 },
-  "world": { "seed": 0, "tiles": "" },
-  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+  "settings": {
+    "dayNight": true,
+    "population": 1
+  },
+  "world": {
+    "seed": 0,
+    "tiles": "",
+    "size": 1
+  },
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": false
+    }
+  }
 }

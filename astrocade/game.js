@@ -15,7 +15,14 @@ function run(mode) {
 /* ============================== CONSTANTS ============================== */
 const SCREEN_W = 720, SCREEN_H = 1280;
 const VIEW = { x: 0, y: 150, w: 720, h: 906 };          // world viewport on the canvas
-const W = 120, H = 148, N = W * H;
+// Three selectable world sizes. k scales population caps (not linearly, to keep phones smooth).
+const SIZES = [
+  { name:'S', label:'Kecil',  w:120, h:148, k:1,   land:0,   coarse:0,   wc:0 },
+  { name:'M', label:'Sedang', w:200, h:246, k:2,   land:.39, coarse:.21, wc:.62 },
+  { name:'L', label:'Besar',  w:240, h:296, k:2.6, land:.40, coarse:.19, wc:.64 },
+];
+let sizeIdx = 1, W = SIZES[1].w, H = SIZES[1].h, N = W * H, CAPK = SIZES[1].k;
+let GW = 0, GH = 0, cells = [];
 const T = { DEEP:0, SHALLOW:1, SAND:2, GRASS:3, FOREST:4, HILL:5, MOUNTAIN:6, SNOW:7, LAVA:8, BURNT:9 };
 const COL = [
   [24,72,140], [48,128,196], [226,208,144], [96,176,72], [40,116,56],
@@ -36,7 +43,8 @@ const RN = ['human','elf','dwarf','orc','sheep','wolf'];
 const BUILD_OWNER = [null,'human','elf','dwarf','orc'];
 const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺' };
 const TPS = 8;
-const MAX_CREATURES = 1500;
+const MAX_CREATURES = 1500;           // multiplied by CAPK
+const capOf = t => Math.round(RACES[t].cap * CAPK);
 
 const cfg = window.gameConfig || {};
 cfg.settings = cfg.settings || { dayNight: true, population: 1 };
@@ -57,8 +65,8 @@ style.textContent = `
   .awb.on{background:#34457f;border-color:#ffcf4a}
   #awtop{position:absolute;left:0;top:0;width:720px;height:150px;background:#141b33;border-bottom:3px solid #2c3868}
   #awbtns{position:absolute;left:6px;top:4px;display:flex;gap:8px}
-  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:6px;align-items:center;font-size:23px;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 8px}
+  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:4px;align-items:center;font-size:21px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 6px}
   #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:#141b33;border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
   #awbrush{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:36px;font-weight:700;color:#ffcf4a}
@@ -90,7 +98,7 @@ let toastT = 0;
 function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => toastEl.style.opacity = 0, 1500); }
 
 /* ============================== STATE ============================== */
-const tiles = new Uint8Array(N), bld = new Uint8Array(N), fire = new Uint8Array(N), jit = new Int8Array(N);
+let tiles, bld, fire, jit;            // allocated by setSize()
 let creatures = [], nextId = 1, tick = 0;
 let speed = 1, paused = editMode;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0];
@@ -114,7 +122,7 @@ function fbm(x, y, s) {
   for (let o = 0; o < 5; o++) { a += amp * vnoise(x*f, y*f, s + o*17); n += amp; amp *= .5; f *= 2; }
   return a / n;
 }
-function generate(seed) {
+function generateSmall(seed) {
   currentSeed = seed; creatures = []; effects.length = 0; bld.fill(0); fire.fill(0);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = x + y*W;
@@ -130,6 +138,32 @@ function generate(seed) {
     jit[i] = Math.floor((hash(x, y, 7) - .5) * 14);
   }
 }
+// Medium / Large: rank-based biomes + low-frequency noise => several continents and islands.
+function generateLarge(seed) {
+  currentSeed = seed; creatures = []; effects.length = 0; bld.fill(0); fire.fill(0);
+  const z = SIZES[sizeIdx], e = new Float32Array(N), mo = new Float32Array(N);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = x + y*W;
+    const f = fbm(x/24, y/24, seed), c = fbm(x/(W*z.coarse), y/(W*z.coarse), seed + 7);
+    const ed = Math.min(1, Math.min(x, y, W-1-x, H-1-y) / (W*.1)), edge = 1 - ed;
+    e[i] = f*(1 - z.wc) + c*z.wc - edge*edge*.3;
+    mo[i] = fbm(x/14 + 50, y/14 + 50, seed + 99);
+    jit[i] = Math.floor((hash(x, y, 7) - .5) * 14);
+  }
+  const srt = Float32Array.from(e).sort();
+  const wi = Math.floor(N * (1 - z.land)), lc = N - wi;
+  const q = k => srt[Math.min(N - 1, wi + Math.floor(lc * k))];
+  const water = srt[wi], shallow = srt[Math.floor(wi * .86)];
+  const sandT = q(.07), grassT = q(.72), hillT = q(.86), mtnT = q(.97);
+  for (let i = 0; i < N; i++) {
+    const v = e[i]; let t;
+    if (v < shallow) t = T.DEEP; else if (v < water) t = T.SHALLOW; else if (v < sandT) t = T.SAND;
+    else if (v < grassT) t = mo[i] > .52 ? T.FOREST : T.GRASS;
+    else if (v < hillT) t = T.HILL; else if (v < mtnT) t = T.MOUNTAIN; else t = T.SNOW;
+    tiles[i] = t;
+  }
+}
+function generate(seed) { if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
 function emptyWorld() {
   creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
   for (let i = 0; i < N; i++) jit[i] = Math.floor((hash(i, 3, 5) - .5) * 14);
@@ -138,7 +172,7 @@ function rleEncode() {
   const out = []; let run = 1;
   for (let i = 1; i <= N; i++) {
     if (i < N && tiles[i] === tiles[i-1]) run++;
-    else { out.push(tiles[i-1] + '.' + run); run = 1; }
+    else { out.push(tiles[i-1] + run.toString(36)); run = 1; }
   }
   return out.join(',');
 }
@@ -146,7 +180,10 @@ function rleDecode(s) {
   if (!s) return false;
   let p = 0;
   for (const part of s.split(',')) {
-    const [t, n] = part.split('.').map(Number);
+    let t, n;
+    if (part.indexOf('.') >= 0) { const a = part.split('.'); t = +a[0]; n = +a[1]; }      // legacy "t.n"
+    else { t = +part[0]; n = parseInt(part.slice(1), 36); }
+    if (!(n > 0)) return false;
     for (let k = 0; k < n && p < N; k++) tiles[p++] = t;
   }
   if (p !== N) return false;
@@ -259,7 +296,7 @@ function fx(kind, x, y, extra) { effects.push(Object.assign({ k:kind, x, y, t:0 
 
 /* ============================== CREATURES ============================== */
 function spawn(type, x, y, force) {
-  if (!force && (creatures.length >= MAX_CREATURES || (counts[type]||0) >= RACES[type].cap + 40)) return null;
+  if (!force && (creatures.length >= MAX_CREATURES * CAPK || (counts[type]||0) >= capOf(type) + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
   const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'' };
@@ -271,8 +308,6 @@ function spawnNear(type, x, y) {
   return null;
 }
 const DIRS = [[0,0],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
-const GW = Math.ceil(W/8), GH = Math.ceil(H/8);
-const cells = Array.from({length:GW*GH}, () => []);
 
 function tryMove(c, nx, ny) {
   if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W])) { if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny; return true; }
@@ -335,13 +370,13 @@ function stepCreature(c) {
       }
     }
     if (bld[idx] === 0 && Math.random() < .02 && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
-        && (hb[R.bi]||0) < R.cap*.3 && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
+        && (hb[R.bi]||0) < capOf(c.t)*.3 && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
       bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
     }
   } else if (c.t === 'sheep') {
-    if (Math.random() < .02 && (counts.sheep||0) < R.cap && cells[(c.y>>3)*GW + (c.x>>3)].length < 14 && tiles[idx] === T.GRASS) spawnNear('sheep', c.x, c.y);
+    if (Math.random() < .02 && (counts.sheep||0) < capOf('sheep') && cells[(c.y>>3)*GW + (c.x>>3)].length < 14 && tiles[idx] === T.GRASS) spawnNear('sheep', c.x, c.y);
   } else if (R.hunt) {
-    if (c.en > 70 && Math.random() < .01 && (counts.wolf||0) < R.cap) { c.en -= 30; spawnNear('wolf', c.x, c.y); }
+    if (c.en > 70 && Math.random() < .01 && (counts.wolf||0) < capOf('wolf')) { c.en -= 30; spawnNear('wolf', c.x, c.y); }
   }
   if (Math.random() < .3) c.dir = ri(0, 8);
   const d = DIRS[c.dir];
@@ -371,7 +406,7 @@ function step() {
     if (b) {
       houseCount++; hb[b]++;
       const race = BUILD_OWNER[b];
-      if (Math.random() < .005 && (counts[race]||0) < RACES[race].cap) {
+      if (Math.random() < .005 && (counts[race]||0) < capOf(race)) {
         const x = i % W, y = (i / W) | 0;
         if (cells[(y>>3)*GW + (x>>3)].length < 12) spawnNear(race, x, y);
       }
@@ -396,7 +431,8 @@ function step() {
   }
   for (const i of spread) ignite(i);
 
-  for (let s = 0; s < 80; s++) {
+  const ns = Math.round(80 * N / 17760);
+  for (let s = 0; s < ns; s++) {
     const i = (Math.random() * N) | 0, t = tiles[i];
     if (t === T.BURNT) { if (Math.random() < .3) tiles[i] = T.GRASS; }
     else if (t === T.GRASS) {
@@ -416,7 +452,7 @@ function step() {
 function populate(scale) {
   const sc = scale == null ? (cfg.settings.population == null ? 1 : +cfg.settings.population) : scale;
   const tryPlace = (type, n, pred) => {
-    n = Math.round(n * sc); let guard = 0;
+    n = Math.round(n * sc * CAPK); let guard = 0;
     while (n > 0 && guard++ < 4000) {
       const x = ri(0, W-1), y = ri(0, H-1);
       if (pred(tiles[x + y*W]) && walkable(type, tiles[x + y*W])) {
@@ -434,13 +470,28 @@ function populate(scale) {
 }
 
 /* ============================== CAMERA / RENDER ============================== */
-const off = document.createElement('canvas'); off.width = W; off.height = H;
+const off = document.createElement('canvas');
 const octx = off.getContext('2d');
-const img = octx.createImageData(W, H);
+let img = null;
+function setSize(idx) {
+  sizeIdx = SIZES[idx] ? idx : 1;
+  const z = SIZES[sizeIdx];
+  W = z.w; H = z.h; N = W * H; CAPK = z.k;
+  tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
+  GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
+  off.width = W; off.height = H; img = octx.createImageData(W, H);
+  creatures = []; effects.length = 0; counts = {}; houseCount = 0; hb = [0,0,0,0,0];
+}
 let sc = 6, ox = 0, oy = VIEW.y, frame = 0;
 const fitScale = () => Math.min(VIEW.w / W, VIEW.h / H);      // full-map zoom = minimum zoom
 const MAX_SC = 36;
 function fitCamera() { sc = fitScale(); clampCam(); }
+function startCamera() {                       // open a bit closer than full map on big worlds, centred on some life
+  sc = Math.max(fitScale(), 6);
+  let cx = W / 2, cy = H / 2;
+  if (creatures.length) { const c = creatures[(creatures.length / 2) | 0]; cx = c.x; cy = c.y; }
+  ox = VIEW.x + VIEW.w/2 - (cx + .5)*sc; oy = VIEW.y + VIEW.h/2 - (cy + .5)*sc; clampCam();
+}
 function clampCam() {
   // when the map is smaller than the viewport on an axis, centre it; otherwise never show empty space
   const cw = W*sc, ch = H*sc;
@@ -454,11 +505,12 @@ function zoomAt(px, py, f) {
 const zoomBy = f => zoomAt(VIEW.x + VIEW.w/2, VIEW.y + VIEW.h/2, f);
 const toWorld = (px, py) => [Math.floor((px - ox)/sc), Math.floor((py - oy)/sc)];
 
+const SIN = new Float32Array(256); for (let i = 0; i < 256; i++) SIN[i] = Math.sin(i / 256 * Math.PI * 2) * 7;
 function renderTerrain() {
-  const d = img.data;
-  for (let i = 0; i < N; i++) {
-    const t = tiles[i], c = COL[t]; let j = jit[i];
-    if (t <= 1) j += Math.sin(frame*.05 + (i % W)*.55 + ((i / W)|0)*.35) * 7;
+  const d = img.data, fi = (frame * 2) | 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = x + y*W, t = tiles[i], c = COL[t]; let j = jit[i];
+    if (t <= 1) j += SIN[(fi + x*22 + y*14) & 255];
     let r = c[0] + j, g = c[1] + j, b = c[2] + j;
     if (fire[i]) { const fl = (frame*7 + i*13) % 3; r = 255; g = fl === 0 ? 220 : fl === 1 ? 140 : 80; b = 20; }
     const k = i*4; d[k] = r; d[k+1] = g; d[k+2] = b; d[k+3] = 255;
@@ -472,7 +524,7 @@ function draw() {
   ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
   ctx.save();
   ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); ctx.clip();
-  renderTerrain();
+  if (frame % (N > 40000 ? 2 : 1) === 0) renderTerrain();      // big maps redraw terrain every other frame
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(off, ox, oy, W*sc, H*sc);
 
@@ -481,26 +533,42 @@ function draw() {
 
   SPR_K = Math.max(1, Math.round(sc / 6));
   const S = 10 * SPR_K;
-  for (let y = y0; y <= Math.min(H-1, y1 + 2); y++) for (let x = x0; x <= x1; x++) {
-    const idx = x + y*W, b = bld[idx]; if (!b) continue;
-    const cx = ox + (x + .5)*sc, fy = oy + (y + 1)*sc - sc*.05;
-    ctx.drawImage(HATLAS[b], cx - S/2, fy - S, S, S);
-    if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(cx - S*.3, fy - S*.85, S*.6, S*.55); }
-  }
-  for (const c of creatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
-  const order = creatures.slice().sort((a, b) => a.dy - b.dy);
-  for (const c of order) {
-    if (c.dx < x0-2 || c.dx > x1+2 || c.dy < y0-2 || c.dy > y1+3) continue;
-    const cx = ox + (c.dx + .5)*sc, fy = oy + (c.dy + 1)*sc - sc*.08;
-    const moving = Math.abs(c.x - c.dx) + Math.abs(c.y - c.dy) > .12;
-    let f = 'A';
-    if (c.atk > 0) { f = 'C'; c.atk--; } else if (moving && ((frame >> 3) + c.id) % 2) f = 'B';
-    const lunge = c.atk > 3 ? 2 * SPR_K : 0;
-    const spr = ATLAS[c.t][f];
-    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - S*.3, fy - Math.max(1, S*.08), S*.6, Math.max(1, S*.1));
-    if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -S/2 + lunge, fy - S, S, S); ctx.restore(); }
-    else ctx.drawImage(spr, cx - S/2 + lunge, fy - S, S, S);
-    if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - S*.4 - 1, fy - S - 5, S*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - S*.4, fy - S - 4, S*.8*Math.max(0, c.hp/c.mhp), 2); }
+  if (sc >= 5) {
+    for (let y = y0; y <= Math.min(H-1, y1 + 2); y++) for (let x = x0; x <= x1; x++) {
+      const idx = x + y*W, b = bld[idx]; if (!b) continue;
+      const cx = ox + (x + .5)*sc, fy = oy + (y + 1)*sc - sc*.05;
+      ctx.drawImage(HATLAS[b], cx - S/2, fy - S, S, S);
+      if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(cx - S*.3, fy - S*.85, S*.6, S*.55); }
+    }
+    for (const c of creatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
+    const order = creatures.slice().sort((a, b) => a.dy - b.dy);
+    for (const c of order) {
+      if (c.dx < x0-2 || c.dx > x1+2 || c.dy < y0-2 || c.dy > y1+3) continue;
+      const cx = ox + (c.dx + .5)*sc, fy = oy + (c.dy + 1)*sc - sc*.08;
+      const moving = Math.abs(c.x - c.dx) + Math.abs(c.y - c.dy) > .12;
+      let f = 'A';
+      if (c.atk > 0) { f = 'C'; c.atk--; } else if (moving && ((frame >> 3) + c.id) % 2) f = 'B';
+      const lunge = c.atk > 3 ? 2 * SPR_K : 0;
+      const spr = ATLAS[c.t][f];
+      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - S*.3, fy - Math.max(1, S*.08), S*.6, Math.max(1, S*.1));
+      if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -S/2 + lunge, fy - S, S, S); ctx.restore(); }
+      else ctx.drawImage(spr, cx - S/2 + lunge, fy - S, S, S);
+      if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - S*.4 - 1, fy - S - 5, S*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - S*.4, fy - S - 4, S*.8*Math.max(0, c.hp/c.mhp), 2); }
+    }
+  } else {
+    // far zoom (big maps): plain dots instead of sprites
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const b = bld[x + y*W]; if (!b) continue;
+      const hs = Math.max(3, sc*1.1), cx = ox + (x + .5)*sc, cy = oy + (y + .5)*sc;
+      ctx.fillStyle = '#1c1420'; ctx.fillRect(cx - hs/2 - 1, cy - hs/2 - 1, hs + 2, hs + 2);
+      ctx.fillStyle = RACES[BUILD_OWNER[b]].col; ctx.fillRect(cx - hs/2, cy - hs/2, hs, hs);
+    }
+    const ds = Math.max(2, sc*.65);
+    for (const c of creatures) {
+      c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3;
+      if (c.dx < x0-2 || c.dx > x1+2 || c.dy < y0-2 || c.dy > y1+2) continue;
+      ctx.fillStyle = RACES[c.t].col; ctx.fillRect(ox + (c.dx + .5)*sc - ds/2, oy + (c.dy + .5)*sc - ds/2, ds, ds);
+    }
   }
   drawEffects();
   if (cfg.settings.dayNight) {
@@ -545,6 +613,7 @@ function drawEffects() {
       ctx.beginPath(); ctx.arc(px, py, sc*(.4 + e.t/life*1.2), 0, 7); ctx.stroke();
     } else if (e.k === 'death') {
       life = 30; const S = 10 * SPR_K, sp = ATLAS[e.type].A, fy = py + sc*.42;
+      if (sc < 5) { if (e.t >= life) effects.splice(i, 1); continue; }
       ctx.save();
       if (e.old) { ctx.globalAlpha = Math.max(0, .7*(1 - e.t/life)); ctx.drawImage(sp, px - S/2, fy - S - e.t*.25*SPR_K, S, S); }
       else {
@@ -724,20 +793,28 @@ const editTool = () => TOOLS[tool] && TOOLS[tool].g === 'terrain';
 function persistWorld() {
   if (!editMode) return;
   cfg.world = cfg.world || {};
-  cfg.world.tiles = rleEncode(); cfg.world.seed = currentSeed;
+  cfg.world.tiles = rleEncode(); cfg.world.seed = currentSeed; cfg.world.size = sizeIdx;
 }
-function newWorld() {
-  const seed = 1 + ((Math.random() * 1e6) | 0);
-  generate(seed); if (!editMode) populate();
-  persistWorld(); dirty = true; if (!editMode) clearSave();
-  toast('🗺️');
+let pendingKey = '', pendingT = 0;
+function confirmThen(key, msg, fn) {              // destructive actions need a second tap (no alert/confirm in the sandbox)
+  const now = performance.now();
+  if (pendingKey === key && now - pendingT < 2600) { pendingKey = ''; fn(); }
+  else { pendingKey = key; pendingT = now; toast('⚠️ ' + msg + ' — tekan lagi'); }
+}
+function newWorld(idx) {
+  setSize(idx == null ? sizeIdx : idx);
+  generate(1 + ((Math.random() * 1e6) | 0));
+  if (!editMode) populate();
+  startCamera(); persistWorld(); dirty = true; if (!editMode) clearSave();
 }
 const WORLD_ACTIONS = [
-  { ic:'🗺️', fn: newWorld },
-  { ic:'🌊', fn: () => { emptyWorld(); currentSeed = 0; persistWorld(); dirty = true; toast('🌊'); } },
+  { ic:'🗺️', fn: () => confirmThen('new', 'Dunia baru', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
+  ...SIZES.map((z, i) => ({ ic: z.name, on: () => sizeIdx === i,
+    fn: () => confirmThen('size' + i, `${z.label} ${z.w}×${z.h}`, () => { newWorld(i); renderRow2(); toast(`🗺️ ${z.label} ${z.w}×${z.h}`); }) })),
+  { ic:'🌊', fn: () => confirmThen('ocean', 'Lautan kosong', () => { emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
   ...(editMode ? [] : [
     { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
-    { ic:'🧹', fn: () => { creatures = []; bld.fill(0); dirty = true; toast('🧹'); } },
+    { ic:'🧹', fn: () => confirmThen('clear', 'Hapus makhluk & rumah', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
   ]),
   { ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
 ];
@@ -757,7 +834,7 @@ function renderRow1() {
 function setBrush(v) { brush = Math.max(1, Math.min(10, v)); const s = document.getElementById('awbv'); if (s) s.textContent = brush; }
 function renderRow2() {
   row2.innerHTML = '';
-  if (group === 'world') { for (const a of WORLD_ACTIONS) mkBtn(row2, a.ic, a.fn); return; }
+  if (group === 'world') { for (const a of WORLD_ACTIONS) mkBtn(row2, a.ic, a.fn, a.on && a.on() ? 'on' : ''); return; }
   for (const [id, t] of Object.entries(TOOLS)) if (t.g === group) mkBtn(row2, t.ic, () => selectTool(id), tool === id ? 'on' : '');
 }
 function selectTool(id) {
@@ -790,14 +867,22 @@ function updateStats() {
 function clearSave() { try { lib.deleteUserGameState && lib.deleteUserGameState(); } catch (e) {} }
 function serialize() {
   const bl = []; for (let i = 0; i < N; i++) if (bld[i]) bl.push(i * 8 + bld[i]);
-  return { v: 1, seed: currentSeed, tiles: rleEncode(), bld: bl, tick,
-    cr: creatures.map(c => [RN.indexOf(c.t), c.x, c.y, c.age]) };
+  return { v: 2, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, tick,
+    cr: creatures.map(c => (c.y * W + c.x) * 6 + RN.indexOf(c.t)) };      // one packed int per creature
 }
 function restore(s) {
-  if (!s || s.v !== 1 || !rleDecode(s.tiles)) return false;
-  currentSeed = s.seed || 0; bld.fill(0); fire.fill(0); creatures = []; tick = s.tick || 0;
+  if (!s || (s.v !== 1 && s.v !== 2)) return false;
+  setSize(s.v === 2 ? s.z : 0);                                                 // v1 saves were the small map
+  if (!rleDecode(s.tiles)) return false;
+  currentSeed = s.seed || 0; tick = s.tick || 0;
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 4) bld[i] = b; }
-  for (const [ti, x, y, age] of s.cr || []) { const c = spawn(RN[ti], x, y, true); if (c) c.age = age || 0; }
+  for (const v of s.cr || []) {
+    let ti, x, y, age = -1;
+    if (Array.isArray(v)) { ti = v[0]; x = v[1]; y = v[2]; age = v[3]; }
+    else { ti = v % 6; const pos = (v / 6) | 0; x = pos % W; y = (pos / W) | 0; }
+    const c = RN[ti] ? spawn(RN[ti], x, y, true) : null;
+    if (c) c.age = age >= 0 ? age : Math.floor(c.life * rnd(0, .4));
+  }
   return true;
 }
 let saveBusy = false;
@@ -826,23 +911,26 @@ function loop(now) {
   }
   draw();
   if (now - statT > 250) { statT = now; updateStats(); }
-  if (now - saveT > 10000) { saveT = now; autosave(); }
+  if (now - saveT > 15000) { saveT = now; autosave(); }
   rafId = requestAnimationFrame(loop);
 }
 
 /* ============================== START ============================== */
 async function start() {
+  const wantSize = SIZES[cfg.world.size] ? cfg.world.size : 1;       // default: Medium
+  setSize(wantSize);
   let restored = false;
   if (!editMode && lib.getUserGameState) {
     try { const r = await lib.getUserGameState(); restored = restore(r && r.state); } catch (e) {}
   }
   if (!restored) {
+    setSize(wantSize);
     if (rleDecode(cfg.world.tiles)) { currentSeed = cfg.world.seed || 0; bld.fill(0); fire.fill(0); creatures = []; }
     else generate(cfg.world.seed || (1 + ((Math.random() * 1e6) | 0)));
     if (!editMode) populate();
   }
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
-  fitCamera(); renderRow1(); renderRow2(); updateStats();
+  startCamera(); renderRow1(); renderRow2(); updateStats();
   if (lib.showGameParameters) {
     try {
       lib.showGameParameters({ name: 'Astro World', params: {
@@ -856,7 +944,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, tiles, bld, fire, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, W, H, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
