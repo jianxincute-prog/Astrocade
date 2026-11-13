@@ -1,7 +1,7 @@
 /*
  * URBAN ENFORCER — 3D open-world street brawler.
  * A towering bald enforcer liberates a 300x300 city ruled by three gangs
- * (Serigala Merah, Naga Biru, Kobra Emas). An opening cutscene (taxi drop-off + phone call) hands out the
+ * (Red Wolves, Blue Dragons, Golden Cobras). An opening cutscene (taxi drop-off + phone call) hands out the
  * mission before play starts. Beat 8 members of a gang to summon its boss
  * at the gang HQ; defeat all three bosses to free the city. Joystick to move, attack combo
  * (jab-cross-uppercut), dodge roll with i-frames, three skills with cooldowns.
@@ -46,7 +46,7 @@ const GANG_LOOKS = [
   { top: 0x1f3f8c, topSleeves: true, fullSleeves: true, accent: 0xf2f2f2, pants: 0x1f3f8c, hair: 0x0c0c0c, skin: 0xd9a77e },
   { top: 0x262626, topSleeves: true, fullSleeves: true, accent: 0xe0a91f, pants: 0x3a2e1f, mohawk: 0xe0a91f, skin: 0x9c6a48 },
 ];
-const BOSS_NAMES = ['Raja Serigala', 'Naga Hitam', 'Kobra Raksasa'];
+const BOSS_NAMES = ['Wolf King', 'Black Dragon', 'Giant Cobra'];
 
 export class Game {
   constructor(mode, model = null) {
@@ -86,20 +86,20 @@ export class Game {
       lib.showGameParameters({
         name: 'Urban Enforcer',
         params: {
-          'HP Pemain': { key: 'player.maxHp', type: 'slider', min: 80, max: 500, step: 10 },
-          'Kecepatan Pemain': { key: 'player.speed', type: 'slider', min: 4, max: 12, step: 0.5 },
-          'Kekuatan Pukulan': { key: 'player.damageMult', type: 'slider', min: 0.5, max: 3, step: 0.1 },
-          'Anggota per Geng': { key: 'enemies.perGang', type: 'slider', min: 2, max: 12, step: 1 },
-          'HP Musuh': { key: 'enemies.hpMult', type: 'slider', min: 0.5, max: 3, step: 0.1 },
-          'Damage Musuh': { key: 'enemies.damageMult', type: 'slider', min: 0.3, max: 3, step: 0.1 },
-          'Kill untuk Bos': { key: 'enemies.killsForBoss', type: 'slider', min: 1, max: 20, step: 1 },
-          'Penyerang Bersamaan': { key: 'enemies.maxAttackers', type: 'slider', min: 1, max: 5, step: 1 },
-          'Cooldown Skill': { key: 'skills.cooldownMult', type: 'slider', min: 0.2, max: 2, step: 0.1 },
-          'Waktu': { key: 'visual.timeOfDay', type: 'dropdown', options: [{ label: 'Senja', value: 'sunset' }, { label: 'Siang', value: 'day' }, { label: 'Malam', value: 'night' }] },
-          'Mode Kamera': { key: 'visual.cameraMode', type: 'dropdown', options: [{ label: 'Top Down', value: 'topdown' }, { label: 'Third Person', value: 'third' }] },
-          'Tinggi Kamera': { key: 'visual.cameraHeight', type: 'slider', min: 8, max: 40, step: 1 },
-          'Musik': { key: 'audio.music', type: 'checkbox' },
-          'Cutscene Pembuka': { key: 'intro.cutscene', type: 'checkbox' },
+          'Player HP': { key: 'player.maxHp', type: 'slider', min: 80, max: 500, step: 10 },
+          'Player Speed': { key: 'player.speed', type: 'slider', min: 4, max: 12, step: 0.5 },
+          'Punch Power': { key: 'player.damageMult', type: 'slider', min: 0.5, max: 3, step: 0.1 },
+          'Members per Gang': { key: 'enemies.perGang', type: 'slider', min: 2, max: 12, step: 1 },
+          'Enemy HP': { key: 'enemies.hpMult', type: 'slider', min: 0.5, max: 3, step: 0.1 },
+          'Enemy Damage': { key: 'enemies.damageMult', type: 'slider', min: 0.3, max: 3, step: 0.1 },
+          'Kills to Summon Boss': { key: 'enemies.killsForBoss', type: 'slider', min: 1, max: 20, step: 1 },
+          'Simultaneous Attackers': { key: 'enemies.maxAttackers', type: 'slider', min: 1, max: 5, step: 1 },
+          'Skill Cooldown': { key: 'skills.cooldownMult', type: 'slider', min: 0.2, max: 2, step: 0.1 },
+          'Time of Day': { key: 'visual.timeOfDay', type: 'dropdown', options: [{ label: 'Sunset', value: 'sunset' }, { label: 'Day', value: 'day' }, { label: 'Night', value: 'night' }] },
+          'Camera Mode': { key: 'visual.cameraMode', type: 'dropdown', options: [{ label: 'Top Down', value: 'topdown' }, { label: 'Third Person', value: 'third' }] },
+          'Camera Height': { key: 'visual.cameraHeight', type: 'slider', min: 8, max: 40, step: 1 },
+          'Music': { key: 'audio.music', type: 'checkbox' },
+          'Opening Cutscene': { key: 'intro.cutscene', type: 'checkbox' },
         },
       });
     } catch (e) { /* ignore */ }
@@ -179,7 +179,7 @@ export class Game {
 
   makeEnemyChar(gang, type) {
     const look = { ...GANG_LOOKS[gang] };
-    if (type === 'bat') { look.weapon = gang === 1 ? 'pipe' : 'bat'; look.nails = gang === 2; } // Kobra Emas swing nailed bats
+    if (type === 'bat') { look.weapon = gang === 1 ? 'pipe' : 'bat'; look.nails = gang === 2; } // Golden Cobras swing nailed bats
     if (type === 'boss') { look.bulk = 1.35; look.shades = true; look.top = GANGS[gang].color; look.accent = 0x111111; look.topSleeves = true; look.fullSleeves = false; look.gloves = 0x111111; }
     look.rim = GANGS[gang].color;
     look.scale = ENEMY_TYPES[type].scale * (type === 'boss' ? 1 : 0.9 + this.rnd() * 0.06);
@@ -272,10 +272,10 @@ export class Game {
     // third person: frame the hero above the thumb controls
     if (third) this.camera.setViewOffset(720, 1280, 0, 170, 720, 1280); else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
-    this.camBtn.innerHTML = `<div class="ic" style="font-size:36px">${third ? '🎥' : '🗺️'}</div><div class="lb">${third ? 'ORANG KE-3' : 'TOP DOWN'}</div>`;
+    this.camBtn.innerHTML = `<div class="ic" style="font-size:36px">${third ? '🎥' : '🗺️'}</div><div class="lb">${third ? 'THIRD PERSON' : 'TOP DOWN'}</div>`;
     this.camPos = null;
     if (!silent) {
-      this.hud.showBanner(third ? 'KAMERA ORANG KE-3' : 'KAMERA TOP DOWN', third ? 'Geser layar kosong untuk memutar kamera' : 'Pandangan dari atas', 1.6);
+      this.hud.showBanner(third ? 'THIRD-PERSON CAMERA' : 'TOP-DOWN CAMERA', third ? 'Drag the empty screen to rotate the camera' : 'View from above', 1.6);
       this.haptic('tick');
     }
   }
@@ -288,12 +288,12 @@ export class Game {
     this.controls.setVisible(false);
     const o = this.hud.overlay(`
       <h1>URBAN<br>ENFORCER</h1>
-      <h2>Bebaskan kota dari 3 geng!</h2>
-      <p>Kalahkan ${this.progress.killsForBoss} anggota tiap geng untuk memancing <b>BOS</b> keluar dari markasnya.
-      Tumbangkan ketiga bos untuk menguasai kota.</p>
-      <p style="font-size:18px;opacity:.75">🕹 Joystick kiri untuk bergerak • 👊 combo • 💨 hindar (kebal sesaat) • 💥🌀🐂 skill<br>
-      Keyboard: WASD • J serang • K/Spasi hindar • 1 2 3 skill</p>
-      <button class="go">MULAI</button>`);
+      <h2>Free the city from 3 gangs!</h2>
+      <p>Defeat ${this.progress.killsForBoss} members of each gang to lure their <b>BOSS</b> out of the hideout.
+      Take down all three bosses to take back the city.</p>
+      <p style="font-size:18px;opacity:.75">🕹 Left joystick to move • 👊 combo • 💨 dodge (brief invulnerability) • 💥🌀🐂 skills<br>
+      Keyboard: WASD • J attack • K/Space dodge • 1 2 3 skills</p>
+      <button class="go">START</button>`);
     o.querySelector('.go').addEventListener('pointerdown', (e) => { e.preventDefault(); this.startPlay(); });
   }
 
@@ -317,7 +317,7 @@ export class Game {
     this.controls.enabled = true;
     this.controls.setVisible(true);
     this.controls.consume();
-    this.hud.showBanner('KOTA DIKUASAI GENG', 'Pergi ke wilayah geng dan hajar mereka!', 3);
+    this.hud.showBanner('CITY UNDER GANG CONTROL', 'Head into gang territory and take them down!', 3);
   }
 
   endGame(victory) {
@@ -331,12 +331,12 @@ export class Game {
       if (this.disposed) return;
       this.controls.setVisible(false);
       const o = this.hud.overlay(`
-        <h1>${victory ? 'KOTA<br>BEBAS!' : 'KO!'}</h1>
-        <h2>${victory ? 'Ketiga geng telah tumbang.' : 'Sang Enforcer tumbang di jalanan...'}</h2>
-        <p style="font-size:30px">Skor: <b style="color:#ffcf3a">${score.toLocaleString('id-ID')}</b><br>
-        Musuh dikalahkan: ${this.progress.totalKills} • Combo terbaik: ${this.progress.bestCombo}x<br>
-        Wilayah dibebaskan: ${this.progress.gangs.filter((g) => g.liberated).length}/3</p>
-        <button class="go">MAIN LAGI</button>`);
+        <h1>${victory ? 'CITY<br>FREED!' : 'KO!'}</h1>
+        <h2>${victory ? 'All three gangs have fallen.' : 'The Enforcer has fallen in the streets...'}</h2>
+        <p style="font-size:30px">Score: <b style="color:#ffcf3a">${score.toLocaleString('en-US')}</b><br>
+        Enemies defeated: ${this.progress.totalKills} • Best combo: ${this.progress.bestCombo}x<br>
+        Territories liberated: ${this.progress.gangs.filter((g) => g.liberated).length}/3</p>
+        <button class="go">PLAY AGAIN</button>`);
       o.querySelector('.go').addEventListener('pointerdown', (e) => { e.preventDefault(); this.resetRun(); this.state = 'ready'; this.startPlay(); });
     }, victory ? 1200 : 1800);
   }
@@ -346,7 +346,7 @@ export class Game {
     this.controls.setVisible(false);
     this.hud.el.querySelector('.hpwrap').style.display = 'none';
     this.hud.el.querySelector('#minimap').style.display = 'none';
-    this.hud.showBanner('MODE EDIT', 'Seret sang Enforcer untuk memindah titik awal • seret layar untuk menggeser kamera', 9999);
+    this.hud.showBanner('EDIT MODE', 'Drag the Enforcer to move the starting point • drag the screen to pan the camera', 9999);
     this.editCam = { x: this.player.x, z: this.player.z };
     const canvas = this.renderer.domElement;
     const T = this.T;
@@ -447,8 +447,8 @@ export class Game {
     const t = territoryAt(p.x, p.z);
     if (t !== this.lastTerritory) {
       if (this.lastTerritory !== -2) {
-        if (t < 0) this.hud.showBanner('ALUN-ALUN KOTA', 'Zona netral', 2);
-        else this.hud.showBanner('WILAYAH ' + GANGS[t].name.toUpperCase(), this.progress.gangs[t].liberated ? 'Sudah dibebaskan' : 'Hati-hati, anggota geng berkeliaran!', 2.2, GANGS[t].css);
+        if (t < 0) this.hud.showBanner('CITY PLAZA', 'Neutral zone', 2);
+        else this.hud.showBanner(GANGS[t].name.toUpperCase() + ' TERRITORY', this.progress.gangs[t].liberated ? 'Already liberated' : 'Careful, gang members are roaming!', 2.2, GANGS[t].css);
       }
       this.lastTerritory = t;
     }
@@ -529,11 +529,11 @@ export class Game {
       if (ev === 'bossSummon') {
         const hq = this.city.hqs[e.gang];
         this.spawnEnemy('boss', e.gang, hq.x, hq.z);
-        this.hud.showBanner(BOSS_NAMES[e.gang].toUpperCase() + ' MUNCUL!', `Bos ${GANGS[e.gang].name} menunggu di markas (lihat peta)`, 3.2, GANGS[e.gang].css);
+        this.hud.showBanner(BOSS_NAMES[e.gang].toUpperCase() + ' APPEARS!', `The ${GANGS[e.gang].name} boss is waiting at their hideout (see the map)`, 3.2, GANGS[e.gang].css);
         this.haptic('warning');
       }
       if (ev === 'liberated') {
-        this.hud.showBanner('WILAYAH DIBEBASKAN!', `${GANGS[e.gang].name} telah tumbang`, 3, '#7dff8a');
+        this.hud.showBanner('TERRITORY LIBERATED!', `The ${GANGS[e.gang].name} have fallen`, 3, '#7dff8a');
         this.shake = 1;
         this.haptic('success');
       }
@@ -567,7 +567,7 @@ export class Game {
           if (p.dead) this.deadT = 0;
         } else if (Math.hypot(p.x - e.x, p.z - e.z) < ev.range + 1.5) {
           const sp = this.toScreen(p.x, 2.6, p.z);
-          if (sp) this.hud.damageNumber(sp.x, sp.y, 'HINDAR!', '#6fd0ff');
+          if (sp) this.hud.damageNumber(sp.x, sp.y, 'DODGED!', '#6fd0ff');
         }
       }
     }

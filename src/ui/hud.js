@@ -13,9 +13,9 @@ const CSS = `
 .gangs .dot{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;vertical-align:-1px;border:2px solid #0008}
 .gangs .done{opacity:.6;text-decoration:line-through}
 #minimap{position:absolute;right:20px;top:20px;width:210px;height:210px;border-radius:50%;border:3px solid #fff6;background:#0009;box-shadow:0 4px 14px #0008}
-.combo{position:absolute;right:30px;top:372px;text-align:right;font-size:64px;line-height:1;color:#ffd23a;text-shadow:0 4px 0 #a23c00,0 6px 12px #000;opacity:0;transition:opacity .2s}
+.combo{position:absolute;right:30px;top:450px;text-align:right;font-size:64px;line-height:1;color:#ffd23a;text-shadow:0 4px 0 #a23c00,0 6px 12px #000;opacity:0;transition:opacity .2s}
 .combo small{display:block;font-size:22px;color:#fff;text-shadow:0 2px 4px #000}
-.banner{position:absolute;left:0;right:0;top:300px;text-align:center;font-size:40px;text-shadow:0 3px 10px #000;opacity:0;transition:opacity .4s;padding:0 30px}
+.banner{position:absolute;left:0;right:0;top:360px;text-align:center;font-size:40px;text-shadow:0 3px 10px #000;opacity:0;transition:opacity .4s;padding:0 30px}
 .banner small{display:block;font-size:22px;font-family:system-ui;font-weight:800;opacity:.9}
 .bossbar{position:absolute;left:110px;right:110px;top:250px;display:none;text-align:center;font-size:20px;text-shadow:0 2px 4px #000}
 .bossbar .hpbar{height:18px}
@@ -51,7 +51,7 @@ export class HUD {
         <div class="score">0</div><div class="gangs"></div></div>
       <canvas id="minimap" width="210" height="210"></canvas>
       <div class="combo"><span class="cn">0</span><small>COMBO</small></div>
-      <div class="bossbar"><div class="bn">BOS</div><div class="hpbar"><div class="hpfill"></div></div></div>
+      <div class="bossbar"><div class="bn">BOSS</div><div class="hpbar"><div class="hpfill"></div></div></div>
       <div class="banner"></div>`;
     this.q = (s) => this.el.querySelector(s);
     this.hpFill = this.q('.hpwrap .hpfill');
@@ -68,14 +68,14 @@ export class HUD {
   }
 
   setPlayerHp(hp, max) { this.hpFill.style.transform = `scaleX(${Math.max(0, hp / max)})`; }
-  setScore(s) { this.scoreEl.textContent = s.toLocaleString('id-ID'); }
+  setScore(s) { this.scoreEl.textContent = s.toLocaleString('en-US'); }
   setCombo(n) {
     if (n >= 2) { this.comboEl.style.opacity = 1; this.comboN.textContent = n + 'x'; } else this.comboEl.style.opacity = 0;
   }
   setGangs(progress, killsForBoss) {
     const html = progress.gangs.map((g, i) => {
       const G = GANGS[i];
-      const st = g.liberated ? '✔ BEBAS' : g.bossSpawned ? '☠ BOS MUNCUL!' : `${g.kills}/${killsForBoss}`;
+      const st = g.liberated ? '✔ FREED' : g.bossSpawned ? '☠ BOSS APPEARS!' : `${g.kills}/${killsForBoss}`;
       return `<div class="${g.liberated ? 'done' : ''}"><span class="dot" style="background:${G.css}"></span>${G.name} — ${st}</div>`;
     }).join('');
     if (html !== this.lastGangHtml) { this.gangsEl.innerHTML = html; this.lastGangHtml = html; }
@@ -206,8 +206,8 @@ export class Controls {
 
     // buttons: [key, icon, label, size, right, bottom, bg]
     const defs = [
-      ['attack', '👊', 'SERANG', 170, 50, 150, 'radial-gradient(circle at 40% 35%,#ff7a4d,#b3200f)'],
-      ['dodge', '💨', 'HINDAR', 112, 240, 60, 'radial-gradient(circle at 40% 35%,#6fd0ff,#1b6ea8)'],
+      ['attack', '👊', 'ATTACK', 170, 50, 150, 'radial-gradient(circle at 40% 35%,#ff7a4d,#b3200f)'],
+      ['dodge', '💨', 'DODGE', 112, 240, 60, 'radial-gradient(circle at 40% 35%,#6fd0ff,#1b6ea8)'],
       ['skill1', '💥', skills[0], 110, 250, 210, 'radial-gradient(circle at 40% 35%,#ffcf5a,#b86d00)'],
       ['skill2', '🌀', skills[1], 110, 180, 345, 'radial-gradient(circle at 40% 35%,#c58bff,#5d22a6)'],
       ['skill3', '🐂', skills[2], 110, 40, 360, 'radial-gradient(circle at 40% 35%,#7dff8a,#1d8a2c)'],

@@ -41,7 +41,7 @@ const CSS = `
 .cs-fade{position:absolute;inset:0;background:#000;opacity:1}
 `;
 
-const DIRS = ['Utara', 'Tenggara', 'Barat Daya'];
+const DIRS = ['North', 'Southeast', 'Southwest'];
 const PHONE_FIST = { pos: [0.0, -0.08, 0.07], rot: [-0.2, 0, 0] }; // phone prop in the right fist's space
 
 export class Cutscene {
@@ -76,12 +76,12 @@ export class Cutscene {
     const r = this.root = document.createElement('div'); r.className = 'cs';
     r.innerHTML = `
       <div class="cs-bar t"></div><div class="cs-bar b"></div>
-      <div class="cs-loc">PUSAT KOTA<small></small></div>
-      <div class="cs-call"><div class="av">📞</div><div><div class="nm">${CALLER.name}</div><div class="st">Panggilan masuk…</div></div></div>
+      <div class="cs-loc">DOWNTOWN<small></small></div>
+      <div class="cs-call"><div class="av">📞</div><div><div class="nm">${CALLER.name}</div><div class="st">Incoming call…</div></div></div>
       <div class="cs-sub"><div class="who"></div><div class="tx"></div></div>
-      <div class="cs-mission"><div class="mh">MISI BARU</div><div class="mt">BASMI SEMUA<br>BERANDALAN</div>
+      <div class="cs-mission"><div class="mh">NEW MISSION</div><div class="mt">WIPE OUT<br>ALL THUGS</div>
         <div class="mg">${GANGS.map((x, i) => `<div><span class="dot" style="background:${x.css}"></span>${x.name}<b>${DIRS[i]}</b></div>`).join('')}</div></div>
-      <button class="cs-skip">LEWATI ▸</button>
+      <button class="cs-skip">SKIP ▸</button>
       <div class="cs-fade"></div>`;
     g.hud.el.appendChild(r);
     const q = (s) => r.querySelector(s);
@@ -223,8 +223,8 @@ export class Cutscene {
     E.call.classList.toggle('show', inCall);
     E.call.classList.toggle('ring', ph.ringing);
     if (inCall) {
-      if (t < TL.answerAt) E.callSt.textContent = 'Panggilan masuk…';
-      else { const s = Math.floor(t - TL.answerAt); E.callSt.textContent = 'Tersambung  0:' + String(s).padStart(2, '0'); }
+      if (t < TL.answerAt) E.callSt.textContent = 'Incoming call…';
+      else { const s = Math.floor(t - TL.answerAt); E.callSt.textContent = 'Connected  0:' + String(s).padStart(2, '0'); }
     }
     const sub = subtitleAt(t);
     E.sub.classList.toggle('show', t >= TL.talkStart && t < CALL_END); // stays up between lines (no flicker)

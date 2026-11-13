@@ -12,7 +12,7 @@ function loadingScreen(show) {
     el = document.createElement('div');
     el.id = 'loading';
     el.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#111;color:#ffcf3a;font:900 40px Arial Black,Impact,sans-serif;z-index:10';
-    el.textContent = 'MEMUAT KOTA...';
+    el.textContent = 'LOADING CITY...';
     document.body.appendChild(el);
   }
   if (!show && el) el.remove();

@@ -153,7 +153,7 @@ test('intro: dialogue is ordered, typed at a steady speed and ends before the mi
   const half = intro.subtitleAt(lines[0].t0 + 0.5);
   assert.ok(half.chars > 0 && half.chars < lines[0].text.length);
   assert.equal(intro.subtitleAt(lines[0].tTyped + 0.1).chars, lines[0].text.length);
-  assert.ok(intro.LINES.some((l) => /basmi semua berandalan/i.test(l.text)), 'the mission line is spoken');
+  assert.ok(intro.LINES.some((l) => /wipe out every thug/i.test(l.text)), 'the mission line is spoken');
 });
 test('intro: phone rings before it is answered, pose returns to guard, rings fire once each', () => {
   assert.equal(intro.phoneAt(intro.TL.pullStart - 0.1).visible, false);

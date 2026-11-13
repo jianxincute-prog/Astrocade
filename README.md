@@ -1,13 +1,13 @@
 # Urban Enforcer
 
 3D open-world street brawler (Three.js r149, loaded via `<script>` in index.html). A towering, bald,
-muscular enforcer liberates a 300x300 city controlled by three gangs: **Serigala Merah** (north),
-**Naga Biru** (south-east) and **Kobra Emas** (south-west). Beat `killsForBoss` members of a gang to
+muscular enforcer liberates a 300x300 city controlled by three gangs: **Red Wolves** (north),
+**Blue Dragons** (south-east) and **Golden Cobras** (south-west). Beat `killsForBoss` members of a gang to
 summon its boss at the gang HQ; defeat all three bosses to win. Top-down third-person camera.
 
 Controls: joystick (bottom-left), SERANG (jab → cross → uppercut combo, hold to chain), HINDAR (dodge
-roll with i-frames), skills: Hantaman Bumi (ground slam AoE), Putaran Badai (spinning lariat),
-Tinju Banteng (bull-rush dash + finisher). Keyboard: WASD, J, K/Space, 1/2/3.
+roll with i-frames), skills: Earth Slam (ground slam AoE), Storm Spin (spinning lariat),
+Bull Rush (bull-rush dash + finisher). Keyboard: WASD, J, K/Space, 1/2/3.
 
 ## Code
 - `game.js` – entry, `window.run(mode)`.
@@ -37,11 +37,11 @@ model fails to load. three.js r147 + examples/js GLTFLoader & SkeletonUtils (ind
 hero while moving, drag empty screen to orbit, boom shortens in front of buildings.
 
 ## Opening cutscene
-First press of MULAI in a session plays a ~30 s cutscene (`src/ui/cutscene.js`, script in `src/logic/intro.js`): a taxi pulls up in the
-central plaza, the Enforcer steps out, his phone rings and *Pak Wirawan* orders him to wipe out every thug in the three gang
+First press of START in a session plays a ~30 s cutscene (`src/ui/cutscene.js`, script in `src/logic/intro.js`): a taxi pulls up in the
+central plaza, the Enforcer steps out, his phone rings and *Mr. Wirawan* orders him to wipe out every thug in the three gang
 territories (mission card lists the gangs). Everything is a pure function of the cutscene clock, so it is unit-tested; the UI layer only
-builds meshes/DOM and drives the player rig (`CLIPS.phone` arm pose, phone prop on the right fist) and camera. Skip: LEWATI button,
-Enter/Esc/Space. Replays ("MAIN LAGI") skip it. Toggle with the "Cutscene Pembuka" setting (`intro.cutscene` in game_config.json).
+builds meshes/DOM and drives the player rig (`CLIPS.phone` arm pose, phone prop on the right fist) and camera. Skip: SKIP button,
+Enter/Esc/Space. Replays ("PLAY AGAIN") skip it. Toggle with the "Opening Cutscene" setting (`intro.cutscene` in game_config.json).
 The scene is staged at a fixed plaza spot and the hero is moved to `player.spawnX/Z` during the closing fade.
 
 ## Premium head
@@ -66,6 +66,6 @@ evaluated per pixel in the chest material (`addChestShader`), so there is no pat
 - Enemy hair is a real cap (`buildHairGeometry`) whose thickness fades to nothing at the hairline; mohawk is a ridge of tapered spikes; bandana has a
   knot and tails; shades are glossy lenses with a bridge and temple arms. Enemy heads reuse the sculpted head at 120x90.
 - Weapons (`src/render/weapons.js`, lathe profiles + canvas textures): the bat is turned wood (knob, neck, barrel, grain) with spiral grip tape and end rings,
-  Kobra Emas swing it with brass nails; the pipe is weathered steel with rust, a threaded coupling, domed end cap and cloth-wrapped grip.
+  the Golden Cobras swing it with brass nails; the pipe is weathered steel with rust, a threaded coupling, domed end cap and cloth-wrapped grip.
 - Shades are aviators: glossy lenses with reflection streaks in gold metal rims, arched bridge, double brow bar, nose pads and hinged temple arms.
 - The hairline is cut per pixel from the hair weight, so it is a smooth curve (no stair-steps).

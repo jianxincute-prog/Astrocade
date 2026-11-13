@@ -19,9 +19,9 @@ export const ROAD = 10;
 export const NEUTRAL_RADIUS = 34;
 
 export const GANGS = [
-  { id: 0, name: 'Serigala Merah', color: 0xd8312a, css: '#e0412f', angle: 0 },
-  { id: 1, name: 'Naga Biru', color: 0x2f6be0, css: '#3f7cf0', angle: (2 * Math.PI) / 3 },
-  { id: 2, name: 'Kobra Emas', color: 0xe0a91f, css: '#f0b52a', angle: (4 * Math.PI) / 3 },
+  { id: 0, name: 'Red Wolves', color: 0xd8312a, css: '#e0412f', angle: 0 },
+  { id: 1, name: 'Blue Dragons', color: 0x2f6be0, css: '#3f7cf0', angle: (2 * Math.PI) / 3 },
+  { id: 2, name: 'Golden Cobras', color: 0xe0a91f, css: '#f0b52a', angle: (4 * Math.PI) / 3 },
 ];
 
 /** Gang id owning the point, or -1 for the neutral central plaza. Sector 0 is north (-z). */

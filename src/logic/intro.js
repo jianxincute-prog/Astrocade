@@ -11,15 +11,15 @@ export const STAGE = { x: 1.0, z: 12 };
 
 export const TAXI = { laneX: -1.4, startZ: 62, stopZ: 15, leaveZ: -60, swerveX: 0.6 };
 
-export const CALLER = { name: 'PAK WIRAWAN', color: '#7dff8a' };
+export const CALLER = { name: 'MR. WIRAWAN', color: '#7dff8a' };
 export const HERO = { name: 'THE ENFORCER', color: '#ffcf3a' };
 
 export const LINES = [
-  { who: 'caller', text: 'Enforcer, kau sudah di kota?' },
-  { who: 'hero', text: 'Baru turun dari taksi. Apa tugasku?' },
-  { who: 'caller', text: 'Tiga geng berandalan menguasai jalanan. Polisi tak berani turun tangan.' },
-  { who: 'caller', text: 'Misimu: basmi semua berandalan di kota ini, sampai bos mereka tumbang.' },
-  { who: 'hero', text: 'Anggap sudah selesai.' },
+  { who: 'caller', text: 'Enforcer, are you in the city yet?' },
+  { who: 'hero', text: 'Just got out of the cab. What\'s the job?' },
+  { who: 'caller', text: 'Three gangs of thugs own the streets. The police are too scared to step in.' },
+  { who: 'caller', text: 'Your mission: wipe out every thug in this city, until their bosses go down.' },
+  { who: 'hero', text: 'Consider it done.' },
 ];
 
 export const TL = {
