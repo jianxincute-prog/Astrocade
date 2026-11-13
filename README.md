@@ -5,7 +5,7 @@ muscular enforcer liberates a 300x300 city controlled by three gangs: **Red Wolv
 **Blue Dragons** (south-east) and **Golden Cobras** (south-west). Beat `killsForBoss` members of a gang to
 summon its boss at the gang HQ; defeat all three bosses to win. Top-down third-person camera.
 
-Controls: joystick (bottom-left), SERANG (jab → cross → uppercut combo, hold to chain), HINDAR (dodge
+Controls: joystick (bottom-left), ATTACK (jab → cross → uppercut combo, hold to chain), DODGE (dodge
 roll with i-frames), skills: Earth Slam (ground slam AoE), Storm Spin (spinning lariat),
 Bull Rush (bull-rush dash + finisher). Keyboard: WASD, J, K/Space, 1/2/3.
 
