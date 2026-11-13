@@ -42,10 +42,10 @@ export const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - 
  * Returns a BufferGeometry with position / normal / uv / color / aGloss attributes.
  * colorFn(x,y,z) -> [r,g,b] and glossFn(x,y,z) -> 0..1 are evaluated on the final surface points.
  */
-export function surfaceMesh(T, f, { center, nu, nv, rMax, colorFn, glossFn, iters = 20, eps = 0.0012 }) {
+export function surfaceMesh(T, f, { center, nu, nv, rMax, colorFn, glossFn, keepFn, iters = 20, eps = 0.0012 }) {
   const cols = nu + 1, rows = nv + 1, n = cols * rows;
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
-  const col = new Float32Array(n * 3), gloss = new Float32Array(n);
+  const col = new Float32Array(n * 3), gloss = new Float32Array(n), kept = new Uint8Array(n);
   const [cx, cy, cz] = center;
   let i = 0;
   for (let iy = 0; iy < rows; iy++) {
@@ -65,14 +65,15 @@ export function surfaceMesh(T, f, { center, nu, nv, rMax, colorFn, glossFn, iter
       const c = colorFn ? colorFn(x, y, z) : [1, 1, 1];
       col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
       gloss[i] = glossFn ? glossFn(x, y, z) : 0;
+      kept[i] = keepFn ? (keepFn(x, y, z) ? 1 : 0) : 1;
     }
   }
   const idx = [];
   for (let iy = 0; iy < nv; iy++) {
     for (let ix = 0; ix < nu; ix++) {
       const a = iy * cols + ix + 1, b = iy * cols + ix, c = (iy + 1) * cols + ix, d = (iy + 1) * cols + ix + 1;
-      if (iy !== 0) idx.push(a, b, d);
-      if (iy !== nv - 1) idx.push(b, c, d);
+      if (iy !== 0 && (kept[a] || kept[b] || kept[d])) idx.push(a, b, d);
+      if (iy !== nv - 1 && (kept[b] || kept[c] || kept[d])) idx.push(b, c, d);
     }
   }
   const g = new T.BufferGeometry();

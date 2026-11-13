@@ -7,9 +7,12 @@
 // material can drive roughness / clearcoat per vertex.
 import { smin, smax, ellipsoid, smoothstep as ss, surfaceMesh } from './sdf.js';
 
+let FIELD = null; // the head's distance field is shared by the skin mesh and the hair shell
+
 const CACHE = new Map();
 
 function headField() {
+  if (FIELD) return FIELD;
   const E = ellipsoid;
   const sym = (fn) => [fn(1), fn(-1)];
   // skull + face masses
@@ -34,7 +37,7 @@ function headField() {
   const groove = E([0, 0.0572, 0.1335], [0.034, 0.0048, 0.0048]);                                              // mouth line (shallow, soft)
   const eyes = sym((s) => E([s * 0.0445, 0.135, 0.108], [0.0235, 0.0122, 0.0195]));                            // eye pockets: lids form where the eyeball sphere is taller than the pocket
 
-  return (x, y, z) => {
+  FIELD = (x, y, z) => {
     let d = smin(cranium(x, y, z), occiput(x, y, z), 0.03);
     d = smin(d, jaw(x, y, z), 0.04);
     d = smin(d, chin(x, y, z), 0.03);
@@ -55,6 +58,7 @@ function headField() {
     for (let i = 0; i < 2; i++) d = smax(d, -eyes[i](x, y, z), 0.006);
     return d;
   };
+  return FIELD;
 }
 
 function colorFn({ beard, scar }) {
@@ -105,8 +109,30 @@ export function buildHeadGeometry(T, { hi, beard, scar }) {
   if (!CACHE.has(key)) {
     CACHE.set(key, surfaceMesh(T, headField(), {
       center: [0, 0.1, 0.015], rMax: 0.26,
-      nu: hi ? 220 : 56, nv: hi ? 165 : 42, iters: hi ? 18 : 14,
+      nu: hi ? 220 : 120, nv: hi ? 165 : 90, iters: hi ? 18 : 14,
       colorFn: colorFn({ beard, scar }), glossFn,
+    }));
+  }
+  return CACHE.get(key);
+}
+
+/** Hair weight 0..1 over the head: 0 below the hairline (low at the nape, receding at the temples). */
+function hairWeight(x, y, z) {
+  const line = 0.205 + (0.085 - 0.205) * ss(0.09, -0.09, z) + 0.03 * ss(0.05, 0.1, Math.abs(x)) * ss(0.0, 0.1, z);
+  return ss(line - 0.012, line + 0.02, y);
+}
+
+/**
+ * Hair as a real cap: the head surface pushed out by a thickness that fades to zero at the hairline
+ * (so it melts into the skin there instead of ending in a ball). Only the covered triangles are kept.
+ */
+export function buildHairGeometry(T, { hi }) {
+  const key = 'hair' + (hi ? 1 : 0);
+  if (!CACHE.has(key)) {
+    const f = headField(), t = 0.014;
+    CACHE.set(key, surfaceMesh(T, (x, y, z) => f(x, y, z) - t * hairWeight(x, y, z), {
+      center: [0, 0.1, 0.015], rMax: 0.28, nu: hi ? 120 : 56, nv: hi ? 90 : 42, iters: hi ? 16 : 12,
+      keepFn: (x, y, z) => hairWeight(x, y, z) > 0.1,
     }));
   }
   return CACHE.get(key);

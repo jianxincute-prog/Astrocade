@@ -3,7 +3,7 @@
 // (the old lathe) with its muscle masses (pecs, lats, traps, deltoid, biceps, triceps, quads, calf...)
 // melted in by smooth-union SDFs and meshed by sweeping rays out of the segment's axis. No more
 // overlapping ellipsoids with visible rims; normals come from the field gradient.
-import { smin, ellipsoid, smoothstep as ss } from './sdf.js';
+import { smin, smax, ellipsoid, smoothstep as ss, surfaceMesh } from './sdf.js';
 
 const CACHE = new Map();
 
@@ -49,6 +49,7 @@ function union(base, parts, k) {
  * attrFn(x,y,z) -> number adds an `aSkin` attribute. uv: u around, v along the part (0 bottom .. 1 top).
  */
 function sweep(T, f, { y0, y1, ny, nu, rMax = 0.6, attrFn, iters = 18, eps = 0.0012 }) {
+  ny = Math.max(8, Math.round(ny)); nu = Math.max(12, Math.round(nu)); // `seg` may be fractional for cheap (enemy) bodies
   const m = (y1 - y0) * 0.02, ya = y0 - m, yb = y1 + m;
   const cols = nu + 1, rows = ny + 1, n = cols * rows;
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), sk = new Float32Array(n);
@@ -120,7 +121,7 @@ export function absGeometry(T, { bulk, seg = 1 }) {
   return cached(`abs${bulk}${seg}`, () => {
     const b = bulk;
     const r = profileFn([[0.03, -0.035], [0.165, -0.02], [0.16, 0.08], [0.168, 0.18], [0.18, 0.28], [0.03, 0.312]]);
-    const base = revolved(r, -0.035, 0.312, b, 0.74 * b);
+    const base = revolved(r, -0.035, 0.312, b, 0.68 * b);
     const f = union(base, [E([0.12 * b, 0.14, 0], [0.045 * b, 0.12, 0.085 * b]), E([-0.12 * b, 0.14, 0], [0.045 * b, 0.12, 0.085 * b])], 0.03);
     return sweep(T, f, { y0: -0.035, y1: 0.312, ny: 56 * seg, nu: 80 * seg });
   });
@@ -185,5 +186,50 @@ export function shinGeometry(T, { lb, seg = 1 }) {
       E([0, -0.14, -0.04 * lb], [0.067 * lb, 0.125, 0.057 * lb]),                        // calf
     ], 0.03);
     return sweep(T, f, { y0: -0.45, y1: 0.07, ny: 64 * seg, nu: 64 * seg, rMax: 0.3 });
+  });
+}
+
+/**
+ * Clenched fist in the fist group's space (wrist at y 0, knuckles toward -y, curled fingers in front at +z).
+ * Palm, four knuckles, folded fingers, tucked tips, thumb across the middle phalanges, soft grooves between
+ * fingers, all melted into one mesh. b = hand bulk, side = +1 left / -1 right (thumb on the inside).
+ */
+export function fistGeometry(T, { b, side, hi }) {
+  return cached(`fist${b}${side}${hi ? 1 : 0}`, () => {
+    const xs = [0, 1, 2, 3].map((k) => (-0.033 + k * 0.022) * b);
+    const th = -side;                                   // thumb side
+    const parts = [
+      E([0, 0.02, 0], [0.046 * b, 0.04, 0.042 * b]),                                  // wrist blend
+      ...xs.map((x) => E([x, -0.062, 0.016], [0.0135 * b, 0.021, 0.02 * b])),          // knuckles
+      ...xs.map((x) => E([x, -0.054, 0.04], [0.0125 * b, 0.027, 0.0125 * b])),         // folded fingers
+      ...xs.map((x) => E([x, -0.03, 0.047], [0.0115 * b, 0.0115, 0.011 * b])),         // fingertips tucked in
+      E([th * 0.02 * b, -0.047, 0.056], [0.034 * b, 0.0135, 0.0145 * b], [0, 0, th * 0.12]), // thumb across the fingers
+      E([th * 0.046 * b, -0.02, 0.03], [0.018 * b, 0.03, 0.022 * b], [0, 0, -th * 0.3]),     // thumb base (thenar)
+    ];
+    const palm = E([0, -0.012, -0.002], [0.054 * b, 0.066, 0.046 * b]);
+    const grooves = [0, 1, 2].map((k) => E([(xs[k] + xs[k + 1]) / 2, -0.056, 0.046], [0.0016, 0.03, 0.02]));
+    const f = (x, y, z) => {
+      let d = palm(x, y, z);
+      for (let i = 0; i < parts.length; i++) d = smin(d, parts[i](x, y, z), 0.014);
+      for (let i = 0; i < grooves.length; i++) d = smax(d, -grooves[i](x, y, z), 0.003);
+      return d;
+    };
+    return surfaceMesh(T, f, { center: [0, -0.03, 0.015], rMax: 0.2, nu: hi ? 72 : 36, nv: hi ? 54 : 28, iters: 16 });
+  });
+}
+
+/** Sneaker / boot foot in ankle-joint space: foot, toe cap, heel and sole slab melted together; the sole is painted dark. */
+export function shoeGeometry(T, { hi }) {
+  return cached(`shoe${hi ? 1 : 0}`, () => {
+    const Y = 0.036; // lifts the shoe so the sole rests ON the ground (it used to sink ~3 cm and show the x-ray silhouette)
+    const parts = [
+      E([0, -0.03 + Y, 0.02], [0.07, 0.07, 0.1]),             // foot body
+      E([0, -0.05 + Y, 0.115], [0.062, 0.048, 0.07]),         // toe cap
+      E([0, -0.045 + Y, -0.045], [0.06, 0.055, 0.05]),        // heel
+      E([0, -0.078 + Y, 0.055], [0.072, 0.019, 0.158]),       // sole slab
+    ];
+    const f = (x, y, z) => { let d = parts[0](x, y, z); for (let i = 1; i < parts.length; i++) d = smin(d, parts[i](x, y, z), 0.022); return d; };
+    const colorFn = (x, y, z) => { const m = 1 - ss(-0.062 + Y, -0.074 + Y, y) * 0.72; return [m, m, m]; }; // dark rubber sole, upper keeps the shoe colour
+    return surfaceMesh(T, f, { center: [0, -0.04 + Y, 0.04], rMax: 0.3, nu: hi ? 64 : 32, nv: hi ? 44 : 22, iters: 16, colorFn });
   });
 }
