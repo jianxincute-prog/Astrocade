@@ -13,7 +13,7 @@ Tinju Banteng (bull-rush dash + finisher). Keyboard: WASD, J, K/Space, 1/2/3.
 - `game.js` – entry, `window.run(mode)`.
 - `src/main.js` – Game shell: renderer, loop, hit resolution, HUD wiring, edit mode (drag the player to set spawn → `gameConfig.player.spawnX/Z`, drag to pan).
 - `src/logic/` (pure, tested): `intro.js` opening-cutscene script (timeline, taxi/hero motion, dialogue, camera), `city.js` layout/territories, `anim.js` poses + keyframe clips + procedural idle/run cycles, `combat.js` move data & hit sectors, `player.js` state machine, `enemy.js` AI, `physics.js` collision, `progress.js` campaign/score.
-- `src/render/` – `character.js` procedural rigged character: lathe-sculpted V-taper torso & tapered limbs, layered muscles, detailed face, fists with knuckles/wraps, boots, tattoo, fresnel rim light, x-ray silhouette behind walls (player = 'high' detail, enemies 'low'), crossfaded pose animation; `headmesh.js` + `sdf.js` sculpted smooth head, `env.js` studio reflections, `world.js` city meshes, `fx.js` particles/rings/telegraphs.
+- `src/render/` – `character.js` procedural rigged character: lathe-sculpted V-taper torso & tapered limbs, layered muscles, detailed face, fists with knuckles/wraps, boots, tattoo, fresnel rim light, x-ray silhouette behind walls (player = 'high' detail, enemies 'low'), crossfaded pose animation; `headmesh.js` + `sdf.js` sculpted smooth head, `bodymesh.js` smooth torso/limbs, `env.js` studio reflections, `world.js` city meshes, `fx.js` particles/rings/telegraphs.
 - `src/ui/` – `hud.js` HUD, minimap, touch/keyboard controls; `audio.js` SFX + music + synthesized cutscene sounds (ring, blips, engine); `cutscene.js` opening cutscene (taxi mesh, phone prop, letterbox, subtitles, mission card, skip).
 - `tests/logic.test.mjs` – run `node tests/logic.test.mjs`.
 
@@ -52,3 +52,10 @@ material (`Character.headMaterial`, MeshPhysical) drives roughness/clearcoat per
 (softboxes + overhead strip + rim) applied per material (`Character.env`, set by the game) so the dome shows long soft highlights that slide
 as he turns. Also: textured wet eyeballs, ears with a helix rim, pore bump + mottled skin texture, sheen. The rigged model's armour gets a
 faint studio sheen too. Low-detail enemies reuse the same head at lower resolution.
+
+## Smooth body
+For the player (detail 'high', tank top) `src/render/bodymesh.js` replaces the lathe + overlapping muscle ellipsoids with one sculpted
+surface per segment: chest (ribcage + pecs + lats + upper back + traps), abdomen + obliques, neck + SCM, upper arm (deltoid, biceps, triceps),
+forearm (elbow, brachioradialis), thigh (quads, rounded hip cap) and shin (knee, calf). Each is a revolved profile with the muscle masses
+melted in by smooth-union SDFs and swept into a mesh with gradient normals. The tank top's V-neck / traps / straps are skin-vs-knit zones
+evaluated per pixel in the chest material (`addSkinMix`), so there is no patch edge. Enemies keep the cheap lathe body.

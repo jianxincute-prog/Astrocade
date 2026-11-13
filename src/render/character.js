@@ -8,6 +8,7 @@ import {
   stridePhaseRate, CLIPS,
 } from '../logic/anim.js';
 import { buildHeadGeometry } from './headmesh.js';
+import { chestGeometry, absGeometry, neckGeometry, upperArmGeometry, foreArmGeometry, thighGeometry, shinGeometry } from './bodymesh.js';
 
 const MIRROR = { rSh: 1, rEl: 1, rHip: 1, rKn: 1, rAn: 1 };
 const GEO = new Map();
@@ -48,6 +49,23 @@ function addGloss(mat) {
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat *= vGloss;\n#endif');
   };
   mat.customProgramCacheKey = () => prevKey + 'gloss';
+}
+
+/** Blends a second (skin) map into the fabric map by per-vertex aSkin (0 fabric .. 1 skin): tank-top chest, no seams. */
+function addSkinMix(mat, skinMap, bulk) {
+  const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.uniforms.skinMap = { value: skinMap };
+    sh.uniforms.skinBulk = { value: bulk };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSkinPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSkinPos = position;');
+    // skin vs fabric zones evaluated per pixel (V-neck, traps/shoulders, tank straps) -> razor-clean, smooth edges
+    sh.fragmentShader = 'uniform sampler2D skinMap;\nuniform float skinBulk;\nvarying vec3 vSkinPos;\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', '#ifdef USE_MAP\n  vec4 fabC = texture2D( map, vUv );\n  vec4 skinC = texture2D( skinMap, vUv );\n  float skE = pow( vSkinPos.x / ( 0.1 * skinBulk ), 2.0 ) + pow( ( vSkinPos.y - 0.3 ) / 0.072, 2.0 );\n  float skV = ( 1.0 - smoothstep( 0.6, 1.15, skE ) ) * smoothstep( 0.0, 0.05, vSkinPos.z );\n  float skT = smoothstep( 0.305, 0.34, vSkinPos.y );\n  float skS = ( 1.0 - smoothstep( 0.018, 0.04, abs( abs( vSkinPos.x ) - 0.1 * skinBulk ) ) ) * smoothstep( 0.27, 0.31, vSkinPos.y );\n  float skinMask = max( skV, skT ) * ( 1.0 - skS );\n  diffuseColor *= mix( fabC, skinC, skinMask );\n#endif');
+  };
+  mat.customProgramCacheKey = () => prevKey + 'skinmix' + bulk;
 }
 
 /** Inject a fresnel rim light so the silhouette pops against the city. */
@@ -280,6 +298,13 @@ export class Character {
     const leather = this.mat(0x1a1310, 0.5);
     const sleeves = o.topSleeves;
     const armMat = sleeves ? top : skin;
+    // player-grade body: smooth sculpted segments instead of a lathe + overlapping muscle ellipsoids
+    const smooth = hi && !o.noMesh && !sleeves;
+    let chestMat = top;
+    if (smooth) {
+      chestMat = this.mat(0xffffff, 0.88, { map: this.fabricTexture(o.top || 0x1b1b1d, 'knit'), color: 0xffffff });
+      addSkinMix(chestMat, this.skinTexture(false), bulk);
+    }
 
     // center-of-mass pivot sits 0.45 above the pelvis
     this.pivot.position.y = 1.47;
@@ -292,14 +317,19 @@ export class Character {
 
     // abdomen (spine)
     const spine = this.joint('spine', pelvis, 0, 0.08, 0);
+    if (smooth) this.mesh(absGeometry(T, { bulk }), top, spine, 0, 0, 0);
+    else {
     const absGeo = this.lathe('abs', () => [[0, -0.03], [0.165, -0.02], [0.16, 0.08], [0.172, 0.18], [0.195, 0.28], [0, 0.31]].map(([r, y]) => new T.Vector2(r, y)));
     this.mesh(absGeo, top, spine, 0, 0, 0, bulk, 1, 0.74 * bulk);
     // obliques
     this.blob(top, spine, 0.12 * bulk, 0.14, 0, 0.045 * bulk, 0.12, 0.085 * bulk);
     this.blob(top, spine, -0.12 * bulk, 0.14, 0, 0.045 * bulk, 0.12, 0.085 * bulk);
+    }
 
     // chest: V-taper ribcage
     const chest = this.joint('chest', spine, 0, 0.28, 0);
+    if (smooth) this.mesh(chestGeometry(T, { bulk, skinMix: true }), chestMat, chest, 0, 0, 0);
+    else {
     const chestGeo = this.lathe('chest', () => [[0, -0.07], [0.19, -0.06], [0.205, 0.02], [0.24, 0.12], [0.268, 0.21], [0.262, 0.27], [0.225, 0.32], [0.14, 0.36], [0, 0.375]].map(([r, y]) => new T.Vector2(r, y)));
     this.mesh(chestGeo, top, chest, 0, 0, 0, bulk, 1, 0.62 * bulk);
     // pecs (pushed forward), lats (flare under arms), upper back
@@ -308,13 +338,16 @@ export class Character {
     this.blob(top, chest, 0.19 * bulk, 0.12, -0.02, 0.06 * bulk, 0.15, 0.11 * bulk, 0, 0, 0.2);
     this.blob(top, chest, -0.19 * bulk, 0.12, -0.02, 0.06 * bulk, 0.15, 0.11 * bulk, 0, 0, -0.2);
     this.blob(top, chest, 0, 0.2, -0.1 * bulk, 0.2 * bulk, 0.12, 0.07 * bulk);
+    }
     if (!sleeves) {
+      if (!smooth) {
       // tank top: skin shows on the upper chest (V-neck), traps and shoulders; straps over the traps
       this.blob(skin, chest, 0, 0.3, 0.085 * bulk, 0.1 * bulk, 0.065, 0.05 * bulk);
       this.blob(skin, chest, 0.12 * bulk, 0.33, -0.02, 0.13 * bulk, 0.06, 0.1 * bulk, 0, 0, -0.38); // traps
       this.blob(skin, chest, -0.12 * bulk, 0.33, -0.02, 0.13 * bulk, 0.06, 0.1 * bulk, 0, 0, 0.38);
       this.blob(top, chest, 0.1 * bulk, 0.335, 0.0, 0.035 * bulk, 0.05, 0.105 * bulk, 0, 0, -0.38); // straps
       this.blob(top, chest, -0.1 * bulk, 0.335, 0.0, 0.035 * bulk, 0.05, 0.105 * bulk, 0, 0, 0.38);
+      }
     } else {
       this.blob(top, chest, 0.12 * bulk, 0.32, -0.02, 0.13 * bulk, 0.065, 0.1 * bulk, 0, 0, -0.38);
       this.blob(top, chest, -0.12 * bulk, 0.32, -0.02, 0.13 * bulk, 0.065, 0.1 * bulk, 0, 0, 0.38);
@@ -329,8 +362,9 @@ export class Character {
 
     // neck: thick, tapered, with sternocleidomastoid lines
     const neck = this.joint('neck', chest, 0, 0.33, 0);
-    this.mesh(this.limb('neck', 0.13, 0.072, 0.08, 0.09, 0.5), skin, neck, 0, 0.12, 0.0, bulk * 0.95, 1, bulk * 0.92);
-    if (hi) {
+    if (smooth) this.mesh(neckGeometry(T, { bulk }), skin, neck, 0, 0, 0);
+    else this.mesh(this.limb('neck', 0.13, 0.072, 0.08, 0.09, 0.5), skin, neck, 0, 0.12, 0.0, bulk * 0.95, 1, bulk * 0.92);
+    if (hi && !smooth) {
       this.blob(skin, neck, 0.035 * bulk, 0.05, 0.045, 0.022, 0.075, 0.02, 0.35, 0, 0.25);
       this.blob(skin, neck, -0.035 * bulk, 0.05, 0.045, 0.022, 0.075, 0.02, 0.35, 0, -0.25);
     }
@@ -347,15 +381,21 @@ export class Character {
       const sx = side === 'l' ? 1 : -1;
       const sh = this.joint(side + 'Sh', chest, sx * 0.31 * bulk, 0.22, 0);
       const upper = side === 'l' && !sleeves ? tatSkin : armMat;
+      if (smooth) this.mesh(upperArmGeometry(T, { ab, side: sx }), upper, sh, 0, 0, 0); // deltoid + biceps + triceps melted in
+      else {
       this.blob(armMat, sh, sx * 0.012, -0.03, 0, 0.088 * ab, 0.1 * ab, 0.092 * ab); // deltoid cap
       this.mesh(this.limb('upperArm' + ab, 0.32, 0.085 * ab, 0.093 * ab, 0.064 * ab, 0.45), upper, sh, 0, 0, 0, 1, 1, 0.95);
       this.blob(armMat, sh, 0, -0.17, 0.035 * ab, 0.068 * ab, 0.1, 0.065 * ab); // biceps
       this.blob(armMat, sh, 0, -0.13, -0.038 * ab, 0.07 * ab, 0.12, 0.06 * ab); // triceps
+      }
       const el = this.joint(side + 'El', sh, 0, -0.32, 0);
       const foreMat = sleeves && o.fullSleeves ? top : skin;
+      if (smooth) this.mesh(foreArmGeometry(T, { ab, side: sx }), foreMat, el, 0, 0, 0); // elbow + brachioradialis melted in
+      else {
       this.blob(foreMat, el, 0, 0, 0, 0.066 * ab, 0.06, 0.066 * ab); // elbow
       this.mesh(this.limb('foreArm' + ab, 0.28, 0.068 * ab, 0.074 * ab, 0.047 * ab, 0.25), foreMat, el, 0, 0, 0);
       this.blob(foreMat, el, sx * 0.02 * ab, -0.08, 0.02, 0.05 * ab, 0.09, 0.05 * ab); // brachioradialis
+      }
       if (o.wraps) this.mesh(this.geo('wrap', () => new T.CylinderGeometry(1, 1.05, 1, this.seg)), this.mat(0xe8e2d4, 0.95), el, 0, -0.255, 0, 0.051 * ab, 0.08, 0.051 * ab);
       const fist = new T.Group();
       fist.position.set(0, -0.31, 0.0);
@@ -378,12 +418,18 @@ export class Character {
     for (const side of ['l', 'r']) {
       const sx = side === 'l' ? 1 : -1;
       const hip = this.joint(side + 'Hip', pelvis, sx * 0.11 * bulk, -0.03, 0);
+      if (smooth) this.mesh(thighGeometry(T, { lb, side: sx }), pants, hip, 0, 0, 0); // quads melted in
+      else {
       this.mesh(this.limb('thigh' + bulk, 0.47, 0.12 * lb, 0.122 * lb, 0.078 * lb, 0.3), pants, hip, 0, 0, 0);
       this.blob(pants, hip, sx * 0.02, -0.2, 0.045 * lb, 0.08 * lb, 0.16, 0.07 * lb); // quads
+      }
       const kn = this.joint(side + 'Kn', hip, 0, -0.47, 0);
+      if (smooth) this.mesh(shinGeometry(T, { lb }), pants, kn, 0, 0, 0); // knee + calf melted in
+      else {
       this.blob(pants, kn, 0, 0, 0.01, 0.078 * lb, 0.07, 0.08 * lb);
       this.mesh(this.limb('shin' + bulk, 0.45, 0.078 * lb, 0.082 * lb, 0.056 * lb, 0.3), pants, kn, 0, 0, 0);
       this.blob(pants, kn, 0, -0.14, -0.04 * lb, 0.065 * lb, 0.12, 0.055 * lb); // calf
+      }
       // combat boot shaft
       this.mesh(this.geo('bootShaft', () => new T.CylinderGeometry(1, 1.08, 1, this.seg)), shoes, kn, 0, -0.37, 0, 0.068 * lb, 0.16, 0.072 * lb);
       if (hi) this.mesh(this.geo('lace', () => new T.TorusGeometry(1, 0.18, 6, this.seg)), sole, kn, 0, -0.32, 0, 0.07 * lb, 0.074 * lb, 0.07, Math.PI / 2);
