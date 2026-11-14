@@ -622,7 +622,7 @@ function genPreset(z, seed) {
     tiles[cx + cy * W] = T.MOUNTAIN; presetVolc.push(cx + cy * W);
   }
 }
-function generate(seed) { const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
+function generate(seed) { waterDirty = true; const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
 function emptyWorld() {
   extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1;
   nodes = []; oreT.fill(0); oreA.fill(0);
@@ -638,6 +638,7 @@ function rleEncode() {
   return out.join(',');
 }
 function rleDecode(s) {
+  waterDirty = true;
   if (!s) return false;
   let p = 0;
   for (const part of s.split(',')) {
@@ -1237,6 +1238,7 @@ function seedSharks() {
   for (let i = 0; i < N; i++) if (tiles[i] === T.DEEP && shoreD[i] !== 255 && shoreD[i] >= 4) deep++;
   sharkTarget = deep < 150 ? 0 : Math.min(24, Math.max(2, Math.round(deep / 700)));
   for (let q = 0; q < sharkTarget; q++) addShark();
+  krakens = []; krakenCd = 9000 + ri(0, 6000);
 }
 function sharkHit(x, y, r) {                                  // lightning, meteors and smiting kill sharks in range
   for (let q = sharks.length - 1; q >= 0; q--) { const s = sharks[q]; if ((s.x - x) ** 2 + (s.y - y) ** 2 <= r * r + 1) { fx('splash', Math.round(s.x), Math.round(s.y)); emit('bit', s.x, s.y, 8, { col: '#bfe6ff' }); sharks.splice(q, 1); } }
@@ -1305,6 +1307,139 @@ function shoalHtml(sh) {
   return `<b>🐟 ${d.n[0].toUpperCase() + d.n.slice(1)}</b> · shoal<br>Stock ${pct}%<div style="height:8px;margin:5px 0;border-radius:4px;background:#1a2748;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:linear-gradient(90deg,#55caff,#ffda55)"></i></div><small>${sh.kind === 2 ? 'Deep-sea fishing boats catch tuna here.' : 'Fishers and boats catch food here.'} Overfishing scatters a shoal.</small>`;
 }
 function sharkHtml(s) { return `<b>🦈 Shark</b><br>❤️ ${Math.ceil(s.hp)}/${SHARK_HP}<br>${SHARK_MODE[s.mode]}<br><small>Can sink ships and bite fishers. Smite, lightning or a meteor can kill it.</small>`; }
+/* ============================== SEA LIFE: the kraken (a rare deep-sea terror) + premium ocean layers ============================== */
+let krakens = [], krakenCd = 9000 + ((Math.random() * 6000) | 0), nextKrakenId = 1, waterDirty = true;
+const KRAKEN_HP = 320, KRAKEN_MODE = ['Rising from the deep', 'Hunting', 'Sinking back down'];
+const SNL = new Float32Array(1024); for (let k = 0; k < 1024; k++) SNL[k] = Math.sin(k / 1024 * Math.PI * 2);
+const SN = a => SNL[(a * 162.9747) & 1023];                      // fast periodic sine (so every sea animation loops cleanly)
+const WR = new Float32Array(31 * 3);                              // water colour per depth step (0 = beach shallows ... 30 = the abyss)
+(() => {
+  const stops = [[0, 112, 214, 206], [1, 90, 196, 208], [2, 68, 174, 212], [3, 54, 152, 210], [4, 48, 142, 208], [5, 40, 122, 198], [8, 32, 98, 178], [12, 26, 76, 156], [18, 20, 56, 126], [30, 11, 30, 82]];
+  for (let d = 0; d <= 30; d++) {
+    let a = stops[0], b = stops[stops.length - 1];
+    for (let s = 0; s < stops.length - 1; s++) if (d >= stops[s][0] && d <= stops[s + 1][0]) { a = stops[s]; b = stops[s + 1]; break; }
+    const f = b[0] === a[0] ? 0 : (d - a[0]) / (b[0] - a[0]);
+    for (let c = 0; c < 3; c++) WR[d * 3 + c] = a[c + 1] + (b[c + 1] - a[c + 1]) * f;
+  }
+})();
+function krakenOk(x, y) { if (!inb(x, y)) return false; const i = x + y*W; return tiles[i] <= T.SHALLOW && shoreD[i] !== 255 && shoreD[i] >= 2; }
+function krakenRoar(x, y) { if (Snd.ctx && Snd.on && !editMode && started && can('kraken', 2500)) { const v = sndAt(x, y); if (v > 0) SFX.kraken(v); } }
+function summonKraken(x, y, manual) {
+  if (shoreD.length !== N || shoreD[x + y*W] === 255) computeShoreD();
+  if (!krakenOk(x, y)) return null;
+  const k = { id: nextKrakenId++, x, y, tx: x, ty: y, hd: 1, hp: KRAKEN_HP, st: 0, t: 0, life: manual ? 2400 : 1800, manual: !!manual, cd: 120, kills: 0, atk: null, dock: manual || Math.random() < .6, ph: ri(0, 63) };
+  krakens.push(k); fx('boom', x, y, { r: 4 }); krakenRoar(x, y); haptic('warning'); shakeT = 14;
+  addChronicle('🐙', manual ? 'A kraken was summoned from the abyss' : 'A kraken has risen from the deep!'); toast('🐙 A kraken rises!');
+  return k;
+}
+function krakenHit(x, y, r, dmg) {                              // smite, lightning and meteors hurt it; 320 health in all
+  for (const k of krakens) {
+    if (k.st === 2 || (k.x - x) ** 2 + (k.y - y) ** 2 > (r + 2) ** 2) continue;
+    k.hp -= dmg; emit('bit', k.x, k.y - 1, 10, { col: '#e8a0ff' });
+    if (k.hp <= 0) { k.st = 2; k.t = 0; k.atk = null; krakenCd = 16000 + ri(0, 8000); fx('boom', Math.round(k.x), Math.round(k.y), { r: 4 }); toast('🐙 The kraken was slain!'); addChronicle('🐙', 'The kraken was slain'); }
+  }
+}
+function krakenAttack(k) {
+  const a = k.atk, risk = +((cfg.settings && cfg.settings.shipwreckRisk) ?? 3);
+  if (a.kind === 'ship') {
+    const si = ships.indexOf(a.ref); if (si < 0) return;
+    const kg = kingdoms.get(a.ref.kingdomId), nm = kg ? kg.name : 'A';
+    if (Math.random() < (k.manual ? .9 : Math.min(.85, .45 + risk * .05))) { wreckShip(a.ref, si, 'kraken'); k.kills++; }
+    else { addChronicle('🐙', `The kraken seized a ship of ${nm}, but it broke free`); toast(`🐙 A ship of ${nm} broke free of the kraken`); }
+    fx('boom', Math.round(a.ref.x), Math.round(a.ref.y), { r: 3 });
+  } else {
+    const kg = kingdoms.get(a.kid); fx('boom', a.tx, a.ty, { r: 3 }); emit('debris', a.tx, a.ty, 20); emit('dust', a.tx, a.ty, 10, { sx: 2 }); shakeT = 16; haptic('thud');
+    if (kg) { kg.wood = Math.max(0, (kg.wood | 0) - 25); kg.voyageCd = Math.max(kg.voyageCd || 0, tick + 3000); addChronicle('🐙', `The kraken smashed the harbor of ${kg.name}`); toast(`🐙 The harbor of ${kg.name} was smashed`); }
+    for (const c of creatures) if (Math.abs(c.x - a.tx) <= 3 && Math.abs(c.y - a.ty) <= 3) c.hp -= 15;
+  }
+}
+function krakenTick() {
+  const risk = +((cfg.settings && cfg.settings.shipwreckRisk) ?? 3);
+  if (!editMode && !krakens.length && risk > 0 && --krakenCd <= 0) {                   // rare, and only when there is something at sea to menace
+    krakenCd = 2400;
+    if (ships.length || [...kingdoms.values()].some(g => g.tech.includes('voyage'))) for (let a = 0; a < 40; a++) { const x = ri(0, W - 1), y = ri(0, H - 1); if (tiles[x + y*W] === T.DEEP && shoreD[x + y*W] !== 255 && shoreD[x + y*W] >= 8) { summonKraken(x, y, false); break; } }
+  }
+  for (let q = krakens.length - 1; q >= 0; q--) {
+    const k = krakens[q]; k.t++;
+    if (k.st === 0) { if (k.t >= 90) { k.st = 1; k.t = 0; } continue; }
+    if (k.st === 2) { if (k.t >= 80) { fx('splash', Math.round(k.x), Math.round(k.y)); krakens.splice(q, 1); if (krakenCd < 12000) krakenCd = 12000 + ri(0, 9000); } continue; }
+    if (k.cd > 0) k.cd--;
+    if (--k.life <= 0 || k.kills >= 3) { k.st = 2; k.t = 0; k.atk = null; continue; }
+    if (k.atk) { k.atk.t++; if (k.atk.t === 40) krakenAttack(k); if (k.atk.t >= 75) { k.atk = null; k.cd = 260; } continue; }
+    let tgt = null, td = 1e9;
+    for (const s of ships) { const d = Math.hypot(s.x - k.x, s.y - k.y); if (d < 18 && d < td) { td = d; tgt = { kind: 'ship', ref: s, x: s.x, y: s.y }; } }
+    if (!tgt && k.dock) for (const g of kingdoms.values()) if (g.lm && g.lm.harbor != null) { const hx = g.lm.harbor % W, hy = (g.lm.harbor / W) | 0, d = Math.hypot(hx - k.x, hy - k.y); if (d < 24 && d < td) { td = d; tgt = { kind: 'dock', kid: g.id, x: hx, y: hy, tx: hx, ty: hy }; } }
+    if (tgt) {
+      k.tx = tgt.x; k.ty = tgt.y;
+      if (k.cd <= 0 && td < (tgt.kind === 'ship' ? 2.8 : 3.4)) { k.atk = Object.assign({ t: 0 }, tgt); krakenRoar(k.x, k.y); continue; }
+    } else if ((Math.abs(k.tx - k.x) < 1 && Math.abs(k.ty - k.y) < 1) || Math.random() < .01) for (let a = 0; a < 10; a++) { const tx = Math.round(k.x) + ri(-12, 12), ty = Math.round(k.y) + ri(-12, 12); if (krakenOk(tx, ty)) { k.tx = tx; k.ty = ty; break; } }
+    const dx = k.tx - k.x, dy = k.ty - k.y, dist = Math.hypot(dx, dy);
+    if (dist > .05) {
+      const stp = Math.min(tgt && tgt.kind === 'ship' ? .27 : .18, dist), nx = k.x + dx / dist * stp, ny = k.y + dy / dist * stp;
+      if (krakenOk(Math.round(nx), Math.round(ny))) { k.x = nx; k.y = ny; if (Math.abs(dx) > .1) k.hd = dx > 0 ? 1 : -1; } else { k.tx = k.x; k.ty = k.y; }
+    }
+  }
+}
+function drawKrakens(x0, y0, x1, y1) {
+  for (const k of krakens) {
+    if (k.x < x0 - 12 || k.x > x1 + 12 || k.y < y0 - 12 || k.y > y1 + 12) continue;
+    const cx = ox + (k.x + .5)*sc, cy = oy + (k.y + .5)*sc, t = frame * .05 + k.ph;
+    const rise = k.st === 0 ? Math.min(1, k.t / 90) : k.st === 2 ? Math.max(0, 1 - k.t / 80) : 1, e = rise * rise * (3 - 2 * rise);
+    if (sc < 5) { ctx.fillStyle = `rgba(30,10,40,${.6 * e})`; ctx.beginPath(); ctx.arc(cx, cy, Math.max(4, sc * 2.4 * e), 0, 7); ctx.fill(); ctx.fillStyle = '#ffd24a'; ctx.fillRect(cx - 2, cy - 1, 2, 2); ctx.fillRect(cx + 1, cy - 1, 2, 2); continue; }
+    const u = sc * .24 * e + .01;
+    ctx.fillStyle = `rgba(4,10,30,${.38 * e})`; ctx.beginPath(); ctx.ellipse(cx, cy + u * 2, u * 15, u * 8, 0, 0, 7); ctx.fill();                     // the huge shape under the water
+    ctx.strokeStyle = `rgba(210,235,255,${.4 * e})`; ctx.lineWidth = Math.max(1, u * .5);
+    for (let r = 0; r < 3; r++) { const rr = u * (9 + r * 3.2), a0 = t * (1.2 - r * .25) + r * 2; ctx.beginPath(); ctx.ellipse(cx, cy + u * 2, rr, rr * .5, 0, a0, a0 + 2.2); ctx.stroke(); }   // whirlpool
+    const at = k.atk, tgx = at ? ox + (at.kind === 'ship' ? at.ref.x + .5 : at.tx + .5) * sc : 0, tgy = at ? oy + (at.kind === 'ship' ? at.ref.y + .5 : at.ty + .5) * sc : 0, reach = at ? Math.min(1, at.t / 28) * (at.t > 60 ? Math.max(0, 1 - (at.t - 60) / 15) : 1) : 0;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 7) * Math.PI, bx = cx + Math.cos(a) * u * 3.2, by = cy + u * .8 + Math.sin(a) * u * 1.6, grab = at && (i === 1 || i === 3 || i === 6) && reach > 0;
+      let px = bx, py = by, dir = a;
+      for (let j = 0; j < 12; j++) {
+        const f = j / 12; let nx, ny;
+        if (grab) {                                               // reach out, arch over and wrap the target
+          const m = f * reach, ex = bx + (tgx - bx) * m, ey = by + (tgy - by) * m - Math.sin(m * Math.PI) * u * 7 + Math.sin(t * 5 + i + j) * u * .3 * (1 - reach);
+          nx = ex; ny = ey;
+        } else {
+          dir += SN(t * .21 + i * 1.1 + j * .55) * .3 * (f + .3) + (i < 4 ? -.05 : .05) * f; const ls = u * 1.15 * e;
+          nx = px + Math.cos(dir) * ls; ny = py + Math.sin(dir) * ls;
+        }
+        ctx.strokeStyle = j < 6 ? '#6a2a5c' : '#8c4476'; ctx.lineWidth = Math.max(1, u * 1.9 * (1 - f * .82));
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(nx, ny); ctx.stroke();
+        if (j % 3 === 1 && u > 1.2) { ctx.fillStyle = '#e9b0d0'; ctx.fillRect(nx - u * .25, ny + u * .15, Math.max(1, u * .5), Math.max(1, u * .5)); }   // suckers
+        px = nx; py = ny;
+      }
+    }
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = '#6a2858'; ctx.beginPath(); ctx.ellipse(cx, cy + u * .2, u * 4.8, u * 3, 0, 0, 7); ctx.fill();                                  // head
+    ctx.fillStyle = '#7a2f68'; ctx.beginPath(); ctx.ellipse(cx, cy - u * 2.4, u * 4.2, u * 5.2, 0, 0, 7); ctx.fill();                               // mantle
+    ctx.fillStyle = 'rgba(190,100,160,.55)'; ctx.beginPath(); ctx.ellipse(cx - u * 1.2, cy - u * 3.6, u * 1.6, u * 2.6, -.3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#5a1f4a'; for (const q of [[-1.6, -4.6, .5], [1.4, -5.4, .6], [2.4, -3, .45], [-2.4, -2.4, .5], [.2, -6.8, .4]]) { ctx.beginPath(); ctx.arc(cx + q[0] * u, cy + q[1] * u, q[2] * u, 0, 7); ctx.fill(); }
+    const gl = .7 + .3 * SN(t * 1.3), ey = cy - u * .1;
+    for (const sd of [-1, 1]) {
+      const ex = cx + sd * u * 2.1, g2 = ctx.createRadialGradient(ex, ey, 0, ex, ey, u * 2.2); g2.addColorStop(0, `rgba(255,210,70,${.55 * gl * e})`); g2.addColorStop(1, 'rgba(255,210,70,0)'); ctx.fillStyle = g2; ctx.fillRect(ex - u * 2.2, ey - u * 2.2, u * 4.4, u * 4.4);
+      ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.ellipse(ex, ey, u * 1.05, u * .85, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#1a0a1c'; ctx.fillRect(ex - u * .18, ey - u * .75, Math.max(1, u * .36), u * 1.5);
+      ctx.fillStyle = '#3a1030'; ctx.fillRect(ex - u * 1.3, ey - u * 1.4 + (sd < 0 ? 0 : 0), u * 2.6, Math.max(1, u * .45));
+    }
+    ctx.fillStyle = 'rgba(22,76,150,.62)'; ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.8, u * 5.4, u * 1.7, 0, 0, 7); ctx.fill();                      // the waterline hides the lower body
+    ctx.strokeStyle = 'rgba(235,248,255,.65)'; ctx.lineWidth = Math.max(1, u * .4); ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.8, u * 5.4, u * 1.7, 0, .15, Math.PI - .15); ctx.stroke();
+    if (e < 1 && k.st !== 1 && Math.random() < .3) emit('bit', k.x + (Math.random() - .5) * 5, k.y + Math.random(), 2, { col: '#d4ecff' });
+  }
+}
+function drawSeaDetails(x0, y0, x1, y1) {                          // ripples that swell and fade, and whitecaps that drift with the swell (each loops every 160 frames)
+  if (sc < 7 || shoreD.length !== N) return;
+  ctx.lineWidth = Math.max(1, sc * .07);
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
+    const i = x + y*W; if (tiles[i] > T.SHALLOW) continue;
+    const hh = (i * 2654435761) >>> 0, m = hh % 61; if (m > 1) continue;
+    const ph = ((frame + (hh >>> 8) % 160) % 160) / 160, d = shoreD[i], a = (1 - ph) * (1 - ph) * (d > 6 ? .34 : .22);
+    const px = ox + (x + .3 + ((hh >> 4) & 7) / 12) * sc, py = oy + (y + .3 + ((hh >> 12) & 7) / 12) * sc;
+    if (m === 0) { ctx.strokeStyle = `rgba(230,246,255,${a})`; ctx.beginPath(); ctx.ellipse(px, py, sc * (.1 + .5 * ph), sc * (.05 + .25 * ph), 0, 0, 6.3); ctx.stroke(); }
+    else if (d > 4) { const wx = px + (ph - .5) * sc * 1.4; ctx.strokeStyle = `rgba(240,250,255,${a * 1.2})`; ctx.beginPath(); ctx.moveTo(wx - sc * .35, py); ctx.quadraticCurveTo(wx, py - sc * .1, wx + sc * .35, py); ctx.stroke(); }
+  }
+}
+function krakenHtml(k) { return `<b>🐙 Kraken</b><br>❤️ ${Math.max(0, Math.ceil(k.hp))}/${KRAKEN_HP} · ${KRAKEN_MODE[k.st]}<br>Sank ${k.kills} ship${k.kills === 1 ? '' : 's'}<br><small>It drags ships under and smashes harbors. Smite, lightning and meteors can slay it.</small>`; }
 function drawParts() {
   ctx.save();
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -1415,6 +1550,7 @@ const SFX = {
   rumble: (v, len) => burst(len, { type: 'lowpass', f: 150, vol: .6 * v, a: .25 }),
   horn: () => { tone(110, .9, { type: 'sawtooth', vol: .1, a: .14 }); tone(165, .9, { type: 'sawtooth', vol: .06, a: .14 }); },
   splash: v => burst(.4, { type: 'bandpass', f: 1000, to: 320, q: 1.2, vol: .18 * v }),
+  kraken: v => { tone(70, 1.8, { type: 'sawtooth', vol: .2 * v, to: 38, a: .2 }); burst(1.6, { type: 'lowpass', f: 420, to: 70, vol: .4 * v, a: .15 }); },
   howl: () => tone(430, 1.5, { type: 'sawtooth', vol: .06, to: 250, a: .35 }),
   thud: v => tone(150, .25, { type: 'sine', vol: .25 * v, to: 60 }),
   chop: v => { burst(.06, { type: 'bandpass', f: 520 + Math.random() * 160, q: 3, vol: .16 * v }); tone(230, .07, { type: 'triangle', vol: .05 * v, to: 140 }); },
@@ -1792,6 +1928,7 @@ Object.assign(ICON_ART, {
   help: '...oooooo.../..oBBBBBBo../.oBBwwwwBBo./.oBwwBBwwBo./.oBBBBBwwBo./.oBBBBwwBBo./.oBBBwwBBBo./.oBBBBBBBBo./.oBBBwwBBBo./..oBBBBBBo../...oooooo.../............' });
 Object.assign(ICON_ART, {
   fish: '............/............/....ooooo.../.o.oBBBBBoo./.ooBBBBwBBBo/.oBBBBBBBoBo/.ooBBbbbBBBo/.o.oBbbbbbo./...ooooooo../............/............/............',
+  kraken: '............/...oooooo.../..oRRRRRRo../.oRRrrRRRRo./.oRyaRRyaRo./.oRRRRRRRRo./..oRRRRRRo../.oRoRoRoRoRo/oRoRoRoRoRo./oRo.oRo.oRo./.o...o...o../............',
   shark: '............/............/....oo....../....osoo..../...osSSo..../o..ossSSoo../oo.osssssSoo/.osssssaSsso/.oowwwwwwwoo/..ooowwwwoo./....ooooo.../............',
 });
 Object.assign(ICON_ART, { bag: '............/....oooo..../...okKKko.../..okkkkkko../.okkkkkkkko./.okEEEEEEko./.okEyyyyEko./.okEEEEEEko./.okkkkkkkko./.okKkkkkKko./..oooooooo../............' });
@@ -1820,7 +1957,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '🏝': 'island', '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver', '🐟': 'fish', '🦈': 'shark' });
+Object.assign(EMOJI_ICON, { '🏝': 'island', '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver', '🐟': 'fish', '🦈': 'shark', '🐙': 'kraken' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -1873,6 +2010,7 @@ function forDisc(cx, cy, r, fn) {
   }
 }
 function setTile(i, t) {
+  if ((t <= T.SHALLOW) !== (tiles[i] <= T.SHALLOW)) waterDirty = true;
   tiles[i] = t; compDirty = true;
   if (t <= T.SHALLOW || t === T.LAVA) { fire[i] = 0; bld[i] = 0; }
   else if (t === T.MOUNTAIN || t === T.SNOW) bld[i] = 0;
@@ -2951,7 +3089,7 @@ function wreckShip(s, si, why) {
   for (const c of creatures) if (c.boat === s.id) { c.boat = 0; c.hp = 0; c.cause = 'shipwreck'; }
   ships.splice(si, 1); fx('splash', x, y); emit('bit', x, y, 7, { col:'#bfe6ff' }); haptic('thud');
   const kind = s.phase.startsWith('fishing') ? 'Kapal nelayan' : 'Kapal penjelajah';
-  if (why) { addChronicle('🦈', `A shark sank the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}; the crew is lost`); toast('🦈 A shark sank a ship!'); }
+  if (why) { const kr = why === 'kraken'; addChronicle(kr ? '🐙' : '🦈', `A ${kr ? 'kraken dragged' : 'shark sank'} the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}${kr ? ' under' : ''}; the crew is lost`); toast(kr ? '🐙 A kraken dragged a ship under!' : '🦈 A shark sank a ship!'); }
   else { addChronicle('🌊', `${kind} ${k ? k.name : ''} karam; awaknya hilang`); toast(`🌊 ${kind} karam di laut`); }
   dirty = true;
 }
@@ -3088,7 +3226,7 @@ function step() {
   for (const l of cells) l.length = 0;
   for (const c of creatures) if (!c.boat) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
-  reapDead(); voyageTick(); shoalTick(); sharkTick();
+  reapDead(); voyageTick(); shoalTick(); sharkTick(); krakenTick();
   const wc = counts.wolf || 0;
   if (wc >= 2 && wc <= 3 && tick - lastEvolve > 1200 && (counts.werewolf || 0) < capOf('werewolf')) evolveWolves();
   else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
@@ -3233,18 +3371,32 @@ const toWorld = (px, py) => [Math.floor((px - ox)/sc), Math.floor((py - oy)/sc)]
 const SIN = new Float32Array(256); for (let i = 0; i < 256; i++) SIN[i] = Math.sin(i / 256 * Math.PI * 2) * 7;
 const HT = [0, 1, 2, 3, 3.4, 5, 8, 9.5, 3.2, 3];              // rough heights per tile type, for lighting from the north-west
 function renderTerrain() {
-  const d = img.data, fi = (frame * 2) | 0, fr = frame;
+  const d = img.data, fi = (frame * 2) | 0, fr = frame, wOK = shoreD.length === N, wph = fr * .045, sa = 1 + (weather.kind === 2 ? weather.k : weather.k * .3);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = x + y*W, t = tiles[i], c = COL[t]; let j = jit[i];
     if (t <= 1) j += SIN[(fi + x*22 + y*14) & 255]; else if (t >= 5 && t <= 7) j *= 1.7;
     let r = c[0] + j, g = c[1] + j, b = c[2] + j;
+    if (t <= 1 && wOK) {                                         // water: colour by depth, rolling swell, caustics over the shallows, glints and breakers
+      const dd = shoreD[i], di = t === 1 ? (dd > 4 ? 4 : dd) : (dd < 5 ? 5 : dd > 30 ? 30 : dd), wi = di * 3, jj = jit[i] * .5;
+      r = WR[wi] + jj; g = WR[wi + 1] + jj; b = WR[wi + 2] + jj;
+      const sw = (SN(x * .31 + y * .19 - wph) * .6 + SN(x * .13 - y * .27 + wph * .7 + 1.7) * .4) * (3.5 + (30 - di) * .11) * sa;
+      r += sw * .55; g += sw * .85; b += sw * 1.15;
+      const hh = (i * 2654435761) >>> 0;
+      if (t === 1 && di <= 4) {
+        const cc = SN(x * .85 + SN(y * .7 + wph * 2) * 1.3 + wph * 1.6) * SN(y * .8 - x * .55 + wph * 1.2 + 3);
+        if (cc > .2) { const a = (cc - .2) * 30 * (5 - di) / 4; r += a * .7; g += a * .85; b += a * .8; }
+        if (di >= 2) { const q = (hh >> 5) & 31; if (q === 0) { r -= 24; g += 6; b -= 14; } else if (q === 1) { r += 24; g -= 10; b -= 4; } }
+      }
+      if (di >= 3 && SN(fr * .06 + (hh % 628) / 100) > .99) { r += 30; g += 36; b += 40; }
+      if (dd <= 3) { const s2 = SN(fr * .05 - dd * 1.25 + x * .21 + y * .17); if (s2 > 0) { const f = s2 * s2 * s2 * (dd === 1 ? 88 : dd === 2 ? 46 : 22); r += f; g += f; b += f * .95; } }
+    }
     const tl = x > 0 ? tiles[i - 1] : t, tr = x < W - 1 ? tiles[i + 1] : t, tu = y > 0 ? tiles[i - W] : t, td = y < H - 1 ? tiles[i + W] : t;
     if (t >= 2 && t !== 8) {                                    // relief: slopes facing the light are brighter, the others darker
       const hn = HT[x > 0 && y > 0 ? tiles[i - W - 1] : t], hs = HT[x < W - 1 && y < H - 1 ? tiles[i + W + 1] : t];
       let sh = (hs - hn) * 4; sh = sh > 28 ? 28 : sh < -28 ? -28 : sh; r += sh; g += sh; b += sh;
       if (tl === 8 || tr === 8 || tu === 8 || td === 8) { r += 38; g += 12; b -= 6; }               // lava glow on the neighbours
     }
-    if (t === 1 && (tl >= 2 || tr >= 2 || tu >= 2 || td >= 2) && tl !== 8 && tr !== 8 && tu !== 8 && td !== 8) {    // surf along the shore
+    if (t === 1 && !wOK && (tl >= 2 || tr >= 2 || tu >= 2 || td >= 2) && tl !== 8 && tr !== 8 && tu !== 8 && td !== 8) {    // surf along the shore
       const f = (.5 + .5 * Math.sin(fr * .09 + x * .6 + y * .9)) * 62; r += f; g += f; b += f * .9;
     } else if (t === 2 && (tl <= 1 || tr <= 1 || tu <= 1 || td <= 1)) { r -= 17; g -= 13; b -= 4; }   // wet sand
     else if (t === 8) {                                          // lava breathes: bright seams over a darker crust
@@ -3283,6 +3435,7 @@ function draw() {
   ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
   ctx.save();
   ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); ctx.clip();
+  if ((waterDirty || shoreD.length !== N) && frame % 12 === 0) { computeShoreD(); waterDirty = false; }
   if (frame % (N > 40000 ? 2 : 1) === 0) renderTerrain();      // big maps redraw terrain every other frame
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(off, ox, oy, W*sc, H*sc);
@@ -3303,8 +3456,10 @@ function draw() {
       }
       ctx.setLineDash([]);
     }
+    drawSeaDetails(x0, y0, x1, y1);
     drawShoals(x0, y0, x1, y1);
     drawSharks(x0, y0, x1, y1);
+    drawKrakens(x0, y0, x1, y1);
     drawDecor(x0, y0, x1, y1);
     drawVolcanoes(x0, y0, x1, y1);
     drawOres(x0, y0, x1, y1);
@@ -3556,6 +3711,7 @@ const TOOLS = {
   meteor: { g:'powers', ic:'☄️', nm:'Meteor', ms:700 },
   bless:  { g:'powers', ic:'✨', nm:'Bless', ms:120 },
   smite:  { g:'powers', ic:'💀', nm:'Smite', ms:90 },
+  kraken: { g:'powers', ic:'🐙', nm:'Kraken', ms:99999 },
   enlighten:{ g:'realm', ic:'📖', nm:'Knowledge', ms:99999 },
   grace:  { g:'realm', ic:'🙏', nm:'Grace', ms:99999 },
   plague: { g:'realm', ic:'☠️', nm:'Plague', ms:99999 },
@@ -3574,13 +3730,13 @@ const DIS_NAMES = ['Off', 'Rare', 'Frequent'];
 function strikeBolt(wx, wy, rr) {
   addChronicle('⚡', 'Sambaran petir menghantam pulau');
   fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 }); haptic('tap');
-  sharkHit(wx, wy, rr + 1);
+  sharkHit(wx, wy, rr + 1); krakenHit(wx, wy, rr + 1, 110);
   forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
 }
 function strikeMeteor(wx, wy, R) {
   addChronicle('☄️', 'Meteor menghantam pulau');
-  fx('boom', wx, wy, { r: R + 2 }); haptic('thud'); shakeT = 22; sharkHit(wx, wy, R);
+  fx('boom', wx, wy, { r: R + 2 }); haptic('thud'); shakeT = 22; sharkHit(wx, wy, R); krakenHit(wx, wy, R, 200);
   emit('debris', wx, wy, 34); emit('ember', wx, wy, 26, { sx: 1.5 }); emit('smoke', wx, wy, 12, { sx: 2, dark: 1, s0: .4, s1: 1.5 }); emit('dust', wx, wy, 16, { sx: 3 });
   forDisc(wx, wy, R, (x, y, i) => {
     const d = Math.hypot(x - wx, y - wy); bld[i] = 0;
@@ -3787,8 +3943,11 @@ function applyTool(wx, wy) {
       else { const kind = [1, 0, 2].find(k => shoalOk(k, wx, wy)); if (kind == null || shoals.length >= 400) { toast('🐟 Needs water'); break; } shoals.push({ x: wx, y: wy, kind, stock: 1, tx: wx, ty: wy, hd: 1, ph: ri(0, 63) }); fx('splash', wx, wy); emit('bit', wx, wy, 6, { col: '#bfe6ff' }); }
       break;
     }
+    case 'kraken':
+      if (krakens.length >= 2) toast('🐙 One is enough'); else if (!summonKraken(wx, wy, true)) toast('🐙 Needs open water');
+      break;
     case 'smite':
-      fx('smite', wx, wy); sharkHit(wx, wy, r);
+      fx('smite', wx, wy); sharkHit(wx, wy, r); krakenHit(wx, wy, r, 40);
       for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= r*r + .6) { c.hp = 0; fx('hit', c.x, c.y); }
       dirty = true;
       break;
@@ -4030,8 +4189,9 @@ function inspectAt(wx, wy) {
         + (R.hunt ? `<br>⚡ ${Math.round(c.en)}` : '') + (c.kills ? `<br>⚔️ ${c.kills}` : '') + (k ? `<br>${LV_ICON[k.level]} ${k.name}` : '');
     } else if (inb(wx, wy)) {
       const i = wx + wy*W, k = kingdoms.get(own[i]);
-      const sk = sharks.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 4), sh = sk ? null : shoalNear(wx, wy, 2, 2);
-      if (sk) infoEl.innerHTML = sharkHtml(sk);
+      const kr = krakens.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 16), sk = kr ? null : sharks.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 4), sh = kr || sk ? null : shoalNear(wx, wy, 2, 2);
+      if (kr) infoEl.innerHTML = krakenHtml(kr);
+      else if (sk) infoEl.innerHTML = sharkHtml(sk);
       else if (sh) infoEl.innerHTML = shoalHtml(sh);
       else if (k) infoEl.innerHTML = kingdomHtml(k);
       else {
@@ -4300,7 +4460,7 @@ function serialize2() {
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
     vc: volcanoes.map(v => v.i),
     dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b, d.e | 0]),
-    sh: shoals.map(v => [Math.round(v.x), Math.round(v.y), v.kind, Math.round(v.stock * 100)]), st: shoalTarget, sk: sharks.map(v => [Math.round(v.x), Math.round(v.y), Math.round(v.hp)]), skt: sharkTarget,
+    sh: shoals.map(v => [Math.round(v.x), Math.round(v.y), v.kind, Math.round(v.stock * 100)]), st: shoalTarget, sk: sharks.map(v => [Math.round(v.x), Math.round(v.y), Math.round(v.hp)]), skt: sharkTarget, kr: krakens.map(k => [Math.round(k.x), Math.round(k.y), Math.round(k.hp), k.st, k.t, k.life, k.manual ? 1 : 0, k.kills]), krc: krakenCd,
     sf: ships.map(s => [s.id, s.race, kix.get(s.kingdomId) || 0, s.x, s.y, s.path, s.step, s.move, s.phase, s.sourceLand, s.targetLand, s.targetComp, s.crew, s.landed | 0, s.wreckAt | 0, s.fishTimer | 0]) };      // one packed int per creature
 }
 function restore(s) {
@@ -4331,6 +4491,8 @@ function restore(s) {
   else seedResources();
   if (s.sh) { computeShoreD(); shoals = s.sh.filter(v => shoalOk(v[2], v[0], v[1])).map(v => ({ x: v[0], y: v[1], kind: v[2], stock: Math.max(.15, (v[3] || 80) / 100), tx: v[0], ty: v[1], hd: 1, ph: ri(0, 63) })); shoalTarget = s.st || [0, 0, 0]; } else seedShoals();
   if (s.sk) { sharks = s.sk.filter(v => sharkOk(v[0], v[1])).map(v => ({ id: nextSharkId++, x: v[0], y: v[1], tx: v[0], ty: v[1], hd: 1, hp: v[2] || SHARK_HP, cd: 0, fl: 0, mode: 0, ph: ri(0, 63) })); sharkTarget = s.skt || 0; } else seedSharks();
+  krakens = (s.kr || []).map(v => ({ id: nextKrakenId++, x: v[0], y: v[1], tx: v[0], ty: v[1], hd: 1, hp: v[2], st: v[3], t: v[4], life: v[5], manual: !!v[6], kills: v[7] || 0, cd: 120, atk: null, dock: !!v[6] || Math.random() < .6, ph: ri(0, 63) })).filter(k => krakenOk(Math.round(k.x), Math.round(k.y))); if (s.krc != null) krakenCd = s.krc;
+  waterDirty = true;
   volcanoes.length = 0; if (s.vc) { for (const i of s.vc) if (i < N) volcanoes.push({ i, x: i % W, y: (i / W) | 0, er: -1e9 }); } else seedVolcanoes();
   for (const [ia, ib, st, t0, un] of s.rl || []) { const ka = ids[ia - 1], kb = ids[ib - 1]; if (ka && kb) rels.set(rkey(ka, kb), { s: st, t: t0, until: un }); }
   rebuildRelations();
@@ -4596,7 +4758,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, get sharks() { return sharks; }, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, get sharks() { return sharks; }, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
