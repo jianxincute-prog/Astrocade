@@ -1,0 +1,14 @@
+{
+ "settings": {
+  "roundTime": 60,
+  "cpuLevel": 2,
+  "damageScale": 1,
+  "specialRate": 1,
+  "startHp": 100
+ },
+ "persistent_storage_config": {
+  "leaderboard": {
+   "sort_ascending": false
+  }
+ }
+}
