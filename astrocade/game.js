@@ -165,12 +165,12 @@ function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTim
 /* ============================== STATE ============================== */
 let tiles, bld, fire, jit;            // allocated by setSize()
 let kid, own, ownRace, ownEdge, ownScore;      // kingdom id per house tile / territory map (allocated by setSize())
-let wallK = new Uint16Array(1), wallG = new Uint8Array(1);     // wall barrier map: owner kingdom id / is-gate
+let wallK = new Uint16Array(1), wallG = new Uint8Array(1), wallT = new Uint8Array(1);     // wall barrier map: owner kingdom id / is-gate
 const wallGates = new Map();                                   // kingdom id -> gate tile indices
 const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
 let comp = null, compDirty = true;                 // connected land components (wars only happen on the same landmass)
 const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
-const warStats = { declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
+const warStats = { breached: 0, declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
 let creatures = [], nextId = 1, tick = 0;
 let speed = 1, paused = editMode;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
@@ -505,11 +505,11 @@ function kingdomRing(k, R) {                                // wall ring around 
   return list;
 }
 function rebuildWalls() {
-  wallK.fill(0); wallG.fill(0); wallGates.clear();
+  wallK.fill(0); wallG.fill(0); wallT.fill(0); wallGates.clear();
   for (const k of kingdoms.values()) {
     const R = ringR(k); if (!R) continue;
     for (const p of kingdomRing(k, R)) {
-      const i = p.x + p.y*W; wallK[i] = k.id;
+      const i = p.x + p.y*W; if (k.broken && k.broken.has(i)) continue; wallK[i] = k.id; if (p.t === 'tower') wallT[i] = 1;
       if (p.t === 'gate') { wallG[i] = 1; let g = wallGates.get(k.id); if (!g) wallGates.set(k.id, g = []); g.push(i); }
     }
   }
@@ -550,7 +550,7 @@ function drawProps(x0, y0, x1, y1, ground) {                 // ground=true: fla
     for (const p of kingdomProps(k)) {
       if ((p.t === 'field') !== ground || p.x < x0 - 2 || p.x > x1 + 2 || p.y < y0 - 2 || p.y > y1 + 4) continue;
       if (!propOk(p.x + p.y*W)) continue;
-      out.push(p); p.bi = RACES[k.race].bi;
+      out.push(p); p.bi = RACES[k.race].bi; p.kg = k;
     }
   }
   if (!ground) out.sort((a, b) => a.y - b.y || PPRI[a.t] - PPRI[b.t] || a.x - b.x);
@@ -558,10 +558,24 @@ function drawProps(x0, y0, x1, y1, ground) {                 // ground=true: fla
   for (const p of out) {
     const sp = PATLAS[p.bi][p.t], px = ox + p.x*sc, py = oy + p.y*sc;
     if (p.t === 'field') { ctx.drawImage(sp, px, py, sc, sc); continue; }
+    const ti = p.x + p.y*W, dmg = (p.t === 'wall' || p.t === 'tower') && p.kg.wd ? p.kg.wd.get(ti) || 0 : 0;
+    if (dmg >= 1e4) {                                       // breached: rubble instead of wall
+      const r = sc * .16; ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(px + sc*.1, py + sc*.72, sc*.8, sc*.2);
+      for (const [rx, ry, rc] of [[.12, .62, '#6a6470'], [.4, .7, '#8a8490'], [.62, .6, '#5a5460'], [.28, .55, '#8a7a6a'], [.7, .74, '#7a7480']]) { ctx.fillStyle = rc; ctx.fillRect(px + sc*rx, py + sc*ry, r*1.3, r); }
+      continue;
+    }
     const fy = py + sc*.96, tile = p.t === 'wall' || p.t === 'tower' || p.t === 'gate';
     const k2 = tile ? u : SPR_K, w = sp.width*k2, h = sp.height*k2;
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(px + sc/2 - w*.45, fy - k2*.8, w*.9, k2*1.2);
     ctx.drawImage(sp, px + sc/2 - w/2, fy - h, w, h);
+    if (dmg > 0) {                                          // cracks + darkening grow with damage
+      const f = Math.min(1, dmg / (p.t === 'tower' ? TOWER_HP : WALL_HP));
+      ctx.fillStyle = `rgba(20,10,20,${f * .45})`; ctx.fillRect(px + sc/2 - w/2, fy - h, w, h);
+      ctx.strokeStyle = `rgba(255,235,200,${.35 + f * .5})`; ctx.lineWidth = Math.max(1, k2 * .5); ctx.beginPath();
+      ctx.moveTo(px + sc*.3, fy - h*.9); ctx.lineTo(px + sc*.45, fy - h*.55); ctx.lineTo(px + sc*.35, fy - h*.3);
+      if (f > .5) { ctx.moveTo(px + sc*.7, fy - h*.8); ctx.lineTo(px + sc*.58, fy - h*.45); }
+      ctx.stroke();
+    }
   }
 }
 
@@ -742,6 +756,22 @@ function tryMove(c, nx, ny) {
   if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W]) && !wallBlocks(c, nx + ny*W)) { if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny; return true; }
   return false;
 }
+const SIEGE_P = { orc: .7, dwarf: .4, werewolf: .3, human: .15, elf: .08 };      // chance a blocked soldier hits the wall instead of walking to the gate
+const SIEGE_MULT = { orc: 2.5, dwarf: 1.6, werewolf: 1.2, human: 1, elf: .7 };
+const WALL_HP = 60, TOWER_HP = 120;
+function hitWall(c, i) {                                    // attackers chip at a wall segment; damage accumulates until it breaks
+  const owner = kingdoms.get(wallK[i]); if (!owner) return;
+  const ka = c.k ? kingdoms.get(c.k) : null;
+  const dmg = RACES[c.t].dmg * (SIEGE_MULT[c.t] || 1) * (.6 + Math.random() * .8) * (ka ? ka.mod.atk : 1) / owner.mod.def;
+  const wd = owner.wd || (owner.wd = new Map()), d = (wd.get(i) || 0) + dmg;
+  c.atk = 10; c.face = (i % W) > c.x ? 1 : (i % W) < c.x ? -1 : c.face;
+  fx('hit', i % W, (i / W) | 0);
+  if (d >= (wallT[i] ? TOWER_HP : WALL_HP)) {
+    wd.set(i, 1e4); (owner.broken || (owner.broken = new Set())).add(i); wallK[i] = 0; wallT[i] = 0; warStats.breached++;
+    for (let n = 0; n < 3; n++) fx('puff', (i % W) + ri(-1, 1), ((i / W) | 0) + ri(-1, 1));
+    haptic('thud');
+  } else wd.set(i, d);
+}
 function moveToward(c, tx, ty) {                            // greedy step toward (tx, ty); if an enemy wall is in the way, detour through its nearest gate
   if (c.gate >= 0 && c.gateUntil > tick) {
     const gx = c.gate % W, gy = (c.gate / W) | 0;
@@ -749,10 +779,12 @@ function moveToward(c, tx, ty) {                            // greedy step towar
   }
   const sx = Math.sign(tx - c.x), sy = Math.sign(ty - c.y);
   if (tryMove(c, c.x + sx, c.y + sy) || tryMove(c, c.x + sx, c.y) || tryMove(c, c.x, c.y + sy)) return true;
-  if (c.gate < 0 || c.gateUntil <= tick) {
+  {
     for (const [ax, ay] of [[sx, sy], [sx, 0], [0, sy]]) {
       if (!ax && !ay) continue;
       const i = c.x + ax + (c.y + ay)*W; if (!inb(c.x + ax, c.y + ay) || !wallBlocks(c, i)) continue;
+      if (Math.random() < (SIEGE_P[c.t] || 0)) { hitWall(c, i); return true; }
+      if (!(c.gate < 0 || c.gateUntil <= tick)) break;
       const gl = wallGates.get(wallK[i]); if (!gl || !gl.length) break;
       let best = -1, bd = 1e9;
       for (const g of gl) { const d = (g % W - c.x)**2 + ((g / W | 0) - c.y)**2; if (d < bd) { bd = d; best = g; } }
@@ -941,7 +973,17 @@ function killOneMember(k) {                                 // plague / famine v
   for (let j = 0; j < n; j++) { const c = creatures[(off + j) % n]; if (c.k === k.id && c.hp > 0) { c.hp = 0; c.cause = 'old'; return true; } }
   return false;
 }
+function repairWalls() {                                   // kingdoms at peace mend their walls (breaches cost wood)
+  for (const k of kingdoms.values()) {
+    if (k.enemies.size || !k.wd) continue;
+    for (const [i, d] of [...k.wd]) {
+      if (d >= 1e4) { if (k.wood >= 3) { k.wood -= 3; k.wd.delete(i); if (k.broken) k.broken.delete(i); } }
+      else if (d - 25 <= 0) k.wd.delete(i); else k.wd.set(i, d - 25);
+    }
+  }
+}
 function eventsTick() {                                     // every ~10 seconds
+  repairWalls();
   const ks = [...kingdoms.values()];
   for (const k of ks) {
     if (k.ev) {
@@ -1406,7 +1448,7 @@ function setSize(idx) {
   const z = SIZES[sizeIdx];
   W = z.w; H = z.h; N = W * H; CAPK = z.k;
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
-  kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
+  kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   kingdoms.clear(); rels.clear(); nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
