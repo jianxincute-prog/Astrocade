@@ -123,8 +123,9 @@ style.textContent = `
   #awyear{position:absolute;right:10px;top:30px;font-size:30px;background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:4px 16px;font-variant-numeric:tabular-nums}
   #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:#141b33;border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
+  #awrow1>.awb{width:84px;height:84px;flex-basis:84px;font-size:40px}
   #awbrush{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:36px;font-weight:700;color:#ffcf4a}
-  #awbrush .awb{width:84px;height:84px;flex-basis:84px;font-size:46px}
+  #awbrush .awb{width:76px;height:76px;flex-basis:76px;font-size:42px}
   #awbrush span{min-width:40px;text-align:center}
   #awrow2{display:flex;gap:8px;margin-top:10px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x}
   #awrow2::-webkit-scrollbar{display:none}
@@ -632,6 +633,98 @@ function wolfPack() {
   }
   return false;
 }
+/* ---- events, unrest, rebellion ---- */
+const EV_IC = { plague:'☠️', drought:'🥀', golden:'✨' }, EV_NAME = { plague:'Wabah', drought:'Kekeringan', golden:'Zaman keemasan' };
+const EV_DUR = { plague: 900, drought: 1200, golden: 1200 }, EV_ID = ['', 'plague', 'drought', 'golden'];
+let lastEvToast = -1e9;
+const evBirth = k => !k.ev ? 1 : k.ev.type === 'plague' ? .3 : k.ev.type === 'golden' ? 1.3 : 1;
+const evFood = k => !k.ev ? 1 : k.ev.type === 'drought' ? .4 : k.ev.type === 'golden' ? 1.25 : 1;
+function startEvent(k, type, quiet) {
+  k.ev = { type, left: EV_DUR[type] }; warStats['ev_' + type] = (warStats['ev_' + type] || 0) + 1;
+  fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: EV_IC[type] });
+  if (!quiet && k.level >= 1 && tick - lastEvToast >= 24) { lastEvToast = tick; toast(`${EV_IC[type]} ${EV_NAME[type]} · ${EMOJI[k.race]}${k.name}`); }
+  dirty = true;
+}
+function killOneMember(k) {                                 // plague / famine victim, picked at random
+  const n = creatures.length, off = (Math.random() * n) | 0;
+  for (let j = 0; j < n; j++) { const c = creatures[(off + j) % n]; if (c.k === k.id && c.hp > 0) { c.hp = 0; c.cause = 'old'; return true; } }
+  return false;
+}
+function eventsTick() {                                     // every ~10 seconds
+  const ks = [...kingdoms.values()];
+  for (const k of ks) {
+    if (k.ev) {
+      k.ev.left -= 80;
+      if (k.ev.left <= 0) { if (k.ev.type === 'plague') k.immune = tick + 4000; k.ev = null; }
+      continue;
+    }
+    if (k.pop >= 15 && tick > k.immune && Math.random() < .002 * (k.pop / 20)) startEvent(k, 'plague');
+    else if (Math.random() < .003) startEvent(k, 'drought');
+    else if (k.level >= 1 && !k.enemies.size && k.food > 150 && Math.random() < .003) startEvent(k, 'golden');
+  }
+  for (const k of ks) {                                     // tiny kingdoms at peace get annexed by a bigger neighbour of their own race
+    if (!kingdoms.has(k.id) || k.houses > 3 || tick - k.born < 2400 || k.enemies.size) continue;
+    let best = null, bd = 14*14;
+    for (const o of ks) {
+      if (o === k || !kingdoms.has(o.id) || o.race !== k.race || o.houses <= k.houses || o.enemies.has(k.id) || comp[o.cap] !== comp[k.cap]) continue;
+      const d = (o.cx - k.cx)**2 + (o.cy - k.cy)**2; if (d < bd) { bd = d; best = o; }
+    }
+    if (best && Math.random() < .15) { absorbKingdom(best, k); warStats.annexed = (warStats.annexed || 0) + 1; }
+  }
+  for (const a of ks) if (a.ev && a.ev.type === 'plague') for (const b of ks) {          // plague spreads to touching neighbours
+    if (b === a || b.ev || tick <= b.immune || !kingdoms.has(b.id) || !kingdoms.has(a.id) || comp[a.cap] !== comp[b.cap]) continue;
+    const reach = 6 + a.level*3 + a.mod.radius + 6 + b.level*3 + b.mod.radius;
+    if (Math.hypot(a.cx - b.cx, a.cy - b.cy) < reach && Math.random() < .03) startEvent(b, 'plague');
+  }
+}
+function splitKingdom(k, hostile) {                         // one side of the realm (random direction) breaks away as a new kingdom
+  const cx = k.cap % W, cy = (k.cap / W) | 0, hs = [];
+  for (let i = 0; i < N; i++) if (bld[i] && kid[i] === k.id && i !== k.cap) hs.push(i);
+  if (hs.length < 3) return null;
+  const ang = Math.random() * 6.2832, ux = Math.cos(ang), uy = Math.sin(ang);
+  const proj = i => ((i % W) - cx) * ux + (((i / W) | 0) - cy) * uy;
+  hs.sort((p, q) => proj(q) - proj(p));
+  const take = Math.max(2, Math.floor(hs.length * .45)), rebels = hs.slice(0, take), loyal = hs.slice(take);
+  let sx = 0, sy = 0; for (const i of rebels) { sx += i % W; sy += (i / W) | 0; }
+  const rx = Math.round(sx / take), ry = Math.round(sy / take);
+  const k2 = newKingdom(k.race, rx, ry);
+  k2.cap = k2.nb = rebels[0]; k2.level = Math.max(0, k.level - 1);
+  k2.tech = k.tech.slice(0, k.tech.length >> 1); recalcMods(k2);
+  for (const key of ['food', 'wood', 'stone', 'gold']) { const share = Math.floor(k[key] * .4); k2[key] = share + 20; k[key] -= share; }
+  for (const i of rebels) kid[i] = k2.id;
+  const nearest = (c, list) => { let bd = 1e9; for (const i of list) { const d = ((i % W) - c.x)**2 + (((i / W) | 0) - c.y)**2; if (d < bd) bd = d; } return bd; };
+  for (const c of creatures) if (c.k === k.id && nearest(c, rebels) < nearest(c, loyal.concat([k.cap]))) c.k = k2.id;     // people follow the nearest houses
+  rels.set(rkey(k.id, k2.id), hostile ? { s: 1, t: tick, until: 0 } : { s: 3, t: tick, until: tick + 3000 });
+  warStats[hostile ? 'rebellions' : 'splits'] = (warStats[hostile ? 'rebellions' : 'splits'] || 0) + 1;
+  rebuildRelations();
+  k.unrest = Math.min(k.unrest, 35); k.lastRebel = tick; k2.lastRebel = tick; ownDirty = true; dirty = true;
+  fx('warcry', rx, ry);
+  return k2;
+}
+function absorbKingdom(a, b) {                              // b joins a: houses, people, resources, techs, relations
+  for (let i = 0; i < N; i++) if (kid[i] === b.id) kid[i] = a.id;
+  for (const c of creatures) if (c.k === b.id) c.k = a.id;
+  if (b.leader) b.leader.lead = 0;
+  a.food = Math.min(400, a.food + b.food); a.wood = Math.min(250, a.wood + b.wood); a.stone = Math.min(250, a.stone + b.stone); a.gold = Math.min(250, a.gold + b.gold);
+  if (b.tech.length > a.tech.length) { a.tech = b.tech.slice(); recalcMods(a); }
+  for (const key in b.lm) if (!(key in a.lm)) a.lm[key] = b.lm[key];
+  a.level = Math.max(a.level, b.level);
+  for (const [key, r] of [...rels]) {
+    const x = Math.floor(key / 65536), y = key % 65536;
+    if (x !== b.id && y !== b.id) continue;
+    const o = x === b.id ? y : x; rels.delete(key);
+    if (o !== a.id && !rels.has(rkey(a.id, o))) rels.set(rkey(a.id, o), r);
+  }
+  kingdoms.delete(b.id); rebuildRelations(); ownDirty = true; dirty = true; warStats.merged = (warStats.merged || 0) + 1;
+  fx('levelup', Math.round(a.cx), Math.round(a.cy));
+}
+function kingdomsAt(wx, wy, r) {                            // the kingdom under the finger first, then any others in the brush
+  const out = [], seen = new Set();
+  const add = k => { if (k && !seen.has(k.id)) { seen.add(k.id); out.push(k); } };
+  if (inb(wx, wy)) add(kingdoms.get(kid[wx + wy*W]) || kingdoms.get(own[wx + wy*W]));
+  forDisc(wx, wy, r, (x, y, i) => { if (bld[i]) add(kingdoms.get(kid[i])); });
+  return out;
+}
 /* ---- war & diplomacy ---- */
 const AGGR = { orc:.04, human:.012, dwarf:.008, elf:.005, werewolf:0 };            // chance per evaluation that a kingdom picks a fight with a neighbour
 const SOLDIER_PCT = { orc:55, human:30, dwarf:35, elf:25, werewolf:45 };
@@ -799,7 +892,7 @@ function grantTech(k) {                                    // divine gift: the n
 function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
 function newKingdom(race, x, y) {
   const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
-              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
@@ -830,12 +923,12 @@ function terrainStats(k) {
   k.g = g; k.f = f; k.m = m;
 }
 function economy() {                                      // once per second
-  const redo = tick % 120 === 0;
+  const redo = tick % 120 === 0, rebellions = [];
   for (const k of kingdoms.values()) {
     const E = ECO[k.race];
     if (redo || (!k.g && !k.f && !k.m)) terrainStats(k);
     const M = k.mod;
-    k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food - k.pop*.18 * (1 + .15 * k.enemies.size));     // elves forage the forest; war strains the food supply
+    k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food * evFood(k) - k.pop*.18 * (1 + .15 * k.enemies.size));     // elves forage the forest; war strains the food supply
     k.wood = Math.min(250, k.wood + k.f*.012*E.w*M.wood);
     k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone);                 // quarries / trade even far from hills
     k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g*M.gold);
@@ -845,8 +938,19 @@ function economy() {                                      // once per second
     }
     if (k.food <= 0) {                                    // famine: someone starves
       k.food = 0;
-      if (k.pop > 3 && Math.random() < .3) { for (const c of creatures) if (c.k === k.id && c.hp > 0) { c.hp = 0; c.cause = 'old'; break; } }
+      if (k.pop > 3 && Math.random() < .3) killOneMember(k);
     }
+    if (k.ev && k.ev.type === 'plague' && k.pop > 2 && Math.random() < (M.regen ? .1 : .22)) killOneMember(k);        // plague kills (healers help)
+    if (k.food <= 0) k.unrest = Math.min(100, k.unrest + .8);                                                          // unrest: hunger, plague and long wars
+    else if (k.ev && k.ev.type === 'plague') k.unrest = Math.min(100, k.unrest + .5);
+    else if (k.enemies.size) k.unrest = Math.min(100, k.unrest + .1);
+    else k.unrest = Math.max(0, k.unrest - .8);
+    if (k.unrest >= 100 && k.houses >= 8 && k.level >= 2 && tick - k.lastRebel > 6000) rebellions.push(k);           // only mature kingdoms split, and not too often
+  }
+  for (const k of rebellions) {                           // rebellion: a breakaway kingdom that starts at war with its parent
+    k.unrest = 40; k.lastRebel = tick;
+    const k2 = splitKingdom(k, true);
+    if (k2 && tick - lastEvToast >= 24) { lastEvToast = tick; toast(`🔥 ${EMOJI[k.race]}${k2.name} ⚔️ ${k.name}`); }
   }
 }
 function levelCheck() {                                   // every 5 seconds
@@ -922,7 +1026,7 @@ function step() {
       const dd = (x - k.cx)**2 + (y - k.cy)**2;
       if (dd < k.bd) { k.bd = dd; k.nb = i; }
       // births need food; bigger kingdoms breed a little faster
-      if (k.food > 5 && Math.random() < (RACES[race].spawnP || .005) * (1 + k.level*.4) * k.mod.birth && (counts[race]||0) < capOf(race)) {
+      if (k.food > 5 && Math.random() < (RACES[race].spawnP || .005) * (1 + k.level*.4) * k.mod.birth * evBirth(k) && (counts[race]||0) < capOf(race)) {
         if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; } }
       }
     } else if (kid[i]) kid[i] = 0;
@@ -951,7 +1055,7 @@ function step() {
   }
   if (tick % 8 === 0) economy();
   if (tick % 16 === 0) updateFronts();
-  if (tick % 80 === 0) diplomacyTick();
+  if (tick % 80 === 0) { diplomacyTick(); eventsTick(); }
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -1118,6 +1222,12 @@ function draw() {
         ctx.save(); ctx.font = `${Math.max(14, SPR_K*7)}px sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = .75 + .25*Math.sin(frame*.15);
         ctx.fillText('⚔️', cx, hy - SPR_K*11); ctx.restore();
       }
+      if (isCap && kg.ev) {                                                      // event: aura + icon over the capital
+        ctx.fillStyle = kg.ev.type === 'plague' ? 'rgba(120,255,90,.10)' : kg.ev.type === 'drought' ? 'rgba(200,150,60,.12)' : 'rgba(255,230,120,.10)';
+        ctx.beginPath(); ctx.arc(cx, fy - hh*.4, hw*1.2, 0, 7); ctx.fill();
+        ctx.save(); ctx.font = `${Math.max(14, SPR_K*7)}px sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = .75 + .25*Math.sin(frame*.12);
+        ctx.fillText(EV_IC[kg.ev.type], cx + (kg.enemies.size ? SPR_K*8 : 0), hy - SPR_K*11); ctx.restore();
+      }
       if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(hx + hw*.2, hy + hh*.2, hw*.6, hh*.55); }
     }
     for (const kl of kingdoms.values()) for (const key in kl.lm) {                      // landmarks from technologies
@@ -1269,7 +1379,13 @@ const TOOLS = {
   meteor: { g:'powers', ic:'☄️', nm:'Meteor', ms:700 },
   bless:  { g:'powers', ic:'✨', nm:'Berkati', ms:120 },
   smite:  { g:'powers', ic:'💀', nm:'Bunuh', ms:90 },
-  enlighten:{ g:'powers', ic:'📖', nm:'Ilmu', ms:500 },
+  enlighten:{ g:'realm', ic:'📖', nm:'Ilmu', ms:99999 },
+  grace:  { g:'realm', ic:'🙏', nm:'Anugerah', ms:99999 },
+  plague: { g:'realm', ic:'☠️', nm:'Wabah', ms:99999 },
+  revolt: { g:'realm', ic:'🔥', nm:'Pemberontakan', ms:99999 },
+  peace:  { g:'realm', ic:'🕊️', nm:'Damaikan', ms:99999 },
+  unite:  { g:'realm', ic:'🤝', nm:'Satukan', ms:99999 },
+  split:  { g:'realm', ic:'✂️', nm:'Pecah', ms:99999 },
   inspect:{ g:'powers', ic:'🔍', nm:'Periksa', ms:0 },
 };
 
@@ -1322,10 +1438,45 @@ function applyTool(wx, wy) {
       break;
     }
     case 'enlighten': {
-      const seen = new Set();
-      forDisc(wx, wy, r, (x, y, i) => { const kk = kingdoms.get(kid[i]); if (kk) seen.add(kk); });
-      for (const kk of seen) grantTech(kk);
+      const list = kingdomsAt(wx, wy, r);
+      for (const kk of list) grantTech(kk);
       fx('bless', wx, wy); haptic('tap');
+      break;
+    }
+    case 'grace': case 'plague': case 'revolt': case 'peace': case 'unite': case 'split': {      // realm powers act once per touch
+      if (compDirty) computeComps();
+      const list = kingdomsAt(wx, wy, r);
+      if (!list.length) { toast('🏰 ?'); break; }
+      const k = list[0];
+      if (tool === 'grace') {
+        for (const kk of list) {
+          kk.food = Math.min(400, kk.food + 120); kk.wood = Math.min(250, kk.wood + 60); kk.stone = Math.min(250, kk.stone + 60); kk.gold = Math.min(250, kk.gold + 40);
+          kk.unrest = 0; kk.immune = tick + 4000; startEvent(kk, 'golden', true);
+          for (const c of creatures) if (c.k === kk.id) c.hp = c.mhp;
+          fx('levelup', Math.round(kk.cx), Math.round(kk.cy));
+        }
+        haptic('success');
+      } else if (tool === 'plague') {
+        for (const kk of list) startEvent(kk, 'plague');
+        haptic('warning');
+      } else if (tool === 'revolt') {
+        const k2 = splitKingdom(k, true);
+        toast(k2 ? `🔥 ${EMOJI[k.race]}${k2.name} ⚔️ ${k.name}` : '🏚️ terlalu kecil'); haptic('warning');
+      } else if (tool === 'peace') {
+        let n = 0; for (const kk of list) for (const eid of [...kk.enemies]) { const e = kingdoms.get(eid); if (e) { endWar(kk, e); n++; } }
+        toast(n ? '🕊️' : '🕊️ –'); haptic('tap');
+      } else if (tool === 'unite') {
+        let best = null, bd = 900;
+        for (const o of kingdoms.values()) {
+          if (o === k || o.race !== k.race || comp[o.cap] !== comp[k.cap]) continue;
+          const d = (o.cx - k.cx)**2 + (o.cy - k.cy)**2; if (d < bd) { bd = d; best = o; }
+        }
+        if (!best) toast('🤝 –');
+        else { const bigger = (k.houses + k.pop >= best.houses + best.pop) ? [k, best] : [best, k]; absorbKingdom(bigger[0], bigger[1]); toast(`🤝 ${bigger[0].name}`); haptic('success'); }
+      } else if (tool === 'split') {
+        const k2 = splitKingdom(k, false);
+        toast(k2 ? `✂️ ${k.name} | ${k2.name}` : '🏚️ terlalu kecil'); haptic('tap');
+      }
       break;
     }
     case 'smite':
@@ -1355,6 +1506,9 @@ function applyTool(wx, wy) {
 }
 
 let infoT = 0;
+function evLine(k) {
+  return (k.ev ? `<br>${EV_IC[k.ev.type]} ${EV_NAME[k.ev.type]}` : '') + (k.unrest >= 35 ? `<br>😠 ${Math.round(k.unrest)}%` : '');
+}
 function relLine(k) {
   const nm = set => [...set].map(id => kingdoms.get(id)).filter(Boolean).slice(0, 2).map(o => EMOJI[o.race] + o.name).join(', ');
   const en = nm(k.enemies), al = nm(k.allies);
@@ -1362,7 +1516,7 @@ function relLine(k) {
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🔬 ${ic || '–'}${rs}${relLine(k)}`;
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
 }
 function inspectAt(wx, wy) {
   const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa', werewolf:'Manusia serigala' };
@@ -1430,7 +1584,7 @@ const onKey = e => { if (e.code === 'KeyP' && !editMode) togglePause(); if (e.ke
 window.addEventListener('keydown', onKey);
 
 /* ============================== UI ============================== */
-const GROUPS = editMode ? [['terrain','⛰️'], ['world','🌍']] : [['terrain','⛰️'], ['life','🧑'], ['powers','⚡'], ['world','🌍']];
+const GROUPS = editMode ? [['terrain','⛰️'], ['world','🌍']] : [['terrain','⛰️'], ['life','🧑'], ['powers','⚡'], ['realm','👑'], ['world','🌍']];
 let group = 'terrain';
 const editTool = () => TOOLS[tool] && TOOLS[tool].g === 'terrain';
 
@@ -1514,13 +1668,13 @@ function serialize() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 7, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick,
+  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick,
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
-    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length]),
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick)]),
     cr: creatures.map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
 }
 function restore(s) {
-  if (!s || !(s.v >= 1 && s.v <= 7)) return false;
+  if (!s || !(s.v >= 1 && s.v <= 8)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
   currentSeed = s.seed || 0; tick = s.tick || 0;
@@ -1533,6 +1687,8 @@ function restore(s) {
     Object.assign(k, { level: a[3], food: a[4], wood: a[5], stone: a[6], gold: a[7], born: a[8] || 0, name: a[9] || k.name });
     for (const t of TECHS[race].slice(0, a[10] || 0)) { k.tech.push(t.id); if (t.lm) placeLandmark(k, t.lm); }       // techs are sequential: store only how many
     recalcMods(k);
+    if (a[11]) k.ev = { type: EV_ID[a[11]], left: a[12] || 600 };
+    k.unrest = a[13] || 0; k.immune = tick + (a[14] || 0);
     ids.push(k.id);
   }
   for (const [ia, ib, st, t0, un] of s.rl || []) { const ka = ids[ia - 1], kb = ids[ib - 1]; if (ka && kb) rels.set(rkey(ka, kb), { s: st, t: t0, until: un }); }
@@ -1606,7 +1762,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, warStats, declareWar, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
