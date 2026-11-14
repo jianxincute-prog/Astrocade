@@ -361,7 +361,7 @@ infoEl.addEventListener('pointerdown', e => {
 window.addEventListener('pointerup', e => {
   if (!shDrag) return; const dy = (e.clientY - shDrag.y0) / shDrag.k; shDrag = null;
   if (dy > 70) closeCreature(); else if (Math.abs(dy) < 12) infoEl.classList.toggle('tall');
-});      // an open info panel shrinks the dock to its tabs
+});
 
 function mkBtn(parent, label, fn, cls) {
   const b = document.createElement('button'); b.className = 'awb' + (cls ? ' ' + cls : ''); b.textContent = label;
@@ -395,7 +395,7 @@ function banner(icon, title, sub, kind) {                      // big, rare mess
   clearTimeout(bannerT); const me = bannerEl; bannerT = setTimeout(() => { me.classList.add('out'); setTimeout(() => me.remove(), 320); }, 3600);
 }
 function majorBanner(icon, text) {
-  const ic = String(icon).replace(/\uFE0F/g, ''); let t = null;
+  const ic = String(icon).replace(/️/g, ''); let t = null;
   if (ic === '🌋') t = 'Eruption!'; else if (ic === '☄') t = 'Meteor strike!'; else if (ic === '🪨') t = 'Earthquake!';
   else if (ic === '🌊' && /flood/i.test(text)) t = 'Flood!'; else if (ic === '☠' && /extinct/.test(text)) t = 'Extinction'; else if (ic === '⚔' && /declared war/.test(text)) t = 'War!'; else if (ic === '🏚' && /collapsed/.test(text)) t = 'Kingdom falls';
   if (t) banner(icon, t, text, 'bad');
