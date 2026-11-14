@@ -141,8 +141,17 @@ style.textContent = `
   #awbrush span{min-width:40px;text-align:center}
   #awrow2{display:flex;gap:8px;margin-top:10px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x;padding-bottom:4px}
   #awrow2::-webkit-scrollbar{display:none}
-  #awinfo{position:absolute;left:14px;top:960px;max-width:690px;background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
+  #awinfo{position:absolute;left:14px;bottom:226px;width:692px;box-sizing:border-box;background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
   #awinfo b{font-size:30px;color:#ffe9a0}
+  #awinfo .ibtns{float:right;display:flex;gap:8px;margin:-2px 0 0 10px}
+  #awinfo .ibt{width:76px;height:76px;flex-basis:76px;border-radius:14px}
+  #awinfo .pt{float:left;width:80px;height:80px;margin:0 16px 4px 0;image-rendering:pixelated;background:rgba(255,255,255,.07);border:2px solid #2c3868;border-radius:14px;padding:4px;box-sizing:border-box}
+  #awinfo .dsc{display:block;font-size:22px;line-height:1.3;color:#aab4e0;margin:4px 0 6px}
+  #awinfo .tag{display:inline-block;font-size:20px;font-weight:800;background:#2c3868;border-radius:8px;padding:0 8px;margin-left:8px;vertical-align:3px}
+  #awinfo .bar{display:flex;align-items:center;gap:8px;font-size:22px;margin:3px 0;clear:both}
+  #awinfo .bar u{display:block;flex:1;height:14px;background:#0b1020;border:2px solid #2c3868;border-radius:7px;overflow:hidden;text-decoration:none}
+  #awinfo .bar u i{display:block;height:100%}
+  #awinfo .row{font-size:24px;margin-top:4px;clear:both}
   #awtoast{position:absolute;left:50%;top:204px;transform:translateX(-50%);background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:8px 24px;font-size:28px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.4)}
 `;
 document.head.appendChild(style);
@@ -864,6 +873,7 @@ const ICON_ART = {
   drought: '...o....o.../..oeooooeo../...oeeeeo.../..oeeyyeeo../..oeyyyyeo../..oeeyyeeo../...oeeeeo.../.ooeooooeoo./okkkkkkkkkko/okKkkKkkKkko/.oooooooooo./............'
 };
 
+Object.assign(ICON_ART, { target: '...oooooo.../..orrrrrro../.orwwwwwwro./orrwoooowrro/orwwoyyowwro/orwwoyyowwro/orrwoooowrro/.orwwwwwwro./..orrrrrro.../...oooooo.../............/............', close: '............/.oo......oo./.orro..orro./..orroorro../...orrrro.../....orro..../....orro..../...orrrro.../..orroorro../.orro..orro./.oo......oo./............' });
 Object.assign(ICON_ART, { shield: '.oooooooooo./.oWWWwwWWWo./.oWsswwsSWo./.oWsswwsSWo./.oWsswwsSWo./..oWsswsSo../..oWssssSo../...oWssSo.../....oSSo..../.....oo...../............/............' });
 Object.assign(ICON_ART, {"bronze": "............/............/....oooo..../...oeeeeo.../...okkkko.../.oooooooooo./oeeeeooeeeeo/okkkkookkkko/oooooooooooo/............/............/............", "iron": "............/............/....oooo..../...osssso.../...oSSSSo.../.oooooooooo./ossssoosssso/oSSSSooSSSSo/oooooooooooo/............/............/............", "silver": "............/............/....oooo..../...owwwwo.../...oWWWWo.../.oooooooooo./owwwwoowwwwo/oWWWWooWWWWo/oooooooooooo/............/............/............"});
 const ICON = {};                                           // name -> canvas (12x12 art icons, 16x16 creature portraits)
@@ -887,7 +897,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
+Object.assign(EMOJI_ICON, { '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -1895,6 +1905,7 @@ function draw() {
       const spr = ATLAS[c.t][f], sw = spr.width * SPR_K, sh = spr.height * SPR_K;
       const crowned = c.lead && c.k && kingdoms.has(c.k) && kingdoms.get(c.k).level >= 1;       // sprites may be bigger than 10x10
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - sw*.3, fy - Math.max(1, sw*.08), sw*.6, Math.max(1, sw*.1));
+      if (c === selected) { ctx.strokeStyle = `rgba(255,214,74,${.65 + .3*Math.sin(frame*.2)})`; ctx.lineWidth = Math.max(2, SPR_K*.7); ctx.beginPath(); ctx.ellipse(cx, fy - sw*.03, sw*.55, sw*.2, 0, 0, 7); ctx.stroke(); }
       if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -sw/2 + lunge, fy - sh, sw, sh); ctx.restore(); }
       else ctx.drawImage(spr, cx - sw/2 + lunge, fy - sh, sw, sh);
       if (c.elite) {                                                                    // iron knight: helmet, crest and shield over the race sprite
@@ -2023,7 +2034,7 @@ function drawEffects() {
 }
 
 /* ============================== TOOLS ============================== */
-let tool = 'raise', hover = null, painting = false, panning = false;
+let tool = editMode ? 'raise' : 'inspect', hover = null, painting = false, panning = false;
 let brush = 3, lastApply = 0, lastPointer = [0, 0];
 const brushR = () => brush - 1;
 const TOOLS = {
@@ -2298,8 +2309,98 @@ function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '';
   return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Zaman Batu', 'Zaman Perunggu', 'Zaman Besi'][k.age | 0]}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
 }
+/* ============================== CREATURE PANEL ============================== */
+let selected = null, following = false, deadNote = 0;
+const NAME_POOL = {
+  human: [['Al', 'Bran', 'Cor', 'Da', 'Ed', 'Fen', 'Gar', 'Hal', 'Ivo', 'Jor', 'Kel', 'Lia', 'Mor', 'Nia', 'Ow', 'Per'], ['dric', 'na', 'mund', 'ra', 'wyn', 'vin', 'lo', 'ric']],
+  elf: [['Ael', 'Lir', 'Sae', 'Thi', 'Nyl', 'Ere', 'Cae', 'Ily', 'Fae'], ['rin', 'wen', 'dor', 'sia', 'lian', 'vyr', 'thas']],
+  dwarf: [['Bor', 'Dur', 'Gim', 'Kaz', 'Thor', 'Mor', 'Bal', 'Dwa', 'Hrol'], ['in', 'gar', 'rik', 'dok', 'li', 'mund', 'bek']],
+  orc: [['Gor', 'Zug', 'Mog', 'Gra', 'Kru', 'Ugh', 'Naz', 'Bog', 'Hrak'], ['ash', 'gul', 'dak', 'rok', 'nak', 'uk', 'mash']],
+  werewolf: [['Lun', 'Fen', 'Va', 'Gre', 'Nox', 'Ulv', 'Sko', 'Mar'], ['fang', 'ra', 'mar', 'wyr', 'claw', 'howl']],
+  sheep: ['Wolly', 'Puff', 'Awan', 'Mbek', 'Kapas', 'Bulu'], rabbit: ['Hop', 'Fluff', 'Lompat', 'Nibble', 'Kenyal', 'Cebol'],
+  deer: ['Elm', 'Fawn', 'Aspen', 'Rimba', 'Birch', 'Embun'], wolf: ['Fang', 'Shadow', 'Ash', 'Kelam', 'Taring', 'Grey'],
+  ram: ['Pendobrak'], catapult: ['Katapel'], dcatapult: ['Katapel Besi'], cart: ['Gerobak'],
+};
+const DESC = {
+  human: 'Petani dan pembangun yang giat. Cepat berkembang biak dan pandai berdagang.',
+  elf: 'Penjaga hutan berumur panjang. Pemanah ulung yang mencintai alam.',
+  dwarf: 'Penambang tangguh dari perbukitan. Ahli menempa dan mencari logam.',
+  orc: 'Pejuang buas yang hidup dari perang dan rampasan.',
+  werewolf: 'Serigala yang berevolusi. Netral, makin kuat di malam hari.',
+  sheep: 'Hewan jinak pemakan rumput. Mangsa serigala.',
+  wolf: 'Pemburu buas. Menyerang domba, kelinci dan rusa, bahkan manusia saat lapar.',
+  rabbit: 'Lincah dan cepat berkembang biak. Lari dari serigala.',
+  deer: 'Penghuni hutan yang pemalu. Lari dari serigala.',
+  ram: 'Mesin pengepung orc. Menghantam dinding musuh.',
+  catapult: 'Mesin pengepung manusia. Melempar batu dari jauh.',
+  dcatapult: 'Katapel besi kurcaci. Melempar batu dari jauh.',
+  cart: 'Gerobak dagang yang membawa barang antar kerajaan.',
+};
+const TYPE_NAME = { human: 'Manusia', elf: 'Elf', dwarf: 'Kurcaci', orc: 'Orc', sheep: 'Domba', wolf: 'Serigala', rabbit: 'Kelinci', deer: 'Rusa', werewolf: 'Manusia serigala', ram: 'Pendobrak', catapult: 'Katapel', dcatapult: 'Katapel besi', cart: 'Gerobak' };
+function nameOf(c) {
+  if (c.nm) return c.nm;
+  const P = NAME_POOL[c.t], h = hash(c.id, 7, 11);
+  c.nm = Array.isArray(P[0]) ? P[0][Math.floor(h * P[0].length)] + P[1][Math.floor(hash(c.id, 9, 13) * P[1].length)] : P[Math.floor(h * P.length)];
+  return c.nm;
+}
+function roleOf(c) {
+  const R = RACES[c.t];
+  if (R.cart) return 'Pedagang'; if (R.engine) return 'Mesin perang';
+  if (c.elite) return 'Ksatria besi'; if (c.lead) return 'Pemimpin';
+  if (R.civ) return isSoldier(c) ? 'Prajurit' : 'Warga';
+  return R.hunt ? 'Pemburu' : 'Mangsa';
+}
+function statusOf(c) {
+  const R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null, r = c.hp / c.mhp;
+  if (c.hp <= 0) return 'Mati';
+  if (fire[c.x + c.y*W]) return 'Terbakar';
+  if (r < .35) return 'Sekarat'; if (r < .7) return 'Terluka';
+  if (R.hunt && c.en < 45) return 'Lapar';
+  if (k && k.enemies.size && (c.elite || c.lead || isSoldier(c))) return 'Berperang';
+  return 'Sehat';
+}
+function portraitURL(t) {
+  if (!ICON['cr:' + t]) { const sp = ATLAS[t].A, cv2 = document.createElement('canvas'); cv2.width = Math.max(16, sp.width); cv2.height = Math.max(16, sp.height); cv2.getContext('2d').drawImage(sp, Math.floor((cv2.width - sp.width) / 2), cv2.height - sp.height); ICON['cr:' + t] = cv2; }
+  return iconURL('cr:' + t);
+}
+function creatureHtml(c) {
+  const R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null, hp = Math.max(0, c.hp / c.mhp), st = statusOf(c);
+  const col = hp > .6 ? '#5fdc6a' : hp > .3 ? '#ffcf4a' : '#ff5a4a', bar = (ic, pct, cl) => `<div class="bar">${ic}<u><i style="width:${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%;background:${cl}"></i></u></div>`;
+  let h = `<div class="ibtns"><button class="awb ibt${following ? ' on' : ''}" data-act="follow">🎯</button><button class="awb ibt" data-act="close">✖</button></div>`;
+  h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${st}`;
+  h += `<span class="dsc">${DESC[c.t] || ''}</span>`;
+  h += bar('❤️', hp, col) + (R.hunt ? bar('⚡', c.en / 100, '#ffd23f') : '') + bar('⏳', c.age / c.life, '#6aa8ff');
+  h += `<div class="row">${(c.age / 120).toFixed(1)}/${(c.life / 120).toFixed(1)}${c.kills ? ' · ⚔️ ' + c.kills : ''}${k ? ` · ${LV_ICON[k.level]} ${k.name} ${EMOJI[k.race]}` : ''}</div>`;
+  return h;
+}
+function pickCreatureAt(px, py) {                                   // nearest creature to a screen point (sprites stand above their tile)
+  const fx0 = (px - ox) / sc, fy0 = (py - oy) / sc; let best = null, bd = 1.7;
+  for (const c of creatures) {
+    if (c.hp <= 0) continue;
+    const d = (c.dx + .5 - fx0) ** 2 + (c.dy - .1 - fy0) ** 2; if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+function showCreature(c) { selected = c; following = false; deadNote = 0; clearTimeout(infoT); infoLast = infoEl.innerHTML = creatureHtml(c); infoEl.style.display = 'block'; }
+function closeCreature() { selected = null; following = false; deadNote = 0; infoEl.style.display = 'none'; }
+function refreshCreature() {
+  if (!selected) return;
+  if (selected.hp <= 0) { if (!deadNote) { deadNote = 1; infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><img class="pt" src="${portraitURL(selected.t)}" alt=""><b>${nameOf(selected)}</b><span class="tag">Mati</span><br>${TYPE_NAME[selected.t]} · ${selected.cause === 'old' ? '⏳' : '💀'}`; setTimeout(() => { if (deadNote) closeCreature(); }, 2200); } return; }
+  if (infoHold) return;                                              // do not rebuild the buttons under a finger
+  const h = creatureHtml(selected); if (h !== infoLast) { infoLast = h; infoEl.innerHTML = h; }
+}
+infoEl.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  if (a.dataset.act === 'close') closeCreature();
+  else if (a.dataset.act === 'follow') { following = !following; infoHold = false; refreshCreature(); }
+});
+let infoHold = false, infoLast = '';
+infoEl.addEventListener('pointerdown', () => { infoHold = true; });
+window.addEventListener('pointerup', () => { infoHold = false; });
+window.addEventListener('pointercancel', () => { infoHold = false; });
 function inspectAt(wx, wy) {
   const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa', werewolf:'Manusia serigala' };
+  closeCreature();
   let best = null, bd = 9, house = -1;
   for (let dy = -1; dy <= 1 && house < 0; dy++) for (let dx = -1; dx <= 1; dx++) { if (inb(wx+dx, wy+dy) && bld[wx+dx + (wy+dy)*W]) { house = wx+dx + (wy+dy)*W; break; } }
   if (house >= 0 && kingdoms.has(kid[house])) infoEl.innerHTML = kingdomHtml(kingdoms.get(kid[house]));
@@ -2357,7 +2458,7 @@ cv.addEventListener('pointermove', e => {
     if (!pend.held && !pend.moved && Math.hypot(p[0] - pend.x0, p[1] - pend.y0) > PAN_SLOP) { pend.moved = true; clearTimeout(holdT); panning = true; hover = null; }
   }
   if (ptrs.size === 2) { ox += ddx / 2; oy += ddy / 2; clampCam(); }
-  else if (panning) { ox += ddx; oy += ddy; clampCam(); velX = velX * .6 + ddx * .4; velY = velY * .6 + ddy * .4; }
+  else if (panning) { following = false; ox += ddx; oy += ddy; clampCam(); velX = velX * .6 + ddx * .4; velY = velY * .6 + ddy * .4; }
   else if (!painting) hover = toWorld(p[0], p[1]);
   else hover = toWorld(p[0], p[1]);
   lastPointer = p;
@@ -2368,7 +2469,9 @@ const endPtr = e => {
     clearTimeout(holdT);
     if (!pend.moved && !pend.held && e.type === 'pointerup') {                 // a tap
       const h = toWorld(pend.x0, pend.y0); hover = h;
-      if (tool === 'inspect') inspectAt(h[0], h[1]);
+      const pk = !editMode && (tool === 'inspect' || (TOOLS[tool] && TOOLS[tool].g === 'life')) ? pickCreatureAt(pend.x0, pend.y0) : null;
+      if (pk) showCreature(pk);
+      else if (tool === 'inspect') inspectAt(h[0], h[1]);
       else if (!(editMode && !editTool())) { applyTool(h[0], h[1]); reapDead(); if (editMode) persistWorld(); }
     }
     pend = null;
@@ -2387,7 +2490,7 @@ window.addEventListener('keydown', onKey);
 
 /* ============================== UI ============================== */
 const GROUPS = editMode ? [['terrain','⛰️'], ['world','🌍']] : [['terrain','⛰️'], ['life','🧑'], ['powers','⚡'], ['realm','👑'], ['world','🌍']];
-let group = 'terrain';
+let group = editMode ? 'terrain' : 'powers';
 const editTool = () => TOOLS[tool] && TOOLS[tool].g === 'terrain';
 
 function persistWorld() {
@@ -2571,6 +2674,7 @@ function loop(now) {
     while (acc >= 1 && n < 30) { step(); acc--; n++; }
     if (acc > 30) acc = 0;
   }
+  if (following && selected && selected.hp > 0) { ox += (VIEW.x + VIEW.w/2 - (selected.dx + .5)*sc - ox) * .18; oy += (VIEW.y + VIEW.h/2 - (selected.dy + .5)*sc - oy) * .18; clampCam(); }
   if (inertia) { ox += velX; oy += velY; velX *= .88; velY *= .88; clampCam(); if (Math.hypot(velX, velY) < .4) inertia = false; }
   if (painting && now - lastApply >= (TOOLS[tool] ? TOOLS[tool].ms : 100)) {
     lastApply = now;
@@ -2578,7 +2682,7 @@ function loop(now) {
     applyTool(wx, wy); reapDead();
   }
   draw();
-  if (now - statT > 250) { statT = now; updateStats(); }
+  if (now - statT > 250) { statT = now; updateStats(); refreshCreature(); }
   if (now - saveT > 15000) { saveT = now; autosave(); }
   if (!editMode && tick > 1200 && now - lbT > 60000) { lbT = now; if (civScore() > bestSent * 1.1) submitScore(false); }
   rafId = requestAnimationFrame(loop);
@@ -2613,7 +2717,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
