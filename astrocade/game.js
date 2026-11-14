@@ -17,9 +17,9 @@ const SCREEN_W = 720, SCREEN_H = 1280;
 const VIEW = { x: 0, y: 190, w: 720, h: 866 };          // world viewport on the canvas
 // Three selectable world sizes. k scales population caps (not linearly, to keep phones smooth).
 const SIZES = [
-  { name:'S', label:'Kecil',  w:120, h:148, k:1,   land:0,   coarse:0,   wc:0 },
-  { name:'M', label:'Sedang', w:200, h:246, k:2,   land:.39, coarse:.21, wc:.62 },
-  { name:'L', label:'Besar',  w:240, h:296, k:2.6, land:.40, coarse:.19, wc:.64 },
+  { name:'S', label:'Small',  w:120, h:148, k:1,   land:0,   coarse:0,   wc:0 },
+  { name:'M', label:'Medium', w:200, h:246, k:2,   land:.39, coarse:.21, wc:.62 },
+  { name:'L', label:'Large',  w:240, h:296, k:2.6, land:.40, coarse:.19, wc:.64 },
 ];
 let sizeIdx = 1, W = SIZES[1].w, H = SIZES[1].h, N = W * H, CAPK = SIZES[1].k;
 let GW = 0, GH = 0, cells = [];
@@ -50,7 +50,7 @@ const RACES = {
 };
 // ---- Kingdoms (civilization layer) ----
 const ECO = { human:{f:1.3,w:1,s:1,g:1,m:1}, elf:{f:.9,w:1.6,s:.6,g:.6,m:.7}, dwarf:{f:1.1,w:.7,s:2,g:3,m:2}, orc:{f:1,w:1,s:1,g:.8,m:1.1}, werewolf:{f:1,w:1,s:.8,g:.6,m:.7} };
-const LV_ICON = ['🛖','🏘️','🏙️','🏰'], LV_NAME = ['Suku','Desa','Kota','Kerajaan'];
+const LV_ICON = ['🛖','🏘️','🏙️','🏰'], LV_NAME = ['Tribe','Village','Town','Kingdom'];
 const LV_REQ = [ { pop:6, houses:3, wood:15 }, { pop:16, houses:7, stone:30, food:40, bronze:8 }, { pop:32, houses:12, gold:25, stone:40, iron:12, silver:10 } ];
 const NAME_P = {
   human:[['Al','Ber','Cor','Dun','El','Fen','Gar','Hol','Ith','Kar','Lor','Mar'],['ia','ford','ton','mark','heim','vale']],
@@ -63,34 +63,34 @@ const NAME_P = {
 // fx keys: food/wood/stone/gold/birth/atk/def multiply; houses/radius add; range/night/loot/steal/regen/fire/farms/walls/grow are flags or maxima.
 const TECHS = {
   human: [
-    { id:'agri',    ic:'🌾', n:'Pertanian',        lv:1, cost:{ wood:30 },            fx:{ food:1.4, birth:1.1, farms:1 } },
-    { id:'walls',   ic:'🧱', n:'Tembok',           lv:2, cost:{ stone:60, wood:30 },  fx:{ houses:4, def:1.25, radius:2, walls:1 } },
-    { id:'knight',  ic:'⚔️', n:'Ksatria',          lv:2, cost:{ gold:40, stone:50, iron:12 },  fx:{ atk:1.3, def:1.3 } },
-    { id:'trade',   ic:'🪙', n:'Perdagangan',      lv:3, cost:{ gold:80, silver:12 },            fx:{ gold:2, food:1.2, birth:1.25 } },
+    { id:'agri',    ic:'🌾', n:'Farming',           lv:1, cost:{ wood:30 },            fx:{ food:1.4, birth:1.1, farms:1 } },
+    { id:'walls',   ic:'🧱', n:'Walls',             lv:2, cost:{ stone:60, wood:30 },  fx:{ houses:4, def:1.25, radius:2, walls:1 } },
+    { id:'knight',  ic:'⚔️', n:'Knighthood',        lv:2, cost:{ gold:40, stone:50, iron:12 },  fx:{ atk:1.3, def:1.3 } },
+    { id:'trade',   ic:'🪙', n:'Trade',             lv:3, cost:{ gold:80, silver:12 },            fx:{ gold:2, food:1.2, birth:1.25 } },
   ],
   elf: [
-    { id:'forest',  ic:'🌿', n:'Hutan Hidup',      lv:1, cost:{ wood:30 },            fx:{ wood:1.3, food:1.2, grow:1 } },
-    { id:'archer',  ic:'🏹', n:'Pemanah',          lv:1, cost:{ wood:40, gold:20, bronze:8 },   fx:{ range:3, atk:1.1 } },
-    { id:'ward',    ic:'🔥', n:'Pelindung Api',    lv:2, cost:{ wood:60, stone:20, silver:8 },  fx:{ fire:1, def:1.15 } },
-    { id:'treelife',ic:'🌳', n:'Pohon Kehidupan',  lv:3, cost:{ wood:120, gold:60 },  fx:{ regen:.08, birth:1.3 }, lm:'lifetree' },
+    { id:'forest',  ic:'🌿', n:'Living Forest',     lv:1, cost:{ wood:30 },            fx:{ wood:1.3, food:1.2, grow:1 } },
+    { id:'archer',  ic:'🏹', n:'Archery',           lv:1, cost:{ wood:40, gold:20, bronze:8 },   fx:{ range:3, atk:1.1 } },
+    { id:'ward',    ic:'🔥', n:'Fire Ward',         lv:2, cost:{ wood:60, stone:20, silver:8 },  fx:{ fire:1, def:1.15 } },
+    { id:'treelife',ic:'🌳', n:'Tree of Life',      lv:3, cost:{ wood:120, gold:60 },  fx:{ regen:.08, birth:1.3 }, lm:'lifetree' },
   ],
   dwarf: [
-    { id:'mining',  ic:'⛏️', n:'Tambang',          lv:1, cost:{ stone:20 },           fx:{ stone:2, gold:1.5 }, lm:'mine' },
-    { id:'forge',   ic:'🔨', n:'Tempa',            lv:2, cost:{ stone:60, gold:20, iron:15 },  fx:{ def:1.4, atk:1.2 } },
-    { id:'vault',   ic:'🏦', n:'Brankas',          lv:2, cost:{ gold:60, stone:60, silver:15 },  fx:{ gold:2, houses:4 } },
-    { id:'hold',    ic:'🏯', n:'Benteng Gunung',   lv:3, cost:{ gold:100, stone:120, iron:20 },fx:{ radius:3, def:1.5 } },
+    { id:'mining',  ic:'⛏️', n:'Mining',            lv:1, cost:{ stone:20 },           fx:{ stone:2, gold:1.5 }, lm:'mine' },
+    { id:'forge',   ic:'🔨', n:'Forge',             lv:2, cost:{ stone:60, gold:20, iron:15 },  fx:{ def:1.4, atk:1.2 } },
+    { id:'vault',   ic:'🏦', n:'Vault',             lv:2, cost:{ gold:60, stone:60, silver:15 },  fx:{ gold:2, houses:4 } },
+    { id:'hold',    ic:'🏯', n:'Mountain Hold',     lv:3, cost:{ gold:100, stone:120, iron:20 },fx:{ radius:3, def:1.5 } },
   ],
   orc: [
-    { id:'camp',    ic:'🪓', n:'Kamp Perang',      lv:1, cost:{ wood:30 },            fx:{ atk:1.25, birth:1.2 }, lm:'warbanner' },
-    { id:'raid',    ic:'🩸', n:'Penyerbuan',       lv:1, cost:{ stone:20, gold:10, bronze:8 },  fx:{ loot:1 } },
-    { id:'totem',   ic:'💀', n:'Totem Darah',      lv:2, cost:{ stone:40, gold:30, bronze:10 },  fx:{ steal:.3, atk:1.15 }, lm:'bloodtotem' },
-    { id:'horde',   ic:'👹', n:'Gerombolan',       lv:3, cost:{ gold:60, wood:60, iron:15 },   fx:{ birth:1.5, houses:4, def:1.25 } },
+    { id:'camp',    ic:'🪓', n:'War Camp',          lv:1, cost:{ wood:30 },            fx:{ atk:1.25, birth:1.2 }, lm:'warbanner' },
+    { id:'raid',    ic:'🩸', n:'Raiding',           lv:1, cost:{ stone:20, gold:10, bronze:8 },  fx:{ loot:1 } },
+    { id:'totem',   ic:'💀', n:'Blood Totem',       lv:2, cost:{ stone:40, gold:30, bronze:10 },  fx:{ steal:.3, atk:1.15 }, lm:'bloodtotem' },
+    { id:'horde',   ic:'👹', n:'The Horde',         lv:3, cost:{ gold:60, wood:60, iron:15 },   fx:{ birth:1.5, houses:4, def:1.25 } },
   ],
   werewolf: [
-    { id:'moon',    ic:'🌙', n:'Doa Bulan',        lv:0, cost:{ wood:20 },            fx:{ night:1.4 } },
-    { id:'pack',    ic:'🐾', n:'Kawanan',          lv:1, cost:{ stone:20, silver:6 },           fx:{ birth:1.4 } },
-    { id:'spirit',  ic:'🔮', n:'Totem Roh',        lv:2, cost:{ stone:40, gold:20, silver:8 },  fx:{ radius:3, regen:.05 }, lm:'spirittotem' },
-    { id:'full',    ic:'🌕', n:'Bulan Purnama',    lv:3, cost:{ gold:50, silver:10 },            fx:{ night:2, birth:1.5 } },
+    { id:'moon',    ic:'🌙', n:'Moon Prayer',       lv:0, cost:{ wood:20 },            fx:{ night:1.4 } },
+    { id:'pack',    ic:'🐾', n:'The Pack',          lv:1, cost:{ stone:20, silver:6 },           fx:{ birth:1.4 } },
+    { id:'spirit',  ic:'🔮', n:'Spirit Totem',      lv:2, cost:{ stone:40, gold:20, silver:8 },  fx:{ radius:3, regen:.05 }, lm:'spirittotem' },
+    { id:'full',    ic:'🌕', n:'Full Moon',         lv:3, cost:{ gold:50, silver:10 },            fx:{ night:2, birth:1.5 } },
   ],
 };
 const BORDER_RGB = [null, [74,163,255], [226,169,255], [255,154,46], [255,61,61], [94,240,255]];     // by house owner index (race.bi)
@@ -757,7 +757,7 @@ function marketHtml() {
   let live = 0; for (const c of creatures) if (c.hp > 0 && RACES[c.t].cart) live++;
   const rows = COMM.map(c => { const d = market.d[c] || 0; return `${CEMO[c]}${market.p[c].toFixed(1)}${d > .02 ? '▲' : d < -.02 ? '▼' : '–'}`; });
   const items = shop.slice(-6).map(r => `${GEAR_ICON[r.it[0]]}${'I'.repeat(r.it[1])}${r.it[3] ? '✨' : ''} ${r.price}`).join(' &nbsp; ');
-  return `<b>🏦 Pasar</b> 🪙<br>${rows.join(' &nbsp; ')}<br>🛒 ${live} · ${market.trades} · 🎒 ${market.sold | 0}/${market.bought | 0}${items ? '<br>' + items : ''}`;
+  return `<b>🏦 Market</b> 🪙<br>${rows.join(' &nbsp; ')}<br>🛒 ${live} · ${market.trades} · 🎒 ${market.sold | 0}/${market.bought | 0}${items ? '<br>' + items : ''}`;
 }
 /* ============================== TERRAIN POLISH: peaks, hills, volcanoes, particles, flames ============================== */
 const TERRAIN_PAL = {"o": "#2a2432", "L": "#b4b0bc", "l": "#cfccd6", "M": "#8e8a9a", "D": "#605c70", "d": "#46425a", "S": "#f4f8ff", "s": "#c6d6f0", "b": "#9ab0d8", "g": "#6f9a58", "G": "#4f7a3e", "h": "#8cba6a"}, TERRAIN_PAL_V = {"o": "#2a2432", "L": "#b4b0bc", "l": "#cfccd6", "M": "#8e8a9a", "D": "#605c70", "d": "#46425a", "S": "#f4f8ff", "s": "#c6d6f0", "b": "#9ab0d8", "g": "#6f9a58", "G": "#4f7a3e", "h": "#8cba6a", "e": "#ff8a2a", "y": "#ffe27a", "r": "#d8421e"};
@@ -1370,7 +1370,7 @@ function fx(kind, x, y, extra) { sndFx(kind, x, y, extra); effects.push(Object.a
 
 /* ============================== CREATURES ============================== */
 /* ============================== PERSONA: traits, equipment, history ============================== */
-const TRAITS = ['Pemberani', 'Tangguh', 'Gesit', 'Berumur panjang', 'Rapuh', 'Berbakat'];        // bit 1,2,4,8,16,32
+const TRAITS = ['Brave', 'Sturdy', 'Swift', 'Long-lived', 'Frail', 'Gifted'];        // bit 1,2,4,8,16,32
 const W_ATK = [0, .08, .2, .4], A_DEF = [0, .06, .18, .35], S_DEF = [0, .05, .1, .18], A_HP = [0, 2, 5, 9];
 function rollTraits() {
   let m = 0; const r = Math.random(), n = r < .15 ? 0 : r < .8 ? 1 : 2;
@@ -1393,9 +1393,9 @@ function addHist(c, code, arg) {                               // life events of
 const GEAR_COST = [ [{ wood: 2 }, { wood: 2 }, { wood: 3 }], [{ bronze: 2 }, { bronze: 3 }, { bronze: 2, wood: 2 }], [{ iron: 2 }, { iron: 4 }, { iron: 3 }] ];
 const afford = (k, c) => ['wood', 'stone', 'bronze', 'iron', 'silver'].every(x => !c[x] || (k[x] || 0) >= c[x]);
 const ENCH = [null,
-  { n: 'Berapi', c: '#ff7a2a', d: '20% menyulut api' }, { n: 'Beracun', c: '#7ae04a', d: 'racun terus melukai' }, { n: 'Penghisap darah', c: '#ff3a5a', d: 'menyerap 25% kerusakan' }, { n: 'Penyambar', c: '#6af0ff', d: '15% petir ke musuh lain' },
-  { n: 'Berduri', c: '#c8a070', d: 'memantulkan 25% serangan jarak dekat' }, { n: 'Pemulih', c: '#6aff9a', d: 'memulihkan hp perlahan' }, { n: 'Kebal api', c: '#ffb040', d: 'kebal api' },
-  { n: 'Penangkis', c: '#6aa8ff', d: '20% menangkis serangan' }, { n: 'Pelindung', c: '#ffe27a', d: '+20% hp' }];
+  { n: 'Flaming', c: '#ff7a2a', d: '20% chance to set the target ablaze' }, { n: 'Venomous', c: '#7ae04a', d: 'poison keeps wounding' }, { n: 'Vampiric', c: '#ff3a5a', d: 'drains 25% of the damage' }, { n: 'Storm', c: '#6af0ff', d: '15% lightning on another enemy' },
+  { n: 'Thorned', c: '#c8a070', d: 'reflects 25% of melee damage' }, { n: 'Regenerating', c: '#6aff9a', d: 'slowly restores hp' }, { n: 'Fireproof', c: '#ffb040', d: 'immune to fire' },
+  { n: 'Warding', c: '#6aa8ff', d: '20% chance to block a hit' }, { n: 'Guardian', c: '#ffe27a', d: '+20% hp' }];
 const ENCH_BY_SLOT = [[1, 2, 3, 4], [5, 6, 7], [8, 9]];
 const rollEnchant = sl => ENCH_BY_SLOT[sl][ri(0, ENCH_BY_SLOT[sl].length - 1)];
 const betterItem = (t, e, ct, ce) => t > ct || (t === ct && e && !ce);
@@ -1426,14 +1426,14 @@ function equipTick() {                                         // every ~10 s: k
   }
 }
 const GEAR_NAME = {
-  human: [['Tombak batu', 'Pedang perunggu', 'Pedang besi'], ['Zirah kulit', 'Zirah perunggu', 'Zirah besi'], ['Perisai kayu', 'Perisai perunggu', 'Perisai besi']],
-  elf: [['Busur kayu', 'Busur komposit', 'Busur panjang'], ['Jubah daun', 'Zirah sisik', 'Zirah rantai'], ['Perisai kulit kayu', 'Perisai perunggu', 'Perisai perak besi']],
-  dwarf: [['Palu batu', 'Kapak perunggu', 'Kapak perang besi'], ['Zirah kulit', 'Zirah perunggu', 'Zirah baja'], ['Perisai kayu', 'Perisai perunggu', 'Perisai menara besi']],
-  orc: [['Gada kayu', 'Kapak perunggu', 'Golok besi'], ['Pelindung kulit', 'Zirah perunggu', 'Zirah besi kasar'], ['Perisai kulit', 'Perisai perunggu', 'Perisai besi']],
-  werewolf: [['Cakar tulang', 'Cakar perunggu', 'Cakar baja'], ['Jubah bulu', 'Zirah perunggu', 'Zirah besi'], ['Perisai tulang', 'Perisai perunggu', 'Perisai besi']],
+  human: [['Stone spear', 'Bronze sword', 'Iron sword'], ['Hide armor', 'Bronze armor', 'Iron armor'], ['Wooden shield', 'Bronze shield', 'Iron shield']],
+  elf: [['Wooden bow', 'Composite bow', 'Longbow'], ['Leaf cloak', 'Scale armor', 'Chain armor'], ['Bark shield', 'Bronze shield', 'Silver-iron shield']],
+  dwarf: [['Stone hammer', 'Bronze axe', 'Iron war axe'], ['Hide armor', 'Bronze armor', 'Steel armor'], ['Wooden shield', 'Bronze shield', 'Iron tower shield']],
+  orc: [['Wooden club', 'Bronze axe', 'Iron cleaver'], ['Hide wraps', 'Bronze armor', 'Rough iron armor'], ['Hide shield', 'Bronze shield', 'Iron shield']],
+  werewolf: [['Bone claws', 'Bronze claws', 'Steel claws'], ['Fur cloak', 'Bronze armor', 'Iron armor'], ['Bone shield', 'Bronze shield', 'Iron shield']],
 };
 const GEAR_KIND = { human: ['spear', 'sword', 'sword'], elf: ['bow', 'bow', 'bow'], dwarf: ['axe', 'axe', 'axe'], orc: ['club', 'axe', 'axe'], werewolf: ['claw', 'claw', 'claw'] };
-const GEAR_ICON = ['⚔️', '🥋', '🛡'], HIST_TXT = { 2: 'Membunuh musuh pertamanya', 3: '5 kemenangan', 4: '10 kemenangan', 5: 'Pahlawan: 25 kemenangan', 6: 'Dinobatkan menjadi pemimpin', 7: 'Diangkat menjadi ksatria besi', 11: 'Nyaris tewas dan selamat' };
+const GEAR_ICON = ['⚔️', '🥋', '🛡'], HIST_TXT = { 2: 'Won a first fight', 3: '5 victories', 4: '10 victories', 5: 'Hero: 25 victories', 6: 'Crowned leader', 7: 'Made an iron knight', 11: 'Nearly died, but survived' };
 const TIER_COL = [null, ['#8a5a34', '#c8a070'], ['#c8803a', '#f0b868'], ['#aab2be', '#e8eef6']];
 const drops = [], dropMap = new Map();                         // gear lying on the ground: { x, y, s: slot, t: tier, r: origin race, e: enchant, b: tick dropped }
 function addDrop(x, y, sl, tier, race, ench) {
@@ -1724,7 +1724,7 @@ function evolveWolves() {
   }
   lastEvolve = tick; evolutions++; dirty = true;
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
-  toast(EMOJI.werewolf + ' Serigala berevolusi!'); haptic('success');
+  toast(EMOJI.werewolf + ' Wolves have evolved!'); haptic('success');
 }
 // Safety net: if wolves get scarce, a small pack wanders in from wild land (far from settlements, near prey).
 function wolfPack() {
@@ -1742,7 +1742,7 @@ function wolfPack() {
   return false;
 }
 /* ---- events, unrest, rebellion ---- */
-const EV_IC = { plague:'☠️', drought:'🥀', golden:'✨' }, EV_NAME = { plague:'Wabah', drought:'Kekeringan', golden:'Zaman keemasan' };
+const EV_IC = { plague:'☠️', drought:'🥀', golden:'✨' }, EV_NAME = { plague:'Plague', drought:'Drought', golden:'Golden age' };
 const EV_DUR = { plague: 900, drought: 1200, golden: 1200 }, EV_ID = ['', 'plague', 'drought', 'golden'];
 let lastEvToast = -1e9;
 const evBirth = k => !k.ev ? 1 : k.ev.type === 'plague' ? .3 : k.ev.type === 'golden' ? 1.3 : 1;
@@ -1967,7 +1967,7 @@ function warToast(a, b, joined) {
   if (tick - lastWarToast < 24) return;                                          // at most one message every ~3 s
   if (a.level < 1 && b.level < 1) return;
   lastWarToast = tick;
-  if (b.race === 'werewolf' && !joined) toast(`${EMOJI.werewolf} ${b.name} tidak lagi netral!`);
+  if (b.race === 'werewolf' && !joined) toast(`${EMOJI.werewolf} ${b.name} is no longer neutral!`);
   else toast(`${EMOJI[a.race]}${a.name} ⚔️ ${EMOJI[b.race]}${b.name}`);
 }
 function declareWar(a, b, joined) {
@@ -2631,42 +2631,42 @@ let tool = editMode ? 'raise' : 'inspect', hover = null, painting = false, panni
 let brush = 3, lastApply = 0, lastPointer = [0, 0];
 const brushR = () => brush - 1;
 const TOOLS = {
-  raise:  { g:'terrain', ic:'⬆️', nm:'Naikkan', ms:140 },
-  lower:  { g:'terrain', ic:'⬇️', nm:'Turunkan', ms:140 },
-  grass:  { g:'terrain', ic:'🌱', nm:'Rumput', ms:40 },
-  forest: { g:'terrain', ic:'🌲', nm:'Hutan', ms:40 },
-  sand:   { g:'terrain', ic:'🏖️', nm:'Pasir', ms:40 },
+  raise:  { g:'terrain', ic:'⬆️', nm:'Raise', ms:140 },
+  lower:  { g:'terrain', ic:'⬇️', nm:'Lower', ms:140 },
+  grass:  { g:'terrain', ic:'🌱', nm:'Grass', ms:40 },
+  forest: { g:'terrain', ic:'🌲', nm:'Forest', ms:40 },
+  sand:   { g:'terrain', ic:'🏖️', nm:'Sand', ms:40 },
   lava:   { g:'terrain', ic:'🌋', nm:'Lava', ms:60 },
-  human:  { g:'life', ic:'🧑', nm:'Manusia', ms:140, spawn:1 },
+  human:  { g:'life', ic:'🧑', nm:'Human', ms:140, spawn:1 },
   elf:    { g:'life', ic:'🧝', nm:'Elf', ms:140, spawn:1 },
-  dwarf:  { g:'life', ic:'🧔', nm:'Kurcaci', ms:140, spawn:1 },
+  dwarf:  { g:'life', ic:'🧔', nm:'Dwarf', ms:140, spawn:1 },
   orc:    { g:'life', ic:'👹', nm:'Orc', ms:140, spawn:1 },
-  sheep:  { g:'life', ic:'🐑', nm:'Domba', ms:140, spawn:1 },
-  rabbit: { g:'life', ic:'🐇', nm:'Kelinci', ms:140, spawn:1 },
-  deer:   { g:'life', ic:'🦌', nm:'Rusa', ms:140, spawn:1 },
-  wolf:   { g:'life', ic:'🐺', nm:'Serigala', ms:140, spawn:1 },
-  werewolf: { g:'life', ic:EMOJI.werewolf, nm:'Manusia serigala', ms:140, spawn:1 },
-  rain:   { g:'powers', ic:'🌧️', nm:'Hujan', ms:40 },
-  fire:   { g:'powers', ic:'🔥', nm:'Api', ms:50 },
-  bolt:   { g:'powers', ic:'⚡', nm:'Petir', ms:250 },
+  sheep:  { g:'life', ic:'🐑', nm:'Sheep', ms:140, spawn:1 },
+  rabbit: { g:'life', ic:'🐇', nm:'Rabbit', ms:140, spawn:1 },
+  deer:   { g:'life', ic:'🦌', nm:'Deer', ms:140, spawn:1 },
+  wolf:   { g:'life', ic:'🐺', nm:'Wolf', ms:140, spawn:1 },
+  werewolf: { g:'life', ic:EMOJI.werewolf, nm:'Werewolf', ms:140, spawn:1 },
+  rain:   { g:'powers', ic:'🌧️', nm:'Rain', ms:40 },
+  fire:   { g:'powers', ic:'🔥', nm:'Fire', ms:50 },
+  bolt:   { g:'powers', ic:'⚡', nm:'Lightning', ms:250 },
   meteor: { g:'powers', ic:'☄️', nm:'Meteor', ms:700 },
-  bless:  { g:'powers', ic:'✨', nm:'Berkati', ms:120 },
-  smite:  { g:'powers', ic:'💀', nm:'Bunuh', ms:90 },
-  enlighten:{ g:'realm', ic:'📖', nm:'Ilmu', ms:99999 },
-  grace:  { g:'realm', ic:'🙏', nm:'Anugerah', ms:99999 },
-  plague: { g:'realm', ic:'☠️', nm:'Wabah', ms:99999 },
-  revolt: { g:'realm', ic:'🔥', nm:'Pemberontakan', ms:99999 },
-  peace:  { g:'realm', ic:'🕊️', nm:'Damaikan', ms:99999 },
-  unite:  { g:'realm', ic:'🤝', nm:'Satukan', ms:99999 },
-  split:  { g:'realm', ic:'✂️', nm:'Pecah', ms:99999 },
-  inspect:{ g:'powers', ic:'🔍', nm:'Periksa', ms:0 },
+  bless:  { g:'powers', ic:'✨', nm:'Bless', ms:120 },
+  smite:  { g:'powers', ic:'💀', nm:'Smite', ms:90 },
+  enlighten:{ g:'realm', ic:'📖', nm:'Knowledge', ms:99999 },
+  grace:  { g:'realm', ic:'🙏', nm:'Grace', ms:99999 },
+  plague: { g:'realm', ic:'☠️', nm:'Plague', ms:99999 },
+  revolt: { g:'realm', ic:'🔥', nm:'Rebellion', ms:99999 },
+  peace:  { g:'realm', ic:'🕊️', nm:'Peace', ms:99999 },
+  unite:  { g:'realm', ic:'🤝', nm:'Unite', ms:99999 },
+  split:  { g:'realm', ic:'✂️', nm:'Split', ms:99999 },
+  inspect:{ g:'powers', ic:'🔍', nm:'Inspect', ms:0 },
 };
 
 /* ============================== NATURAL DISASTERS (automatic; level set in the world tab) ============================== */
 let disasterLvl = 1;                                         // 0 off, 1 rare, 2 frequent
 let nextMajor = 0;                                           // tick before which no volcano/meteor may be scheduled
 const pendingDis = [];
-const DIS_NAMES = ['Mati', 'Jarang', 'Sering'];
+const DIS_NAMES = ['Off', 'Rare', 'Frequent'];
 function strikeBolt(wx, wy, rr) {
   fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 }); haptic('tap');
   forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
@@ -2853,7 +2853,7 @@ function applyTool(wx, wy) {
         haptic('warning');
       } else if (tool === 'revolt') {
         const k2 = splitKingdom(k, true);
-        toast(k2 ? `🔥 ${EMOJI[k.race]}${k2.name} ⚔️ ${k.name}` : '🏚️ terlalu kecil'); haptic('warning');
+        toast(k2 ? `🔥 ${EMOJI[k.race]}${k2.name} ⚔️ ${k.name}` : '🏚️ too small'); haptic('warning');
       } else if (tool === 'peace') {
         let n = 0; for (const kk of list) for (const eid of [...kk.enemies]) { const e = kingdoms.get(eid); if (e) { endWar(kk, e); n++; } }
         toast(n ? '🕊️' : '🕊️ –'); haptic('tap');
@@ -2867,7 +2867,7 @@ function applyTool(wx, wy) {
         else { const bigger = (k.houses + k.pop >= best.houses + best.pop) ? [k, best] : [best, k]; absorbKingdom(bigger[0], bigger[1]); toast(`🤝 ${bigger[0].name}`); haptic('success'); }
       } else if (tool === 'split') {
         const k2 = splitKingdom(k, false);
-        toast(k2 ? `✂️ ${k.name} | ${k2.name}` : '🏚️ terlalu kecil'); haptic('tap');
+        toast(k2 ? `✂️ ${k.name} | ${k2.name}` : '🏚️ too small'); haptic('tap');
       }
       break;
     }
@@ -2908,7 +2908,7 @@ function relLine(k) {
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Zaman Batu', 'Zaman Perunggu', 'Zaman Besi'][k.age | 0]} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Stone Age', 'Bronze Age', 'Iron Age'][k.age | 0]} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
 }
 /* ============================== CREATURE PANEL ============================== */
 let selected = null, following = false, deadNote = 0;
@@ -2918,26 +2918,26 @@ const NAME_POOL = {
   dwarf: [['Bor', 'Dur', 'Gim', 'Kaz', 'Thor', 'Mor', 'Bal', 'Dwa', 'Hrol'], ['in', 'gar', 'rik', 'dok', 'li', 'mund', 'bek']],
   orc: [['Gor', 'Zug', 'Mog', 'Gra', 'Kru', 'Ugh', 'Naz', 'Bog', 'Hrak'], ['ash', 'gul', 'dak', 'rok', 'nak', 'uk', 'mash']],
   werewolf: [['Lun', 'Fen', 'Va', 'Gre', 'Nox', 'Ulv', 'Sko', 'Mar'], ['fang', 'ra', 'mar', 'wyr', 'claw', 'howl']],
-  sheep: ['Wolly', 'Puff', 'Awan', 'Mbek', 'Kapas', 'Bulu'], rabbit: ['Hop', 'Fluff', 'Lompat', 'Nibble', 'Kenyal', 'Cebol'],
-  deer: ['Elm', 'Fawn', 'Aspen', 'Rimba', 'Birch', 'Embun'], wolf: ['Fang', 'Shadow', 'Ash', 'Kelam', 'Taring', 'Grey'],
-  ram: ['Pendobrak'], catapult: ['Katapel'], dcatapult: ['Katapel Besi'], cart: ['Gerobak'],
+  sheep: ['Wolly', 'Puff', 'Cloud', 'Baa', 'Cotton', 'Fleece'], rabbit: ['Hop', 'Fluff', 'Bounce', 'Nibble', 'Thumper', 'Tuft'],
+  deer: ['Elm', 'Fawn', 'Aspen', 'Brook', 'Birch', 'Dew'], wolf: ['Fang', 'Shadow', 'Ash', 'Dusk', 'Claw', 'Grey'],
+  ram: ['Ram'], catapult: ['Catapult'], dcatapult: ['Iron Catapult'], cart: ['Wagon'],
 };
 const DESC = {
-  human: 'Petani dan pembangun yang giat. Cepat berkembang biak dan pandai berdagang.',
-  elf: 'Penjaga hutan berumur panjang. Pemanah ulung yang mencintai alam.',
-  dwarf: 'Penambang tangguh dari perbukitan. Ahli menempa dan mencari logam.',
-  orc: 'Pejuang buas yang hidup dari perang dan rampasan.',
-  werewolf: 'Serigala yang berevolusi. Netral, makin kuat di malam hari.',
-  sheep: 'Hewan jinak pemakan rumput. Mangsa serigala.',
-  wolf: 'Pemburu buas. Menyerang domba, kelinci dan rusa, bahkan manusia saat lapar.',
-  rabbit: 'Lincah dan cepat berkembang biak. Lari dari serigala.',
-  deer: 'Penghuni hutan yang pemalu. Lari dari serigala.',
-  ram: 'Mesin pengepung orc. Menghantam dinding musuh.',
-  catapult: 'Mesin pengepung manusia. Melempar batu dari jauh.',
-  dcatapult: 'Katapel besi kurcaci. Melempar batu dari jauh.',
-  cart: 'Gerobak dagang yang membawa barang antar kerajaan.',
+  human: 'Hard-working farmers and builders. They multiply fast and trade well.',
+  elf: 'Long-lived guardians of the forest. Master archers who love nature.',
+  dwarf: 'Tough miners of the hills. Masters of forging and finding metal.',
+  orc: 'Fierce warriors who live off war and plunder.',
+  werewolf: 'Evolved wolves. Neutral, and stronger at night.',
+  sheep: 'Gentle grass-eaters. Prey for wolves.',
+  wolf: 'Fierce hunters. They attack sheep, rabbits and deer, even people when starving.',
+  rabbit: 'Quick and fast-breeding. Runs from wolves.',
+  deer: 'Shy forest dwellers. Run from wolves.',
+  ram: 'Orc siege engine. Batters enemy walls.',
+  catapult: 'Human siege engine. Hurls rocks from afar.',
+  dcatapult: 'Dwarven iron catapult. Hurls rocks from afar.',
+  cart: 'Trade wagon carrying goods between kingdoms.',
 };
-const TYPE_NAME = { human: 'Manusia', elf: 'Elf', dwarf: 'Kurcaci', orc: 'Orc', sheep: 'Domba', wolf: 'Serigala', rabbit: 'Kelinci', deer: 'Rusa', werewolf: 'Manusia serigala', ram: 'Pendobrak', catapult: 'Katapel', dcatapult: 'Katapel besi', cart: 'Gerobak' };
+const TYPE_NAME = { human: 'Human', elf: 'Elf', dwarf: 'Dwarf', orc: 'Orc', sheep: 'Sheep', wolf: 'Wolf', rabbit: 'Rabbit', deer: 'Deer', werewolf: 'Werewolf', ram: 'Ram', catapult: 'Catapult', dcatapult: 'Iron catapult', cart: 'Wagon' };
 function nameFor(t, sd) {
   const P = NAME_POOL[t], h = hash(sd, 7, 11);
   return Array.isArray(P[0]) ? P[0][Math.floor(h * P[0].length)] + P[1][Math.floor(hash(sd, 9, 13) * P[1].length)] : P[Math.floor(h * P.length)];
@@ -2945,20 +2945,20 @@ function nameFor(t, sd) {
 function nameOf(c) { return c.nm || (c.nm = nameFor(c.t, c.nid === undefined ? c.id : c.nid)); }
 function roleOf(c) {
   const R = RACES[c.t];
-  if (R.cart) return 'Pedagang'; if (R.engine) return 'Mesin perang';
-  if (c.elite) return 'Ksatria besi'; if (c.lead) return 'Pemimpin';
-  if (R.civ) return isSoldier(c) ? 'Prajurit' : 'Warga';
-  return R.hunt ? 'Pemburu' : 'Mangsa';
+  if (R.cart) return 'Merchant'; if (R.engine) return 'War machine';
+  if (c.elite) return 'Iron knight'; if (c.lead) return 'Leader';
+  if (R.civ) return isSoldier(c) ? 'Soldier' : 'Citizen';
+  return R.hunt ? 'Hunter' : 'Prey';
 }
 function statusOf(c) {
   const R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null, r = c.hp / c.mhp;
-  if (c.hp <= 0) return 'Mati';
-  if (c.pz > 0) return 'Keracunan';
-  if (fire[c.x + c.y*W]) return 'Terbakar';
-  if (r < .35) return 'Sekarat'; if (r < .7) return 'Terluka';
-  if (R.hunt && c.en < 45) return 'Lapar';
-  if (k && k.enemies.size && (c.elite || c.lead || isSoldier(c))) return 'Berperang';
-  return 'Sehat';
+  if (c.hp <= 0) return 'Dead';
+  if (c.pz > 0) return 'Poisoned';
+  if (fire[c.x + c.y*W]) return 'Burning';
+  if (r < .35) return 'Dying'; if (r < .7) return 'Wounded';
+  if (R.hunt && c.en < 45) return 'Hungry';
+  if (k && k.enemies.size && (c.elite || c.lead || isSoldier(c))) return 'At war';
+  return 'Healthy';
 }
 function portraitURL(t) {
   if (!ICON['cr:' + t]) { const sp = ATLAS[t].A, cv2 = document.createElement('canvas'); cv2.width = Math.max(16, sp.width); cv2.height = Math.max(16, sp.height); cv2.getContext('2d').drawImage(sp, Math.floor((cv2.width - sp.width) / 2), cv2.height - sp.height); ICON['cr:' + t] = cv2; }
@@ -2966,7 +2966,7 @@ function portraitURL(t) {
 }
 let ptab = 0, invSel = -1, chSel = -1;                           // panel tab (0 info, 1 family, 2 bag, 3 chest) and the selected bag / chest item
 const itemName = (race, sl, t, e) => (GEAR_NAME[race] || GEAR_NAME.human)[sl][t - 1] + (e ? ' ' + ENCH[e].n : '');
-const itemTip = (sl, t, e) => [`+${Math.round(W_ATK[t] * 100)}% serangan`, `+${Math.round(A_DEF[t] * 100)}% pertahanan, +${A_HP[t]} hp`, `+${Math.round(S_DEF[t] * 100)}% pertahanan`][sl] + (e ? ` · ${ENCH[e].d}` : '');
+const itemTip = (sl, t, e) => [`+${Math.round(W_ATK[t] * 100)}% attack`, `+${Math.round(A_DEF[t] * 100)}% defence, +${A_HP[t]} hp`, `+${Math.round(S_DEF[t] * 100)}% defence`][sl] + (e ? ` · ${ENCH[e].d}` : '');
 const chestOf = c => { const k = c && c.k ? kingdoms.get(c.k) : null; return k ? k.chest : null; };
 function curSel() {                                                     // the selected bag or chest item: { arr, i, it }
   if (invSel >= 0 && inv[invSel]) return { arr: inv, i: invSel, it: inv[invSel] };
@@ -2989,7 +2989,7 @@ function creatureHtml(c) {
   const ch = civ ? chestOf(c) : null, sel = civ ? curSel() : null, tabs = ch ? 4 : 3;
   if (civ) {                                                                // equipment slots: tap to take an item into the bag, or to wear the selected item
     h += '<div class="eq">' + [0, 1, 2].map(sl => { const t = c.eq ? c.eq[sl] : 0, e = c.ec ? c.ec[sl] : 0, rdy = sel && sel.it[0] === sl ? ' rdy' : ''; return t ? `<button class="slot t${t}${rdy}" data-act="slot" data-s="${sl}"${ench(e)}>${GEAR_ICON[sl]}${itemName(c.t, sl, t, e)}</button>` : `<button class="slot e${rdy}" data-act="slot" data-s="${sl}">${GEAR_ICON[sl]}–</button>`; }).join('') + '</div>';
-    h += `<div class="tabs">${['Info', 'Keluarga', `Tas ${inv.length}`, ch ? `Peti ${ch.length}` : null].slice(0, tabs).map((n, i) => `<button class="ptab${ptab === i ? ' on' : ''}" data-act="tab" data-t="${i}">${n}</button>`).join('')}</div>`;
+    h += `<div class="tabs">${['Info', 'Family', `Bag ${inv.length}`, ch ? `Chest ${ch.length}` : null].slice(0, tabs).map((n, i) => `<button class="ptab${ptab === i ? ' on' : ''}" data-act="tab" data-t="${i}">${n}</button>`).join('')}</div>`;
   }
   const tab = civ ? Math.min(ptab, tabs - 1) : 0;
   if (tab === 0) {
@@ -2998,22 +2998,22 @@ function creatureHtml(c) {
     if (civ) {
       const ev = [[tick - c.age, 0, 0]].concat(c.hist || []).slice(-4), nm = (sd) => nameFor(c.t, sd);
       h += '<div class="hist">' + ev.map(([t, code, a]) => {
-        const txt = code === 0 ? (c.pa ? `Lahir, anak ${nm(c.pa)}${c.pb ? ' & ' + nm(c.pb) : ''}` : 'Lahir') : code === 8 ? `Mendapat ${itemName(c.t, 0, a)}` : code === 9 ? `Mengenakan ${itemName(c.t, 1, a)}`
-          : code === 10 ? `Bergabung dengan ${a}` : code === 12 ? `Menerima ${itemName(c.t, a >> 2, a & 3)}` : code === 13 ? `${itemName(c.t, a >> 2, a & 3)} diambil` : code === 14 ? `Berpasangan dengan ${nm(a)}` : code === 15 ? `Anak lahir: ${nm(a)}` : code === 16 ? `Merampas ${itemName(c.t, a >> 2, a & 3)}` : code === 17 ? `Memungut ${itemName(c.t, a >> 2, a & 3)}` : HIST_TXT[code] || '';
-        return `<em>Thn ${Math.max(0, Math.floor(t / 120))}</em> ${txt}`;
+        const txt = code === 0 ? (c.pa ? `Born, child of ${nm(c.pa)}${c.pb ? ' & ' + nm(c.pb) : ''}` : 'Born') : code === 8 ? `Received ${itemName(c.t, 0, a)}` : code === 9 ? `Put on ${itemName(c.t, 1, a)}`
+          : code === 10 ? `Joined ${a}` : code === 12 ? `Was given ${itemName(c.t, a >> 2, a & 3)}` : code === 13 ? `${itemName(c.t, a >> 2, a & 3)} taken away` : code === 14 ? `Partnered with ${nm(a)}` : code === 15 ? `Child born: ${nm(a)}` : code === 16 ? `Looted ${itemName(c.t, a >> 2, a & 3)}` : code === 17 ? `Picked up ${itemName(c.t, a >> 2, a & 3)}` : HIST_TXT[code] || '';
+        return `<em>Yr ${Math.max(0, Math.floor(t / 120))}</em> ${txt}`;
       }).join('<br>') + '</div>';
     }
     h += `<div class="row">${(c.age / 120).toFixed(1)}/${(c.life / 120).toFixed(1)}${c.kills ? ' · ⚔️ ' + c.kills : ''}${k ? ` · ${LV_ICON[k.level]} ${k.name} ${EMOJI[k.race]}` : ''}</div>`;
   } else if (tab === 1) {
     const rel = relatives(c), chip = (nid) => { if (!nid) return '–'; const o = rel.by.get(nid); return o ? `<button class="rel" data-act="sel" data-id="${o.id}">${nameFor(c.t, nid)}</button>` : `<span class="rel dead">${nameFor(c.t, nid)} †</span>`; };
-    h += `<div class="fam"><div><u>Pasangan</u> ${chip(c.sp)}</div><div><u>Orang tua</u> ${c.pa ? chip(c.pa) + (c.pb ? ' ' + chip(c.pb) : '') : '–'}</div>`;
-    h += `<div><u>Anak</u> ${c.ch ? `${c.ch} lahir · ${rel.kids.length} hidup` : '–'}</div>${rel.kids.length ? `<div>${rel.kids.slice(0, 8).map(o => chip(o.nid)).join(' ')}</div>` : ''}</div>`;
+    h += `<div class="fam"><div><u>Partner</u> ${chip(c.sp)}</div><div><u>Parents</u> ${c.pa ? chip(c.pa) + (c.pb ? ' ' + chip(c.pb) : '') : '–'}</div>`;
+    h += `<div><u>Children</u> ${c.ch ? `${c.ch} born · ${rel.kids.length} alive` : '–'}</div>${rel.kids.length ? `<div>${rel.kids.slice(0, 8).map(o => chip(o.nid)).join(' ')}</div>` : ''}</div>`;
   } else {
     const isChest = tab === 3, arr = isChest ? ch : inv, cap = isChest ? chestCap(k) : INV_MAX, selIdx = isChest ? chSel : invSel;
     h += `<div class="bag${isChest ? ' sm' : ''}">` + Array.from({ length: cap }, (_, i) => { const it = arr[i]; return it ? `<button class="bi t${it[1]}${i === selIdx ? ' sel' : ''}" data-act="${isChest ? 'chs' : 'inv'}" data-i="${i}"${ench(it[3])}>${GEAR_ICON[it[0]]}<small>${'I'.repeat(it[1])}${it[3] ? '✨' : ''}</small></button>` : '<span class="bi e"></span>'; }).join('') + '</div>';
     const s2 = sel && sel.arr === arr ? sel.it : null;
-    h += `<div class="row">${s2 ? `${itemName(s2[2], s2[0], s2[1], s2[3])} · ${itemTip(s2[0], s2[1], s2[3] | 0)} · 🪙${sellPrice(s2)}` : arr.length ? 'Ketuk item: pakaikan lewat slot di atas, atau pilih tombol' : isChest ? 'Peti kosong: penduduk membawa temuan ke sini' : 'Tas kosong: ketuk slot perlengkapan di atas, atau item di tanah'}</div>`;
-    if (s2) h += `<div class="tabs">${isChest ? '<button class="ptab" data-act="fetch">Ke tas</button>' : (ch && ch.length < chestCap(k) ? '<button class="ptab" data-act="store">Ke peti</button>' : '') + '<button class="ptab" data-act="drop">Jatuhkan</button>'}<button class="ptab" data-act="sell">Jual 🪙</button></div>`;
+    h += `<div class="row">${s2 ? `${itemName(s2[2], s2[0], s2[1], s2[3])} · ${itemTip(s2[0], s2[1], s2[3] | 0)} · 🪙${sellPrice(s2)}` : arr.length ? 'Tap an item: equip it through a slot above, or use a button' : isChest ? 'Chest empty: settlers bring their finds here' : 'Bag empty: tap an equipment slot above, or an item on the ground'}</div>`;
+    if (s2) h += `<div class="tabs">${isChest ? '<button class="ptab" data-act="fetch">To bag</button>' : (ch && ch.length < chestCap(k) ? '<button class="ptab" data-act="store">To chest</button>' : '') + '<button class="ptab" data-act="drop">Drop</button>'}<button class="ptab" data-act="sell">Sell 🪙</button></div>`;
   }
   return h;
 }
@@ -3027,7 +3027,7 @@ function pickDropAt(px, py) {
   return best;
 }
 function takeDrop(d) {
-  if (inv.length >= INV_MAX) { toast('🎒 penuh'); return; }
+  if (inv.length >= INV_MAX) { toast('🎒 full'); return; }
   inv.push([d.s, d.t, d.r, d.e]); removeDrop(d); toast('🎒 ' + itemName(d.r, d.s, d.t, d.e)); haptic('tap');
 }
 function sellSel(c) {                                                  // sell the selected bag / chest item to the market; the gold goes to the creature's kingdom
@@ -3039,7 +3039,7 @@ function sellSel(c) {                                                  // sell t
 function moveItem(c, toChest) {
   const s2 = curSel(), ch = chestOf(c), k = c.k ? kingdoms.get(c.k) : null; if (!s2 || !ch || !k) return;
   if (toChest) { if (s2.arr !== inv || ch.length >= chestCap(k)) return; ch.push(inv.splice(s2.i, 1)[0]); invSel = -1; }
-  else { if (s2.arr !== ch || inv.length >= INV_MAX) { if (inv.length >= INV_MAX) toast('🎒 penuh'); return; } inv.push(ch.splice(s2.i, 1)[0]); chSel = -1; }
+  else { if (s2.arr !== ch || inv.length >= INV_MAX) { if (inv.length >= INV_MAX) toast('🎒 full'); return; } inv.push(ch.splice(s2.i, 1)[0]); chSel = -1; }
   haptic('tap'); dirty = true;
 }
 function slotAction(c, sl) {
@@ -3054,7 +3054,7 @@ function slotAction(c, sl) {
   }
   const t = c.eq[sl];
   if (!t) { toast(GEAR_ICON[sl] + ' –'); return; }
-  if (inv.length >= INV_MAX) { toast('🎒 penuh'); return; }
+  if (inv.length >= INV_MAX) { toast('🎒 full'); return; }
   inv.push([sl, t, c.t, c.ec[sl]]); c.eq[sl] = 0; c.ec[sl] = 0; addHist(c, 13, sl * 4 + t); applyStats(c); toast('🎒 ' + itemName(c.t, sl, t, inv[inv.length - 1][3])); haptic('tap'); dirty = true;
 }
 function pickCreatureAt(px, py) {                                   // nearest creature to a screen point (sprites stand above their tile)
@@ -3069,7 +3069,7 @@ function showCreature(c) { selected = c; invSel = chSel = -1; following = false;
 function closeCreature() { selected = null; following = false; deadNote = 0; infoEl.style.display = 'none'; }
 function refreshCreature() {
   if (!selected) return;
-  if (selected.hp <= 0) { if (!deadNote) { deadNote = 1; infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><img class="pt" src="${portraitURL(selected.t)}" alt=""><b>${nameOf(selected)}</b><span class="tag">Mati</span><br>${TYPE_NAME[selected.t]} · ${selected.cause === 'old' ? '⏳' : '💀'}`; setTimeout(() => { if (deadNote) closeCreature(); }, 2200); } return; }
+  if (selected.hp <= 0) { if (!deadNote) { deadNote = 1; infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><img class="pt" src="${portraitURL(selected.t)}" alt=""><b>${nameOf(selected)}</b><span class="tag">Dead</span><br>${TYPE_NAME[selected.t]} · ${selected.cause === 'old' ? '⏳' : '💀'}`; setTimeout(() => { if (deadNote) closeCreature(); }, 2200); } return; }
   if (infoHold) return;                                              // do not rebuild the buttons under a finger
   const h = creatureHtml(selected); if (h !== infoLast) { infoLast = h; infoEl.innerHTML = h; }
 }
@@ -3093,7 +3093,7 @@ infoEl.addEventListener('pointerdown', () => { infoHold = true; });
 window.addEventListener('pointerup', () => { infoHold = false; });
 window.addEventListener('pointercancel', () => { infoHold = false; });
 function inspectAt(wx, wy) {
-  const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa', werewolf:'Manusia serigala' };
+  const NM = TYPE_NAME;
   closeCreature();
   let best = null, bd = 9, house = -1;
   for (let dy = -1; dy <= 1 && house < 0; dy++) for (let dx = -1; dx <= 1; dx++) { if (inb(wx+dx, wy+dy) && bld[wx+dx + (wy+dy)*W]) { house = wx+dx + (wy+dy)*W; break; } }
@@ -3108,7 +3108,7 @@ function inspectAt(wx, wy) {
       const i = wx + wy*W, k = kingdoms.get(own[i]);
       if (k) infoEl.innerHTML = kingdomHtml(k);
       else {
-        const nm = ['Laut dalam','Laut dangkal','Pasir','Rumput','Hutan','Bukit','Gunung','Salju','Lava','Tanah hangus'][tiles[i]];
+        const nm = ['Deep sea','Shallow sea','Sand','Grass','Forest','Hills','Mountain','Snow','Lava','Burnt ground'][tiles[i]];
         infoEl.innerHTML = `<b>${nm}</b>` + (fire[i] ? '<br>🔥' : '');
       }
     }
@@ -3198,7 +3198,7 @@ let pendingKey = '', pendingT = 0;
 function confirmThen(key, msg, fn) {              // destructive actions need a second tap (no alert/confirm in the sandbox)
   const now = performance.now();
   if (pendingKey === key && now - pendingT < 2600) { pendingKey = ''; fn(); }
-  else { pendingKey = key; pendingT = now; toast('⚠️ ' + msg + ' — tekan lagi'); }
+  else { pendingKey = key; pendingT = now; toast('⚠️ ' + msg + ' — tap again'); }
 }
 function newWorld(idx) {
   floods.length = 0; pendingDis.length = 0;
@@ -3231,19 +3231,19 @@ async function submitScore(show) {                           // submit only pers
   lbBusy = false;
 }
 const WORLD_ACTIONS = [
-  { ic:'🗺️', fn: () => confirmThen('new', 'Dunia baru', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
+  { ic:'🗺️', fn: () => confirmThen('new', 'New world', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
   ...SIZES.map((z, i) => ({ ic: z.name, on: () => sizeIdx === i,
     fn: () => confirmThen('size' + i, `${z.label} ${z.w}×${z.h}`, () => { newWorld(i); renderRow2(); toast(`🗺️ ${z.label} ${z.w}×${z.h}`); }) })),
-  { ic:'🌊', fn: () => confirmThen('ocean', 'Lautan kosong', () => { floods.length = 0; pendingDis.length = 0; emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
+  { ic:'🌊', fn: () => confirmThen('ocean', 'Empty ocean', () => { floods.length = 0; pendingDis.length = 0; emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
   ...(editMode ? [] : [
     { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
-    { ic:'🧹', fn: () => confirmThen('clear', 'Hapus makhluk & rumah', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
+    { ic:'🧹', fn: () => confirmThen('clear', 'Remove creatures & houses', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
   ]),
   ...(editMode ? [] : [{ ic:'❓', fn: () => startTour(true) }]),
   ...(editMode ? [] : [{ ic:'🏦', fn: () => showBoard(marketHtml()) }]),
   ...(editMode ? [] : [{ ic:'🏆', fn: () => submitScore(true) }]),
   { ic:'🚩', on: () => showBorders, fn: () => { showBorders = !showBorders; renderRow2(); toast(showBorders ? '🚩 on' : '🚩 off'); } },
-  ...(editMode ? [] : [{ ic:'☄️', on: () => disasterLvl > 0, fn: () => { disasterLvl = (disasterLvl + 1) % 3; pendingDis.length = 0; dirty = true; renderRow2(); toast('☄️ Bencana: ' + DIS_NAMES[disasterLvl]); } }]),
+  ...(editMode ? [] : [{ ic:'☄️', on: () => disasterLvl > 0, fn: () => { disasterLvl = (disasterLvl + 1) % 3; pendingDis.length = 0; dirty = true; renderRow2(); toast('☄️ Disasters: ' + DIS_NAMES[disasterLvl]); } }]),
   { ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
 ];
 
@@ -3411,7 +3411,7 @@ function showTitle(hasSave) {
   if (editMode) return;
   const url = coverUrl();
   titleEl.innerHTML = (url ? `<img class="bg" src="${url}" alt="">` : '<div class="nm">ASTRO<br>WORLD</div>') + '<div class="shade"></div>'
-    + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Lanjutkan' : 'Main'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div></div>`;
+    + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Continue' : 'Play'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div></div>`;
   titleEl.style.display = 'block'; titleEl.style.opacity = 1;
 }
 titleEl.addEventListener('click', e => {
@@ -3424,12 +3424,12 @@ titleEl.addEventListener('click', e => {
   else if (a.dataset.act === 'snd') { setSound(!Snd.on); a.textContent = Snd.on ? '🔊' : '🔇'; if (Snd.on) SFX.ui(); }
 });
 const TOUR = [
-  { r: [150, 420, 420, 330], t: 'Ketuk makhluk atau rumah untuk melihat info-nya', f: 'tap', y: 790 },
-  { r: [150, 420, 420, 330], t: 'Geser dengan satu jari untuk menggeser peta. Tahan sebentar lalu geser untuk melukis dengan alat.', f: 'drag', y: 790 },
-  { r: [4, 1068, 470, 100], t: 'Pilih kategori alat di sini: medan, makhluk, bencana, kerajaan, dunia', y: 800 },
-  { r: [288, 4, 190, 96], t: 'Perbesar dan perkecil peta', y: 230 },
-  { r: [4, 4, 190, 96], t: 'Jeda dan percepat waktu', y: 230 },
-  { r: [476, 4, 96, 96], t: 'Suara aktif atau mati', y: 230 },
+  { r: [150, 420, 420, 330], t: 'Tap a creature or house to see its info', f: 'tap', y: 790 },
+  { r: [150, 420, 420, 330], t: 'Drag with one finger to move the map. Hold briefly, then drag, to paint with the tool.', f: 'drag', y: 790 },
+  { r: [4, 1068, 470, 100], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 800 },
+  { r: [288, 4, 190, 96], t: 'Zoom the map in and out', y: 230 },
+  { r: [4, 4, 190, 96], t: 'Pause and speed up time', y: 230 },
+  { r: [476, 4, 96, 96], t: 'Sound on or off', y: 230 },
 ];
 let tourI = 0;
 function startTour(force) { if (editMode) return; tourI = 0; tutEl.style.display = 'block'; if (force) { titleEl.style.display = 'none'; started = true; lastT = performance.now(); } renderTour(); }
@@ -3437,7 +3437,7 @@ function renderTour() {
   const st = TOUR[tourI], last = tourI === TOUR.length - 1, [x, y, w, h] = st.r;
   tutEl.innerHTML = `<div class="spot" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>`
     + (st.f ? `<img class="fing ${st.f === 'tap' ? 'tap' : ''}" src="${iconURL('hand')}" style="left:${x + w / 2 - 38}px;top:${y + h / 2 - 20}px" alt="">` : '')
-    + `<div class="bub" style="top:${st.y}px">${st.t}<div class="tbn"><button class="awb" data-act="skip">✖</button><button class="awb" data-act="next">${last ? '▶' : 'Lanjut'}</button></div></div>`;
+    + `<div class="bub" style="top:${st.y}px">${st.t}<div class="tbn"><button class="awb" data-act="skip">✖</button><button class="awb" data-act="next">${last ? '▶' : 'Next'}</button></div></div>`;
 }
 tutEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
@@ -3469,8 +3469,8 @@ async function start() {
   if (lib.showGameParameters) {
     try {
       lib.showGameParameters({ name: 'Astro World', params: {
-        'Siang-malam': { key: 'settings.dayNight', type: 'checkbox' },
-        'Populasi awal': { key: 'settings.population', type: 'slider', min: 0, max: 3, step: 0.5 },
+        'Day-night cycle': { key: 'settings.dayNight', type: 'checkbox' },
+        'Starting population': { key: 'settings.population', type: 'slider', min: 0, max: 3, step: 0.5 },
       } });
     } catch (e) {}
   }
