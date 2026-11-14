@@ -1135,6 +1135,90 @@ function emit(kind, x, y, n, o) {
     p.l = p.m; parts.push(p);
   }
 }
+/* ============================== SEA LIFE: fish shoals (sardines near shore, grouper on reefs, tuna in the deep) ============================== */
+const SHOAL = [
+  { n: 'sardines', yieldM: 1,   col: ['#cfe3f2', '#ffffff'], sz: 1 },
+  { n: 'grouper',  yieldM: 1.5, col: ['#ff9a62', '#ffe0b0'], sz: 1.15 },
+  { n: 'tuna',     yieldM: 2.4, col: ['#6f9cc8', '#d8e8f6'], sz: 1.6 },
+];
+let shoals = [], shoalTarget = [0, 0, 0], shoreD = new Uint8Array(0);
+function computeShoreD() {                                    // distance (in tiles) from every water tile to the nearest land
+  shoreD = new Uint8Array(N).fill(255); const q = new Int32Array(N); let h = 0, t = 0;
+  for (let i = 0; i < N; i++) if (tiles[i] > T.SHALLOW) { shoreD[i] = 0; q[t++] = i; }
+  while (h < t) {
+    const i = q[h++], d = shoreD[i]; if (d >= 60) continue; const x = i % W, y = (i / W) | 0;
+    for (let k = 0; k < 4; k++) {
+      const nx = x + (k === 0) - (k === 1), ny = y + (k === 2) - (k === 3); if (!inb(nx, ny)) continue;
+      const j = nx + ny*W; if (shoreD[j] === 255 && tiles[j] <= T.SHALLOW) { shoreD[j] = d + 1; q[t++] = j; }
+    }
+  }
+}
+function shoalOk(kind, x, y) {
+  if (!inb(x, y)) return false; const i = x + y*W, t = tiles[i], d = shoreD[i];
+  if (t > T.SHALLOW || d === 255) return false;
+  return kind === 0 ? d >= 1 && d <= 10 : kind === 1 ? t === T.SHALLOW && d >= 1 && d <= 3 : t === T.DEEP && d >= 4;
+}
+function addShoal(kind) {
+  for (let a = 0; a < 80; a++) {
+    const x = ri(0, W - 1), y = ri(0, H - 1); if (!shoalOk(kind, x, y)) continue;
+    if (shoals.some(s => s.kind === kind && Math.abs(s.x - x) + Math.abs(s.y - y) < 5)) continue;
+    shoals.push({ x, y, kind, stock: .75 + Math.random() * .25, tx: x, ty: y, hd: 1, ph: ri(0, 63) }); return true;
+  }
+  return false;
+}
+function seedShoals() {
+  shoals = []; computeShoreD(); const cnt = [0, 0, 0];
+  for (let i = 0; i < N; i++) { const d = shoreD[i], t = tiles[i]; if (t > T.SHALLOW || d === 255) continue; if (d >= 1 && d <= 10) cnt[0]++; if (t === T.SHALLOW && d >= 1 && d <= 3) cnt[1]++; if (t === T.DEEP && d >= 4) cnt[2]++; }
+  shoalTarget = [Math.min(150, Math.round(cnt[0] / 45)), Math.min(70, Math.round(cnt[1] / 90)), Math.min(60, Math.round(cnt[2] / 380))];
+  for (let k = 0; k < 3; k++) for (let q = 0; q < shoalTarget[k]; q++) addShoal(k);
+}
+function shoalNear(x, y, r, maxKind) {
+  let best = null, bd = 1e9;
+  for (const s of shoals) { if (s.kind > maxKind) continue; const d = Math.max(Math.abs(s.x - x), Math.abs(s.y - y)); if (d <= r && d < bd) { bd = d; best = s; } }
+  return best;
+}
+function shoalTick() {
+  if (tick % 1500 === 0) computeShoreD();
+  const have = [0, 0, 0];
+  for (let q = shoals.length - 1; q >= 0; q--) {
+    const s = shoals[q], rx = Math.round(s.x), ry = Math.round(s.y);
+    if (!inb(rx, ry) || tiles[rx + ry*W] > T.SHALLOW) { shoals.splice(q, 1); continue; }
+    s.stock = Math.min(1, s.stock + .0003);
+    if (s.stock < .12) { shoals.splice(q, 1); continue; }         // fished out: the shoal scatters (a new one forms elsewhere later)
+    have[s.kind]++;
+    if ((tick + s.ph) % 4) continue;
+    if ((Math.abs(s.tx - s.x) < .6 && Math.abs(s.ty - s.y) < .6) || Math.random() < .03) {
+      for (let a = 0; a < 6; a++) { const tx = rx + ri(-6, 6), ty = ry + ri(-6, 6); if (shoalOk(s.kind, tx, ty)) { s.tx = tx; s.ty = ty; break; } }
+    }
+    const dx = Math.sign(s.tx - s.x) * .5, dy = Math.sign(s.ty - s.y) * .5, nx = s.x + dx, ny = s.y + dy;
+    if (shoalOk(s.kind, Math.round(nx), Math.round(ny))) { s.x = nx; s.y = ny; if (dx) s.hd = dx > 0 ? 1 : -1; } else { s.tx = s.x; s.ty = s.y; }
+  }
+  if (tick % 400 === 0) for (let k = 0; k < 3; k++) if (have[k] < shoalTarget[k]) addShoal(k);
+}
+function drawShoals(x0, y0, x1, y1) {
+  if (!shoals.length) return;
+  const t = frame * .03;
+  for (const s of shoals) {
+    if (s.x < x0 - 3 || s.x > x1 + 3 || s.y < y0 - 3 || s.y > y1 + 3) continue;
+    const def = SHOAL[s.kind], cx = ox + (s.x + .5)*sc, cy = oy + (s.y + .5)*sc;
+    if (sc < 5) { ctx.fillStyle = s.kind === 1 ? 'rgba(255,170,110,.62)' : s.kind === 2 ? 'rgba(150,190,235,.5)' : 'rgba(215,238,255,.6)'; const w = Math.max(3, sc * 1.4); ctx.fillRect(cx - w / 2, cy - w * .25, w, Math.max(2, w * .5)); continue; }
+    const cnt = Math.max(3, Math.round((3 + s.stock * 5) * (s.kind === 2 ? .8 : 1))), f = Math.max(2, Math.round(sc * .17 * def.sz));
+    ctx.fillStyle = 'rgba(8,28,70,.2)'; ctx.beginPath(); ctx.ellipse(cx, cy + sc * .12, sc * (s.kind === 2 ? 1.7 : 1.25), sc * (s.kind === 2 ? .95 : .72), 0, 0, 7); ctx.fill();   // soft shadow so the shoal reads from afar
+    ctx.globalAlpha = s.kind === 2 ? .62 : .8;
+    for (let i = 0; i < cnt; i++) {
+      const sg = i % 2 ? 1 : -1, a = i * 2.399 + t * sg * .8 + s.ph, rr = (.35 + (i % 3) * .28) * sc * (s.kind === 2 ? 1.3 : 1);
+      const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr * .55, face = -Math.sin(a) * sg >= 0 ? 1 : -1, bx = px - face * f * 1.5;
+      ctx.fillStyle = def.col[0]; ctx.fillRect(px - f * 1.5, py - f * .5, f * 3, f);                        // body
+      ctx.fillRect(face > 0 ? bx - f : bx, py - f * .9, f, f * 1.8);                                         // tail
+      ctx.fillStyle = def.col[1]; ctx.fillRect(px - f * 1.2, py - f * .5, f * 2.4, Math.max(1, f * .35));   // bright back
+      if (s.kind === 1) { ctx.fillStyle = '#c85a30'; ctx.fillRect(px - f * .3, py - f * .5, f * .6, f); }   // grouper stripe
+      if (s.kind === 2) { ctx.fillStyle = '#41668f'; ctx.fillRect(px - f * .4, py - f * 1.1, f * .9, f * .6); }   // tuna fin
+      ctx.fillStyle = '#10182a'; ctx.fillRect(px + face * f * .9 - f * .2, py - f * .3, Math.max(1, f * .4), Math.max(1, f * .4));
+    }
+    ctx.globalAlpha = 1;
+    if (sc >= 8 && Math.random() < .0012) emit('bit', s.x, s.y - .3, 4, { col: '#d4ecff' });                // a fish leaps
+  }
+}
 function drawParts() {
   ctx.save();
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -2064,6 +2148,7 @@ function findWorkSpot(c, job, ka) {
     return best;
   }
   const r = 7; let best = null, bd = 1e9;
+  const nearSh = job === 'fish' ? shoals.filter(q => q.kind <= 1 && Math.abs(q.x - c.x) <= r + 3 && Math.abs(q.y - c.y) <= r + 3) : null;
   for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
     const x = c.x + dx, y = c.y + dy; if (!inb(x, y)) continue;
     const i = x + y*W, t = tiles[i]; if (fire[i]) continue;
@@ -2074,7 +2159,8 @@ function findWorkSpot(c, job, ka) {
       for (let k = 1; k <= 7; k += 2) { const nx = x + DIRS[k][0], ny = y + DIRS[k][1]; if (inb(nx, ny) && tiles[nx + ny*W] <= T.SHALLOW) { ok = true; wx = nx; wy = ny; break; } }
     }
     if (!ok) continue;
-    const d = Math.max(Math.abs(dx), Math.abs(dy)) + Math.random() * 2.5 - (job === 'mine' && oreT[i] ? 2 : 0);
+    let fb = 0; if (nearSh && nearSh.length) for (const q of nearSh) if (Math.max(Math.abs(q.x - wx), Math.abs(q.y - wy)) <= 3) { fb = 6; break; }
+    const d = Math.max(Math.abs(dx), Math.abs(dy)) + Math.random() * 2.5 - (job === 'mine' && oreT[i] ? 2 : 0) - fb;
     if (d < bd) { bd = d; best = { x, y, wx, wy }; }
   }
   return best;
@@ -2089,7 +2175,12 @@ function homeOf(c, ka) {                                       // nearest house 
   return best || { x: Math.round(ka.cx), y: Math.round(ka.cy) };
 }
 function finishWork(c, ka, j) {                                // the job is done: haul the goods home (or give up when there is no home)
-  if (j.k === 'fish') { fx('splash', j.wx, j.wy); emit('bit', j.wx, j.wy - .2, 6, { col: '#bfe6ff' }); if (Math.random() < .3) { c.job = null; return; } }
+  if (j.k === 'fish') {
+    fx('splash', j.wx, j.wy); emit('bit', j.wx, j.wy - .2, 6, { col: '#bfe6ff' });
+    const sh = shoalNear(j.wx, j.wy, 3, 1);                      // only a shoal nearby gives a real catch
+    if (Math.random() < (sh ? .15 : .55)) { c.job = null; return; }
+    j.fm = sh ? SHOAL[sh.kind].yieldM * (.6 + .4 * sh.stock) : .25; if (sh) sh.stock = Math.max(0, sh.stock - .12);
+  }
   if (!ka) { c.job = null; return; }
   const h = homeOf(c, ka);
   j.ph = 2; j.t = 0; j.f = 0; j.hx = h.x; j.hy = h.y; j.item = CARRY[j.k];
@@ -2097,7 +2188,7 @@ function finishWork(c, ka, j) {                                // the job is don
 }
 function deposit(c, ka, j) {
   if (ka && kingdoms.has(ka.id)) {
-    const [key, amt] = JOB_YIELD[j.k];
+    const [key, amt0] = JOB_YIELD[j.k], amt = j.k === 'fish' && j.fm != null ? Math.max(1, Math.round(amt0 * j.fm)) : amt0;
     addYield(ka, key, j.k === 'chop' && c.t === 'dwarf' ? amt + 1 : j.k === 'gather' && c.t === 'elf' ? amt + 2 : amt);
     if (j.k === 'mine') {                                      // an ore node gives its metal (when the kingdom knows how to work it)
       const i = j.x + j.y*W, t = oreT[i];
@@ -2704,6 +2795,9 @@ function fishingPlan(k, sourceLand) {
     const d = Math.max(Math.abs(i % W - sx), Math.abs(((i / W) | 0) - sy));
     if (d >= 6 && d <= 26) goals[i] = i;
   }
+  const gs = new Int32Array(N); gs.fill(-1); let anySh = false;      // fishing boats head for a real shoal when one is in range
+  for (const sh of shoals) { const bx = Math.round(sh.x), by = Math.round(sh.y), dd = Math.max(Math.abs(bx - sx), Math.abs(by - sy)); if (dd >= 6 && dd <= 30 && tiles[bx + by*W] <= T.SHALLOW) { gs[bx + by*W] = bx + by*W; anySh = true; } }
+  if (anySh) { const r2 = findWaterRoute(tiles, W, H, startWater, gs); if (r2 && r2.path.length >= 3) return { path: r2.path, land: r2.landIndex, sourceLand, targetComp: 0 }; }
   let route = findWaterRoute(tiles, W, H, startWater, goals);
   if (route && route.path.length >= 3) return { path: route.path, land: route.landIndex, sourceLand, targetComp: 0 };
   // Very narrow seas still support an anchored fishing boat near its harbor.
@@ -2774,8 +2868,10 @@ function voyageTick() {
     const s = ships[si]; if (extinctRaces.has(s.race)) { ships.splice(si,1); continue; }
     if (s.phase === 'fishing') {
       if (--s.fishTimer <= 0) {
-        const k = kingdoms.get(s.kingdomId); if (k) addYield(k, 'food', 18);
-        addChronicle('🐟', `${k ? k.name : 'Kapal nelayan'} membawa pulang hasil tangkapan`);
+        const k = kingdoms.get(s.kingdomId), sh = shoalNear(s.x, s.y, 9, 2); let amt = 18;
+        if (sh) { amt += [4, 8, 16][sh.kind]; sh.stock = Math.max(0, sh.stock - .22); }
+        if (k) addYield(k, 'food', amt);
+        addChronicle('🐟', `${k ? k.name : 'A fishing boat'} brought home a catch of ${sh ? SHOAL[sh.kind].n : 'fish'}`);
         s.phase = 'fishing_return'; s.path.reverse(); s.step = 0; s.move = 0; dirty = true;
       }
       continue;
@@ -2900,7 +2996,7 @@ function step() {
   for (const l of cells) l.length = 0;
   for (const c of creatures) if (!c.boat) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
-  reapDead(); voyageTick();
+  reapDead(); voyageTick(); shoalTick();
   const wc = counts.wolf || 0;
   if (wc >= 2 && wc <= 3 && tick - lastEvolve > 1200 && (counts.werewolf || 0) < capOf('werewolf')) evolveWolves();
   else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
@@ -3115,6 +3211,7 @@ function draw() {
       }
       ctx.setLineDash([]);
     }
+    drawShoals(x0, y0, x1, y1);
     drawDecor(x0, y0, x1, y1);
     drawVolcanoes(x0, y0, x1, y1);
     drawOres(x0, y0, x1, y1);
@@ -3930,7 +4027,7 @@ function newWorld(idx) {
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx);
   generate(1 + ((Math.random() * 1e6) | 0));
-  if (!editMode) { seedResources(); seedVolcanoes(); if (!SIZES[sizeIdx].empty) populate(); else toast('🏝️ Empty island — start in the Life tab'); }
+  if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); if (!SIZES[sizeIdx].empty) populate(); else toast('🏝️ Empty island — start in the Life tab'); }
   startCamera(); persistWorld(); dirty = true; if (!editMode) clearSave();
 }
 /* ---- leaderboard: "civilization score" ---- */
@@ -4098,6 +4195,7 @@ function serialize2() {
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
     vc: volcanoes.map(v => v.i),
     dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b, d.e | 0]),
+    sh: shoals.map(v => [Math.round(v.x), Math.round(v.y), v.kind, Math.round(v.stock * 100)]), st: shoalTarget,
     sf: ships.map(s => [s.id, s.race, kix.get(s.kingdomId) || 0, s.x, s.y, s.path, s.step, s.move, s.phase, s.sourceLand, s.targetLand, s.targetComp, s.crew, s.landed | 0, s.wreckAt | 0, s.fishTimer | 0]) };      // one packed int per creature
 }
 function restore(s) {
@@ -4126,6 +4224,7 @@ function restore(s) {
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
   else seedResources();
+  if (s.sh) { computeShoreD(); shoals = s.sh.filter(v => shoalOk(v[2], v[0], v[1])).map(v => ({ x: v[0], y: v[1], kind: v[2], stock: Math.max(.15, (v[3] || 80) / 100), tx: v[0], ty: v[1], hd: 1, ph: ri(0, 63) })); shoalTarget = s.st || [0, 0, 0]; } else seedShoals();
   volcanoes.length = 0; if (s.vc) { for (const i of s.vc) if (i < N) volcanoes.push({ i, x: i % W, y: (i / W) | 0, er: -1e9 }); } else seedVolcanoes();
   for (const [ia, ib, st, t0, un] of s.rl || []) { const ka = ids[ia - 1], kb = ids[ib - 1]; if (ka && kb) rels.set(rkey(ka, kb), { s: st, t: t0, until: un }); }
   rebuildRelations();
@@ -4370,7 +4469,7 @@ async function start() {
     setSize(wantSize);
     if (rleDecode(cfg.world.tiles)) { currentSeed = cfg.world.seed || 0; bld.fill(0); fire.fill(0); creatures = []; }
     else generate(cfg.world.seed || (1 + ((Math.random() * 1e6) | 0)));
-    if (!editMode) { seedResources(); seedVolcanoes(); if (!SIZES[sizeIdx].empty) populate(); }
+    if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); if (!SIZES[sizeIdx].empty) populate(); }
   }
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
   startCamera(); renderRow1(); renderRow2(); updateStats();
@@ -4391,7 +4490,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
