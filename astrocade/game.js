@@ -2,19 +2,26 @@
  * ASTRO WORLD — a WorldBox-style god-sim sandbox (portrait 720x1280).
  *
  * Concept: shape an island, drop humans / elves / dwarves / orcs / sheep / wolves, and
- * watch them build houses, breed, hunt and wage war. Then unleash rain, fire, lightning
- * and meteors.
+ * watch them build houses, breed, hunt, wage war and sail to colonize distant shores. Then
+ * unleash rain, fire, lightning and meteors.
  *
  * Play mode : full simulation, all tools, autosave (lib.saveUserGameState).
  * Edit mode : simulation frozen; sculpt terrain or regenerate the world. The result is
  *             written to gameConfig.world (RLE tiles) and becomes the play-mode start map.
  */
+import { pickJob, workLen, reach, swingPhase, swingCycle, isStrikeFrame, IMPACT, JOB_YIELD, CARRY, STATUS, addYield } from './jobs.js';
+import { drawWorker, drawCarry } from './work_anim.js';
+import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
+import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
+import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
+import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+
 function run(mode) {
 'use strict';
 
 /* ============================== CONSTANTS ============================== */
 const SCREEN_W = 720, SCREEN_H = 1280;
-const VIEW = { x: 0, y: 190, w: 720, h: 866 };          // world viewport on the canvas
+const VIEW = { x: 0, y: 190, w: 720, h: 760 };          // leave clear space above the two-row, non-overlapping tool dock
 // Three selectable world sizes. k scales population caps (not linearly, to keep phones smooth).
 const SIZES = [
   { name:'S', label:'Small',  w:120, h:148, k:1,   land:0,   coarse:0,   wc:0 },
@@ -37,7 +44,7 @@ const RACES = {
   dwarf: { col:'#ff9a2e', hp:38, dmg:5, mv:3, civ:1, cap:70, life:[1400,2200], foes:['wolf'], build:[T.HILL,T.GRASS], bi:3 },
   orc:   { col:'#ff3d3d', hp:44, dmg:6, mv:2, civ:1, cap:80, life:[800,1300],  foes:[], build:[T.GRASS,T.HILL,T.BURNT,T.SAND], bi:4 },
   // Werewolves: evolved wolves. Neutral (nobody's foe, hates nobody) and slow-growing: few houses, rare births, long lives.
-  werewolf: { col:'#5ef0ff', hp:40, dmg:6, mv:2, civ:1, cap:36, life:[2500,4000], foes:[], build:[T.FOREST,T.HILL,T.GRASS], bi:5, buildP:.002, spawnP:.0004 },
+  werewolf: { col:'#5ef0ff', hp:40, dmg:6, mv:2, civ:1, cap:36, life:[2500,4000], foes:[], build:[T.FOREST,T.HILL,T.GRASS], bi:5, buildP:.002, spawnP:WEREWOLF_BIRTH_RATE },
   // Wild fauna. prey = wolf food; br = breeding (p per move, tiles, max animals per 8x8 cell); flee = runs from wolves.
   sheep:  { col:'#ffffff', hp:10, dmg:0, mv:3, civ:0, cap:110, life:[600,1100], foes:[], build:[], bi:0, prey:1, br:{ p:.02,  tiles:[T.GRASS], dens:14 } },
   rabbit: { col:'#c9a37a', hp:6,  dmg:0, mv:2, civ:0, cap:160, life:[500,900],  foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.035, tiles:[T.GRASS,T.FOREST,T.HILL], dens:16 } },
@@ -59,7 +66,7 @@ const NAME_P = {
   orc:[['Gor','Zug','Mog','Gra','Kru','Thrak','Ugh'],['ash','gash','uk','nar','dak','mok']],
   werewolf:[['Lun','Fen','Va','Mar','Grey','Nox','Ulv'],['fang','moon','howl','pelt','mere','claw']],
 };
-// ---- Technology: 4 per race, researched in order when the kingdom's level and resources allow ----
+// ---- Technology: four race arts followed by a shared Iron-Age sailing breakthrough ----
 // fx keys: food/wood/stone/gold/birth/atk/def multiply; houses/radius add; range/night/loot/steal/regen/fire/farms/walls/grow are flags or maxima.
 const TECHS = {
   human: [
@@ -67,30 +74,35 @@ const TECHS = {
     { id:'walls',   ic:'🧱', n:'Walls',             lv:2, cost:{ stone:60, wood:30 },  fx:{ houses:4, def:1.25, radius:2, walls:1 } },
     { id:'knight',  ic:'⚔️', n:'Knighthood',        lv:2, cost:{ gold:40, stone:50, iron:12 },  fx:{ atk:1.3, def:1.3 } },
     { id:'trade',   ic:'🪙', n:'Trade',             lv:3, cost:{ gold:80, silver:12 },            fx:{ gold:2, food:1.2, birth:1.25 } },
+    { id:'voyage',  ic:'⛵', n:'Ocean Voyages',      lv:3, cost:{ wood:90, gold:30, iron:12 },    fx:{}, lm:'harbor' },
   ],
   elf: [
     { id:'forest',  ic:'🌿', n:'Living Forest',     lv:1, cost:{ wood:30 },            fx:{ wood:1.3, food:1.2, grow:1 } },
     { id:'archer',  ic:'🏹', n:'Archery',           lv:1, cost:{ wood:40, gold:20, bronze:8 },   fx:{ range:3, atk:1.1 } },
     { id:'ward',    ic:'🔥', n:'Fire Ward',         lv:2, cost:{ wood:60, stone:20, silver:8 },  fx:{ fire:1, def:1.15 } },
     { id:'treelife',ic:'🌳', n:'Tree of Life',      lv:3, cost:{ wood:120, gold:60 },  fx:{ regen:.08, birth:1.3 }, lm:'lifetree' },
+    { id:'voyage',  ic:'⛵', n:'Star Navigation',    lv:3, cost:{ wood:100, gold:25, iron:10, silver:6 }, fx:{}, lm:'harbor' },
   ],
   dwarf: [
     { id:'mining',  ic:'⛏️', n:'Mining',            lv:1, cost:{ stone:20 },           fx:{ stone:2, gold:1.5 }, lm:'mine' },
     { id:'forge',   ic:'🔨', n:'Forge',             lv:2, cost:{ stone:60, gold:20, iron:15 },  fx:{ def:1.4, atk:1.2 } },
     { id:'vault',   ic:'🏦', n:'Vault',             lv:2, cost:{ gold:60, stone:60, silver:15 },  fx:{ gold:2, houses:4 } },
     { id:'hold',    ic:'🏯', n:'Mountain Hold',     lv:3, cost:{ gold:100, stone:120, iron:20 },fx:{ radius:3, def:1.5 } },
+    { id:'voyage',  ic:'⛵', n:'Deep Keels',         lv:3, cost:{ wood:80, stone:45, iron:16 },    fx:{}, lm:'harbor' },
   ],
   orc: [
     { id:'camp',    ic:'🪓', n:'War Camp',          lv:1, cost:{ wood:30 },            fx:{ atk:1.25, birth:1.2 }, lm:'warbanner' },
     { id:'raid',    ic:'🩸', n:'Raiding',           lv:1, cost:{ stone:20, gold:10, bronze:8 },  fx:{ loot:1 } },
     { id:'totem',   ic:'💀', n:'Blood Totem',       lv:2, cost:{ stone:40, gold:30, bronze:10 },  fx:{ steal:.3, atk:1.15 }, lm:'bloodtotem' },
     { id:'horde',   ic:'👹', n:'The Horde',         lv:3, cost:{ gold:60, wood:60, iron:15 },   fx:{ birth:1.5, houses:4, def:1.25 } },
+    { id:'voyage',  ic:'⛵', n:'War Canoes',         lv:3, cost:{ wood:90, gold:18, iron:10 },     fx:{}, lm:'harbor' },
   ],
   werewolf: [
     { id:'moon',    ic:'🌙', n:'Moon Prayer',       lv:0, cost:{ wood:20 },            fx:{ night:1.4 } },
     { id:'pack',    ic:'🐾', n:'The Pack',          lv:1, cost:{ stone:20, silver:6 },           fx:{ birth:1.4 } },
     { id:'spirit',  ic:'🔮', n:'Spirit Totem',      lv:2, cost:{ stone:40, gold:20, silver:8 },  fx:{ radius:3, regen:.05 }, lm:'spirittotem' },
     { id:'full',    ic:'🌕', n:'Full Moon',         lv:3, cost:{ gold:50, silver:10 },            fx:{ night:2, birth:1.5 } },
+    { id:'voyage',  ic:'⛵', n:'Moonwake Fleet',     lv:3, cost:{ wood:80, gold:22, iron:8 },      fx:{}, lm:'harbor' },
   ],
 };
 const BORDER_RGB = [null, [74,163,255], [226,169,255], [255,154,46], [255,61,61], [94,240,255]];     // by house owner index (race.bi)
@@ -127,22 +139,36 @@ style.textContent = `
   #awtop{position:absolute;left:0;top:0;width:720px;height:190px;background:linear-gradient(#18214a,#10172f);border-bottom:3px solid #0a0e22;box-shadow:0 3px 0 #2c3868}
   #awbtns{position:absolute;left:8px;top:8px;display:flex;gap:6px}
   #awbtns .awb{width:88px;height:88px;flex:0 0 88px}
-  #awyear{position:absolute;right:10px;top:24px;height:56px;display:flex;align-items:center;gap:8px;font-size:32px;font-weight:800;background:rgba(8,12,30,.75);border:2px solid #2c3868;border-radius:14px;padding:0 16px;font-variant-numeric:tabular-nums}
+  #awyear{position:absolute;right:8px;top:4px;height:96px;min-width:112px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:6px;font-size:28px;font-weight:800;background:rgba(8,12,30,.9);border:2px solid #2c3868;border-radius:14px;padding:0 10px;font-variant-numeric:tabular-nums;cursor:pointer;touch-action:manipulation}\n  #awyear:active{transform:translateY(2px);border-color:#ffcf4a}
   #awyear .ic{width:36px;height:36px;vertical-align:0}
   .awchips{position:absolute;left:8px;right:8px;height:38px;display:flex;gap:6px;align-items:center;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
   #awstats{top:108px} #awstats2{top:148px}
-  .awchips span{display:inline-flex;align-items:center;gap:3px;height:36px;background:rgba(8,12,30,.72);border:2px solid #2c3868;border-radius:10px;padding:0 8px}
+  .awchips span{display:inline-flex;align-items:center;gap:3px;height:36px;box-sizing:border-box;background:rgba(8,12,30,.72);border:2px solid #2c3868;border-radius:10px;padding:0 8px}
   .awchips span .ic{width:24px;height:24px;vertical-align:0}
   .awchips span .ic.cr{width:32px;height:32px}
-  #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:linear-gradient(#10172f,#18214a);border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
+  #awbot{position:absolute;left:0;top:960px;width:720px;height:320px;background:linear-gradient(#10172f,#18214a);border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
   #awrow1>.awb{width:84px;height:84px;flex-basis:84px}
   #awbrush{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:36px;font-weight:800;color:#ffcf4a}
   #awbrush .awb{width:76px;height:76px;flex-basis:76px;font-size:44px}
   #awbrush span{min-width:40px;text-align:center}
-  #awrow2{display:flex;gap:8px;margin-top:10px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x;padding-bottom:4px}
-  #awrow2::-webkit-scrollbar{display:none}
-  #awinfo{position:absolute;left:14px;bottom:226px;width:692px;box-sizing:border-box;background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
+  #awrow2{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;overflow:visible;touch-action:manipulation;padding-bottom:4px}
+  #awinfo{position:absolute;left:14px;bottom:330px;width:692px;max-height:700px;overflow-y:auto;touch-action:pan-y;box-sizing:border-box;background:rgba(10,15,36,.97);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
+  #awinfo .jtabs{display:flex;gap:10px;margin:12px 0 8px;clear:both}
+  #awinfo .jtab{flex:1;min-width:96px;min-height:96px;font-size:24px}
+  #awinfo .jbody{clear:both}
+  #awinfo .jrow{display:flex;gap:14px;align-items:flex-start;border-top:1px solid #34406c;padding:12px 2px;font-size:21px;line-height:1.3}
+  #awinfo .jrow .jicon{width:44px;flex:0 0 44px;font-size:30px;text-align:center}
+  #awinfo .jrow div{flex:1;min-width:0}
+  #awinfo .jrow small{display:block;font-size:17px;color:#aab4e0;font-weight:800}
+  #awinfo .jrow span{display:block;overflow-wrap:anywhere}
+  #awinfo .jgoal{border-top:1px solid #34406c;padding:14px 2px 10px;font-size:22px}
+  #awinfo .jgoaltop{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  #awinfo .jgoaltop strong{color:#ffcf4a;white-space:nowrap}
+  #awinfo .jgoal small{display:block;font-size:18px;color:#aab4e0;line-height:1.3;margin:2px 0 8px}
+  #awinfo .jbar{height:12px;border-radius:8px;background:#080c1f;border:1px solid #34406c;overflow:hidden}
+  #awinfo .jbar i{display:block;height:100%;background:linear-gradient(90deg,#49a9ff,#65df9a)}
+  #awinfo .jempty{padding:28px 10px;color:#aab4e0;font-size:22px;text-align:center}
   #awinfo b{font-size:30px;color:#ffe9a0}
   #awinfo .ibtns{float:right;display:flex;gap:8px;margin:-2px 0 0 10px}
   #awinfo .ibt{width:76px;height:76px;flex-basis:76px;border-radius:14px}
@@ -183,9 +209,10 @@ style.textContent = `
   #awinfo .bi.sel{box-shadow:0 0 16px rgba(255,207,74,.9);border-color:#ffcf4a;transform:translateY(-3px)}
   #awinfo .hist{font-size:20px;line-height:1.35;color:#c8d0f0;margin-top:4px;clear:both}
   #awinfo .hist em{font-style:normal;color:#ffcf4a;font-weight:800}
-  #awtitle{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:60;background:linear-gradient(#0a1030,#1a2760 55%,#0b1020);transition:opacity .45s;overflow:hidden}
-  #awtitle .bg{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}
-  #awtitle .shade{position:absolute;left:0;bottom:0;width:100%;height:420px;background:linear-gradient(rgba(5,8,22,0),rgba(5,8,22,.92))}
+  #awload{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#243f82 0,#101a45 40%,#070b20 100%);color:#eef3ff;transition:opacity .42s ease}\n  #awload:before{content:'';position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#fff 1px,transparent 1.8px),radial-gradient(#84c7ff 1px,transparent 1.8px);background-size:71px 71px,113px 113px;background-position:0 0,32px 45px;opacity:.38}\n  #awload.fade{opacity:0;pointer-events:none}\n  #awload .ldorb{position:relative;width:144px;height:144px;display:grid;place-items:center;border:2px solid rgba(143,193,255,.3);border-radius:50%;box-shadow:0 0 34px rgba(73,154,255,.25),inset 0 0 24px rgba(73,154,255,.18);animation:aworb 3s ease-in-out infinite}\n  #awload .ldorb b{font-size:80px;filter:drop-shadow(0 6px 0 rgba(0,0,0,.25))}\n  #awload .ldorb i{position:absolute;right:-5px;top:20px;font-size:36px;font-style:normal;animation:awship 2s ease-in-out infinite}\n  #awload .ldname{font-size:52px;font-weight:900;letter-spacing:4px;color:#ffd54a;text-shadow:0 4px 0 #784217,0 0 24px rgba(255,207,74,.35);text-align:center}\n  #awload .ldbar{width:330px;height:14px;border:2px solid #556aa4;border-radius:20px;background:#0a102c;overflow:hidden;box-shadow:0 3px 0 rgba(0,0,0,.35)}\n  #awload .ldbar i{display:block;width:42%;height:100%;border-radius:20px;background:linear-gradient(90deg,#55caff,#ffda55);animation:awloadbar 1.15s ease-in-out infinite}\n  #awload .ldtext{font-size:22px;font-weight:700;letter-spacing:1px;color:#c7d7ff}\n  @keyframes aworb{50%{transform:translateY(-8px);box-shadow:0 0 48px rgba(73,154,255,.38),inset 0 0 30px rgba(73,154,255,.22)}}\n  @keyframes awship{50%{transform:translate(-8px,5px) rotate(-8deg)}}\n  @keyframes awloadbar{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}\n  #awtitle{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:60;background:radial-gradient(ellipse at 50% 30%,#253a78 0,#111a43 48%,#080c21 100%);transition:opacity .45s;overflow:hidden}
+  #awtitle .bg{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;object-position:center center;filter:brightness(.84) saturate(.9);opacity:0;transition:opacity .5s ease}\n  #awtitle .bg.loaded{opacity:1}
+  #awtitle .shade{position:absolute;left:0;bottom:0;width:100%;height:500px;background:linear-gradient(180deg,rgba(5,8,22,0),rgba(5,8,22,.26) 36%,rgba(5,8,22,.96) 100%)}
+  #awtitle .menuPanel{position:absolute;left:34px;right:34px;bottom:58px;height:286px;box-sizing:border-box;background:linear-gradient(180deg,rgba(14,22,48,.78),rgba(5,8,22,.94));border:2px solid rgba(181,207,255,.24);border-radius:30px;box-shadow:0 14px 44px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.12);backdrop-filter:blur(5px)}
   #awtitle .nm{position:absolute;left:0;top:300px;width:100%;text-align:center;font-size:96px;font-weight:900;line-height:.95;color:#ffd23f;text-shadow:0 6px 0 #7a3a10,0 0 28px rgba(255,200,80,.5)}
   #awtitle .tb{position:absolute;left:60px;right:60px;bottom:90px;display:flex;flex-direction:column;gap:18px;align-items:center}
   .awbig{box-sizing:border-box;width:100%;height:124px;border-radius:30px;border:4px solid #7a4a10;background:linear-gradient(#ffd23f,#e8962a);box-shadow:inset 0 4px 0 rgba(255,255,255,.4),inset 0 -8px 0 rgba(0,0,0,.2),0 6px 0 #5a2e08,0 0 30px rgba(255,190,60,.45);color:#3a1a04;font-size:50px;font-weight:900;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:16px;cursor:pointer;animation:awpulse 1.8s ease-in-out infinite}
@@ -206,12 +233,14 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 const app = document.createElement('div'); app.id = 'aw'; document.body.appendChild(app);
+const loadingStartedAt = performance.now();
 const cv = document.createElement('canvas');
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
 cv.width = SCREEN_W * DPR; cv.height = SCREEN_H * DPR;
 app.appendChild(cv);
 const ctx = cv.getContext('2d');
 const el = (tag, id, parent) => { const e = document.createElement(tag); if (id) e.id = id; (parent || app).appendChild(e); return e; };
+if (!editMode) cv.style.visibility = 'hidden';
 const topBar = el('div', 'awtop'), btns = el('div', 'awbtns', topBar), statsEl = el('div', 'awstats', topBar), stats2El = el('div', 'awstats2', topBar), yearEl = el('div', 'awyear', topBar);
 statsEl.className = stats2El.className = 'awchips';
 const bot = el('div', 'awbot'), row1 = el('div', 'awrow1', bot), row2 = el('div', 'awrow2', bot);
@@ -232,10 +261,14 @@ let wallK = new Uint16Array(1), wallG = new Uint8Array(1), wallT = new Uint8Arra
 let oreT = new Uint8Array(1), oreA = new Uint8Array(1), treeK = new Uint8Array(1), nodes = [];      // resource nodes: type / amount left, cached tree kind, node list     // wall barrier map: owner kingdom id / is-gate
 const wallGates = new Map();                                   // kingdom id -> gate tile indices
 const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
+const extinctRaces = new Set();                       // wars can permanently end a race in this world
 let comp = null, compDirty = true;                 // connected land components (wars only happen on the same landmass)
 const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
 const warStats = { repaired: 0, towerShots: 0, breached: 0, declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
+const chronicle = []; const completedGoals = new Set(); let warsResolved = 0;
+const CHRONICLE_MAX = 60;
 let creatures = [], nextId = 1, tick = 0;
+let ships = [], nextShipId = 1;                 // civilization exploration vessels; crew are citizens marked with ship id
 let speed = 1, paused = editMode, started = editMode, fireView = 0, sndBtn = null, tutSeen = false;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
 const effects = [];
@@ -426,6 +459,43 @@ const PRESETS = [
       presetVolc.length = 0;
     } },
 ];
+// ---- Indonesia, detailed: finer resolution (8.5 tiles per degree), many more islands, lakes and more volcanoes. The first version stays hidden so older saves still load.
+PRESETS[0].hidden = true;
+const IDN_EXTRA = [
+  // Kepulauan Seribu and Java's offshore islands
+  ...[[106.62,-5.93],[106.58,-5.85],[106.55,-5.78],[106.53,-5.70],[106.56,-5.62],[106.52,-5.55],[106.5,-5.47],[106.53,-5.40],[106.6,-5.72]].map(q => E(q[0], q[1], .04, .04)),
+  E(110.45, -5.8, .08, .06), E(110.5, -5.88, .05, .04), E(110.38, -5.82, .04, .04), E(110.55, -5.8, .04, .04), E(110.42, -5.95, .04, .04), E(114.3, -7.1, .1, .06), E(114.6, -7.1, .08, .05), E(114.45, -5.55, .07, .05), E(105.2, -6.6, .12, .1), E(105.5, -5.95, .07, .07), E(113.8, -7.45, .04, .04),
+  // Raja Ampat and the Bird's Head
+  E(130.65, -.85, .28, .1, -20), E(130.9, -1.15, .28, .2), E(130.35, -.45, .08, .05), E(130.45, -.55, .07, .05), E(130.5, -.45, .06, .04), E(130.55, -.58, .06, .04), E(130.3, -.6, .05, .04), E(130.68, -.55, .07, .05), E(130.65, -.62, .1, .05),
+  ...[[130.15,.05],[130.2,.12],[130.1,.15],[130.25,.0],[130.3,.1],[130.18,.2],[130.05,.08]].map(q => E(q[0], q[1], .05, .04)),
+  E(129.8, -1.2, .1, .08), E(129.9, -1.2, .05, .04), E(129.4, -.1, .15, .12), E(129.9, -.4, .12, .1), E(130.2, -1.5, .06, .05), E(130.4, -1.7, .08, .05), E(130.55, -2.0, .08, .06),
+  E(133.0, -3.4, .7, .45), E(134.6, -2.8, .15, .4, 15), E(132.0, -2.6, .5, .3), E(131.7, -1.9, .35, .15),
+  // Cenderawasih Bay
+  E(134.95, -1.0, .12, .1), E(135.65, -.75, .25, .18), E(134.3, .9, .12, .1), E(135.2, -3.1, .1, .08),
+  // Maluku Utara and Halmahera
+  E(127.4, .3, .1, .1), E(127.45, .45, .04, .04), E(127.4, .7, .1, .1), E(127.4, 0., .12, .1), E(127.6, -1.25, .08, .06), E(127.4, -.3, .08, .06), E(129.5, .55, .12, .08), E(128.7, 1.0, .25, .3), E(128.0, 1.0, .35, .35), E(128.4, -.8, .25, .2),
+  E(127.55, -3.35, .1, .08), E(127.9, -2.95, .1, .08), E(126.5, -2.4, .12, .08), E(126.1, -2.1, .2, .1), E(123.2, -1.4, .5, .25, -20), E(123.5, -1.6, .2, .15), E(123.0, -1.7, .1, .08),
+  // Ambon, Lease, Banda and the south-east islands
+  E(128.4, -3.6, .1, .07), E(128.65, -3.55, .12, .08), E(128.75, -3.7, .07, .05), E(129.85, -4.52, .07, .04), E(129.7, -4.55, .04, .04), E(129.75, -4.52, .05, .03), E(129.8, -4.6, .04, .04),
+  E(131.0, -3.9, .12, .1), E(131.5, -4.4, .1, .08), E(132.65, -5.6, .2, .12), E(132.4, -5.5, .08, .06), E(134.0, -5.8, .18, .2), E(134.2, -6.5, .2, .18), E(134.55, -6.9, .12, .1), E(134.3, -6.3, .2, .3),
+  E(131.8, -7.1, .12, .1), E(131.0, -8.15, .13, .1), E(131.2, -7.9, .06, .05), E(128.0, -8.3, .1, .05), E(127.6, -8.3, .1, .05), E(128.9, -8.2, .18, .1), E(128.65, -7.15, .15, .15), E(127.3, -7.6, .15, .1), E(126.5, -7.9, .08, .06),
+  // Lesser Sunda detail
+  E(119.05, -8.2, .1, .1), E(117.5, -8.25, .12, .1), E(119.75, -8.7, .15, .12), E(119.58, -8.65, .05, .05), E(116.03, -8.35, .04, .04), E(116.08, -8.36, .03, .03), E(115.98, -8.35, .03, .03), E(115.55, -8.7, .15, .1), E(115.45, -8.68, .04, .03), E(121.7, -10.65, .05, .05), E(123.4, -10.2, .1, .1), E(121.7, -8.3, .06, .05), E(122.3, -8.45, .15, .1), E(119.3, -8.35, .06, .05), E(118.35, -8.4, .06, .06),
+  // Sumatra offshore
+  E(95.3, 5.85, .12, .1), E(95.05, 5.65, .08, .08), E(97.3, 2.2, .08, .08), E(97.45, 2.4, .05, .05), E(97.1, 1.9, .05, .06), E(98.4, -.1, .12, .15), E(98.6, -.5, .08, .1), E(102.05, 1.5, .2, .1), E(101.6, 1.8, .2, .1), E(102.6, 1.0, .1, .1), E(97.3, .9, .08, .1, 30), E(98.0, 1.0, .06, .08), E(103.4, 1.0, .1, .07), E(103.45, .75, .12, .15), E(104.2, .9, .15, .1), E(104.4, -.5, .14, .17), E(106.7, -3.0, .08, .06), E(105.9, -3.4, .1, .06), E(107.9, -2.5, .06, .05),
+  // Natuna, Anambas and Karimata
+  E(108.85, 3.0, .08, .08), E(109.05, 2.5, .08, .08), E(108.0, 4.7, .06, .06), E(105.75, 3.2, .1, .1), E(106.25, 3.3, .1, .08), E(107.6, 1.0, .1, .08), E(109.3, -1.0, .1, .08), E(108.7, -1.2, .08, .08), E(110.0, -1.9, .08, .06),
+  // Kalimantan offshore
+  E(116.4, -3.55, .1, .1), E(117.85, 3.45, .08, .1), E(117.85, 4.15, .1, .05), E(117.67, 4.1, .12, .08), E(118.25, 2.3, .05, .05), E(118.6, 2.25, .15, .1), E(118.5, 2.1, .05, .04), E(118.45, 1.95, .04, .04), E(115.3, -3.7, .12, .1),
+  // Sulawesi offshore and Wakatobi
+  E(121.9, -5.2, .15, .1), E(123.1, -4.1, .12, .1), E(123.55, -5.3, .18, .06), E(123.75, -5.55, .15, .05), E(123.9, -5.8, .1, .05), E(124.05, -5.95, .1, .05),
+  ...[[121.05,-6.55],[121.15,-6.6],[121.0,-6.65],[121.2,-6.5],[121.1,-6.7],[121.25,-6.62]].map(q => E(q[0], q[1], .06, .04)),
+  E(125.15, 1.75, .06, .1), E(124.75, 1.62, .04, .04), E(125.2, 1.45, .1, .04), E(125.4, 2.7, .1, .1), E(125.4, 2.35, .05, .05), E(126.75, 3.9, .1, .12), E(126.58, 5.58, .04, .04), E(125.3, 3.9, .08, .1), E(121.7, -.3, .12, .06), E(122.2, -.4, .12, .06), E(121.4, -.5, .08, .05), E(119.1, -4.9, .1, .08), E(119.3, -5.3, .08, .06), E(119.0, -3.8, .08, .06), E(120.2, -5.9, .08, .06), E(122.0, -5.65, .2, .07),
+];
+const IDN_LAKES = [[98.85,2.65,.38,.14,-40],[100.55,-.6,.1,.04,70],[100.2,-.3,.06,.04],[101.5,-2.2,.05,.04],[104.0,-4.85,.07,.05],[120.6,-1.85,.1,.12],[121.35,-2.5,.06,.04],[121.5,-2.75,.15,.08],[119.95,-4.0,.1,.07],[122.95,.58,.07,.04],[140.55,-2.6,.12,.04],[136.3,-3.9,.08,.05],[116.2,-.5,.12,.07],[116.3,-.3,.08,.05],[112.1,.8,.15,.1],[102.7,-1.9,.06,.05]];
+const IDN_VOLC = [[105.42,-6.1],[106.7,-6.75],[106.98,-6.78],[108.4,-6.9],[109.2,-7.24],[110.0,-7.3],[110.45,-7.54],[111.2,-7.63],[112.31,-7.93],[112.92,-8.1],[114.04,-8.12],[114.24,-8.06],[115.38,-8.24],[115.51,-8.34],[116.46,-8.41],[117.99,-8.25],[119.05,-8.2],[121.8,-8.77],[122.45,-8.67],[101.26,-1.7],[100.47,-.38],[98.39,3.17],[98.9,2.55],[96.33,4.77],[124.78,1.36],[125.45,3.68],[127.9,1.7],[127.33,.8],[129.88,-4.52],[133.0,-3.6]];
+PRESETS.push({ id: 'indonesia2', name: 'Indonesia', order: 0, desc: 'The full archipelago in fine detail: 200+ islands, Lake Toba, Raja Ampat, Wakatobi, 30 volcanoes and the snowy peaks of Papua', w: 420, h: 170, k: 2.6, box: [94.0, 7.4, 8.5], shore: 3, ridgeK: 1.25, cam: [110.4, -7.5],
+  islands: PRESETS[0].islands.map(o => o.snow ? Object.assign({}, o, { snowT: 1.32 }) : o).concat(IDN_EXTRA), ridges: PRESETS[0].ridges, shelves: PRESETS[0].shelves, lakes: IDN_LAKES, volc: IDN_VOLC });
 for (const p of PRESETS) SIZES.push({ name: 'P', label: p.name, w: p.w, h: p.h, k: p.k, land: 0, coarse: 0, wc: 0, preset: p, empty: true });
 const presetVolc = [];
 function presetCamTile(z) {                                    // where the camera opens on an empty seed
@@ -474,7 +544,7 @@ function genPreset(z, seed) {
   for (let i = 0; i < N; i++) if (!isl[i]) { let edge = false; nb(i, j => { if (isl[j]) edge = true; }); if (edge) { dw[i] = 1; q[qt++] = i; } }
   while (qh < qt) { const i = q[qh++]; if (dw[i] >= 12) continue; nb(i, j => { if (!isl[j] && dw[j] > dw[i] + 1) { dw[j] = dw[i] + 1; q[qt++] = j; } }); }
   const dmax = new Float32Array(p.islands.length + 1); for (let i = 0; i < N; i++) if (isl[i]) dmax[isl[i]] = Math.max(dmax[isl[i]], depth[i]);
-  const rg = (p.ridges || []).map(r => ({ seg: r.pts.map(q2 => P(q2[0], q2[1])), w: r.w, h: r.h }));
+  const rg = (p.ridges || []).map(r => ({ seg: r.pts.map(q2 => P(q2[0], q2[1])), w: r.w * (p.ridgeK || 1), h: r.h }));
   const shelves = (p.shelves || []).map(sh => sh.map(q2 => P(q2[0], q2[1])));
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = x + y*W, k = isl[i];
@@ -500,9 +570,16 @@ function genPreset(z, seed) {
     else if (h < .07) t = T.SAND;
     else if (h < .5) t = mo < .3 + fo * .4 ? T.FOREST : T.GRASS;
     else if (h < .66) t = T.HILL;
-    else if (h < (is.snow ? .92 : 9)) t = T.MOUNTAIN;
+    else if (h < (is.snow ? (is.snowT || .92) : 9)) t = T.MOUNTAIN;
     else t = T.SNOW;
     tiles[i] = t;
+  }
+  for (const lk of p.lakes || []) {                              // lakes: water inside the island (never walkable)
+    const [cx, cy] = P(lk[0], lk[1]), rx = Math.max(1.2, lk[2] * s), ry = Math.max(1.0, lk[3] * s), th = (lk[4] || 0) * Math.PI / 180, ct = Math.cos(th), st = Math.sin(th);
+    for (let y = Math.max(0, Math.floor(cy - rx - 3)); y <= Math.min(H - 1, Math.ceil(cy + rx + 3)); y++) for (let x = Math.max(0, Math.floor(cx - rx - 3)); x <= Math.min(W - 1, Math.ceil(cx + rx + 3)); x++) {
+      const wx = x + (fbm(x / 4, y / 4, seed + 21) - .5) * 2, wy = y + (fbm(x / 4 + 30, y / 4 + 30, seed + 22) - .5) * 2, dx = wx - cx, dy = wy - cy, u = dx * ct - dy * st, v = dx * st + dy * ct;
+      if (isl[x + y*W] && (u / rx) * (u / rx) + (v / ry) * (v / ry) <= 1) tiles[x + y*W] = T.SHALLOW;
+    }
   }
   for (const v of p.volc || []) {                                // volcano sites: a high cone with foothills
     const [cx, cy] = P(v[0], v[1]).map(Math.round); if (!inb(cx, cy)) continue;
@@ -517,6 +594,7 @@ function genPreset(z, seed) {
 }
 function generate(seed) { const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
 function emptyWorld() {
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1;
   nodes = []; oreT.fill(0); oreA.fill(0);
   creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
   for (let i = 0; i < N; i++) jit[i] = Math.floor((hash(i, 3, 5) - .5) * 14);
@@ -718,6 +796,7 @@ const LANDMARKS = {
   bloodtotem: { pal: { o:'#1c1214', w:'#f4f1e6', e:'#ffe14a', t:'#8a5a34', T:'#5e3a20', r:'#ff3d3d' }, A: [".w....w.", ".wwwwww.", "..weew..", "..wwww..", "..tttt..", ".trrrrt.", ".tTttTt.", "..tttt..", ".trrrrt.", "..tTTt..", "..tttt..", ".tttttt.", ".oooooo."] },
   spirittotem: { pal: { o:'#1c1424', g:'#6b6379', m:'#5ef0ff', c:'#2aa5b8', w:'#f4f1e6', t:'#5e4630', T:'#3a2c20' }, A: [".gg..gg.", ".gggggg.", ".gmggmg.", "..gwwg..", "..tttt..", ".tcmmct.", ".tTttTt.", "..tttt..", ".tcmmct.", "..tTTt..", "..tttt..", ".tttttt.", ".oooooo."] },
   lifetree: { pal: { o:'#1c2418', L:'#4fae52', l:'#8fe08a', D:'#2d7a3a', y:'#ffe27a', t:'#8a5a34', T:'#5e3a20', B:'#b07a48' }, A: ["...oooooo...", "..oLllLLDo..", ".oLlyLDyLDo.", "oLlLLlLDDLDo", "oLLyLLDDyDDo", "oDLLLDDDDDDo", ".oDDDDDDDDo.", "..oDDooDDo..", "...ottTTo...", "...ottTTo...", "..oTttTTTo..", ".oTBttTTtTo.", ".oooTTTTooo.", "oooooooooooo"] },
+  harbor: { pal: { o:'#1c1424', w:'#f4f1e6', b:'#8a5a34', B:'#c08a50', d:'#5e3a20', S:'#53c6e8', s:'#e8fbff', g:'#ffcf4a' }, A: [".....w......", "....ww......", "...wssw.....", "..wssssw....", ".wssssssw...", "..wwwwww....", "..bBBBBb....", ".bBBBBBBBb..", "oBBBBBBBBBBo", "oooooooooooo"] },
 };
 function buildSprite(def, frame) {
   const rows = def[frame] || def.A;
@@ -737,6 +816,9 @@ for (const k in HOUSES) { HATLAS[RACES[k].bi] = buildSprite(HOUSES[k], 'A'); HME
 for (const k in HALLS) { HALLATLAS[RACES[k].bi] = buildSprite(HALLS[k], 'A'); HALLMETA[RACES[k].bi] = HALLS[k].meta || {}; }
 const LMATLAS = {};
 for (const k in LANDMARKS) LMATLAS[k] = buildSprite(LANDMARKS[k], 'A');
+const SHIP_ATLAS = {};
+const SHIP_ROWS = [".....w......", "....ww......", "...wssw.....", "..wssssw....", ".wssssssw...", "..wwwwww....", "..bBBBBb....", ".bBBBBBBBb..", "oBBBBBBBBBBo", "oooooooooooo"];
+for (const race of ['human','elf','dwarf','orc','werewolf']) SHIP_ATLAS[race] = buildSprite({ pal: { o:'#1c1424', w:'#f4f1e6', b:'#8a5a34', B:'#c08a50', s:RACES[race].col }, A: SHIP_ROWS }, 'A');
 
 // Town props per race (cosmetic, derived from kingdom state): wall, corner tower, gate, well, field, granary.
 const PROPS = {
@@ -1017,6 +1099,7 @@ function emit(kind, x, y, n, o) {
     else if (kind === 'ember') { p.vx = (Math.random() - .5) * .07; p.vy = -.05 - Math.random() * .1; p.m = 30 + Math.random() * 34; }
     else if (kind === 'ash') { p.vx = (Math.random() - .2) * .04; p.vy = -.02 - Math.random() * .05; p.m = 90 + Math.random() * 70; }
     else if (kind === 'spark') { p.vx = Math.cos(a) * .16 * sp; p.vy = Math.sin(a) * .16 * sp - .04; p.m = 12 + Math.random() * 10; }
+    else if (kind === 'bit') { p.vx = (Math.random() - .5) * .16; p.vy = -.07 - Math.random() * .07; p.m = 18 + Math.random() * 14; p.c = o.col || '#c08a50'; }
     else if (kind === 'debris') { p.vx = Math.cos(a) * .24 * sp; p.vy = Math.sin(a) * .24 * sp - .13; p.m = 34 + Math.random() * 24; }
     else { p.vx = Math.cos(a) * .05 * sp; p.vy = -.01 - Math.random() * .03; p.m = 40 + Math.random() * 24; }     // dust
     p.l = p.m; parts.push(p);
@@ -1026,7 +1109,7 @@ function drawParts() {
   ctx.save();
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.x += p.vx; p.y += p.vy;
-    if (p.k === 'ember' || p.k === 'debris') p.vy += .004; else if (p.k === 'spark') p.vy += .008;
+    if (p.k === 'ember' || p.k === 'debris') p.vy += .004; else if (p.k === 'bit') p.vy += .01; else if (p.k === 'spark') p.vy += .008;
     if (--p.l <= 0) { parts.splice(i, 1); continue; }
     const a = p.l / p.m, sx = ox + (p.x + .5) * sc, sy = oy + (p.y + .5) * sc;
     if (sx < -60 || sx > 780 || sy < VIEW.y - 80 || sy > VIEW.y + VIEW.h + 40) continue;
@@ -1034,6 +1117,7 @@ function drawParts() {
     else if (p.k === 'ember') { ctx.fillStyle = `rgba(255,${(90 + a * 130) | 0},30,${Math.min(1, a * 1.6)})`; ctx.fillRect(sx - 1, sy - 1, Math.max(2, sc * .1), Math.max(2, sc * .1)); }
     else if (p.k === 'ash') { ctx.fillStyle = `rgba(70,66,72,${a * .7})`; ctx.fillRect(sx, sy, Math.max(1.5, sc * .07), Math.max(1.5, sc * .07)); }
     else if (p.k === 'spark') { ctx.strokeStyle = `rgba(255,240,170,${a})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - p.vx * sc * 3, sy - p.vy * sc * 3); ctx.stroke(); }
+    else if (p.k === 'bit') { ctx.globalAlpha = Math.min(1, a * 2.5); ctx.fillStyle = p.c; const z = Math.max(2, sc * .11); ctx.fillRect(sx - z/2, sy - z/2, z, z); ctx.globalAlpha = 1; }
     else if (p.k === 'debris') { ctx.fillStyle = `rgba(${(60 + a * 120) | 0},${(40 + a * 50) | 0},34,${Math.min(1, a * 2)})`; ctx.fillRect(sx - 1, sy - 1, Math.max(2, sc * .13), Math.max(2, sc * .13)); }
     else { ctx.fillStyle = `rgba(170,150,110,${a * .35})`; ctx.beginPath(); ctx.arc(sx, sy, sc * (.2 + (1 - a) * .5), 0, 7); ctx.fill(); }
   }
@@ -1133,6 +1217,11 @@ const SFX = {
   splash: v => burst(.4, { type: 'bandpass', f: 1000, to: 320, q: 1.2, vol: .18 * v }),
   howl: () => tone(430, 1.5, { type: 'sawtooth', vol: .06, to: 250, a: .35 }),
   thud: v => tone(150, .25, { type: 'sine', vol: .25 * v, to: 60 }),
+  chop: v => { burst(.06, { type: 'bandpass', f: 520 + Math.random() * 160, q: 3, vol: .16 * v }); tone(230, .07, { type: 'triangle', vol: .05 * v, to: 140 }); },
+  clink: v => { tone(1900 + Math.random() * 500, .08, { type: 'triangle', vol: .045 * v, to: 1500 }); burst(.04, { type: 'highpass', f: 2500, vol: .06 * v }); },
+  dig: v => burst(.1, { type: 'lowpass', f: 420, vol: .14 * v }),
+  slash: v => burst(.08, { type: 'highpass', f: 1800, to: 900, vol: .07 * v }),
+  rustle: v => burst(.12, { type: 'bandpass', f: 2600, q: .8, vol: .035 * v }),
   coin: () => { tone(1320, .09, { type: 'square', vol: .06 }); tone(1760, .2, { type: 'square', vol: .06, when: Snd.ctx.currentTime + .08 }); },
 };
 function sndAt(x, y) {                                          // louder in view, quieter just outside, silent far away
@@ -1156,6 +1245,7 @@ function sndFx(kind, x, y, extra) {
     case 'bless': case 'tech': if (can('chime', 180)) SFX.chime(v); break;
     case 'evolve': if (can('howl', 1500)) SFX.howl(); break;
     case 'rock': if (can('rock', 200)) SFX.thud(v); break;
+    case 'chop': case 'clink': case 'dig': case 'slash': case 'rustle': if (v >= 1 && sc >= 8 && can('work', 110)) SFX[kind](v * .7); break;
     case 'death': if (can('death', 250)) tone(210, .22, { type: 'sine', vol: .05 * v, to: 100 }); break;
   }
 }
@@ -1330,14 +1420,14 @@ function kingdomProps(k) {
   return list;
 }
 function drawGear(c, cx, fy, sw, sh) {                         // armour band, shield and a weapon in the tier colour
-  const e = c.eq, K = SPR_K, hd = c.face < 0 ? -1 : 1;
+  const e = c.eq, K = CHR_K, hd = c.face < 0 ? -1 : 1;
   if (e[1]) { const [d, l] = TIER_COL[e[1]]; ctx.fillStyle = d; ctx.fillRect(cx - sw*.3, fy - sh*.5, sw*.6, K*2.2); ctx.fillStyle = l; ctx.fillRect(cx - sw*.3, fy - sh*.5, sw*.6, K*.8); ctx.fillStyle = d; ctx.fillRect(cx - sw*.42, fy - sh*.55, K*1.4, K*1.6); ctx.fillRect(cx + sw*.42 - K*1.4, fy - sh*.55, K*1.4, K*1.6); }
   if (e[2]) { const [d, l] = TIER_COL[e[2]], sx = cx - hd*sw*.5 - (hd < 0 ? K*2 : 0); ctx.fillStyle = '#1c1424'; ctx.fillRect(sx - K*.3, fy - sh*.5 - K*.3, K*2.6, K*3.8); ctx.fillStyle = d; ctx.fillRect(sx, fy - sh*.5, K*2, K*3.2); ctx.fillStyle = l; ctx.fillRect(sx, fy - sh*.5, K*.8, K*3.2); }
   if (c.ec) for (let sl = 0; sl < 3; sl++) if (e[sl] && c.ec[sl]) {                  // enchanted pieces pulse in their colour
     const gx = sl === 0 ? cx + hd*sw*.5 : sl === 2 ? cx - hd*sw*.5 : cx, gy = sl === 1 ? fy - sh*.42 : fy - sh*.48;
     ctx.fillStyle = ENCH[c.ec[sl]].c + '66'; ctx.beginPath(); ctx.arc(gx, gy, K*(3 + Math.sin(frame*.15 + sl)*.7), 0, 7); ctx.fill();
   }
-  if (e[0]) {
+  if (e[0] && !c.job) {
     const [d, l] = TIER_COL[e[0]], kind = GEAR_KIND[c.t] ? GEAR_KIND[c.t][e[0] - 1] : 'club', x = cx + hd*sw*.5 - (hd < 0 ? K : 0), y = fy - sh*.45;
     ctx.fillStyle = '#1c1424';
     if (kind === 'sword') { ctx.fillRect(x - K*.3, y - K*4.3, K*1.6, K*5.6); ctx.fillStyle = l; ctx.fillRect(x, y - K*4, K, K*4); ctx.fillStyle = '#6a4424'; ctx.fillRect(x - K*.5, y, K*2, K*.9); ctx.fillRect(x, y + K*.9, K, K*1.1); }
@@ -1365,7 +1455,7 @@ function drawDecor(x0, y0, x1, y1) {                          // trees by kind, 
     if (t === T.FOREST) {
       if (hash(x, y, 3) > .8) continue;
       const sp = TREE_SPR[(treeKindAt(i) & 7) - 1], w = sp.width * u * .75, h = sp.height * u * .75;
-      ctx.drawImage(sp, ox + (x + .5 + (hash(x, y, 5) - .5) * .5) * sc - w/2, oy + (y + .98 + (hash(x, y, 6) - .5) * .3) * sc - h, w, h);
+      ctx.drawImage(sp, ox + (x + .5 + (hash(x, y, 5) - .5) * .5) * sc - w/2 + (WORK_HIT.size ? shakeOf(i) : 0), oy + (y + .98 + (hash(x, y, 6) - .5) * .3) * sc - h, w, h);
     } else if (t === T.SAND && (treeKindAt(i) & 16)) {
       const w = PALM_SPR.width * u * .75, h = PALM_SPR.height * u * .75;
       ctx.drawImage(PALM_SPR, ox + (x + .5) * sc - w/2, oy + (y + .98) * sc - h, w, h);
@@ -1386,7 +1476,7 @@ function drawOres(x0, y0, x1, y1) {
     const ot = oreT[i]; if (!ot) continue;
     const x = i % W, y = (i / W) | 0; if (x < x0 - 1 || x > x1 + 1 || y < y0 - 1 || y > y1 + 1) continue;
     const sp = ORE_SPR[ot], w = sp.width * u * .62, h = sp.height * u * .62;
-    ctx.drawImage(sp, ox + (x + .5) * sc - w/2, oy + (y + .95) * sc - h, w, h);
+    ctx.drawImage(sp, ox + (x + .5) * sc - w/2 + (WORK_HIT.size ? shakeOf(i) : 0), oy + (y + .95) * sc - h, w, h);
   }
 }
 function drawProps(x0, y0, x1, y1, ground) {                 // ground=true: flat fields under everything; false: standing props
@@ -1560,7 +1650,8 @@ function drawIcon(ch, x, y, size, alpha) {                 // an icon on the wor
   ctx.drawImage(ic, x - size/2, y - size/2, size, size); ctx.restore();
 }
 
-let SPR_K = 1;      // integer sprite scale: 10px per sprite pixel-block, ~1.7 tiles at the base zoom
+let SPR_K = 1;      // integer sprite scale for houses / props: 10px per sprite pixel-block, ~1.7 tiles at the base zoom
+let CHR_K = 1;      // character sprite scale, from the 'Ukuran Karakter' setting (default ~1.2 tiles)
 
 /* ============================== UTIL ============================== */
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1718,6 +1809,7 @@ function setFamily(c, x, y) {                                   // a newborn at 
   for (const P of B ? [A, B] : [A]) if (P.ch === 1 || P.ch === 3 || P.ch === 6) addHist(P, 15, c.nid);
 }
 function spawn(type, x, y, force) {
+  if (extinctRaces.has(type)) return null;
   if (!force && (creatures.length >= MAX_CREATURES * CAPK || (counts[type]||0) >= capOf(type) + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
@@ -1820,6 +1912,7 @@ function countHouses(x, y, r, owner) {
   return n;
 }
 function stepCreature(c) {
+  if (c.hp <= 0 || c.boat) return;                        // dead or embarked units do not act on land
   const R = RACES[c.t], idx = c.x + c.y*W;
   if (R.cart) { stepCart(c); return; }
   if (R.engine) { stepEngine(c); return; }
@@ -1913,6 +2006,7 @@ function stepCreature(c) {
         if (k) { k.wood -= 4; kid[idx] = k.id; }
       }
     }
+    if (workStep(c, ka)) return;                                       // everyday jobs: chop, mine, hunt, farm, fish, forage
   } else if (R.br) {
     if (Math.random() < R.br.p && (counts[c.t]||0) < capOf(c.t) && cells[(c.y>>3)*GW + (c.x>>3)].length < R.br.dens && R.br.tiles.includes(tiles[idx])) spawnNear(c.t, c.x, c.y);
   } else if (R.hunt) {
@@ -1924,13 +2018,135 @@ function stepCreature(c) {
   if (d[0] || d[1]) { if (!tryMove(c, c.x + d[0], c.y + d[1])) c.dir = ri(0, 8); }
 }
 
+/* ============================== WORKERS: everyday jobs ============================== */
+const WORK_HIT = new Map();                                    // tile -> render frame of the last axe / pick hit (trees and rocks shake)
+const PREY_OF = { human: ['rabbit', 'deer'], elf: ['rabbit', 'deer'], dwarf: ['rabbit', 'deer', 'sheep'], orc: ['rabbit', 'deer', 'sheep'], werewolf: ['rabbit', 'deer', 'sheep'] };
+const cheb = (a, x, y) => Math.max(Math.abs(a.x - x), Math.abs(a.y - y));
+function canWork(c, ka) { return !c.lead && !c.elite && !(ka && ka.enemies.size && isSoldier(c)); }
+function findWorkSpot(c, job, ka) {
+  if (job === 'hunt') {
+    if ((counts.rabbit | 0) + (counts.deer | 0) + (counts.sheep | 0) < 8) return null;
+    const pr = findNearest(c, PREY_OF[c.t] || PREY_OF.human, 9); return pr ? { x: pr.x, y: pr.y, prey: pr } : null;
+  }
+  if (job === 'farm') {
+    if (!ka) return null; let best = null, bd = 15;
+    for (const p of kingdomProps(ka)) if (p.t === 'field') { const d = cheb(c, p.x, p.y) + Math.random() * 3; if (d < bd && walkable(c.t, tiles[p.x + p.y*W])) { bd = d; best = { x: p.x, y: p.y }; } }
+    return best;
+  }
+  const r = 7; let best = null, bd = 1e9;
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    const x = c.x + dx, y = c.y + dy; if (!inb(x, y)) continue;
+    const i = x + y*W, t = tiles[i]; if (fire[i]) continue;
+    let ok = false, wx = 0, wy = 0;
+    if (job === 'chop' || job === 'gather') ok = t === T.FOREST && hash(x, y, 3) <= .8 && (job === 'chop' || (treeKindAt(i) & 7) !== 2);
+    else if (job === 'mine') ok = !!oreT[i] || (t === T.HILL && hash(x, y, 43) <= .55);
+    else if (job === 'fish' && walkable(c.t, t) && !bld[i]) {
+      for (let k = 1; k <= 7; k += 2) { const nx = x + DIRS[k][0], ny = y + DIRS[k][1]; if (inb(nx, ny) && tiles[nx + ny*W] <= T.SHALLOW) { ok = true; wx = nx; wy = ny; break; } }
+    }
+    if (!ok) continue;
+    const d = Math.max(Math.abs(dx), Math.abs(dy)) + Math.random() * 2.5 - (job === 'mine' && oreT[i] ? 2 : 0);
+    if (d < bd) { bd = d; best = { x, y, wx, wy }; }
+  }
+  return best;
+}
+function homeOf(c, ka) {                                       // nearest house of the worker's own kingdom, else the realm's centre
+  let best = null, bd = 1e9;
+  for (let dy = -10; dy <= 10; dy++) for (let dx = -10; dx <= 10; dx++) {
+    const x = c.x + dx, y = c.y + dy; if (!inb(x, y)) continue;
+    const i = x + y*W; if (!bld[i] || kid[i] !== ka.id) continue;
+    const d = Math.max(Math.abs(dx), Math.abs(dy)); if (d < bd) { bd = d; best = { x, y }; }
+  }
+  return best || { x: Math.round(ka.cx), y: Math.round(ka.cy) };
+}
+function finishWork(c, ka, j) {                                // the job is done: haul the goods home (or give up when there is no home)
+  if (j.k === 'fish') { fx('splash', j.wx, j.wy); emit('bit', j.wx, j.wy - .2, 6, { col: '#bfe6ff' }); if (Math.random() < .3) { c.job = null; return; } }
+  if (!ka) { c.job = null; return; }
+  const h = homeOf(c, ka);
+  j.ph = 2; j.t = 0; j.f = 0; j.hx = h.x; j.hy = h.y; j.item = CARRY[j.k];
+  if (j.k === 'mine' && oreT[j.x + j.y*W]) j.item = 'ore';
+}
+function deposit(c, ka, j) {
+  if (ka && kingdoms.has(ka.id)) {
+    const [key, amt] = JOB_YIELD[j.k];
+    addYield(ka, key, j.k === 'chop' && c.t === 'dwarf' ? amt + 1 : j.k === 'gather' && c.t === 'elf' ? amt + 2 : amt);
+    if (j.k === 'mine') {                                      // an ore node gives its metal (when the kingdom knows how to work it)
+      const i = j.x + j.y*W, t = oreT[i];
+      if (t && ka.level >= ORE_LV[t] - (ka.race === 'dwarf' ? 1 : 0)) {
+        addYield(ka, ORE_KEYS[t], ORE_YIELD[t]);
+        if (--oreA[i] <= 0) { oreT[i] = 0; fx('puff', j.x, j.y); }
+      }
+    }
+  }
+  emit('dust', c.x, c.y, 3); c.job = null;
+}
+function workStep(c, ka) {                                     // returns true when the settler spent this move on a job
+  let j = c.job;
+  if (!j) {
+    if (!canWork(c, ka) || Math.random() > .06) return false;
+    const k = pickJob(c.t, { chop: 1, mine: 1, hunt: 1, farm: !!(ka && ka.houses >= 3), fish: 1, gather: 1 }, Math.random());
+    const s = k && findWorkSpot(c, k, ka); if (!s) return false;
+    j = c.job = { k, x: s.x, y: s.y, wx: s.wx, wy: s.wy, prey: s.prey || null, ph: 0, t: 0, f: 0, fails: 0, cy: -1 };
+  }
+  if (!canWork(c, ka)) { c.job = null; return false; }
+  if (j.ph === 0 || (j.ph === 1 && j.k === 'hunt')) {
+    if (j.k === 'hunt') { const p = j.prey; if (!p || p.hp <= 0 || cheb(c, p.x, p.y) > 14) { c.job = null; return false; } j.x = p.x; j.y = p.y; }
+    const d = cheb(c, j.x, j.y);
+    if (d <= reach(j.k, c.t)) {
+      if (j.ph === 0) { j.ph = 1; j.t = j.k === 'hunt' ? 24 : workLen(j.k, Math.random()); }
+    } else {
+      j.ph = 0;
+      if (++j.f > 70) { c.job = null; return false; }
+      if (moveToward(c, j.x, j.y)) return true;
+      if (++j.fails > 4) c.job = null;
+      return false;
+    }
+  }
+  if (j.ph === 1) {
+    const tx = j.k === 'fish' ? j.wx : j.x;
+    if (tx !== c.x) c.face = tx > c.x ? 1 : -1;
+    if (j.k === 'hunt') {                                      // strike the prey: spear, bow or claws
+      const p = j.prey, R = RACES[c.t];
+      c.atk = 10; p.hp -= R.dmg * (.7 + Math.random() * .6);
+      if (cheb(c, p.x, p.y) > 1) fx('arrow', c.x, c.y, { tx: p.x, ty: p.y }); else fx('hit', p.x, p.y);
+      if (p.hp <= 0) { p.cause = 'hunt'; j.x = p.x; j.y = p.y; finishWork(c, ka, j); }
+      else if (--j.t <= 0) c.job = null;
+      return true;
+    }
+    const i = j.x + j.y*W, t = tiles[i];
+    if (fire[i] || ((j.k === 'chop' || j.k === 'gather') && t !== T.FOREST) || (j.k === 'mine' && !oreT[i] && t !== T.HILL) || (j.k === 'fish' && tiles[j.wx + j.wy*W] > T.SHALLOW)) { c.job = null; return false; }
+    if (--j.t <= 0) finishWork(c, ka, j);
+    return true;
+  }
+  // phase 2: carry the goods home
+  if (cheb(c, j.hx, j.hy) <= 1 || ++j.f > 60) { deposit(c, ka, j); return true; }
+  if (moveToward(c, j.hx, j.hy)) return true;
+  if (++j.fails > 6) deposit(c, ka, j);
+  return false;
+}
+const BIT_COL = { chop: ['#c08a50', '#e8c890', '#6a8a3a'], mine: ['#9aa0aa', '#c8ced6', '#6a6e78'], farm: ['#8a6a40', '#a8844e', '#d8b860'], gather: ['#e8344a', '#5aa83a', '#b03aa8'] };
+function workImpact(c, j, race) {                              // the moment an axe / pick / hoe / claw lands
+  const i = j.x + j.y*W;
+  if (WORK_HIT.size > 400) WORK_HIT.clear();
+  if (j.k === 'chop' || j.k === 'mine' || j.k === 'gather') WORK_HIT.set(i, frame);
+  const cols = BIT_COL[j.k]; if (!cols) return;
+  const n = j.k === 'gather' ? 2 : 3;
+  for (let q = 0; q < n; q++) emit('bit', j.x, j.y - (j.k === 'farm' ? 0 : .35), 1, { col: cols[ri(0, cols.length - 1)] });
+  if (j.k === 'mine' && Math.random() < .5) emit('spark', j.x, j.y - .3, 2);
+  sndFx(j.k === 'chop' ? (race === 'werewolf' ? 'slash' : 'chop') : j.k === 'mine' ? (race === 'werewolf' ? 'dig' : 'clink') : j.k === 'farm' ? 'dig' : 'rustle', c.x, c.y);
+}
+function shakeOf(i) {                                          // horizontal wobble of a tree / rock that was just hit
+  const h = WORK_HIT.get(i); if (h === undefined) return 0;
+  const a = frame - h; if (a > 14 || a < 0) { WORK_HIT.delete(i); return 0; }
+  return Math.sin(a * 1.7) * (14 - a) / 14 * sc * .07;
+}
+
 /* ============================== WORLD TICK ============================== */
 function reapDead() {
   let any = false;
   for (const c of creatures) if (c.hp <= 0) {
     any = true;
     if (RACES[c.t].cart && c.trade && !c.trade.done) refundTrade(c);
-    if (c.eq && RACES[c.t].civ) for (let sl = 0; sl < 3; sl++) if (c.eq[sl] && Math.random() < .7) addDrop(c.x, c.y, sl, c.eq[sl], c.t, c.ec ? c.ec[sl] : 0);
+    if (c.eq && RACES[c.t].civ && c.cause !== 'shipwreck') for (let sl = 0; sl < 3; sl++) if (c.eq[sl] && Math.random() < .7) addDrop(c.x, c.y, sl, c.eq[sl], c.t, c.ec ? c.ec[sl] : 0);
     if (effects.length < 400) fx('death', c.x, c.y, { type: c.t, face: c.face, old: c.cause === 'old' });
   }
   if (any) creatures = creatures.filter(c => c.hp > 0);
@@ -1972,6 +2188,8 @@ const evBirth = k => !k.ev ? 1 : k.ev.type === 'plague' ? .3 : k.ev.type === 'go
 const evFood = k => !k.ev ? 1 : k.ev.type === 'drought' ? .4 : k.ev.type === 'golden' ? 1.25 : 1;
 function startEvent(k, type, quiet) {
   k.ev = { type, left: EV_DUR[type] }; warStats['ev_' + type] = (warStats['ev_' + type] || 0) + 1;
+  const JOURNAL_EVENT = { plague: 'Wabah', drought: 'Kekeringan', golden: 'Zaman Kejayaan' };
+  addChronicle(EV_IC[type], `${JOURNAL_EVENT[type] || EV_NAME[type]} melanda ${k.name}`);
   fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: EV_IC[type] });
   if (!quiet && k.level >= 1 && tick - lastEvToast >= 24) { lastEvToast = tick; toast(`${EV_IC[type]} ${EV_NAME[type]} · ${EMOJI[k.race]}${k.name}`); }
   dirty = true;
@@ -2142,6 +2360,7 @@ function absorbKingdom(a, b) {                              // b joins a: houses
     if (o !== a.id && !rels.has(rkey(a.id, o))) rels.set(rkey(a.id, o), r);
   }
   kingdoms.delete(b.id); rebuildRelations(); ownDirty = true; dirty = true; warStats.merged = (warStats.merged || 0) + 1;
+  addChronicle('🤝', `${b.name} bergabung dengan ${a.name}`);
   fx('levelup', Math.round(a.cx), Math.round(a.cy));
 }
 function kingdomsAt(wx, wy, r) {                            // the kingdom under the finger first, then any others in the brush
@@ -2156,7 +2375,7 @@ const AGGR = { orc:.04, human:.012, dwarf:.008, elf:.005, werewolf:0 };         
 const SOLDIER_PCT = { orc:55, human:30, dwarf:35, elf:25, werewolf:45 };
 const FRIENDS = new Set(['human:elf', 'elf:human', 'human:dwarf', 'dwarf:human', 'elf:dwarf', 'dwarf:elf']);
 const rkey = (a, b) => a < b ? a*65536 + b : b*65536 + a;
-const isSoldier = c => ((c.id * 2654435761) >>> 0) % 100 < SOLDIER_PCT[c.t];
+const isSoldier = c => !c.boat && ((c.id * 2654435761) >>> 0) % 100 < SOLDIER_PCT[c.t];
 const kpower = k => (k.pop + 2) * (1 + .2*k.level) * k.mod.atk * k.mod.def;
 let lastWarToast = -1e9;
 function computeComps() {
@@ -2195,6 +2414,7 @@ function warToast(a, b, joined) {
 }
 function declareWar(a, b, joined) {
   rels.set(rkey(a.id, b.id), { s: 1, t: tick, until: 0 });
+  addChronicle('⚔️', joined ? `${a.name} ikut berperang melawan ${b.name}` : `${a.name} menyatakan perang terhadap ${b.name}`);
   warStats.declared++; if (joined) warStats.joined++; else { warStats['by_' + a.race] = (warStats['by_' + a.race] || 0) + 1; if (b.race === 'werewolf') warStats.vs_werewolf = (warStats.vs_werewolf || 0) + 1; }
   rebuildRelations(); warToast(a, b, joined); haptic('warning');
   fx('warcry', a.cap % W, (a.cap / W) | 0); fx('warcry', b.cap % W, (b.cap / W) | 0);
@@ -2202,9 +2422,55 @@ function declareWar(a, b, joined) {
   for (const cid of b.allies) { const c = kingdoms.get(cid); if (c && c !== a && !rels.has(rkey(c.id, a.id)) && comp[c.cap] === comp[a.cap] && Math.random() < .7) declareWar(c, a, true); }
   for (const cid of a.allies) { const c = kingdoms.get(cid); if (c && c !== b && !rels.has(rkey(c.id, b.id)) && comp[c.cap] === comp[b.cap] && Math.random() < .4) declareWar(c, b, true); }
 }
+function warOver(a, b) {
+  const key = rkey(a.id, b.id), r = rels.get(key);
+  if (!r || r.s !== 1) return;                              // resolve each war exactly once
+  const pa = kpower(a) + a.houses * 2, pb = kpower(b) + b.houses * 2;
+  let loser, winner;
+  if (pa === pb) { loser = Math.random() < .5 ? a : b; winner = loser === a ? b : a; }
+  else { loser = pa < pb ? a : b; winner = loser === a ? b : a; }
+  const ratio = Math.min(pa, pb) / Math.max(1, Math.max(pa, pb));
+  return { loser, winner, outcome: warOutcome(Math.random(), ratio) };
+}
+function eraseKingdom(loser, winner) {
+  const id = loser.id;
+  for (let i = 0; i < N; i++) if (kid[i] === id) { bld[i] = 0; kid[i] = 0; }
+  for (const c of creatures) if (c.k === id) { c.hp = 0; c.cause = 'war'; }
+  for (const [key] of [...rels]) if (Math.floor(key / 65536) === id || key % 65536 === id) rels.delete(key);
+  kingdoms.delete(id); rebuildRelations(); ownDirty = true; dirty = true;
+  warStats.kingdomsDestroyed = (warStats.kingdomsDestroyed || 0) + 1;
+  addChronicle('🏚️', `${loser.name} (${TYPE_NAME[loser.race]}) runtuh dalam perang`);
+  if (winner) { toast(`🏚️ ${EMOJI[loser.race]} ${loser.name} jatuh ke ${winner.name}`); fx('boom', Math.round(loser.cx), Math.round(loser.cy), { r: 3 }); haptic('thud'); }
+}
+function eraseRace(race, winner) {
+  if (extinctRaces.has(race)) return;
+  extinctRaces.add(race);
+  const ids = new Set([...kingdoms.values()].filter(k => k.race === race).map(k => k.id));
+  for (let i = 0; i < N; i++) if (BUILD_OWNER[bld[i]] === race) { bld[i] = 0; kid[i] = 0; }
+  for (const c of creatures) if (c.t === race) { c.hp = 0; c.cause = 'war'; }
+  ships = ships.filter(s => s.race !== race);
+  for (const id of ids) kingdoms.delete(id);
+  for (const [key] of [...rels]) if (ids.has(Math.floor(key / 65536)) || ids.has(key % 65536)) rels.delete(key);
+  rebuildRelations(); ownDirty = true; dirty = true;
+  warStats.racesExtinct = (warStats.racesExtinct || 0) + 1;
+  addChronicle('☠️', `${TYPE_NAME[race]} punah dalam perang`);
+  toast(`☠️ ${EMOJI[race]} ${TYPE_NAME[race]} punah dalam perang${winner ? ` dengan ${winner.name}` : ''}`);
+  fx('boom', Math.round(winner ? winner.cx : W / 2), Math.round(winner ? winner.cy : H / 2), { r: 5 }); haptic('thud');
+}
 function endWar(a, b) {
-  rels.set(rkey(a.id, b.id), { s: 3, t: tick, until: tick + 4000 });            // truce before they may fight again
-  warStats.ended++; rebuildRelations();
+  const result = warOver(a, b); if (!result) return;
+  const { loser, winner, outcome } = result;
+  warStats.ended++; warsResolved++;
+  // A race cannot exterminate its own side in a civil war; the rarest result instead ends the losing kingdom.
+  if (outcome === 'race') {
+    if (a.race !== b.race) eraseRace(loser.race, winner);
+    else eraseKingdom(loser, winner);
+    return;
+  }
+  if (outcome === 'kingdom') { eraseKingdom(loser, winner); return; }
+  addChronicle('🕊️', `${a.name} dan ${b.name} berdamai setelah perang`);
+  rels.set(rkey(a.id, b.id), { s: 3, t: tick, until: tick + 4000 });
+  rebuildRelations();
   if (tick - lastWarToast >= 24 && (a.level >= 1 || b.level >= 1)) { lastWarToast = tick; toast(`🕊️ ${a.name} & ${b.name}`); }
 }
 function diplomacyTick() {                                                       // every ~10 seconds
@@ -2289,6 +2555,7 @@ function freeTileNear(k, minR, maxR, pred) {
   return -1;
 }
 function placeLandmark(k, key) {
+  if (key === 'harbor') { const i = coastalLandNear(k, 24); if (i >= 0) k.lm[key] = i; return; }
   let i = key === 'mine' ? freeTileNear(k, 3, 9, t => t === T.HILL || t === T.MOUNTAIN) : -1;
   if (i < 0) i = freeTileNear(k, 2, 5, t => t !== T.MOUNTAIN && t !== T.SNOW);
   if (i >= 0) k.lm[key] = i;
@@ -2296,6 +2563,7 @@ function placeLandmark(k, key) {
 function finishTech(k, t) {
   k.tech.push(t.id); k.res = null; recalcMods(k);
   if (t.lm) placeLandmark(k, t.lm);
+  if (t.id === 'voyage') { addChronicle('⛵', `${k.name} memasuki Era Penjelajahan`); toast(`⛵ ${k.name} memasuki Era Penjelajahan`); }
   fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: t.ic });
   ownDirty = true; dirty = true;
 }
@@ -2313,6 +2581,7 @@ function researchCheck() {                                 // every 5 seconds: f
     if (k.res) { k.res.left -= 40; if (k.res.left <= 0) finishTech(k, k.res.t); continue; }
     const t = TECHS[k.race][k.tech.length];
     if (!t || k.level < t.lv) continue;
+    if (t.id === 'voyage' && !canResearchVoyage(k.age, k.level, coastalLandNear(k, 24) >= 0)) continue; // only Iron-Age kingdoms with a coast can master sailing
     const c = t.cost;
     if (canPay(k, c)) {
       pay(k, c);
@@ -2348,6 +2617,163 @@ function nearestKingdom(c) {
   let best = 0, bd = 15*15;
   for (const k of kingdoms.values()) { if (k.race !== c.t) continue; const d = (k.cx-c.x)**2 + (k.cy-c.y)**2; if (d < bd) { bd = d; best = k.id; } }
   return best;
+}
+function adjacentWater(i) {
+  if (i < 0 || i >= N) return -1;
+  const x = i % W, y = (i / W) | 0;
+  for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+    const nx = x + dx, ny = y + dy; if (!inb(nx, ny)) continue;
+    const j = nx + ny*W; if (tiles[j] <= T.SHALLOW) return j;
+  }
+  return -1;
+}
+function coastalLandNear(k, radius = 24) {
+  if (compDirty) computeComps();
+  const home = comp[k.cap]; if (!home) return -1;
+  const cx = k.cap % W, cy = (k.cap / W) | 0; let best = -1, bd = radius*radius + 1;
+  for (let y = Math.max(0,cy-radius); y <= Math.min(H-1,cy+radius); y++) for (let x = Math.max(0,cx-radius); x <= Math.min(W-1,cx+radius); x++) {
+    const i = x + y*W, d = (x-cx)**2 + (y-cy)**2;
+    if (d >= bd || comp[i] !== home || tiles[i] <= T.SHALLOW || tiles[i] === T.LAVA || bld[i] || fire[i] || adjacentWater(i) < 0) continue;
+    best = i; bd = d;
+  }
+  return best;
+}
+function voyagePlan(k, sourceLand) {
+  if (compDirty) computeComps(); if (ownDirty) computeTerritory();
+  const home = comp[k.cap], startWater = adjacentWater(sourceLand);
+  if (!home || startWater < 0) return null;
+  const size = new Uint32Array(N + 1), blocked = new Uint8Array(N);
+  for (let i = 0; i < N; i++) if (comp[i]) size[comp[i]]++;
+  // Keep a new landing far enough from any existing town that it can grow as a separate realm.
+  for (let i = 0; i < N; i++) if (bld[i]) {
+    const x = i % W, y = (i / W) | 0;
+    for (let dy = -14; dy <= 14; dy++) for (let dx = -14; dx <= 14; dx++) if (Math.max(Math.abs(dx),Math.abs(dy)) <= 14 && inb(x+dx,y+dy)) blocked[x+dx+(y+dy)*W] = 1;
+  }
+  const reserved = new Set(ships.filter(s => s.phase === 'outbound').map(s => s.targetComp));
+  const goals = new Int32Array(N); goals.fill(-1);
+  const race = k.race, build = RACES[race].build;
+  const offset = ri(0, N-1);
+  for (let q = 0; q < N; q++) {
+    const i = (offset + q) % N, c = comp[i];
+    if (!c || c === home || size[c] < 20 || reserved.has(c) || blocked[i] || bld[i] || fire[i] || own[i] || !build.includes(tiles[i]) || !walkable(race, tiles[i])) continue;
+    const w = adjacentWater(i); if (w >= 0 && goals[w] < 0) goals[w] = i;
+  }
+  const route = findWaterRoute(tiles, W, H, startWater, goals);
+  if (!route || route.path.length < 2) return null;
+  return { path: route.path, land: route.landIndex, sourceLand, targetComp: comp[route.landIndex] };
+}
+function boardCrew(k) {
+  const crew = creatures.filter(c => c.k === k.id && c.t === k.race && c.hp > 0 && !c.boat && !c.lead && !c.elite && !RACES[c.t].engine && !isSoldier(c));
+  if (crew.length >= 3) return crew.slice(0,3);
+  return creatures.filter(c => c.k === k.id && c.t === k.race && c.hp > 0 && !c.boat && !c.lead && !c.elite && !RACES[c.t].engine).slice(0,3);
+}
+function fishingPlan(k, sourceLand) {
+  const startWater = adjacentWater(sourceLand); if (startWater < 0) return null;
+  const sx = startWater % W, sy = (startWater / W) | 0, goals = new Int32Array(N); goals.fill(-1);
+  for (let i = 0; i < N; i++) if (tiles[i] <= T.SHALLOW) {
+    const d = Math.max(Math.abs(i % W - sx), Math.abs(((i / W) | 0) - sy));
+    if (d >= 6 && d <= 26) goals[i] = i;
+  }
+  let route = findWaterRoute(tiles, W, H, startWater, goals);
+  if (route && route.path.length >= 3) return { path: route.path, land: route.landIndex, sourceLand, targetComp: 0 };
+  // Very narrow seas still support an anchored fishing boat near its harbor.
+  const fallback = new Int32Array(N); fallback.fill(-1);
+  for (let i = 0; i < N; i++) if (tiles[i] <= T.SHALLOW) fallback[i] = i;
+  route = findWaterRoute(tiles, W, H, startWater, fallback);
+  return route ? { path: route.path, land: route.landIndex, sourceLand, targetComp: 0 } : null;
+}
+function launchVoyage(k) {
+  if (!k.tech.includes('voyage') || !canResearchVoyage(k.age, k.level, coastalLandNear(k, 24) >= 0) || k.pop < 12 || k.houses < 5 || k.enemies.size || tick < (k.voyageCd || 0)) return false;
+  if (ships.some(s => s.kingdomId === k.id) || k.wood < 30 || k.gold < 6 || k.iron < 2) return false;
+  const crew = boardCrew(k); if (crew.length < 3) return false;
+  const sourceLand = k.lm.harbor != null && adjacentWater(k.lm.harbor) >= 0 ? k.lm.harbor : coastalLandNear(k, 24);
+  if (sourceLand < 0) { k.voyageCd = tick + 600; return false; }
+  let plan = voyagePlan(k, sourceLand), mission = 'colony';
+  if (!plan) { plan = fishingPlan(k, sourceLand); mission = 'fishing'; }
+  if (!plan) { k.voyageCd = tick + 600; return false; }
+  const cost = mission === 'colony' ? { wood:65, gold:18, iron:8 } : { wood:30, gold:6, iron:2 };
+  if (k.wood < cost.wood || k.gold < cost.gold || k.iron < cost.iron) return false;
+  const id = nextShipId++, first = plan.path[0], risk = +((cfg.settings && cfg.settings.shipwreckRisk) ?? 3);
+  const wreckAt = plan.path.length >= 3 && Math.random() < shipwreckProbability(plan.path.length, risk, weather.kind === 2 && weather.k > .3) ? Math.max(1, Math.floor(plan.path.length * .5)) : 0;
+  k.wood -= cost.wood; k.gold -= cost.gold; k.iron -= cost.iron; k.voyageCd = tick + (mission === 'colony' ? 2400 : 900);
+  for (const c of crew) { c.boat = id; c.tgt = null; c.job = null; }
+  ships.push({ id, race:k.race, kingdomId:k.id, x:first%W, y:(first/W)|0, path:plan.path, step:0, move:0,
+    phase:mission === 'colony' ? 'outbound' : 'fishing_outbound', sourceLand:plan.sourceLand,
+    targetLand:mission === 'colony' ? plan.land : -1, targetComp:plan.targetComp, crew:crew.map(c=>c.nid), wreckAt, fishTimer:0 });
+  if (selected && crew.includes(selected)) closeCreature();
+  if (mission === 'colony') { addChronicle('⛵', `${k.name} memberangkatkan kapal penjelajah`); toast(`⛵ Ekspedisi ${k.name} berlayar`); }
+  else { addChronicle('🎣', `${k.name} tidak menemukan pantai kosong; kapalnya menjadi kapal nelayan`); toast(`🎣 Kapal ${k.name} melaut untuk menangkap ikan`); }
+  dirty = true; return true;
+}
+function disembarkCrew(ship, kingdom, land) {
+  const x = land % W, y = (land / W) | 0, crew = creatures.filter(c => ship.crew.includes(c.nid) && c.boat === ship.id && c.hp > 0);
+  for (let q = 0; q < crew.length; q++) {
+    const c = crew[q], ox0 = [0,1,0,-1,0,1,-1,1,-1][q], oy0 = [0,0,1,0,-1,1,1,-1,-1][q];
+    let px = x + ox0, py = y + oy0;
+    if (!inb(px, py) || !walkable(c.t, tiles[px + py*W])) { px = x; py = y; }
+    c.x = c.dx = px; c.y = c.dy = py; c.boat = 0; c.k = kingdom.id; c.lk = 0; c.tgt = null; c.job = null;
+  }
+}
+function foundIslandColony(ship) {
+  const race = ship.race, i = ship.targetLand;
+  if (extinctRaces.has(race) || i < 0 || i >= N || bld[i] || fire[i] || !RACES[race].build.includes(tiles[i])) return false;
+  const crew = creatures.filter(c => ship.crew.includes(c.nid) && c.boat === ship.id && c.hp > 0);
+  if (crew.length < 3) return false;
+  const x = i % W, y = (i / W) | 0, k = newKingdom(race, x, y);
+  bld[i] = RACES[race].bi; kid[i] = k.id; k.food = 35; k.wood = 18; k.stone = 8; k.voyageCd = tick + 1200;
+  disembarkCrew(ship, k, i); ownDirty = true; dirty = true; rebuildRelations();
+  addChronicle('🏝️', `${k.name} mendirikan koloni di pulau baru`); toast(`🏝️ Koloni baru: ${k.name}`); fx('levelup', x, y);
+  return true;
+}
+function bringCrewHome(ship) {
+  const k = kingdoms.get(ship.kingdomId), i = ship.sourceLand, x = i % W, y = (i / W) | 0;
+  for (const c of creatures) if (ship.crew.includes(c.nid) && c.boat === ship.id) {
+    c.boat = 0; c.tgt = null; c.job = null; c.x = c.dx = x; c.y = c.dy = y;
+    if (!k || extinctRaces.has(c.t)) c.k = 0;
+  }
+}
+function wreckShip(s, si) {
+  const x = Math.round(s.x), y = Math.round(s.y), k = kingdoms.get(s.kingdomId);
+  for (const c of creatures) if (c.boat === s.id) { c.boat = 0; c.hp = 0; c.cause = 'shipwreck'; }
+  ships.splice(si, 1); fx('splash', x, y); emit('bit', x, y, 7, { col:'#bfe6ff' }); haptic('thud');
+  const kind = s.phase.startsWith('fishing') ? 'Kapal nelayan' : 'Kapal penjelajah';
+  addChronicle('🌊', `${kind} ${k ? k.name : ''} karam; awaknya hilang`); toast(`🌊 ${kind} karam di laut`); dirty = true;
+}
+function voyageTick() {
+  for (let si = ships.length - 1; si >= 0; si--) {
+    const s = ships[si]; if (extinctRaces.has(s.race)) { ships.splice(si,1); continue; }
+    if (s.phase === 'fishing') {
+      if (--s.fishTimer <= 0) {
+        const k = kingdoms.get(s.kingdomId); if (k) addYield(k, 'food', 18);
+        addChronicle('🐟', `${k ? k.name : 'Kapal nelayan'} membawa pulang hasil tangkapan`);
+        s.phase = 'fishing_return'; s.path.reverse(); s.step = 0; s.move = 0; dirty = true;
+      }
+      continue;
+    }
+    if (s.step < s.path.length - 1) {
+      s.move += .34;
+      while (s.move >= 1 && s.step < s.path.length - 1) { s.move -= 1; s.step++; }
+      const a = s.path[s.step], b = s.path[Math.min(s.step + 1, s.path.length - 1)], f = s.step >= s.path.length - 1 ? 0 : s.move;
+      s.x = (a % W) + ((b % W) - (a % W)) * f;
+      s.y = ((a / W) | 0) + (((b / W) | 0) - ((a / W) | 0)) * f;
+      for (const c of creatures) if (c.boat === s.id) { c.x = Math.round(s.x); c.y = Math.round(s.y); c.dx = s.x; c.dy = s.y; }
+    }
+    if (s.wreckAt && s.step >= s.wreckAt) { wreckShip(s, si); continue; }
+    if (s.step >= s.path.length - 1) {
+      if (s.phase === 'outbound') {
+        const landed = foundIslandColony(s); s.phase = 'return'; s.landed = landed ? 1 : 0; s.path.reverse(); s.step = 0; s.move = 0;
+        if (s.path.length <= 1) { if (!landed) bringCrewHome(s); ships.splice(si,1); }
+      } else if (s.phase === 'fishing_outbound') {
+        s.phase = 'fishing'; s.fishTimer = 160; addChronicle('🎣', `${kingdoms.get(s.kingdomId)?.name || 'Nelayan'} mulai mencari ikan di laut`);
+      } else {
+        if (!s.landed) bringCrewHome(s);
+        const k = kingdoms.get(s.kingdomId); if (k && s.phase === 'fishing_return') k.voyageCd = tick + 900;
+        ships.splice(si,1);
+      }
+    }
+  }
+  if (tick % 80 !== 0) return;
+  for (const k of kingdoms.values()) if (k.tech.includes('voyage') && tick >= (k.voyageCd || 0)) launchVoyage(k);
 }
 function terrainStats(k) {
   const cx = Math.round(k.cx), cy = Math.round(k.cy); let g = 0, f = 0, m = 0, pm = 0; const tk = [0, 0, 0, 0];
@@ -2406,7 +2832,7 @@ function levelCheck() {                                   // every 5 seconds
 function chooseLeaders() {                                // the oldest member wears the crown
   for (const k of kingdoms.values()) k.cand = null;
   for (const c of creatures) {
-    if (!c.k || RACES[c.t].engine) continue;
+    if (!c.k || c.boat || RACES[c.t].engine) continue;
     const k = kingdoms.get(c.k); if (!k) continue;
     if (!k.cand || c.age > k.cand.age) k.cand = c;
   }
@@ -2415,7 +2841,7 @@ function chooseLeaders() {                                // the oldest member w
     if (L && L.hp > 0 && L.k === k.id) continue;
     if (L) { L.lead = 0; applyStats(L); }
     k.leader = k.cand;
-    if (k.cand) { k.cand.lead = 1; applyStats(k.cand); addHist(k.cand, 6); }
+    if (k.cand) { k.cand.lead = 1; applyStats(k.cand); addHist(k.cand, 6); if (k.cand !== L) addChronicle('👑', `${nameOf(k.cand)} menjadi pemimpin ${k.name}`); }
   }
 }
 function computeTerritory() {
@@ -2442,9 +2868,9 @@ function computeTerritory() {
 function step() {
   tick++;
   for (const l of cells) l.length = 0;
-  for (const c of creatures) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
+  for (const c of creatures) if (!c.boat) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
-  reapDead();
+  reapDead(); voyageTick();
   const wc = counts.wolf || 0;
   if (wc >= 2 && wc <= 3 && tick - lastEvolve > 1200 && (counts.werewolf || 0) < capOf('werewolf')) evolveWolves();
   else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
@@ -2464,7 +2890,7 @@ function step() {
       const dd = (x - k.cx)**2 + (y - k.cy)**2;
       if (dd < k.bd) { k.bd = dd; k.nb = i; }
       // births need food; bigger kingdoms breed a little faster
-      if (k.food > 5 && Math.random() < (RACES[race].spawnP || .005) * (1 + k.level*.4) * k.mod.birth * evBirth(k) && (counts[race]||0) < capOf(race)) {
+      if (k.food > 5 && Math.random() < birthProbability(RACES[race].spawnP, k.level, k.mod.birth, evBirth(k)) && (counts[race]||0) < capOf(race)) {
         if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; setFamily(c, x, y); } }
       }
     } else if (kid[i]) kid[i] = 0;
@@ -2488,7 +2914,7 @@ function step() {
   }
   for (const i of spread) ignite(i);
   for (const k of kingdoms.values()) {                               // collapse empty kingdoms, re-centre the rest
-    if (k.houses === 0) { kingdoms.delete(k.id); ownDirty = true; warStats.collapsed = (warStats.collapsed || 0) + 1; continue; }
+    if (k.houses === 0) { addChronicle('🏚️', `${k.name} runtuh karena tidak memiliki permukiman`); kingdoms.delete(k.id); ownDirty = true; warStats.collapsed = (warStats.collapsed || 0) + 1; continue; }
     k.cx = k.sx / k.houses; k.cy = k.sy / k.houses; k.cap = k.nb;
   }
   if (tick % 8 === 0) economy();
@@ -2557,7 +2983,7 @@ function setSize(idx) {
   kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   oreT = new Uint8Array(N); oreA = new Uint8Array(N); treeK = new Uint8Array(N); nodes = [];
   drops.length = 0; dropMap.clear(); volcanoes.length = 0; parts.length = 0;
-  kingdoms.clear(); rels.clear(); nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
+  kingdoms.clear(); rels.clear(); ships = []; nextShipId = 1; nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
   creatures = []; effects.length = 0; counts = {}; houseCount = 0; hb = [0,0,0,0,0,0];
@@ -2617,6 +3043,22 @@ function renderTerrain() {
   octx.putImageData(img, 0, 0);
 }
 
+function drawShips(x0, y0, x1, y1) {
+  for (const s of ships) {
+    if (s.x < x0-2 || s.x > x1+2 || s.y < y0-2 || s.y > y1+2) continue;
+    const cx = ox + (s.x + .5) * sc, cy = oy + (s.y + .5) * sc;
+    if (sc < 5) {
+      ctx.fillStyle = RACES[s.race].col; ctx.fillRect(cx - Math.max(2,sc*.35), cy - Math.max(2,sc*.35), Math.max(4,sc*.7), Math.max(4,sc*.7));
+      ctx.fillStyle = '#f4f1e6'; ctx.fillRect(cx - 1, cy - Math.max(4,sc*.65), 2, Math.max(3,sc*.4));
+      continue;
+    }
+    const sp = SHIP_ATLAS[s.race], K = Math.max(1, Math.round(sc/10)), w = sp.width*K, h = sp.height*K;
+    ctx.strokeStyle = 'rgba(210,245,255,.58)'; ctx.lineWidth = Math.max(1,sc*.08); ctx.beginPath(); ctx.ellipse(cx, cy + h*.32, w*.58, Math.max(1,sc*.12), 0, 0, Math.PI*2); ctx.stroke();
+    let face = 1;
+    if (s.step < s.path.length - 1) { const a=s.path[s.step], b=s.path[s.step+1]; face = (b%W) >= (a%W) ? 1 : -1; }
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(face, 1); ctx.imageSmoothingEnabled = false; ctx.drawImage(sp, -w/2, -h/2, w, h); ctx.restore();
+  }
+}
 function draw() {
   frame++;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -2631,6 +3073,7 @@ function draw() {
   const y0 = Math.max(0, Math.floor((VIEW.y-oy)/sc) - 1), y1 = Math.min(H-1, Math.ceil((VIEW.y+VIEW.h-oy)/sc));
 
   SPR_K = Math.max(1, Math.round(sc / 6));
+  CHR_K = charScale(sc, cfg.settings && cfg.settings.charSize);
   const nightA = cfg.settings.dayNight ? Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2)) * .38 : 0;
   if (sc >= 5) {
     if (showBorders) {                                                        // dashed red lines between capitals of warring kingdoms
@@ -2691,29 +3134,42 @@ function draw() {
       if (key === 'lifetree') { ctx.fillStyle = 'rgba(255,226,122,.16)'; ctx.beginPath(); ctx.arc(lcx, lfy - lh*.55, lw*.8, 0, 7); ctx.fill(); }
       ctx.drawImage(ls, lcx - lw/2, lfy - lh, lw, lh);
     }
-    for (const c of creatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
-    const order = creatures.slice().sort((a, b) => a.dy - b.dy);
+    const landCreatures = creatures.filter(c => !c.boat);
+    for (const c of landCreatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
+    const order = landCreatures.sort((a, b) => a.dy - b.dy);
     for (const c of order) {
       if (c.dx < x0-2 || c.dx > x1+2 || c.dy < y0-2 || c.dy > y1+3) continue;
       const cx = ox + (c.dx + .5)*sc, fy = oy + (c.dy + 1)*sc - sc*.08;
       const moving = Math.abs(c.x - c.dx) + Math.abs(c.y - c.dy) > .12;
       let f = 'A';
+      const jb = c.job, wph = jb && jb.ph === 1 ? swingPhase(frame, c.id, jb.k) : 0;
       if (c.atk > 0) { f = 'C'; c.atk--; } else if (moving && ((frame >> 3) + c.id) % 2) f = 'B';
-      const lunge = c.atk > 3 ? 2 * SPR_K : 0;
-      const spr = ATLAS[c.t][f], sw = spr.width * SPR_K, sh = spr.height * SPR_K;
+      else if (jb && jb.ph === 1 && jb.k !== 'fish' && wph >= IMPACT - .04 && wph < IMPACT + .22) f = 'C';
+      if (jb && jb.ph === 1 && jb.k !== 'hunt' && jb.k !== 'fish' && !paused && isStrikeFrame(wph)) { const cy = swingCycle(frame, c.id, jb.k); if (cy !== jb.cy) { jb.cy = cy; workImpact(c, jb, c.t); } }
+      const lunge = c.atk > 3 ? 2 * CHR_K : 0;
+      const spr = ATLAS[c.t][f], sw = spr.width * CHR_K, sh = spr.height * CHR_K;
       const crowned = c.lead && c.k && kingdoms.has(c.k) && kingdoms.get(c.k).level >= 1;       // sprites may be bigger than 10x10
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - sw*.3, fy - Math.max(1, sw*.08), sw*.6, Math.max(1, sw*.1));
-      if (c === selected) { ctx.strokeStyle = `rgba(255,214,74,${.65 + .3*Math.sin(frame*.2)})`; ctx.lineWidth = Math.max(2, SPR_K*.7); ctx.beginPath(); ctx.ellipse(cx, fy - sw*.03, sw*.55, sw*.2, 0, 0, 7); ctx.stroke(); }
+      if (c === selected) { ctx.strokeStyle = `rgba(255,214,74,${.65 + .3*Math.sin(frame*.2)})`; ctx.lineWidth = Math.max(2, CHR_K*.7); ctx.beginPath(); ctx.ellipse(cx, fy - sw*.03, sw*.55, sw*.2, 0, 0, 7); ctx.stroke(); }
       if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -sw/2 + lunge, fy - sh, sw, sh); ctx.restore(); }
       else ctx.drawImage(spr, cx - sw/2 + lunge, fy - sh, sw, sh);
       if (c.elite) {                                                                    // iron knight: helmet, crest and shield over the race sprite
-        const K = SPR_K, mx = cx + lunge, hd = c.face < 0 ? -1 : 1;
+        const K = CHR_K, mx = cx + lunge, hd = c.face < 0 ? -1 : 1;
         ctx.fillStyle = '#c0c8d4'; ctx.fillRect(mx - sw*.27, fy - sh - K*.5, sw*.54, K*2.5);
         ctx.fillStyle = '#6a7280'; ctx.fillRect(mx - sw*.27, fy - sh + K*1.5, sw*.54, K*.6);
         ctx.fillStyle = RACES[c.t].col; ctx.fillRect(mx - K*.5, fy - sh - K*2.4, K, K*2);
       }
       if (sc >= 8 && c.eq && (c.eq[0] || c.eq[1] || c.eq[2])) drawGear(c, cx + lunge, fy, sw, sh);
-      if (crowned) { const K = SPR_K, tx = cx - K*2 + lunge; ctx.fillStyle = '#ffd23f'; ctx.fillRect(tx, fy - sh - K*2, K*4, K); ctx.fillRect(tx, fy - sh - K*3, K, K); ctx.fillRect(tx + K*3, fy - sh - K*3, K, K); ctx.fillRect(tx + K*1.5, fy - sh - K*3, K, K); }
+      if (jb) {                                                                         // work tools, swings and hauled goods
+        if (jb.ph === 2) drawCarry(ctx, jb.item === 'ore' ? 'rock' : jb.item, cx, fy - sh - CHR_K * .5, CHR_K, frame, c.id);
+        else {
+          const tgx = jb.k === 'fish' ? jb.wx : jb.x, tgy = jb.k === 'fish' ? jb.wy : jb.y;
+          const hph = jb.k === 'hunt' ? (c.atk > 0 ? .5 + (10 - c.atk) * .05 : .3) : wph;
+          drawWorker(ctx, { job: jb.k, race: c.t, ph: hph, phase: jb.ph, cx: cx + lunge, fy, sw, sh, K: CHR_K, hd: c.face < 0 ? -1 : 1, frame, id: c.id,
+            tx: ox + (tgx + .5) * sc, ty: oy + (tgy + (jb.k === 'fish' ? .5 : .8)) * sc });
+        }
+      }
+      if (crowned) { const K = CHR_K, tx = cx - K*2 + lunge; ctx.fillStyle = '#ffd23f'; ctx.fillRect(tx, fy - sh - K*2, K*4, K); ctx.fillRect(tx, fy - sh - K*3, K, K); ctx.fillRect(tx + K*3, fy - sh - K*3, K, K); ctx.fillRect(tx + K*1.5, fy - sh - K*3, K, K); }
       if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - sw*.4 - 1, fy - sh - 5, sw*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - sw*.4, fy - sh - 4, sw*.8*Math.max(0, c.hp/c.mhp), 2); }
     }
   } else {
@@ -2726,11 +3182,13 @@ function draw() {
     }
     const ds = Math.max(2, sc*.65);
     for (const c of creatures) {
+      if (c.boat) continue;
       c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3;
       if (c.dx < x0-2 || c.dx > x1+2 || c.dy < y0-2 || c.dy > y1+2) continue;
       ctx.fillStyle = RACES[c.t].col; ctx.fillRect(ox + (c.dx + .5)*sc - ds/2, oy + (c.dy + .5)*sc - ds/2, ds, ds);
     }
   }
+  drawShips(x0, y0, x1, y1);
   drawEffects();
   drawAtmosphere();
   if (hover && tool !== 'inspect' && TOOLS[tool]) {
@@ -2808,10 +3266,10 @@ function drawEffects() {
         ctx.stroke();
       }
     } else if (e.k === 'death') {
-      life = 30; const sp = ATLAS[e.type].A, sw = sp.width * SPR_K, sh = sp.height * SPR_K, fy = py + sc*.42;
+      life = 30; const sp = ATLAS[e.type].A, sw = sp.width * CHR_K, sh = sp.height * CHR_K, fy = py + sc*.42;
       if (sc < 5) { if (e.t >= life) effects.splice(i, 1); continue; }
       ctx.save();
-      if (e.old) { ctx.globalAlpha = Math.max(0, .7*(1 - e.t/life)); ctx.drawImage(sp, px - sw/2, fy - sh - e.t*.25*SPR_K, sw, sh); }
+      if (e.old) { ctx.globalAlpha = Math.max(0, .7*(1 - e.t/life)); ctx.drawImage(sp, px - sw/2, fy - sh - e.t*.25*CHR_K, sw, sh); }
       else {
         ctx.globalAlpha = e.t < 14 ? 1 : Math.max(0, 1 - (e.t - 14)/16);
         ctx.translate(px, fy); ctx.scale(e.face || 1, 1); ctx.rotate(Math.min(1, e.t/8) * Math.PI/2);
@@ -2892,11 +3350,13 @@ let nextMajor = 0;                                           // tick before whic
 const pendingDis = [];
 const DIS_NAMES = ['Off', 'Rare', 'Frequent'];
 function strikeBolt(wx, wy, rr) {
+  addChronicle('⚡', 'Sambaran petir menghantam pulau');
   fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 }); haptic('tap');
   forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
 }
 function strikeMeteor(wx, wy, R) {
+  addChronicle('☄️', 'Meteor menghantam pulau');
   fx('boom', wx, wy, { r: R + 2 }); haptic('thud'); shakeT = 22;
   emit('debris', wx, wy, 34); emit('ember', wx, wy, 26, { sx: 1.5 }); emit('smoke', wx, wy, 12, { sx: 2, dark: 1, s0: .4, s1: 1.5 }); emit('dust', wx, wy, 16, { sx: 3 });
   forDisc(wx, wy, R, (x, y, i) => {
@@ -2908,6 +3368,7 @@ function strikeMeteor(wx, wy, R) {
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= (R+1)**2) c.hp = 0;
 }
 function eruptVolcano(wx, wy) {
+  addChronicle('🌋', 'Gunung berapi meletus');
   fx('boom', wx, wy, { r: 5 }); haptic('thud'); shakeT = 40;
   const vv = volcanoAt(wx, wy); if (vv) vv.er = tick;
   emit('debris', wx, wy - 1.5, 26); emit('ember', wx, wy - 1.5, 40, { sx: 1 }); emit('smoke', wx, wy - 1.5, 14, { sx: 1.2, dark: 1, s0: .4, s1: 1.6 });
@@ -2927,6 +3388,7 @@ function eruptVolcano(wx, wy) {
 let shakeT = 0;
 const floods = [];                                           // { i, orig, until } tiles temporarily under water
 function strikeQuake(wx, wy) {
+  addChronicle('🪨', 'Gempa mengguncang pulau');
   const R = 9; shakeT = 50; haptic('thud');
   fx('shock', wx, wy, { r: R }); fx('crack', wx, wy, { r: R, seed: (Math.random() * 999) | 0 }); emit('dust', wx, wy, 26, { sx: R });
   forDisc(wx, wy, R, (x, y, i) => {
@@ -2936,6 +3398,7 @@ function strikeQuake(wx, wy) {
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= R*R && Math.random() < .15) c.hp -= 4;
 }
 function strikeFlood(wx, wy) {                               // sea surges inland from a coast tile, then recedes
+  addChronicle('🌊', 'Gelombang banjir menyapu pesisir');
   haptic('thud');
   const seen = new Set([wx + wy*W]), q = [[wx, wy, 0]], until = tick + 640;
   while (q.length) {
@@ -3131,8 +3594,8 @@ function relLine(k) {
   return (en ? `<br>⚔️ ${en}` : '') + (al ? `<br>🤝 ${al}` : '');
 }
 function kingdomHtml(k) {
-  const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Stone Age', 'Bronze Age', 'Iron Age'][k.age | 0]} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
+  const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Era Penjelajahan' : '';
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Stone Age', 'Bronze Age', 'Iron Age'][k.age | 0]}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
 }
 /* ============================== CREATURE PANEL ============================== */
 let selected = null, following = false, deadNote = 0;
@@ -3182,6 +3645,7 @@ function statusOf(c) {
   if (r < .35) return 'Dying'; if (r < .7) return 'Wounded';
   if (R.hunt && c.en < 45) return 'Hungry';
   if (k && k.enemies.size && (c.elite || c.lead || isSoldier(c))) return 'At war';
+  if (c.job && STATUS[c.job.k]) return STATUS[c.job.k][c.job.ph];
   return 'Healthy';
 }
 function portraitURL(t) {
@@ -3284,7 +3748,7 @@ function slotAction(c, sl) {
 function pickCreatureAt(px, py) {                                   // nearest creature to a screen point (sprites stand above their tile)
   const fx0 = (px - ox) / sc, fy0 = (py - oy) / sc; let best = null, bd = 1.7;
   for (const c of creatures) {
-    if (c.hp <= 0) continue;
+    if (c.hp <= 0 || c.boat) continue;
     const d = (c.dx + .5 - fx0) ** 2 + (c.dy - .1 - fy0) ** 2; if (d < bd) { bd = d; best = c; }
   }
   return best;
@@ -3300,6 +3764,7 @@ function refreshCreature() {
 infoEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   if (a.dataset.act === 'close') closeCreature();
+  else if (a.dataset.act === 'journalTab') showJournal(a.dataset.tab);
   else if (a.dataset.act === 'seed') { const zi = +a.dataset.i; confirmThen('seed' + zi, SIZES[zi].label, () => { newWorld(zi); closeCreature(); renderRow2(); }); }
   else if (a.dataset.act === 'follow') { following = !following; infoHold = false; refreshCreature(); }
   else if (!selected) return;
@@ -3319,7 +3784,7 @@ window.addEventListener('pointerup', () => { infoHold = false; });
 window.addEventListener('pointercancel', () => { infoHold = false; });
 function showSeeds() {                                          // picker for the empty island seeds
   selected = null; following = false; clearTimeout(infoT);
-  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><b>🏝️ Empty island seeds</b><span class="dsc">No life and no houses: you lay the first foundations yourself.</span><div class="seeds">${SIZES.slice(3).map((z, i) => `<button class="seed" data-act="seed" data-i="${i + 3}"><b>${z.label}</b><small>${z.preset.desc}</small></button>`).join('')}</div>`;
+  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><b>🏝️ Empty island seeds</b><span class="dsc">No life and no houses: you lay the first foundations yourself.</span><div class="seeds">${SIZES.map((z, i) => ({ z, i })).filter(o => o.z.preset && !o.z.preset.hidden).sort((a, b) => (a.z.preset.order || 9) - (b.z.preset.order || 9)).map(o => `<button class="seed" data-act="seed" data-i="${o.i}"><b>${o.z.label}</b><small>${o.z.preset.desc}</small></button>`).join('')}</div>`;
   infoEl.style.display = 'block';
 }
 function inspectAt(wx, wy) {
@@ -3431,6 +3896,7 @@ function confirmThen(key, msg, fn) {              // destructive actions need a 
   else { pendingKey = key; pendingT = now; toast('⚠️ ' + msg + ' — tap again'); }
 }
 function newWorld(idx) {
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1;
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx);
   generate(1 + ((Math.random() * 1e6) | 0));
@@ -3443,6 +3909,53 @@ function civScore() {                                        // population, hous
   let sc = 0;
   for (const k of kingdoms.values()) sc += k.pop*2 + k.houses*3 + k.level*60 + k.tech.length*40 + (k.age | 0)*50 + ((k.bronze | 0) + (k.iron | 0) + (k.silver | 0))*.5;
   return Math.round(sc + (tick / 120) * 2 + market.trades * 3);
+}
+function addChronicle(icon, text) {
+  if (editMode || !text) return;
+  chronicle.unshift({ tick, icon, text: String(text) });
+  if (chronicle.length > CHRONICLE_MAX) chronicle.length = CHRONICLE_MAX;
+  dirty = true;
+  const body = infoEl.querySelector('.jbody');
+  if (body && infoEl.dataset.journalTab === 'chronicle') body.innerHTML = chronicleBody();
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch])); }
+function chronicleBody() {
+  return chronicle.length ? chronicle.map(e => `<div class="jrow"><span class="jicon">${escapeHtml(e.icon)}</span><div><small>Tahun ${Math.floor(e.tick / 120)}</small><span>${escapeHtml(e.text)}</span></div></div>`).join('') : '<div class="jempty">Belum ada kejadian besar. Biarkan dunia berjalan—ceritanya akan muncul di sini.</div>';
+}
+function goalsBody() {
+  const vals = currentGoalValues();
+  return OBJECTIVES.map(g => {
+    const v = Math.max(0, vals[g.id] || 0), done = completedGoals.has(g.id), pct = Math.round(objectiveRatio(v, g.target) * 100);
+    return `<div class="jgoal" data-goal="${g.id}"><div class="jgoaltop"><b>${g.icon} ${escapeHtml(g.title)}</b><strong class="jcount">${done ? '✓' : `${Math.min(v, g.target)}/${g.target}`}</strong></div><small>${escapeHtml(g.detail)}</small><div class="jbar"><i style="width:${pct}%;${done ? 'background:#65df9a' : ''}"></i></div></div>`;
+  }).join('');
+}
+function refreshGoalsPanel() {
+  if (!infoEl.querySelector('.jgoal')) return;
+  const vals = currentGoalValues();
+  for (const g of OBJECTIVES) {
+    const card = infoEl.querySelector(`[data-goal="${g.id}"]`); if (!card) continue;
+    const v = Math.max(0, vals[g.id] || 0), done = completedGoals.has(g.id), count = card.querySelector('.jcount'), bar = card.querySelector('.jbar i');
+    if (count) count.textContent = done ? '✓' : `${Math.min(v, g.target)}/${g.target}`;
+    if (bar) { bar.style.width = `${Math.round(objectiveRatio(v, g.target) * 100)}%`; bar.style.background = done ? '#65df9a' : ''; }
+  }
+}
+function currentGoalValues() { return objectiveValues(counts, [...kingdoms.values()].map(k => k.level), warsResolved); }
+function checkObjectives() {
+  if (editMode || !started) return;
+  const vals = currentGoalValues();
+  for (const g of OBJECTIVES) if (!completedGoals.has(g.id) && vals[g.id] >= g.target) {
+    completedGoals.add(g.id); addChronicle('🏆', `Tujuan tercapai: ${g.title}`);
+    toast(`🏆 Tujuan tercapai · ${g.title}`); dirty = true;
+  }
+}
+function showJournal(tab = 'chronicle') {
+  selected = null; following = false; deadNote = 0; infoHold = false; clearTimeout(infoT);
+  checkObjectives();
+  const tabs = `<div class="jtabs"><button class="awb jtab ${tab === 'chronicle' ? 'on' : ''}" data-act="journalTab" data-tab="chronicle">📜 Kronik</button><button class="awb jtab ${tab === 'goals' ? 'on' : ''}" data-act="journalTab" data-tab="goals">🎯 Tujuan</button></div>`;
+  const body = tab === 'goals' ? goalsBody() : chronicleBody();
+  infoEl.dataset.journalTab = tab;
+  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close" aria-label="Tutup">✖</button></div><b>📜 Kronik Dunia</b>${tabs}<div class="jbody">${body}</div>`;
+  infoEl.style.display = 'block';
 }
 function showBoard(html) { infoEl.innerHTML = html; infoEl.style.display = 'block'; clearTimeout(infoT); infoT = setTimeout(() => infoEl.style.display = 'none', 9000); }
 async function submitScore(show) {                           // submit only personal bests, so the board never goes backwards
@@ -3511,13 +4024,18 @@ const handBtn = mkBtn(btns, '✋', () => selectTool(tool === 'hand' ? 'raise' : 
 mkBtn(btns, '−', () => zoomBy(1/1.5));
 mkBtn(btns, '+', () => zoomBy(1.5));
 if (!editMode) sndBtn = mkBtn(btns, '🔊', () => { sndInit(); sndResume(); setSound(!Snd.on); if (Snd.on) SFX.ui(); });
+if (!editMode) {
+  yearEl.title = 'Buka kronik dan tujuan'; yearEl.setAttribute('role', 'button'); yearEl.setAttribute('aria-label', yearEl.title); yearEl.tabIndex = 0;
+  yearEl.addEventListener('click', () => showJournal('chronicle'));
+  yearEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showJournal('chronicle'); } });
+}
 
 function updateStats() {
   const chip = (ch, n) => `<span>${ch}${n}</span>`;
   let h1 = '', h2 = '';
   if (editMode) { yearEl.textContent = '✏️'; }
   else {
-    yearEl.textContent = W_ICON[weather.kind] + ' ' + Math.floor(tick / 120);
+    yearEl.textContent = '📜 ' + W_ICON[weather.kind] + ' ' + Math.floor(tick / 120);
     for (const r of ['human', 'elf', 'dwarf', 'orc', 'werewolf']) if (r !== 'werewolf' || counts.werewolf) h1 += chip(EMOJI[r], counts[r] || 0);
     h1 += chip('🏰', kingdoms.size) + chip('🏠', houseCount);
     for (const r of ['sheep', 'rabbit', 'deer', 'wolf']) h2 += chip(EMOJI[r], counts[r] || 0);
@@ -3527,6 +4045,7 @@ function updateStats() {
     if (sick) h2 += chip('☠️', sick);
   }
   statsEl.innerHTML = h1; stats2El.innerHTML = h2;
+  checkObjectives(); refreshGoalsPanel();
 }
 
 /* ============================== SAVE / LOAD (play mode) ============================== */
@@ -3540,20 +4059,25 @@ function serialize2() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
+  return { v: 8, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
-    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0])]),
-    cr: creatures.filter(c => !RACES[c.t].engine).map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)),
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick)]),
+    cr: creatures.filter(c => !RACES[c.t].engine).map(c => { const s = c.boat ? ships.find(v => v.id === c.boat) : null, i = s ? s.sourceLand : c.y * W + c.x; return i * 10 + RN.indexOf(c.t); }),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
-    ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0]); return a; }, []),
+    ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
     vc: volcanoes.map(v => v.i),
-    dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b, d.e | 0]) };      // one packed int per creature
+    dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b, d.e | 0]),
+    sf: ships.map(s => [s.id, s.race, kix.get(s.kingdomId) || 0, s.x, s.y, s.path, s.step, s.move, s.phase, s.sourceLand, s.targetLand, s.targetComp, s.crew, s.landed | 0, s.wreckAt | 0, s.fishTimer | 0]) };      // one packed int per creature
 }
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
+  ships = []; nextShipId = 1;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
+  extinctRaces.clear(); for (const r of s.xr || []) if (['human','elf','dwarf','orc','werewolf'].includes(r)) extinctRaces.add(r);
+  chronicle.length = 0; for (const e of s.jl || []) if (Array.isArray(e) && e.length >= 3) chronicle.push({ tick: Math.max(0, e[0] | 0), icon: String(e[1]), text: String(e[2]) }); chronicle.length = Math.min(chronicle.length, CHRONICLE_MAX);
+  completedGoals.clear(); for (const id of s.go || []) if (OBJECTIVES.some(g => g.id === id)) completedGoals.add(id); warsResolved = Math.max(0, s.wf | 0);
   currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0; floods.length = 0; Snd.on = s.sn !== 0; tutSeen = !!s.tu;
   const hl = [];
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) { bld[i] = b; hl.push(i); } else hl.push(-1); }
@@ -3567,7 +4091,7 @@ function restore(s) {
     if (a[11]) k.ev = { type: EV_ID[a[11]], left: a[12] || 600 };
     k.unrest = a[13] || 0; k.immune = tick + (a[14] || 0);
     k.silver = a[15] || 0; k.bronze = a[16] || 0; k.iron = a[17] || 0; k.age = a[18] || 0; recalcMods(k);
-    k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]);
+    k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]); k.voyageCd = tick + (a[20] || 0);
     ids.push(k.id);
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
@@ -3590,7 +4114,19 @@ function restore(s) {
   for (const r of s.ex || []) {                                          // names, traits, gear, history of settlers
     const c = spawned[r[0]]; if (!c) continue;
     const R = RACES[c.t]; c.nid = r[1]; c.tr = r[2]; c.kills = r[4]; c.eq = [r[5] & 3, (r[5] >> 2) & 3, (r[5] >> 4) & 3]; c.hist = r[6] || []; c.pa = r[7] || 0; c.pb = r[8] || 0; c.sp = r[9] || 0; c.ch = r[10] || 0; c.ec = [(r[11] || 0) & 15, ((r[11] || 0) >> 4) & 15, ((r[11] || 0) >> 8) & 15]; c.lk = c.k; c.nj = 1;
-    c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); c.age = Math.max(0, Math.min(c.life - 50, tick - r[3]));
+    c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); c.age = Math.max(0, Math.min(c.life - 50, tick - r[3])); c.boat = r[12] | 0;
+  }
+  for (const v of s.sf || []) {
+    const race = v[1], path = Array.isArray(v[5]) ? v[5].filter(i => Number.isInteger(i) && i >= 0 && i < N) : [];
+    if (!RACES[race] || !RACES[race].civ || extinctRaces.has(race) || path.length < 2 || path.some(i => tiles[i] > T.SHALLOW) || !['outbound','return','fishing_outbound','fishing','fishing_return'].includes(v[8])) continue;
+    const id = v[0] | 0, ship = { id, race, kingdomId: ids[(v[2] | 0) - 1] || 0, x: +v[3], y: +v[4], path, step: Math.max(0, Math.min(path.length-1, v[6] | 0)), move: Math.max(0, Math.min(.99, +v[7] || 0)), phase: v[8], sourceLand: v[9] | 0, targetLand: v[10] | 0, targetComp: v[11] | 0, crew: Array.isArray(v[12]) ? v[12].map(n => n | 0) : [], landed: v[13] | 0, wreckAt: v[14] | 0, fishTimer: Math.max(0, v[15] | 0) };
+    ships.push(ship); nextShipId = Math.max(nextShipId, id + 1);
+  }
+  const liveShips = new Map(ships.map(s => [s.id, s]));
+  for (const c of spawned) if (c && c.boat) {
+    const ship = liveShips.get(c.boat);
+    if (!ship) c.boat = 0;
+    else { c.x = c.dx = Math.round(ship.x); c.y = c.dy = Math.round(ship.y); }
   }
   for (const d of s.dr || []) if (RN[d[4]] && inb(d[0], d[1]) && !dropMap.has(d[0] + d[1]*W)) { const o = { x: d[0], y: d[1], s: d[2], t: d[3], r: RN[d[4]], b: tick - (d[5] || 0), e: d[6] | 0 }; drops.push(o); dropMap.set(o.x + o.y*W, o); }
   inv.length = 0; for (const i of s.inv || []) if (RN[i[2]] && i[0] >= 0 && i[0] < 3 && i[1] >= 1 && i[1] <= 3) inv.push([i[0], i[1], RN[i[2]], i[3] | 0]);
@@ -3637,19 +4173,38 @@ function loop(now) {
 /* ============================== TITLE SCREEN + FIRST-RUN TOUR ============================== */
 const titleEl = el('div', 'awtitle'), tutEl = el('div', 'awtut');
 titleEl.style.display = 'none';
+const loadEl = el('div', 'awload');
+loadEl.innerHTML = '<div class="ldorb"><b>🌍</b><i>⛵</i></div><div class="ldname">ASTRO WORLD</div><div class="ldbar"><i></i></div><div class="ldtext">Menyiapkan dunia…</div>';
+if (editMode) loadEl.style.display = 'none';
 function coverUrl() { try { const a = lib.getAsset && lib.getAsset('cover'); return a && a.url; } catch (e) { return null; } }
 function showTitle(hasSave) {
   if (editMode) return;
   const url = coverUrl();
-  titleEl.innerHTML = (url ? `<img class="bg" src="${url}" alt="">` : '<div class="nm">ASTRO<br>WORLD</div>') + '<div class="shade"></div>'
+  titleEl.innerHTML = '<div class="nm">ASTRO<br>WORLD</div>' + (url ? `<img class="bg" src="${url}" alt="" fetchpriority="high">` : '') + '<div class="shade"></div><div class="menuPanel" aria-hidden="true"></div>'
     + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Continue' : 'Play'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div></div>`;
+  const img = titleEl.querySelector('.bg');
+  if (img) {
+    img.loading = 'eager'; img.decoding = 'async';
+    const loaded = () => { if (img.naturalWidth > 0) img.classList.add('loaded'); };
+    img.addEventListener('load', loaded, { once:true });
+    img.addEventListener('error', () => img.remove(), { once:true });
+    if (img.complete) loaded();
+  }
   titleEl.style.display = 'block'; titleEl.style.opacity = 1;
+}
+async function finishLoading(hasSave) {
+  showTitle(hasSave);
+  const remain = Math.max(0, 950 - (performance.now() - loadingStartedAt));
+  if (remain) await new Promise(resolve => setTimeout(resolve, remain));
+  loadEl.classList.add('fade');
+  await new Promise(resolve => setTimeout(resolve, 430));
+  loadEl.style.display = 'none';
 }
 titleEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   sndInit(); sndResume();
   if (a.dataset.act === 'play') {
-    started = true; lastT = performance.now(); titleEl.style.opacity = 0; setTimeout(() => { titleEl.style.display = 'none'; if (!tutSeen) startTour(); }, 480);
+    cv.style.visibility = 'visible'; started = true; lastT = performance.now(); titleEl.style.opacity = 0; setTimeout(() => { titleEl.style.display = 'none'; if (!tutSeen) startTour(); }, 480);
     if (Snd.on) SFX.fanfare(1);
   } else if (a.dataset.act === 'help') { startTour(true); }
   else if (a.dataset.act === 'snd') { setSound(!Snd.on); a.textContent = Snd.on ? '🔊' : '🔇'; if (Snd.on) SFX.ui(); }
@@ -3657,13 +4212,14 @@ titleEl.addEventListener('click', e => {
 const TOUR = [
   { r: [150, 420, 420, 330], t: 'Tap a creature or house to see its info', f: 'tap', y: 790 },
   { r: [150, 420, 420, 330], t: 'Drag with one finger to move the map. Hold briefly, then drag, to paint with the tool.', f: 'drag', y: 790 },
-  { r: [4, 1068, 470, 100], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 800 },
+  { r: [4, 960, 470, 104], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 800 },
   { r: [288, 4, 190, 96], t: 'Zoom the map in and out', y: 230 },
   { r: [4, 4, 190, 96], t: 'Pause and speed up time', y: 230 },
   { r: [476, 4, 96, 96], t: 'Sound on or off', y: 230 },
+  { r: [584, 4, 128, 96], t: 'Tap the year and weather badge for the world chronicle and optional goals', f: 'tap', y: 230 },
 ];
 let tourI = 0;
-function startTour(force) { if (editMode) return; tourI = 0; tutEl.style.display = 'block'; if (force) { titleEl.style.display = 'none'; started = true; lastT = performance.now(); } renderTour(); }
+function startTour(force) { if (editMode) return; tourI = 0; tutEl.style.display = 'block'; if (force) { cv.style.visibility = 'visible'; titleEl.style.display = 'none'; started = true; lastT = performance.now(); } renderTour(); }
 function renderTour() {
   const st = TOUR[tourI], last = tourI === TOUR.length - 1, [x, y, w, h] = st.r;
   tutEl.innerHTML = `<div class="spot" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>`
@@ -3696,12 +4252,14 @@ async function start() {
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
   startCamera(); renderRow1(); renderRow2(); updateStats();
   if (sndBtn) sndBtn.textContent = Snd.on ? '🔊' : '🔇';
-  showTitle(restored);
+  if (!editMode) await finishLoading(restored);
   if (lib.showGameParameters) {
     try {
       lib.showGameParameters({ name: 'Astro World', params: {
         'Day-night cycle': { key: 'settings.dayNight', type: 'checkbox' },
         'Starting population': { key: 'settings.population', type: 'slider', min: 0, max: 3, step: 0.5 },
+        'Ukuran Karakter': { key: 'settings.charSize', type: 'slider', min: CHAR_SIZE_MIN, max: CHAR_SIZE_MAX, step: 0.1 },
+        'Risiko Kapal Karam (%)': { key: 'settings.shipwreckRisk', type: 'slider', min: 0, max: 10, step: 1 },
       } });
     } catch (e) {}
   }
@@ -3710,7 +4268,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
