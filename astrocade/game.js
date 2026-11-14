@@ -21,7 +21,7 @@ function run(mode) {
 
 /* ============================== CONSTANTS ============================== */
 const SCREEN_W = 720, SCREEN_H = 1280;
-const VIEW = { x: 0, y: 190, w: 720, h: 760 };          // leave clear space above the two-row, non-overlapping tool dock
+const VIEW = { x: 0, y: 166, w: 720, h: 784 };          // leave clear space above the two-row, non-overlapping tool dock
 // Three selectable world sizes. k scales population caps (not linearly, to keep phones smooth).
 const SIZES = [
   { name:'S', label:'Small',  w:120, h:148, k:1,   land:0,   coarse:0,   wc:0 },
@@ -136,22 +136,49 @@ style.textContent = `
   .awb:active{transform:translateY(2px)}
   .awb.on{background:linear-gradient(#4b5cac,#2c3a7e);border-color:#ffcf4a;box-shadow:inset 0 3px 0 rgba(255,255,255,.25),inset 0 -5px 0 rgba(0,0,0,.22),0 0 16px rgba(255,207,74,.5)}
   .awb .ic,.awb .ic.cr{width:48px;height:48px;vertical-align:0}
-  #awtop{position:absolute;left:0;top:0;width:720px;height:190px;background:linear-gradient(#18214a,#10172f);border-bottom:3px solid #0a0e22;box-shadow:0 3px 0 #2c3868}
-  #awbtns{position:absolute;left:8px;top:8px;display:flex;gap:6px}
-  #awbtns .awb{width:88px;height:88px;flex:0 0 88px}
-  #awyear{position:absolute;right:8px;top:4px;height:96px;min-width:112px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:6px;font-size:28px;font-weight:800;background:rgba(8,12,30,.9);border:2px solid #2c3868;border-radius:14px;padding:0 10px;font-variant-numeric:tabular-nums;cursor:pointer;touch-action:manipulation}\n  #awyear:active{transform:translateY(2px);border-color:#ffcf4a}
-  #awyear .ic{width:36px;height:36px;vertical-align:0}
-  .awchips{position:absolute;left:8px;right:8px;height:38px;display:flex;gap:6px;align-items:center;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #awstats{top:108px} #awstats2{top:148px}
-  .awchips span{display:inline-flex;align-items:center;gap:3px;height:36px;box-sizing:border-box;background:rgba(8,12,30,.72);border:2px solid #2c3868;border-radius:10px;padding:0 8px}
-  .awchips span .ic{width:24px;height:24px;vertical-align:0}
-  .awchips span .ic.cr{width:32px;height:32px}
+  #awtop{position:absolute;left:0;top:0;width:720px;height:108px;background:linear-gradient(#1b2658,#0e1536);border-bottom:2px solid rgba(255,216,130,.32);box-shadow:0 4px 16px rgba(0,0,0,.5),inset 0 -1px rgba(255,255,255,.06)}
+  .awcap{position:absolute;top:6px;height:96px;box-sizing:border-box;display:flex;gap:6px;align-items:center;padding:6px;border-radius:34px;background:rgba(6,10,30,.55);border:2px solid rgba(160,190,255,.2);box-shadow:inset 0 2px 6px rgba(0,0,0,.35)}
+  #awcapl{left:10px} #awcapr{right:10px}
+  .awcap .awb{width:84px;height:84px;flex:0 0 84px;border-radius:26px}
+  #awyear{position:absolute;left:206px;top:6px;width:308px;height:96px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-around;padding:0 14px;border-radius:34px;background:linear-gradient(180deg,rgba(40,52,110,.7),rgba(10,16,44,.8));border:2px solid rgba(255,216,130,.38);box-shadow:inset 0 1px rgba(255,255,255,.14),0 0 14px rgba(255,200,90,.12);font-variant-numeric:tabular-nums;cursor:pointer;touch-action:manipulation}
+  #awyear .ic{width:44px;height:44px;vertical-align:0}
+  #awyear .st{display:flex;flex-direction:column;align-items:center;line-height:1}
+  #awyear small{font-size:15px;font-weight:800;letter-spacing:2px;color:#9fb0e8;margin-bottom:4px}
+  #awyear b{font-size:40px;font-weight:900;color:#ffe9a8;text-shadow:0 2px 0 rgba(0,0,0,.5)}
+  #awyear .sep{width:2px;height:48px;background:linear-gradient(transparent,rgba(255,216,130,.4),transparent)}
+  #awcensus{position:absolute;left:10px;right:10px;top:114px;height:46px;display:flex;gap:8px;cursor:pointer;touch-action:manipulation}
+  #awcensus:before{content:'';position:absolute;left:0;right:0;top:-8px;bottom:-22px}
+  #awcensus .cs{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;height:46px;box-sizing:border-box;border-radius:23px;background:rgba(8,12,34,.78);border:2px solid rgba(160,190,255,.2);font-size:27px;font-weight:900;font-variant-numeric:tabular-nums;color:#eef3ff}
+  #awcensus .cs .ic{width:30px;height:30px;vertical-align:0}
+  #awcensus .cs.up{animation:awup .9s ease-out} #awcensus .cs.dn{animation:awdn .9s ease-out}
+  #awcensus .more{flex:0 0 60px}
+  #awcensus .more:after{content:'';border:9px solid transparent;border-top-color:#ffd870;margin-top:9px;transition:transform .2s}
+  #awcensus.open .more:after{transform:rotate(180deg);margin-top:-9px}
+  @keyframes awup{0%{border-color:#65df9a;color:#9dffc4;box-shadow:0 0 14px rgba(101,223,154,.55)}100%{box-shadow:none}}
+  @keyframes awdn{0%{border-color:#ff7a6a;color:#ffb0a6;box-shadow:0 0 14px rgba(255,122,106,.55)}100%{box-shadow:none}}
+  #awzoom{position:absolute;right:10px;top:180px;z-index:5;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:34px;background:rgba(8,12,34,.62);border:2px solid rgba(255,216,130,.25);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+  #awzoom .awb{width:84px;height:84px;flex:0 0 84px;border-radius:26px;font-size:46px}
+  #awsheetbg{position:absolute;left:0;top:166px;width:720px;height:784px;display:none;z-index:6}
+  #awsheet{position:absolute;left:10px;right:10px;top:170px;display:none;z-index:7;box-sizing:border-box;padding:14px 16px 18px;border-radius:30px;background:linear-gradient(#1c2760,#0b1132);border:2px solid rgba(255,216,130,.4);box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px rgba(255,255,255,.14);animation:awpop .25s ease-out}
+  #awsheet .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:32px;font-weight:900;color:#ffe9a8}
+  #awsheet .sh .awb{width:76px;height:76px;flex:0 0 76px;border-radius:24px;font-size:36px}
+  #awsheet .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  #awsheet .grp{padding:10px 14px 8px;border-radius:20px;background:rgba(120,150,255,.09);border:1px solid rgba(160,190,255,.2)}
+  #awsheet h4{margin:0 0 6px;font-size:18px;letter-spacing:2px;color:#9fb0e8;font-weight:900;text-transform:uppercase}
+  #awsheet .rw{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;height:44px;font-size:23px;font-weight:700;color:#dbe5ff;position:relative}
+  #awsheet .rw .ic{width:30px;height:30px;vertical-align:0}
+  #awsheet .rw b{font-size:25px;color:#fff;font-variant-numeric:tabular-nums}
+  #awsheet .rw i{position:absolute;left:42px;right:0;bottom:2px;height:3px;border-radius:2px;background:rgba(255,255,255,.08)}
+  #awsheet .rw i u{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#49a9ff,#65df9a);text-decoration:none}
   #awbot{position:absolute;left:0;top:960px;width:720px;height:320px;background:linear-gradient(#10172f,#18214a);border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
   #awrow1>.awb{width:84px;height:84px;flex-basis:84px}
-  #awbrush{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:36px;font-weight:800;color:#ffcf4a}
-  #awbrush .awb{width:76px;height:76px;flex-basis:76px;font-size:44px}
-  #awbrush span{min-width:40px;text-align:center}
+  #awbrush{margin-left:auto;display:flex;gap:4px;align-items:center;padding:6px;border-radius:34px;background:rgba(6,10,30,.55);border:2px solid rgba(160,190,255,.2);box-shadow:inset 0 2px 6px rgba(0,0,0,.35);transition:opacity .2s}
+  #awbrush.dim{opacity:.45}
+  #awbrush .awb{width:72px;height:72px;flex-basis:72px;border-radius:24px;font-size:42px}
+  #awbv{position:relative;width:60px;height:60px;display:grid;place-items:center}
+  #awbv .bd{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a8,#e8962a);box-shadow:0 0 12px rgba(255,200,90,.5);opacity:.88}
+  #awbv em{position:relative;font-style:normal;font-size:24px;font-weight:900;color:#fff;text-shadow:0 1px 0 #2a0e04,0 0 3px #2a0e04,0 0 3px #2a0e04}
   #awrow2{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;overflow:visible;touch-action:manipulation;padding-bottom:4px}
   #awinfo{position:absolute;left:14px;bottom:330px;width:692px;max-height:700px;overflow-y:auto;touch-action:pan-y;box-sizing:border-box;background:rgba(10,15,36,.97);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
   #awinfo .jtabs{display:flex;gap:10px;margin:12px 0 8px;clear:both}
@@ -277,7 +304,7 @@ style.textContent = `
   #awtut .fing.tap{animation:awtap 1.1s ease-in-out infinite}
   @keyframes awdrag{0%{transform:translate(-70px,20px)}60%{transform:translate(70px,-10px)}100%{transform:translate(70px,-10px);opacity:0}}
   @keyframes awtap{0%,100%{transform:translateY(16px) scale(1)}50%{transform:translateY(-6px) scale(.88)}}
-  #awtoast{position:absolute;left:50%;top:204px;transform:translateX(-50%);background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:8px 24px;font-size:28px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.4)}
+  #awtoast{position:absolute;left:50%;top:178px;transform:translateX(-50%);background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:8px 24px;font-size:28px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.4)}
 `;
 document.head.appendChild(style);
 const app = document.createElement('div'); app.id = 'aw'; document.body.appendChild(app);
@@ -289,8 +316,10 @@ app.appendChild(cv);
 const ctx = cv.getContext('2d');
 const el = (tag, id, parent) => { const e = document.createElement(tag); if (id) e.id = id; (parent || app).appendChild(e); return e; };
 if (!editMode) cv.style.visibility = 'hidden';
-const topBar = el('div', 'awtop'), btns = el('div', 'awbtns', topBar), statsEl = el('div', 'awstats', topBar), stats2El = el('div', 'awstats2', topBar), yearEl = el('div', 'awyear', topBar);
-statsEl.className = stats2El.className = 'awchips';
+const topBar = el('div', 'awtop'), capL = el('div', 'awcapl', topBar), capR = el('div', 'awcapr', topBar), yearEl = el('div', 'awyear', topBar);
+capL.className = capR.className = 'awcap';
+const censusEl = el('div', 'awcensus'), zoomPill = el('div', 'awzoom'), sheetBg = el('div', 'awsheetbg'), sheetEl = el('div', 'awsheet');
+if (editMode) censusEl.style.display = 'none';
 const bot = el('div', 'awbot'), row1 = el('div', 'awrow1', bot), row2 = el('div', 'awrow2', bot);
 const infoEl = el('div', 'awinfo'), toastEl = el('div', 'awtoast');
 
@@ -4499,12 +4528,14 @@ function renderRow1() {
     const b = mkBtn(row1, ic, () => { group = g; renderRow1(); renderRow2(); }, g === group ? 'on' : '');
     tabBtns.push(b);
   }
-  const bb = el('div', 'awbrush', row1);
+  const bb = el('div', 'awbrush', row1); bb.classList.toggle('dim', !brushUsed());
   mkBtn(bb, '−', () => setBrush(brush - 1));
-  const sp = document.createElement('span'); sp.id = 'awbv'; sp.textContent = brush; bb.appendChild(sp);
+  const sp = document.createElement('span'); sp.id = 'awbv'; sp.innerHTML = brushDot(); bb.appendChild(sp);
   mkBtn(bb, '+', () => setBrush(brush + 1));
 }
-function setBrush(v) { brush = Math.max(1, Math.min(10, v)); const s = document.getElementById('awbv'); if (s) s.textContent = brush; }
+function brushUsed() { const t = TOOLS[tool]; return !!t && t.ms < 5000 && tool !== 'inspect'; }      // the brush size only matters for painting and spawning tools
+function brushDot() { const d = 12 + brush * 4.4; return `<i class="bd" style="width:${d}px;height:${d}px"></i><em>${brush}</em>`; }
+function setBrush(v) { brush = Math.max(1, Math.min(10, v)); const s = document.getElementById('awbv'); if (s) s.innerHTML = brushDot(); }
 function renderRow2() {
   row2.innerHTML = '';
   if (group === 'world') { for (const a of WORLD_ACTIONS) mkBtn(row2, a.ic, a.fn, a.on && a.on() ? 'on' : ''); return; }
@@ -4518,34 +4549,51 @@ function selectTool(id) {
 function togglePause() { paused = !paused; pauseBtn.textContent = paused ? '▶' : '⏸'; pauseBtn.classList.toggle('on', paused); }
 
 let pauseBtn = null;
-if (!editMode) pauseBtn = mkBtn(btns, '⏸', togglePause);
+if (!editMode) pauseBtn = mkBtn(capL, '⏸', togglePause);
 const speeds = [1, 3, 8];
-const speedBtn = editMode ? null : mkBtn(btns, '1×', b => { speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length]; b.textContent = speed + '×'; });
-const handBtn = mkBtn(btns, '✋', () => selectTool(tool === 'hand' ? 'raise' : 'hand'));
-mkBtn(btns, '−', () => zoomBy(1/1.5));
-mkBtn(btns, '+', () => zoomBy(1.5));
-if (!editMode) sndBtn = mkBtn(btns, '🔊', () => { sndInit(); sndResume(); setSound(!Snd.on); if (Snd.on) SFX.ui(); });
+const speedBtn = editMode ? null : mkBtn(capL, '1×', b => { speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length]; b.textContent = speed + '×'; });
+const handBtn = mkBtn(capR, '✋', () => selectTool(tool === 'hand' ? 'raise' : 'hand'));
+mkBtn(zoomPill, '+', () => zoomBy(1.5));
+mkBtn(zoomPill, '−', () => zoomBy(1/1.5));
+if (!editMode) sndBtn = mkBtn(capR, '🔊', () => { sndInit(); sndResume(); setSound(!Snd.on); if (Snd.on) SFX.ui(); });
 if (!editMode) {
   yearEl.title = 'Open the chronicle and goals'; yearEl.setAttribute('role', 'button'); yearEl.setAttribute('aria-label', yearEl.title); yearEl.tabIndex = 0;
   yearEl.addEventListener('click', () => showJournal('chronicle'));
   yearEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showJournal('chronicle'); } });
 }
 
+const csPrev = {};
+let sheetOpen = false;
+function csChip(key, ch, n) { const p = csPrev[key]; csPrev[key] = n; return `<span class="cs${p == null || p === n ? '' : n > p ? ' up' : ' dn'}">${ch}<b>${n}</b></span>`; }
+function censusSheet() {
+  const row = (ic, nm, n, mx) => `<div class="rw"><span>${ic}</span><span>${nm}</span><b>${n}</b><i><u style="width:${Math.round(100 * n / Math.max(1, mx))}%"></u></i></div>`;
+  const grp = (title, rows) => { const mx = Math.max(1, ...rows.map(r => r[2])); return `<div class="grp"><h4>${title}</h4>${rows.map(r => row(r[0], r[1], r[2], mx)).join('')}</div>`; };
+  let wars = 0; for (const r of rels.values()) if (r.s === 1) wars++;
+  let sick = 0; for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick++;
+  return `<div class="sh"><span>Census</span><button class="awb" data-act="shclose" aria-label="Close">✖</button></div><div class="grid">`
+    + grp('Civilizations', [['human', 'Humans'], ['elf', 'Elves'], ['dwarf', 'Dwarves'], ['orc', 'Orcs'], ['werewolf', 'Werewolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
+    + grp('Wildlife', [['sheep', 'Sheep'], ['rabbit', 'Rabbits'], ['deer', 'Deer'], ['wolf', 'Wolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
+    + grp('Sea life', [['🐟', 'Fish shoals', shoals.length], ['🦈', 'Sharks', sharks.length], ['🐙', 'Krakens', krakens.length]])
+    + grp('Realm', [['🏰', 'Kingdoms', kingdoms.size], ['🏠', 'Houses', houseCount], ['⚔️', 'Wars', wars], ['☠️', 'Plague', sick]])
+    + '</div>';
+}
+function setSheet(open) {
+  sheetOpen = open && !editMode; sheetEl.style.display = sheetBg.style.display = sheetOpen ? 'block' : 'none'; censusEl.classList.toggle('open', sheetOpen);
+  if (sheetOpen) { closeCreature(); infoEl.style.display = 'none'; sheetEl.innerHTML = censusSheet(); }
+}
+censusEl.addEventListener('click', () => setSheet(!sheetOpen));
+sheetBg.addEventListener('click', () => setSheet(false));
+sheetEl.addEventListener('click', e => { if (e.target.closest('[data-act="shclose"]')) setSheet(false); });
 function updateStats() {
-  const chip = (ch, n) => `<span>${ch}${n}</span>`;
-  let h1 = '', h2 = '';
   if (editMode) { yearEl.textContent = '✏️'; }
   else {
-    yearEl.textContent = '📜 ' + W_ICON[weather.kind] + ' ' + Math.floor(tick / 120);
-    for (const r of ['human', 'elf', 'dwarf', 'orc', 'werewolf']) if (r !== 'werewolf' || counts.werewolf) h1 += chip(EMOJI[r], counts[r] || 0);
-    h1 += chip('🏰', kingdoms.size) + chip('🏠', houseCount);
-    for (const r of ['sheep', 'rabbit', 'deer', 'wolf']) h2 += chip(EMOJI[r], counts[r] || 0);
+    yearEl.innerHTML = `<span>${W_ICON[weather.kind]}</span><span class="sep"></span><span class="st"><small>YEAR</small><b>${Math.floor(tick / 120)}</b></span><span class="sep"></span><span>📜</span>`;
+    let pop = 0; for (const r of ['human', 'elf', 'dwarf', 'orc', 'werewolf']) pop += counts[r] || 0;
     let wars = 0; for (const r of rels.values()) if (r.s === 1) wars++;
-    h2 += chip('⚔️', wars);
     let sick = 0; for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick++;
-    if (sick) h2 += chip('☠️', sick);
+    censusEl.innerHTML = csChip('pop', '👥', pop) + csChip('kg', '🏰', kingdoms.size) + csChip('hs', '🏠', houseCount) + csChip('wr', '⚔️', wars) + (sick ? csChip('pl', '☠️', sick) : '') + '<span class="cs more"></span>';
+    if (sheetOpen) sheetEl.innerHTML = censusSheet();
   }
-  statsEl.innerHTML = h1; stats2El.innerHTML = h2;
   checkObjectives(); refreshGoalsPanel();
 }
 
@@ -4866,10 +4914,11 @@ const TOUR = [
   { r: [150, 420, 420, 330], t: 'Tap a creature or house to see its info', f: 'tap', y: 790 },
   { r: [150, 420, 420, 330], t: 'Drag with one finger to move the map. Hold briefly, then drag, to paint with the tool.', f: 'drag', y: 790 },
   { r: [4, 960, 470, 104], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 800 },
-  { r: [288, 4, 190, 96], t: 'Zoom the map in and out', y: 230 },
-  { r: [4, 4, 190, 96], t: 'Pause and speed up time', y: 230 },
-  { r: [476, 4, 96, 96], t: 'Sound on or off', y: 230 },
-  { r: [584, 4, 128, 96], t: 'Tap the year and weather badge for the world chronicle and optional goals', f: 'tap', y: 230 },
+  { r: [614, 180, 96, 184], t: 'Zoom the map in and out', y: 400 },
+  { r: [10, 6, 186, 96], t: 'Pause and speed up time', y: 230 },
+  { r: [614, 6, 96, 96], t: 'Sound on or off', y: 230 },
+  { r: [206, 6, 308, 96], t: 'Tap the year and weather badge for the world chronicle and optional goals', f: 'tap', y: 230 },
+  { r: [10, 114, 700, 46], t: 'Key numbers at a glance. Tap the strip for the full census.', f: 'tap', y: 240 },
 ];
 let tourI = 0;
 function startTour(force) { if (editMode) return; tourI = 0; tutEl.style.display = 'block'; if (force) { cv.style.visibility = 'visible'; titleEl.style.display = 'none'; started = true; lastT = performance.now(); } renderTour(); }
