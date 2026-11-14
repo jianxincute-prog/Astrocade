@@ -220,6 +220,36 @@ style.textContent = `
   .awbig .ic{width:56px;height:56px}
   @keyframes awpulse{50%{transform:scale(1.025)}}
   #awtitle .row2{display:flex;gap:16px}
+  #awtitle{background:#070a24}
+  #awtitle canvas.scene{position:absolute;left:0;top:0;width:720px;height:1280px;image-rendering:pixelated}
+  #awtitle .vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 38%,rgba(0,0,0,0) 45%,rgba(2,3,14,.62) 100%),linear-gradient(180deg,rgba(4,6,20,.5) 0,rgba(4,6,20,0) 24%,rgba(4,6,20,0) 60%,rgba(4,6,20,.9) 100%)}
+  #awtitle .logo{position:absolute;left:0;top:92px;width:100%;text-align:center;pointer-events:none;animation:awlogo 5s ease-in-out infinite}
+  #awtitle .logo .tag{display:flex;align-items:center;justify-content:center;gap:14px;font-size:21px;font-weight:800;letter-spacing:6px;color:#ffe9a8;text-shadow:0 2px 0 #3a1a04,0 0 14px rgba(255,200,90,.6)}
+  #awtitle .logo .tag:before,#awtitle .logo .tag:after{content:'';width:70px;height:3px;border-radius:3px;background:linear-gradient(90deg,rgba(255,210,100,0),#ffd870)}
+  #awtitle .logo .tag:after{transform:scaleX(-1)}
+  #awtitle .logo .l1,#awtitle .logo .l2{font-weight:900;line-height:.9;letter-spacing:4px;color:transparent;background:linear-gradient(180deg,#fff3b0 0,#ffd23f 38%,#f29a22 70%,#b8560f 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-stroke:5px #3a1606;paint-order:stroke fill;filter:drop-shadow(0 8px 0 #2a0e04) drop-shadow(0 0 26px rgba(255,170,60,.55))}
+  #awtitle .logo .l1{font-size:120px;margin-top:10px}
+  #awtitle .logo .l2{font-size:132px;margin-top:-6px;position:relative}
+  #awtitle .logo .l2:after{content:'';position:absolute;top:0;bottom:0;width:90px;left:-120px;background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.55),rgba(255,255,255,0));transform:skewX(-18deg);animation:awshine 4.2s ease-in-out infinite;mix-blend-mode:overlay}
+  #awtitle .sub{margin-top:14px;font-size:25px;font-weight:700;color:#d9e4ff;letter-spacing:1px;text-shadow:0 2px 0 rgba(0,0,0,.6)}
+  #awtitle .menuPanel{backdrop-filter:none;height:auto;bottom:40px;padding:22px 28px 18px;border-radius:34px;border:2px solid rgba(255,216,130,.34);background:linear-gradient(180deg,rgba(26,30,70,.74),rgba(8,10,30,.9));box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 6px rgba(255,216,130,.06),inset 0 1px rgba(255,255,255,.2)}
+  #awtitle .menuPanel:before{content:'';position:absolute;left:34px;right:34px;top:-2px;height:3px;border-radius:3px;background:linear-gradient(90deg,rgba(255,216,130,0),#ffd870,rgba(255,216,130,0))}
+  #awtitle .races{display:flex;justify-content:center;gap:12px;margin:-70px 0 20px}
+  #awtitle .races span{width:76px;height:76px;border-radius:22px;display:grid;place-items:center;background:linear-gradient(180deg,#2b3472,#151a42);border:2px solid rgba(160,190,255,.38);box-shadow:0 6px 0 rgba(0,0,0,.4),inset 0 1px rgba(255,255,255,.18);animation:awhop 3.2s ease-in-out infinite}
+  #awtitle .races span:nth-child(2){animation-delay:.25s}#awtitle .races span:nth-child(3){animation-delay:.5s}#awtitle .races span:nth-child(4){animation-delay:.75s}#awtitle .races span:nth-child(5){animation-delay:1s}
+  #awtitle .races img{width:50px;height:50px;image-rendering:pixelated}
+  #awtitle .feat{display:flex;justify-content:center;gap:8px;margin:0 0 18px;font-size:19px;font-weight:700;color:#bfcfff}
+  #awtitle .feat b{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;white-space:nowrap;border-radius:20px;background:rgba(120,150,255,.12);border:1px solid rgba(160,190,255,.22);font-weight:700}
+  #awtitle .feat img{width:22px;height:22px}
+  #awtitle .tb{position:static;display:flex;flex-direction:column;gap:14px;align-items:center}
+  #awtitle .awbig{height:104px;position:relative;overflow:hidden;font-size:48px;letter-spacing:2px;border-width:3px;border-color:#5a2e08;background:linear-gradient(#ffe27a 0,#ffc233 48%,#e8862a 52%,#d06a1c 100%)}
+  #awtitle .awbig:after{content:'';position:absolute;top:0;bottom:0;width:70px;left:-120px;background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.65),rgba(255,255,255,0));transform:skewX(-20deg);animation:awshine 3.4s ease-in-out infinite .6s}
+  #awtitle .row2{gap:18px}
+  #awtitle .row2 .awb{width:104px;height:84px;border-radius:26px}
+  #awtitle .ver{margin-top:2px;font-size:17px;font-weight:700;letter-spacing:2px;color:rgba(190,205,255,.55)}
+  @keyframes awlogo{50%{transform:translateY(-6px)}}
+  @keyframes awshine{0%,55%{left:-130px}100%{left:760px}}
+  @keyframes awhop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}}
   #awtut{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:55;display:none}
   #awtut .spot{position:absolute;border:4px solid #ffcf4a;border-radius:22px;box-shadow:0 0 0 2400px rgba(5,8,20,.72),0 0 26px rgba(255,207,74,.7);transition:all .35s}
   #awtut .bub{position:absolute;left:40px;width:640px;box-sizing:border-box;background:rgba(14,20,48,.97);border:3px solid #ffcf4a;border-radius:20px;padding:20px 24px;font-size:30px;font-weight:700;line-height:1.35;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.4)}
@@ -4177,20 +4207,113 @@ const loadEl = el('div', 'awload');
 loadEl.innerHTML = '<div class="ldorb"><b>🌍</b><i>⛵</i></div><div class="ldname">ASTRO WORLD</div><div class="ldbar"><i></i></div><div class="ldtext">Menyiapkan dunia…</div>';
 if (editMode) loadEl.style.display = 'none';
 function coverUrl() { try { const a = lib.getAsset && lib.getAsset('cover'); return a && a.url; } catch (e) { return null; } }
+/* Main-menu diorama: a living night scene (moon, stars, volcano island with a lit village, sailing ship, birds). Drawn at 360x640 and scaled 2x, pixel-crisp. */
+function titleScene(cv2) {
+  const W2 = 360, H2 = 640, HOR = 322, BASE = 342, c = cv2.getContext('2d'); cv2.width = W2; cv2.height = H2;
+  let sd = 11; const R = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  const stars = Array.from({ length: 120 }, () => ({ x: R() * W2, y: R() * HOR * .86, p: R() * 6.28, sp: .5 + R() * 1.8, b: R() < .14 }));
+  const clouds = Array.from({ length: 8 }, () => ({ x: R() * W2, y: 60 + R() * 250, w: 46 + R() * 80, sp: .04 + R() * .1, a: .1 + R() * .18, k: R() }));
+  const birds = Array.from({ length: 5 }, (_, i) => ({ x: -40 - i * 26, y: 150 + R() * 70 + i * 6, sp: .3 + R() * .12, p: R() * 6 }));
+  // ---- island (pre-rendered side view) ----
+  const IW = 360, IH = 150, isl = document.createElement('canvas'); isl.width = IW; isl.height = IH; const g = isl.getContext('2d');
+  const cx = 168, hw = 150, VX = 214, VH = 96, top = new Float32Array(IW).fill(IH);
+  const hash = x => { const t = Math.sin(x * 12.9898 + 4.1) * 43758.5453; return t - Math.floor(t); };
+  const noise = x => { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return hash(i) * (1 - u) + hash(i + 1) * u; };
+  for (let x = 0; x < IW; x++) {
+    const d = Math.abs(x - cx) / hw; if (d >= 1) continue;
+    let h = Math.pow(1 - d * d, .8) * 34 + noise(x / 9) * 10 + noise(x / 3.2) * 3;
+    const dv = Math.abs(x - VX); if (dv < 58) h += Math.pow(1 - dv / 58, 1.55) * (VH - 34);
+    top[x] = IH - 18 - h;
+  }
+    for (let x = 0; x < IW; x++) {
+    if (top[x] >= IH) continue; const y0 = Math.round(top[x]), h = IH - 18 - y0, dv = Math.abs(x - VX), rock = dv < 40 && h > 46;
+    for (let y = y0; y < IH - 8; y++) {
+      const dep = y - y0; let col;
+      if (rock) col = dep < 2 ? (h > 88 ? '#e8e2d6' : '#8a8294') : dep < 9 ? '#5a5066' : dep < 26 ? '#463c52' : '#35293f';
+      else if (h < 5) col = dep < 3 ? '#e8d28a' : '#c7a85a';
+      else col = dep < 1 ? '#a6e060' : dep < 3 ? '#5fb83c' : dep < 7 ? '#4a8f34' : dep < 20 ? '#7a5a38' : '#5a4230';
+      if (((x * 7 + y * 13) % 11 === 0) && dep > 3) col = '#00000022';
+      g.fillStyle = col; g.fillRect(x, y, 1, 1);
+    }
+    g.fillStyle = 'rgba(0,0,0,.18)'; if (x > VX + 4 && x < VX + 56 && h > 20) g.fillRect(x, y0 + 1, 1, Math.min(18, h - 3));   // shaded east flank
+  }
+  const cy = Math.round(top[VX]); g.fillStyle = '#2a1c30'; g.fillRect(VX - 7, cy, 15, 2); g.fillStyle = '#ff8a2a'; g.fillRect(VX - 5, cy + 1, 11, 2); g.fillStyle = '#ffd24a'; g.fillRect(VX - 3, cy + 1, 7, 1);
+  for (let k = 0; k < 3; k++) { const lx = VX + (k - 1) * 3, ly0 = cy + 3; for (let y = 0; y < 26 + k * 6; y++) { g.fillStyle = (y % 5 < 3) ? '#ff7a1c' : '#ff4a14'; g.fillRect(lx + Math.round(Math.sin(y * .5 + k * 2) * 1.5) + (k - 1) * Math.floor(y / 5), ly0 + y, 1, 1); } }
+  const trees = [], lights = [];
+  for (let x = 14; x < IW - 14; x += 5 + Math.floor(R() * 4)) {
+    const y0 = Math.round(top[x]), h = IH - 18 - y0; if (top[x] >= IH || h < 4 || Math.abs(x - VX) < 38 && h > 40 || (x > 70 && x < 128)) continue;
+    if (h < 9) { g.fillStyle = '#6a4a28'; g.fillRect(x, y0 - 8, 1, 8); g.fillStyle = '#3fae5a'; g.fillRect(x - 3, y0 - 9, 7, 1); g.fillRect(x - 2, y0 - 10, 5, 1); g.fillRect(x - 1, y0 - 11, 3, 1); continue; }
+    const th = 8 + Math.floor(R() * 6), pine = R() < .55;
+    g.fillStyle = '#4a2f1c'; g.fillRect(x, y0 - 3, 1, 3);
+    for (let r = 0; r < th; r++) { const w = pine ? Math.min(7, 1 + Math.floor(r * .9)) : Math.round(Math.sqrt(Math.max(0, 25 - (r - th * .5) ** 2) * .6)) + 1; g.fillStyle = r % 3 === 0 ? '#2e7a38' : '#3a9a44'; g.fillRect(x - Math.floor(w / 2), y0 - 3 - th + r + 1, w, 1); }
+    trees.push(x);
+  }
+  for (const hx of [82, 94, 106, 118]) {                                     // village on the western slope
+    const y0 = Math.round(top[hx]), w = 8;
+    g.fillStyle = '#e8d6b0'; g.fillRect(hx, y0 - 6, w, 6); g.fillStyle = '#b84a3a'; for (let r = 0; r < 4; r++) g.fillRect(hx - 1 + r, y0 - 10 + r, w + 2 - r * 2, 1);
+    g.fillStyle = '#7a4a28'; g.fillRect(hx + 3, y0 - 3, 2, 3); g.fillStyle = '#ffd86a'; g.fillRect(hx + 1, y0 - 5, 2, 2); lights.push([hx + 1, y0 - 5 + 190 - IH]);
+  }
+  g.fillStyle = '#5a3a1e'; for (let x = 38; x < 66; x++) if (x % 3 === 0) g.fillRect(x, IH - 14, 1, 6); g.fillRect(38, IH - 15, 28, 1);   // pier
+  const wallY = Math.round(top[132]); g.fillStyle = '#9a9aa8'; g.fillRect(126, wallY - 5, 14, 5); for (let x = 126; x < 140; x += 3) g.fillRect(x, wallY - 7, 2, 2); g.fillStyle = '#b84a3a'; g.fillRect(131, wallY - 12, 4, 7); g.fillRect(132, wallY - 14, 2, 2);
+  const IX = (W2 - IW) / 2 + 6, IY = BASE - IH + 8;
+  const smoke = [], embers = []; let shoot = null;
+  return function draw(t) {
+    const sky = c.createLinearGradient(0, 0, 0, HOR); sky.addColorStop(0, '#070a24'); sky.addColorStop(.45, '#1a1650'); sky.addColorStop(.78, '#5a2a6a'); sky.addColorStop(1, '#e8703a');
+    c.fillStyle = sky; c.fillRect(0, 0, W2, HOR + 1);
+    for (const s of stars) { const a = .35 + .65 * Math.abs(Math.sin(t * s.sp + s.p)); c.globalAlpha = a * (s.y > HOR * .6 ? .4 : 1); c.fillStyle = s.b ? '#cfe6ff' : '#ffffff'; c.fillRect(Math.floor(s.x), Math.floor(s.y), 1, 1); if (s.b && a > .85) { c.fillRect(Math.floor(s.x) - 1, Math.floor(s.y), 3, 1); c.fillRect(Math.floor(s.x), Math.floor(s.y) - 1, 1, 3); } }
+    c.globalAlpha = 1;
+    if (!shoot && R() < .004) shoot = { x: 40 + R() * 200, y: 20 + R() * 80, l: 0 };
+    if (shoot) { shoot.l += 1; for (let i = 0; i < 14; i++) { c.globalAlpha = (1 - i / 14) * (1 - shoot.l / 40); c.fillStyle = '#fff'; c.fillRect(Math.floor(shoot.x + shoot.l * 3 - i * 2), Math.floor(shoot.y + shoot.l * 1.4 - i), 1, 1); } c.globalAlpha = 1; if (shoot.l > 40) shoot = null; }
+    const mx = 292, my = 214, mr = 24, mg = c.createRadialGradient(mx, my, mr * .6, mx, my, mr * 3.4); mg.addColorStop(0, 'rgba(255,236,190,.34)'); mg.addColorStop(1, 'rgba(255,236,190,0)'); c.fillStyle = mg; c.fillRect(mx - 90, my - 90, 180, 180);
+    c.fillStyle = '#fff1cc'; c.beginPath(); c.arc(mx, my, mr, 0, 7); c.fill(); c.fillStyle = '#e6d3a2'; for (const q of [[-8, -6, 5], [6, 4, 7], [-4, 10, 4], [10, -10, 3]]) { c.beginPath(); c.arc(mx + q[0], my + q[1], q[2], 0, 7); c.fill(); }
+    c.fillStyle = 'rgba(40,30,90,.35)'; c.beginPath(); c.arc(mx + 8, my - 3, mr - 1, 0, 7); c.fill();
+    for (const cl of clouds) {
+      const x = ((cl.x + t * cl.sp * 60) % (W2 + 140)) - 70; c.globalAlpha = cl.a; c.fillStyle = cl.y > 250 ? '#ffb88a' : '#9aa6ff';
+      for (let r = 0; r < 4; r++) c.fillRect(Math.floor(x + r * 4), Math.floor(cl.y + r * 3), Math.floor(cl.w - r * 8), 3);
+      c.fillRect(Math.floor(x + cl.w * .2), Math.floor(cl.y - 3), Math.floor(cl.w * .36), 3);
+    }
+    c.globalAlpha = 1;
+    for (const b of birds) { b.x += b.sp; if (b.x > W2 + 30) b.x = -40; const fl = Math.sin(t * 6 + b.p) > 0 ? 1 : -1, bx = Math.floor(b.x), by = Math.floor(b.y + Math.sin(t + b.p) * 4); c.fillStyle = '#1a1030'; c.fillRect(bx, by, 2, 1); c.fillRect(bx - 2, by - fl, 2, 1); c.fillRect(bx + 2, by - fl, 2, 1); c.fillRect(bx - 3, by - fl * 2, 1, 1); c.fillRect(bx + 4, by - fl * 2, 1, 1); }
+    // sea
+    const sea = c.createLinearGradient(0, HOR, 0, H2); sea.addColorStop(0, '#d8603c'); sea.addColorStop(.05, '#5a3a8a'); sea.addColorStop(.2, '#1a2f78'); sea.addColorStop(1, '#070d2a'); c.fillStyle = sea; c.fillRect(0, HOR, W2, H2 - HOR);
+    for (let y = HOR + 2; y < 480; y += 3) { const k = (y - HOR) / 100, w = 8 + k * 70 + Math.sin(t * 1.4 + y) * 10; c.fillStyle = `rgba(255,236,190,${Math.max(0, .5 - k * .45)})`; c.fillRect(Math.floor(mx - w / 2 + Math.sin(t * 2 + y * .7) * 5), y, Math.floor(w), 1); }
+    for (let y = HOR + 6; y < 480; y += 5) for (let x = (y * 17) % 23; x < W2; x += 23) { const xx = (x + t * (4 + (y - HOR) * .12)) % (W2 + 20) - 10, a = .1 + .22 * Math.abs(Math.sin(t * 1.2 + x + y)); c.fillStyle = `rgba(190,220,255,${a})`; c.fillRect(Math.floor(xx), y, 6 + ((y - HOR) >> 4), 1); }
+    // island glow + reflection
+    const pulse = .7 + .3 * Math.sin(t * 2.4) + .12 * Math.sin(t * 7), vx = IX + VX, vy = IY + cy;
+    const lg = c.createRadialGradient(vx, vy, 2, vx, vy, 95); lg.addColorStop(0, `rgba(255,150,50,${.5 * pulse})`); lg.addColorStop(1, 'rgba(255,100,30,0)'); c.fillStyle = lg; c.fillRect(vx - 100, vy - 100, 200, 220);
+    c.save(); c.globalAlpha = .22; c.translate(0, 2 * BASE); c.scale(1, -1); c.drawImage(isl, IX, IY); c.restore();
+    c.globalAlpha = .22; c.fillStyle = '#ff8a2a'; for (let i = 0; i < 6; i++) c.fillRect(Math.floor(vx - 3 + Math.sin(t * 3 + i) * 3), BASE + 4 + i * 4, 6 - i, 1); c.globalAlpha = 1;
+    c.drawImage(isl, IX, IY);
+    for (const l of lights) { const on = .6 + .4 * Math.sin(t * 3 + l[0] * 3); c.fillStyle = `rgba(255,214,110,${on})`; c.fillRect(IX + l[0], IY + l[1] - 190 + IH, 2, 2); c.fillStyle = `rgba(255,190,80,${on * .18})`; c.fillRect(IX + l[0] - 3, IY + l[1] - 190 + IH - 3, 8, 8); }
+    if (Math.floor(t * 20) % 2 === 0 && R() < .8) smoke.push({ x: vx + (R() - .5) * 6, y: vy, vx: .08 + R() * .1, vy: -.25 - R() * .15, a: .55, r: 2 });
+    if (R() < .35) embers.push({ x: vx + (R() - .5) * 8, y: vy, vx: (R() - .5) * .8, vy: -.6 - R() * .8, a: 1 });
+    for (let i = smoke.length - 1; i >= 0; i--) { const p = smoke[i]; p.x += p.vx + Math.sin(t + p.y * .1) * .05; p.y += p.vy; p.a -= .0042; p.r += .03; if (p.a <= 0) { smoke.splice(i, 1); continue; } c.globalAlpha = p.a; c.fillStyle = p.a > .35 ? '#7a6a86' : '#4a4060'; c.fillRect(Math.floor(p.x), Math.floor(p.y), Math.ceil(p.r), Math.ceil(p.r)); }
+    for (let i = embers.length - 1; i >= 0; i--) { const p = embers[i]; p.x += p.vx; p.y += p.vy; p.vy += .015; p.a -= .014; if (p.a <= 0) { embers.splice(i, 1); continue; } c.globalAlpha = p.a; c.fillStyle = p.a > .5 ? '#ffd24a' : '#ff6a1c'; c.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 1); }
+    c.globalAlpha = 1;
+    // ship
+    const sx = ((t * 7) % (W2 + 80)) - 40, sy = 368 + Math.sin(t * 1.6) * 1.6, tilt = Math.sin(t * 1.6 + 1) * .04;
+    c.save(); c.translate(Math.floor(sx), Math.floor(sy)); c.rotate(tilt);
+    c.fillStyle = '#5a3418'; c.fillRect(-9, 0, 18, 3); c.fillRect(-7, 3, 14, 1); c.fillStyle = '#8a5a2c'; c.fillRect(-9, 0, 18, 1); c.fillStyle = '#3a2210'; c.fillRect(7, -2, 3, 2);
+    c.fillStyle = '#3a2210'; c.fillRect(0, -17, 1, 17); c.fillStyle = '#f4ecd8'; for (let r = 0; r < 13; r++) c.fillRect(1, -16 + r, Math.max(1, 8 - Math.floor(r * .35)), 1); c.fillStyle = '#d8c8a8'; for (let r = 0; r < 13; r++) c.fillRect(-7 + Math.floor(r * .15), -14 + r, 6 - Math.floor(r * .2), 1);
+    c.fillStyle = '#e8344a'; c.fillRect(1, -20, 5, 3); c.restore();
+    c.globalAlpha = .4; c.fillStyle = '#d8ecff'; for (let i = 1; i < 9; i++) c.fillRect(Math.floor(sx - 9 - i * 3 - Math.sin(t * 4 + i)), Math.floor(sy + 3 + (i % 2)), 4 - (i >> 2), 1); c.globalAlpha = 1;
+    // horizon haze + vignette
+    const hz = c.createLinearGradient(0, HOR - 28, 0, HOR + 8); hz.addColorStop(0, 'rgba(255,140,80,0)'); hz.addColorStop(.7, 'rgba(255,140,80,.14)'); hz.addColorStop(1, 'rgba(255,140,80,0)'); c.fillStyle = hz; c.fillRect(0, HOR - 28, W2, 36);
+  };
+}
+let titleRaf = 0;
 function showTitle(hasSave) {
   if (editMode) return;
-  const url = coverUrl();
-  titleEl.innerHTML = '<div class="nm">ASTRO<br>WORLD</div>' + (url ? `<img class="bg" src="${url}" alt="" fetchpriority="high">` : '') + '<div class="shade"></div><div class="menuPanel" aria-hidden="true"></div>'
-    + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Continue' : 'Play'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div></div>`;
-  const img = titleEl.querySelector('.bg');
-  if (img) {
-    img.loading = 'eager'; img.decoding = 'async';
-    const loaded = () => { if (img.naturalWidth > 0) img.classList.add('loaded'); };
-    img.addEventListener('load', loaded, { once:true });
-    img.addEventListener('error', () => img.remove(), { once:true });
-    if (img.complete) loaded();
-  }
+  titleEl.innerHTML = '<canvas class="scene"></canvas><div class="vig"></div>'
+    + '<div class="logo"><div class="tag">A GOD-SIM SANDBOX</div><div class="l1">ASTRO</div><div class="l2">WORLD</div><div class="sub">Shape a world. Watch it live.</div></div>'
+    + '<div class="menuPanel"><div class="races"><span>🧑</span><span>🧝</span><span>🧔</span><span>👹</span><span></span></div>'
+    + '<div class="feat"><b>🏰 Kingdoms</b><b>⚔️ Wars</b><b>⛵ Voyages</b><b>🌋 Disasters</b></div>'
+    + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Continue' : 'Play'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div><div class="ver">PIXEL WORLD · ${SIZES.filter(z => z.preset && !z.preset.hidden).length} ISLAND SEEDS</div></div></div>`;
   titleEl.style.display = 'block'; titleEl.style.opacity = 1;
+  const draw = titleScene(titleEl.querySelector('canvas')), t0 = performance.now();
+  cancelAnimationFrame(titleRaf);
+  const frame = () => { if (titleEl.style.display === 'none') return; draw((performance.now() - t0) / 1000); titleRaf = requestAnimationFrame(frame); };
+  frame();
 }
 async function finishLoading(hasSave) {
   showTitle(hasSave);
