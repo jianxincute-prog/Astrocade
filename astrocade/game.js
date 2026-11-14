@@ -21,7 +21,7 @@ function run(mode) {
 
 /* ============================== CONSTANTS ============================== */
 const SCREEN_W = 720, SCREEN_H = 1280;
-const VIEW = { x: 0, y: 166, w: 720, h: 784 };          // leave clear space above the two-row, non-overlapping tool dock
+const VIEW = { x: 0, y: 166, w: 720, h: 852 };          // leave clear space above the two-row, non-overlapping tool dock
 // Three selectable world sizes. k scales population caps (not linearly, to keep phones smooth).
 const SIZES = [
   { name:'S', label:'Small',  w:120, h:148, k:1,   land:0,   coarse:0,   wc:0 },
@@ -170,17 +170,27 @@ style.textContent = `
   #awsheet .rw b{font-size:25px;color:#fff;font-variant-numeric:tabular-nums}
   #awsheet .rw i{position:absolute;left:42px;right:0;bottom:2px;height:3px;border-radius:2px;background:rgba(255,255,255,.08)}
   #awsheet .rw i u{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#49a9ff,#65df9a);text-decoration:none}
-  #awbot{position:absolute;left:0;top:960px;width:720px;height:320px;background:linear-gradient(#10172f,#18214a);border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
-  #awrow1{display:flex;gap:8px;align-items:center}
-  #awrow1>.awb{width:84px;height:84px;flex-basis:84px}
+  #awbot{position:absolute;left:10px;bottom:8px;width:700px;height:254px;box-sizing:border-box;padding:10px 12px;border-radius:34px;background:linear-gradient(180deg,rgba(28,38,92,.93),rgba(10,14,40,.97));border:2px solid rgba(255,216,130,.3);box-shadow:0 -6px 24px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.5),inset 0 1px rgba(255,255,255,.14);transition:height .2s}
+  #awbot.compact{height:112px} #awbot.compact #awtag,#awbot.compact #awrow2{display:none}
+  #awtag{display:flex;align-items:center;gap:10px;height:40px;padding:0 6px;font-size:24px;color:#dbe5ff;white-space:nowrap;overflow:hidden}
+  #awtag .tk .ic{width:32px;height:32px;vertical-align:-6px}
+  #awtag b{font-size:27px;color:#ffe9a8;font-weight:900}
+  #awtag .th{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#aab6e4;font-weight:600;font-size:21px}
+  #awtag .tg{margin-left:auto;font-size:15px;font-weight:900;letter-spacing:2px;color:#8fa0d8;padding:4px 10px;border-radius:12px;background:rgba(120,150,255,.12)}
+  #awrow1{display:flex;gap:4px;align-items:center;margin-top:6px}
+  #awrow1>.awb{width:84px;height:84px;flex-basis:84px;border-radius:26px}
+  #awrow1>.awb.on{background:linear-gradient(#5568b8,#2c3a7e);border-color:#ffd870;box-shadow:inset 0 3px 0 rgba(255,255,255,.25),inset 0 -5px 0 rgba(0,0,0,.22),0 0 0 2px rgba(255,216,130,.22),0 0 18px rgba(255,207,74,.45)}
   #awbrush{margin-left:auto;display:flex;gap:4px;align-items:center;padding:6px;border-radius:34px;background:rgba(6,10,30,.55);border:2px solid rgba(160,190,255,.2);box-shadow:inset 0 2px 6px rgba(0,0,0,.35);transition:opacity .2s}
   #awbrush.dim{opacity:.45}
-  #awbrush .awb{width:72px;height:72px;flex-basis:72px;border-radius:24px;font-size:42px}
-  #awbv{position:relative;width:60px;height:60px;display:grid;place-items:center}
+  #awbrush .awb{width:64px;height:64px;flex-basis:64px;border-radius:22px;font-size:38px}
+  #awbv{position:relative;width:56px;height:56px;display:grid;place-items:center}
   #awbv .bd{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a8,#e8962a);box-shadow:0 0 12px rgba(255,200,90,.5);opacity:.88}
   #awbv em{position:relative;font-style:normal;font-size:24px;font-weight:900;color:#fff;text-shadow:0 1px 0 #2a0e04,0 0 3px #2a0e04,0 0 3px #2a0e04}
-  #awrow2{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;overflow:visible;touch-action:manipulation;padding-bottom:4px}
-  #awinfo{position:absolute;left:14px;bottom:330px;width:692px;max-height:700px;overflow-y:auto;touch-action:pan-y;box-sizing:border-box;background:rgba(10,15,36,.97);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
+  #awrow2{display:flex;flex-wrap:nowrap;gap:8px;margin-top:8px;height:96px;padding:4px 2px;box-sizing:border-box;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;touch-action:pan-x;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--fl,0px),#000 calc(100% - var(--fr,0px)),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 var(--fl,0px),#000 calc(100% - var(--fr,0px)),transparent 100%)}
+  #awrow2::-webkit-scrollbar{display:none}
+  #awrow2 .awb{width:88px;height:88px;flex:0 0 88px;border-radius:26px;scroll-snap-align:start}
+  #awbot.compact ~ #awinfo{bottom:130px}
+  #awinfo{position:absolute;left:14px;bottom:272px;width:692px;max-height:700px;overflow-y:auto;touch-action:pan-y;box-sizing:border-box;background:rgba(10,15,36,.97);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
   #awinfo .jtabs{display:flex;gap:10px;margin:12px 0 8px;clear:both}
   #awinfo .jtab{flex:1;min-width:96px;min-height:96px;font-size:24px}
   #awinfo .jbody{clear:both}
@@ -320,8 +330,9 @@ const topBar = el('div', 'awtop'), capL = el('div', 'awcapl', topBar), capR = el
 capL.className = capR.className = 'awcap';
 const censusEl = el('div', 'awcensus'), zoomPill = el('div', 'awzoom'), sheetBg = el('div', 'awsheetbg'), sheetEl = el('div', 'awsheet');
 if (editMode) censusEl.style.display = 'none';
-const bot = el('div', 'awbot'), row1 = el('div', 'awrow1', bot), row2 = el('div', 'awrow2', bot);
+const bot = el('div', 'awbot'), tagEl = el('div', 'awtag', bot), row1 = el('div', 'awrow1', bot), row2 = el('div', 'awrow2', bot);
 const infoEl = el('div', 'awinfo'), toastEl = el('div', 'awtoast');
+new MutationObserver(() => bot.classList.toggle('compact', infoEl.style.display === 'block')).observe(infoEl, { attributes: true, attributeFilter: ['style'] });      // an open info panel shrinks the dock to its tabs
 
 function mkBtn(parent, label, fn, cls) {
   const b = document.createElement('button'); b.className = 'awb' + (cls ? ' ' + cls : ''); b.textContent = label;
@@ -4504,46 +4515,60 @@ async function submitScore(show) {                           // submit only pers
   lbBusy = false;
 }
 const WORLD_ACTIONS = [
-  { ic:'🗺️', fn: () => confirmThen('new', 'New world', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
-  ...SIZES.slice(0, 3).map((z, i) => ({ ic: z.name, on: () => sizeIdx === i,
+  { nm: 'New world', h: 'Generate a fresh random world', ic:'🗺️', fn: () => confirmThen('new', 'New world', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
+  ...SIZES.slice(0, 3).map((z, i) => ({ nm: z.label, h: `${z.w}×${z.h} map`, ic: z.name, on: () => sizeIdx === i,
     fn: () => confirmThen('size' + i, `${z.label} ${z.w}×${z.h}`, () => { newWorld(i); renderRow2(); toast(`🗺️ ${z.label} ${z.w}×${z.h}`); }) })),
-  { ic:'🏝️', fn: () => showSeeds() },
-  { ic:'🌊', fn: () => confirmThen('ocean', 'Empty ocean', () => { floods.length = 0; pendingDis.length = 0; emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
+  { nm: 'Island seeds', h: 'Start from an empty island', ic:'🏝️', fn: () => showSeeds() },
+  { nm: 'Empty ocean', h: 'Clear the map to open sea', ic:'🌊', fn: () => confirmThen('ocean', 'Empty ocean', () => { floods.length = 0; pendingDis.length = 0; emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
   ...(editMode ? [] : [
-    { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
-    { ic:'🧹', fn: () => confirmThen('clear', 'Remove creatures & houses', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
+    { nm: 'Wildlife', h: 'Add more animals', ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
+    { nm: 'Clear', h: 'Remove creatures and houses', ic:'🧹', fn: () => confirmThen('clear', 'Remove creatures & houses', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
   ]),
-  ...(editMode ? [] : [{ ic:'❓', fn: () => startTour(true) }]),
-  ...(editMode ? [] : [{ ic:'🏦', fn: () => showBoard(marketHtml()) }]),
-  ...(editMode ? [] : [{ ic:'🏆', fn: () => submitScore(true) }]),
-  { ic:'🚩', on: () => showBorders, fn: () => { showBorders = !showBorders; renderRow2(); toast(showBorders ? '🚩 on' : '🚩 off'); } },
-  ...(editMode ? [] : [{ ic:'☄️', on: () => disasterLvl > 0, fn: () => { disasterLvl = (disasterLvl + 1) % 3; pendingDis.length = 0; dirty = true; renderRow2(); toast('☄️ Disasters: ' + DIS_NAMES[disasterLvl]); } }]),
-  { ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
+  ...(editMode ? [] : [{ nm: 'Tour', h: 'Replay the guided tour', ic:'❓', fn: () => startTour(true) }]),
+  ...(editMode ? [] : [{ nm: 'Market', h: 'Prices and trade', ic:'🏦', fn: () => showBoard(marketHtml()) }]),
+  ...(editMode ? [] : [{ nm: 'Score', h: 'Submit your civilization score', ic:'🏆', fn: () => submitScore(true) }]),
+  { nm: 'Borders', h: 'Show kingdom borders', ic:'🚩', on: () => showBorders, fn: () => { showBorders = !showBorders; renderRow2(); toast(showBorders ? '🚩 on' : '🚩 off'); } },
+  ...(editMode ? [] : [{ nm: 'Disasters', h: 'Off, rare or frequent natural disasters', ic:'☄️', on: () => disasterLvl > 0, fn: () => { disasterLvl = (disasterLvl + 1) % 3; pendingDis.length = 0; dirty = true; renderRow2(); toast('☄️ Disasters: ' + DIS_NAMES[disasterLvl]); } }]),
+  { nm: 'Day and night', h: 'Toggle the day cycle', ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
 ];
 
 const tabBtns = [];
 function renderRow1() {
   row1.innerHTML = ''; tabBtns.length = 0;
   for (const [g, ic] of GROUPS) {
-    const b = mkBtn(row1, ic, () => { group = g; renderRow1(); renderRow2(); }, g === group ? 'on' : '');
+    const b = mkBtn(row1, ic, () => { if (bot.classList.contains('compact')) { closeCreature(); infoEl.style.display = 'none'; } group = g; renderRow1(); renderRow2(); }, g === group ? 'on' : '');
     tabBtns.push(b);
   }
   const bb = el('div', 'awbrush', row1); bb.classList.toggle('dim', !brushUsed());
   mkBtn(bb, '−', () => setBrush(brush - 1));
   const sp = document.createElement('span'); sp.id = 'awbv'; sp.innerHTML = brushDot(); bb.appendChild(sp);
   mkBtn(bb, '+', () => setBrush(brush + 1));
+  updateTag();
 }
 function brushUsed() { const t = TOOLS[tool]; return !!t && t.ms < 5000 && tool !== 'inspect'; }      // the brush size only matters for painting and spawning tools
 function brushDot() { const d = 12 + brush * 4.4; return `<i class="bd" style="width:${d}px;height:${d}px"></i><em>${brush}</em>`; }
 function setBrush(v) { brush = Math.max(1, Math.min(10, v)); const s = document.getElementById('awbv'); if (s) s.innerHTML = brushDot(); }
 function renderRow2() {
   row2.innerHTML = '';
-  if (group === 'world') { for (const a of WORLD_ACTIONS) mkBtn(row2, a.ic, a.fn, a.on && a.on() ? 'on' : ''); return; }
-  for (const [id, t] of Object.entries(TOOLS)) if (t.g === group) mkBtn(row2, t.ic, () => selectTool(id), tool === id ? 'on' : '');
+  if (group === 'world') { for (const a of WORLD_ACTIONS) mkBtn(row2, a.ic, () => { setTag(a.ic, a.nm, a.h); a.fn(); }, a.on && a.on() ? 'on' : ''); }
+  else for (const [id, t] of Object.entries(TOOLS)) if (t.g === group) mkBtn(row2, t.ic, () => selectTool(id), tool === id ? 'on' : '');
+  const on = row2.querySelector('.awb.on'); row2.scrollLeft = on ? Math.max(0, on.offsetLeft - 24) : 0; fadeRow2();
+}
+row2.addEventListener('scroll', () => fadeRow2(), { passive: true });
+function fadeRow2() { row2.style.setProperty('--fl', row2.scrollLeft > 4 ? '36px' : '0px'); row2.style.setProperty('--fr', row2.scrollLeft + row2.clientWidth < row2.scrollWidth - 4 ? '44px' : '0px'); }
+const GROUP_NAME = { terrain: 'Terrain', life: 'Life', powers: 'Powers', realm: 'Realm', world: 'World' };
+const TOOL_HINT = { raise: 'Raise land from the sea', lower: 'Lower land into the sea', grass: 'Paint grass', forest: 'Plant forest', sand: 'Paint sand', lava: 'Pour lava', rain: 'Douses fires and greens the land', fire: 'Set things ablaze', bolt: 'Strike lightning', meteor: 'Call down a meteor', bless: 'Heal and bless creatures', smite: 'Strike creatures down', kraken: 'Summon a kraken in open water', salvage: 'Tap a wreck to raise it', inspect: 'Tap anything for details', enlighten: 'Teach a kingdom a technology', grace: 'Bless a kingdom with plenty', plague: 'Strike a kingdom with plague', revolt: 'Start a rebellion in a kingdom', peace: 'End the wars of a kingdom', unite: 'Merge a kingdom with a neighbour', split: 'Split a kingdom in two', fish: 'Place a fish shoal in the water', shark: 'Place a shark in open water' };
+function setTag(ic, nm, hint) { tagEl.innerHTML = `<span class="tk">${ic}</span><b>${nm || ''}</b><span class="th">${hint || ''}</span><span class="tg">${(GROUP_NAME[group] || '').toUpperCase()}</span>`; }
+function updateTag() {                                         // the name and hint of the chosen tool sit just above the dock
+  const t = TOOLS[tool];
+  if (tool === 'hand') setTag('✋', 'Hand', 'Drag to move the map');
+  else if (group === 'world') setTag('🌍', 'World', 'Map, seeds, market and options');
+  else if (t && t.g === group) setTag(t.ic, t.nm, TOOL_HINT[tool] || 'Tap or drag to place');
+  else setTag(GROUPS.find(g => g[0] === group)[1], GROUP_NAME[group], 'Choose a tool below');
 }
 function selectTool(id) {
   tool = id; handBtn.classList.toggle('on', id === 'hand');
-  if (TOOLS[id]) { group = TOOLS[id].g; toast(TOOLS[id].ic + ' ' + TOOLS[id].nm); }
+  if (TOOLS[id]) group = TOOLS[id].g;
   renderRow1(); renderRow2();
 }
 function togglePause() { paused = !paused; pauseBtn.textContent = paused ? '▶' : '⏸'; pauseBtn.classList.toggle('on', paused); }
@@ -4913,7 +4938,8 @@ titleEl.addEventListener('click', e => {
 const TOUR = [
   { r: [150, 420, 420, 330], t: 'Tap a creature or house to see its info', f: 'tap', y: 790 },
   { r: [150, 420, 420, 330], t: 'Drag with one finger to move the map. Hold briefly, then drag, to paint with the tool.', f: 'drag', y: 790 },
-  { r: [4, 960, 470, 104], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 800 },
+  { r: [18, 1068, 448, 92], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 820 },
+  { r: [18, 1166, 664, 92], t: 'Scroll this row for more tools. The chosen tool is named just above the dock.', y: 820 },
   { r: [614, 180, 96, 184], t: 'Zoom the map in and out', y: 400 },
   { r: [10, 6, 186, 96], t: 'Pause and speed up time', y: 230 },
   { r: [614, 6, 96, 96], t: 'Sound on or off', y: 230 },
