@@ -1219,6 +1219,92 @@ function drawShoals(x0, y0, x1, y1) {
     if (sc >= 8 && Math.random() < .0012) emit('bit', s.x, s.y - .3, 4, { col: '#d4ecff' });                // a fish leaps
   }
 }
+/* ============================== SEA LIFE: sharks (patrol the deep, hunt ships, bite far-out fishers; fish tool + tap info) ============================== */
+let sharks = [], nextSharkId = 1, sharkTarget = 0;
+const SHARK_HP = 60, SHARK_MODE = ['Patrolling the deep', 'Hunting a ship', 'Feeding on a shoal', 'Fleeing'];
+function sharkOk(x, y) { if (!inb(x, y)) return false; const i = x + y*W; return tiles[i] <= T.SHALLOW && shoreD[i] !== 255 && shoreD[i] >= 2; }
+function addShark(x, y) {
+  if (x == null) for (let a = 0; a < 80; a++) {
+    const rx = ri(0, W - 1), ry = ri(0, H - 1);
+    if (tiles[rx + ry*W] === T.DEEP && sharkOk(rx, ry) && shoreD[rx + ry*W] >= 4 && !sharks.some(s => Math.abs(s.x - rx) + Math.abs(s.y - ry) < 14)) { x = rx; y = ry; break; }
+  }
+  if (x == null || !sharkOk(x, y)) return null;
+  const s = { id: nextSharkId++, x, y, tx: x, ty: y, hd: 1, hp: SHARK_HP, cd: 0, fl: 0, mode: 0, ph: ri(0, 63) };
+  sharks.push(s); return s;
+}
+function seedSharks() {
+  sharks = []; let deep = 0;
+  for (let i = 0; i < N; i++) if (tiles[i] === T.DEEP && shoreD[i] !== 255 && shoreD[i] >= 4) deep++;
+  sharkTarget = deep < 150 ? 0 : Math.min(24, Math.max(2, Math.round(deep / 700)));
+  for (let q = 0; q < sharkTarget; q++) addShark();
+}
+function sharkHit(x, y, r) {                                  // lightning, meteors and smiting kill sharks in range
+  for (let q = sharks.length - 1; q >= 0; q--) { const s = sharks[q]; if ((s.x - x) ** 2 + (s.y - y) ** 2 <= r * r + 1) { fx('splash', Math.round(s.x), Math.round(s.y)); emit('bit', s.x, s.y, 8, { col: '#bfe6ff' }); sharks.splice(q, 1); } }
+}
+function sharkAttackShip(s, ship) {
+  const si = ships.indexOf(ship), k = kingdoms.get(ship.kingdomId), nm = k ? k.name : 'A', risk = +((cfg.settings && cfg.settings.shipwreckRisk) ?? 3);
+  s.cd = 500; s.mode = 3; s.fl = 140; fx('splash', Math.round(ship.x), Math.round(ship.y)); emit('bit', ship.x, ship.y, 8, { col: '#bfe6ff' }); haptic('thud');
+  if (si >= 0 && Math.random() < Math.min(.5, risk * .08)) wreckShip(ship, si, 'shark');
+  else { addChronicle('🦈', `A shark attacked a ship of ${nm}, but it escaped`); toast(`🦈 Shark attack! The ship of ${nm} escaped`); }
+}
+function sharkTick() {
+  for (let q = sharks.length - 1; q >= 0; q--) {
+    const s = sharks[q], rx = Math.round(s.x), ry = Math.round(s.y);
+    if (!inb(rx, ry) || tiles[rx + ry*W] > T.SHALLOW) { sharks.splice(q, 1); continue; }
+    if (s.cd > 0) s.cd--; if (s.fl > 0) s.fl--; if (s.hp < SHARK_HP) s.hp += .01;
+    let prey = null, pd = 1e9, shoal = null;
+    if (!s.fl) {
+      for (const sh of ships) { const d = Math.max(Math.abs(sh.x - s.x), Math.abs(sh.y - s.y)); if (d < 8 && d < pd) { pd = d; prey = sh; } }
+      if (!prey) shoal = shoalNear(s.x, s.y, 7, 2);
+    }
+    if (prey) { s.mode = 1; s.tx = prey.x; s.ty = prey.y; if (pd < 1.4 && s.cd <= 0) sharkAttackShip(s, prey); }
+    else if (shoal) {
+      s.mode = 2; s.tx = shoal.x; s.ty = shoal.y;
+      if (Math.max(Math.abs(shoal.x - s.x), Math.abs(shoal.y - s.y)) < 2.5) shoal.stock = Math.max(0, shoal.stock - .0012);
+    } else {
+      s.mode = s.fl ? 3 : 0;
+      if ((Math.abs(s.tx - s.x) < 1 && Math.abs(s.ty - s.y) < 1) || Math.random() < .01) for (let a = 0; a < 10; a++) { const tx = rx + ri(-12, 12), ty = ry + ri(-12, 12); if (sharkOk(tx, ty)) { s.tx = tx; s.ty = ty; break; } }
+    }
+    const dx = s.tx - s.x, dy = s.ty - s.y, dist = Math.hypot(dx, dy);
+    if (dist > .05) {
+      const stp = Math.min(s.mode === 1 ? .32 : .2, dist), nx = s.x + dx / dist * stp, ny = s.y + dy / dist * stp;
+      if (sharkOk(Math.round(nx), Math.round(ny))) { s.x = nx; s.y = ny; if (Math.abs(dx) > .1) s.hd = dx > 0 ? 1 : -1; } else { s.tx = s.x; s.ty = s.y; }
+    }
+    if (s.cd <= 0 && (tick + s.ph) % 10 === 0) for (const c of creatures) {        // far-out fishers can be bitten
+      const j = c.job; if (!j || j.k !== 'fish' || j.ph !== 1 || c.hp <= 0) continue;
+      if (Math.max(Math.abs(j.wx - s.x), Math.abs(j.wy - s.y)) > 2 || Math.random() > .35) continue;
+      c.hp -= 8; c.job = null; s.cd = 300; s.mode = 3; s.fl = 100; fx('hit', c.x, c.y); fx('splash', j.wx, j.wy);
+      if (c.hp <= 0) { c.cause = 'shark'; addChronicle('🦈', 'A fisher was killed by a shark'); }
+      break;
+    }
+  }
+  if (tick % 600 === 0 && sharks.length < sharkTarget) addShark();
+}
+function drawSharks(x0, y0, x1, y1) {
+  for (const s of sharks) {
+    if (s.x < x0 - 3 || s.x > x1 + 3 || s.y < y0 - 3 || s.y > y1 + 3) continue;
+    const cx = ox + (s.x + .5)*sc, cy = oy + (s.y + .5)*sc;
+    if (sc < 5) { ctx.fillStyle = 'rgba(24,36,60,.9)'; ctx.fillRect(cx - 2, cy - 1, 5, 3); ctx.fillRect(cx - 1, cy - 3, 2, 2); continue; }
+    const u = Math.max(1, sc * .15), t = frame * .07 + s.ph, wag = Math.sin(t * 2) * u * .9;
+    ctx.fillStyle = 'rgba(6,20,50,.3)'; ctx.beginPath(); ctx.ellipse(cx, cy + u * 2.4, u * 9, u * 2.4, 0, 0, 7); ctx.fill();               // body under the surface
+    ctx.strokeStyle = 'rgba(235,248,255,.5)'; ctx.lineWidth = Math.max(1, u * .5);
+    for (let k = 1; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(cx - s.hd * (u * 8 + k * u * 2), cy + u * (1.4 + k * .7)); ctx.lineTo(cx - s.hd * (u * 11 + k * u * 3), cy + u * (1.4 + k * 1.4)); ctx.stroke(); }   // wake
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s.hd, 1); ctx.globalAlpha = .96;
+    ctx.fillStyle = '#3e5068'; ctx.fillRect(-u * 6, -u * .6, u * 11, u * 2.6);                                                                  // body
+    ctx.fillStyle = '#d3dfea'; ctx.fillRect(-u * 5, u * .9, u * 9, u * 1.1);                                                                    // belly
+    ctx.fillStyle = '#4d6178'; ctx.fillRect(u * 5, u * .1, u * 1.8, u * 1.6);                                                                   // snout
+    ctx.beginPath(); ctx.moveTo(-u * 6, u * .4); ctx.lineTo(-u * 8.6, -u * 2 + wag); ctx.lineTo(-u * 8, u * .6); ctx.lineTo(-u * 8.6, u * 3 + wag); ctx.closePath(); ctx.fill();   // tail
+    ctx.fillStyle = '#34465c'; ctx.beginPath(); ctx.moveTo(-u * 1.6, -u * .6); ctx.lineTo(u * .6, -u * 3.6); ctx.lineTo(u * 1.6, -u * .6); ctx.closePath(); ctx.fill();   // dorsal fin
+    ctx.fillRect(u * .6, u * 1.6, u * 1.8, u * 1.4);                                                                                            // pectoral fin
+    ctx.fillStyle = '#10182a'; ctx.fillRect(u * 3.8, u * .1, Math.max(1, u * .6), Math.max(1, u * .6));                                        // eye
+    ctx.restore();
+  }
+}
+function shoalHtml(sh) {
+  const d = SHOAL[sh.kind], pct = Math.round(sh.stock * 100);
+  return `<b>🐟 ${d.n[0].toUpperCase() + d.n.slice(1)}</b> · shoal<br>Stock ${pct}%<div style="height:8px;margin:5px 0;border-radius:4px;background:#1a2748;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:linear-gradient(90deg,#55caff,#ffda55)"></i></div><small>${sh.kind === 2 ? 'Deep-sea fishing boats catch tuna here.' : 'Fishers and boats catch food here.'} Overfishing scatters a shoal.</small>`;
+}
+function sharkHtml(s) { return `<b>🦈 Shark</b><br>❤️ ${Math.ceil(s.hp)}/${SHARK_HP}<br>${SHARK_MODE[s.mode]}<br><small>Can sink ships and bite fishers. Smite, lightning or a meteor can kill it.</small>`; }
 function drawParts() {
   ctx.save();
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -1704,6 +1790,10 @@ Object.assign(ICON_ART, {
   sound: '............/....oo....../...owwo..o../owwwwwwo..o./owwwwwwo.o.o/owwwwwwo.o.o/owwwwwwo.o.o/owwwwwwo..o./...owwo..o../....oo....../............/............',
   mute: '............/....oo....../...owwo...r./owwwwwwo..r./owwwwwwo.r../owwwwwwo.r../owwwwwwo.r../owwwwwwo.r../...owwo..r../....oo...r../............/............',
   help: '...oooooo.../..oBBBBBBo../.oBBwwwwBBo./.oBwwBBwwBo./.oBBBBBwwBo./.oBBBBwwBBo./.oBBBwwBBBo./.oBBBBBBBBo./.oBBBwwBBBo./..oBBBBBBo../...oooooo.../............' });
+Object.assign(ICON_ART, {
+  fish: '............/............/....ooooo.../.o.oBBBBBoo./.ooBBBBwBBBo/.oBBBBBBBoBo/.ooBBbbbBBBo/.o.oBbbbbbo./...ooooooo../............/............/............',
+  shark: '............/............/....oo....../....osoo..../...osSSo..../o..ossSSoo../oo.osssssSoo/.osssssaSsso/.oowwwwwwwoo/..ooowwwwoo./....ooooo.../............',
+});
 Object.assign(ICON_ART, { bag: '............/....oooo..../...okKKko.../..okkkkkko../.okkkkkkkko./.okEEEEEEko./.okEyyyyEko./.okEEEEEEko./.okkkkkkkko./.okKkkkkKko./..oooooooo../............' });
 Object.assign(ICON_ART, { armor: '............/..oo....oo../.oWWo..oWWo./.oWsWooWsWo./..oWsWWsWo../..oWsWWsWo../..oWssssWo../..oWWWWWWo../...oWssWo.../...oooooo.../............/............' });
 Object.assign(ICON_ART, { target: '...oooooo.../..orrrrrro../.orwwwwwwro./orrwoooowrro/orwwoyyowwro/orwwoyyowwro/orrwoooowrro/.orwwwwwwro./..orrrrrro.../...oooooo.../............/............', close: '............/.oo......oo./.orro..orro./..orroorro../...orrrro.../....orro..../....orro..../...orrrro.../..orroorro../.orro..orro./.oo......oo./............' });
@@ -1730,7 +1820,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '🏝': 'island', '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
+Object.assign(EMOJI_ICON, { '🏝': 'island', '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver', '🐟': 'fish', '🦈': 'shark' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -2856,12 +2946,14 @@ function bringCrewHome(ship) {
     if (!k || extinctRaces.has(c.t)) c.k = 0;
   }
 }
-function wreckShip(s, si) {
+function wreckShip(s, si, why) {
   const x = Math.round(s.x), y = Math.round(s.y), k = kingdoms.get(s.kingdomId);
   for (const c of creatures) if (c.boat === s.id) { c.boat = 0; c.hp = 0; c.cause = 'shipwreck'; }
   ships.splice(si, 1); fx('splash', x, y); emit('bit', x, y, 7, { col:'#bfe6ff' }); haptic('thud');
   const kind = s.phase.startsWith('fishing') ? 'Kapal nelayan' : 'Kapal penjelajah';
-  addChronicle('🌊', `${kind} ${k ? k.name : ''} karam; awaknya hilang`); toast(`🌊 ${kind} karam di laut`); dirty = true;
+  if (why) { addChronicle('🦈', `A shark sank the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}; the crew is lost`); toast('🦈 A shark sank a ship!'); }
+  else { addChronicle('🌊', `${kind} ${k ? k.name : ''} karam; awaknya hilang`); toast(`🌊 ${kind} karam di laut`); }
+  dirty = true;
 }
 function voyageTick() {
   for (let si = ships.length - 1; si >= 0; si--) {
@@ -2996,7 +3088,7 @@ function step() {
   for (const l of cells) l.length = 0;
   for (const c of creatures) if (!c.boat) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
-  reapDead(); voyageTick(); shoalTick();
+  reapDead(); voyageTick(); shoalTick(); sharkTick();
   const wc = counts.wolf || 0;
   if (wc >= 2 && wc <= 3 && tick - lastEvolve > 1200 && (counts.werewolf || 0) < capOf('werewolf')) evolveWolves();
   else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
@@ -3212,6 +3304,7 @@ function draw() {
       ctx.setLineDash([]);
     }
     drawShoals(x0, y0, x1, y1);
+    drawSharks(x0, y0, x1, y1);
     drawDecor(x0, y0, x1, y1);
     drawVolcanoes(x0, y0, x1, y1);
     drawOres(x0, y0, x1, y1);
@@ -3455,6 +3548,8 @@ const TOOLS = {
   deer:   { g:'life', ic:'🦌', nm:'Deer', ms:140, spawn:1 },
   wolf:   { g:'life', ic:'🐺', nm:'Wolf', ms:140, spawn:1 },
   werewolf: { g:'life', ic:EMOJI.werewolf, nm:'Werewolf', ms:140, spawn:1 },
+  fish:   { g:'life', ic:'🐟', nm:'Fish', ms:160 },
+  shark:  { g:'life', ic:'🦈', nm:'Shark', ms:300 },
   rain:   { g:'powers', ic:'🌧️', nm:'Rain', ms:40 },
   fire:   { g:'powers', ic:'🔥', nm:'Fire', ms:50 },
   bolt:   { g:'powers', ic:'⚡', nm:'Lightning', ms:250 },
@@ -3479,12 +3574,13 @@ const DIS_NAMES = ['Off', 'Rare', 'Frequent'];
 function strikeBolt(wx, wy, rr) {
   addChronicle('⚡', 'Sambaran petir menghantam pulau');
   fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 }); haptic('tap');
+  sharkHit(wx, wy, rr + 1);
   forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
 }
 function strikeMeteor(wx, wy, R) {
   addChronicle('☄️', 'Meteor menghantam pulau');
-  fx('boom', wx, wy, { r: R + 2 }); haptic('thud'); shakeT = 22;
+  fx('boom', wx, wy, { r: R + 2 }); haptic('thud'); shakeT = 22; sharkHit(wx, wy, R);
   emit('debris', wx, wy, 34); emit('ember', wx, wy, 26, { sx: 1.5 }); emit('smoke', wx, wy, 12, { sx: 2, dark: 1, s0: .4, s1: 1.5 }); emit('dust', wx, wy, 16, { sx: 3 });
   forDisc(wx, wy, R, (x, y, i) => {
     const d = Math.hypot(x - wx, y - wy); bld[i] = 0;
@@ -3685,8 +3781,14 @@ function applyTool(wx, wy) {
       }
       break;
     }
+    case 'fish': case 'shark': {                                      // sea life goes into water only
+      if (shoreD[wx + wy*W] === 255) computeShoreD();
+      if (tool === 'shark') { if (sharks.length >= 40) { toast('🦈 Too many sharks'); break; } const sk = addShark(wx, wy); if (sk) { fx('splash', wx, wy); emit('bit', wx, wy, 6, { col: '#bfe6ff' }); } else toast('🦈 Needs open water'); }
+      else { const kind = [1, 0, 2].find(k => shoalOk(k, wx, wy)); if (kind == null || shoals.length >= 400) { toast('🐟 Needs water'); break; } shoals.push({ x: wx, y: wy, kind, stock: 1, tx: wx, ty: wy, hd: 1, ph: ri(0, 63) }); fx('splash', wx, wy); emit('bit', wx, wy, 6, { col: '#bfe6ff' }); }
+      break;
+    }
     case 'smite':
-      fx('smite', wx, wy);
+      fx('smite', wx, wy); sharkHit(wx, wy, r);
       for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= r*r + .6) { c.hp = 0; fx('hit', c.x, c.y); }
       dirty = true;
       break;
@@ -3928,7 +4030,10 @@ function inspectAt(wx, wy) {
         + (R.hunt ? `<br>⚡ ${Math.round(c.en)}` : '') + (c.kills ? `<br>⚔️ ${c.kills}` : '') + (k ? `<br>${LV_ICON[k.level]} ${k.name}` : '');
     } else if (inb(wx, wy)) {
       const i = wx + wy*W, k = kingdoms.get(own[i]);
-      if (k) infoEl.innerHTML = kingdomHtml(k);
+      const sk = sharks.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 4), sh = sk ? null : shoalNear(wx, wy, 2, 2);
+      if (sk) infoEl.innerHTML = sharkHtml(sk);
+      else if (sh) infoEl.innerHTML = shoalHtml(sh);
+      else if (k) infoEl.innerHTML = kingdomHtml(k);
       else {
         const nm = ['Deep sea','Shallow sea','Sand','Grass','Forest','Hills','Mountain','Snow','Lava','Burnt ground'][tiles[i]];
         infoEl.innerHTML = `<b>${nm}</b>` + (fire[i] ? '<br>🔥' : '');
@@ -4027,7 +4132,7 @@ function newWorld(idx) {
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx);
   generate(1 + ((Math.random() * 1e6) | 0));
-  if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); if (!SIZES[sizeIdx].empty) populate(); else toast('🏝️ Empty island — start in the Life tab'); }
+  if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); seedSharks(); if (!SIZES[sizeIdx].empty) populate(); else toast('🏝️ Empty island — start in the Life tab'); }
   startCamera(); persistWorld(); dirty = true; if (!editMode) clearSave();
 }
 /* ---- leaderboard: "civilization score" ---- */
@@ -4195,7 +4300,7 @@ function serialize2() {
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
     vc: volcanoes.map(v => v.i),
     dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b, d.e | 0]),
-    sh: shoals.map(v => [Math.round(v.x), Math.round(v.y), v.kind, Math.round(v.stock * 100)]), st: shoalTarget,
+    sh: shoals.map(v => [Math.round(v.x), Math.round(v.y), v.kind, Math.round(v.stock * 100)]), st: shoalTarget, sk: sharks.map(v => [Math.round(v.x), Math.round(v.y), Math.round(v.hp)]), skt: sharkTarget,
     sf: ships.map(s => [s.id, s.race, kix.get(s.kingdomId) || 0, s.x, s.y, s.path, s.step, s.move, s.phase, s.sourceLand, s.targetLand, s.targetComp, s.crew, s.landed | 0, s.wreckAt | 0, s.fishTimer | 0]) };      // one packed int per creature
 }
 function restore(s) {
@@ -4225,6 +4330,7 @@ function restore(s) {
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
   else seedResources();
   if (s.sh) { computeShoreD(); shoals = s.sh.filter(v => shoalOk(v[2], v[0], v[1])).map(v => ({ x: v[0], y: v[1], kind: v[2], stock: Math.max(.15, (v[3] || 80) / 100), tx: v[0], ty: v[1], hd: 1, ph: ri(0, 63) })); shoalTarget = s.st || [0, 0, 0]; } else seedShoals();
+  if (s.sk) { sharks = s.sk.filter(v => sharkOk(v[0], v[1])).map(v => ({ id: nextSharkId++, x: v[0], y: v[1], tx: v[0], ty: v[1], hd: 1, hp: v[2] || SHARK_HP, cd: 0, fl: 0, mode: 0, ph: ri(0, 63) })); sharkTarget = s.skt || 0; } else seedSharks();
   volcanoes.length = 0; if (s.vc) { for (const i of s.vc) if (i < N) volcanoes.push({ i, x: i % W, y: (i / W) | 0, er: -1e9 }); } else seedVolcanoes();
   for (const [ia, ib, st, t0, un] of s.rl || []) { const ka = ids[ia - 1], kb = ids[ib - 1]; if (ka && kb) rels.set(rkey(ka, kb), { s: st, t: t0, until: un }); }
   rebuildRelations();
@@ -4469,7 +4575,7 @@ async function start() {
     setSize(wantSize);
     if (rleDecode(cfg.world.tiles)) { currentSeed = cfg.world.seed || 0; bld.fill(0); fire.fill(0); creatures = []; }
     else generate(cfg.world.seed || (1 + ((Math.random() * 1e6) | 0)));
-    if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); if (!SIZES[sizeIdx].empty) populate(); }
+    if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); seedSharks(); if (!SIZES[sizeIdx].empty) populate(); }
   }
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
   startCamera(); renderRow1(); renderRow2(); updateStats();
@@ -4490,7 +4596,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, get sharks() { return sharks; }, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
