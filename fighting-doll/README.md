@@ -1,6 +1,6 @@
 # Fighting Doll
 
-Portrait (720x1280) kids' fighting game. Pick one of 20 stitched-doll fighters, then win best-of-3 rounds vs. the CPU.
+Portrait (720x1280) kids' fighting game. Pick one of 10 chibi fighters, then win best-of-3 rounds vs. the CPU.
 Controls: ◀ ▶ move, JUMP, PUNCH, spinning KICK, ★ SPECIAL (when the purple bar is full). Keyboard: A/D or arrows, W/Space, J, K, L.
 
 Files
