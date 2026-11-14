@@ -125,7 +125,8 @@ style.textContent = `
   .awb.on{background:linear-gradient(#4b5cac,#2c3a7e);border-color:#ffcf4a;box-shadow:inset 0 3px 0 rgba(255,255,255,.25),inset 0 -5px 0 rgba(0,0,0,.22),0 0 16px rgba(255,207,74,.5)}
   .awb .ic,.awb .ic.cr{width:48px;height:48px;vertical-align:0}
   #awtop{position:absolute;left:0;top:0;width:720px;height:190px;background:linear-gradient(#18214a,#10172f);border-bottom:3px solid #0a0e22;box-shadow:0 3px 0 #2c3868}
-  #awbtns{position:absolute;left:8px;top:8px;display:flex;gap:8px}
+  #awbtns{position:absolute;left:8px;top:8px;display:flex;gap:6px}
+  #awbtns .awb{width:88px;height:88px;flex:0 0 88px}
   #awyear{position:absolute;right:10px;top:24px;height:56px;display:flex;align-items:center;gap:8px;font-size:32px;font-weight:800;background:rgba(8,12,30,.75);border:2px solid #2c3868;border-radius:14px;padding:0 16px;font-variant-numeric:tabular-nums}
   #awyear .ic{width:36px;height:36px;vertical-align:0}
   .awchips{position:absolute;left:8px;right:8px;height:38px;display:flex;gap:6px;align-items:center;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -178,6 +179,25 @@ style.textContent = `
   #awinfo .bi.sel{box-shadow:0 0 16px rgba(255,207,74,.9);border-color:#ffcf4a;transform:translateY(-3px)}
   #awinfo .hist{font-size:20px;line-height:1.35;color:#c8d0f0;margin-top:4px;clear:both}
   #awinfo .hist em{font-style:normal;color:#ffcf4a;font-weight:800}
+  #awtitle{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:60;background:linear-gradient(#0a1030,#1a2760 55%,#0b1020);transition:opacity .45s;overflow:hidden}
+  #awtitle .bg{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}
+  #awtitle .shade{position:absolute;left:0;bottom:0;width:100%;height:420px;background:linear-gradient(rgba(5,8,22,0),rgba(5,8,22,.92))}
+  #awtitle .nm{position:absolute;left:0;top:300px;width:100%;text-align:center;font-size:96px;font-weight:900;line-height:.95;color:#ffd23f;text-shadow:0 6px 0 #7a3a10,0 0 28px rgba(255,200,80,.5)}
+  #awtitle .tb{position:absolute;left:60px;right:60px;bottom:90px;display:flex;flex-direction:column;gap:18px;align-items:center}
+  .awbig{box-sizing:border-box;width:100%;height:124px;border-radius:30px;border:4px solid #7a4a10;background:linear-gradient(#ffd23f,#e8962a);box-shadow:inset 0 4px 0 rgba(255,255,255,.4),inset 0 -8px 0 rgba(0,0,0,.2),0 6px 0 #5a2e08,0 0 30px rgba(255,190,60,.45);color:#3a1a04;font-size:50px;font-weight:900;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:16px;cursor:pointer;animation:awpulse 1.8s ease-in-out infinite}
+  .awbig:active{transform:translateY(3px)}
+  .awbig .ic{width:56px;height:56px}
+  @keyframes awpulse{50%{transform:scale(1.025)}}
+  #awtitle .row2{display:flex;gap:16px}
+  #awtut{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:55;display:none}
+  #awtut .spot{position:absolute;border:4px solid #ffcf4a;border-radius:22px;box-shadow:0 0 0 2400px rgba(5,8,20,.72),0 0 26px rgba(255,207,74,.7);transition:all .35s}
+  #awtut .bub{position:absolute;left:40px;width:640px;box-sizing:border-box;background:rgba(14,20,48,.97);border:3px solid #ffcf4a;border-radius:20px;padding:20px 24px;font-size:30px;font-weight:700;line-height:1.35;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.4)}
+  #awtut .bub .tbn{display:flex;gap:14px;justify-content:center;margin-top:16px}
+  #awtut .tbn .awb{width:auto;min-width:96px;padding:0 34px;font-size:30px;flex:0 0 auto}
+  #awtut .fing{position:absolute;width:76px;height:76px;image-rendering:pixelated;pointer-events:none;animation:awdrag 1.6s ease-in-out infinite;filter:drop-shadow(0 4px 0 rgba(0,0,0,.4))}
+  #awtut .fing.tap{animation:awtap 1.1s ease-in-out infinite}
+  @keyframes awdrag{0%{transform:translate(-70px,20px)}60%{transform:translate(70px,-10px)}100%{transform:translate(70px,-10px);opacity:0}}
+  @keyframes awtap{0%,100%{transform:translateY(16px) scale(1)}50%{transform:translateY(-6px) scale(.88)}}
   #awtoast{position:absolute;left:50%;top:204px;transform:translateX(-50%);background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:8px 24px;font-size:28px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.4)}
 `;
 document.head.appendChild(style);
@@ -212,7 +232,7 @@ let comp = null, compDirty = true;                 // connected land components 
 const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
 const warStats = { repaired: 0, towerShots: 0, breached: 0, declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
 let creatures = [], nextId = 1, tick = 0;
-let speed = 1, paused = editMode;
+let speed = 1, paused = editMode, started = editMode, fireView = 0, sndBtn = null, tutSeen = false;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
 const effects = [];
 let dirty = false, currentSeed = 0;
@@ -818,9 +838,10 @@ function drawVolcanoes(x0, y0, x1, y1) {
 }
 function tri(ax, ay, bx, by, cx, cy) { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill(); }
 function drawFires(x0, y0, x1, y1) {                           // flames with flicker, smoke and embers; houses burn bigger
-  if (sc < 5) return;
+  if (sc < 5) { fireView = 0; return; }
+  let nf = 0;
   for (let y = y0; y <= Math.min(H - 1, y1 + 1); y++) for (let x = x0; x <= x1; x++) {
-    const i = x + y*W; if (!fire[i]) continue;
+    const i = x + y*W; if (!fire[i]) continue; nf++;
     const cx = ox + (x + .5) * sc, by = oy + (y + .92) * sc, big = bld[i] ? 1.55 : 1, fl = Math.sin(frame * .34 + i * 1.7), fl2 = Math.sin(frame * .51 + i * .9);
     const hgt = sc * (.95 + .3 * fl) * big, wid = sc * .52 * big;
     if (nightNow > .15) { const gr = ctx.createRadialGradient(cx, by - hgt * .4, 0, cx, by - hgt * .4, sc * 2.2); gr.addColorStop(0, `rgba(255,150,50,${.3 * Math.min(1, nightNow * 1.6)})`); gr.addColorStop(1, 'rgba(255,100,20,0)'); ctx.fillStyle = gr; ctx.fillRect(cx - sc * 2.2, by - hgt - sc * 2, sc * 4.4, sc * 4.4 + hgt); }
@@ -829,6 +850,202 @@ function drawFires(x0, y0, x1, y1) {                           // flames with fl
     ctx.fillStyle = '#fff0a0'; tri(cx - wid * .3, by, cx + wid * .3, by, cx + fl2 * sc * .05, by - hgt * .42);
     if (Math.random() < .035 * big) emit('smoke', x, y - .4, 1, { s0: .2, s1: .9 });
     if (Math.random() < .045 * big) emit('ember', x, y - .2, 1, { sx: .4 });
+  }
+  fireView = nf;
+}
+/* ============================== SOUND: procedural Web Audio (no assets, no network) ============================== */
+const Snd = { ctx: null, on: true, master: null, sfx: null, mus: null, send: null, noise: null, last: {}, win: [], beat: 0, chord: 0, nextT: 0 };
+function sndInit() {
+  if (Snd.ctx || editMode) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const c = Snd.ctx = new AC();
+    Snd.master = c.createGain(); Snd.master.gain.value = Snd.on ? .85 : 0; Snd.master.connect(c.destination);
+    Snd.sfx = c.createGain(); Snd.sfx.gain.value = .9; Snd.sfx.connect(Snd.master);
+    Snd.mus = c.createGain(); Snd.mus.gain.value = .55; Snd.mus.connect(Snd.master);
+    const dl = c.createDelay(1), fb = c.createGain(), lp = c.createBiquadFilter();                 // a soft echo gives the music space
+    dl.delayTime.value = .38; fb.gain.value = .36; lp.type = 'lowpass'; lp.frequency.value = 1700;
+    dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(Snd.mus);
+    Snd.send = c.createGain(); Snd.send.gain.value = .55; Snd.send.connect(dl);
+    const len = c.sampleRate * 2, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    Snd.noise = buf;
+    const bed = (type, f, q) => { const sr = c.createBufferSource(); sr.buffer = buf; sr.loop = true; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = c.createGain(); g.gain.value = 0; sr.connect(fl); fl.connect(g); g.connect(Snd.sfx); sr.start(); return g; };
+    Snd.wind = bed('lowpass', 420, .5); Snd.rainBed = bed('highpass', 1500, .4); Snd.fireBed = bed('bandpass', 2300, 1.3);
+    Snd.nextT = c.currentTime + .3; setInterval(musicTick, 160);
+  } catch (e) { Snd.ctx = null; }
+}
+function sndResume() { if (Snd.ctx && Snd.ctx.state === 'suspended') Snd.ctx.resume(); }
+function setSound(on) { Snd.on = !!on; dirty = true; if (Snd.ctx) Snd.master.gain.setTargetAtTime(Snd.on ? .85 : 0, Snd.ctx.currentTime, .06); if (sndBtn) sndBtn.textContent = Snd.on ? '🔊' : '🔇'; }
+function can(name, ms) {                                       // per-sound and global rate limits keep the mix clean
+  const now = performance.now(); if (now - (Snd.last[name] || 0) < ms) return false;
+  while (Snd.win.length && now - Snd.win[0] > 1000) Snd.win.shift();
+  if (Snd.win.length > 24) return false;
+  Snd.last[name] = now; Snd.win.push(now); return true;
+}
+function tone(f, dur, o) {
+  const c = Snd.ctx; if (!c || !Snd.on) return; o = o || {};
+  const t = o.when || c.currentTime, osc = c.createOscillator(), g = c.createGain();
+  osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(f, t); if (o.to) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.to), t + dur);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || .2, t + (o.a || .01)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  osc.connect(g); g.connect(o.dest || Snd.sfx); if (o.send) g.connect(Snd.send);
+  osc.start(t); osc.stop(t + dur + .05);
+}
+function burst(dur, o) {                                       // filtered noise: crackle, thunder, splash, impact
+  const c = Snd.ctx; if (!c || !Snd.on) return;
+  const t = o.when || c.currentTime, s2 = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+  s2.buffer = Snd.noise; fl.type = o.type || 'lowpass'; fl.frequency.setValueAtTime(o.f || 800, t); if (o.to) fl.frequency.exponentialRampToValueAtTime(Math.max(30, o.to), t + dur); fl.Q.value = o.q || .8;
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || .3, t + (o.a || .005)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s2.connect(fl); fl.connect(g); g.connect(o.dest || Snd.sfx); s2.start(t, Math.random() * 1.4); s2.stop(t + dur + .05);
+}
+const SFX = {
+  ui: () => tone(880, .05, { type: 'triangle', vol: .1 }),
+  pop: () => tone(520, .1, { type: 'sine', vol: .16, to: 780 }),
+  chime: v => [660, 880, 1320].forEach((f, i) => tone(f, .38, { type: 'sine', vol: .11 * v, when: Snd.ctx.currentTime + i * .07, send: 1 })),
+  fanfare: v => [523, 659, 784, 1047].forEach((f, i) => tone(f, .5, { type: 'triangle', vol: .13 * v, when: Snd.ctx.currentTime + i * .13, send: 1 })),
+  hit: v => { burst(.07, { type: 'bandpass', f: 1700 + Math.random() * 900, q: 2, vol: .15 * v }); tone(170, .06, { type: 'square', vol: .04 * v, to: 90 }); },
+  arrow: v => tone(1300, .07, { type: 'triangle', vol: .05 * v, to: 700 }),
+  bolt: v => { burst(.3, { type: 'highpass', f: 1200, vol: .32 * v }); burst(1.9, { type: 'lowpass', f: 300, to: 60, vol: .55 * v, a: .08 }); },
+  boom: (v, r) => { tone(120, .8 + r * .1, { type: 'sine', vol: .5 * v, to: 28 }); burst(.9 + r * .12, { type: 'lowpass', f: 1000, to: 110, vol: .5 * v }); },
+  rumble: (v, len) => burst(len, { type: 'lowpass', f: 150, vol: .6 * v, a: .25 }),
+  horn: () => { tone(110, .9, { type: 'sawtooth', vol: .1, a: .14 }); tone(165, .9, { type: 'sawtooth', vol: .06, a: .14 }); },
+  splash: v => burst(.4, { type: 'bandpass', f: 1000, to: 320, q: 1.2, vol: .18 * v }),
+  howl: () => tone(430, 1.5, { type: 'sawtooth', vol: .06, to: 250, a: .35 }),
+  thud: v => tone(150, .25, { type: 'sine', vol: .25 * v, to: 60 }),
+  coin: () => { tone(1320, .09, { type: 'square', vol: .06 }); tone(1760, .2, { type: 'square', vol: .06, when: Snd.ctx.currentTime + .08 }); },
+};
+function sndAt(x, y) {                                          // louder in view, quieter just outside, silent far away
+  const sx = ox + (x + .5) * sc, sy = oy + (y + .5) * sc;
+  if (sx >= 0 && sx <= 720 && sy >= VIEW.y && sy <= VIEW.y + VIEW.h) return 1;
+  if (sx >= -220 && sx <= 940 && sy >= VIEW.y - 220 && sy <= VIEW.y + VIEW.h + 220) return .4;
+  return 0;
+}
+function sndFx(kind, x, y, extra) {
+  if (!Snd.ctx || !Snd.on || editMode || !started) return;
+  const v = sndAt(x, y); if (v <= 0) return;
+  switch (kind) {
+    case 'bolt': if (can('bolt', 300)) SFX.bolt(v); break;
+    case 'boom': if (can('boom', 350)) SFX.boom(v, (extra && extra.r) || 3); break;
+    case 'shock': if (can('shock', 800)) SFX.rumble(v, 1.8); break;
+    case 'levelup': if (can('levelup', 600)) SFX.fanfare(v); break;
+    case 'hit': if (can('hit', 70)) SFX.hit(v); break;
+    case 'arrow': if (can('arrow', 90)) SFX.arrow(v); break;
+    case 'warcry': if (can('horn', 3000)) SFX.horn(); break;
+    case 'splash': if (can('splash', 140)) SFX.splash(v * .6); break;
+    case 'bless': case 'tech': if (can('chime', 180)) SFX.chime(v); break;
+    case 'evolve': if (can('howl', 1500)) SFX.howl(); break;
+    case 'rock': if (can('rock', 200)) SFX.thud(v); break;
+    case 'death': if (can('death', 250)) tone(210, .22, { type: 'sine', vol: .05 * v, to: 100 }); break;
+  }
+}
+function sndAmbient(firesInView) {                              // wind, rain and fire beds follow the world
+  const c = Snd.ctx; if (!c) return; const t = c.currentTime;
+  Snd.wind.gain.setTargetAtTime(.02 + (weather.kind ? .035 * weather.k : 0) + (nightNow > .5 ? .008 : 0), t, .6);
+  Snd.rainBed.gain.setTargetAtTime(weather.kind === 1 || weather.kind === 2 ? (weather.kind === 2 ? .2 : .13) * weather.k : 0, t, .6);
+  Snd.fireBed.gain.setTargetAtTime(Math.min(.12, firesInView * .008), t, .4);
+}
+const CHORDS = { day: [[0, 4, 7], [7, 11, 14], [9, 12, 16], [5, 9, 12]], night: [[0, 3, 7], [8, 12, 15], [3, 7, 10], [10, 14, 17]] };
+function warCount() { let n = 0; for (const r of rels.values()) if (r.s === 1) n++; return n; }
+function musicTick() {                                           // generative score: pads, soft plucks, and low drums when kingdoms are at war
+  const c = Snd.ctx; if (!c || !Snd.on || c.state !== 'running') return;
+  const night = nightNow > .45, war = started && warCount() > 0, beatLen = night ? .92 : .78;
+  while (Snd.nextT < c.currentTime + .6) {
+    const t = Snd.nextT, step = Snd.beat++;
+    const base = night ? 110 : 130.81, scale = night ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
+    if (step % 8 === 0) {
+      Snd.chord = (Snd.chord + 1) % 4;
+      for (const n of CHORDS[night ? 'night' : 'day'][Snd.chord]) {
+        const f = base * Math.pow(2, n / 12);
+        for (const dt of [-6, 6]) {
+          const o = c.createOscillator(), g = c.createGain(), fl = c.createBiquadFilter();
+          o.type = 'triangle'; o.frequency.value = f; o.detune.value = dt; fl.type = 'lowpass'; fl.frequency.value = 900;
+          g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.035, t + 2); g.gain.linearRampToValueAtTime(.0001, t + beatLen * 8 + 2.5);
+          o.connect(fl); fl.connect(g); g.connect(Snd.mus); g.connect(Snd.send); o.start(t); o.stop(t + beatLen * 8 + 2.7);
+        }
+      }
+    }
+    if (Math.random() < (night ? .26 : .38)) {
+      const f = base * 2 * Math.pow(2, (scale[ri(0, 4)] + 12 * ri(0, 1)) / 12);
+      tone(f, 1.5, { type: 'triangle', vol: .08, a: .015, when: t, dest: Snd.mus, send: 1 });
+    }
+    if (war && step % 4 === 0) { tone(72, .6, { type: 'sine', vol: .28, to: 44, when: t, dest: Snd.mus }); burst(.18, { type: 'lowpass', f: 300, vol: .18, when: t, dest: Snd.mus }); }
+    if (war && step % 8 === 4) tone(base / 2, 3, { type: 'sawtooth', vol: .02, a: .8, when: t, dest: Snd.mus });
+    Snd.nextT += beatLen;
+  }
+}
+
+/* ============================== ATMOSPHERE: weather, clouds, dusk and stars ============================== */
+const weather = { kind: 0, target: 0, k: 0, next: 0 };         // kind: 0 clear, 1 rain, 2 storm, 3 snow; k = fade 0..1
+const W_ICON = ['📅', '🌧️', '⚡', '❄️'];
+function weatherTick() {                                         // every ~10 s
+  if (tick >= weather.next) {
+    const r = Math.random(); weather.target = r < .55 ? 0 : r < .78 ? 1 : r < .9 ? 2 : 3; weather.next = tick + ri(600, 1300);
+    if (weather.target) weather.kind = weather.target;
+  }
+  if ((weather.kind === 1 || weather.kind === 2) && weather.k > .3) {                     // rain douses fires
+    for (let i = 0; i < N; i++) if (fire[i] && Math.random() < .3) fire[i] = 0;
+  }
+  if (weather.kind === 2 && weather.k > .6 && disasterLvl > 0 && Math.random() < .35) {      // storms throw real lightning
+    const p = pickSpot((t, x, y) => t === T.FOREST || t === T.GRASS || t === T.HILL, 30);
+    if (p) { pendingDis.push({ type: 'bolt', x: p[0], y: p[1], at: tick + 1 }); fx('warn', p[0], p[1], { life: 10, until: tick + 1, r: 1, ch: '⚡' }); }
+  }
+}
+const CLOUDS = [];
+function mkCloud(seed, shadow) {
+  const c2 = document.createElement('canvas'); c2.width = 200; c2.height = 110; const g = c2.getContext('2d');
+  for (let i = 0; i < 9; i++) {
+    const x = 40 + hash(i, seed, 1) * 120, y = 38 + hash(i, seed, 2) * 36, r = 20 + hash(i, seed, 3) * 26;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); const col = shadow ? '0,0,0' : '255,255,255';
+    gr.addColorStop(0, `rgba(${col},${shadow ? .9 : .95})`); gr.addColorStop(.6, `rgba(${col},${shadow ? .55 : .6})`); gr.addColorStop(1, `rgba(${col},0)`);
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  return c2;
+}
+const CLOUD_SPR = [1, 2, 3].map(n => mkCloud(n, false)), SHADOW_SPR = [1, 2, 3].map(n => mkCloud(n, true));
+const STARS = Array.from({ length: 80 }, (_, i) => [hash(i, 5, 1) * 720, VIEW.y + hash(i, 5, 2) * VIEW.h, .5 + hash(i, 5, 3)]);
+const RAIN = Array.from({ length: 260 }, (_, i) => [hash(i, 6, 1) * 760 - 20, VIEW.y + hash(i, 6, 2) * VIEW.h, .6 + hash(i, 6, 3) * .8]);
+function drawAtmosphere() {
+  if (editMode) return;
+  const want = weather.target ? 1 : 0; weather.k += (want - weather.k) * .012; if (!want && weather.k < .02) { weather.kind = 0; weather.k = 0; }
+  // clouds: drift with the wind, throw soft shadows on the ground; they thin out as you zoom in
+  if (!CLOUDS.length || CLOUDS.length !== Math.max(14, Math.min(40, Math.round(W * H / 2800)))) {
+    CLOUDS.length = 0; for (let i = 0, n = Math.max(14, Math.min(40, Math.round(W * H / 2800))); i < n; i++) CLOUDS.push({ x: Math.random() * (W + 60) - 30, y: Math.random() * (H + 40) - 20, w: 14 + Math.random() * 18, v: .006 + Math.random() * .008, s: i % 3 });
+  }
+  const zf = Math.max(0, Math.min(1, (34 - sc) / 22)), cover = 1 + weather.k * (weather.kind === 2 ? .9 : .5);
+  if (zf > .02) for (const cl of CLOUDS) {
+    cl.x += cl.v * (1 + weather.k); if (cl.x > W + 40) cl.x = -40;
+    const w = cl.w * sc, h = w * .55, sx = ox + cl.x * sc, sy = oy + cl.y * sc;
+    if (sx < -w || sx > 720 + w || sy < VIEW.y - h || sy > VIEW.y + VIEW.h + h) continue;
+    ctx.globalAlpha = .17 * zf * Math.min(1.4, cover); ctx.drawImage(SHADOW_SPR[cl.s], sx + w * .16, sy + h * .5, w, h);
+    ctx.globalAlpha = .46 * zf * Math.min(1.5, cover * (weather.kind === 2 ? .85 : 1)); ctx.drawImage(CLOUD_SPR[cl.s], sx, sy, w, h);
+  }
+  ctx.globalAlpha = 1;
+  // weather particles
+  const k = weather.k;
+  if (k > .02 && weather.kind) {
+    ctx.save(); ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); ctx.clip();
+    if (weather.kind === 1 || weather.kind === 2) {
+      ctx.fillStyle = `rgba(36,52,92,${(weather.kind === 2 ? .26 : .15) * k})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+      ctx.strokeStyle = `rgba(190,215,255,${.5 * k})`; ctx.lineWidth = 1.6; ctx.beginPath();
+      const n = Math.floor((weather.kind === 2 ? 260 : 150) * k);
+      for (let i = 0; i < n; i++) { const r = RAIN[i], y = VIEW.y + ((r[1] - VIEW.y + frame * 26 * r[2]) % VIEW.h), x = ((r[0] - frame * 5 * r[2]) % 760 + 760) % 760 - 20; ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 16 * r[2]); }
+      ctx.stroke();
+      if (weather.kind === 2 && Math.random() < .004) { Snd.flash = 8; if (Snd.ctx && Snd.on && started && can('thunder', 2000)) SFX.bolt(.5); }
+    } else {
+      ctx.fillStyle = `rgba(205,222,255,${.08 * k})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+      ctx.fillStyle = `rgba(255,255,255,${.85 * k})`;
+      const n = Math.floor(170 * k);
+      for (let i = 0; i < n; i++) { const r = RAIN[i], y = VIEW.y + ((r[1] - VIEW.y + frame * 2.2 * r[2]) % VIEW.h), x = ((r[0] + Math.sin(frame * .02 + i) * 18 - frame * .6) % 760 + 760) % 760 - 20; ctx.fillRect(x, y, 2 + r[2] * 1.4, 2 + r[2] * 1.4); }
+    }
+    ctx.restore();
+  }
+  if (Snd.flash > 0) { ctx.fillStyle = `rgba(220,230,255,${Snd.flash / 8 * .3})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); Snd.flash--; }
+  // day cycle: deep blue night, warm dusk, rosy dawn, twinkling stars
+  if (cfg.settings.dayNight) {
+    const ph = (tick + acc) / (TPS * 90) * Math.PI * 2, c0 = Math.cos(ph), s0 = Math.sin(ph), n = Math.max(0, -c0), w = Math.max(0, 1 - Math.abs(c0) * 2.4);
+    if (n > .01) { ctx.fillStyle = `rgba(8,14,66,${n * .45})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); }
+    if (w > .02) { ctx.fillStyle = s0 > 0 ? `rgba(255,120,40,${w * .2})` : `rgba(255,165,190,${w * .17})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); }
+    if (n > .3) { ctx.fillStyle = '#fff'; for (let i = 0; i < STARS.length; i++) { const st = STARS[i], a = Math.min(1, (n - .3) * 2) * (.35 + .35 * Math.sin(frame * .04 * st[2] + i)); ctx.globalAlpha = Math.max(0, a); ctx.fillRect(st[0], st[1], st[2] > 1 ? 3 : 2, st[2] > 1 ? 3 : 2); } ctx.globalAlpha = 1; }
   }
 }
 const PPRI = { wall: 0, field: 0, well: 1, barn: 1, tower: 2, gate: 3 };
@@ -1055,6 +1272,11 @@ const ICON_ART = {
   drought: '...o....o.../..oeooooeo../...oeeeeo.../..oeeyyeeo../..oeyyyyeo../..oeeyyeeo../...oeeeeo.../.ooeooooeoo./okkkkkkkkkko/okKkkKkkKkko/.oooooooooo./............'
 };
 
+Object.assign(ICON_ART, {
+  snow: '............/.....BB...../..B..BB..B../...B.BB.B.../....BBBB..../BBBBBBBBBBBB/BBBBBBBBBBBB/....BBBB..../...B.BB.B.../..B..BB..B../.....BB...../............',
+  sound: '............/....oo....../...owwo..o../owwwwwwo..o./owwwwwwo.o.o/owwwwwwo.o.o/owwwwwwo.o.o/owwwwwwo..o./...owwo..o../....oo....../............/............',
+  mute: '............/....oo....../...owwo...r./owwwwwwo..r./owwwwwwo.r../owwwwwwo.r../owwwwwwo.r../owwwwwwo.r../...owwo..r../....oo...r../............/............',
+  help: '...oooooo.../..oBBBBBBo../.oBBwwwwBBo./.oBwwBBwwBo./.oBBBBBwwBo./.oBBBBwwBBo./.oBBBwwBBBo./.oBBBBBBBBo./.oBBBwwBBBo./..oBBBBBBo../...oooooo.../............' });
 Object.assign(ICON_ART, { bag: '............/....oooo..../...okKKko.../..okkkkkko../.okkkkkkkko./.okEEEEEEko./.okEyyyyEko./.okEEEEEEko./.okkkkkkkko./.okKkkkkKko./..oooooooo../............' });
 Object.assign(ICON_ART, { armor: '............/..oo....oo../.oWWo..oWWo./.oWsWooWsWo./..oWsWWsWo../..oWsWWsWo../..oWssssWo../..oWWWWWWo../...oWssWo.../...oooooo.../............/............' });
 Object.assign(ICON_ART, { target: '...oooooo.../..orrrrrro../.orwwwwwwro./orrwoooowrro/orwwoyyowwro/orwwoyyowwro/orrwoooowrro/.orwwwwwwro./..orrrrrro.../...oooooo.../............/............', close: '............/.oo......oo./.orro..orro./..orroorro../...orrrro.../....orro..../....orro..../...orrrro.../..orroorro../.orro..orro./.oo......oo./............' });
@@ -1081,7 +1303,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
+Object.assign(EMOJI_ICON, { '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -1144,7 +1366,7 @@ function ignite(i) {
   const t = tiles[i];
   if (bld[i]) fire[i] = 14; else if (t === T.FOREST) fire[i] = 16; else if (t === T.GRASS) fire[i] = 7;
 }
-function fx(kind, x, y, extra) { effects.push(Object.assign({ k:kind, x, y, t:0 }, extra || {})); }
+function fx(kind, x, y, extra) { sndFx(kind, x, y, extra); effects.push(Object.assign({ k:kind, x, y, t:0 }, extra || {})); }
 
 /* ============================== CREATURES ============================== */
 /* ============================== PERSONA: traits, equipment, history ============================== */
@@ -1627,7 +1849,7 @@ function towerTick() {                                      // every 1.5 seconds
 }
 function eventsTick() {                                     // every ~10 seconds
   for (let i = drops.length - 1; i >= 0; i--) if (tick - drops[i].b > 2400) removeDrop(drops[i]);        // untended gear rusts away
-  equipTick(); repairWalls(); siegeTick(); resTick(); updateMarket(); tradeTick(); eliteTick(); shopTick();
+  equipTick(); repairWalls(); siegeTick(); resTick(); updateMarket(); tradeTick(); eliteTick(); shopTick(); weatherTick();
   const ks = [...kingdoms.values()];
   for (const k of ks) {
     if (k.ev) {
@@ -2286,9 +2508,7 @@ function draw() {
     }
   }
   drawEffects();
-  if (cfg.settings.dayNight) {
-    if (nightA > .01) { ctx.fillStyle = `rgba(6,10,50,${nightA})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); }
-  }
+  drawAtmosphere();
   if (hover && tool !== 'inspect' && TOOLS[tool]) {
     ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(ox + (hover[0]+.5)*sc, oy + (hover[1]+.5)*sc, (brushR() + .5)*sc, 0, 7); ctx.stroke();
@@ -2580,6 +2800,7 @@ function processDisasters() {
 function applyTool(wx, wy) {
   const r = brushR(), T_ = TOOLS[tool];
   if (!T_ || !inb(wx, wy)) return;
+  if (T_.spawn && Snd.ctx && Snd.on && can('pop', 110)) SFX.pop();
   switch (tool) {
     case 'raise': case 'lower': {
       const dir = tool === 'raise' ? 1 : -1;
@@ -3018,6 +3239,7 @@ const WORLD_ACTIONS = [
     { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
     { ic:'🧹', fn: () => confirmThen('clear', 'Hapus makhluk & rumah', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
   ]),
+  ...(editMode ? [] : [{ ic:'❓', fn: () => startTour(true) }]),
   ...(editMode ? [] : [{ ic:'🏦', fn: () => showBoard(marketHtml()) }]),
   ...(editMode ? [] : [{ ic:'🏆', fn: () => submitScore(true) }]),
   { ic:'🚩', on: () => showBorders, fn: () => { showBorders = !showBorders; renderRow2(); toast(showBorders ? '🚩 on' : '🚩 off'); } },
@@ -3057,13 +3279,14 @@ const speedBtn = editMode ? null : mkBtn(btns, '1×', b => { speed = speeds[(spe
 const handBtn = mkBtn(btns, '✋', () => selectTool(tool === 'hand' ? 'raise' : 'hand'));
 mkBtn(btns, '−', () => zoomBy(1/1.5));
 mkBtn(btns, '+', () => zoomBy(1.5));
+if (!editMode) sndBtn = mkBtn(btns, '🔊', () => { sndInit(); sndResume(); setSound(!Snd.on); if (Snd.on) SFX.ui(); });
 
 function updateStats() {
   const chip = (ch, n) => `<span>${ch}${n}</span>`;
   let h1 = '', h2 = '';
   if (editMode) { yearEl.textContent = '✏️'; }
   else {
-    yearEl.textContent = '📅 ' + Math.floor(tick / 120);
+    yearEl.textContent = W_ICON[weather.kind] + ' ' + Math.floor(tick / 120);
     for (const r of ['human', 'elf', 'dwarf', 'orc', 'werewolf']) if (r !== 'werewolf' || counts.werewolf) h1 += chip(EMOJI[r], counts[r] || 0);
     h1 += chip('🏰', kingdoms.size) + chip('🏠', houseCount);
     for (const r of ['sheep', 'rabbit', 'deer', 'wolf']) h2 += chip(EMOJI[r], counts[r] || 0);
@@ -3086,7 +3309,7 @@ function serialize2() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
+  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0])]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)),
@@ -3100,7 +3323,7 @@ function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
-  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0; floods.length = 0;
+  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0; floods.length = 0; Snd.on = s.sn !== 0; tutSeen = !!s.tu;
   const hl = [];
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) { bld[i] = b; hl.push(i); } else hl.push(-1); }
   const ids = [];
@@ -3159,6 +3382,7 @@ const myToken = (window.__awToken = (window.__awToken || 0) + 1);
 function loop(now) {
   if (window.__awToken !== myToken) return;               // a newer run() took over
   const dt = Math.min(.11, (now - lastT) / 1000); lastT = now;
+  if (!started) { rafId = requestAnimationFrame(loop); return; }                       // title screen: the world waits
   if (!paused && !editMode) {
     acc += dt * TPS * speed; let n = 0;
     while (acc >= 1 && n < 30) { step(); acc--; n++; }
@@ -3172,13 +3396,59 @@ function loop(now) {
     applyTool(wx, wy); reapDead();
   }
   draw();
-  if (now - statT > 250) { statT = now; updateStats(); refreshCreature(); }
+  if (now - statT > 250) { statT = now; updateStats(); refreshCreature(); if (Snd.ctx) sndAmbient(fireView); }
   if (now - saveT > 15000) { saveT = now; autosave(); }
   if (!editMode && tick > 1200 && now - lbT > 60000) { lbT = now; if (civScore() > bestSent * 1.1) submitScore(false); }
   rafId = requestAnimationFrame(loop);
 }
 
 /* ============================== START ============================== */
+/* ============================== TITLE SCREEN + FIRST-RUN TOUR ============================== */
+const titleEl = el('div', 'awtitle'), tutEl = el('div', 'awtut');
+titleEl.style.display = 'none';
+function coverUrl() { try { const a = lib.getAsset && lib.getAsset('cover'); return a && a.url; } catch (e) { return null; } }
+function showTitle(hasSave) {
+  if (editMode) return;
+  const url = coverUrl();
+  titleEl.innerHTML = (url ? `<img class="bg" src="${url}" alt="">` : '<div class="nm">ASTRO<br>WORLD</div>') + '<div class="shade"></div>'
+    + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Lanjutkan' : 'Main'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div></div>`;
+  titleEl.style.display = 'block'; titleEl.style.opacity = 1;
+}
+titleEl.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  sndInit(); sndResume();
+  if (a.dataset.act === 'play') {
+    started = true; lastT = performance.now(); titleEl.style.opacity = 0; setTimeout(() => { titleEl.style.display = 'none'; if (!tutSeen) startTour(); }, 480);
+    if (Snd.on) SFX.fanfare(1);
+  } else if (a.dataset.act === 'help') { startTour(true); }
+  else if (a.dataset.act === 'snd') { setSound(!Snd.on); a.textContent = Snd.on ? '🔊' : '🔇'; if (Snd.on) SFX.ui(); }
+});
+const TOUR = [
+  { r: [150, 420, 420, 330], t: 'Ketuk makhluk atau rumah untuk melihat info-nya', f: 'tap', y: 790 },
+  { r: [150, 420, 420, 330], t: 'Geser dengan satu jari untuk menggeser peta. Tahan sebentar lalu geser untuk melukis dengan alat.', f: 'drag', y: 790 },
+  { r: [4, 1068, 470, 100], t: 'Pilih kategori alat di sini: medan, makhluk, bencana, kerajaan, dunia', y: 800 },
+  { r: [288, 4, 190, 96], t: 'Perbesar dan perkecil peta', y: 230 },
+  { r: [4, 4, 190, 96], t: 'Jeda dan percepat waktu', y: 230 },
+  { r: [476, 4, 96, 96], t: 'Suara aktif atau mati', y: 230 },
+];
+let tourI = 0;
+function startTour(force) { if (editMode) return; tourI = 0; tutEl.style.display = 'block'; if (force) { titleEl.style.display = 'none'; started = true; lastT = performance.now(); } renderTour(); }
+function renderTour() {
+  const st = TOUR[tourI], last = tourI === TOUR.length - 1, [x, y, w, h] = st.r;
+  tutEl.innerHTML = `<div class="spot" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>`
+    + (st.f ? `<img class="fing ${st.f === 'tap' ? 'tap' : ''}" src="${iconURL('hand')}" style="left:${x + w / 2 - 38}px;top:${y + h / 2 - 20}px" alt="">` : '')
+    + `<div class="bub" style="top:${st.y}px">${st.t}<div class="tbn"><button class="awb" data-act="skip">✖</button><button class="awb" data-act="next">${last ? '▶' : 'Lanjut'}</button></div></div>`;
+}
+tutEl.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  if (a.dataset.act === 'next' && tourI < TOUR.length - 1) { tourI++; renderTour(); if (Snd.on) SFX.ui(); }
+  else { tutEl.style.display = 'none'; if (!tutSeen) { tutSeen = true; dirty = true; } }
+});
+document.addEventListener('pointerdown', e => {
+  if (editMode) return;
+  sndInit(); sndResume();
+  if (Snd.ctx && Snd.on && e.target.closest && e.target.closest('#aw button') && can('ui', 60)) SFX.ui();
+}, true);
 async function start() {
   const wantSize = SIZES[cfg.world.size] ? cfg.world.size : 1;       // default: Medium
   setSize(wantSize);
@@ -3194,6 +3464,8 @@ async function start() {
   }
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
   startCamera(); renderRow1(); renderRow2(); updateStats();
+  if (sndBtn) sndBtn.textContent = Snd.on ? '🔊' : '🔇';
+  showTitle(restored);
   if (lib.showGameParameters) {
     try {
       lib.showGameParameters({ name: 'Astro World', params: {
@@ -3207,7 +3479,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
