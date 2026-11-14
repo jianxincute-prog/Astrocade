@@ -3784,7 +3784,7 @@ window.addEventListener('pointerup', () => { infoHold = false; });
 window.addEventListener('pointercancel', () => { infoHold = false; });
 function showSeeds() {                                          // picker for the empty island seeds
   selected = null; following = false; clearTimeout(infoT);
-  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><b>🏝️ Empty island seeds</b><span class="dsc">No life and no houses: you lay the first foundations yourself.</span><div class="seeds">${SIZES.map((z, i) => ({ z, i })).filter(o => o.z.preset && !o.z.preset.hidden).sort((a, b) => (a.z.preset.order || 9) - (b.z.preset.order || 9)).map(o => `<button class="seed" data-act="seed" data-i="${o.i}"><b>${o.z.label}</b><small>${o.z.preset.desc}</small></button>`).join('')}</div>`;
+  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><b>🏝️ Empty island seeds</b><span class="dsc">No life and no houses: you lay the first foundations yourself.</span><div class="seeds">${SIZES.map((z, i) => ({ z, i })).filter(o => o.z.preset && !o.z.preset.hidden).sort((a, b) => (a.z.preset.order ?? 9) - (b.z.preset.order ?? 9)).map(o => `<button class="seed" data-act="seed" data-i="${o.i}"><b>${o.z.label}</b><small>${o.z.preset.desc}</small></button>`).join('')}</div>`;
   infoEl.style.display = 'block';
 }
 function inspectAt(wx, wy) {
