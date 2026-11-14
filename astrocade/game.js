@@ -1605,6 +1605,29 @@ function newWorld(idx) {
   if (!editMode) populate();
   startCamera(); persistWorld(); dirty = true; if (!editMode) clearSave();
 }
+/* ---- leaderboard: "civilization score" ---- */
+let bestSent = 0, lbBusy = false;
+function civScore() {                                        // population, houses, level and tech of every kingdom, plus years survived
+  let sc = 0;
+  for (const k of kingdoms.values()) sc += k.pop*2 + k.houses*3 + k.level*60 + k.tech.length*40;
+  return Math.round(sc + (tick / 120) * 2);
+}
+function showBoard(html) { infoEl.innerHTML = html; infoEl.style.display = 'block'; clearTimeout(infoT); infoT = setTimeout(() => infoEl.style.display = 'none', 9000); }
+async function submitScore(show) {                           // submit only personal bests, so the board never goes backwards
+  const score = civScore();
+  if (lbBusy || editMode || !lib.addPlayerScoreToLeaderboard) { if (show) toast('🏆 ' + score); return; }
+  lbBusy = true;
+  try {
+    let r;
+    if (score > bestSent) { r = await lib.addPlayerScoreToLeaderboard(score, 5); bestSent = score; dirty = true; }
+    else if (lib.getTopNEntriesFromLeaderboard) r = await lib.getTopNEntriesFromLeaderboard(5);
+    if (show) {
+      const rows = r && r.entries ? r.entries.slice(0, 5).map((e, i) => `${i + 1}. ${e.username} · ${e.score}`).join('<br>') : '';
+      showBoard(`<b>🏆 ${score}</b>${r && r.userRank ? ` · #${r.userRank}` : ''}${bestSent ? ` · ⭐ ${bestSent}` : ''}${rows ? '<br>' + rows : ''}`);
+    }
+  } catch (e) { if (show) toast('🏆 ' + score); }
+  lbBusy = false;
+}
 const WORLD_ACTIONS = [
   { ic:'🗺️', fn: () => confirmThen('new', 'Dunia baru', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
   ...SIZES.map((z, i) => ({ ic: z.name, on: () => sizeIdx === i,
@@ -1614,6 +1637,7 @@ const WORLD_ACTIONS = [
     { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
     { ic:'🧹', fn: () => confirmThen('clear', 'Hapus makhluk & rumah', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
   ]),
+  ...(editMode ? [] : [{ ic:'🏆', fn: () => submitScore(true) }]),
   { ic:'🚩', on: () => showBorders, fn: () => { showBorders = !showBorders; renderRow2(); toast(showBorders ? '🚩 on' : '🚩 off'); } },
   { ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
 ];
@@ -1668,7 +1692,7 @@ function serialize() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick,
+  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent,
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick)]),
     cr: creatures.map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
@@ -1677,7 +1701,7 @@ function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
-  currentSeed = s.seed || 0; tick = s.tick || 0;
+  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0;
   const hl = [];
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) { bld[i] = b; hl.push(i); } else hl.push(-1); }
   const ids = [];
@@ -1712,7 +1736,7 @@ async function autosave() {
 }
 
 /* ============================== LOOP ============================== */
-let lastT = performance.now(), acc = 0, statT = 0, saveT = 0, rafId = 0;
+let lastT = performance.now(), acc = 0, statT = 0, saveT = 0, lbT = 0, rafId = 0;
 const myToken = (window.__awToken = (window.__awToken || 0) + 1);
 function loop(now) {
   if (window.__awToken !== myToken) return;               // a newer run() took over
@@ -1730,6 +1754,7 @@ function loop(now) {
   draw();
   if (now - statT > 250) { statT = now; updateStats(); }
   if (now - saveT > 15000) { saveT = now; autosave(); }
+  if (!editMode && tick > 1200 && now - lbT > 60000) { lbT = now; if (civScore() > bestSent * 1.1) submitScore(false); }
   rafId = requestAnimationFrame(loop);
 }
 
@@ -1762,7 +1787,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
