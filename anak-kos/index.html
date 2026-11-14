@@ -23,15 +23,15 @@
 const W = 720, H = 1280;
 
 const CFG = {
-  hourSec: 0.4,           // 1 jam game = 0.4 detik nyata (1 hari ≈ 10 dtk, 1 bulan ≈ 4-5 menit; ada tombol percepat)
+  hourSec: 0.5,           // 1 jam game = 0.5 detik nyata (1 hari = 12 dtk, 1 bulan ≈ 5 menit; ada tombol percepat)
   days: 30,
   startHour: 8,
   startMoney: 100,        // dalam ribuan rupiah
-  rent: 1500,             // uang sewa yang harus ada saat tanggal 30
+  rent: 2200,             // uang sewa yang harus ada saat tanggal 30
   moodWeight: 10,         // skor = sisa uang + rata-rata bahagia x moodWeight
-  decay: { hunger: 3, energy: 3, hygiene: 1.6, fun: 2 }, // per jam game
+  decay: { hunger: 2, energy: 1.8, hygiene: 1, fun: 1.2 }, // per jam game
   start: { hunger: 35, energy: 80, hygiene: 70, fun: 60 },
-  sleepRate: 11, sleepRateUpgrade: 18,
+  sleepRate: 9, sleepRateUpgrade: 15,
   eventChance: 0.45,
   walkSpeed: 430,
   walkTimeMul: 0.3,       // waktu melambat saat berjalan supaya jalan tidak 'memakan' jam
