@@ -787,6 +787,15 @@ function drawGear(c, cx, fy, sw, sh) {                         // armour band, s
     else { ctx.fillRect(x - K*.3, y - K*3.3, K*2.2, K*4.6); ctx.fillStyle = d; ctx.fillRect(x, y - K*3, K*1.6, K*3.6); ctx.fillStyle = l; ctx.fillRect(x, y - K*3, K*.6, K*3.6); }
   }
 }
+function drawDrops(x0, y0, x1, y1) {
+  for (const d of drops) {
+    if (d.x < x0 - 1 || d.x > x1 + 1 || d.y < y0 - 1 || d.y > y1 + 1) continue;
+    const cx = ox + (d.x + .5) * sc, cy = oy + (d.y + .55) * sc + Math.sin(frame * .1 + d.x) * sc * .06, c = TIER_COL[d.t];
+    ctx.fillStyle = c[0] + '55'; ctx.beginPath(); ctx.arc(cx, cy, sc * (.5 + .06 * Math.sin(frame * .12 + d.y)), 0, 7); ctx.fill();
+    ctx.strokeStyle = c[1]; ctx.lineWidth = Math.max(1.5, sc * .06); ctx.stroke();
+    const ic = ICON[['swords', 'armor', 'shield'][d.s]], w = sc * .85; ctx.imageSmoothingEnabled = false; ctx.drawImage(ic, cx - w / 2, cy - w / 2, w, w);
+  }
+}
 function drawDecor(x0, y0, x1, y1) {                          // trees by kind, palms on sand, ore nodes
   const u = sc / 6;
   for (let y = y0; y <= Math.min(H - 1, y1 + 1); y++) for (let x = x0; x <= x1; x++) {
@@ -1054,6 +1063,39 @@ const GEAR_NAME = {
 const GEAR_KIND = { human: ['spear', 'sword', 'sword'], elf: ['bow', 'bow', 'bow'], dwarf: ['axe', 'axe', 'axe'], orc: ['club', 'axe', 'axe'], werewolf: ['claw', 'claw', 'claw'] };
 const GEAR_ICON = ['⚔️', '🥋', '🛡'], HIST_TXT = { 2: 'Membunuh musuh pertamanya', 3: '5 kemenangan', 4: '10 kemenangan', 5: 'Pahlawan: 25 kemenangan', 6: 'Dinobatkan menjadi pemimpin', 7: 'Diangkat menjadi ksatria besi', 11: 'Nyaris tewas dan selamat' };
 const TIER_COL = [null, ['#8a5a34', '#c8a070'], ['#c8803a', '#f0b868'], ['#aab2be', '#e8eef6']];
+const drops = [], dropMap = new Map();                         // gear lying on the ground: { x, y, s: slot, t: tier, r: origin race, b: tick dropped }
+function addDrop(x, y, sl, tier, race) {
+  let best = null;
+  for (let r = 0; r <= 2 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) {
+    const tx = x + dx, ty = y + dy; if (!inb(tx, ty) || dropMap.has(tx + ty*W) || tiles[tx + ty*W] <= T.SHALLOW || tiles[tx + ty*W] === T.LAVA) continue;
+    best = [tx, ty]; break;
+  }
+  if (!best) return false;
+  if (drops.length >= 120) { const o = drops.shift(); dropMap.delete(o.x + o.y*W); }
+  const d = { x: best[0], y: best[1], s: sl, t: tier, r: race, b: tick }; drops.push(d); dropMap.set(d.x + d.y*W, d); dirty = true; return true;
+}
+function removeDrop(d) { const i = drops.indexOf(d); if (i >= 0) drops.splice(i, 1); dropMap.delete(d.x + d.y*W); dirty = true; }
+function lootFrom(c, v) {                                       // a victor takes the better pieces of the fallen; the rest is left for the reaper to drop
+  if (!RACES[c.t].civ || RACES[c.t].engine || !v.eq) return;
+  const e = c.eq || (c.eq = [0, 0, 0]);
+  for (let sl = 0; sl < 3; sl++) if (v.eq[sl] > e[sl]) {
+    const old = e[sl], t = v.eq[sl]; e[sl] = t; v.eq[sl] = 0;
+    if (old) addDrop(c.x, c.y, sl, old, c.t);
+    addHist(c, 16, sl * 4 + t); if (sl === 1) applyStats(c);
+  }
+}
+function pickupAt(c) {                                          // settlers wear what they find if it beats what they have
+  const d = dropMap.get(c.x + c.y*W); if (!d) return;
+  const e = c.eq || (c.eq = [0, 0, 0]); if (d.t <= e[d.s]) return;
+  const old = e[d.s]; removeDrop(d); e[d.s] = d.t;
+  if (old) addDrop(c.x, c.y, d.s, old, c.t);
+  addHist(c, 17, d.s * 4 + d.t); if (d.s === 1) applyStats(c);
+}
+function seekDrop(c) {                                          // idle soldiers walk to nearby gear that would improve them
+  let best = null, bd = 49; const e = c.eq || [0, 0, 0];
+  for (const d of drops) { if (d.t <= e[d.s]) continue; const dd = (d.x - c.x) ** 2 + (d.y - c.y) ** 2; if (dd < bd) { bd = dd; best = d; } }
+  return best ? moveToward(c, best.x, best.y) : false;
+}
 const inv = [];                                                // universal bag: [slot, tier, origin race] - any race can wear any item
 const INV_MAX = 12;
 function inheritTraits(a, b) {                                  // each trait passes on with 50% (85% if both parents have it), plus a 12% chance of a new one
@@ -1192,6 +1234,7 @@ function stepCreature(c) {
   if (R.hunt) { c.en -= 0.12; if (c.en <= 0) { c.hp = 0; return; } }
   if (c.k !== c.lk) { c.lk = c.k; const kj = c.k ? kingdoms.get(c.k) : null; if (kj) { if (c.nj) c.nj = 0; else addHist(c, 10, kj.name); } }
   if ((tick + c.id) % ((c.tr & 4) ? Math.max(1, R.mv - 1) : R.mv) !== 0) return;
+  if (drops.length && R.civ) pickupAt(c);
 
   let tg = c.tgt;
   if (tg && (tg.hp <= 0 || Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y)) > (R.hunt ? 24 : 13))) tg = c.tgt = null;
@@ -1208,6 +1251,7 @@ function stepCreature(c) {
       if (tg.hp > 0 && tg.hp < tg.mhp * .2 && !tg.hw) { tg.hw = 1; addHist(tg, 11); }
       if (d > 1) fx('arrow', c.x, c.y, { tx: tg.x, ty: tg.y }); else fx('hit', tg.x, tg.y);
       if (tg.hp <= 0) {
+        if (tg.eq) lootFrom(c, tg);
         c.kills++; if (c.kills === 1) addHist(c, 2); else if (c.kills === 5) addHist(c, 3); else if (c.kills === 10) addHist(c, 4); else if (c.kills === 25) addHist(c, 5);
         if (R.hunt) c.en = Math.min(100, c.en + (GAIN[tg.t] || 45)); c.tgt = null;
         if (ka) {
@@ -1249,6 +1293,7 @@ function stepCreature(c) {
         }
       }
     }
+    if (drops.length && (c.lead || c.elite || isSoldier(c)) && !c.tgt && (tick + c.id) % 6 === 0 && seekDrop(c)) return;
     if (!c.k && (tick + c.id) % 40 === 0) c.k = nearestKingdom(c);
     if (bld[idx] === 0 && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
         && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
@@ -1275,6 +1320,7 @@ function reapDead() {
   for (const c of creatures) if (c.hp <= 0) {
     any = true;
     if (RACES[c.t].cart && c.trade && !c.trade.done) refundTrade(c);
+    if (c.eq && RACES[c.t].civ) for (let sl = 0; sl < 3; sl++) if (c.eq[sl] && Math.random() < .7) addDrop(c.x, c.y, sl, c.eq[sl], c.t);
     if (effects.length < 400) fx('death', c.x, c.y, { type: c.t, face: c.face, old: c.cause === 'old' });
   }
   if (any) creatures = creatures.filter(c => c.hp > 0);
@@ -1415,6 +1461,7 @@ function towerTick() {                                      // every 1.5 seconds
   }
 }
 function eventsTick() {                                     // every ~10 seconds
+  for (let i = drops.length - 1; i >= 0; i--) if (tick - drops[i].b > 2400) removeDrop(drops[i]);        // untended gear rusts away
   equipTick(); repairWalls(); siegeTick(); resTick(); updateMarket(); tradeTick(); eliteTick();
   const ks = [...kingdoms.values()];
   for (const k of ks) {
@@ -1898,6 +1945,7 @@ function setSize(idx) {
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
   kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   oreT = new Uint8Array(N); oreA = new Uint8Array(N); treeK = new Uint8Array(N); nodes = [];
+  drops.length = 0; dropMap.clear();
   kingdoms.clear(); rels.clear(); nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
@@ -1968,6 +2016,7 @@ function draw() {
       ctx.setLineDash([]);
     }
     drawDecor(x0, y0, x1, y1);
+    drawDrops(x0, y0, x1, y1);
     drawProps(x0, y0, x1, y1, true);
     for (let y = y0; y <= Math.min(H-1, y1 + 4); y++) for (let x = x0; x <= x1; x++) {
       const idx = x + y*W, b = bld[idx]; if (!b) continue;
@@ -2505,7 +2554,7 @@ function creatureHtml(c) {
       const ev = [[tick - c.age, 0, 0]].concat(c.hist || []).slice(-4), nm = (sd) => nameFor(c.t, sd);
       h += '<div class="hist">' + ev.map(([t, code, a]) => {
         const txt = code === 0 ? (c.pa ? `Lahir, anak ${nm(c.pa)}${c.pb ? ' & ' + nm(c.pb) : ''}` : 'Lahir') : code === 8 ? `Mendapat ${itemName(c.t, 0, a)}` : code === 9 ? `Mengenakan ${itemName(c.t, 1, a)}`
-          : code === 10 ? `Bergabung dengan ${a}` : code === 12 ? `Menerima ${itemName(c.t, a >> 2, a & 3)}` : code === 13 ? `${itemName(c.t, a >> 2, a & 3)} diambil` : code === 14 ? `Berpasangan dengan ${nm(a)}` : code === 15 ? `Anak lahir: ${nm(a)}` : HIST_TXT[code] || '';
+          : code === 10 ? `Bergabung dengan ${a}` : code === 12 ? `Menerima ${itemName(c.t, a >> 2, a & 3)}` : code === 13 ? `${itemName(c.t, a >> 2, a & 3)} diambil` : code === 14 ? `Berpasangan dengan ${nm(a)}` : code === 15 ? `Anak lahir: ${nm(a)}` : code === 16 ? `Merampas ${itemName(c.t, a >> 2, a & 3)}` : code === 17 ? `Memungut ${itemName(c.t, a >> 2, a & 3)}` : HIST_TXT[code] || '';
         return `<em>Thn ${Math.max(0, Math.floor(t / 120))}</em> ${txt}`;
       }).join('<br>') + '</div>';
     }
@@ -2517,9 +2566,23 @@ function creatureHtml(c) {
   } else {
     const sel = invSel >= 0 && inv[invSel] ? inv[invSel] : null;
     h += '<div class="bag">' + Array.from({ length: INV_MAX }, (_, i) => { const it = inv[i]; return it ? `<button class="bi t${it[1]}${i === invSel ? ' sel' : ''}" data-act="inv" data-i="${i}">${GEAR_ICON[it[0]]}<small>${'I'.repeat(it[1])}</small></button>` : '<span class="bi e"></span>'; }).join('') + '</div>';
-    h += `<div class="row">${sel ? `${itemName(sel[2], sel[0], sel[1])} · ${itemTip(sel[0], sel[1])} → ketuk slot ${['senjata', 'zirah', 'perisai'][sel[0]]}` : inv.length ? 'Ketuk item, lalu ketuk slot di atas untuk memakaikannya' : 'Tas kosong: ketuk slot perlengkapan di atas untuk mengambil item'}</div>`;
+    h += `<div class="row">${sel ? `${itemName(sel[2], sel[0], sel[1])} · ${itemTip(sel[0], sel[1])} → ketuk slot ${['senjata', 'zirah', 'perisai'][sel[0]]}` : inv.length ? 'Ketuk item, lalu ketuk slot di atas untuk memakaikannya' : 'Tas kosong: ketuk slot perlengkapan di atas, atau ketuk item di tanah'}</div>`;
+    if (sel) h += '<div class="tabs"><button class="ptab" data-act="drop">Jatuhkan di tanah</button></div>';
   }
   return h;
+}
+function dropFromBag(c) {                                              // put the selected bag item on the ground two tiles in front of the creature
+  const it = invSel >= 0 ? inv[invSel] : null; if (!it) return;
+  if (addDrop(c.x + (c.face < 0 ? -2 : 2), c.y, it[0], it[1], it[2])) { inv.splice(invSel, 1); invSel = -1; toast(GEAR_ICON[it[0]] + ' ↓'); haptic('tap'); dirty = true; }
+}
+function pickDropAt(px, py) {
+  const fx0 = (px - ox) / sc, fy0 = (py - oy) / sc; let best = null, bd = 1.2;
+  for (const d of drops) { const dd = (d.x + .5 - fx0) ** 2 + (d.y + .5 - fy0) ** 2; if (dd < bd) { bd = dd; best = d; } }
+  return best;
+}
+function takeDrop(d) {
+  if (inv.length >= INV_MAX) { toast('🎒 penuh'); return; }
+  inv.push([d.s, d.t, d.r]); removeDrop(d); toast('🎒 ' + itemName(d.r, d.s, d.t)); haptic('tap');
 }
 function slotAction(c, sl) {
   if (!c.eq) c.eq = [0, 0, 0];
@@ -2558,6 +2621,7 @@ infoEl.addEventListener('click', e => {
   else if (!selected) return;
   else if (a.dataset.act === 'tab') { ptab = +a.dataset.t; infoHold = false; refreshCreature(); }
   else if (a.dataset.act === 'slot') { slotAction(selected, +a.dataset.s); infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'drop') { dropFromBag(selected); infoHold = false; refreshCreature(); }
   else if (a.dataset.act === 'inv') { invSel = invSel === +a.dataset.i ? -1 : +a.dataset.i; infoHold = false; refreshCreature(); }
   else if (a.dataset.act === 'sel') { const t = creatures.find(o => o.id === +a.dataset.id && o.hp > 0); if (t) { showCreature(t); } }
 });
@@ -2637,7 +2701,9 @@ const endPtr = e => {
     if (!pend.moved && !pend.held && e.type === 'pointerup') {                 // a tap
       const h = toWorld(pend.x0, pend.y0); hover = h;
       const pk = !editMode && (tool === 'inspect' || (TOOLS[tool] && TOOLS[tool].g === 'life')) ? pickCreatureAt(pend.x0, pend.y0) : null;
+      const dk = !pk && !editMode && (tool === 'inspect' || (TOOLS[tool] && TOOLS[tool].g === 'life')) ? pickDropAt(pend.x0, pend.y0) : null;
       if (pk) showCreature(pk);
+      else if (dk) takeDrop(dk);
       else if (tool === 'inspect') inspectAt(h[0], h[1]);
       else if (!(editMode && !editTool())) { applyTool(h[0], h[1]); reapDead(); if (editMode) persistWorld(); }
     }
@@ -2784,7 +2850,8 @@ function serialize2() {
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0]); return a; }, []),
-    inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2])]) };      // one packed int per creature
+    inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2])]),
+    dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b]) };      // one packed int per creature
 }
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
@@ -2826,6 +2893,7 @@ function restore(s) {
     const R = RACES[c.t]; c.nid = r[1]; c.tr = r[2]; c.kills = r[4]; c.eq = [r[5] & 3, (r[5] >> 2) & 3, (r[5] >> 4) & 3]; c.hist = r[6] || []; c.pa = r[7] || 0; c.pb = r[8] || 0; c.sp = r[9] || 0; c.ch = r[10] || 0; c.lk = c.k; c.nj = 1;
     c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); c.age = Math.max(0, Math.min(c.life - 50, tick - r[3]));
   }
+  for (const d of s.dr || []) if (RN[d[4]] && inb(d[0], d[1]) && !dropMap.has(d[0] + d[1]*W)) { const o = { x: d[0], y: d[1], s: d[2], t: d[3], r: RN[d[4]], b: tick - (d[5] || 0) }; drops.push(o); dropMap.set(o.x + o.y*W, o); }
   inv.length = 0; for (const i of s.inv || []) if (RN[i[2]] && i[0] >= 0 && i[0] < 3 && i[1] >= 1 && i[1] <= 3) inv.push([i[0], i[1], RN[i[2]]]);
   let mx = nextId; for (const c of spawned) if (c && c.nid !== undefined && c.nid >= mx) mx = c.nid + 1; nextId = mx;       // new ids must not collide with saved name seeds
   for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
@@ -2894,7 +2962,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, drops, addDrop, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
