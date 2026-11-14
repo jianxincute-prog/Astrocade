@@ -121,7 +121,7 @@ function makeFighter(ci, side, opts = {}) {
     ci, c, img, side, w, h, x: side < 0 ? 200 : 520, jump: 0, vy: 0, vx: 0, face: side < 0 ? 1 : -1,
     maxHp: opts.hp || 100, hp: opts.hp || 100, lag: opts.hp || 100, energy: 0, state: 'idle', st: 0, flash: 0, landT: 0,
     fired: false, struck: false, combo: 0, comboT: 0, ph: rand(0, 6), mv: 0, koRot: 0, koSpin: 0, wins: 0,
-    buf: null, intent: { l: false, r: false }, ai: { t: 0.6, cool: 0 }, isCpu: !!opts.cpu, display: !!opts.display, ready: false, white: null, armor: false,
+    buf: null, intent: { l: false, r: false }, ai: { t: 0.6, cool: 0 }, sp: { x: 0, v: 0, y: 0, vy: 0 }, ps: Object.assign({ tempo: 1, bob: 1, wob: 1, hop: 1, hover: 0, lunge: 1, stiff: 1 }, c.ps || {}), stepAcc: 0, idleT: rand(2, 5), isCpu: !!opts.cpu, display: !!opts.display, ready: false, white: null, armor: false,
   };
   if (img && img.complete) {
     try { const cv = document.createElement('canvas'); cv.width = Math.ceil(w); cv.height = Math.ceil(h); const x = cv.getContext('2d'); x.drawImage(img, 0, 0, w, h); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); f.white = cv; } catch (e) {}
@@ -130,59 +130,118 @@ function makeFighter(ci, side, opts = {}) {
 }
 function setState(f, s) { f.state = s; f.st = 0; f.struck = false; f.fired = false; }
 
-function pose(f, t) {
-  const p = { ox: 0, oy: 0, rot: 0, sx: 1, sy: 1, spin: 0 }, s = f.st;
+function pose(f, t, st) {
+  const ps = f.ps, s = st === undefined ? f.st : st;
+  const p = { ox: 0, oy: 0, rot: 0, sx: 1, sy: 1, spin: 0, shear: 0, wob: 0, wf: 5, bulge: 0, ghost: 0 };
   const air = f.jump > 2;
   switch (f.state) {
     case 'idle': case 'walk': {
-      if (air) { p.sy = f.vy > 0 ? 1.1 : 1.04; p.sx = f.vy > 0 ? 0.92 : 0.97; p.rot = 0.05 * f.mv; break; }
-      if (f.landT > 0) { const k = f.landT / 0.12; p.sy = 1 - 0.2 * k; p.sx = 1 + 0.18 * k; break; }
-      if (f.state === 'walk' && Math.abs(f.vx) > 20) { p.oy = -Math.abs(Math.sin(t * 15 + f.ph)) * 16; p.rot = 0.09 * f.mv; p.sx = 1 + 0.02 * Math.sin(t * 30); }
-      else { const b = Math.sin(t * 5 + f.ph); p.sy = 1 + 0.028 * b; p.sx = 1 - 0.02 * b; p.rot = 0.02 * Math.sin(t * 2.5 + f.ph); }
+      if (air) { p.sy = f.vy > 0 ? 1.1 : 1.04; p.sx = f.vy > 0 ? 0.92 : 0.97; p.rot = 0.05 * f.mv; p.wob = 3 * ps.wob; p.wf = 14; p.shear = -8 * f.mv; break; }
+      if (f.landT > 0) { const k = f.landT / 0.12; p.sy = 1 - 0.22 * k; p.sx = 1 + 0.2 * k; p.bulge = 0.12 * k; p.shear = 10 * k * ps.wob; break; }
+      if (f.state === 'walk' && Math.abs(f.vx) > 20) {
+        const ph = t * 15 * ps.tempo + f.ph;
+        p.oy = -Math.abs(Math.sin(ph)) * 16 * ps.hop; p.rot = 0.09 * f.mv + 0.06 * Math.sin(ph);
+        p.sx = 1 + 0.03 * Math.cos(ph * 2); p.sy = 1 - 0.04 * Math.cos(ph * 2); p.shear = 10 * f.mv; p.wob = 3 * ps.wob; p.wf = 15;
+      } else {
+        const b = Math.sin(t * 5 * ps.tempo + f.ph);
+        const bounce = f.display ? 0 : Math.abs(Math.sin(t * 6.2 * ps.tempo + f.ph)) * 5 * ps.bob;
+        p.oy = -bounce - (ps.hover ? ps.hover * (6 + 6 * Math.sin(t * 2.6 + f.ph)) : 0);
+        p.sy = 1 + 0.03 * b * ps.bob; p.sx = 1 - 0.022 * b * ps.bob; p.rot = 0.025 * Math.sin(t * 2.5 * ps.tempo + f.ph);
+        p.shear = 7 * Math.sin(t * 2.3 * ps.tempo + f.ph) * ps.wob; p.wob = 2.5 * ps.wob; p.wf = 3.4; p.bulge = 0.02 * b * ps.bob;
+      }
       break;
     }
     case 'punch': {
-      if (s < 0.1) { const k = ease(s / 0.1); p.ox = -16 * k; p.rot = -0.12 * k; p.sx = 1 - 0.06 * k; p.sy = 1 + 0.05 * k; }
-      else if (s < 0.22) { const k = ease((s - 0.1) / 0.12); p.ox = lerp(-16, 70, k); p.rot = lerp(-0.12, 0.24, k); p.sx = 1.12; p.sy = 0.96; }
-      else { const k = ease((s - 0.22) / 0.14); p.ox = lerp(70, 0, k); p.rot = lerp(0.24, 0, k); p.sx = lerp(1.12, 1, k); p.sy = lerp(0.96, 1, k); }
+      if (s < 0.1) { const k = ease(s / 0.1); p.ox = -18 * k; p.rot = -0.14 * k; p.sx = 1 - 0.08 * k; p.sy = 1 + 0.07 * k; p.shear = -26 * k * ps.wob; p.bulge = 0.05 * k; }
+      else if (s < 0.22) { const k = ease((s - 0.1) / 0.12); p.ox = lerp(-18, 74 * ps.lunge, k); p.rot = lerp(-0.14, 0.26, k); p.sx = 1.16; p.sy = 0.94; p.shear = lerp(-26, 44, k) * ps.wob; p.ghost = 1; }
+      else { const k = ease((s - 0.22) / 0.14); p.ox = lerp(74 * ps.lunge, 0, k); p.rot = lerp(0.26, 0, k); p.sx = lerp(1.16, 1, k); p.sy = lerp(0.94, 1, k); p.shear = (lerp(44, 0, k) + Math.sin(k * 9) * 10 * (1 - k)) * ps.wob; p.wob = 5 * (1 - k) * ps.wob; p.wf = 20; }
       break;
     }
     case 'kick': {
-      if (s < 0.14) { const k = ease(s / 0.14); p.ox = -22 * k; p.rot = -0.2 * k; p.sy = 1 - 0.1 * k; p.sx = 1 + 0.06 * k; }
-      else if (s < 0.34) { const k = (s - 0.14) / 0.2; p.ox = lerp(-22, 95, ease(k)); p.oy = -34 * Math.sin(k * Math.PI); p.spin = -ease(k) * Math.PI * 2; }
-      else { const k = ease((s - 0.34) / 0.16); p.ox = lerp(95, 0, k); p.sx = lerp(1.1, 1, k); p.sy = lerp(0.92, 1, k); }
+      if (s < 0.14) { const k = ease(s / 0.14); p.ox = -24 * k; p.rot = -0.22 * k; p.sy = 1 - 0.12 * k; p.sx = 1 + 0.08 * k; p.shear = -30 * k * ps.wob; p.bulge = 0.08 * k; }
+      else if (s < 0.34) { const k = (s - 0.14) / 0.2; p.ox = lerp(-24, 95 * ps.lunge, ease(k)); p.oy = -34 * Math.sin(k * Math.PI); p.spin = -ease(k) * Math.PI * 2; p.shear = 30 * Math.sin(k * Math.PI) * ps.wob; p.sx = 1.06; p.ghost = 1; }
+      else { const k = ease((s - 0.34) / 0.16); p.ox = lerp(95 * ps.lunge, 0, k); p.sx = lerp(1.1, 1, k); p.sy = lerp(0.9, 1, k); p.shear = Math.sin(k * 9) * 12 * (1 - k) * ps.wob; p.wob = 5 * (1 - k) * ps.wob; p.wf = 20; }
       break;
     }
     case 'special': {
-      if (s < MOVES.special.fireAt) { const k = s / MOVES.special.fireAt; p.sx = 1 + 0.08 * k + 0.03 * Math.sin(s * 60); p.sy = 1 + 0.08 * k + 0.03 * Math.sin(s * 60 + 1); p.ox = Math.sin(s * 90) * 7 * k; p.oy = -Math.abs(Math.sin(s * 30)) * 6 * k; p.rot = -0.1 * k; }
-      else { const k = ease((s - MOVES.special.fireAt) / 0.3); p.ox = lerp(46, 0, k); p.sx = lerp(1.22, 1, k); p.sy = lerp(0.86, 1, k); p.rot = lerp(0.2, 0, k); }
+      if (s < MOVES.special.fireAt) {
+        const k = s / MOVES.special.fireAt; const pul = Math.sin(s * 60);
+        p.sx = 1 + 0.08 * k + 0.03 * pul; p.sy = 1 + 0.08 * k + 0.03 * Math.sin(s * 60 + 1); p.ox = Math.sin(s * 90) * 7 * k; p.oy = -Math.abs(Math.sin(s * 30)) * 6 * k; p.rot = -0.1 * k;
+        p.wob = (4 + 12 * k) * ps.wob; p.wf = 24; p.bulge = 0.06 * pul * k; p.shear = Math.sin(s * 45) * 8 * k;
+      } else {
+        const k = ease((s - MOVES.special.fireAt) / 0.3);
+        p.ox = lerp(50, 0, k); p.sx = lerp(1.26, 1, k); p.sy = lerp(0.82, 1, k); p.rot = lerp(0.22, 0, k); p.shear = lerp(50, 0, k) * ps.wob; p.wob = 6 * (1 - k) * ps.wob; p.wf = 18; p.ghost = k < 0.4 ? 1 : 0;
+      }
       break;
     }
     case 'hit': {
       const dur = f.stunDur || 0.4, k = clamp(s / dur, 0, 1);
-      p.ox = -20 * (1 - k) + Math.sin(s * 90) * 6 * (1 - k); p.rot = -0.3 * (1 - k); p.sx = 0.88 + 0.12 * k; p.sy = 1.1 - 0.1 * k;
+      p.ox = -22 * (1 - k) + Math.sin(s * 90) * 6 * (1 - k); p.rot = -0.32 * (1 - k); p.sx = 0.86 + 0.14 * k; p.sy = 1.12 - 0.12 * k;
+      p.shear = -50 * (1 - k) * (1 - k) * ps.wob; p.wob = 6 * (1 - k) * ps.wob; p.wf = 22;
       break;
     }
     case 'ko': {
-      p.spin = f.koRot;
+      p.spin = f.koRot; p.shear = 18 * Math.sin(s * 18) * Math.exp(-s * 2.5) * ps.wob; p.wob = 5 * ps.wob; p.wf = 12;
       if (f.jump <= 0) { const k = clamp(Math.abs(f.koRot) / (Math.PI / 2), 0, 1); p.oy = ((f.h - f.w) / 2) * k; }
       break;
     }
     case 'win': {
-      const b = Math.abs(Math.sin(t * 7 + f.ph)); p.oy = -b * 60; p.sy = 1 + 0.1 * (1 - b) * (b < 0.15 ? -1 : 1) * 0.5; p.sx = 1 + 0.06 * b; p.rot = 0.12 * Math.sin(t * 7 + f.ph);
+      const cy = t * 7 * ps.tempo + f.ph, b = Math.abs(Math.sin(cy)), n = Math.floor(cy / Math.PI), fr = (cy / Math.PI) % 1;
+      p.oy = -b * 60 * ps.hop; p.sy = 1 + 0.14 * b - 0.16 * Math.pow(1 - b, 4); p.sx = 1 - (p.sy - 1) * 0.6; p.rot = 0.12 * Math.sin(cy);
+      if (n % 3 === 2) p.spin = ease(fr) * Math.PI * 2;
+      p.shear = 12 * Math.cos(cy) * ps.wob; p.wob = 4 * ps.wob; p.wf = 9;
       break;
     }
-    case 'dizzy': { p.rot = 0.12 * Math.sin(t * 6); break; }
+    case 'dizzy': { p.rot = 0.12 * Math.sin(t * 6); p.shear = 14 * Math.sin(t * 6) * ps.wob; p.wob = 5 * ps.wob; p.wf = 6; break; }
   }
   return p;
+}
+
+// Soft-body springs: head lags behind body motion, and vertical speed stretches/squashes the doll.
+function updateSprings(f, p, ad) {
+  const sxw = f.x + p.ox * f.face, gyn = GROUND - f.jump + p.oy;
+  if (f.px === undefined) { f.px = sxw; f.py = gyn; }
+  if (!(ad > 0)) return;
+  const vx = clamp((sxw - f.px) / ad, -2500, 2500), vy = clamp((gyn - f.py) / ad, -3000, 3000); f.px = sxw; f.py = gyn;
+  const sp = f.sp, st = f.ps.stiff, n = Math.ceil(ad / 0.012), h = ad / n, tgt = clamp(-vy / 1500, -0.22, 0.22);
+  for (let i = 0; i < n; i++) {
+    sp.v += (-170 * st * sp.x - 13 * sp.v - vx * 2.4) * h; sp.x = clamp(sp.x + sp.v * h, -60, 60);
+    sp.vy += ((tgt - sp.y) * 320 * st - 20 * sp.vy) * h; sp.y = clamp(sp.y + sp.vy * h, -0.25, 0.25);
+  }
+}
+
+// Draws the sprite as 18 horizontal strips so the body can bend, wobble and bulge like stuffed fabric.
+const STRIPS = 18;
+function drawStrips(src, iw, ih, w, h, off, ws) {
+  const sh = ih / STRIPS, dh = h / STRIPS;
+  for (let k = 0; k < STRIPS; k++) {
+    const tn = 1 - (k + 0.5) / STRIPS, wk = w * ws(tn);
+    ctx.drawImage(src, 0, k * sh, iw, sh + 0.6, -wk / 2 + off(tn), -h + k * dh, wk, dh + 0.8);
+  }
+}
+function renderBody(f, p, t, alpha) {
+  const gy = GROUND - f.jump, dirL = f.face * f.c.nat, nat = f.c.nat;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  ctx.translate(f.x + p.ox * f.face, gy + p.oy);
+  ctx.rotate(p.rot * f.face);
+  if (p.spin) { ctx.translate(0, -f.h / 2); ctx.rotate(p.spin * f.face); ctx.translate(0, f.h / 2); }
+  const sy = p.sy * (1 + f.sp.y), sx = p.sx * (1 - f.sp.y * 0.6);
+  ctx.scale(sx * dirL, sy);
+  const spx = f.sp.x * dirL;
+  const off = (tn) => p.shear * nat * Math.pow(tn, 1.5) + spx * Math.pow(tn, 1.8) + p.wob * Math.sin(t * p.wf + tn * 3.2 + f.ph) * tn;
+  const ws = (tn) => 1 + p.bulge * Math.sin(tn * Math.PI);
+  drawStrips(f.img, f.img.naturalWidth || f.w, f.img.naturalHeight || f.h, f.w, f.h, off, ws);
+  if (alpha >= 1 && f.flash > 0 && f.white) { ctx.globalAlpha = clamp(f.flash / 0.08, 0, 1); drawStrips(f.white, f.white.width, f.white.height, f.w, f.h, off, ws); }
+  ctx.restore();
 }
 
 function drawFighter(f, t) {
   if (!f.img) return;
   const p = pose(f, t), gy = GROUND - f.jump;
-  // soft shadow
+  updateSprings(f, p, G.ad || 0);
+  // soft shadow (squashes with the doll)
   ctx.save(); ctx.globalAlpha = 0.28 * (1 - clamp(f.jump / 380, 0, 0.7)); ctx.fillStyle = '#1b0d3a';
-  ctx.beginPath(); ctx.ellipse(f.x, GROUND + 8, f.w * 0.36 * (1 - clamp(f.jump / 600, 0, 0.5)), 15, 0, 0, 7); ctx.fill(); ctx.restore();
+  ctx.beginPath(); ctx.ellipse(f.x + p.ox * f.face * 0.5, GROUND + 8, f.w * 0.36 * p.sx * (1 - clamp(f.jump / 600, 0, 0.5)), 15, 0, 0, 7); ctx.fill(); ctx.restore();
   // special aura
   if (f.state === 'special' && f.st < MOVES.special.fireAt + 0.1) {
     const k = f.st / MOVES.special.fireAt, r = 120 + 90 * k + 14 * Math.sin(t * 30);
@@ -193,14 +252,9 @@ function drawFighter(f, t) {
   } else if (f.ready && f.state !== 'ko' && !f.display) {
     glow(f.x, gy - f.h * 0.5, 160 + 12 * Math.sin(t * 8), f.c.color, 0.28);
   }
-  ctx.save();
-  ctx.translate(f.x + p.ox * f.face, gy + p.oy);
-  ctx.rotate(p.rot * f.face);
-  if (p.spin) { ctx.translate(0, -f.h / 2); ctx.rotate(p.spin * f.face); ctx.translate(0, f.h / 2); }
-  ctx.scale(p.sx * f.face * f.c.nat, p.sy);
-  ctx.drawImage(f.img, -f.w / 2, -f.h, f.w, f.h);
-  if (f.flash > 0 && f.white) { ctx.globalAlpha = clamp(f.flash / 0.08, 0, 1); ctx.drawImage(f.white, -f.w / 2, -f.h, f.w, f.h); }
-  ctx.restore();
+  // motion-smear afterimages during fast attack frames
+  if (p.ghost) for (let g = 3; g >= 1; g--) renderBody(f, pose(f, t, Math.max(0, f.st - g * 0.03)), t, 0.2 - g * 0.04);
+  renderBody(f, p, t, 1);
   // dizzy stars
   if (f.state === 'dizzy' || (f.state === 'ko' && f.jump <= 0 && f.st > 0.4)) {
     for (let i = 0; i < 4; i++) { const a = t * 4 + i * 1.57; starPath(f.x + Math.cos(a) * 60, GROUND - f.w * 0.9 + Math.sin(a) * 14, 14, 5); ctx.fillStyle = '#ffe14d'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); }
@@ -253,6 +307,7 @@ function updateFighter(f, dt) {
   else { f.vx *= Math.exp(-(f.state === 'ko' ? 1.5 : 7) * dt); }
   const mg = f.state === 'ko' ? 150 : 72;
   f.x = clamp(f.x + f.vx * dt, mg, W - mg);
+  if (f.state === 'walk' && f.jump <= 0 && Math.abs(f.vx) > 150) { f.stepAcc += Math.abs(f.vx) * dt; if (f.stepAcc > 80) { f.stepAcc = 0; fx('puff', f.x - Math.sign(f.vx) * 24, GROUND + 6, { size: 16, life: 0.28, color: '#fff', front: false }); } }
   // gravity
   if (f.jump > 0 || f.vy > 0) {
     f.vy -= GRAV * dt; f.jump += f.vy * dt;
@@ -467,7 +522,8 @@ function showOff(f, a) {
   if (act === 'punch') Audio.punch(); else if (act === 'kick') Audio.kick(); else Audio.charge();
 }
 function updateActor(f, dt) {
-  f.st += dt; f.flash = Math.max(0, f.flash - dt); f.landT = Math.max(0, f.landT - dt);
+  f.st += dt;
+  if (f.state === 'idle' && f.jump <= 0) { f.idleT -= dt; if (f.idleT < 0) { f.idleT = rand(2.5, 6); if (Math.random() < 0.6) { f.vy = 700 * f.ps.hop; f.jump = 1; } } } f.flash = Math.max(0, f.flash - dt); f.landT = Math.max(0, f.landT - dt);
   if (f.jump > 0 || f.vy > 0) { f.vy -= GRAV * dt; f.jump += f.vy * dt; if (f.jump <= 0) { f.jump = 0; f.vy = 0; f.landT = 0.12; Audio.land(); } }
   const mv = MOVES[f.state];
   if (f.state === 'punch' || f.state === 'kick') {
@@ -807,14 +863,16 @@ function frame(ts) {
 
   ctx.setTransform(S, 0, 0, S, 0, 0);
   ctx.clearRect(0, 0, W, H);
+  G.ad = 0;
   if (!loaded) { drawLoading(); return; }
 
-  if (G.mode === 'edit') { drawEdit(real); return; }
+  if (G.mode === 'edit') { G.ad = real; drawEdit(real); return; }
 
   let dt = real;
   if (G.paused) dt = 0;
   else if (G.freeze > 0) { G.freeze -= real; dt = 0; }
   else dt = real * G.slow;
+  G.ad = dt;
 
   if (G.scene === 'title') { updateParts(real); drawTitle(real); }
   else if (G.scene === 'select') { updateParts(real); drawSelect(real); }
