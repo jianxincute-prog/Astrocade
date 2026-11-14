@@ -168,6 +168,8 @@ style.textContent = `
   #awinfo .rel{display:inline-block;font-weight:700;font-size:22px;font-family:inherit;color:#ffe9a0;background:#2c3868;border:2px solid #4a5aa0;border-radius:10px;padding:2px 12px;margin:2px 4px 2px 0;cursor:pointer}
   #awinfo .rel.dead{color:#8a90b0;background:rgba(8,12,30,.6);border-color:#2c3868;cursor:default}
   #awinfo .bag{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:6px 0;clear:both}
+  #awinfo .bag.sm .bi{height:66px}
+  #awinfo .bag.sm .bi .ic{width:30px;height:30px}
   #awinfo .bi{height:84px;border-radius:12px;border:3px solid #2c3868;background:rgba(8,12,30,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#e8ecff;font-family:inherit;cursor:pointer;padding:0}
   #awinfo .bi.e{border-style:dashed;opacity:.5;cursor:default}
   #awinfo .bi .ic{width:36px;height:36px}
@@ -708,10 +710,34 @@ function eliteTick() {                                        // Iron Age kingdo
     best.elite = 1; applyStats(best); addHist(best, 7); k.iron -= 8; fx('levelup', best.x, best.y);
   }
 }
+const shop = [];                                              // items sold to the market: { it: [slot, tier, race, ench], price, b }
+function itemValue(sl, t, e) {                                // crafting cost at today's metal prices, with a markup; enchanted gear is worth four times as much
+  let v = 0; const c = GEAR_COST[t - 1][sl]; for (const x in c) v += c[x] * (market.p[x] || 1);
+  return Math.round(Math.max(3, v * 1.6) * (e ? 4 : 1));
+}
+const sellPrice = it => Math.max(1, Math.round(itemValue(it[0], it[1], it[3] | 0) * .75));
+function shopAdd(it, price) { shop.push({ it, price, b: tick }); if (shop.length > 10) shop.shift(); }
+function shopTick() {                                         // every ~10 s: unsold items go stale, kingdoms trim or restock their chests
+  for (let i = shop.length - 1; i >= 0; i--) if (tick - shop[i].b > 3000) shop.splice(i, 1);
+  for (const k of kingdoms.values()) {
+    if (k.chest.length >= chestCap(k) || (k.gold < 15 && k.chest.some(it => it[1] <= 1 && !it[3]))) {          // sell the least valuable piece
+      let bi = -1, bv = 1e9; k.chest.forEach((it, j) => { const v = itemValue(it[0], it[1], it[3] | 0); if (v < bv) { bv = v; bi = j; } });
+      if (bi >= 0) { const it = k.chest.splice(bi, 1)[0], p = sellPrice(it); k.gold = Math.min(250, k.gold + p); shopAdd(it, p); market.sold = (market.sold | 0) + 1; }
+    } else if (shop.length && k.chest.length < chestCap(k) && k.gold >= 40 && Math.random() < .3) {             // buy something worth having
+      let bi = -1, bv = -1; shop.forEach((r, j) => { const pr = Math.round(r.price * 1.15); if ((r.it[1] >= (k.age | 0) + 1 || r.it[3]) && pr <= k.gold - 15) { const v = r.it[1] * 10 + (r.it[3] ? 6 : 0); if (v > bv) { bv = v; bi = j; } } });
+      if (bi >= 0) { const r = shop.splice(bi, 1)[0]; k.gold -= Math.round(r.price * 1.15); k.chest.push(r.it); market.bought = (market.bought | 0) + 1; }
+    }
+    if (k.level >= 2 && (k.silver || 0) >= 15 && tick >= (k.forgeCd || 0)) {                                    // the royal smith enchants a chest item
+      const j = k.chest.findIndex(it => it[1] >= 2 && !it[3]);
+      if (j >= 0) { k.chest[j][3] = rollEnchant(k.chest[j][0]); k.silver -= 15; k.forgeCd = tick + 800; fx('bless', k.cap % W, (k.cap / W) | 0); }
+    }
+  }
+}
 function marketHtml() {
   let live = 0; for (const c of creatures) if (c.hp > 0 && RACES[c.t].cart) live++;
   const rows = COMM.map(c => { const d = market.d[c] || 0; return `${CEMO[c]}${market.p[c].toFixed(1)}${d > .02 ? '▲' : d < -.02 ? '▼' : '–'}`; });
-  return `<b>🏦 Pasar</b> 🪙<br>${rows.join(' &nbsp; ')}<br>🛒 ${live} · ${market.trades}`;
+  const items = shop.slice(-6).map(r => `${GEAR_ICON[r.it[0]]}${'I'.repeat(r.it[1])}${r.it[3] ? '✨' : ''} ${r.price}`).join(' &nbsp; ');
+  return `<b>🏦 Pasar</b> 🪙<br>${rows.join(' &nbsp; ')}<br>🛒 ${live} · ${market.trades} · 🎒 ${market.sold | 0}/${market.bought | 0}${items ? '<br>' + items : ''}`;
 }
 const PPRI = { wall: 0, field: 0, well: 1, barn: 1, tower: 2, gate: 3 };
 function propOk(i) { const t = tiles[i]; return t > T.SHALLOW && t !== T.LAVA && t !== T.MOUNTAIN && t !== T.SNOW && !bld[i]; }
@@ -776,6 +802,10 @@ function drawGear(c, cx, fy, sw, sh) {                         // armour band, s
   const e = c.eq, K = SPR_K, hd = c.face < 0 ? -1 : 1;
   if (e[1]) { const [d, l] = TIER_COL[e[1]]; ctx.fillStyle = d; ctx.fillRect(cx - sw*.3, fy - sh*.5, sw*.6, K*2.2); ctx.fillStyle = l; ctx.fillRect(cx - sw*.3, fy - sh*.5, sw*.6, K*.8); ctx.fillStyle = d; ctx.fillRect(cx - sw*.42, fy - sh*.55, K*1.4, K*1.6); ctx.fillRect(cx + sw*.42 - K*1.4, fy - sh*.55, K*1.4, K*1.6); }
   if (e[2]) { const [d, l] = TIER_COL[e[2]], sx = cx - hd*sw*.5 - (hd < 0 ? K*2 : 0); ctx.fillStyle = '#1c1424'; ctx.fillRect(sx - K*.3, fy - sh*.5 - K*.3, K*2.6, K*3.8); ctx.fillStyle = d; ctx.fillRect(sx, fy - sh*.5, K*2, K*3.2); ctx.fillStyle = l; ctx.fillRect(sx, fy - sh*.5, K*.8, K*3.2); }
+  if (c.ec) for (let sl = 0; sl < 3; sl++) if (e[sl] && c.ec[sl]) {                  // enchanted pieces pulse in their colour
+    const gx = sl === 0 ? cx + hd*sw*.5 : sl === 2 ? cx - hd*sw*.5 : cx, gy = sl === 1 ? fy - sh*.42 : fy - sh*.48;
+    ctx.fillStyle = ENCH[c.ec[sl]].c + '66'; ctx.beginPath(); ctx.arc(gx, gy, K*(3 + Math.sin(frame*.15 + sl)*.7), 0, 7); ctx.fill();
+  }
   if (e[0]) {
     const [d, l] = TIER_COL[e[0]], kind = GEAR_KIND[c.t] ? GEAR_KIND[c.t][e[0] - 1] : 'club', x = cx + hd*sw*.5 - (hd < 0 ? K : 0), y = fy - sh*.45;
     ctx.fillStyle = '#1c1424';
@@ -791,8 +821,8 @@ function drawDrops(x0, y0, x1, y1) {
   for (const d of drops) {
     if (d.x < x0 - 1 || d.x > x1 + 1 || d.y < y0 - 1 || d.y > y1 + 1) continue;
     const cx = ox + (d.x + .5) * sc, cy = oy + (d.y + .55) * sc + Math.sin(frame * .1 + d.x) * sc * .06, c = TIER_COL[d.t];
-    ctx.fillStyle = c[0] + '55'; ctx.beginPath(); ctx.arc(cx, cy, sc * (.5 + .06 * Math.sin(frame * .12 + d.y)), 0, 7); ctx.fill();
-    ctx.strokeStyle = c[1]; ctx.lineWidth = Math.max(1.5, sc * .06); ctx.stroke();
+    ctx.fillStyle = (d.e ? ENCH[d.e].c : c[0]) + (d.e ? '88' : '55'); ctx.beginPath(); ctx.arc(cx, cy, sc * (.5 + .06 * Math.sin(frame * .12 + d.y)), 0, 7); ctx.fill();
+    ctx.strokeStyle = d.e ? ENCH[d.e].c : c[1]; ctx.lineWidth = Math.max(1.5, sc * .06); ctx.stroke();
     const ic = ICON[['swords', 'armor', 'shield'][d.s]], w = sc * .85; ctx.imageSmoothingEnabled = false; ctx.drawImage(ic, cx - w / 2, cy - w / 2, w, w);
   }
 }
@@ -1024,7 +1054,7 @@ function rollTraits() {
 function applyStats(c) {                                       // max hp from race, traits, armour, leadership and knighthood; keeps the current hp ratio
   const R = RACES[c.t]; if (R.engine) return;
   let m = R.hp; if (c.tr & 2) m *= 1.25; if (c.tr & 16) m *= .8;
-  m += A_HP[c.eq ? c.eq[1] : 0]; if (c.lead) m *= 1.5; if (c.elite) m *= 1.5;
+  m += A_HP[c.eq ? c.eq[1] : 0]; if (c.ec && c.ec[2] === 9 && c.eq[2]) m *= 1.2; if (c.lead) m *= 1.5; if (c.elite) m *= 1.5;
   m = Math.round(m); const r = c.mhp > 0 ? Math.max(0, c.hp) / c.mhp : 1;
   c.mhp = m; if (c.hp > 0) c.hp = Math.max(1, m * r);
 }
@@ -1036,18 +1066,34 @@ function addHist(c, code, arg) {                               // life events of
 }
 const GEAR_COST = [ [{ wood: 2 }, { wood: 2 }, { wood: 3 }], [{ bronze: 2 }, { bronze: 3 }, { bronze: 2, wood: 2 }], [{ iron: 2 }, { iron: 4 }, { iron: 3 }] ];
 const afford = (k, c) => ['wood', 'stone', 'bronze', 'iron', 'silver'].every(x => !c[x] || (k[x] || 0) >= c[x]);
-function equipTick() {                                         // every ~10 s: kingdoms arm leaders, knights and soldiers with the best gear their age allows
+const ENCH = [null,
+  { n: 'Berapi', c: '#ff7a2a', d: '20% menyulut api' }, { n: 'Beracun', c: '#7ae04a', d: 'racun terus melukai' }, { n: 'Penghisap darah', c: '#ff3a5a', d: 'menyerap 25% kerusakan' }, { n: 'Penyambar', c: '#6af0ff', d: '15% petir ke musuh lain' },
+  { n: 'Berduri', c: '#c8a070', d: 'memantulkan 25% serangan jarak dekat' }, { n: 'Pemulih', c: '#6aff9a', d: 'memulihkan hp perlahan' }, { n: 'Kebal api', c: '#ffb040', d: 'kebal api' },
+  { n: 'Penangkis', c: '#6aa8ff', d: '20% menangkis serangan' }, { n: 'Pelindung', c: '#ffe27a', d: '+20% hp' }];
+const ENCH_BY_SLOT = [[1, 2, 3, 4], [5, 6, 7], [8, 9]];
+const rollEnchant = sl => ENCH_BY_SLOT[sl][ri(0, ENCH_BY_SLOT[sl].length - 1)];
+const betterItem = (t, e, ct, ce) => t > ct || (t === ct && e && !ce);
+const chestCap = k => 6 + 4 * k.level;
+function equipTick() {                                         // every ~10 s: kingdoms arm leaders, knights and soldiers from the royal chest first, then by crafting the best gear their age allows
   const bud = {};
   const order = [creatures.filter(c => c.hp > 0 && c.k && (c.lead || c.elite)), creatures.filter(c => c.hp > 0 && c.k && !c.lead && !c.elite && RACES[c.t].civ && !RACES[c.t].engine && isSoldier(c))];
   for (const list of order) for (const c of list) {
     const k = kingdoms.get(c.k); if (!k) continue;
     if (bud[k.id] === undefined) bud[k.id] = 8; if (bud[k.id] <= 0) continue;
-    const tier = Math.min(3, (k.age | 0) + 1), e = c.eq || (c.eq = [0, 0, 0]);
+    const tier = Math.min(3, (k.age | 0) + 1), e = c.eq || (c.eq = [0, 0, 0]), en = c.ec || (c.ec = [0, 0, 0]);
     for (let sl = 0; sl < 3 && bud[k.id] > 0; sl++) {
+      let bi = -1, bs = -1;
+      k.chest.forEach((it, j) => { if (it[0] === sl && betterItem(it[1], it[3] | 0, e[sl], en[sl])) { const v = it[1] * 10 + (it[3] ? 5 : 0); if (v > bs) { bs = v; bi = j; } } });
+      if (bi >= 0) {                                           // an upgrade is waiting in the chest
+        const it = k.chest[bi], oT = e[sl], oE = en[sl]; e[sl] = it[1]; en[sl] = it[3] | 0;
+        if (oT) k.chest[bi] = [sl, oT, c.t, oE]; else k.chest.splice(bi, 1);
+        bud[k.id]--; if (sl < 2) addHist(c, 8 + sl, e[sl]); if (sl === 1) applyStats(c); continue;
+      }
       if (e[sl] >= tier) continue;
       const cost = GEAR_COST[tier - 1][sl]; if (!afford(k, cost)) continue;
       for (const x in cost) k[x] -= cost[x];
-      e[sl] = tier; bud[k.id]--;
+      if (e[sl] && k.chest.length < chestCap(k)) k.chest.push([sl, e[sl], c.t, en[sl]]);       // the old piece is stored
+      e[sl] = tier; en[sl] = tier >= 2 && k.level >= 2 && Math.random() < .04 ? rollEnchant(sl) : 0; bud[k.id]--;
       if (sl === 0) addHist(c, 8, tier); else if (sl === 1) addHist(c, 9, tier);
       if (sl === 1) applyStats(c);
     }
@@ -1063,8 +1109,8 @@ const GEAR_NAME = {
 const GEAR_KIND = { human: ['spear', 'sword', 'sword'], elf: ['bow', 'bow', 'bow'], dwarf: ['axe', 'axe', 'axe'], orc: ['club', 'axe', 'axe'], werewolf: ['claw', 'claw', 'claw'] };
 const GEAR_ICON = ['⚔️', '🥋', '🛡'], HIST_TXT = { 2: 'Membunuh musuh pertamanya', 3: '5 kemenangan', 4: '10 kemenangan', 5: 'Pahlawan: 25 kemenangan', 6: 'Dinobatkan menjadi pemimpin', 7: 'Diangkat menjadi ksatria besi', 11: 'Nyaris tewas dan selamat' };
 const TIER_COL = [null, ['#8a5a34', '#c8a070'], ['#c8803a', '#f0b868'], ['#aab2be', '#e8eef6']];
-const drops = [], dropMap = new Map();                         // gear lying on the ground: { x, y, s: slot, t: tier, r: origin race, b: tick dropped }
-function addDrop(x, y, sl, tier, race) {
+const drops = [], dropMap = new Map();                         // gear lying on the ground: { x, y, s: slot, t: tier, r: origin race, e: enchant, b: tick dropped }
+function addDrop(x, y, sl, tier, race, ench) {
   let best = null;
   for (let r = 0; r <= 2 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) {
     const tx = x + dx, ty = y + dy; if (!inb(tx, ty) || dropMap.has(tx + ty*W) || tiles[tx + ty*W] <= T.SHALLOW || tiles[tx + ty*W] === T.LAVA) continue;
@@ -1072,31 +1118,33 @@ function addDrop(x, y, sl, tier, race) {
   }
   if (!best) return false;
   if (drops.length >= 120) { const o = drops.shift(); dropMap.delete(o.x + o.y*W); }
-  const d = { x: best[0], y: best[1], s: sl, t: tier, r: race, b: tick }; drops.push(d); dropMap.set(d.x + d.y*W, d); dirty = true; return true;
+  const d = { x: best[0], y: best[1], s: sl, t: tier, r: race, e: ench | 0, b: tick }; drops.push(d); dropMap.set(d.x + d.y*W, d); dirty = true; return true;
 }
 function removeDrop(d) { const i = drops.indexOf(d); if (i >= 0) drops.splice(i, 1); dropMap.delete(d.x + d.y*W); dirty = true; }
 function lootFrom(c, v) {                                       // a victor takes the better pieces of the fallen; the rest is left for the reaper to drop
   if (!RACES[c.t].civ || RACES[c.t].engine || !v.eq) return;
-  const e = c.eq || (c.eq = [0, 0, 0]);
-  for (let sl = 0; sl < 3; sl++) if (v.eq[sl] > e[sl]) {
-    const old = e[sl], t = v.eq[sl]; e[sl] = t; v.eq[sl] = 0;
-    if (old) addDrop(c.x, c.y, sl, old, c.t);
+  const e = c.eq || (c.eq = [0, 0, 0]), en = c.ec || (c.ec = [0, 0, 0]), ve = v.ec || [0, 0, 0];
+  for (let sl = 0; sl < 3; sl++) if (betterItem(v.eq[sl], ve[sl], e[sl], en[sl])) {
+    const old = e[sl], oE = en[sl], t = v.eq[sl]; e[sl] = t; en[sl] = ve[sl]; v.eq[sl] = 0; ve[sl] = 0;
+    if (old) addDrop(c.x, c.y, sl, old, c.t, oE);
     addHist(c, 16, sl * 4 + t); if (sl === 1) applyStats(c);
   }
 }
-function pickupAt(c) {                                          // settlers wear what they find if it beats what they have
+function pickupAt(c) {                                          // soldiers wear what beats their gear; other settlers carry finds to their royal chest
   const d = dropMap.get(c.x + c.y*W); if (!d) return;
-  const e = c.eq || (c.eq = [0, 0, 0]); if (d.t <= e[d.s]) return;
-  const old = e[d.s]; removeDrop(d); e[d.s] = d.t;
-  if (old) addDrop(c.x, c.y, d.s, old, c.t);
+  const k = c.k ? kingdoms.get(c.k) : null, soldier = c.lead || c.elite || isSoldier(c);
+  if (!soldier && k && k.chest.length < chestCap(k)) { removeDrop(d); k.chest.push([d.s, d.t, d.r, d.e]); return; }
+  const e = c.eq || (c.eq = [0, 0, 0]), en = c.ec || (c.ec = [0, 0, 0]); if (!betterItem(d.t, d.e, e[d.s], en[d.s])) return;
+  const old = e[d.s], oE = en[d.s]; removeDrop(d); e[d.s] = d.t; en[d.s] = d.e;
+  if (old) addDrop(c.x, c.y, d.s, old, c.t, oE);
   addHist(c, 17, d.s * 4 + d.t); if (d.s === 1) applyStats(c);
 }
-function seekDrop(c) {                                          // idle soldiers walk to nearby gear that would improve them
-  let best = null, bd = 49; const e = c.eq || [0, 0, 0];
-  for (const d of drops) { if (d.t <= e[d.s]) continue; const dd = (d.x - c.x) ** 2 + (d.y - c.y) ** 2; if (dd < bd) { bd = dd; best = d; } }
+function seekDrop(c, any) {                                     // idle soldiers walk to gear that would improve them, other settlers to anything their chest can hold
+  let best = null, bd = any ? 36 : 49; const e = c.eq || [0, 0, 0], en = c.ec || [0, 0, 0];
+  for (const d of drops) { if (!any && !betterItem(d.t, d.e, e[d.s], en[d.s])) continue; const dd = (d.x - c.x) ** 2 + (d.y - c.y) ** 2; if (dd < bd) { bd = dd; best = d; } }
   return best ? moveToward(c, best.x, best.y) : false;
 }
-const inv = [];                                                // universal bag: [slot, tier, origin race] - any race can wear any item
+const inv = [];                                                // universal bag: [slot, tier, origin race, enchant] - any race can wear any item
 const INV_MAX = 12;
 function inheritTraits(a, b) {                                  // each trait passes on with 50% (85% if both parents have it), plus a 12% chance of a new one
   let m = 0;
@@ -1125,7 +1173,7 @@ function spawn(type, x, y, force) {
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
   const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, gate:-1, gateUntil:0, avoid:0, avoidUntil:0, k:0, lead:0 };
-  if (!R.engine) { c.nid = c.id; c.tr = rollTraits(); c.eq = [0, 0, 0]; c.hist = []; if (c.tr & 8) c.life = Math.round(c.life * 1.3); applyStats(c); c.hp = c.mhp; }
+  if (!R.engine) { c.nid = c.id; c.tr = rollTraits(); c.eq = [0, 0, 0]; c.ec = [0, 0, 0]; c.hist = []; if (c.tr & 8) c.life = Math.round(c.life * 1.3); applyStats(c); c.hp = c.mhp; }
   creatures.push(c); counts[type] = (counts[type]||0) + 1; dirty = true;
   return c;
 }
@@ -1229,7 +1277,9 @@ function stepCreature(c) {
   c.age++;
   if (c.age > c.life) { c.hp = 0; c.cause = 'old'; return; }
   if (!walkable(c.t, tiles[idx])) { c.hp = 0; fx('splash', c.x, c.y); return; }
-  if (fire[idx]) { c.hp -= 9; if (c.hp <= 0) return; }
+  if (fire[idx] && !(c.ec && c.ec[1] === 7 && c.eq && c.eq[1])) { c.hp -= 9; if (c.hp <= 0) return; }
+  if (c.pz > 0) { c.pz--; c.hp -= .35; if (c.hp <= 0) return; }
+  if (c.ec && c.ec[1] === 6 && c.eq[1] && c.hp < c.mhp && (tick + c.id) % 4 === 0) c.hp = Math.min(c.mhp, c.hp + .6);
   if (c.k && c.hp < c.mhp && (tick + c.id) % 4 === 0) { const kk = kingdoms.get(c.k); if (kk && kk.mod.regen) c.hp = Math.min(c.mhp, c.hp + kk.mod.regen * 4); }
   if (R.hunt) { c.en -= 0.12; if (c.en <= 0) { c.hp = 0; return; } }
   if (c.k !== c.lk) { c.lk = c.k; const kj = c.k ? kingdoms.get(c.k) : null; if (kj) { if (c.nj) c.nj = 0; else addHist(c, 10, kj.name); } }
@@ -1247,7 +1297,17 @@ function stepCreature(c) {
       const night = nightNow > .5;
       const am = (ka ? ka.mod.atk * (night && ka.mod.night ? ka.mod.night : 1) : 1) * atkMul(c);      // tech + night-strength bonuses, traits and weapons
       const dm = (kd ? kd.mod.def * (night && kd.mod.night ? kd.mod.night : 1) : 1) * defMul(tg);
-      tg.hp -= R.dmg * (.5 + Math.random()) * am / dm;
+      let hit = R.dmg * (.5 + Math.random()) * am / dm;
+      if (tg.ec && tg.eq && tg.eq[2] && tg.ec[2] === 8 && Math.random() < .2) { hit = 0; fx('puff', tg.x, tg.y); }            // shield of warding turns the blow
+      tg.hp -= hit;
+      const we = c.ec && c.eq && c.eq[0] ? c.ec[0] : 0;
+      if (we && hit > 0) {                                                                                                        // weapon enchantments
+        if (we === 1 && Math.random() < .2) ignite(tg.x + tg.y*W);
+        else if (we === 2) tg.pz = Math.max(tg.pz | 0, 40);
+        else if (we === 3) c.hp = Math.min(c.mhp, c.hp + hit * .25);
+        else if (we === 4 && Math.random() < .15 && ka) { const o = findEnemy({ x: tg.x, y: tg.y }, ka, 3); if (o && o !== tg) { o.hp -= hit * .6; fx('bolt', o.x, o.y, { seed: tick & 255 }); } }
+      }
+      if (tg.ec && tg.eq && tg.eq[1] && tg.ec[1] === 5 && d <= 1 && hit > 0) c.hp -= hit * .25;                                   // thorns
       if (tg.hp > 0 && tg.hp < tg.mhp * .2 && !tg.hw) { tg.hw = 1; addHist(tg, 11); }
       if (d > 1) fx('arrow', c.x, c.y, { tx: tg.x, ty: tg.y }); else fx('hit', tg.x, tg.y);
       if (tg.hp <= 0) {
@@ -1294,6 +1354,7 @@ function stepCreature(c) {
       }
     }
     if (drops.length && (c.lead || c.elite || isSoldier(c)) && !c.tgt && (tick + c.id) % 6 === 0 && seekDrop(c)) return;
+    if (drops.length && ka && ka.chest.length < chestCap(ka) && !(c.lead || c.elite || isSoldier(c)) && !c.tgt && (tick + c.id) % 12 === 0 && seekDrop(c, true)) return;
     if (!c.k && (tick + c.id) % 40 === 0) c.k = nearestKingdom(c);
     if (bld[idx] === 0 && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
         && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
@@ -1320,7 +1381,7 @@ function reapDead() {
   for (const c of creatures) if (c.hp <= 0) {
     any = true;
     if (RACES[c.t].cart && c.trade && !c.trade.done) refundTrade(c);
-    if (c.eq && RACES[c.t].civ) for (let sl = 0; sl < 3; sl++) if (c.eq[sl] && Math.random() < .7) addDrop(c.x, c.y, sl, c.eq[sl], c.t);
+    if (c.eq && RACES[c.t].civ) for (let sl = 0; sl < 3; sl++) if (c.eq[sl] && Math.random() < .7) addDrop(c.x, c.y, sl, c.eq[sl], c.t, c.ec ? c.ec[sl] : 0);
     if (effects.length < 400) fx('death', c.x, c.y, { type: c.t, face: c.face, old: c.cause === 'old' });
   }
   if (any) creatures = creatures.filter(c => c.hp > 0);
@@ -1462,7 +1523,7 @@ function towerTick() {                                      // every 1.5 seconds
 }
 function eventsTick() {                                     // every ~10 seconds
   for (let i = drops.length - 1; i >= 0; i--) if (tick - drops[i].b > 2400) removeDrop(drops[i]);        // untended gear rusts away
-  equipTick(); repairWalls(); siegeTick(); resTick(); updateMarket(); tradeTick(); eliteTick();
+  equipTick(); repairWalls(); siegeTick(); resTick(); updateMarket(); tradeTick(); eliteTick(); shopTick();
   const ks = [...kingdoms.values()];
   for (const k of ks) {
     if (k.ev) {
@@ -1522,6 +1583,7 @@ function absorbKingdom(a, b) {                              // b joins a: houses
   for (const key of ['silver', 'bronze', 'iron']) a[key] = Math.min(250, (a[key] || 0) + (b[key] || 0));
   if (b.tech.length > a.tech.length) a.tech = b.tech.slice();
   a.age = Math.max(a.age || 0, b.age || 0); recalcMods(a);
+  for (const it of b.chest) if (a.chest.length < chestCap(a)) a.chest.push(it);
   for (const key in b.lm) if (!(key in a.lm)) a.lm[key] = b.lm[key];
   a.level = Math.max(a.level, b.level);
   for (const [key, r] of [...rels]) {
@@ -1716,7 +1778,7 @@ function grantTech(k) {                                    // divine gift: the n
 function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
 function newKingdom(race, x, y) {
   const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
-              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, silver: 0, bronze: 0, iron: 0, age: 0, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
@@ -2035,6 +2097,7 @@ function draw() {
         ctx.fillStyle = `rgba(225,225,235,${(1 - t) * .5})`;
         ctx.beginPath(); ctx.arc(hx + m.smoke[0]*SPR_K + Math.sin(t*6 + k)*SPR_K*1.3, hy + m.smoke[1]*SPR_K - t*hh*.8, SPR_K*(.9 + t*1.8), 0, 7); ctx.fill();
       }
+      if (isCap && kg.chest.length) { const w = SPR_K * 7; ctx.drawImage(ICON.chest, cx + hw*.38, fy - w*1.05, w, w); }               // royal chest beside the capital
       if (isCap && kg.level >= 1) {                                         // capital banner: kingdom colour + one gold pip per level
         const fx0 = hx + hw*.5, top = hy - SPR_K, K = SPR_K;
         ctx.fillStyle = '#2a2018'; ctx.fillRect(fx0, top - 7*K, K, 8*K);
@@ -2471,7 +2534,7 @@ function relLine(k) {
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Zaman Batu', 'Zaman Perunggu', 'Zaman Besi'][k.age | 0]}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Zaman Batu', 'Zaman Perunggu', 'Zaman Besi'][k.age | 0]} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
 }
 /* ============================== CREATURE PANEL ============================== */
 let selected = null, following = false, deadNote = 0;
@@ -2516,6 +2579,7 @@ function roleOf(c) {
 function statusOf(c) {
   const R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null, r = c.hp / c.mhp;
   if (c.hp <= 0) return 'Mati';
+  if (c.pz > 0) return 'Keracunan';
   if (fire[c.x + c.y*W]) return 'Terbakar';
   if (r < .35) return 'Sekarat'; if (r < .7) return 'Terluka';
   if (R.hunt && c.en < 45) return 'Lapar';
@@ -2526,9 +2590,15 @@ function portraitURL(t) {
   if (!ICON['cr:' + t]) { const sp = ATLAS[t].A, cv2 = document.createElement('canvas'); cv2.width = Math.max(16, sp.width); cv2.height = Math.max(16, sp.height); cv2.getContext('2d').drawImage(sp, Math.floor((cv2.width - sp.width) / 2), cv2.height - sp.height); ICON['cr:' + t] = cv2; }
   return iconURL('cr:' + t);
 }
-let ptab = 0, invSel = -1;                                       // panel tab (0 info, 1 family, 2 bag) and the selected bag item
-const itemName = (race, sl, t) => (GEAR_NAME[race] || GEAR_NAME.human)[sl][t - 1];
-const itemTip = (sl, t) => [`+${Math.round(W_ATK[t] * 100)}% serangan`, `+${Math.round(A_DEF[t] * 100)}% pertahanan, +${A_HP[t]} hp`, `+${Math.round(S_DEF[t] * 100)}% pertahanan`][sl];
+let ptab = 0, invSel = -1, chSel = -1;                           // panel tab (0 info, 1 family, 2 bag, 3 chest) and the selected bag / chest item
+const itemName = (race, sl, t, e) => (GEAR_NAME[race] || GEAR_NAME.human)[sl][t - 1] + (e ? ' ' + ENCH[e].n : '');
+const itemTip = (sl, t, e) => [`+${Math.round(W_ATK[t] * 100)}% serangan`, `+${Math.round(A_DEF[t] * 100)}% pertahanan, +${A_HP[t]} hp`, `+${Math.round(S_DEF[t] * 100)}% pertahanan`][sl] + (e ? ` · ${ENCH[e].d}` : '');
+const chestOf = c => { const k = c && c.k ? kingdoms.get(c.k) : null; return k ? k.chest : null; };
+function curSel() {                                                     // the selected bag or chest item: { arr, i, it }
+  if (invSel >= 0 && inv[invSel]) return { arr: inv, i: invSel, it: inv[invSel] };
+  const ch = chestOf(selected); if (chSel >= 0 && ch && ch[chSel]) return { arr: ch, i: chSel, it: ch[chSel] };
+  return null;
+}
 function relatives(c) {
   const by = new Map(), kids = [];
   for (const o of creatures) if (o.hp > 0 && o.t === c.t && o.nid !== undefined) { by.set(o.nid, o); if (o !== c && c.nid !== undefined && (o.pa === c.nid || o.pb === c.nid)) kids.push(o); }
@@ -2537,16 +2607,17 @@ function relatives(c) {
 function creatureHtml(c) {
   const R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null, hp = Math.max(0, c.hp / c.mhp), st = statusOf(c), civ = R.civ && GEAR_NAME[c.t];
   const col = hp > .6 ? '#5fdc6a' : hp > .3 ? '#ffcf4a' : '#ff5a4a', bar = (ic, pct, cl) => `<div class="bar">${ic}<u><i style="width:${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%;background:${cl}"></i></u></div>`;
+  const ench = e => e ? ` style="border-color:${ENCH[e].c};box-shadow:0 0 10px ${ENCH[e].c}88"` : '';
   let h = `<div class="ibtns"><button class="awb ibt${following ? ' on' : ''}" data-act="follow">🎯</button><button class="awb ibt" data-act="close">✖</button></div>`;
   h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${st}`;
   const trs = TRAITS.filter((_, i) => c.tr & (1 << i));
   if (trs.length) h += `<div class="row">${trs.map(t => `<span class="tag t">${t}</span>`).join(' ')}</div>`;
-  if (civ) {                                                                // equipment slots: tap to take an item into the bag, or to wear the selected bag item
-    const sel = invSel >= 0 && inv[invSel] ? inv[invSel] : null;
-    h += '<div class="eq">' + [0, 1, 2].map(sl => { const t = c.eq ? c.eq[sl] : 0, rdy = sel && sel[0] === sl ? ' rdy' : ''; return t ? `<button class="slot t${t}${rdy}" data-act="slot" data-s="${sl}">${GEAR_ICON[sl]}${itemName(c.t, sl, t)}</button>` : `<button class="slot e${rdy}" data-act="slot" data-s="${sl}">${GEAR_ICON[sl]}–</button>`; }).join('') + '</div>';
-    h += `<div class="tabs">${['Info', 'Keluarga', `Tas ${inv.length}/${INV_MAX}`].map((n, i) => `<button class="ptab${ptab === i ? ' on' : ''}" data-act="tab" data-t="${i}">${n}</button>`).join('')}</div>`;
+  const ch = civ ? chestOf(c) : null, sel = civ ? curSel() : null, tabs = ch ? 4 : 3;
+  if (civ) {                                                                // equipment slots: tap to take an item into the bag, or to wear the selected item
+    h += '<div class="eq">' + [0, 1, 2].map(sl => { const t = c.eq ? c.eq[sl] : 0, e = c.ec ? c.ec[sl] : 0, rdy = sel && sel.it[0] === sl ? ' rdy' : ''; return t ? `<button class="slot t${t}${rdy}" data-act="slot" data-s="${sl}"${ench(e)}>${GEAR_ICON[sl]}${itemName(c.t, sl, t, e)}</button>` : `<button class="slot e${rdy}" data-act="slot" data-s="${sl}">${GEAR_ICON[sl]}–</button>`; }).join('') + '</div>';
+    h += `<div class="tabs">${['Info', 'Keluarga', `Tas ${inv.length}`, ch ? `Peti ${ch.length}` : null].slice(0, tabs).map((n, i) => `<button class="ptab${ptab === i ? ' on' : ''}" data-act="tab" data-t="${i}">${n}</button>`).join('')}</div>`;
   }
-  const tab = civ ? ptab : 0;
+  const tab = civ ? Math.min(ptab, tabs - 1) : 0;
   if (tab === 0) {
     h += `<span class="dsc">${DESC[c.t] || ''}</span>`;
     h += bar('❤️', hp, col) + (R.hunt ? bar('⚡', c.en / 100, '#ffd23f') : '') + bar('⏳', c.age / c.life, '#6aa8ff');
@@ -2564,16 +2635,17 @@ function creatureHtml(c) {
     h += `<div class="fam"><div><u>Pasangan</u> ${chip(c.sp)}</div><div><u>Orang tua</u> ${c.pa ? chip(c.pa) + (c.pb ? ' ' + chip(c.pb) : '') : '–'}</div>`;
     h += `<div><u>Anak</u> ${c.ch ? `${c.ch} lahir · ${rel.kids.length} hidup` : '–'}</div>${rel.kids.length ? `<div>${rel.kids.slice(0, 8).map(o => chip(o.nid)).join(' ')}</div>` : ''}</div>`;
   } else {
-    const sel = invSel >= 0 && inv[invSel] ? inv[invSel] : null;
-    h += '<div class="bag">' + Array.from({ length: INV_MAX }, (_, i) => { const it = inv[i]; return it ? `<button class="bi t${it[1]}${i === invSel ? ' sel' : ''}" data-act="inv" data-i="${i}">${GEAR_ICON[it[0]]}<small>${'I'.repeat(it[1])}</small></button>` : '<span class="bi e"></span>'; }).join('') + '</div>';
-    h += `<div class="row">${sel ? `${itemName(sel[2], sel[0], sel[1])} · ${itemTip(sel[0], sel[1])} → ketuk slot ${['senjata', 'zirah', 'perisai'][sel[0]]}` : inv.length ? 'Ketuk item, lalu ketuk slot di atas untuk memakaikannya' : 'Tas kosong: ketuk slot perlengkapan di atas, atau ketuk item di tanah'}</div>`;
-    if (sel) h += '<div class="tabs"><button class="ptab" data-act="drop">Jatuhkan di tanah</button></div>';
+    const isChest = tab === 3, arr = isChest ? ch : inv, cap = isChest ? chestCap(k) : INV_MAX, selIdx = isChest ? chSel : invSel;
+    h += `<div class="bag${isChest ? ' sm' : ''}">` + Array.from({ length: cap }, (_, i) => { const it = arr[i]; return it ? `<button class="bi t${it[1]}${i === selIdx ? ' sel' : ''}" data-act="${isChest ? 'chs' : 'inv'}" data-i="${i}"${ench(it[3])}>${GEAR_ICON[it[0]]}<small>${'I'.repeat(it[1])}${it[3] ? '✨' : ''}</small></button>` : '<span class="bi e"></span>'; }).join('') + '</div>';
+    const s2 = sel && sel.arr === arr ? sel.it : null;
+    h += `<div class="row">${s2 ? `${itemName(s2[2], s2[0], s2[1], s2[3])} · ${itemTip(s2[0], s2[1], s2[3] | 0)} · 🪙${sellPrice(s2)}` : arr.length ? 'Ketuk item: pakaikan lewat slot di atas, atau pilih tombol' : isChest ? 'Peti kosong: penduduk membawa temuan ke sini' : 'Tas kosong: ketuk slot perlengkapan di atas, atau item di tanah'}</div>`;
+    if (s2) h += `<div class="tabs">${isChest ? '<button class="ptab" data-act="fetch">Ke tas</button>' : (ch && ch.length < chestCap(k) ? '<button class="ptab" data-act="store">Ke peti</button>' : '') + '<button class="ptab" data-act="drop">Jatuhkan</button>'}<button class="ptab" data-act="sell">Jual 🪙</button></div>`;
   }
   return h;
 }
 function dropFromBag(c) {                                              // put the selected bag item on the ground two tiles in front of the creature
   const it = invSel >= 0 ? inv[invSel] : null; if (!it) return;
-  if (addDrop(c.x + (c.face < 0 ? -2 : 2), c.y, it[0], it[1], it[2])) { inv.splice(invSel, 1); invSel = -1; toast(GEAR_ICON[it[0]] + ' ↓'); haptic('tap'); dirty = true; }
+  if (addDrop(c.x + (c.face < 0 ? -2 : 2), c.y, it[0], it[1], it[2], it[3])) { inv.splice(invSel, 1); invSel = -1; toast(GEAR_ICON[it[0]] + ' ↓'); haptic('tap'); dirty = true; }
 }
 function pickDropAt(px, py) {
   const fx0 = (px - ox) / sc, fy0 = (py - oy) / sc; let best = null, bd = 1.2;
@@ -2582,21 +2654,34 @@ function pickDropAt(px, py) {
 }
 function takeDrop(d) {
   if (inv.length >= INV_MAX) { toast('🎒 penuh'); return; }
-  inv.push([d.s, d.t, d.r]); removeDrop(d); toast('🎒 ' + itemName(d.r, d.s, d.t)); haptic('tap');
+  inv.push([d.s, d.t, d.r, d.e]); removeDrop(d); toast('🎒 ' + itemName(d.r, d.s, d.t, d.e)); haptic('tap');
+}
+function sellSel(c) {                                                  // sell the selected bag / chest item to the market; the gold goes to the creature's kingdom
+  const s2 = curSel(), k = c.k ? kingdoms.get(c.k) : null; if (!s2) return;
+  if (!k) { toast('🏰 ?'); return; }
+  const it = s2.arr.splice(s2.i, 1)[0], p = sellPrice(it);
+  invSel = chSel = -1; k.gold = Math.min(250, k.gold + p); shopAdd(it, p); market.sold = (market.sold | 0) + 1; toast('🪙 +' + p); haptic('success'); dirty = true;
+}
+function moveItem(c, toChest) {
+  const s2 = curSel(), ch = chestOf(c), k = c.k ? kingdoms.get(c.k) : null; if (!s2 || !ch || !k) return;
+  if (toChest) { if (s2.arr !== inv || ch.length >= chestCap(k)) return; ch.push(inv.splice(s2.i, 1)[0]); invSel = -1; }
+  else { if (s2.arr !== ch || inv.length >= INV_MAX) { if (inv.length >= INV_MAX) toast('🎒 penuh'); return; } inv.push(ch.splice(s2.i, 1)[0]); chSel = -1; }
+  haptic('tap'); dirty = true;
 }
 function slotAction(c, sl) {
-  if (!c.eq) c.eq = [0, 0, 0];
-  const it = invSel >= 0 ? inv[invSel] : null;
-  if (it) {
+  if (!c.eq) c.eq = [0, 0, 0]; if (!c.ec) c.ec = [0, 0, 0];
+  const s2 = curSel();
+  if (s2) {
+    const it = s2.it;
     if (it[0] !== sl) { toast(GEAR_ICON[it[0]] + ' ≠ ' + GEAR_ICON[sl]); return; }
-    const old = c.eq[sl]; c.eq[sl] = it[1];
-    if (old) inv[invSel] = [sl, old, c.t]; else inv.splice(invSel, 1);
-    addHist(c, 12, sl * 4 + it[1]); invSel = -1; applyStats(c); toast(GEAR_ICON[sl] + ' ' + itemName(c.t, sl, c.eq[sl])); haptic('tap'); dirty = true; return;
+    const oT = c.eq[sl], oE = c.ec[sl]; c.eq[sl] = it[1]; c.ec[sl] = it[3] | 0;
+    if (oT) s2.arr[s2.i] = [sl, oT, c.t, oE]; else s2.arr.splice(s2.i, 1);
+    addHist(c, 12, sl * 4 + it[1]); invSel = chSel = -1; applyStats(c); toast(GEAR_ICON[sl] + ' ' + itemName(c.t, sl, c.eq[sl], c.ec[sl])); haptic('tap'); dirty = true; return;
   }
   const t = c.eq[sl];
   if (!t) { toast(GEAR_ICON[sl] + ' –'); return; }
   if (inv.length >= INV_MAX) { toast('🎒 penuh'); return; }
-  inv.push([sl, t, c.t]); c.eq[sl] = 0; addHist(c, 13, sl * 4 + t); applyStats(c); toast('🎒 ' + itemName(c.t, sl, t)); haptic('tap'); dirty = true;
+  inv.push([sl, t, c.t, c.ec[sl]]); c.eq[sl] = 0; c.ec[sl] = 0; addHist(c, 13, sl * 4 + t); applyStats(c); toast('🎒 ' + itemName(c.t, sl, t, inv[inv.length - 1][3])); haptic('tap'); dirty = true;
 }
 function pickCreatureAt(px, py) {                                   // nearest creature to a screen point (sprites stand above their tile)
   const fx0 = (px - ox) / sc, fy0 = (py - oy) / sc; let best = null, bd = 1.7;
@@ -2606,7 +2691,7 @@ function pickCreatureAt(px, py) {                                   // nearest c
   }
   return best;
 }
-function showCreature(c) { selected = c; invSel = -1; following = false; deadNote = 0; clearTimeout(infoT); infoLast = infoEl.innerHTML = creatureHtml(c); infoEl.style.display = 'block'; }
+function showCreature(c) { selected = c; invSel = chSel = -1; following = false; deadNote = 0; clearTimeout(infoT); infoLast = infoEl.innerHTML = creatureHtml(c); infoEl.style.display = 'block'; }
 function closeCreature() { selected = null; following = false; deadNote = 0; infoEl.style.display = 'none'; }
 function refreshCreature() {
   if (!selected) return;
@@ -2622,7 +2707,11 @@ infoEl.addEventListener('click', e => {
   else if (a.dataset.act === 'tab') { ptab = +a.dataset.t; infoHold = false; refreshCreature(); }
   else if (a.dataset.act === 'slot') { slotAction(selected, +a.dataset.s); infoHold = false; refreshCreature(); }
   else if (a.dataset.act === 'drop') { dropFromBag(selected); infoHold = false; refreshCreature(); }
-  else if (a.dataset.act === 'inv') { invSel = invSel === +a.dataset.i ? -1 : +a.dataset.i; infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'inv') { invSel = invSel === +a.dataset.i ? -1 : +a.dataset.i; chSel = -1; infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'chs') { chSel = chSel === +a.dataset.i ? -1 : +a.dataset.i; invSel = -1; infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'sell') { sellSel(selected); infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'store') { moveItem(selected, true); infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'fetch') { moveItem(selected, false); infoHold = false; refreshCreature(); }
   else if (a.dataset.act === 'sel') { const t = creatures.find(o => o.id === +a.dataset.id && o.hp > 0); if (t) { showCreature(t); } }
 });
 let infoHold = false, infoLast = '';
@@ -2846,12 +2935,12 @@ function serialize2() {
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
   return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
-    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0]),
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0])]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
-    ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0]); return a; }, []),
-    inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2])]),
-    dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b]) };      // one packed int per creature
+    ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0]); return a; }, []),
+    inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
+    dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b, d.e | 0]) };      // one packed int per creature
 }
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
@@ -2870,6 +2959,7 @@ function restore(s) {
     if (a[11]) k.ev = { type: EV_ID[a[11]], left: a[12] || 600 };
     k.unrest = a[13] || 0; k.immune = tick + (a[14] || 0);
     k.silver = a[15] || 0; k.bronze = a[16] || 0; k.iron = a[17] || 0; k.age = a[18] || 0; recalcMods(k);
+    k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]);
     ids.push(k.id);
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
@@ -2890,11 +2980,11 @@ function restore(s) {
   }
   for (const r of s.ex || []) {                                          // names, traits, gear, history of settlers
     const c = spawned[r[0]]; if (!c) continue;
-    const R = RACES[c.t]; c.nid = r[1]; c.tr = r[2]; c.kills = r[4]; c.eq = [r[5] & 3, (r[5] >> 2) & 3, (r[5] >> 4) & 3]; c.hist = r[6] || []; c.pa = r[7] || 0; c.pb = r[8] || 0; c.sp = r[9] || 0; c.ch = r[10] || 0; c.lk = c.k; c.nj = 1;
+    const R = RACES[c.t]; c.nid = r[1]; c.tr = r[2]; c.kills = r[4]; c.eq = [r[5] & 3, (r[5] >> 2) & 3, (r[5] >> 4) & 3]; c.hist = r[6] || []; c.pa = r[7] || 0; c.pb = r[8] || 0; c.sp = r[9] || 0; c.ch = r[10] || 0; c.ec = [(r[11] || 0) & 15, ((r[11] || 0) >> 4) & 15, ((r[11] || 0) >> 8) & 15]; c.lk = c.k; c.nj = 1;
     c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); c.age = Math.max(0, Math.min(c.life - 50, tick - r[3]));
   }
-  for (const d of s.dr || []) if (RN[d[4]] && inb(d[0], d[1]) && !dropMap.has(d[0] + d[1]*W)) { const o = { x: d[0], y: d[1], s: d[2], t: d[3], r: RN[d[4]], b: tick - (d[5] || 0) }; drops.push(o); dropMap.set(o.x + o.y*W, o); }
-  inv.length = 0; for (const i of s.inv || []) if (RN[i[2]] && i[0] >= 0 && i[0] < 3 && i[1] >= 1 && i[1] <= 3) inv.push([i[0], i[1], RN[i[2]]]);
+  for (const d of s.dr || []) if (RN[d[4]] && inb(d[0], d[1]) && !dropMap.has(d[0] + d[1]*W)) { const o = { x: d[0], y: d[1], s: d[2], t: d[3], r: RN[d[4]], b: tick - (d[5] || 0), e: d[6] | 0 }; drops.push(o); dropMap.set(o.x + o.y*W, o); }
+  inv.length = 0; for (const i of s.inv || []) if (RN[i[2]] && i[0] >= 0 && i[0] < 3 && i[1] >= 1 && i[1] <= 3) inv.push([i[0], i[1], RN[i[2]], i[3] | 0]);
   let mx = nextId; for (const c of spawned) if (c && c.nid !== undefined && c.nid >= mx) mx = c.nid + 1; nextId = mx;       // new ids must not collide with saved name seeds
   for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
   for (const c of spawned) if (c) { c.mhp = 0; applyStats(c); c.hp = c.mhp; }
@@ -2962,7 +3052,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, drops, addDrop, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
