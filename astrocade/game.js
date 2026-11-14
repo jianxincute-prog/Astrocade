@@ -285,27 +285,33 @@ const SPRITES = {
     C: [".........o.o..", ".........ogog.", "o.......ogggg.", "oo.....ogggeg.", ".ogoggggggggwo", ".ogggggggggrro", ".ogggllllggwo.", ".ogdgolloodo..", ".ob.bo..bo.b..", ".oo.oo..oo.oo.", ".............."],
   },
 };
-// Houses (owner race). One frame, drawn bottom-anchored.
+// Houses (owner race): one frame, bottom-anchored, one distinct architectural style per race.
+// meta.smoke = chimney smoke origin (sprite px); meta.glow = lit windows (always=1 glows day and night, else only at night).
 const HOUSES = {
-  human: { // thatched hut, blue banner
-    pal: { o:OUT, y:'#e0b84a', Y:'#b8902c', w:'#d8b98a', k:'#4a3020', f:'#4aa3ff' },
-    A: ["....oo....","...oyyo...","..oyYyyo.f",".oyyyYyyo.","oyYyyyyYyo",".owwwwwwo.",".owkkwfwo.",".owkkwwwo.",".owkkwwwo.",".oooooooo."],
+  human: {
+    pal: { o:'#1c1424', Y:'#f6d878', y:'#e6bc50', t:'#b88a2c', w:'#ecdcbc', W:'#c8b490', k:'#7a5230', g:'#8ecbff', G:'#cfeaff', d:'#4a2e1a', S:'#9a96a0', s:'#7a767e', b:'#8a8690', f:'#3f8cff' },
+    A: ["......offf....", "......oo......", ".....oYYo.oooo", "....oYYYtooSSo", "...oYYyyttoSSo", "..oYYyyyttttoo", ".oYYyyyyttttto", "oYYyyyyyttttto", "otttttttttttto", ".okwwwwwWWWko.", ".okwgGwwggWko.", ".okwggwwggWko.", ".okwwwddWWWko.", ".okwwwddWWWko.", ".obbbbddbbbbo."],
+    meta: {"smoke": [11.5, 2], "glow": [{"x": 4, "y": 10, "w": 2, "h": 2, "c": "255,214,104", "always": 0}, {"x": 8, "y": 10, "w": 2, "h": 2, "c": "255,214,104", "always": 0}]},
   },
-  elf: { // tree house, lilac blossoms
-    pal: { o:OUT, g:'#3f9a4a', G:'#2a7038', p:'#c58cf0', t:'#8a5a34', k:'#3a2418' },
-    A: ["..oooooo..",".ogggGgggo","oggGggpggo","ogggggggGo",".oGgggpgo.","...otto...","..otkkto..","..otkkto..",".ottkktto.",".oooooooo."],
+  elf: {
+    pal: { o:'#1c2418', L:'#4fae52', l:'#8fe08a', D:'#2d7a3a', p:'#d8a0ff', P:'#f0d0ff', t:'#8a5a34', T:'#5e3a20', B:'#b07a48', k:'#2a1a14', y:'#ffe9a0', Y:'#fff6d0' },
+    A: ["....oooooo....", "..ooLlllDDoo..", ".oLlpLllDDDDo.", "oLlLLlLpDDDDDo", "oLpLLLLLDDDDDo", "oDLLLDDLDDDDDo", ".oDDDDDDDDDDo.", "..ooDDoDDoDo..", "..oBBBBBttto..", "..otyYttyyTo..", "..otyYttyyTo..", "..otttkkkkTTTT", "..otttkkkkTTTo", ".oTtBtkkkkTtTo", "ooTTooooooTToo"],
+    meta: {"smoke": null, "glow": [{"x": 4, "y": 9, "w": 2, "h": 2, "c": "255,240,160", "always": 0}, {"x": 8, "y": 9, "w": 2, "h": 2, "c": "255,240,160", "always": 0}]},
   },
-  dwarf: { // stone house, orange door, chimney
-    pal: { o:OUT, S:'#9ea6b2', s:'#b9c0ca', R:'#5a5f6e', d:'#ff9a2e' },
-    A: ["......oo..",".oooooSSo.","oRRRRRRRRo","oRRRRRRRRo",".oSSsSSsSo",".oSsSSsSSo",".oSdddSsSo",".oSdddSSSo",".oSdddSsSo",".oooooooo."],
+  dwarf: {
+    pal: { o:'#1c1424', S:'#9ea6b2', s:'#c0c8d4', m:'#7a828e', R:'#5a5f78', r:'#7a80a0', Q:'#444860', d:'#4a2e1a', c:'#ff9a2e', C:'#ffc860' },
+    A: ["....oSSSmo....", "...ooSSSmoo...", "..oRRRrrQQQo..", ".oRRrrRRRRQQQo", "oRRrRRQQQQRQQo", "oQQQQQQQQQQQQo", ".oSssSSsmmSmo.", ".oSSmSSSmmmmo.", ".oSsSddddmSmo.", ".oSmSdcCdmmmo.", ".oSSSddddmmmo.", ".oooooooooooo."],
+    meta: {"smoke": [6.5, 0], "glow": [{"x": 6, "y": 9, "w": 2, "h": 1, "c": "255,150,40", "always": 1}]},
   },
-  werewolf: { // dark timber lodge with a glowing cyan moon window
-    pal: { o:OUT, T:'#6b5a52', t:'#8a7a70', w:'#8a6a46', k:'#2a1a14', m:'#5ef0ff' },
-    A: ["....oo....","...oTTo...","..oTtTTo..",".oTTtTTTo.","oTtTTTtTTo",".owwwwwwo.",".owkkwmwo.",".owkkwwwo.",".owkkwwwo.",".oooooooo."],
+  orc: {
+    pal: { o:'#1c1214', H:'#a8744a', h:'#c89868', D:'#7a4c2c', r:'#ff3d3d', k:'#2a1a14', w:'#f4f1e6', W:'#c8c0a8', t:'#8a5a34', T:'#5e3a20' },
+    A: [".....w..w.....", "......ww......", "......oo......", ".....ohHo.....", "....ohhHDo....", "...orhrrHro...", "t.ohhhwwDDDo.T", "tohhhhwWDDDDDT", "thhhhHkkDDDDDT", "thhhHkkkkDDDDT", "thhhkkkkkkDDDT", "thhhkkkkkkDDDT", "toooooooooooot"],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 9, "w": 2, "h": 3, "c": "255,122,42", "always": 1}]},
   },
-  orc: { // hide tent, red stripe, skull
-    pal: { o:OUT, R:'#9a6a44', r:'#ff3d3d', k:'#2a1a14', w:'#f4f1e6' },
-    A: ["....wo....","...oRRo...","..oRrRRo..",".oRRrRRRo.",".oRRwwRRo.","oRRRkkRRRo","oRrkkkkRro","oRRkkkkRRo","oRRkkkkRRo","oooooooooo"],
+  werewolf: {
+    pal: { o:'#1c1424', a:'#e6d9a8', R:'#4a4258', r:'#6b6379', Q:'#352f44', w:'#8a6a46', W:'#6e5236', t:'#5e4630', k:'#241a14', m:'#5ef0ff', M:'#c8fbff', f:'#a89080', F:'#7a6a5c' },
+    A: ["....a.aa.a....", ".....aRRa.....", "....oRrrRo....", "...oRrrrRRo...", "..oRrrrrRRRo..", ".oRrrrrrRRRRQo", "oRrrrrrrRRRRQo", "oQQQQQQQQQQQQo", ".owwwwwwWWWWo.", ".owfFwmmWFFWo.", ".owfFwmMWFFWo.", ".owfFwkkWFFWo.", ".owwwwkkWWWWo.", ".ottttkktttto."],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 9, "w": 2, "h": 2, "c": "94,240,255", "always": 1}]},
   },
 };
 function buildSprite(def, frame) {
@@ -321,7 +327,8 @@ function buildSprite(def, frame) {
 
 const ATLAS = {}, HATLAS = {};
 for (const k in SPRITES) { ATLAS[k] = {}; for (const f of ['A','B','C']) ATLAS[k][f] = buildSprite(SPRITES[k], f); }
-for (const k in HOUSES) HATLAS[RACES[k].bi] = buildSprite(HOUSES[k], 'A');
+const HMETA = {};
+for (const k in HOUSES) { HATLAS[RACES[k].bi] = buildSprite(HOUSES[k], 'A'); HMETA[RACES[k].bi] = HOUSES[k].meta || {}; }
 let SPR_K = 1;      // integer sprite scale: 10px per sprite pixel-block, ~1.7 tiles at the base zoom
 
 /* ============================== UTIL ============================== */
@@ -647,13 +654,23 @@ function draw() {
   const y0 = Math.max(0, Math.floor((VIEW.y-oy)/sc) - 1), y1 = Math.min(H-1, Math.ceil((VIEW.y+VIEW.h-oy)/sc));
 
   SPR_K = Math.max(1, Math.round(sc / 6));
-  const S = 10 * SPR_K;
+  const nightA = cfg.settings.dayNight ? Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2)) * .38 : 0;
   if (sc >= 5) {
-    for (let y = y0; y <= Math.min(H-1, y1 + 2); y++) for (let x = x0; x <= x1; x++) {
+    for (let y = y0; y <= Math.min(H-1, y1 + 4); y++) for (let x = x0; x <= x1; x++) {
       const idx = x + y*W, b = bld[idx]; if (!b) continue;
       const cx = ox + (x + .5)*sc, fy = oy + (y + 1)*sc - sc*.05;
-      ctx.drawImage(HATLAS[b], cx - S/2, fy - S, S, S);
-      if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(cx - S*.3, fy - S*.85, S*.6, S*.55); }
+      const hs = HATLAS[b], hw = hs.width * SPR_K, hh = hs.height * SPR_K, hx = cx - hw/2, hy = fy - hh, m = HMETA[b];
+      ctx.drawImage(hs, hx, hy, hw, hh);
+      if (m.glow) for (const g of m.glow) {                              // lit windows / forge glow
+        const al = g.always ? .55 + .25*Math.sin(frame*.09 + x*1.7 + y) : nightA * 2.2;
+        if (al > .03) { ctx.fillStyle = `rgba(${g.c},${Math.min(.95, al)})`; ctx.fillRect(hx + g.x*SPR_K, hy + g.y*SPR_K, g.w*SPR_K, g.h*SPR_K); }
+      }
+      if (m.smoke) for (let k = 0; k < 3; k++) {                          // chimney smoke
+        const t = ((frame*.5 + k*20 + x*7 + y*3) % 60) / 60;
+        ctx.fillStyle = `rgba(225,225,235,${(1 - t) * .5})`;
+        ctx.beginPath(); ctx.arc(hx + m.smoke[0]*SPR_K + Math.sin(t*6 + k)*SPR_K*1.3, hy + m.smoke[1]*SPR_K - t*hh*.8, SPR_K*(.9 + t*1.8), 0, 7); ctx.fill();
+      }
+      if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(hx + hw*.2, hy + hh*.2, hw*.6, hh*.55); }
     }
     for (const c of creatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
     const order = creatures.slice().sort((a, b) => a.dy - b.dy);
@@ -687,8 +704,7 @@ function draw() {
   }
   drawEffects();
   if (cfg.settings.dayNight) {
-    const a = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2)) * .38;
-    if (a > .01) { ctx.fillStyle = `rgba(6,10,50,${a})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); }
+    if (nightA > .01) { ctx.fillStyle = `rgba(6,10,50,${nightA})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); }
   }
   if (hover && tool !== 'inspect' && TOOLS[tool]) {
     ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2;
