@@ -1,0 +1,37 @@
+{
+  "cfg": {
+    "hourSec": 0.5,
+    "days": 30,
+    "startHour": 8,
+    "startMoney": 100,
+    "rent": 2200,
+    "moodWeight": 10,
+    "decay": {
+      "hunger": 2,
+      "energy": 1.8,
+      "hygiene": 1,
+      "fun": 1.2
+    },
+    "start": {
+      "hunger": 35,
+      "energy": 80,
+      "hygiene": 70,
+      "fun": 60
+    },
+    "sleepRate": 9,
+    "sleepRateUpgrade": 15,
+    "eventChance": 0.5,
+    "walkSpeed": 430,
+    "walkTimeMul": 0.3,
+    "sleepTimeMul": 4,
+    "roachTime": 4.5,
+    "roachHits": 3,
+    "roachSpeed": 260,
+    "roachHitRadius": 80
+  },
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": false
+    }
+  }
+}
