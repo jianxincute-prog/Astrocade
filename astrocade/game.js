@@ -431,6 +431,118 @@ for (const k in HALLS) { HALLATLAS[RACES[k].bi] = buildSprite(HALLS[k], 'A'); HA
 const LMATLAS = {};
 for (const k in LANDMARKS) LMATLAS[k] = buildSprite(LANDMARKS[k], 'A');
 
+// Town props per race (cosmetic, derived from kingdom state): wall, corner tower, gate, well, field, granary.
+const PROPS = {
+  human: {
+    pal: {"o": "#1c1424", "S": "#b8b4c0", "s": "#9a96a0", "m": "#7a767e", "R": "#b8553a", "r": "#d8795a", "Q": "#8a3a28", "k": "#8a5a34", "K": "#5e3a20", "y": "#e6bc50", "Y": "#f6d878", "g": "#7da23c", "G": "#4f7a28", "c": "#c9a64a", "C": "#a8843a", "b": "#4a9fe0", "B": "#8ecbff", "d": "#4a2e1a", "f": "#3f8cff", "w": "#ecdcbc"},
+    wall: ["oo.oo.", "oSooSo", "oSSSSo", "osssso", "oSSSSo", "osmsmo", "oooooo"],
+    tower: [".oRRRRo.", "oRrrRRQo", "oRrRRQQo", ".oooooo.", "oSSSSSSo", "oSsgGsSo", "oSSSSSSo", "osssssso", "oSSdddSo", "osmdddmo", "oSSdddSo", "oooooooo"],
+    gate: ["oo.oooo.oo", "oSoSSSSoSo", "oSsSSSSsSo", "oSSdddddSo", "oSdkkkkdSo", "oSdkkkkdSo", "oSdkkkkdSo", "oSdkkkkdSo", "osdkkkkdso", "oooooooooo"],
+    well: ["..oRRo..", "..oRrRo.", "..ok.ko.", ".oSsSsSo", "oSbBbBSo", "osbbbbso", ".oooooo."],
+    field: ["cgcgcg", "gGgGgG", "cCcCcC", "gGgGgG", "cgcgcg", "CCCCCC"],
+    barn: ["....oYYo..", "..oYYyyYo.", ".oYYyyyyYo", "oYyyyyyyyo", "oyyyyyyyyo", "okkkkkkkko", "okwwddwwko", "okwwddwwko", "okwwddwwko", "oooooooooo"],
+  },
+  elf: {
+    pal: {"o": "#1c2418", "L": "#4fae52", "l": "#8fe08a", "D": "#2d7a3a", "p": "#d8a0ff", "P": "#f0d0ff", "t": "#8a5a34", "T": "#5e3a20", "B": "#b07a48", "k": "#2a1a14", "y": "#ffe9a0", "Y": "#fff6d0", "b": "#5ef0d0", "c": "#c8fff0", "v": "#9a60d8", "n": "#ff8ab0", "g": "#5a9a48"},
+    wall: ["..oo..", "oLlLpL", "oLLlLL", "oDLDLD", "oDDtDD", "oDtTtD", "ooooo."],
+    tower: ["...oo...", "..oLLo..", ".oLlpLo.", "oLlLLlLo", "oLLlLDDo", ".oDDDDo.", "..oTTo..", "..oTtDo.", "..oyYTo.", "..oTTto.", ".oTttTTo", "ooTTooTo"],
+    gate: ["..oLlLLo..", ".oLlpLLDo.", "oLlLLLDDDo", "oDLo..oDDo", "oTto..otTo", "oTto..otTo", "oTto..otTo", "oTto..otTo", "oTto..otTo", "ooooo.oooo"],
+    well: ["..o.p.o.", "..oLlLo.", ".oLLlLLo", "oLbcbbLo", "oDbbbbDo", ".oDDDDo.", "..oooo.."],
+    field: ["pgnggv", "gggpgg", "vggngg", "gpggvg", "ggngpg", "DDDDDD"],
+    barn: ["...oooo...", "..oLlpLo..", ".oLlLLLDo.", "oLLlLLLDDo", "oDLLLDDDDo", "oDDtttDDDo", "oTtBkkBtTo", "oTtBkkBtTo", "oTtBkkBtTo", "ooooooooo."],
+  },
+  dwarf: {
+    pal: {"o": "#1c1424", "S": "#9ea6b2", "s": "#c0c8d4", "m": "#7a828e", "R": "#5a5f78", "r": "#7a80a0", "Q": "#444860", "d": "#3a2a1a", "c": "#ff9a2e", "C": "#ffc860", "i": "#4a4e5c", "I": "#2a2c36", "b": "#4a9fe0", "B": "#8ecbff", "M": "#c04040", "u": "#b080e0", "h": "#e8e0d0", "k": "#8a5a34"},
+    wall: ["oooooo", "oSsSSo", "oSSSSo", "oiiiio", "oSsmSo", "oiiiio", "oooooo"],
+    tower: [".oRRRRo.", "oRrrRRQo", "oQQQQQQo", "oSSSSSSo", "oSccSsSo", "oSCcSSSo", "oiiiiiio", "oSsSSmSo", "oSSSSSSo", "oiiiiiio", "oSsmSSSo", "oooooooo"],
+    gate: ["oooooooooo", "oSSSSSSSSo", "oSiiiiiiSo", "oSiIiIiISo", "oSiIiIiISo", "oSiiiiiiSo", "oSiIiIiISo", "oSiIiIiISo", "oSiiiiiiSo", "oooooooooo"],
+    well: ["..oiio..", "..oSSo..", ".oSsSSo.", "oSmBbmSo", "oSbbbbSo", "oiiiiiio", ".oooooo."],
+    field: ["MhuMhu", "kkkkkk", "uMhuMh", "kkkkkk", "hMuhMu", "IIIIII"],
+    barn: ["..oooooo..", ".oRRRRRRo.", "oRrrRRQQQo", "oSSSSSSSSo", "oSsSSSSmSo", "oiiiiiiiio", "oSSddddSSo", "oSSdiidSSo", "oSSddddSSo", "oooooooooo"],
+  },
+  orc: {
+    pal: {"o": "#1c1214", "H": "#a8744a", "h": "#c89868", "D": "#7a4c2c", "r": "#ff3d3d", "k": "#2a1a14", "w": "#f4f1e6", "W": "#c8c0a8", "t": "#8a5a34", "T": "#5e3a20", "g": "#6a8a30", "G": "#8a7a3a", "b": "#5a7a3a", "B": "#7a9a50", "m": "#c04848", "n": "#8a2828"},
+    wall: ["w.w.w.", "owowwo", "ohHhHo", "ohHhHo", "oHDHDo", "oDDDDo", "oooooo"],
+    tower: ["..rrrr..", "..rrnr..", ".oootto.", ".owwwwo.", "oHhhHHDo", "oHkkkHDo", "oHhhHHDo", ".ot..to.", ".ot..to.", ".ot..to.", ".oT..To.", "oooo.ooo"],
+    gate: ["w.w....w.w", "owo.rr.owo", "ohH.rr.ohH", "ohHwwwwoHD", "ohHkkkkoHD", "ohHkkkkoHD", "ohHkkkkoHD", "ohHkkkkoHD", "oDDkkkkoDD", "oooooooooo"],
+    well: ["w.w..w..", "owoooow.", "oWwwWwo.", "oHbbbBHo", "oDbbbbDo", ".oDDDDo.", "..oooo.."],
+    field: ["DwDDwD", "DmDmDD", "DDnmDD", "wDDDwD", "DDmDnD", "TTTTTT"],
+    barn: ["....oo....", "...oHho...", "..oHhhDo..", ".oHhhhDDo.", "oHhhHHDDDo", "oHhwwHDDDo", "oHhkkkHDDo", "oHhkkkHDDo", "oDhkkkHDDo", "oooooooooo"],
+  },
+  werewolf: {
+    pal: {"o": "#1c1424", "a": "#e6d9a8", "A": "#bfae80", "R": "#4a4258", "r": "#6b6379", "Q": "#352f44", "w": "#8a6a46", "W": "#6e5236", "t": "#5e4630", "k": "#241a14", "m": "#5ef0ff", "M": "#c8fbff", "f": "#a89080", "F": "#7a6a5c", "u": "#b080e0", "g": "#3a8a6a", "G": "#2a6a50", "p": "#7a4aa8"},
+    wall: ["a.a.a.", "oaoaoa", "oAaAaA", "oWwWwo", "oRrRrR", "oQQQQQ", "oooooo"],
+    tower: ["..a..a..", "..aaaa..", ".oamamo.", ".oaaaao.", ".ofFFfo.", "..oFFo..", "..otto..", "..otto..", "..otmo..", "..otto..", ".ottttt.", "oooooooo"],
+    gate: ["a.a....a.a", "oao.mm.oao", "oaA.mm.oAa", "oaAmMMmoAa", "oWwkkkkowW", "oWwkkkkowW", "oWwkkkkowW", "oWwkkkkowW", "oRrkkkkorR", "oooooooooo"],
+    well: ["..a..a..", "..oaao..", ".oRrRrR.", "oRmMmmRo", "oQmmmmQo", ".oQQQQo.", "..oooo.."],
+    field: ["gGumGg", "GgGGgm", "uGgGum", "gGmGGg", "GgGgGu", "kkkkkk"],
+    barn: ["..a....a..", ".oaoooaoo.", ".oWwwWwWo.", "oWwwWwwWWo", "oRrrRrrRRo", "oRfFFRfFRo", "oRfFFRfFRo", "oRkkkkkkRo", "oRkkkkkkRo", "oooooooooo"],
+  },
+};
+const PNAMES = ['wall', 'tower', 'gate', 'well', 'field', 'barn'];
+const PATLAS = {};
+for (const k in PROPS) { PATLAS[RACES[k].bi] = {}; for (const n of PNAMES) PATLAS[RACES[k].bi][n] = buildSprite({ pal: PROPS[k].pal, A: PROPS[k][n] }, 'A'); }
+const PPRI = { wall: 0, field: 0, well: 1, barn: 1, tower: 2, gate: 3 };
+function propOk(i) { const t = tiles[i]; return t > T.SHALLOW && t !== T.LAVA && t !== T.MOUNTAIN && t !== T.SNOW && !bld[i]; }
+function kingdomProps(k) {
+  const key = `${k.level}|${k.houses}|${k.cap}|${k.mod.walls ? 1 : 0}|${k.mod.farms ? 1 : 0}`;
+  if (k.pv && k.pv.key === key) return k.pv.list;
+  const list = [], used = new Set(), cx = k.cap % W, cy = (k.cap / W) | 0;
+  used.add(k.cap); used.add(k.cap + 1); used.add(k.cap - 1);
+  const R = k.level >= 3 ? 7 : k.level >= 2 ? 5 : k.mod.walls ? 4 : 0;
+  if (R) {                                                  // wall ring with a gate in the middle of each side, towers at the corners of big realms
+    for (let d = -R; d <= R; d++) for (const [x, y] of [[cx + d, cy - R], [cx + d, cy + R], [cx - R, cy + d], [cx + R, cy + d]]) {
+      if (!inb(x, y)) continue;
+      const i = x + y*W; if (used.has(i) || !propOk(i)) continue;
+      const corner = Math.abs(x - cx) === R && Math.abs(y - cy) === R, mid = (x === cx || y === cy);
+      used.add(i); list.push({ t: mid ? 'gate' : corner && k.level >= 3 ? 'tower' : 'wall', x, y });
+    }
+  }
+  const cand = [];
+  for (let dy = -9; dy <= 9; dy++) for (let dx = -9; dx <= 9; dx++) {
+    const dd = Math.max(Math.abs(dx), Math.abs(dy));
+    if (dd < 2 || (R && Math.abs(dd - R) < 1) || (R && dd > R - 1 && dd < R + 1)) continue;
+    const x = cx + dx, y = cy + dy; if (!inb(x, y)) continue;
+    const i = x + y*W; if (used.has(i) || !propOk(i) || bld[i + 1] || bld[i - 1] || bld[i + W]) continue;
+    cand.push([hash(x, y, k.cap & 1023), x, y, dd]);
+  }
+  cand.sort((a, b) => a[0] - b[0]);
+  const want = [];
+  const nWell = k.houses >= 4 ? (k.level >= 3 ? 2 : 1) : 0, nBarn = k.level >= 1 ? (k.level >= 3 ? 3 : k.houses >= 10 ? 2 : 1) : 0;
+  const nField = k.houses >= 3 ? Math.min(12, Math.floor(k.houses / 2.5) + (k.mod.farms ? 3 : 0)) : 0;
+  for (let n = 0; n < nWell; n++) want.push(['well', 2, 5]);
+  for (let n = 0; n < nBarn; n++) want.push(['barn', 3, 7]);
+  for (let n = 0; n < nField; n++) want.push(['field', 3, 9]);
+  for (const [t, lo, hi] of want) {
+    const c = cand.find(c => c[3] >= lo && c[3] <= hi && !used.has(c[1] + c[2]*W)); if (!c) continue;
+    used.add(c[1] + c[2]*W); list.push({ t, x: c[1], y: c[2] });
+  }
+  k.pv = { key, list };
+  return list;
+}
+function drawProps(x0, y0, x1, y1, ground) {                 // ground=true: flat fields under everything; false: standing props
+  const out = [];
+  for (const k of kingdoms.values()) {
+    const kx = k.cap % W, ky = (k.cap / W) | 0; if (kx < x0 - 12 || kx > x1 + 12 || ky < y0 - 12 || ky > y1 + 14) continue;
+    for (const p of kingdomProps(k)) {
+      if ((p.t === 'field') !== ground || p.x < x0 - 2 || p.x > x1 + 2 || p.y < y0 - 2 || p.y > y1 + 4) continue;
+      if (!propOk(p.x + p.y*W)) continue;
+      out.push(p); p.bi = RACES[k.race].bi;
+    }
+  }
+  if (!ground) out.sort((a, b) => a.y - b.y || PPRI[a.t] - PPRI[b.t] || a.x - b.x);
+  const u = sc / 6;
+  for (const p of out) {
+    const sp = PATLAS[p.bi][p.t], px = ox + p.x*sc, py = oy + p.y*sc;
+    if (p.t === 'field') { ctx.drawImage(sp, px, py, sc, sc); continue; }
+    const fy = py + sc*.96, tile = p.t === 'wall' || p.t === 'tower' || p.t === 'gate';
+    const k2 = tile ? u : SPR_K, w = sp.width*k2, h = sp.height*k2;
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(px + sc/2 - w*.45, fy - k2*.8, w*.9, k2*1.2);
+    ctx.drawImage(sp, px + sc/2 - w/2, fy - h, w, h);
+  }
+}
+
+
 /* ============================== ICONS (pixel art, replaces emoji everywhere in the UI) ============================== */
 const ICON_PAL = {'o': '#1c1424', 'w': '#f4f1e6', 'W': '#c8c4d4', 's': '#8a8698', 'S': '#5a566a', 'a': '#2a2438', 'k': '#8a5a34', 'K': '#5e3a20', 't': '#d8b070', 'E': '#f0d898', 'y': '#ffd23f', 'Y': '#e0a020', 'r': '#e8412c', 'R': '#a02420', 'e': '#ff8a2a', 'n': '#f0a0b0', 'g': '#5fae4a', 'G': '#2d7a3a', 'l': '#9ad46a', 'b': '#3f8cff', 'B': '#86bcff', 'd': '#2457b8', 'c': '#5ef0ff', 'C': '#2aa5b8', 'p': '#b07af0', 'P': '#7a4cc0'};
 const ICON_ART = {
@@ -1316,24 +1428,11 @@ function draw() {
       }
       ctx.setLineDash([]);
     }
-    for (const kw of kingdoms.values()) if (kw.mod.walls) {                // stone wall ring around the capital
-      const wx = kw.cap % W, wy = (kw.cap / W) | 0;
-      if (wx < x0 - 5 || wx > x1 + 5 || wy < y0 - 5 || wy > y1 + 5) continue;
-      ctx.strokeStyle = '#8a8690'; ctx.lineWidth = Math.max(2, sc*.45); ctx.setLineDash([sc*.8, sc*.3]);
-      ctx.strokeRect(ox + (wx - 2.5)*sc, oy + (wy - 2.5)*sc, sc*6, sc*6); ctx.setLineDash([]);
-    }
+    drawProps(x0, y0, x1, y1, true);
     for (let y = y0; y <= Math.min(H-1, y1 + 4); y++) for (let x = x0; x <= x1; x++) {
       const idx = x + y*W, b = bld[idx]; if (!b) continue;
       const cx = ox + (x + .5)*sc, fy = oy + (y + 1)*sc - sc*.05;
       const kg = kingdoms.get(kid[idx]), isCap = !!kg && kg.cap === idx;
-      if (kg && kg.mod.farms && (((x * 31 + y * 17) >> 1) & 1) && x + 2 < W) {            // farm fields beside some houses (2 tiles over: house sprites are wider than a tile)
-        const ni = idx + 2, nt = tiles[ni];
-        if (!bld[ni] && !bld[idx + 1] && (nt === T.GRASS || nt === T.SAND || nt === T.HILL)) {
-          const fxp = ox + (x + 2)*sc, fyp = oy + y*sc;
-          ctx.fillStyle = '#c9a64a'; ctx.fillRect(fxp, fyp, sc, sc);
-          ctx.fillStyle = '#7da23c'; for (let r = 0; r < 3; r++) ctx.fillRect(fxp, fyp + sc*(.12 + r*.3), sc, sc*.16);
-        }
-      }
       const hall = isCap && kg.level >= 2 && HALLATLAS[b];
       const hs = hall || HATLAS[b], hw = hs.width * SPR_K, hh = hs.height * SPR_K, hx = cx - hw/2, hy = fy - hh, m = hall ? HALLMETA[b] : HMETA[b];
       if (isCap && kg.level >= 3) { ctx.fillStyle = 'rgba(255,215,90,.13)'; ctx.beginPath(); ctx.arc(cx, fy - hh*.45, hw*.85, 0, 7); ctx.fill(); }      // royal aura
@@ -1363,6 +1462,7 @@ function draw() {
       }
       if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(hx + hw*.2, hy + hh*.2, hw*.6, hh*.55); }
     }
+    drawProps(x0, y0, x1, y1, false);
     for (const kl of kingdoms.values()) for (const key in kl.lm) {                      // landmarks from technologies
       const li = kl.lm[key], lx = li % W, ly = (li / W) | 0;
       if (lx < x0 - 3 || lx > x1 + 3 || ly < y0 - 3 || ly > y1 + 6) continue;
