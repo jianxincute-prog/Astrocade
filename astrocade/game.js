@@ -14,7 +14,7 @@ function run(mode) {
 
 /* ============================== CONSTANTS ============================== */
 const SCREEN_W = 720, SCREEN_H = 1280;
-const VIEW = { x: 0, y: 150, w: 720, h: 906 };          // world viewport on the canvas
+const VIEW = { x: 0, y: 190, w: 720, h: 866 };          // world viewport on the canvas
 // Three selectable world sizes. k scales population caps (not linearly, to keep phones smooth).
 const SIZES = [
   { name:'S', label:'Kecil',  w:120, h:148, k:1,   land:0,   coarse:0,   wc:0 },
@@ -94,7 +94,7 @@ const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer','werewolf
 const STAT_ORDER = ['human','elf','dwarf','orc','sheep','rabbit','deer','wolf','werewolf'];
 const GAIN = { rabbit:25, sheep:45, deer:60 };                               // wolf energy per kill (default 45)
 const BUILD_OWNER = [null,'human','elf','dwarf','orc','werewolf'];
-const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺', rabbit:'🐇', deer:'🦌', werewolf:'🌕' };
+const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺', rabbit:'🐇', deer:'🦌', werewolf:'\uE001' };
 const TPS = 8;
 const MAX_CREATURES = 1500;           // multiplied by CAPK
 const capOf = t => Math.round(RACES[t].cap * CAPK);
@@ -114,23 +114,32 @@ style.textContent = `
   html,body{margin:0;background:#070a16;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none}
   #aw{position:relative;width:720px;height:1280px;overflow:hidden;background:#0b1020;color:#e8ecff}
   #aw canvas{position:absolute;left:0;top:0;width:720px;height:1280px;touch-action:none}
-  .awb{box-sizing:border-box;width:96px;height:96px;flex:0 0 96px;border-radius:22px;border:3px solid #2c3868;background:#1d2646;color:#e8ecff;font-size:44px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;cursor:pointer}
-  .awb.on{background:#34457f;border-color:#ffcf4a}
-  #awtop{position:absolute;left:0;top:0;width:720px;height:150px;background:#141b33;border-bottom:3px solid #2c3868}
-  #awbtns{position:absolute;left:6px;top:4px;display:flex;gap:8px}
-  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:2px;align-items:center;font-size:16px;overflow-x:auto;scrollbar-width:none;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 3px;flex:0 0 auto}
-  #awyear{position:absolute;right:10px;top:30px;font-size:30px;background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:4px 16px;font-variant-numeric:tabular-nums}
-  #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:#141b33;border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
+  .ic{width:24px;height:24px;image-rendering:pixelated;vertical-align:-5px}
+  .ic.cr{width:32px;height:32px;vertical-align:-8px}
+  .awb{box-sizing:border-box;width:96px;height:96px;flex:0 0 96px;border-radius:18px;border:3px solid #0d1228;background:linear-gradient(#2b3769,#1a2248);box-shadow:inset 0 3px 0 rgba(255,255,255,.14),inset 0 -5px 0 rgba(0,0,0,.28),0 3px 0 #080b1c;color:#e8ecff;font-size:40px;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;cursor:pointer}
+  .awb:active{transform:translateY(2px)}
+  .awb.on{background:linear-gradient(#4b5cac,#2c3a7e);border-color:#ffcf4a;box-shadow:inset 0 3px 0 rgba(255,255,255,.25),inset 0 -5px 0 rgba(0,0,0,.22),0 0 16px rgba(255,207,74,.5)}
+  .awb .ic,.awb .ic.cr{width:48px;height:48px;vertical-align:0}
+  #awtop{position:absolute;left:0;top:0;width:720px;height:190px;background:linear-gradient(#18214a,#10172f);border-bottom:3px solid #0a0e22;box-shadow:0 3px 0 #2c3868}
+  #awbtns{position:absolute;left:8px;top:8px;display:flex;gap:8px}
+  #awyear{position:absolute;right:10px;top:24px;height:56px;display:flex;align-items:center;gap:8px;font-size:32px;font-weight:800;background:rgba(8,12,30,.75);border:2px solid #2c3868;border-radius:14px;padding:0 16px;font-variant-numeric:tabular-nums}
+  #awyear .ic{width:36px;height:36px;vertical-align:0}
+  .awchips{position:absolute;left:8px;right:8px;height:38px;display:flex;gap:6px;align-items:center;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #awstats{top:108px} #awstats2{top:148px}
+  .awchips span{display:inline-flex;align-items:center;gap:3px;height:36px;background:rgba(8,12,30,.72);border:2px solid #2c3868;border-radius:10px;padding:0 8px}
+  .awchips span .ic{width:24px;height:24px;vertical-align:0}
+  .awchips span .ic.cr{width:32px;height:32px}
+  #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:linear-gradient(#10172f,#18214a);border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
-  #awrow1>.awb{width:84px;height:84px;flex-basis:84px;font-size:40px}
-  #awbrush{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:36px;font-weight:700;color:#ffcf4a}
-  #awbrush .awb{width:76px;height:76px;flex-basis:76px;font-size:42px}
+  #awrow1>.awb{width:84px;height:84px;flex-basis:84px}
+  #awbrush{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:36px;font-weight:800;color:#ffcf4a}
+  #awbrush .awb{width:76px;height:76px;flex-basis:76px;font-size:44px}
   #awbrush span{min-width:40px;text-align:center}
-  #awrow2{display:flex;gap:8px;margin-top:10px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x}
+  #awrow2{display:flex;gap:8px;margin-top:10px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x;padding-bottom:4px}
   #awrow2::-webkit-scrollbar{display:none}
-  #awinfo{position:absolute;left:14px;top:968px;background:#141b33ee;border:3px solid #2c3868;border-radius:18px;padding:10px 18px;font-size:30px;line-height:1.35;display:none}
-  #awtoast{position:absolute;left:50%;top:162px;transform:translateX(-50%);background:#141b33ee;border:3px solid #2c3868;border-radius:999px;padding:8px 26px;font-size:30px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #awinfo{position:absolute;left:14px;top:960px;max-width:690px;background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
+  #awinfo b{font-size:30px;color:#ffe9a0}
+  #awtoast{position:absolute;left:50%;top:204px;transform:translateX(-50%);background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:8px 24px;font-size:28px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.4)}
 `;
 document.head.appendChild(style);
 const app = document.createElement('div'); app.id = 'aw'; document.body.appendChild(app);
@@ -140,7 +149,8 @@ cv.width = SCREEN_W * DPR; cv.height = SCREEN_H * DPR;
 app.appendChild(cv);
 const ctx = cv.getContext('2d');
 const el = (tag, id, parent) => { const e = document.createElement(tag); if (id) e.id = id; (parent || app).appendChild(e); return e; };
-const topBar = el('div', 'awtop'), btns = el('div', 'awbtns', topBar), statsEl = el('div', 'awstats', topBar), yearEl = el('div', 'awyear', topBar);
+const topBar = el('div', 'awtop'), btns = el('div', 'awbtns', topBar), statsEl = el('div', 'awstats', topBar), stats2El = el('div', 'awstats2', topBar), yearEl = el('div', 'awyear', topBar);
+statsEl.className = stats2El.className = 'awchips';
 const bot = el('div', 'awbot'), row1 = el('div', 'awrow1', bot), row2 = el('div', 'awrow2', bot);
 const infoEl = el('div', 'awinfo'), toastEl = el('div', 'awtoast');
 
@@ -420,6 +430,129 @@ for (const k in HOUSES) { HATLAS[RACES[k].bi] = buildSprite(HOUSES[k], 'A'); HME
 for (const k in HALLS) { HALLATLAS[RACES[k].bi] = buildSprite(HALLS[k], 'A'); HALLMETA[RACES[k].bi] = HALLS[k].meta || {}; }
 const LMATLAS = {};
 for (const k in LANDMARKS) LMATLAS[k] = buildSprite(LANDMARKS[k], 'A');
+
+/* ============================== ICONS (pixel art, replaces emoji everywhere in the UI) ============================== */
+const ICON_PAL = {'o': '#1c1424', 'w': '#f4f1e6', 'W': '#c8c4d4', 's': '#8a8698', 'S': '#5a566a', 'a': '#2a2438', 'k': '#8a5a34', 'K': '#5e3a20', 't': '#d8b070', 'E': '#f0d898', 'y': '#ffd23f', 'Y': '#e0a020', 'r': '#e8412c', 'R': '#a02420', 'e': '#ff8a2a', 'n': '#f0a0b0', 'g': '#5fae4a', 'G': '#2d7a3a', 'l': '#9ad46a', 'b': '#3f8cff', 'B': '#86bcff', 'd': '#2457b8', 'c': '#5ef0ff', 'C': '#2aa5b8', 'p': '#b07af0', 'P': '#7a4cc0'};
+const ICON_ART = {
+  mountain: '.....oo...../....owwo..../...owwwwo.../..owwwwsso../.owsssssSSo./owsssssSSSSo/owssssSSSSSo/osssssSSSSSo/ossssSSSSSSo/.oooooooooo./............/............',
+  bolt: '.......oo.../......oyyo../.....oyyyo../....oyyyoo../...oyyyyyyo./....ooyyyo../....oyyyo.../...oyyyo..../...oyyo...../..oyoo....../...o......../............',
+  crown: '............/.o...oo...o./oyo.oyyo.oyo/oyyooyyooyyo/oyyyoyyoyyyo/oyyyyyyyyyyo/oyYYYYYYYYYo/oyrYyYbYyryo/oYYYYYYYYYYo/.oooooooooo./............/............',
+  globe: '....oooo..../...obbbbo.../..obBggbbo../.obBgggbbbo./.obggggbbbo./obbgggbbgbbo/obbbggbgggbo/.obbbbbggbo./.obbbbbbbbo./..obbbbbbo../...obbbbo.../....oooo....',
+  raise: '.....oo...../....oyyo..../...oyyyyo.../..oyyyyyyo../.oyyyyyyyyo./..ooyyyyoo../.oooyyyyooo./oggggggggggo/okkkkkkkkkko/okKkKkKkKkKo/.oooooooooo./............',
+  lower: '............/.....oo...../....orro..../....orro..../...oorroo.../..orrrrrro../...orrrro.../.oooorroooo./obbbbbbbbbbo/oBbbBbbBbbBo/oddddddddddo/.oooooooooo.',
+  waves: '............/............/.o.o.o.o.o../oBoBoBoBoBo./.obBbBbBbBbo/obbbbbbbbbbo/.oooooooooo./oBoBoBoBoBo./.obBbBbBbBbo/obbbbbbbbbbo/.oooooooooo./............',
+  grass: '............/...o...o..../..olo.oloo../.olgoolgolo./.olgolggogo./.olgglgglgo./olggglggggo./oggggggggggo/okkkkkkkkkko/okKkKkKkKkKo/.oooooooooo./............',
+  pine: '.....o....../....ogo...../...ogggo..../..olggggo.../...ogggggo../..olgggggo../.olgggggggo./..oookkooo../....okKo..../....okKo..../.....oo...../............',
+  dune: '............/............/.....oo...../...ootto..../..otttttoo../.otttttttto./otttEtttttto/ottttttttEto/otEttttttto./okkkkkkkkkko/.oooooooooo./............',
+  volcano: '...o..o...../..osooso..../...osooso.../....oeeo..../...oeEEeo.../..oSSeeSSo../..oSSrrSSo../.oSSSSrSSSo./.oSSSSSSSSo./oSSSSSSSSSSo/.oooooooooo./............',
+  rain: '............/....ooo...../...oWWWoo.../..oWWWWWWo../.oWWWWWWWWo./.owwwwwwwwo./..oooooooo../..oBooBooBo./.oBooBooBo../oBooBooBo.../.o..o..o..../............',
+  flame: '.....o....../....oeo...../....oeeo..../...oeEeo..../..oeEEEeo.../..oeEyEeo.../.oeEyyyEeo../.oeEyyyEeo../.oeeEyEeeo../..oeeeeeo.../...ooooo..../............',
+  meteor: '.oo........./oeeoo......./.oeEeoo...../..oeEEeoo.../...oeEEkko../....oekKkko./....okkKkkko/....okKkkkko/.....okkkko./......oooo../............/............',
+  sparkle: '.....oo...../....oyyo..../....oyyo..../.oooyyyyooo./oyyyyyyyyyyo/.oyyywwyyyo./oyyyyyyyyyyo/.oooyyyyooo./....oyyo..../....oyyo..../.....oo...../............',
+  skull: '...oooooo.../..owwwwwwo../.owwwwwwwwo./.owwwwwwwwo./.owaawwaawo./.owaawwaawo./.owwwaawwwo./..owwwwwwo../..owawawao../..owwwwwwo../...oooooo.../............',
+  skullg: '...oooooo.../..ollllllo../.ollllllllo./.ollllllllo./.olaallaalo./.olaallaalo./.olllaalllo./..ollllllo../..olalalao../..ollllllo../...oooooo.../............',
+  book: '............/.oooooooooo./obbbbbbbbbbo/obwwwwbwwwbo/obwSSwbwSSbo/obwwwwbwwwbo/obwSSwbwSSbo/obwwwwbwwwbo/obbbbbbbbbbo/.oooooooooo./............/............',
+  sunburst: '.o...oo...o./oyo.oyyo.oyo/.oyooyyooyo./..oyyyyyyo../.ooyYYYYyoo./oyyyYwwYyyyo/oyyyYwwYyyyo/.ooyYYYYyoo./..oyyyyyyo../.oyooyyooyo./oyo.oyyo.oyo/.o...oo...o.',
+  torch: '....oo....../...oeeo...../..oeEEeo..../..oeEyEeo.../..oeEyEeo.../...oeeeo..../....okko..../....okKo..../....okKo..../....okKo..../....oKKo..../.....oo.....',
+  dove: '........oo../.......owwo./...o..owwwo./..owoowwwwwo/..owwwwwwwyo/...owwwwwwo./....owwWwo../...ooowwo.../..ogggoo..../.ogogoogo.../..o.o..o..../............',
+  link: '............/............/.oo......oo./obbo....orro/obbboooorrro/obbbbyyrrrro/obbbbyyrrrro/obbboooorrro/obbo....orro/.oo......oo./............/............',
+  scissors: '.oo......oo./osso....osso/.osso..osso./..ossoosso../...osssso.../....osso..../...osssso.../..orroorro../.ororoororo./.orro..orro./..oo....oo../............',
+  magnifier: '...oooo...../..oSSSSo..../.oSBBBBSo.../oSBBwwBBSo../oSBBwBBBSo../oSBBBBBBSo../.oSBBBBSo.../..oSSSSkko../...oooookko./........okko/.........oo./............',
+  map: '............/.oooooooooo./okkkkkkkkkko/okEEEEEEEEko/okEgggEEbbko/okEgggEbbbko/okEEErEEEEko/okEEEEgggEko/okEEEEgggEko/okkkkkkkkkko/.oooooooooo./............',
+  paw: '............/....oo.oo.../...okkokko../.oookkokkoo./okkooooookko/okkokkkkokko/.ookkkkkkoo./.okkkkkkkko./.okkkkkkkko./..okkkkkko../...oooooo.../............',
+  broom: '.......oo.../......okko../.....okko.../....okko..../...okko...../..oyyyyo..../.oyyYyyyo.../oyyyYyyyo.../oyYyYyYyo.../oyyyyyyyo.../.ooooooo..../............',
+  flag: '.o........../okoooooo..../okrrrrrro.../okrRrrrrro../okrrrrrro.../okrrrroo..../okoooo....../oko........./oko........./oko........./okko......../.oo.........',
+  moon: '....ooo...../...oyyyo..../..oyyyyo..../.oyyyYo...../.oyyyYo...../.oyyyYo...../.oyyyYo...../.oyyyyyoo.../..oyyyyyyo../...oyyyyo.../....oooo..../............',
+  moonfull: '....oooo..../...owwwwo.../..owwwwWwo../.owwWwwwwwo./.owwwwwWwwo./.owwWwwwwwo./.owwwwwwWwo./.owWwwwwwwo./..owwwwwWo../...owwwwo.../....oooo..../............',
+  trophy: '............/.oooooooooo./oyyyyyyyyyyo/oyoyyyyyyoyo/oyoyyYyyyoyo/.oyyyYyyyyo./..oyyyyyyo../...ooyyoo.../...ooYYoo.../..oyyyyyyo../..oYYYYYYo../...oooooo...',
+  tent: '.....oo...../....okko..../...okkkko.../..okkkkkko../.okkkKkkkko./okkkkKkkkkko/okkkkaakkkko/okkkaaaakkko/okkaaaaaakko/.oooooooooo./............/............',
+  village: '............/...o...o..../..oro.oro.../.orrrorrro../orrrrrrrrro./owwwwwwwwwo./owkwwwbwwko./owkwwwbwwko./.ooooooooo../............/............/............',
+  town: '.....o....../....oro.oo../...orrrosso./..orrrrrsso./..owwwwwsso./..owbwbwsso./..owwwwwsso./..owbwbwsso./..owkkwwsso./..owkkwwsso./...ooooooo../............',
+  castle: '.o.o.oo.o.o./ososossososo/osssssssssso/osSsSSSSsSso/ossssSSsssso/ossssSSsssso/osSssSSssSso/ossssaasssso/ossssaasssso/ossssaasssso/.oooooooooo./............',
+  house: '............/.....oo...../....orro..../...orrrro.../..orrrrrro../.orrrRrrrro./orrrRrrrrrro/.owwwwwwwwo./.owwkkwbbwo./.owwkkwbbwo./.owwkkwwwwo./..oooooooo..',
+  wheat: '.....oo...../....oyyo..../...oyyyyo.../..oyyooyyo../..oyygyyo.../...oygyo..../..oyygyyo.../...oygyo..../....ogo...../....ogo...../...oggo...../....oo......',
+  log: '............/............/..oooooooo../.okkkkkkkko./okKkEEEkKkko/okKEkkkEKkko/okKEkEkEKkko/okKEkkkEKkko/okKkEEEkKkko/.okkkkkkkko./..oooooooo../............',
+  rock: '............/............/....oooo..../...oWWWWo.../..oWwwWWso../.oWwwWWssso./.oWwWWsssso./oWWWWsssSSso/oWsssssSSSSo/oSSSSSSSSSSo/.oooooooooo./............',
+  coin: '............/....oooo..../...oyyyyo.../..oyYYYYyo../.oyYyyyyYyo./.oyYyYYyYyo./.oyYyYYyYyo./.oyYyyyyYyo./..oyYYYYyo../...oyyyyo.../....oooo..../............',
+  flask: '....oo....../...owwo...../...owwo...../...owwo...../..owBBwo..../.owBBBBwo.../owBBggBBwo../owBgggggBwo./owBBBBBBBwo./.owwwwwwwo../..ooooooo.../............',
+  hourglass: '.oooooooooo./owwwwwwwwwwo/.owyyyyyywo./..owyyyywo../...owyywo.../....owwo..../....oyyo..../...owyywo.../..owyyyywo../.owyyyyyywo./owwwwwwwwwwo/.oooooooooo.',
+  heart: '............/..oo...oo.../.orro.orro../orrrrorrrro./orrrrrrrrro./orrrrrrrrro./.orrrrrrro../..orrrrro.../...orrro..../....oro...../.....o....../............',
+  swords: '.o........o./owo......owo/oWwo....owWo/.oWwo..owWo./..oWwoowWo../...oWwwWo.../...owWWwo.../..okKooKko../.okKo..oKko./.oKo....oKo./..o......o../............',
+  star: '.....oo...../....oyyo..../....oyyo..../.oooyyyyooo./oyyyyyyyyyyo/.oyyyyyyyyo./..oyyyyyyo../..oyyyyyyo../.oyyyooyyyo./.oyyo..oyyo./..oo....oo../............',
+  angry: '............/..oooooooo../.orrrrrrrro./orrrrrrrrrro/orarrrrrraro/orraarrraaro/orrraarraaro/orrrrrrrrrro/orrraaaarrro/orrarrrrarro/.orrrrrrrro./..oooooooo..',
+  wall: '............/.oooooooooo./osssssssssSo/osSsssSsssSo/oSSSSSSSSSSo/ossSssssSsso/ossSssssSsso/oSSSSSSSSSSo/osssSssssSso/osssSssssSso/oSSSSSSSSSSo/.oooooooooo.',
+  bow: '..oo......../.okko......./..okko....../...okko...../...okowo..../...okoowo.../...okoowo.../...okowo..../...okko...../..okko....../.okko......./..oo........',
+  leaf: '..........o./........oolo/......oolllo/....oollgggo/...ollggggo./..olgggGgo../.olggGggo.../ollgGggo..../okgGgoo...../okooo......./oko........./.o..........',
+  tree: '....oooo..../...ollllo.../..olgggglo../.olggglgggo./.oggggggggo./.oggglggggo./..oggggggo../...ookkoo.../....okKo..../....okKo..../...okkKKo.../....oooo....',
+  pickaxe: '..oooooo..../.osssssso.../osSSoosSso../oSoo..osSso./.o....okSso./.....okkoso./....okko.o../...okko...../..okko....../.okko......./okko......../.oo.........',
+  hammer: '..ooooooo.../.ossssssso../.osWWWWWso../.ossssssso../..oookkoo.../....okKo..../....okKo..../....okKo..../....okKo..../....oKKo..../.....oo...../............',
+  chest: '............/..oooooooo../.okkkkkkkko./okKkkkkkkKko/okkkkyykkkko/oYYYYyyYYYYo/okkkkYYkkkko/okKkkkkkkKko/okKkkkkkkKko/okkkkkkkkkko/.oooooooooo./............',
+  axe: '...ooo....../..ossso...../.osWWsso..../osWWWskso.../osWWWskko.../.osWWskko.../..osskko..../...ookko..../...okko...../...okko...../..okKo....../...oo.......',
+  blood: '.....oo...../....orro..../...orrrro.../...orrrro.../..orrRrrro../.orrRrrrrro./.orrrrrrrro./.orrrrrRrro./..orrrrrro../...orrrro.../....oooo..../............',
+  crystal: '.....oo...../....occo..../...ocBBco.../..ocBBcBco../..ocBcBBco../.ocBBcBBBco./.ocBcBBcBco./..ocBBcBco../...ocCCco.../....oCCo..../.....oo...../............',
+  hand: '....o.o...../...ototoo.../..ootototo../.ototototoo./.ototttttoto/.ottttttttto/.ottttttttto/..ottttttto./..ottttttto./...ottttto../...ottttto../....ooooo...',
+  pencil: '........oo../.......oyyo./......oyyyo./.....oyYyo../....oyYyo.../...oyYyo..../..oyYyo...../.okYyo....../okkko......./okko......../.oo........./............',
+  sun: '.....oo...../..o.oyyo.o../.oyooyyooyo./..oyyyyyyo../.ooyyyyyyoo./oyyyyyyyyyyo/oyyyyyyyyyyo/.ooyyyyyyoo./..oyyyyyyo../.oyooyyooyo./..o.oyyo.o../.....oo.....',
+  warn: '.....oo...../....oyyo..../....oyyo..../...oyyyyo.../...oyaayoo../..oyyyaayyo./..oyyyaayyo./.oyyyyyyyyyo/.oyyyyaayyyo/oyyyyyyyyyyo/.oooooooooo./............',
+  pause: '............/..ooo..ooo../.owwwoowwwo./.owwwoowwwo./.owwwoowwwo./.owwwoowwwo./.owwwoowwwo./.owwwoowwwo./.owwwoowwwo./.owwwoowwwo./..ooo..ooo../............',
+  play: '............/..oo......../.owwoo....../.owwwwoo..../.owwwwwwoo../.owwwwwwwwo./.owwwwwwwwo./.owwwwwwoo../.owwwwoo..../.owwoo....../..oo......../............',
+  drought: '...o....o.../..oeooooeo../...oeeeeo.../..oeeyyeeo../..oeyyyyeo../..oeeyyeeo../...oeeeeo.../.ooeooooeoo./okkkkkkkkkko/okKkkKkkKkko/.oooooooooo./............'
+};
+
+const ICON = {};                                           // name -> canvas (12x12 art icons, 16x16 creature portraits)
+for (const n in ICON_ART) {
+  const c = document.createElement('canvas'); c.width = 12; c.height = 12;
+  const x = c.getContext('2d');
+  ICON_ART[n].split('/').forEach((row, y) => { for (let i = 0; i < 12; i++) { const ch = row[i]; if (ch !== '.') { x.fillStyle = ICON_PAL[ch]; x.fillRect(i, y, 1, 1); } } });
+  ICON[n] = c;
+}
+for (const r of RN) {                                       // creature portraits come straight from the sprites
+  const sp = ATLAS[r].A, c = document.createElement('canvas'); c.width = 16; c.height = 16;
+  c.getContext('2d').drawImage(sp, Math.floor((16 - sp.width) / 2), 16 - sp.height);
+  ICON['cr:' + r] = c;
+}
+// emoji used as semantic tokens in strings -> icon name (werewolf uses a private symbol)
+const EMOJI_ICON = {
+  '🧑':'cr:human','🧝':'cr:elf','🧔':'cr:dwarf','👹':'cr:orc','🐑':'cr:sheep','🐺':'cr:wolf','🐇':'cr:rabbit','🦌':'cr:deer','\uE001':'cr:werewolf','👥':'cr:human',
+  '⛰':'mountain','⬆':'raise','⬇':'lower','🌊':'waves','🌱':'grass','🌲':'pine','🏖':'dune','🌋':'volcano','🌧':'rain','🔥':'flame','⚡':'bolt','☄':'meteor','✨':'sparkle','💀':'skull','☠':'skullg',
+  '📖':'book','🙏':'sunburst','🕊':'dove','🤝':'link','✂':'scissors','🔍':'magnifier','🗺':'map','🐾':'paw','🧹':'broom','🏆':'trophy','🚩':'flag','🌗':'moon','🌙':'moon','🌕':'moonfull',
+  '🛖':'tent','🏘':'village','🏙':'town','🏰':'castle','🏠':'house','🏚':'house','🏯':'castle','🍞':'wheat','🌾':'wheat','🪵':'log','🪨':'rock','🪙':'coin','🔬':'flask','⏳':'hourglass','❤':'heart',
+  '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
+  '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
+};
+const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
+const iconUrls = {};
+const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
+const iconOf = ch => ICON[EMOJI_ICON[String(ch).replace(/\uFE0F/g, '')]];
+function convertText(t) {                                   // swap emoji inside a text node for <img> icons
+  const str = t.nodeValue; EMO_RE.lastIndex = 0;
+  if (!t.parentNode || !EMO_RE.test(str)) return;
+  EMO_RE.lastIndex = 0;
+  const frag = document.createDocumentFragment(); let last = 0, m;
+  while ((m = EMO_RE.exec(str))) {
+    if (m.index > last) frag.appendChild(document.createTextNode(str.slice(last, m.index)));
+    const name = EMOJI_ICON[m[1]], img = document.createElement('img');
+    img.className = 'ic' + (name.startsWith('cr:') ? ' cr' : ''); img.src = iconURL(name); img.alt = ''; img.draggable = false;
+    frag.appendChild(img); last = m.index + m[0].length;
+  }
+  if (last < str.length) frag.appendChild(document.createTextNode(str.slice(last)));
+  t.parentNode.replaceChild(frag, t);
+}
+function convertTree(n) {
+  if (n.nodeType === 3) { convertText(n); return; }
+  if (n.nodeType !== 1) return;
+  const w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT), list = [];
+  while (w.nextNode()) list.push(w.currentNode);
+  list.forEach(convertText);
+}
+new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') convertTree(m.target); else m.addedNodes.forEach(convertTree); } })
+  .observe(app, { childList: true, subtree: true, characterData: true });
+function drawIcon(ch, x, y, size, alpha) {                 // an icon on the world canvas (centered at x, y)
+  const ic = iconOf(ch); if (!ic) return;
+  ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(ic, x - size/2, y - size/2, size, size); ctx.restore();
+}
+
 let SPR_K = 1;      // integer sprite scale: 10px per sprite pixel-block, ~1.7 tiles at the base zoom
 
 /* ============================== UTIL ============================== */
@@ -616,7 +749,7 @@ function evolveWolves() {
   }
   lastEvolve = tick; evolutions++; dirty = true;
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
-  toast('🌕 Serigala berevolusi!'); haptic('success');
+  toast(EMOJI.werewolf + ' Serigala berevolusi!'); haptic('success');
 }
 // Safety net: if wolves get scarce, a small pack wanders in from wild land (far from settlements, near prey).
 function wolfPack() {
@@ -764,7 +897,7 @@ function warToast(a, b, joined) {
   if (tick - lastWarToast < 24) return;                                          // at most one message every ~3 s
   if (a.level < 1 && b.level < 1) return;
   lastWarToast = tick;
-  if (b.race === 'werewolf' && !joined) toast(`🌕 ${b.name} tidak lagi netral!`);
+  if (b.race === 'werewolf' && !joined) toast(`${EMOJI.werewolf} ${b.name} tidak lagi netral!`);
   else toast(`${EMOJI[a.race]}${a.name} ⚔️ ${EMOJI[b.race]}${b.name}`);
 }
 function declareWar(a, b, joined) {
@@ -1219,14 +1352,12 @@ function draw() {
         ctx.fillStyle = '#ffd23f'; for (let l = 0; l < kg.level; l++) ctx.fillRect(fx0 + K*(1 + l*2), top - 8*K, K, K);
       }
       if (isCap && kg.enemies.size) {                                            // at war: crossed swords over the capital
-        ctx.save(); ctx.font = `${Math.max(14, SPR_K*7)}px sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = .75 + .25*Math.sin(frame*.15);
-        ctx.fillText('⚔️', cx, hy - SPR_K*11); ctx.restore();
+        drawIcon('⚔', cx, hy - SPR_K*11, Math.max(18, SPR_K*10), .8 + .2*Math.sin(frame*.15));
       }
       if (isCap && kg.ev) {                                                      // event: aura + icon over the capital
         ctx.fillStyle = kg.ev.type === 'plague' ? 'rgba(120,255,90,.10)' : kg.ev.type === 'drought' ? 'rgba(200,150,60,.12)' : 'rgba(255,230,120,.10)';
         ctx.beginPath(); ctx.arc(cx, fy - hh*.4, hw*1.2, 0, 7); ctx.fill();
-        ctx.save(); ctx.font = `${Math.max(14, SPR_K*7)}px sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = .75 + .25*Math.sin(frame*.12);
-        ctx.fillText(EV_IC[kg.ev.type], cx + (kg.enemies.size ? SPR_K*8 : 0), hy - SPR_K*11); ctx.restore();
+        drawIcon(EV_IC[kg.ev.type], cx + (kg.enemies.size ? SPR_K*10 : 0), hy - SPR_K*11, Math.max(18, SPR_K*10), .8 + .2*Math.sin(frame*.12));
       }
       if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(hx + hw*.2, hy + hh*.2, hw*.6, hh*.55); }
     }
@@ -1333,8 +1464,7 @@ function drawEffects() {
       ctx.strokeStyle = '#efe2b8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x1p - (bx - ax)*.18, y1p - (by - ay)*.18); ctx.lineTo(x1p, y1p); ctx.stroke();
     } else if (e.k === 'tech') {
       life = 60; const p = e.t / life;
-      ctx.save(); ctx.globalAlpha = Math.min(1, (1 - p) * 1.6); ctx.font = `${Math.max(16, sc*2.6)}px sans-serif`; ctx.textAlign = 'center';
-      ctx.fillText(e.ic, px, py - sc*1.5 - p*sc*5); ctx.restore();
+      drawIcon(e.ic, px, py - sc*1.5 - p*sc*5, Math.max(20, sc*3), Math.min(1, (1 - p) * 1.6));
     } else if (e.k === 'levelup') {
       life = 44; const p = e.t / life;
       ctx.strokeStyle = `rgba(255,215,80,${1 - p})`; ctx.lineWidth = 3;
@@ -1358,8 +1488,8 @@ let tool = 'raise', hover = null, painting = false, panning = false;
 let brush = 3, lastApply = 0, lastPointer = [0, 0];
 const brushR = () => brush - 1;
 const TOOLS = {
-  raise:  { g:'terrain', ic:'⛰️', nm:'Naikkan', ms:140 },
-  lower:  { g:'terrain', ic:'🌊', nm:'Turunkan', ms:140 },
+  raise:  { g:'terrain', ic:'⬆️', nm:'Naikkan', ms:140 },
+  lower:  { g:'terrain', ic:'⬇️', nm:'Turunkan', ms:140 },
   grass:  { g:'terrain', ic:'🌱', nm:'Rumput', ms:40 },
   forest: { g:'terrain', ic:'🌲', nm:'Hutan', ms:40 },
   sand:   { g:'terrain', ic:'🏖️', nm:'Pasir', ms:40 },
@@ -1372,7 +1502,7 @@ const TOOLS = {
   rabbit: { g:'life', ic:'🐇', nm:'Kelinci', ms:140, spawn:1 },
   deer:   { g:'life', ic:'🦌', nm:'Rusa', ms:140, spawn:1 },
   wolf:   { g:'life', ic:'🐺', nm:'Serigala', ms:140, spawn:1 },
-  werewolf: { g:'life', ic:'🌕', nm:'Manusia serigala', ms:140, spawn:1 },
+  werewolf: { g:'life', ic:EMOJI.werewolf, nm:'Manusia serigala', ms:140, spawn:1 },
   rain:   { g:'powers', ic:'🌧️', nm:'Hujan', ms:40 },
   fire:   { g:'powers', ic:'🔥', nm:'Api', ms:50 },
   bolt:   { g:'powers', ic:'⚡', nm:'Petir', ms:250 },
@@ -1676,14 +1806,20 @@ mkBtn(btns, '−', () => zoomBy(1/1.5));
 mkBtn(btns, '+', () => zoomBy(1.5));
 
 function updateStats() {
-  let h = '';
-  if (editMode) yearEl.textContent = '✏️';
+  const chip = (ch, n) => `<span>${ch}${n}</span>`;
+  let h1 = '', h2 = '';
+  if (editMode) { yearEl.textContent = '✏️'; }
   else {
     yearEl.textContent = '📅 ' + Math.floor(tick / 120);
-    for (const r of STAT_ORDER) if (r !== 'werewolf' || counts.werewolf) h += `<span>${EMOJI[r]}${counts[r] || 0}</span>`;     // werewolf chip appears once they exist
-    h += `<span>🏰${kingdoms.size}·🏠${houseCount}</span>`;
+    for (const r of ['human', 'elf', 'dwarf', 'orc', 'werewolf']) if (r !== 'werewolf' || counts.werewolf) h1 += chip(EMOJI[r], counts[r] || 0);
+    h1 += chip('🏰', kingdoms.size) + chip('🏠', houseCount);
+    for (const r of ['sheep', 'rabbit', 'deer', 'wolf']) h2 += chip(EMOJI[r], counts[r] || 0);
+    let wars = 0; for (const r of rels.values()) if (r.s === 1) wars++;
+    h2 += chip('⚔️', wars);
+    let sick = 0; for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick++;
+    if (sick) h2 += chip('☠️', sick);
   }
-  statsEl.innerHTML = h;
+  statsEl.innerHTML = h1; stats2El.innerHTML = h2;
 }
 
 /* ============================== SAVE / LOAD (play mode) ============================== */

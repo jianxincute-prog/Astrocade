@@ -27,3 +27,5 @@ Leaderboard: the 🏆 button (world tab, play mode) submits the **civilization s
 Wildlife: sheep, rabbits and deer are prey (rabbits/deer flee); wolves hunt them, avoid settlements when fed, and a small pack migrates in from wild land when wolves get scarce so they never stay extinct.
 
 Forced evolution: when only 2-3 wolves remain they all evolve into werewolves (cooldown 1200 ticks). Werewolves are a neutral civilization: nobody is their foe, they fight nobody, and they grow slowly (rare births, few houses scaled to population, long lives, small cap).
+
+HUD & icons: no emoji are rendered. Strings in game.js still use emoji as tokens, but `EMOJI_ICON` maps each to a hand-drawn 12x12 outlined pixel icon (`ICON_ART`; creature portraits are cut from the sprite atlas) and a MutationObserver swaps them for `<img>` in the DOM; the world canvas draws the same icons with `drawIcon`. The top bar is 190px: buttons + year, then two chip rows (people/kingdoms/houses, wildlife/wars/plague). Buttons are bevelled with a gold active state.
