@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Anak Kos: Tanggal Tua</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+  body{display:flex;align-items:center;justify-content:center;
+    background:#1d1630 radial-gradient(circle at 50% 30%,#3a2a5c 0%,#1d1630 70%)}
+  canvas{display:block;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+"use strict";
+/* =========================================================
+   ANAK KOS: TANGGAL TUA — prototipe HTML portrait 9:16
+   Logika 720x1280, semua grafis digambar prosedural (tanpa aset).
+   Semua angka yang bisa disetel ada di CFG (nanti -> game_config.json).
+   ========================================================= */
+const W = 720, H = 1280;
+
+const CFG = {
+  hourSec: 0.4,           // 1 jam game = 0.4 detik nyata (1 hari ≈ 10 dtk, 1 bulan ≈ 4-5 menit; ada tombol percepat)
+  days: 30,
+  startHour: 8,
+  startMoney: 100,        // dalam ribuan rupiah
+  rent: 1500,             // uang sewa yang harus ada saat tanggal 30
+  moodWeight: 10,         // skor = sisa uang + rata-rata bahagia x moodWeight
+  decay: { hunger: 3, energy: 3, hygiene: 1.6, fun: 2 }, // per jam game
+  start: { hunger: 35, energy: 80, hygiene: 70, fun: 60 },
+  sleepRate: 11, sleepRateUpgrade: 18,
+  eventChance: 0.45,
+  walkSpeed: 430,
+  walkTimeMul: 0.3,       // waktu melambat saat berjalan supaya jalan tidak 'memakan' jam
+  sleepTimeMul: 4,        // waktu berjalan 4x saat tidur
+};
+
+const NEEDS = [
+  { k: 'hunger',  icon: '🍜', name: 'Lapar'  },
+  { k: 'energy',  icon: '⚡', name: 'Energi' },
+  { k: 'hygiene', icon: '🚿', name: 'Bersih' },
+  { k: 'fun',     icon: '😊', name: 'Senang' },
+];
+
+// Perabot: posisi di ruangan, titik berdiri karakter (spot), aksi
+const FURN = [
+  { id: 'bed',   key: '1', icon: '🛏️', name: 'Kasur',  verb: 'Tidur',     x: 40,  y: 330, w: 230, h: 150, spot: [310, 410], sleep: true },
+  { id: 'stove', key: '2', icon: '🍳', name: 'Kompor', verb: 'Masak mi',  x: 30,  y: 540, w: 120, h: 120, spot: [195, 600], hours: 1, cost: 12, eff: { hunger: 45 } },
+  { id: 'bath',  key: '3', icon: '🚿', name: 'Mandi',  verb: 'Mandi',     x: 510, y: 320, w: 190, h: 200, spot: [600, 560], hours: 1, eff: { hygiene: 65, fun: 4 } },
+  { id: 'desk',  key: '4', icon: '💻', name: 'Laptop', verb: 'Freelance', x: 30,  y: 700, w: 130, h: 150, spot: [205, 775], hours: 3, earn: 25, eff: { fun: -8, energy: -5 }, power: true },
+  { id: 'tv',    key: '5', icon: '📺', name: 'TV',     verb: 'Nonton TV', x: 612, y: 615, w: 70,  h: 150, spot: [520, 690], hours: 2, eff: { fun: 40 }, power: true },
+  { id: 'door',  key: '6', icon: '🚪', name: 'Kerja',  verb: 'Kerja shift', x: 400, y: 905, w: 140, h: 30, spot: [470, 860], hours: 6, earn: 60, eff: { energy: -14, hygiene: -18, fun: -6 }, away: true },
+];
+
+const SHOP = [
+  { id: 'kasur',   icon: '🛏️', name: 'Kasur Empuk', price: 150, desc: 'Tidur jauh lebih cepat' },
+  { id: 'rice',    icon: '🍚', name: 'Rice Cooker', price: 120, desc: 'Masak: +70 kenyang' },
+  { id: 'speaker', icon: '🔊', name: 'Speaker',     price: 90,  desc: 'Senang turun lebih lambat' },
+  { id: 'laptop',  icon: '💻', name: 'Laptop Baru', price: 180, desc: 'Freelance +60% uang' },
+];
+
+const EVENTS = [
+  { id: 'friend', icon: '🙋', title: 'Teman datang numpang makan!',
+    a: { label: 'Ajak makan (−Rp15rb)', money: -15, fun: 20 }, b: { label: 'Pura-pura tidur', fun: -12 } },
+  { id: 'blackout', icon: '🕯️', title: 'Mati lampu sampai besok!', info: 'TV & laptop tidak bisa dipakai',
+    a: { label: 'Yah... oke deh', blackout: true } },
+  { id: 'mom', icon: '📦', title: 'Kiriman dari Ibu di kampung!', info: 'Ada uang saku & rendang',
+    a: { label: 'Asiik! Makasih, Bu', money: 40, hunger: 30, fun: 10 } },
+  { id: 'gorengan', icon: '🍤', title: 'Ibu kos bagi-bagi gorengan', a: { label: 'Makasih, Bu!', hunger: 25, fun: 8 } },
+  { id: 'roach', icon: '🪳', title: 'KECOA TERBANG!!',
+    a: { label: 'Lempar sandal', hygiene: -10, fun: -4 }, b: { label: 'Kabur ke luar', fun: -15, energy: -5 } },
+  { id: 'promo', icon: '🏷️', title: 'Promo mi instan di warung!', info: '3 kali masak gratis',
+    a: { label: 'Borong (−Rp20rb)', money: -20, freeMeals: 3 }, b: { label: 'Lewat aja' } },
+  { id: 'gig', icon: '📱', title: 'Ada orderan desain kilat!',
+    a: { label: 'Ambil (+Rp50rb, capek)', money: 50, energy: -25, fun: -5 }, b: { label: 'Tolak dulu' } },
+  { id: 'listrik', icon: '💡', title: 'Ibu kos tagih uang listrik',
+    a: { label: 'Bayar (−Rp30rb)', money: -30 }, b: { label: 'Bantu angkat galon aja', energy: -20, hygiene: -12 } },
+  { id: 'cat', icon: '🐈', title: 'Kucing tetangga main ke kamar', a: { label: 'Elus-elus', fun: 25 } },
+];
+
+/* ------------------ util ------------------ */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const FONT = '"Trebuchet MS","Segoe UI",system-ui,sans-serif';
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const rp = n => { const v = Math.abs(Math.round(n)); return (n < 0 ? '−' : '') + 'Rp' + (v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 2 : 0).replace(/0$/, '').replace('.', ',') + 'jt' : v + 'rb'); };
+function rr(x, y, w, h, r, fill, stroke, lw) {
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 3; ctx.stroke(); }
+}
+function txt(s, x, y, size, color, align, weight) {
+  ctx.font = (weight || 'bold') + ' ' + size + 'px ' + FONT;
+  ctx.fillStyle = color || '#fff'; ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(s, x, y);
+}
+function txtFit(s, x, y, size, color, maxW, align) {
+  ctx.font = 'bold ' + size + 'px ' + FONT;
+  while (ctx.measureText(s).width > maxW && size > 12) { size -= 1; ctx.font = 'bold ' + size + 'px ' + FONT; }
+  txt(s, x, y, size, color, align);
+}
+
+/* ------------------ save (prototipe: localStorage; di Astrocade -> lib.saveUserGameState) ------------------ */
+let SAVE = { best: 0, upgrades: {}, tutDone: false, quality: 'auto', muted: false, months: 0 };
+function loadSave() { try { const s = JSON.parse(localStorage.getItem('anakkos_v1') || 'null'); if (s) SAVE = Object.assign(SAVE, s); } catch (e) {} }
+function writeSave() { try { localStorage.setItem('anakkos_v1', JSON.stringify(SAVE)); } catch (e) {} }
+
+/* ------------------ kualitas / tier ------------------ */
+let autoTier = 'high';
+const tier = () => SAVE.quality === 'auto' ? autoTier : SAVE.quality;
+const TIER = { low: { dpr: 1, parts: 40 }, med: { dpr: 1.5, parts: 120 }, high: { dpr: 2, parts: 260 } };
+let scale = 1;
+function resize() {
+  let h = innerHeight, w = h * 9 / 16;
+  if (w > innerWidth) { w = innerWidth; h = w * 16 / 9; }
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const d = Math.min(devicePixelRatio || 1, TIER[tier()].dpr);
+  cv.width = Math.round(w * d); cv.height = Math.round(h * d);
+  scale = cv.width / W;
+}
+addEventListener('resize', resize);
+
+/* ------------------ audio (WebAudio, tanpa file) ------------------ */
+let AC = null;
+function ensureAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (AC && AC.state === 'suspended') AC.resume(); }
+function tone(f, d, type, vol, slide) {
+  if (!AC || SAVE.muted) return;
+  const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d);
+  g.gain.setValueAtTime(vol || 0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d);
+}
+const SFX = {
+  tap: () => tone(660, 0.07, 'triangle', 0.12),
+  coin: () => { tone(880, 0.08, 'square', 0.07); setTimeout(() => tone(1320, 0.12, 'square', 0.07), 70); },
+  eat: () => { tone(300, 0.1, 'sine', 0.2, 500); setTimeout(() => tone(400, 0.1, 'sine', 0.2, 600), 110); },
+  bad: () => tone(300, 0.35, 'sawtooth', 0.08, 120),
+  event: () => { tone(520, 0.1, 'triangle', 0.15); setTimeout(() => tone(780, 0.15, 'triangle', 0.15), 110); },
+  win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.2, 'triangle', 0.15), i * 120)),
+  buy: () => { tone(700, 0.08, 'triangle', 0.15); setTimeout(() => tone(1050, 0.18, 'triangle', 0.15), 80); },
+};
+function haptic(ms) { /* di Astrocade -> lib.haptics */ }
+
+/* ------------------ partikel & teks melayang ------------------ */
+const parts = [];
+function emit(x, y, n, opt) {
+  const max = TIER[tier()].parts;
+  for (let i = 0; i < n && parts.length < max; i++) {
+    parts.push({ x, y, vx: rnd(-1, 1) * (opt.sp || 60), vy: (opt.vy || -60) + rnd(-20, 20), life: opt.life || 1, t: 0,
+      r: opt.r || rnd(4, 8), c: opt.c || '#fff', g: opt.g || 0, ch: opt.ch });
+  }
+}
+const floats = [];
+function floatText(x, y, s, c) { floats.push({ x, y, s, c: c || '#fff', t: 0 }); }
+
+/* ------------------ state ------------------ */
+let state = 'loading';  // loading | menu | play | end
+let G = null, modal = null, buttons = [], toast = null, shake = 0, time = 0, endInfo = null;
+let floorCanvas = null, stars = [];
+const loadSteps = []; let loadDone = 0, loadT = 0;
+
+function newGame() {
+  G = {
+    day: 1, hour: CFG.startHour, money: CFG.startMoney, needs: Object.assign({}, CFG.start),
+    act: null, pending: null, ch: { x: 360, y: 640, face: 1, walk: 0 },
+    blackout: false, freeMeals: 0, eventDay: 1, usedEvents: [], smelly: false, galau: false,
+    moodSum: 0, moodN: 0, speed: 1, earned: 0, tut: SAVE.tutDone ? 99 : 0, tutT: 0,
+  };
+  modal = null; state = 'play';
+}
+
+/* ------------------ aksi ------------------ */
+function showToast(s) { toast = { s, t: 0 }; }
+function furnDisabled(f) { return f.power && G.blackout; }
+
+function order(f) {
+  if (!G || modal) return;
+  if (G.act && (G.act.special || G.act.f.away)) { showToast(G.act.special ? 'Lagi tidak sadar... 😵' : 'Lagi kerja di luar!'); return; }
+  if (G.act && G.act.f === f) return;
+  if (furnDisabled(f)) { showToast('Mati lampu! 🕯️'); SFX.bad(); return; }
+  if (f.cost && G.freeMeals <= 0 && G.money < f.cost) { showToast('Uangnya kurang! 💸'); SFX.bad(); shake = 6; return; }
+  SFX.tap(); haptic(10);
+  G.act = null; G.pending = f;
+}
+
+function startAct(f) {
+  if (f.cost) {
+    if (G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 90, 'Gratis! 🏷️', '#9ef'); }
+    else if (G.money >= f.cost) { G.money -= f.cost; floatText(f.spot[0], f.spot[1] - 90, '−' + rp(f.cost), '#ff9b9b'); }
+    else { showToast('Uangnya kurang! 💸'); SFX.bad(); return; }
+  }
+  const eff = Object.assign({}, f.eff || {});
+  if (f.id === 'stove' && SAVE.upgrades.rice) eff.hunger = 70;
+  G.act = { f, t: 0, total: f.hours || 0, eff };
+  if (f.id === 'stove') SFX.eat();
+  if (G.tut === 1 && (f.id === 'door' || f.id === 'desk')) { G.tut = 2; G.tutT = 0; }
+}
+
+function finishAct() {
+  const a = G.act, f = a.f;
+  if (f && f.earn) {
+    let e = f.earn;
+    if (f.id === 'desk' && SAVE.upgrades.laptop) e *= 1.6;
+    if (G.galau) e *= 0.5;
+    e = Math.round(e);
+    G.money += e; G.earned += e;
+    floatText(f.spot[0], f.spot[1] - 100, '+' + rp(e), '#ffe066');
+    emit(f.spot[0], f.spot[1] - 60, 12, { c: '#ffd43b', sp: 120, vy: -160, g: 300, life: 0.9, r: 7 });
+    SFX.coin(); haptic(20);
+  }
+  if (f && f.id === 'stove') {
+    emit(f.spot[0], f.spot[1] - 60, 8, { ch: '❤', c: '#ff6b6b', sp: 60, vy: -80, life: 1 });
+    if (G.tut === 0) { G.tut = 1; }
+  }
+  G.act = null;
+}
+
+function applyEff(o, mul) {
+  for (const n of NEEDS) if (o[n.k]) G.needs[n.k] = clamp(G.needs[n.k] + o[n.k] * mul, 0, 100);
+}
+
+function startSpecial(kind) {
+  G.pending = null;
+  if (kind === 'faint') {
+    G.act = { special: 'faint', t: 0, total: 4 };
+    G.needs.hunger = 45; G.needs.fun = clamp(G.needs.fun - 20, 0, 100);
+    showToast('Pingsan kelaparan! Ibu kos bawain nasi 🍚');
+  } else {
+    G.act = { special: 'floor', t: 0, total: 6 };
+    G.needs.fun = clamp(G.needs.fun - 15, 0, 100);
+    showToast('Ketiduran di lantai... 😴');
+  }
+  SFX.bad(); shake = 10; haptic(60);
+}
+
+/* ------------------ event ------------------ */
+function rollEvent(force) {
+  let pool = EVENTS.filter(e => !G.usedEvents.includes(e.id));
+  if (!pool.length) { G.usedEvents = []; pool = EVENTS.slice(); }
+  const ev = force ? EVENTS.find(e => e.id === force) : pool[Math.floor(Math.random() * pool.length)];
+  G.usedEvents.push(ev.id);
+  modal = { type: 'event', ev, t: 0 };
+  SFX.event(); haptic(30);
+}
+function applyChoice(c) {
+  if (c.money) { G.money += c.money; floatText(G.ch.x, G.ch.y - 120, (c.money > 0 ? '+' : '−') + rp(Math.abs(c.money)), c.money > 0 ? '#ffe066' : '#ff9b9b'); if (c.money > 0) SFX.coin(); }
+  applyEff(c, 1);
+  if (c.blackout) { G.blackout = true; if (G.act && G.act.f && G.act.f.power) G.act = null; }
+  if (c.freeMeals) G.freeMeals += c.freeMeals;
+  modal = null;
+}
+
+/* ------------------ akhir bulan ------------------ */
+function endMonth() {
+  const mood = G.moodN ? G.moodSum / G.moodN : 50;
+  const paid = G.money >= CFG.rent;
+  const left = G.money - CFG.rent;
+  const score = Math.round(Math.max(0, left) + mood * CFG.moodWeight);
+  const stars = paid ? (mood >= 55 ? 3 : 2) : 1;
+  const isBest = score > SAVE.best;
+  if (isBest) SAVE.best = score;
+  SAVE.months++; SAVE.tutDone = true; writeSave();
+  endInfo = { money: G.money, left, mood: Math.round(mood), score, stars, paid, isBest, t: 0 };
+  state = 'end'; modal = null; toast = null; SFX.win(); haptic(80);
+  // [Astrocade] lib.addPlayerScoreToLeaderboard(score)
+}
+
+/* ------------------ update ------------------ */
+function update(dt) {
+  time += dt;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.t += dt; if (p.t >= p.life) { parts.splice(i, 1); continue; }
+    p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+  for (let i = floats.length - 1; i >= 0; i--) { floats[i].t += dt; if (floats[i].t > 1.4) floats.splice(i, 1); }
+  if (toast) { toast.t += dt; if (toast.t > 2.6) toast = null; }
+  if (shake > 0) shake = Math.max(0, shake - dt * 30);
+  if (modal) modal.t += dt;
+  if (endInfo) endInfo.t += dt;
+
+  if (state === 'loading') return updateLoading(dt);
+  if (state !== 'play' || modal) return;
+
+  const ch = G.ch;
+  // jalan ke perabot
+  if (G.pending) {
+    const [tx, ty] = G.pending.spot, dx = tx - ch.x, dy = ty - ch.y, d = Math.hypot(dx, dy);
+    const step = CFG.walkSpeed * dt * (G.speed > 1 ? 1.5 : 1);
+    if (Math.abs(dx) > 2) ch.face = dx > 0 ? 1 : -1;
+    if (d <= step) { ch.x = tx; ch.y = ty; const f = G.pending; G.pending = null; ch.walk = 0; startAct(f); }
+    else { ch.x += dx / d * step; ch.y += dy / d * step; ch.walk += dt * 12; }
+  }
+
+  const a = G.act;
+  const sleeping = a && (a.f && a.f.sleep || a.special);
+  let mul = G.speed * (sleeping ? CFG.sleepTimeMul : 1) * (a && a.f && a.f.away ? 2 : 1) * (G.pending ? CFG.walkTimeMul : 1);
+  const gh = dt / CFG.hourSec * mul;
+
+  // waktu
+  const prevHour = G.hour;
+  G.hour += gh;
+  if (prevHour < 10 && G.hour >= 10 && G.day >= 2 && G.eventDay < G.day) {
+    G.eventDay = G.day;
+    if (G.day === 15) rollEvent('listrik');
+    else if (Math.random() < CFG.eventChance) rollEvent();
+  }
+  if (G.hour >= 24) {
+    G.hour -= 24; G.day++; G.blackout = false;
+    if (G.day > CFG.days) { G.day = CFG.days; return endMonth(); }
+    floatText(360, 560, 'Tanggal ' + G.day, '#fff');
+  }
+
+  // kebutuhan turun
+  const D = CFG.decay, nd = G.needs;
+  nd.hunger  -= D.hunger * gh * (sleeping ? 0.5 : 1);
+  nd.energy  -= D.energy * gh * (sleeping ? 0 : 1);
+  nd.hygiene -= D.hygiene * gh;
+  nd.fun     -= D.fun * gh * (sleeping ? 0.3 : 1) * (SAVE.upgrades.speaker ? 0.6 : 1);
+
+  // aktivitas
+  if (a) {
+    if (a.special) {
+      a.t += gh;
+      if (a.special === 'floor') nd.energy += 7 * gh;
+      if (a.t >= a.total) G.act = null;
+    } else if (a.f.sleep) {
+      nd.energy += (SAVE.upgrades.kasur ? CFG.sleepRateUpgrade : CFG.sleepRate) * gh;
+      if (Math.random() < dt * 1.5) floatText(a.f.x + 70 + rnd(-10, 10), a.f.y + 30, 'Z', '#cde');
+      if (nd.energy >= 100) { nd.energy = 100; G.act = null; floatText(ch.x, ch.y - 110, 'Segar! ⚡', '#9f9'); }
+    } else {
+      const step = Math.min(gh, a.total - a.t);
+      a.t += step; applyEff(a.eff, step / a.total);
+      if (a.f.id === 'stove' && Math.random() < dt * 8) emit(a.f.x + 60, a.f.y + 30, 1, { c: 'rgba(255,255,255,.7)', sp: 15, vy: -50, life: 1.2, r: rnd(6, 12) });
+      if (a.f.id === 'bath' && Math.random() < dt * 20) emit(a.f.x + 95, a.f.y + 60, 1, { c: '#7cc8ff', sp: 30, vy: 120, life: 0.6, r: 3 });
+      if (a.t >= a.total - 1e-6) finishAct();
+    }
+  }
+  for (const n of NEEDS) nd[n.k] = clamp(nd[n.k], 0, 100);
+
+  // kondisi kritis (kegagalan lembut)
+  if (!(G.act && G.act.special)) {
+    if (nd.hunger <= 0) startSpecial('faint');
+    else if (nd.energy <= 0 && !(G.act && G.act.f && G.act.f.sleep)) startSpecial('floor');
+  }
+  if (nd.hygiene <= 0 && !G.smelly) { G.smelly = true; nd.fun = clamp(nd.fun - 20, 0, 100); showToast('Bau banget! Lalat datang 🪰'); SFX.bad(); }
+  if (G.smelly && nd.hygiene > 30) G.smelly = false;
+  if (G.smelly && Math.random() < dt * 3) emit(ch.x + rnd(-30, 30), ch.y - 80, 1, { ch: '🪰', sp: 40, vy: -20, life: 1.2 });
+  if (nd.fun <= 3 && !G.galau) { G.galau = true; showToast('Galau... kerja cuma dapat setengah 😔'); }
+  if (G.galau && nd.fun > 30) G.galau = false;
+
+  G.moodSum += (nd.hunger + nd.energy + nd.hygiene + nd.fun) / 4 * gh; G.moodN += gh;
+  if (G.tut === 2) { G.tutT += dt; if (G.tutT > 5) { G.tut = 99; SAVE.tutDone = true; writeSave(); } }
+}
+
+/* ------------------ loading (progres nyata dari langkah init) ------------------ */
+let fpsSamples = [];
+function initLoadSteps() {
+  loadSteps.push(() => loadSave());
+  loadSteps.push(() => { // ubin lantai
+    floorCanvas = document.createElement('canvas'); floorCanvas.width = 680; floorCanvas.height = 610;
+    const c = floorCanvas.getContext('2d');
+    for (let y = 0; y < 610; y += 61) for (let x = 0; x < 680; x += 68) {
+      c.fillStyle = ((x / 68 + y / 61) % 2) ? '#e9d3b0' : '#e2c9a2'; c.fillRect(x, y, 68, 61);
+      c.strokeStyle = 'rgba(120,80,40,.12)'; c.strokeRect(x + .5, y + .5, 67, 60);
+    }
+  });
+  loadSteps.push(() => { for (let i = 0; i < 60; i++) stars.push([Math.random() * W, Math.random() * 520, Math.random() * 2 + 1, Math.random() * 6]); });
+  loadSteps.push('fps'); // ukur FPS untuk tier otomatis
+}
+function updateLoading(dt) {
+  loadT += dt;
+  if (loadDone < loadSteps.length) {
+    const s = loadSteps[loadDone];
+    if (s === 'fps') {
+      fpsSamples.push(dt);
+      if (fpsSamples.length >= 45) {
+        const avg = fpsSamples.slice(5).reduce((a, b) => a + b, 0) / (fpsSamples.length - 5);
+        const fps = 1 / avg; autoTier = fps < 40 ? 'low' : fps < 55 ? 'med' : 'high';
+        resize(); loadDone++;
+      }
+    } else { s(); loadDone++; }
+  } else if (loadT > 0.8) state = 'menu';
+}
+
+/* ------------------ input ------------------ */
+function btn(x, y, w, h, cb, key) { buttons.push({ x, y, w, h, cb, key }); }
+function hit(b, x, y) { return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h; }
+cv.addEventListener('pointerdown', e => {
+  ensureAudio();
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  for (let i = buttons.length - 1; i >= 0; i--) if (hit(buttons[i], x, y)) { buttons[i].cb(); return; }
+  if (state === 'play' && !modal) {
+    for (const f of FURN) if (x >= f.x - 15 && x <= f.x + f.w + 15 && y >= f.y - 15 && y <= f.y + f.h + 15) { order(f); return; }
+  }
+});
+addEventListener('keydown', e => {
+  ensureAudio();
+  const k = e.key.toLowerCase();
+  // tombol dengan shortcut keyboard (modal/menu)
+  for (let i = buttons.length - 1; i >= 0; i--) if (buttons[i].key && buttons[i].key.includes(k)) { e.preventDefault(); buttons[i].cb(); return; }
+  if (state === 'play' && !modal) {
+    const f = FURN.find(f => f.key === k); if (f) return order(f);
+  }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !modal) modal = { type: 'pause', t: 0 }; });
+
+/* ------------------ gambar: ruangan ------------------ */
+function skyColor(h) {
+  if (h < 5 || h >= 20) return ['#1b2350', '#2e2a63'];
+  if (h < 7) return ['#f6a37a', '#6d6aa8'];
+  if (h < 17) return ['#7ed0ff', '#bfe9ff'];
+  return ['#ff9a62', '#7b5aa6'];
+}
+function nightAlpha(h) {
+  if (h >= 7 && h < 17) return 0;
+  if (h >= 17 && h < 20) return (h - 17) / 3 * 0.28;
+  if (h >= 5 && h < 7) return (7 - h) / 2 * 0.28;
+  return 0.28;
+}
+function drawRoom() {
+  // dinding belakang
+  ctx.fillStyle = '#9fc5a8'; ctx.fillRect(20, 240, 680, 90);
+  ctx.fillStyle = '#8ab394'; for (let x = 20; x < 700; x += 34) ctx.fillRect(x, 240, 3, 90);
+  ctx.fillStyle = '#6b4a2f'; ctx.fillRect(20, 322, 680, 8);
+  // jendela
+  const sc = skyColor(G.hour), gr = ctx.createLinearGradient(0, 252, 0, 312);
+  gr.addColorStop(0, sc[0]); gr.addColorStop(1, sc[1]);
+  rr(300, 250, 130, 64, 6, gr, '#fff', 5);
+  if (G.hour < 5 || G.hour >= 20) { txt('🌙', 400, 270, 20); } else if (G.hour >= 7 && G.hour < 17) { txt('☀️', 330, 270, 20); }
+  ctx.fillStyle = '#fff'; ctx.fillRect(363, 250, 4, 64);
+  // poster & jam dinding
+  rr(455, 254, 40, 54, 3, '#ff8fab'); txt('★', 475, 281, 26, '#fff');
+  ctx.beginPath(); ctx.arc(250, 282, 24, 0, 7); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#555'; ctx.lineWidth = 3; ctx.stroke();
+  const ang = (G.hour % 12) / 12 * Math.PI * 2 - Math.PI / 2;
+  ctx.beginPath(); ctx.moveTo(250, 282); ctx.lineTo(250 + Math.cos(ang) * 14, 282 + Math.sin(ang) * 14); ctx.stroke();
+  // lantai
+  ctx.drawImage(floorCanvas, 20, 330);
+  // dinding samping & bawah
+  ctx.fillStyle = '#6b4a2f'; ctx.fillRect(14, 240, 8, 700); ctx.fillRect(698, 240, 8, 700); ctx.fillRect(14, 930, 692, 12);
+  // karpet
+  rr(270, 520, 220, 150, 20, '#c77dff55');
+  for (const f of FURN) drawFurn(f);
+}
+function highlight(f) {
+  const active = G.act && G.act.f === f || G.pending === f;
+  if (active) { ctx.save(); ctx.shadowColor = '#fff27a'; ctx.shadowBlur = tier() === 'low' ? 0 : 20; rr(f.x - 4, f.y - 4, f.w + 8, f.h + 8, 14, null, '#fff27a', 4); ctx.restore(); }
+}
+function drawFurn(f) {
+  const on = G.act && G.act.f === f && !G.pending;
+  const dis = furnDisabled(f);
+  ctx.save(); if (dis) ctx.globalAlpha = 0.55;
+  switch (f.id) {
+    case 'bed': {
+      rr(f.x, f.y, f.w, f.h, 12, '#8b5a3c');
+      rr(f.x + 8, f.y + 8, f.w - 16, f.h - 16, 10, '#f5f5f5');
+      rr(f.x + 16, f.y + 18, 60, f.h - 36, 12, '#ffffff', '#ddd', 2);
+      rr(f.x + 90, f.y + 10, f.w - 100, f.h - 20, 10, SAVE.upgrades.kasur ? '#ff8fab' : '#6c8cd5');
+      if (SAVE.upgrades.kasur) for (let i = 0; i < 4; i++) { ctx.fillStyle = '#ffd6e0'; ctx.beginPath(); ctx.arc(f.x + 115 + i * 28, f.y + 75, 7, 0, 7); ctx.fill(); }
+      else { ctx.fillStyle = '#5a78bd'; for (let i = 0; i < 3; i++) ctx.fillRect(f.x + 100 + i * 40, f.y + 12, 6, f.h - 24); }
+      break;
+    }
+    case 'stove': {
+      rr(f.x, f.y, f.w, f.h, 8, '#b8c0c8', '#7d868f', 3);
+      for (const [ox, oy] of [[35, 38], [35, 88]]) { ctx.beginPath(); ctx.arc(f.x + ox, f.y + oy, 20, 0, 7); ctx.fillStyle = '#333'; ctx.fill();
+        if (on && oy === 38) { ctx.strokeStyle = '#ff7b2e'; ctx.lineWidth = 4; ctx.stroke(); } }
+      rr(f.x + 12, f.y + 22, 46, 32, 8, on ? '#e0a040' : '#9aa');
+      if (SAVE.upgrades.rice) { rr(f.x + 72, f.y + 62, 38, 44, 12, '#fff', '#c33', 3); }
+      else rr(f.x + 72, f.y + 20, 36, 80, 6, '#e9e2d0'); // rak
+      break;
+    }
+    case 'bath': {
+      rr(f.x, f.y, f.w, f.h, 6, '#d7f0ff');
+      ctx.strokeStyle = '#a9d6f0'; ctx.lineWidth = 2;
+      for (let x = f.x; x < f.x + f.w; x += 30) { ctx.beginPath(); ctx.moveTo(x, f.y); ctx.lineTo(x, f.y + f.h); ctx.stroke(); }
+      for (let y = f.y; y < f.y + f.h; y += 30) { ctx.beginPath(); ctx.moveTo(f.x, y); ctx.lineTo(f.x + f.w, y); ctx.stroke(); }
+      ctx.fillStyle = '#6b4a2f'; ctx.fillRect(f.x - 6, f.y, 8, f.h); ctx.fillRect(f.x - 6, f.y + f.h - 6, 60, 8); ctx.fillRect(f.x + 130, f.y + f.h - 6, 66, 8);
+      rr(f.x + 120, f.y + 20, 56, 70, 14, '#5aa9e6'); // ember/bak
+      ctx.beginPath(); ctx.arc(f.x + 95, f.y + 40, 12, 0, 7); ctx.fillStyle = '#999'; ctx.fill();
+      txt('🪣', f.x + 50, f.y + 120, 34);
+      break;
+    }
+    case 'desk': {
+      rr(f.x, f.y, f.w, f.h, 6, '#a0703f');
+      const lap = SAVE.upgrades.laptop;
+      rr(f.x + 25, f.y + 35, 80, 70, 6, lap ? '#c0c0d0' : '#555');
+      rr(f.x + 32, f.y + 42, 66, 46, 3, on ? (Math.sin(time * 6) > 0 ? '#7cf' : '#9df') : '#223');
+      rr(f.x + 140, f.y + 50, 50, 50, 12, '#d95');
+      break;
+    }
+    case 'tv': {
+      rr(f.x, f.y + 10, f.w, f.h - 20, 6, '#222');
+      rr(f.x + 8, f.y + 20, f.w - 16, f.h - 40, 4, on ? `hsl(${(time * 120) % 360},70%,60%)` : '#334');
+      rr(f.x - 120, f.y + 40, 70, 70, 30, '#ef476f'); // beanbag
+      break;
+    }
+    case 'door': {
+      rr(f.x, f.y - 6, f.w, 40, 4, '#7a4b2a');
+      ctx.beginPath(); ctx.arc(f.x + f.w - 18, f.y + 14, 5, 0, 7); ctx.fillStyle = '#ffd43b'; ctx.fill();
+      rr(f.x + 15, f.y - 50, f.w - 30, 36, 8, '#b5838d'); // keset
+      break;
+    }
+  }
+  ctx.restore();
+  highlight(f);
+  if (dis) txt('🕯️', f.x + f.w / 2, f.y + f.h / 2, 30);
+}
+
+/* ------------------ gambar: karakter ------------------ */
+function moodFace() {
+  const m = Math.min(G.needs.hunger, G.needs.energy, G.needs.hygiene, G.needs.fun);
+  return m < 15 ? 'sad' : m < 40 ? 'meh' : 'happy';
+}
+function drawChar() {
+  const a = G.act, ch = G.ch;
+  if (a && a.f && a.f.away && !G.pending) { // sedang di luar
+    txt('🚶 Kerja shift...', 470, 820, 22, '#5a3a20');
+    return;
+  }
+  if (a && a.f && a.f.sleep && !G.pending) { // di kasur
+    const f = a.f;
+    drawHead(f.x + 46, f.y + f.h / 2, 'sleep', 0.95);
+    rr(f.x + 80, f.y + 14, f.w - 92, f.h - 28, 12, SAVE.upgrades.kasur ? '#ff8fabcc' : '#6c8cd5ee');
+    return;
+  }
+  if (a && a.special) {
+    ctx.save(); ctx.translate(ch.x, ch.y - 20); ctx.rotate(Math.PI / 2);
+    rr(-22, -10, 44, 60, 14, '#ff9f43'); drawHead(0, -30, 'sleep', 1, true); ctx.restore();
+    txt(a.special === 'faint' ? '💫' : '💤', ch.x, ch.y - 90 + Math.sin(time * 4) * 6, 34);
+    return;
+  }
+  const bob = G.pending ? Math.abs(Math.sin(ch.walk)) * 8 : Math.sin(time * 2) * 2;
+  const x = ch.x, y = ch.y - bob;
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(ch.x, ch.y + 4, 30, 10, 0, 0, 7); ctx.fill();
+  // kaki
+  const leg = G.pending ? Math.sin(ch.walk) * 8 : 0;
+  rr(x - 16, y - 20 + leg * 0.3, 12, 22, 5, '#3d405b'); rr(x + 4, y - 20 - leg * 0.3, 12, 22, 5, '#3d405b');
+  // badan (kaos)
+  rr(x - 24, y - 70, 48, 54, 16, '#ff9f43');
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 16px ' + FONT; ctx.textAlign = 'center'; ctx.fillText('K', x, y - 42);
+  drawHead(x, y - 98, (a && a.f && a.f.id === 'stove') ? 'happy' : moodFace(), 1);
+  // gelembung pikiran
+  if (!a && !G.pending) {
+    let low = null; for (const n of NEEDS) if (G.needs[n.k] < 30 && (!low || G.needs[n.k] < G.needs[low.k])) low = n;
+    if (low) {
+      const bx = x + 50, by = y - 160 + Math.sin(time * 3) * 4;
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + 26, y - 128, 6, 0, 7); ctx.fill();
+      rr(bx - 30, by - 28, 60, 56, 26, '#fff', '#333', 2); txt(low.icon, bx, by + 2, 30);
+    }
+  }
+}
+function drawHead(x, y, face, s, noHair) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.beginPath(); ctx.arc(0, 0, 30, 0, 7); ctx.fillStyle = '#f2c79b'; ctx.fill();
+  if (!noHair) { ctx.beginPath(); ctx.arc(0, -6, 31, Math.PI * 1.05, Math.PI * 1.95); ctx.fillStyle = '#2d2a32'; ctx.fill(); }
+  ctx.fillStyle = '#2d2a32'; ctx.strokeStyle = '#2d2a32'; ctx.lineWidth = 3;
+  if (face === 'sleep') {
+    ctx.beginPath(); ctx.moveTo(-14, 4); ctx.lineTo(-6, 4); ctx.moveTo(6, 4); ctx.lineTo(14, 4); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(-10, 2, 4, 0, 7); ctx.arc(10, 2, 4, 0, 7); ctx.fill();
+    ctx.beginPath();
+    if (face === 'happy') ctx.arc(0, 10, 9, 0.15 * Math.PI, 0.85 * Math.PI);
+    else if (face === 'meh') { ctx.moveTo(-7, 16); ctx.lineTo(7, 16); }
+    else ctx.arc(0, 22, 8, 1.15 * Math.PI, 1.85 * Math.PI);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,120,120,.35)'; ctx.beginPath(); ctx.arc(-18, 10, 5, 0, 7); ctx.arc(18, 10, 5, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ------------------ gambar: HUD ------------------ */
+function iconBtn(x, y, icon, cb, key, active) {
+  rr(x, y, 96, 96, 22, active ? '#ffd43b' : '#ffffff', '#3a2a5c', 4);
+  txt(icon, x + 48, y + 50, 40);
+  btn(x, y, 96, 96, () => { SFX.tap(); cb(); }, key);
+}
+function drawHUD() {
+  rr(10, 10, 400, 96, 22, '#3a2a5c');
+  txt('📅 Tgl ' + G.day + '/' + CFG.days, 30, 38, 26, '#fff', 'left');
+  const hh = Math.floor(G.hour), mm = Math.floor((G.hour % 1) * 6) * 10;
+  txt(String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 390, 38, 26, '#ffd43b', 'right');
+  txt('💰 ' + rp(G.money), 30, 78, 28, G.money >= CFG.rent ? '#8ce99a' : '#fff', 'left');
+  // bar target sewa
+  const p = clamp(G.money / CFG.rent, 0, 1);
+  rr(220, 66, 170, 24, 12, '#241a3a'); if (p > 0) rr(220, 66, 170 * p, 24, 12, p >= 1 ? '#51cf66' : '#ffa94d');
+  txt('Sewa ' + rp(CFG.rent), 305, 79, 15, '#fff');
+  iconBtn(420, 10, '🛒', () => { modal = { type: 'shop', t: 0 }; }, ['s']);
+  iconBtn(520, 10, G.speed > 1 ? '⏩' : '▶️', () => { G.speed = G.speed > 1 ? 1 : 2.5; }, [' '], G.speed > 1);
+  iconBtn(620, 10, '⏸️', () => { modal = { type: 'pause', t: 0 }; }, ['p', 'escape']);
+  // kebutuhan
+  NEEDS.forEach((n, i) => {
+    const x = 14 + i * 175, y = 118, v = G.needs[n.k];
+    const crit = v < 25;
+    rr(x, y, 166, 104, 18, crit ? '#ffe3e3' : '#fff', crit ? '#e03131' : '#3a2a5c', 4);
+    const pulse = crit ? 1 + Math.sin(time * 10) * 0.12 : 1;
+    ctx.save(); ctx.translate(x + 34, y + 38); ctx.scale(pulse, pulse); txt(n.icon, 0, 0, 34); ctx.restore();
+    txt(n.name, x + 108, y + 28, 19, '#3a2a5c');
+    txt(Math.round(v) + '', x + 108, y + 54, 24, crit ? '#e03131' : '#3a2a5c');
+    rr(x + 14, y + 76, 138, 16, 8, '#e9ecef');
+    const col = v < 25 ? '#fa5252' : v < 50 ? '#fcc419' : '#51cf66';
+    if (v > 1) rr(x + 14, y + 76, 138 * v / 100, 16, 8, col);
+  });
+}
+function drawPanel() {
+  rr(10, 948, 700, 322, 26, '#3a2a5c');
+  // status
+  const a = G.act;
+  let status = 'Ketuk perabot untuk beraktivitas', prog = -1;
+  if (G.pending) status = '🚶 Menuju ' + G.pending.name + '...';
+  else if (a && a.special) { status = a.special === 'faint' ? '😵 Pingsan...' : '😴 Ketiduran di lantai...'; prog = a.t / a.total; }
+  else if (a && a.f.sleep) { status = '😴 Tidur... (waktu dipercepat)'; prog = G.needs.energy / 100; }
+  else if (a) { status = a.f.icon + ' ' + a.f.verb + '...'; prog = a.t / a.total; }
+  txtFit(status, 30, 984, 24, '#fff', 520, 'left');
+  if (prog >= 0) { rr(30, 1006, 520, 14, 7, '#241a3a'); rr(30, 1006, 520 * clamp(prog, 0, 1), 14, 7, '#ffd43b'); }
+  const tags = []; if (G.freeMeals) tags.push('🏷️x' + G.freeMeals); if (G.galau) tags.push('😔'); if (G.smelly) tags.push('🪰'); if (G.blackout) tags.push('🕯️');
+  txt(tags.join(' '), 690, 984, 22, '#fff', 'right');
+  if ((a && !a.special && !a.f.away) || G.pending) {
+    rr(570, 994, 130, 36, 18, '#e03131'); txt('✖ Batal', 635, 1012, 18, '#fff');
+    btn(570, 980, 130, 56, () => { SFX.tap(); G.act = null; G.pending = null; }, ['x', 'backspace']);
+  }
+  // 6 tombol aksi
+  FURN.forEach((f, i) => {
+    const col = i % 3, row = Math.floor(i / 3);
+    const x = 22 + col * 228, y = 1042 + row * 114, w = 216, h = 104;
+    const dis = furnDisabled(f) || (f.cost && G.money < f.cost && G.freeMeals <= 0);
+    const active = (G.act && G.act.f === f) || G.pending === f;
+    rr(x, y, w, h, 20, active ? '#ffd43b' : dis ? '#6c5a8c' : '#fff');
+    txt(f.icon, x + 42, y + 52, 40);
+    txt(f.verb, x + 135, y + 36, 21, '#3a2a5c');
+    let sub = f.earn ? '+' + rp(f.earn) : f.cost ? (G.freeMeals ? 'Gratis' : '−' + rp(f.cost)) : f.sleep ? 'Isi energi' : 'Gratis';
+    txt(sub, x + 135, y + 66, 18, f.earn ? '#2b8a3e' : f.cost ? '#c92a2a' : '#666');
+    if (!lib_touch) { rr(x + w - 32, y + 6, 26, 26, 6, '#3a2a5c'); txt(f.key, x + w - 19, y + 20, 16, '#fff'); }
+    btn(x, y, w, h, () => order(f));
+  });
+}
+
+/* ------------------ tutorial dalam dunia game ------------------ */
+function drawTut() {
+  if (G.tut > 2 || modal) return;
+  let f = null, s = '';
+  if (G.tut === 0) { f = FURN[1]; s = 'Lapar! Ketuk kompor 🍳'; }
+  else if (G.tut === 1) { f = FURN[5]; s = 'Cari uang buat bayar sewa!'; }
+  else { s = 'Ngantuk? Ketuk kasur. Bertahan sampai tgl 30!'; }
+  if (G.tut === 1 && G.act) return;
+  if (G.tut === 0 && (G.pending || G.act)) return;
+  if (f) {
+    const ax = f.x + f.w / 2, ay = f.y - 30 + Math.sin(time * 6) * 10;
+    ctx.fillStyle = '#ffd43b'; ctx.strokeStyle = '#3a2a5c'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(ax, ay + 24); ctx.lineTo(ax - 22, ay - 6); ctx.lineTo(ax - 9, ay - 6); ctx.lineTo(ax - 9, ay - 34);
+    ctx.lineTo(ax + 9, ay - 34); ctx.lineTo(ax + 9, ay - 6); ctx.lineTo(ax + 22, ay - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.font = 'bold 24px ' + FONT; const w = ctx.measureText(s).width + 40;
+  rr(360 - w / 2, 860, w, 52, 26, '#3a2a5cee'); txt(s, 360, 887, 24, '#ffd43b');
+}
+
+/* ------------------ modal ------------------ */
+function bigBtn(x, y, w, h, label, color, cb, key, size) {
+  rr(x, y + 6, w, h, 24, 'rgba(0,0,0,.25)');
+  rr(x, y, w, h, 24, color, '#3a2a5c', 4);
+  txtFit(label, x + w / 2, y + h / 2 + 1, size || 30, '#fff', w - 30);
+  btn(x, y, w, h, () => { SFX.tap(); cb(); }, key);
+}
+function pop(t) { const k = Math.min(1, t * 5); return 0.8 + 0.2 * (1 - Math.pow(1 - k, 3)) + Math.sin(k * Math.PI) * 0.05; }
+function drawModal() {
+  ctx.fillStyle = 'rgba(20,12,35,.6)'; ctx.fillRect(0, 0, W, H);
+  buttons = buttons.filter(() => false); // modal menutup input di belakangnya
+  const s = pop(modal.t);
+  ctx.save(); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
+  if (modal.type === 'event') {
+    const ev = modal.ev;
+    rr(60, 330, 600, 600, 36, '#fff8e7', '#3a2a5c', 6);
+    txt(ev.icon, 360, 440, 100);
+    txtFit(ev.title, 360, 545, 34, '#3a2a5c', 540);
+    if (ev.info) txtFit(ev.info, 360, 590, 24, '#7a6a90', 540);
+    bigBtn(100, 640, 520, 110, ev.a.label, '#51cf66', () => applyChoice(ev.a), ['1', 'enter']);
+    if (ev.b) bigBtn(100, 780, 520, 110, ev.b.label, '#868e96', () => applyChoice(ev.b), ['2']);
+  } else if (modal.type === 'shop') {
+    rr(40, 200, 640, 900, 36, '#fff8e7', '#3a2a5c', 6);
+    txt('🛒 Toko Perabot', 360, 260, 40, '#3a2a5c');
+    txt('Uangmu: ' + rp(G.money) + '  •  Perabot dibawa ke bulan berikutnya', 360, 305, 19, '#7a6a90');
+    SHOP.forEach((it, i) => {
+      const y = 340 + i * 165, own = SAVE.upgrades[it.id], can = G.money >= it.price;
+      rr(70, y, 580, 150, 24, own ? '#d3f9d8' : '#fff', '#3a2a5c', 3);
+      txt(it.icon, 135, y + 75, 60);
+      txt(it.name, 200, y + 50, 28, '#3a2a5c', 'left');
+      txt(it.desc, 200, y + 92, 20, '#7a6a90', 'left');
+      if (own) txt('✔ Punya', 580, y + 75, 24, '#2b8a3e');
+      else {
+        rr(500, y + 40, 136, 72, 20, can ? '#ffa94d' : '#ced4da', '#3a2a5c', 3);
+        txt(rp(it.price), 568, y + 77, 24, '#fff');
+        btn(500, y + 40, 136, 72, () => {
+          if (!can) { SFX.bad(); showToast('Uangnya belum cukup'); return; }
+          G.money -= it.price; SAVE.upgrades[it.id] = true; writeSave(); SFX.buy(); haptic(30);
+          emit(360, 400 + i * 165, 20, { c: '#ffd43b', sp: 200, vy: -150, g: 400, life: 1 });
+        }, [String(i + 1)]);
+      }
+    });
+    bigBtn(210, 1010, 300, 76, 'Tutup', '#7950f2', () => { modal = null; }, ['escape', 's', 'enter']);
+  } else if (modal.type === 'pause') {
+    rr(110, 380, 500, 520, 36, '#fff8e7', '#3a2a5c', 6);
+    txt('Jeda', 360, 450, 44, '#3a2a5c');
+    bigBtn(160, 510, 400, 100, '▶ Lanjut', '#51cf66', () => { modal = null; }, ['p', 'escape', 'enter']);
+    bigBtn(160, 640, 400, 100, '🏠 Menu', '#7950f2', () => { modal = null; state = 'menu'; }, ['m']);
+    bigBtn(160, 770, 400, 90, SAVE.muted ? '🔇 Suara: Mati' : '🔊 Suara: Nyala', '#868e96', () => { SAVE.muted = !SAVE.muted; writeSave(); }, ['v'], 26);
+  } else if (modal.type === 'help') {
+    rr(60, 260, 600, 760, 36, '#fff8e7', '#3a2a5c', 6);
+    txt('Cara Main', 360, 330, 42, '#3a2a5c');
+    const L = ['👆 Ketuk perabot (atau tombol 1-6)', '🍜⚡🚿😊 Jaga semua kebutuhan', '🚪💻 Kerja untuk kumpulkan uang',
+      '💰 Tanggal 30: bayar sewa ' + rp(CFG.rent), '🎲 Hati-hati kejadian acak!', '🛒 Beli perabot = lebih efisien', '⏩ Spasi: percepat waktu'];
+    L.forEach((l, i) => txtFit(l, 100, 410 + i * 72, 26, '#3a2a5c', 520, 'left'));
+    bigBtn(210, 920, 300, 76, 'Oke!', '#51cf66', () => { modal = null; }, ['escape', 'enter', 'h']);
+  }
+  ctx.restore();
+}
+
+/* ------------------ layar menu ------------------ */
+function drawNightBg() {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#20184a'); g.addColorStop(0.55, '#5b3f8c'); g.addColorStop(1, '#f28f6b');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (const s of stars) { ctx.globalAlpha = 0.5 + Math.sin(time * 2 + s[3]) * 0.4; ctx.fillStyle = '#fff'; ctx.fillRect(s[0], s[1], s[2], s[2]); }
+  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(590, 150, 50, 0, 7); ctx.fillStyle = '#fff3bf'; ctx.fill();
+  // gedung kos
+  rr(110, 560, 500, 520, 10, '#3b2f5e');
+  ctx.fillStyle = '#8b3a3a'; ctx.beginPath(); ctx.moveTo(80, 570); ctx.lineTo(360, 470); ctx.lineTo(640, 570); ctx.closePath(); ctx.fill();
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+    const lit = Math.sin(c * 3 + r * 7 + Math.floor(time / 2)) > -0.3;
+    rr(150 + c * 112, 600 + r * 130, 82, 90, 6, lit ? '#ffd86b' : '#2a2148');
+  }
+  rr(320, 960, 80, 120, 6, '#6b4a2f');
+  rr(225, 500, 270, 50, 10, '#fff8e7'); txt('KOS PUTRA-PUTRI', 360, 526, 24, '#8b3a3a');
+  ctx.fillStyle = '#2b2440'; ctx.fillRect(0, 1080, W, 200);
+}
+function drawMenu() {
+  drawNightBg();
+  ctx.save(); ctx.translate(360, 210 + Math.sin(time * 2) * 6); ctx.rotate(-0.04);
+  txt('ANAK KOS', 4, 6, 104, '#3a2a5c'); txt('ANAK KOS', 0, 0, 104, '#ffd43b');
+  ctx.restore();
+  rr(190, 290, 340, 64, 32, '#ff6b6b'); txt('TANGGAL TUA', 360, 323, 34, '#fff');
+  txt('Bertahan sampai gajian!', 360, 395, 26, '#fff');
+  // maskot di jendela
+  drawHead(360 + 0, 730, 'happy', 1.1);
+  txt('🏆 Skor terbaik: ' + SAVE.best + (SAVE.months ? '   •   Bulan ke-' + (SAVE.months + 1) : ''), 360, 450, 24, '#fff');
+  const pulse = 1 + Math.sin(time * 4) * 0.03;
+  ctx.save(); ctx.translate(360, 900); ctx.scale(pulse, pulse); ctx.translate(-360, -900);
+  bigBtn(160, 840, 400, 120, '▶  MAIN', '#51cf66', () => { newGame(); }, ['enter', ' '], 48);
+  ctx.restore();
+  iconBtn(170, 1130, SAVE.muted ? '🔇' : '🔊', () => { SAVE.muted = !SAVE.muted; writeSave(); }, ['v']);
+  iconBtn(312, 1130, '❓', () => { modal = { type: 'help', t: 0 }; }, ['h']);
+  const q = { auto: 'A', low: 'L', med: 'M', high: 'H' }[SAVE.quality];
+  rr(454, 1130, 96, 96, 22, '#fff', '#3a2a5c', 4); txt('⚙️', 502, 1164, 30); txt(q === 'A' ? 'Auto' : q === 'L' ? 'Low' : q === 'M' ? 'Med' : 'High', 502, 1204, 18, '#3a2a5c');
+  btn(454, 1130, 96, 96, () => { SFX.tap(); const o = ['auto', 'low', 'med', 'high']; SAVE.quality = o[(o.indexOf(SAVE.quality) + 1) % 4]; writeSave(); resize(); }, ['q']);
+}
+function drawEnd() {
+  drawNightBg();
+  const e = endInfo;
+  ctx.save(); const s = pop(e.t); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
+  rr(60, 170, 600, 940, 40, '#fff8e7', '#3a2a5c', 6);
+  txt(e.paid ? 'GAJIAN! 🎉' : 'Waduh... 😅', 360, 250, 56, '#3a2a5c');
+  for (let i = 0; i < 3; i++) txt(i < e.stars ? '⭐' : '☆', 260 + i * 100, 345, 70, i < e.stars ? '#000' : '#bbb');
+  const rows = [['💰 Uang tanggal 30', rp(e.money)], ['🏠 Bayar sewa', '−' + rp(CFG.rent)], ['Sisa', rp(e.left)], ['😊 Rata-rata bahagia', e.mood + '%']];
+  rows.forEach((r, i) => {
+    txt(r[0], 110, 440 + i * 62, 26, '#3a2a5c', 'left');
+    txt(r[1], 610, 440 + i * 62, 28, i === 2 ? (e.left >= 0 ? '#2b8a3e' : '#c92a2a') : '#3a2a5c', 'right');
+  });
+  if (!e.paid) txtFit('Ibu kos kasih keringanan... kali ini saja!', 360, 700, 24, '#c92a2a', 540);
+  rr(130, 730, 460, 110, 26, '#3a2a5c');
+  txt('SKOR ' + e.score, 360, 772, 44, '#ffd43b');
+  txt(e.isBest ? '🏆 Rekor baru!' : 'Terbaik: ' + SAVE.best, 360, 818, 22, '#fff');
+  bigBtn(120, 870, 480, 110, '▶ Bulan Berikutnya', '#51cf66', () => { newGame(); }, ['enter', ' '], 36);
+  bigBtn(220, 1000, 280, 80, '🏠 Menu', '#7950f2', () => { state = 'menu'; }, ['m', 'escape'], 28);
+  ctx.restore();
+  if (e.t < 3 && Math.random() < 0.5) emit(rnd(80, 640), 150, 1, { c: `hsl(${rnd(0, 360)},90%,60%)`, sp: 60, vy: 120, g: 120, life: 3, r: 7 });
+}
+function drawLoading() {
+  drawNightBg();
+  txt('ANAK KOS', 360, 300, 96, '#ffd43b');
+  txt('Tanggal Tua', 360, 380, 36, '#fff');
+  const p = loadDone / loadSteps.length;
+  rr(160, 1150, 400, 30, 15, '#241a3a'); rr(160, 1150, Math.max(30, 400 * p), 30, 15, '#ffd43b');
+  txt('Menyiapkan kamar kos... ' + Math.round(p * 100) + '%', 360, 1210, 22, '#fff');
+}
+
+/* ------------------ render utama ------------------ */
+let lib_touch = matchMedia('(pointer: coarse)').matches; // di Astrocade -> lib.shouldUseTouchControls()
+function render() {
+  buttons = [];
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.fillStyle = '#f3e9ff'; ctx.fillRect(0, 0, W, H);
+  if (state === 'loading') drawLoading();
+  else if (state === 'menu') drawMenu();
+  else if (state === 'end') drawEnd();
+  else {
+    ctx.save();
+    if (shake > 0) ctx.translate(rnd(-shake, shake), rnd(-shake, shake));
+    ctx.fillStyle = '#efe4ff'; ctx.fillRect(0, 0, W, H);
+    drawRoom();
+    drawChar();
+    // malam / mati lampu
+    const na = G.blackout ? 0.55 : nightAlpha(G.hour);
+    if (na > 0) {
+      if (G.blackout && tier() !== 'low') {
+        const g = ctx.createRadialGradient(G.ch.x, G.ch.y - 60, 40, G.ch.x, G.ch.y - 60, 260);
+        g.addColorStop(0, 'rgba(255,200,100,0)'); g.addColorStop(1, `rgba(15,10,40,${na})`); ctx.fillStyle = g;
+      } else ctx.fillStyle = `rgba(15,10,40,${na})`;
+      ctx.fillRect(14, 240, 692, 702);
+    }
+    drawTut();
+    ctx.restore();
+    drawHUD();
+    drawPanel();
+  }
+  // partikel & teks
+  for (const p of parts) {
+    const a = 1 - p.t / p.life; ctx.globalAlpha = a;
+    if (p.ch) txt(p.ch, p.x, p.y, 22, p.c);
+    else { ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+  for (const f of floats) {
+    ctx.globalAlpha = 1 - f.t / 1.4;
+    const y = f.y - f.t * 60;
+    ctx.font = 'bold 30px ' + FONT; ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(40,20,60,.8)'; ctx.textAlign = 'center';
+    ctx.strokeText(f.s, f.x, y); txt(f.s, f.x, y, 30, f.c);
+  }
+  ctx.globalAlpha = 1;
+  if (modal) drawModal();
+  if (toast) {
+    ctx.globalAlpha = Math.min(1, (2.6 - toast.t) * 3);
+    ctx.font = 'bold 24px ' + FONT; const w = Math.min(680, ctx.measureText(toast.s).width + 50);
+    rr(360 - w / 2, 250, w, 60, 30, '#e03131'); txtFit(toast.s, 360, 281, 24, '#fff', w - 30);
+    ctx.globalAlpha = 1;
+  }
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.11, (now - last) / 1000); last = now;
+  update(dt); render();
+  requestAnimationFrame(loop);
+}
+initLoadSteps(); resize(); requestAnimationFrame(loop);
+window.__dbg = { get G() { return G; }, CFG, get state() { return state; }, endMonth: () => endMonth(), order: f => order(FURN.find(x => x.id === f)), choose: () => { if (modal && modal.type === "event") applyChoice(modal.ev.a); }, get end() { return endInfo; } };
+</script>
+</body>
+</html>
