@@ -23,7 +23,8 @@ const ease = (k) => (k = clamp(k, 0, 1), k * k * (3 - 2 * k));
 const pick = (a) => a[(Math.random() * a.length) | 0];
 const cfg = () => (window.gameConfig && window.gameConfig.settings) || {};
 
-let canvas, ctx, imgs = [], loaded = false;
+let canvas, ctx, loaded = false;
+const SPR = [];                      // SPR[charIndex][pose] = { img, iw, ih, white } (poses: idle punch kick special hit win)
 let stages = [];
 const G = {
   scene: 'title', t: 0, fade: 1, paused: false, slow: 1, freeze: 0, shake: 0, zoom: 0, down: null,
@@ -113,20 +114,41 @@ function drawParts() {
 
 /* ------------------------------------------------------------ fighters */
 function makeFighter(ci, side, opts = {}) {
-  const c = CHARS[ci], img = imgs[ci];
-  const iw = img ? img.naturalWidth || 300 : 300, ih = img ? img.naturalHeight || 400 : 400;
-  const sc = Math.min((opts.h || 300) / ih, (opts.w || 330) / iw);
+  const c = CHARS[ci], base = SPR[ci] && SPR[ci].idle, img = base ? base.img : null;
+  const iw = base ? base.iw : 300, ih = base ? base.ih : 400;
+  const sc = Math.min((opts.h || 310) / ih, (opts.w || 320) / iw);
   const w = iw * sc, h = ih * sc;
-  const f = {
-    ci, c, img, side, w, h, x: side < 0 ? 200 : 520, jump: 0, vy: 0, vx: 0, face: side < 0 ? 1 : -1,
+  return {
+    ci, c, img, side, w, h, sc, x: side < 0 ? 200 : 520, jump: 0, vy: 0, vx: 0, face: side < 0 ? 1 : -1,
     maxHp: opts.hp || 100, hp: opts.hp || 100, lag: opts.hp || 100, energy: 0, state: 'idle', st: 0, flash: 0, landT: 0,
     fired: false, struck: false, combo: 0, comboT: 0, ph: rand(0, 6), mv: 0, koRot: 0, koSpin: 0, wins: 0,
-    buf: null, intent: { l: false, r: false }, ai: { t: 0.6, cool: 0 }, sp: { x: 0, v: 0, y: 0, vy: 0 }, ps: Object.assign({ tempo: 1, bob: 1, wob: 1, hop: 1, hover: 0, lunge: 1, stiff: 1 }, c.ps || {}), stepAcc: 0, idleT: rand(2, 5), isCpu: !!opts.cpu, display: !!opts.display, ready: false, white: null, armor: false,
+    buf: null, intent: { l: false, r: false }, ai: { t: 0.6, cool: 0 }, sp: { x: 0, v: 0, y: 0, vy: 0 }, ps: Object.assign({ tempo: 1, bob: 1, wob: 1, hop: 1, hover: 0, lunge: 1, stiff: 1 }, c.ps || {}), stepAcc: 0, idleT: rand(2, 5), isCpu: !!opts.cpu, display: !!opts.display, ready: false, armor: false,
   };
-  if (img && img.complete) {
-    try { const cv = document.createElement('canvas'); cv.width = Math.ceil(w); cv.height = Math.ceil(h); const x = cv.getContext('2d'); x.drawImage(img, 0, 0, w, h); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); f.white = cv; } catch (e) {}
+}
+// Which pose image to show for the fighter's current state, scaled to match the idle image's height.
+function spriteFor(f, st) {
+  const set = SPR[f.ci]; if (!set || !set.idle) return null;
+  const s = st === undefined ? f.st : st;
+  let k = 'idle';
+  switch (f.state) {
+    case 'punch': if (s >= 0.07) k = 'punch'; break;
+    case 'kick': if (s >= 0.1) k = 'kick'; break;
+    case 'special': if (s >= 0.12) k = 'special'; break;
+    case 'hit': case 'ko': case 'dizzy': k = 'hit'; break;
+    case 'win': k = 'win'; break;
   }
-  return f;
+  const e = set[k] || set.idle, idle = set.idle;
+  let scale = f.sc * clamp(idle.ih / e.ih, 0.8, 1.25);
+  scale = Math.min(scale, (1.7 * f.w) / e.iw);
+  return { e, w: e.iw * scale, h: e.ih * scale };
+}
+// White silhouette of a pose image (hit flash); built once, lazily.
+function whiteOf(e) {
+  if (e.white === undefined) {
+    e.white = null;
+    try { const cv = document.createElement('canvas'); cv.width = e.iw; cv.height = e.ih; const x = cv.getContext('2d'); x.drawImage(e.img, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, e.iw, e.ih); e.white = cv; } catch (err) {}
+  }
+  return e.white;
 }
 function setState(f, s) { f.state = s; f.st = 0; f.struck = false; f.fired = false; }
 
@@ -159,7 +181,7 @@ function pose(f, t, st) {
     }
     case 'kick': {
       if (s < 0.14) { const k = ease(s / 0.14); p.ox = -24 * k; p.rot = -0.22 * k; p.sy = 1 - 0.12 * k; p.sx = 1 + 0.08 * k; p.shear = -30 * k * ps.wob; p.bulge = 0.08 * k; }
-      else if (s < 0.34) { const k = (s - 0.14) / 0.2; p.ox = lerp(-24, 95 * ps.lunge, ease(k)); p.oy = -34 * Math.sin(k * Math.PI); p.spin = -ease(k) * Math.PI * 2; p.shear = 30 * Math.sin(k * Math.PI) * ps.wob; p.sx = 1.06; p.ghost = 1; }
+      else if (s < 0.34) { const k = (s - 0.14) / 0.2; p.ox = lerp(-24, 95 * ps.lunge, ease(k)); p.oy = -34 * Math.sin(k * Math.PI); p.rot = 0.14 * Math.sin(k * Math.PI); p.shear = 22 * Math.sin(k * Math.PI) * ps.wob; p.ghost = 1; }
       else { const k = ease((s - 0.34) / 0.16); p.ox = lerp(95 * ps.lunge, 0, k); p.sx = lerp(1.1, 1, k); p.sy = lerp(0.9, 1, k); p.shear = Math.sin(k * 9) * 12 * (1 - k) * ps.wob; p.wob = 5 * (1 - k) * ps.wob; p.wf = 20; }
       break;
     }
@@ -219,19 +241,20 @@ function drawStrips(src, iw, ih, w, h, off, ws) {
     ctx.drawImage(src, 0, k * sh, iw, sh + 0.6, -wk / 2 + off(tn), -h + k * dh, wk, dh + 0.8);
   }
 }
-function renderBody(f, p, t, alpha) {
+function renderBody(f, p, t, alpha, st) {
+  const sp = spriteFor(f, st); if (!sp) return;
   const gy = GROUND - f.jump, dirL = f.face * f.c.nat, nat = f.c.nat;
   ctx.save(); ctx.globalAlpha *= alpha;
   ctx.translate(f.x + p.ox * f.face, gy + p.oy);
   ctx.rotate(p.rot * f.face);
-  if (p.spin) { ctx.translate(0, -f.h / 2); ctx.rotate(p.spin * f.face); ctx.translate(0, f.h / 2); }
+  if (p.spin) { ctx.translate(0, -sp.h / 2); ctx.rotate(p.spin * f.face); ctx.translate(0, sp.h / 2); }
   const sy = p.sy * (1 + f.sp.y), sx = p.sx * (1 - f.sp.y * 0.6);
   ctx.scale(sx * dirL, sy);
   const spx = f.sp.x * dirL;
   const off = (tn) => p.shear * nat * Math.pow(tn, 1.5) + spx * Math.pow(tn, 1.8) + p.wob * Math.sin(t * p.wf + tn * 3.2 + f.ph) * tn;
   const ws = (tn) => 1 + p.bulge * Math.sin(tn * Math.PI);
-  drawStrips(f.img, f.img.naturalWidth || f.w, f.img.naturalHeight || f.h, f.w, f.h, off, ws);
-  if (alpha >= 1 && f.flash > 0 && f.white) { ctx.globalAlpha = clamp(f.flash / 0.08, 0, 1); drawStrips(f.white, f.white.width, f.white.height, f.w, f.h, off, ws); }
+  drawStrips(sp.e.img, sp.e.iw, sp.e.ih, sp.w, sp.h, off, ws);
+  if (alpha >= 1 && f.flash > 0) { const wc = whiteOf(sp.e); if (wc) { ctx.globalAlpha = clamp(f.flash / 0.08, 0, 1); drawStrips(wc, sp.e.iw, sp.e.ih, sp.w, sp.h, off, ws); } }
   ctx.restore();
 }
 
@@ -253,7 +276,7 @@ function drawFighter(f, t) {
     glow(f.x, gy - f.h * 0.5, 160 + 12 * Math.sin(t * 8), f.c.color, 0.28);
   }
   // motion-smear afterimages during fast attack frames
-  if (p.ghost) for (let g = 3; g >= 1; g--) renderBody(f, pose(f, t, Math.max(0, f.st - g * 0.03)), t, 0.2 - g * 0.04);
+  if (p.ghost) for (let g = 3; g >= 1; g--) renderBody(f, pose(f, t, Math.max(0, f.st - g * 0.03)), t, 0.2 - g * 0.04, Math.max(0, f.st - g * 0.03));
   renderBody(f, p, t, 1);
   // dizzy stars
   if (f.state === 'dizzy' || (f.state === 'ko' && f.jump <= 0 && f.st > 0.4)) {
@@ -606,39 +629,41 @@ function enterSelect() {
   G.scene = 'select'; G.parts = []; G.projs = []; G.theme = 0;
   setSelActor(G.charIdx);
 }
-function setSelActor(i) { G.charIdx = i; selActor = makeActor(i, 360, GROUND, 310, 340); selActor.face = 1; selBounce = 0.3; }
+function setSelActor(i) { G.charIdx = i; selActor = makeActor(i, 360, GROUND, 340, 340); selActor.face = 1; selBounce = 0.3; }
 function drawSelect(dt) {
   // backdrop: sky + panel, preview floor
   drawStageBack(ctx, stages[0], G.t);
-  ctx.save(); ctx.fillStyle = 'rgba(40,16,90,0.85)'; ctx.fillRect(0, 500, W, H - 500); ctx.fillStyle = '#ffd23f'; ctx.fillRect(0, 500, W, 6); ctx.restore();
+  ctx.save(); const pg = ctx.createLinearGradient(0, 540, 0, H); pg.addColorStop(0, '#3b1f7a'); pg.addColorStop(1, '#1d0f45'); ctx.fillStyle = pg; ctx.fillRect(0, 540, W, H - 540); ctx.fillStyle = '#ffd23f'; ctx.fillRect(0, 540, W, 6); ctx.restore();
   // preview
   const c = CHARS[G.charIdx];
-  glow(360, 340, 250 + 12 * Math.sin(G.t * 3), c.color, 0.85);
-  ctx.save(); ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(360, 478, 190, 28, 0, 0, 7); ctx.fill(); ctx.restore();
+  glow(360, 360, 260 + 12 * Math.sin(G.t * 3), c.color, 0.85);
+  ctx.save(); ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(360, 518, 190, 28, 0, 0, 7); ctx.fill(); ctx.restore();
   // actor drawn on its own ground line (shifted up so feet sit on the pedestal)
-  ctx.save(); ctx.translate(0, 478 - GROUND); selBounce = Math.max(0, selBounce - dt);
+  ctx.save(); ctx.translate(0, 518 - GROUND); selBounce = Math.max(0, selBounce - dt);
   const bs = 1 + selBounce * 0.5 * Math.sin(selBounce * 40);
   ctx.translate(360, GROUND); ctx.scale(bs, bs); ctx.translate(-360, -GROUND);
   updateActor(selActor, dt); drawFighter(selActor, G.t); drawProjs(); drawPartsFront();
   ctx.restore();
-  addHit('prev', 120, 110, 480, 380, () => { showOff(selActor); }, true);
+  addHit('prev', 120, 110, 480, 420, () => { showOff(selActor); }, true);
   txt(c.name, 360, 64, 52, '#fff', { sw: 12 });
   // stat bars
   const bar = (label, v, y, col) => { ctx.save(); txt(label, 36, y, 22, '#fff', { align: 'left', sw: 6 }); rr(130, y - 9, 130, 18, 9); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill(); rr(130, y - 9, 130 * clamp((v - 0.8) / 0.4, 0.1, 1), 18, 9); ctx.fillStyle = col; ctx.fill(); ctx.restore(); };
   bar('SPD', c.spd, 140, '#4dd2ff'); bar('POW', c.pow, 172, '#ff6a6a');
-  // grid
-  const cw = 150, ch = 118, gx = 42, gy = 524, gap = 12, gh = 10;
+  // grid (4 columns, last row centered)
+  const cw = 150, ch = 150, gap = 12, gy = 566, cols = 4, n = CHARS.length;
   CHARS.forEach((ch2, i) => {
-    const col = i % 4, row = (i / 4) | 0, x = gx + col * (cw + gap), y = gy + row * (ch + gh), sel = i === G.charIdx, img = imgs[i];
+    const row = (i / cols) | 0, inRow = Math.min(cols, n - row * cols), col = i % cols;
+    const x = (W - (inRow * cw + (inRow - 1) * gap)) / 2 + col * (cw + gap), y = gy + row * (ch + gap), sel = i === G.charIdx;
+    const base = SPR[i] && SPR[i].idle;
     const bump = sel ? 1.05 + 0.02 * Math.sin(G.t * 8) : 1;
     ctx.save(); ctx.translate(x + cw / 2, y + ch / 2); ctx.scale((G.down === 'card' + i ? 0.94 : 1) * bump, (G.down === 'card' + i ? 0.94 : 1) * bump);
-    rr(-cw / 2, -ch / 2, cw, ch, 22); const g = ctx.createLinearGradient(0, -ch / 2, 0, ch / 2); g.addColorStop(0, sel ? '#fff7b0' : '#ffffff'); g.addColorStop(1, sel ? '#ffd23f' : '#d9d2ff'); ctx.fillStyle = g; ctx.fill();
+    rr(-cw / 2, -ch / 2, cw, ch, 24); const g = ctx.createLinearGradient(0, -ch / 2, 0, ch / 2); g.addColorStop(0, sel ? '#fff7b0' : '#ffffff'); g.addColorStop(1, sel ? '#ffd23f' : '#d9d2ff'); ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = sel ? 8 : 4; ctx.strokeStyle = sel ? ch2.color : '#6a4ad6'; ctx.stroke();
-    if (img) { const s = Math.min(100 / img.naturalHeight, 124 / img.naturalWidth); const iw = img.naturalWidth * s, ih = img.naturalHeight * s; ctx.drawImage(img, -iw / 2, -ih / 2 + 2, iw, ih); }
+    if (base) { const s2 = Math.min(122 / base.ih, 128 / base.iw); const iw = base.iw * s2, ih = base.ih * s2; ctx.drawImage(base.img, -iw / 2, -ih / 2 + 2, iw, ih); }
     ctx.restore();
     addHit('card' + i, x, y, cw, ch, () => { if (i !== G.charIdx) { Audio.boing(); } else Audio.select(); setSelActor(i); selBounce = 0.3; burstAt(360, 340, CHARS[i].color, 10, 500); }, true);
   });
-  button('fight', 'FIGHT!', 130, 1180, 460, 90, '#ff7a7a', '#e0243f', () => { Audio.select(); G.streak = 0; G.total = 0; pickOpponent(); saveProgress(); go('fight'); }, { size: 56, pulse: true });
+  button('fight', 'FIGHT!', 130, 1160, 460, 100, '#ff7a7a', '#e0243f', () => { Audio.select(); G.streak = 0; G.total = 0; pickOpponent(); saveProgress(); go('fight'); }, { size: 56, pulse: true });
   button('back', '', 14, 10, 96, 96, '#7b5cff', '#4a35c9', () => { Audio.select(); go('title'); }, { icon: iconBack });
   soundBtn(610, 14);
 }
@@ -661,7 +686,7 @@ function drawHud() {
     // portrait
     ctx.save(); ctx.beginPath(); ctx.arc(px, 62, 42, 0, 7); ctx.fillStyle = '#fff'; ctx.fill();
     ctx.clip(); ctx.fillStyle = f.c.color; ctx.globalAlpha = 0.35; ctx.fillRect(px - 42, 20, 84, 84); ctx.globalAlpha = 1;
-    if (f.img) { const s = 78 / Math.min(f.img.naturalHeight, f.img.naturalWidth * 1.1); const iw = f.img.naturalWidth * s, ih = f.img.naturalHeight * s; ctx.drawImage(f.img, px - iw / 2, 70 - ih * 0.5, iw, ih); }
+    if (f.img) { const iw = f.img.naturalWidth, ih = f.img.naturalHeight, sw = Math.min(iw, ih * 0.62); ctx.drawImage(f.img, (iw - sw) / 2, 0, sw, sw, px - 42, 20, 84, 84); }
     ctx.restore(); ctx.beginPath(); ctx.arc(px, 62, 42, 0, 7); ctx.lineWidth = 6; ctx.strokeStyle = left ? '#5dff8a' : '#ff7a7a'; ctx.stroke();
     // hp bar
     ctx.save(); rr(bx, 36, 200, 34, 17); ctx.fillStyle = 'rgba(20,8,50,0.75)'; ctx.fill();
@@ -914,13 +939,22 @@ function drawEdit(dt) {
 }
 
 /* ------------------------------------------------------------ boot */
-function loadImages() {
-  return Promise.all(CHARS.map((c, i) => new Promise((res) => {
-    const a = lib.getAsset(c.id); const img = new Image();
-    img.onload = () => { G.loadK = (G.loadK || 0) + 1 / CHARS.length; res(); };
-    img.onerror = () => { G.loadK = (G.loadK || 0) + 1 / CHARS.length; res(); };
-    img.src = a ? a.url : ''; imgs[i] = img;
-  })));
+const POSES = ['idle', 'punch', 'kick', 'special', 'hit', 'win'];
+function loadPose(ci, pose) {
+  return new Promise((res) => {
+    const a = lib.getAsset(CHARS[ci].id + '_' + pose);
+    if (!a) { res(false); return; }
+    const img = new Image();
+    img.onload = () => { if (img.naturalWidth > 0) SPR[ci][pose] = { img, iw: img.naturalWidth, ih: img.naturalHeight, white: undefined }; res(true); };
+    img.onerror = () => res(false);
+    img.src = a.url;
+  });
+}
+// Idle poses block the start screen; the other poses stream in afterwards (idle is the fallback until they arrive).
+async function loadImages() {
+  CHARS.forEach((_, i) => { SPR[i] = {}; });
+  await Promise.all(CHARS.map((_, i) => loadPose(i, 'idle').then(() => { G.loadK = (G.loadK || 0) + 1 / CHARS.length; })));
+  (async () => { for (let i = 0; i < CHARS.length; i++) await Promise.all(POSES.slice(1).map((p) => loadPose(i, p))); })();
 }
 async function run(mode) {
   G.mode = mode || window.mode || 'play';
