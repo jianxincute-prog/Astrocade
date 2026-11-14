@@ -1,8 +1,8 @@
 /* Pure, optional sandbox objectives. */
 export const OBJECTIVES = [
-  { id: 'population', icon: '👥', title: 'Dunia berkembang', detail: 'Capai 50 penghuni peradaban', target: 50 },
-  { id: 'realm', icon: '🏰', title: 'Kerajaan maju', detail: 'Bawa satu kerajaan ke level 3', target: 3 },
-  { id: 'peace', icon: '🕊️', title: 'Akhir konflik', detail: 'Saksikan satu perang berakhir', target: 1 },
+  { id: 'population', icon: '👥', title: 'World grows', detail: 'Reach 50 civilization residents', target: 50 },
+  { id: 'realm', icon: '🏰', title: 'Realm advances', detail: 'Bring one kingdom to level 3', target: 3 },
+  { id: 'peace', icon: '🕊️', title: 'End of conflict', detail: 'Watch one war end', target: 1 },
 ];
 
 /** Current progress values for the three goals. */

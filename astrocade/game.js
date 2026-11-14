@@ -1182,6 +1182,7 @@ function addShoal(kind) {
   for (let a = 0; a < 80; a++) {
     const x = ri(0, W - 1), y = ri(0, H - 1); if (!shoalOk(kind, x, y)) continue;
     if (shoals.some(s => s.kind === kind && Math.abs(s.x - x) + Math.abs(s.y - y) < 5)) continue;
+    if (sharks.some(k => Math.hypot(k.x - x, k.y - y) < 5)) continue;                // a new shoal never forms on top of a shark
     shoals.push({ x, y, kind, stock: .75 + Math.random() * .25, tx: x, ty: y, hd: 1, ph: ri(0, 63) }); return true;
   }
   return false;
@@ -1206,6 +1207,13 @@ function shoalTick() {
     s.stock = Math.min(1, s.stock + .0003);
     if (s.stock < .12) { shoals.splice(q, 1); continue; }         // fished out: the shoal scatters (a new one forms elsewhere later)
     have[s.kind]++;
+    const fk = sharks.find(k => Math.abs(k.x - s.x) < 5 && Math.abs(k.y - s.y) < 5);
+    if (fk) {                                                     // a shark nearby: the shoal scatters away from it
+      const ax = s.x - fk.x, ay = s.y - fk.y, al = Math.hypot(ax, ay) || 1, nx = s.x + ax / al * .3, ny = s.y + ay / al * .3;
+      if (shoalOk(s.kind, Math.round(nx), Math.round(ny))) { s.x = nx; s.y = ny; s.hd = ax >= 0 ? 1 : -1; }
+      else { const px = s.x - ay / al * .3, py = s.y + ax / al * .3; if (shoalOk(s.kind, Math.round(px), Math.round(py))) { s.x = px; s.y = py; } }
+      s.tx = s.x; s.ty = s.y; continue;
+    }
     if ((tick + s.ph) % 4) continue;
     if ((Math.abs(s.tx - s.x) < .6 && Math.abs(s.ty - s.y) < .6) || Math.random() < .03) {
       for (let a = 0; a < 6; a++) { const tx = rx + ri(-6, 6), ty = ry + ri(-6, 6); if (shoalOk(s.kind, tx, ty)) { s.tx = tx; s.ty = ty; break; } }
@@ -1242,11 +1250,12 @@ function drawShoals(x0, y0, x1, y1) {
 /* ============================== SEA LIFE: sharks (patrol the deep, hunt ships, bite far-out fishers; fish tool + tap info) ============================== */
 let sharks = [], nextSharkId = 1, sharkTarget = 0;
 const SHARK_HP = 60, SHARK_MODE = ['Patrolling the deep', 'Hunting a ship', 'Feeding on a shoal', 'Fleeing'];
+function shoalDist(x, y) { let d = 1e9; for (const q of shoals) { const e = Math.hypot(q.x - x, q.y - y); if (e < d) d = e; } return d; }
 function sharkOk(x, y) { if (!inb(x, y)) return false; const i = x + y*W; return tiles[i] <= T.SHALLOW && shoreD[i] !== 255 && shoreD[i] >= 2; }
 function addShark(x, y) {
   if (x == null) for (let a = 0; a < 80; a++) {
     const rx = ri(0, W - 1), ry = ri(0, H - 1);
-    if (tiles[rx + ry*W] === T.DEEP && sharkOk(rx, ry) && shoreD[rx + ry*W] >= 4 && !sharks.some(s => Math.abs(s.x - rx) + Math.abs(s.y - ry) < 14)) { x = rx; y = ry; break; }
+    if (tiles[rx + ry*W] === T.DEEP && sharkOk(rx, ry) && shoreD[rx + ry*W] >= 4 && !sharks.some(s => Math.abs(s.x - rx) + Math.abs(s.y - ry) < 14) && shoalDist(rx, ry) > 4) { x = rx; y = ry; break; }
   }
   if (x == null || !sharkOk(x, y)) return null;
   const s = { id: nextSharkId++, x, y, tx: x, ty: y, hd: 1, hp: SHARK_HP, cd: 0, fl: 0, mode: 0, ph: ri(0, 63) };
@@ -1280,8 +1289,8 @@ function sharkTick() {
     }
     if (prey) { s.mode = 1; s.tx = prey.x; s.ty = prey.y; if (pd < 1.4 && s.cd <= 0) sharkAttackShip(s, prey); }
     else if (shoal) {
-      s.mode = 2; s.tx = shoal.x; s.ty = shoal.y;
-      if (Math.max(Math.abs(shoal.x - s.x), Math.abs(shoal.y - s.y)) < 2.5) shoal.stock = Math.max(0, shoal.stock - .0012);
+      s.mode = 2; const ang = tick * .012 + s.ph; s.tx = shoal.x + Math.cos(ang) * 3.6; s.ty = shoal.y + Math.sin(ang) * 3.6;      // sharks stalk a shoal from a distance, never inside it
+      if (Math.hypot(shoal.x - s.x, shoal.y - s.y) < 5) shoal.stock = Math.max(0, shoal.stock - .0012);
     } else {
       s.mode = s.fl ? 3 : 0;
       if ((Math.abs(s.tx - s.x) < 1 && Math.abs(s.ty - s.y) < 1) || Math.random() < .01) for (let a = 0; a < 10; a++) { const tx = rx + ri(-12, 12), ty = ry + ri(-12, 12); if (sharkOk(tx, ty)) { s.tx = tx; s.ty = ty; break; } }
@@ -1289,7 +1298,8 @@ function sharkTick() {
     const dx = s.tx - s.x, dy = s.ty - s.y, dist = Math.hypot(dx, dy);
     if (dist > .05) {
       const stp = Math.min(s.mode === 1 ? .32 : .2, dist), nx = s.x + dx / dist * stp, ny = s.y + dy / dist * stp;
-      if (sharkOk(Math.round(nx), Math.round(ny))) { s.x = nx; s.y = ny; if (Math.abs(dx) > .1) s.hd = dx > 0 ? 1 : -1; } else { s.tx = s.x; s.ty = s.y; }
+      const dNew = shoalDist(nx, ny);
+      if (sharkOk(Math.round(nx), Math.round(ny)) && !(dNew < 2.4 && dNew < shoalDist(s.x, s.y))) { s.x = nx; s.y = ny; if (Math.abs(dx) > .1) s.hd = dx > 0 ? 1 : -1; } else { s.tx = s.x; s.ty = s.y; }
     }
     if (s.cd <= 0 && (tick + s.ph) % 10 === 0) for (const c of creatures) {        // far-out fishers can be bitten
       const j = c.job; if (!j || j.k !== 'fish' || j.ph !== 1 || c.hp <= 0) continue;
@@ -2081,7 +2091,7 @@ function drawIcon(ch, x, y, size, alpha) {                 // an icon on the wor
 }
 
 let SPR_K = 1;      // integer sprite scale for houses / props: 10px per sprite pixel-block, ~1.7 tiles at the base zoom
-let CHR_K = 1;      // character sprite scale, from the 'Ukuran Karakter' setting (default ~1.2 tiles)
+let CHR_K = 1;      // character sprite scale, from the 'Character Size' setting (default ~1.2 tiles)
 
 /* ============================== UTIL ============================== */
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -2626,8 +2636,7 @@ const evBirth = k => !k.ev ? 1 : k.ev.type === 'plague' ? .3 : k.ev.type === 'go
 const evFood = k => !k.ev ? 1 : k.ev.type === 'drought' ? .4 : k.ev.type === 'golden' ? 1.25 : 1;
 function startEvent(k, type, quiet) {
   k.ev = { type, left: EV_DUR[type] }; warStats['ev_' + type] = (warStats['ev_' + type] || 0) + 1;
-  const JOURNAL_EVENT = { plague: 'Wabah', drought: 'Kekeringan', golden: 'Zaman Kejayaan' };
-  addChronicle(EV_IC[type], `${JOURNAL_EVENT[type] || EV_NAME[type]} melanda ${k.name}`);
+  addChronicle(EV_IC[type], `${EV_NAME[type]} struck ${k.name}`);
   fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: EV_IC[type] });
   if (!quiet && k.level >= 1 && tick - lastEvToast >= 24) { lastEvToast = tick; toast(`${EV_IC[type]} ${EV_NAME[type]} · ${EMOJI[k.race]}${k.name}`); }
   dirty = true;
@@ -2798,7 +2807,7 @@ function absorbKingdom(a, b) {                              // b joins a: houses
     if (o !== a.id && !rels.has(rkey(a.id, o))) rels.set(rkey(a.id, o), r);
   }
   kingdoms.delete(b.id); rebuildRelations(); ownDirty = true; dirty = true; warStats.merged = (warStats.merged || 0) + 1;
-  addChronicle('🤝', `${b.name} bergabung dengan ${a.name}`);
+  addChronicle('🤝', `${b.name} joined ${a.name}`);
   fx('levelup', Math.round(a.cx), Math.round(a.cy));
 }
 function kingdomsAt(wx, wy, r) {                            // the kingdom under the finger first, then any others in the brush
@@ -2852,7 +2861,7 @@ function warToast(a, b, joined) {
 }
 function declareWar(a, b, joined) {
   rels.set(rkey(a.id, b.id), { s: 1, t: tick, until: 0 });
-  addChronicle('⚔️', joined ? `${a.name} ikut berperang melawan ${b.name}` : `${a.name} menyatakan perang terhadap ${b.name}`);
+  addChronicle('⚔️', joined ? `${a.name} joined the war against ${b.name}` : `${a.name} declared war on ${b.name}`);
   warStats.declared++; if (joined) warStats.joined++; else { warStats['by_' + a.race] = (warStats['by_' + a.race] || 0) + 1; if (b.race === 'werewolf') warStats.vs_werewolf = (warStats.vs_werewolf || 0) + 1; }
   rebuildRelations(); warToast(a, b, joined); haptic('warning');
   fx('warcry', a.cap % W, (a.cap / W) | 0); fx('warcry', b.cap % W, (b.cap / W) | 0);
@@ -2877,8 +2886,8 @@ function eraseKingdom(loser, winner) {
   for (const [key] of [...rels]) if (Math.floor(key / 65536) === id || key % 65536 === id) rels.delete(key);
   kingdoms.delete(id); rebuildRelations(); ownDirty = true; dirty = true;
   warStats.kingdomsDestroyed = (warStats.kingdomsDestroyed || 0) + 1;
-  addChronicle('🏚️', `${loser.name} (${TYPE_NAME[loser.race]}) runtuh dalam perang`);
-  if (winner) { toast(`🏚️ ${EMOJI[loser.race]} ${loser.name} jatuh ke ${winner.name}`); fx('boom', Math.round(loser.cx), Math.round(loser.cy), { r: 3 }); haptic('thud'); }
+  addChronicle('🏚️', `${loser.name} (${TYPE_NAME[loser.race]}) collapsed in the war`);
+  if (winner) { toast(`🏚️ ${EMOJI[loser.race]} ${loser.name} fell to ${winner.name}`); fx('boom', Math.round(loser.cx), Math.round(loser.cy), { r: 3 }); haptic('thud'); }
 }
 function eraseRace(race, winner) {
   if (extinctRaces.has(race)) return;
@@ -2891,8 +2900,8 @@ function eraseRace(race, winner) {
   for (const [key] of [...rels]) if (ids.has(Math.floor(key / 65536)) || ids.has(key % 65536)) rels.delete(key);
   rebuildRelations(); ownDirty = true; dirty = true;
   warStats.racesExtinct = (warStats.racesExtinct || 0) + 1;
-  addChronicle('☠️', `${TYPE_NAME[race]} punah dalam perang`);
-  toast(`☠️ ${EMOJI[race]} ${TYPE_NAME[race]} punah dalam perang${winner ? ` dengan ${winner.name}` : ''}`);
+  addChronicle('☠️', `${TYPE_NAME[race]} went extinct in the war`);
+  toast(`☠️ ${EMOJI[race]} ${TYPE_NAME[race]} went extinct in the war${winner ? ` with ${winner.name}` : ''}`);
   fx('boom', Math.round(winner ? winner.cx : W / 2), Math.round(winner ? winner.cy : H / 2), { r: 5 }); haptic('thud');
 }
 function endWar(a, b) {
@@ -2906,7 +2915,7 @@ function endWar(a, b) {
     return;
   }
   if (outcome === 'kingdom') { eraseKingdom(loser, winner); return; }
-  addChronicle('🕊️', `${a.name} dan ${b.name} berdamai setelah perang`);
+  addChronicle('🕊️', `${a.name} and ${b.name} made peace after the war`);
   rels.set(rkey(a.id, b.id), { s: 3, t: tick, until: tick + 4000 });
   rebuildRelations();
   if (tick - lastWarToast >= 24 && (a.level >= 1 || b.level >= 1)) { lastWarToast = tick; toast(`🕊️ ${a.name} & ${b.name}`); }
@@ -3001,7 +3010,7 @@ function placeLandmark(k, key) {
 function finishTech(k, t) {
   k.tech.push(t.id); k.res = null; recalcMods(k);
   if (t.lm) placeLandmark(k, t.lm);
-  if (t.id === 'voyage') { addChronicle('⛵', `${k.name} memasuki Era Penjelajahan`); toast(`⛵ ${k.name} memasuki Era Penjelajahan`); }
+  if (t.id === 'voyage') { addChronicle('⛵', `${k.name} entered the Age of Exploration`); toast(`⛵ ${k.name} entered the Age of Exploration`); }
   fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: t.ic });
   ownDirty = true; dirty = true;
 }
@@ -3142,8 +3151,8 @@ function launchVoyage(k) {
     phase:mission === 'colony' ? 'outbound' : 'fishing_outbound', sourceLand:plan.sourceLand,
     targetLand:mission === 'colony' ? plan.land : -1, targetComp:plan.targetComp, crew:crew.map(c=>c.nid), wreckAt, fishTimer:0 });
   if (selected && crew.includes(selected)) closeCreature();
-  if (mission === 'colony') { addChronicle('⛵', `${k.name} memberangkatkan kapal penjelajah`); toast(`⛵ Ekspedisi ${k.name} berlayar`); }
-  else { addChronicle('🎣', `${k.name} tidak menemukan pantai kosong; kapalnya menjadi kapal nelayan`); toast(`🎣 Kapal ${k.name} melaut untuk menangkap ikan`); }
+  if (mission === 'colony') { addChronicle('⛵', `${k.name} sent out an exploration ship`); toast(`⛵ The ${k.name} expedition set sail`); }
+  else { addChronicle('🎣', `${k.name} found no empty shore, so its ship became a fishing boat`); toast(`🎣 A ship of ${k.name} went out to fish`); }
   dirty = true; return true;
 }
 function disembarkCrew(ship, kingdom, land) {
@@ -3163,7 +3172,7 @@ function foundIslandColony(ship) {
   const x = i % W, y = (i / W) | 0, k = newKingdom(race, x, y);
   bld[i] = RACES[race].bi; kid[i] = k.id; k.food = 35; k.wood = 18; k.stone = 8; k.voyageCd = tick + 1200;
   disembarkCrew(ship, k, i); ownDirty = true; dirty = true; rebuildRelations();
-  addChronicle('🏝️', `${k.name} mendirikan koloni di pulau baru`); toast(`🏝️ Koloni baru: ${k.name}`); fx('levelup', x, y);
+  addChronicle('🏝️', `${k.name} founded a colony on a new island`); toast(`🏝️ New colony: ${k.name}`); fx('levelup', x, y);
   return true;
 }
 function bringCrewHome(ship) {
@@ -3178,9 +3187,9 @@ function wreckShip(s, si, why) {
   for (const c of creatures) if (c.boat === s.id) { c.boat = 0; c.hp = 0; c.cause = 'shipwreck'; }
   ships.splice(si, 1); fx('splash', x, y); emit('bit', x, y, 7, { col:'#bfe6ff' }); haptic('thud');
   if (wrecks.length >= 30) wrecks.shift(); wrecks.push({ x, y, kid: s.kingdomId, race: s.race, t0: tick, why: why || 'storm' });
-  const kind = s.phase.startsWith('fishing') ? 'Kapal nelayan' : 'Kapal penjelajah';
+  const kind = s.phase.startsWith('fishing') ? 'Fishing boat' : 'Exploration ship';
   if (why) { const kr = why === 'kraken'; addChronicle(kr ? '🐙' : '🦈', `A ${kr ? 'kraken dragged' : 'shark sank'} the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}${kr ? ' under' : ''}; the crew is lost`); toast(kr ? '🐙 A kraken dragged a ship under!' : '🦈 A shark sank a ship!'); }
-  else { addChronicle('🌊', `${kind} ${k ? k.name : ''} karam; awaknya hilang`); toast(`🌊 ${kind} karam di laut`); }
+  else { addChronicle('🌊', `${kind} of ${k ? k.name : 'a kingdom'} was lost at sea; its crew is gone`); toast(`🌊 ${kind} lost at sea`); }
   dirty = true;
 }
 function voyageTick() {
@@ -3210,7 +3219,7 @@ function voyageTick() {
         const landed = foundIslandColony(s); s.phase = 'return'; s.landed = landed ? 1 : 0; s.path.reverse(); s.step = 0; s.move = 0;
         if (s.path.length <= 1) { if (!landed) bringCrewHome(s); ships.splice(si,1); }
       } else if (s.phase === 'fishing_outbound') {
-        s.phase = 'fishing'; s.fishTimer = 160; addChronicle('🎣', `${kingdoms.get(s.kingdomId)?.name || 'Nelayan'} mulai mencari ikan di laut`);
+        s.phase = 'fishing'; s.fishTimer = 160; addChronicle('🎣', `${kingdoms.get(s.kingdomId)?.name || 'Fishers'} began fishing at sea`);
       } else {
         if (!s.landed) bringCrewHome(s);
         const k = kingdoms.get(s.kingdomId);
@@ -3289,7 +3298,7 @@ function chooseLeaders() {                                // the oldest member w
     if (L && L.hp > 0 && L.k === k.id) continue;
     if (L) { L.lead = 0; applyStats(L); }
     k.leader = k.cand;
-    if (k.cand) { k.cand.lead = 1; applyStats(k.cand); addHist(k.cand, 6); if (k.cand !== L) addChronicle('👑', `${nameOf(k.cand)} menjadi pemimpin ${k.name}`); }
+    if (k.cand) { k.cand.lead = 1; applyStats(k.cand); addHist(k.cand, 6); if (k.cand !== L) addChronicle('👑', `${nameOf(k.cand)} became leader of ${k.name}`); }
   }
 }
 function computeTerritory() {
@@ -3362,7 +3371,7 @@ function step() {
   }
   for (const i of spread) ignite(i);
   for (const k of kingdoms.values()) {                               // collapse empty kingdoms, re-centre the rest
-    if (k.houses === 0) { addChronicle('🏚️', `${k.name} runtuh karena tidak memiliki permukiman`); kingdoms.delete(k.id); ownDirty = true; warStats.collapsed = (warStats.collapsed || 0) + 1; continue; }
+    if (k.houses === 0) { addChronicle('🏚️', `${k.name} collapsed because it had no settlements`); kingdoms.delete(k.id); ownDirty = true; warStats.collapsed = (warStats.collapsed || 0) + 1; continue; }
     k.cx = k.sx / k.houses; k.cy = k.sy / k.houses; k.cap = k.nb;
   }
   if (tick % 8 === 0) economy();
@@ -3822,14 +3831,14 @@ let nextMajor = 0;                                           // tick before whic
 const pendingDis = [];
 const DIS_NAMES = ['Off', 'Rare', 'Frequent'];
 function strikeBolt(wx, wy, rr) {
-  addChronicle('⚡', 'Sambaran petir menghantam pulau');
+  addChronicle('⚡', 'Lightning struck the island');
   fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 }); haptic('tap');
   sharkHit(wx, wy, rr + 1); krakenHit(wx, wy, rr + 1, 110);
   forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
 }
 function strikeMeteor(wx, wy, R) {
-  addChronicle('☄️', 'Meteor menghantam pulau');
+  addChronicle('☄️', 'A meteor struck the island');
   fx('boom', wx, wy, { r: R + 2 }); haptic('thud'); shakeT = 22; sharkHit(wx, wy, R); krakenHit(wx, wy, R, 200);
   emit('debris', wx, wy, 34); emit('ember', wx, wy, 26, { sx: 1.5 }); emit('smoke', wx, wy, 12, { sx: 2, dark: 1, s0: .4, s1: 1.5 }); emit('dust', wx, wy, 16, { sx: 3 });
   forDisc(wx, wy, R, (x, y, i) => {
@@ -3841,7 +3850,7 @@ function strikeMeteor(wx, wy, R) {
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= (R+1)**2) c.hp = 0;
 }
 function eruptVolcano(wx, wy) {
-  addChronicle('🌋', 'Gunung berapi meletus');
+  addChronicle('🌋', 'A volcano erupted');
   fx('boom', wx, wy, { r: 5 }); haptic('thud'); shakeT = 40;
   const vv = volcanoAt(wx, wy); if (vv) vv.er = tick;
   emit('debris', wx, wy - 1.5, 26); emit('ember', wx, wy - 1.5, 40, { sx: 1 }); emit('smoke', wx, wy - 1.5, 14, { sx: 1.2, dark: 1, s0: .4, s1: 1.6 });
@@ -3861,7 +3870,7 @@ function eruptVolcano(wx, wy) {
 let shakeT = 0;
 const floods = [];                                           // { i, orig, until } tiles temporarily under water
 function strikeQuake(wx, wy) {
-  addChronicle('🪨', 'Gempa mengguncang pulau');
+  addChronicle('🪨', 'An earthquake shook the island');
   const R = 9; shakeT = 50; haptic('thud');
   fx('shock', wx, wy, { r: R }); fx('crack', wx, wy, { r: R, seed: (Math.random() * 999) | 0 }); emit('dust', wx, wy, 26, { sx: R });
   forDisc(wx, wy, R, (x, y, i) => {
@@ -3871,7 +3880,7 @@ function strikeQuake(wx, wy) {
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= R*R && Math.random() < .15) c.hp -= 4;
 }
 function strikeFlood(wx, wy) {                               // sea surges inland from a coast tile, then recedes
-  addChronicle('🌊', 'Gelombang banjir menyapu pesisir');
+  addChronicle('🌊', 'A flood surged along the coast');
   haptic('thud');
   const seen = new Set([wx + wy*W]), q = [[wx, wy, 0]], until = tick + 640;
   while (q.length) {
@@ -4081,7 +4090,7 @@ function relLine(k) {
   return (en ? `<br>⚔️ ${en}` : '') + (al ? `<br>🤝 ${al}` : '');
 }
 function kingdomHtml(k) {
-  const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Era Penjelajahan' : '';
+  const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Age of Exploration' : '';
   return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Stone Age', 'Bronze Age', 'Iron Age'][k.age | 0]}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
 }
 /* ============================== CREATURE PANEL ============================== */
@@ -4412,7 +4421,7 @@ function addChronicle(icon, text) {
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch])); }
 function chronicleBody() {
-  return chronicle.length ? chronicle.map(e => `<div class="jrow"><span class="jicon">${escapeHtml(e.icon)}</span><div><small>Tahun ${Math.floor(e.tick / 120)}</small><span>${escapeHtml(e.text)}</span></div></div>`).join('') : '<div class="jempty">Belum ada kejadian besar. Biarkan dunia berjalan—ceritanya akan muncul di sini.</div>';
+  return chronicle.length ? chronicle.map(e => `<div class="jrow"><span class="jicon">${escapeHtml(e.icon)}</span><div><small>Year ${Math.floor(e.tick / 120)}</small><span>${escapeHtml(e.text)}</span></div></div>`).join('') : '<div class="jempty">No major events yet. Let the world run and its story will appear here.</div>';
 }
 function goalsBody() {
   const vals = currentGoalValues();
@@ -4436,17 +4445,17 @@ function checkObjectives() {
   if (editMode || !started) return;
   const vals = currentGoalValues();
   for (const g of OBJECTIVES) if (!completedGoals.has(g.id) && vals[g.id] >= g.target) {
-    completedGoals.add(g.id); addChronicle('🏆', `Tujuan tercapai: ${g.title}`);
-    toast(`🏆 Tujuan tercapai · ${g.title}`); dirty = true;
+    completedGoals.add(g.id); addChronicle('🏆', `Goal reached: ${g.title}`);
+    toast(`🏆 Goal reached · ${g.title}`); dirty = true;
   }
 }
 function showJournal(tab = 'chronicle') {
   selected = null; following = false; deadNote = 0; infoHold = false; clearTimeout(infoT);
   checkObjectives();
-  const tabs = `<div class="jtabs"><button class="awb jtab ${tab === 'chronicle' ? 'on' : ''}" data-act="journalTab" data-tab="chronicle">📜 Kronik</button><button class="awb jtab ${tab === 'goals' ? 'on' : ''}" data-act="journalTab" data-tab="goals">🎯 Tujuan</button></div>`;
+  const tabs = `<div class="jtabs"><button class="awb jtab ${tab === 'chronicle' ? 'on' : ''}" data-act="journalTab" data-tab="chronicle">📜 Chronicle</button><button class="awb jtab ${tab === 'goals' ? 'on' : ''}" data-act="journalTab" data-tab="goals">🎯 Goals</button></div>`;
   const body = tab === 'goals' ? goalsBody() : chronicleBody();
   infoEl.dataset.journalTab = tab;
-  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close" aria-label="Tutup">✖</button></div><b>📜 Kronik Dunia</b>${tabs}<div class="jbody">${body}</div>`;
+  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close" aria-label="Close">✖</button></div><b>📜 World Chronicle</b>${tabs}<div class="jbody">${body}</div>`;
   infoEl.style.display = 'block';
 }
 function showBoard(html) { infoEl.innerHTML = html; infoEl.style.display = 'block'; clearTimeout(infoT); infoT = setTimeout(() => infoEl.style.display = 'none', 9000); }
@@ -4517,7 +4526,7 @@ mkBtn(btns, '−', () => zoomBy(1/1.5));
 mkBtn(btns, '+', () => zoomBy(1.5));
 if (!editMode) sndBtn = mkBtn(btns, '🔊', () => { sndInit(); sndResume(); setSound(!Snd.on); if (Snd.on) SFX.ui(); });
 if (!editMode) {
-  yearEl.title = 'Buka kronik dan tujuan'; yearEl.setAttribute('role', 'button'); yearEl.setAttribute('aria-label', yearEl.title); yearEl.tabIndex = 0;
+  yearEl.title = 'Open the chronicle and goals'; yearEl.setAttribute('role', 'button'); yearEl.setAttribute('aria-label', yearEl.title); yearEl.tabIndex = 0;
   yearEl.addEventListener('click', () => showJournal('chronicle'));
   yearEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showJournal('chronicle'); } });
 }
@@ -4563,13 +4572,25 @@ function serialize2() {
     sh: shoals.map(v => [Math.round(v.x), Math.round(v.y), v.kind, Math.round(v.stock * 100)]), st: shoalTarget, sk: sharks.map(v => [Math.round(v.x), Math.round(v.y), Math.round(v.hp)]), skt: sharkTarget, kr: krakens.map(k => [Math.round(k.x), Math.round(k.y), Math.round(k.hp), k.st, k.t, k.life, k.manual ? 1 : 0, k.kills]), krc: krakenCd,
     sf: ships.map(s => [s.id, s.race, kix.get(s.kingdomId) || 0, s.x, s.y, s.path, s.step, s.move, s.phase, s.sourceLand, s.targetLand, s.targetComp, s.crew, s.landed | 0, s.wreckAt | 0, s.fishTimer | 0]) };      // one packed int per creature
 }
+const LEGACY_TEXT = [                                           // chronicle lines saved by older versions were written in Indonesian: show them in English
+  [/^(.+) bergabung dengan (.+)$/, '$1 joined $2'], [/^(.+) ikut berperang melawan (.+)$/, '$1 joined the war against $2'], [/^(.+) menyatakan perang terhadap (.+)$/, '$1 declared war on $2'],
+  [/^(.+) runtuh dalam perang$/, '$1 collapsed in the war'], [/^(.+) punah dalam perang$/, '$1 went extinct in the war'], [/^(.+) dan (.+) berdamai setelah perang$/, '$1 and $2 made peace after the war'],
+  [/^(.+) memasuki Era Penjelajahan$/, '$1 entered the Age of Exploration'], [/^(.+) memberangkatkan kapal penjelajah$/, '$1 sent out an exploration ship'],
+  [/^(.+) tidak menemukan pantai kosong; kapalnya menjadi kapal nelayan$/, '$1 found no empty shore, so its ship became a fishing boat'], [/^(.+) mendirikan koloni di pulau baru$/, '$1 founded a colony on a new island'],
+  [/^Kapal nelayan (.*) karam; awaknya hilang$/, 'Fishing boat of $1 was lost at sea; its crew is gone'], [/^Kapal penjelajah (.*) karam; awaknya hilang$/, 'Exploration ship of $1 was lost at sea; its crew is gone'],
+  [/^(.+) mulai mencari ikan di laut$/, '$1 began fishing at sea'], [/^(.+) membawa pulang hasil tangkapan$/, '$1 brought home a catch'], [/^(.+) menjadi pemimpin (.+)$/, '$1 became leader of $2'],
+  [/^(.+) runtuh karena tidak memiliki permukiman$/, '$1 collapsed because it had no settlements'], [/^Wabah melanda (.+)$/, 'Plague struck $1'], [/^Kekeringan melanda (.+)$/, 'Drought struck $1'], [/^Zaman Kejayaan melanda (.+)$/, 'Golden age struck $1'],
+  [/^Sambaran petir menghantam pulau$/, 'Lightning struck the island'], [/^Meteor menghantam pulau$/, 'A meteor struck the island'], [/^Gunung berapi meletus$/, 'A volcano erupted'], [/^Gempa mengguncang pulau$/, 'An earthquake shook the island'], [/^Gelombang banjir menyapu pesisir$/, 'A flood surged along the coast'],
+  [/^Tujuan tercapai: Dunia berkembang$/, 'Goal reached: World grows'], [/^Tujuan tercapai: Kerajaan maju$/, 'Goal reached: Realm advances'], [/^Tujuan tercapai: Akhir konflik$/, 'Goal reached: End of conflict'],
+];
+const legacyText = t => { for (const [re, to] of LEGACY_TEXT) if (re.test(t)) return t.replace(re, to); return t; };
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
   ships = []; nextShipId = 1;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
   extinctRaces.clear(); for (const r of s.xr || []) if (['human','elf','dwarf','orc','werewolf'].includes(r)) extinctRaces.add(r);
-  chronicle.length = 0; for (const e of s.jl || []) if (Array.isArray(e) && e.length >= 3) chronicle.push({ tick: Math.max(0, e[0] | 0), icon: String(e[1]), text: String(e[2]) }); chronicle.length = Math.min(chronicle.length, CHRONICLE_MAX);
+  chronicle.length = 0; for (const e of s.jl || []) if (Array.isArray(e) && e.length >= 3) chronicle.push({ tick: Math.max(0, e[0] | 0), icon: String(e[1]), text: legacyText(String(e[2])) }); chronicle.length = Math.min(chronicle.length, CHRONICLE_MAX);
   completedGoals.clear(); for (const id of s.go || []) if (OBJECTIVES.some(g => g.id === id)) completedGoals.add(id); warsResolved = Math.max(0, s.wf | 0);
   currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0; floods.length = 0; Snd.on = s.sn !== 0; tutSeen = !!s.tu;
   const hl = [];
@@ -4672,7 +4693,7 @@ function loop(now) {
 const titleEl = el('div', 'awtitle'), tutEl = el('div', 'awtut');
 titleEl.style.display = 'none';
 const loadEl = el('div', 'awload');
-loadEl.innerHTML = '<div class="ldorb"><b>🌍</b><i>⛵</i></div><div class="ldname">ASTRO WORLD</div><div class="ldbar"><i></i></div><div class="ldtext">Menyiapkan dunia…</div>';
+loadEl.innerHTML = '<div class="ldorb"><b>🌍</b><i>⛵</i></div><div class="ldname">ASTRO WORLD</div><div class="ldbar"><i></i></div><div class="ldtext">Preparing the world…</div>';
 if (editMode) loadEl.style.display = 'none';
 function coverUrl() { try { const a = lib.getAsset && lib.getAsset('cover'); return a && a.url; } catch (e) { return null; } }
 /* Main-menu diorama: a living night scene (moon, stars, volcano island with a lit village, sailing ship, birds). Drawn at 360x640 and scaled 2x, pixel-crisp. */
@@ -4890,8 +4911,8 @@ async function start() {
       lib.showGameParameters({ name: 'Astro World', params: {
         'Day-night cycle': { key: 'settings.dayNight', type: 'checkbox' },
         'Starting population': { key: 'settings.population', type: 'slider', min: 0, max: 3, step: 0.5 },
-        'Ukuran Karakter': { key: 'settings.charSize', type: 'slider', min: CHAR_SIZE_MIN, max: CHAR_SIZE_MAX, step: 0.1 },
-        'Risiko Kapal Karam (%)': { key: 'settings.shipwreckRisk', type: 'slider', min: 0, max: 10, step: 1 },
+        'Character Size': { key: 'settings.charSize', type: 'slider', min: CHAR_SIZE_MIN, max: CHAR_SIZE_MAX, step: 0.1 },
+        'Shipwreck Risk (%)': { key: 'settings.shipwreckRisk', type: 'slider', min: 0, max: 10, step: 1 },
       } });
     } catch (e) {}
   }
