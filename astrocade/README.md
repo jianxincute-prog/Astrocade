@@ -2,7 +2,7 @@
 
 WorldBox-style god-sim sandbox. Portrait 720x1280, canvas + DOM overlay, no external assets.
 
-- `game.js` — everything: procedural world, creature AI, fire/disasters, rendering, input, UI, edit/play modes. Creature and house sprites are pixel art defined in code (walk A/B, attack C): 10x10 for most, 14x16 for the elite werewolf.
+- `game.js` — everything: procedural world, creature AI, fire/disasters, rendering, input, UI, edit/play modes. Creature and house sprites are pixel art defined in code (walk A/B, attack C): sizes vary per species (rabbit 11x10 up to the 14x16 werewolf), lit from the upper left.
 - `game_config.json` — `settings` (day/night, starting population scale) and `world` (`size` 0/1/2 = S/M/L, seed, RLE tiles painted in edit mode).
 
 Play mode: full sim + tools + autosave via `lib.saveUserGameState`.
