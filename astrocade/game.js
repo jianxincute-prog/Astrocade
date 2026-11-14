@@ -152,6 +152,14 @@ style.textContent = `
   #awinfo .bar u{display:block;flex:1;height:14px;background:#0b1020;border:2px solid #2c3868;border-radius:7px;overflow:hidden;text-decoration:none}
   #awinfo .bar u i{display:block;height:100%}
   #awinfo .row{font-size:24px;margin-top:4px;clear:both}
+  #awinfo .tag.t{background:#3a2a5c;color:#ffe9a0}
+  #awinfo .eq{display:flex;gap:8px;margin:6px 0;clear:both}
+  #awinfo .slot{flex:1;min-width:0;display:flex;align-items:center;gap:6px;font-size:19px;font-weight:700;line-height:1.1;background:rgba(8,12,30,.7);border:3px solid #2c3868;border-radius:10px;padding:4px 6px;white-space:normal}
+  #awinfo .slot .ic{width:28px;height:28px;flex:0 0 28px}
+  #awinfo .slot.e{color:#6a74a0;border-style:dashed}
+  #awinfo .slot.t1{border-color:#a08060}#awinfo .slot.t2{border-color:#d89040}#awinfo .slot.t3{border-color:#b8c4d4}
+  #awinfo .hist{font-size:20px;line-height:1.35;color:#c8d0f0;margin-top:4px;clear:both}
+  #awinfo .hist em{font-style:normal;color:#ffcf4a;font-weight:800}
   #awtoast{position:absolute;left:50%;top:204px;transform:translateX(-50%);background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:8px 24px;font-size:28px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.4)}
 `;
 document.head.appendChild(style);
@@ -681,7 +689,7 @@ function eliteTick() {                                        // Iron Age kingdo
       const d = Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy)); if (d < bd) { bd = d; best = c; }
     }
     if (!best) continue;
-    best.elite = 1; best.mhp = Math.round(RACES[best.t].hp * 1.8); best.hp = best.mhp; k.iron -= 8; fx('levelup', best.x, best.y);
+    best.elite = 1; applyStats(best); addHist(best, 7); k.iron -= 8; fx('levelup', best.x, best.y);
   }
 }
 function marketHtml() {
@@ -747,6 +755,21 @@ function kingdomProps(k) {
   }
   k.pv = { key, list };
   return list;
+}
+function drawGear(c, cx, fy, sw, sh) {                         // armour band, shield and a weapon in the tier colour
+  const e = c.eq, K = SPR_K, hd = c.face < 0 ? -1 : 1;
+  if (e[1]) { const [d, l] = TIER_COL[e[1]]; ctx.fillStyle = d; ctx.fillRect(cx - sw*.3, fy - sh*.5, sw*.6, K*2.2); ctx.fillStyle = l; ctx.fillRect(cx - sw*.3, fy - sh*.5, sw*.6, K*.8); ctx.fillStyle = d; ctx.fillRect(cx - sw*.42, fy - sh*.55, K*1.4, K*1.6); ctx.fillRect(cx + sw*.42 - K*1.4, fy - sh*.55, K*1.4, K*1.6); }
+  if (e[2]) { const [d, l] = TIER_COL[e[2]], sx = cx - hd*sw*.5 - (hd < 0 ? K*2 : 0); ctx.fillStyle = '#1c1424'; ctx.fillRect(sx - K*.3, fy - sh*.5 - K*.3, K*2.6, K*3.8); ctx.fillStyle = d; ctx.fillRect(sx, fy - sh*.5, K*2, K*3.2); ctx.fillStyle = l; ctx.fillRect(sx, fy - sh*.5, K*.8, K*3.2); }
+  if (e[0]) {
+    const [d, l] = TIER_COL[e[0]], kind = GEAR_KIND[c.t] ? GEAR_KIND[c.t][e[0] - 1] : 'club', x = cx + hd*sw*.5 - (hd < 0 ? K : 0), y = fy - sh*.45;
+    ctx.fillStyle = '#1c1424';
+    if (kind === 'sword') { ctx.fillRect(x - K*.3, y - K*4.3, K*1.6, K*5.6); ctx.fillStyle = l; ctx.fillRect(x, y - K*4, K, K*4); ctx.fillStyle = '#6a4424'; ctx.fillRect(x - K*.5, y, K*2, K*.9); ctx.fillRect(x, y + K*.9, K, K*1.1); }
+    else if (kind === 'axe') { ctx.fillRect(x - K*.3, y - K*5.3, K*3.2, K*7); ctx.fillStyle = '#8a5a34'; ctx.fillRect(x, y - K*5, K, K*6.4); ctx.fillStyle = l; ctx.fillRect(x + K, y - K*5, K*1.6, K*2); ctx.fillStyle = d; ctx.fillRect(x + K, y - K*3.4, K*1.6, K*.5); }
+    else if (kind === 'spear') { ctx.fillRect(x - K*.3, y - K*7.3, K*1.6, K*9); ctx.fillStyle = '#8a5a34'; ctx.fillRect(x, y - K*6, K, K*7.6); ctx.fillStyle = l; ctx.fillRect(x, y - K*7, K, K*1.4); }
+    else if (kind === 'bow') { ctx.fillRect(x - K*.6, y - K*4.3, K*2.4, K*6.6); ctx.fillStyle = e[0] === 3 ? '#e8eef6' : '#8a5a34'; ctx.fillRect(x, y - K*4, K, K*5.8); ctx.fillStyle = l; ctx.fillRect(x + hd*K, y - K*3, K*.6, K*3.4); }
+    else if (kind === 'claw') { ctx.fillRect(x - K*.4, y - K*2.3, K*3, K*3.6); ctx.fillStyle = l; ctx.fillRect(x, y - K*2, K*.7, K*2.6); ctx.fillRect(x + K*1, y - K*2, K*.7, K*2.6); ctx.fillRect(x + K*2, y - K*2, K*.7, K*2.6); }
+    else { ctx.fillRect(x - K*.3, y - K*3.3, K*2.2, K*4.6); ctx.fillStyle = d; ctx.fillRect(x, y - K*3, K*1.6, K*3.6); ctx.fillStyle = l; ctx.fillRect(x, y - K*3, K*.6, K*3.6); }
+  }
 }
 function drawDecor(x0, y0, x1, y1) {                          // trees by kind, palms on sand, ore nodes
   const u = sc / 6;
@@ -873,6 +896,7 @@ const ICON_ART = {
   drought: '...o....o.../..oeooooeo../...oeeeeo.../..oeeyyeeo../..oeyyyyeo../..oeeyyeeo../...oeeeeo.../.ooeooooeoo./okkkkkkkkkko/okKkkKkkKkko/.oooooooooo./............'
 };
 
+Object.assign(ICON_ART, { armor: '............/..oo....oo../.oWWo..oWWo./.oWsWooWsWo./..oWsWWsWo../..oWsWWsWo../..oWssssWo../..oWWWWWWo../...oWssWo.../...oooooo.../............/............' });
 Object.assign(ICON_ART, { target: '...oooooo.../..orrrrrro../.orwwwwwwro./orrwoooowrro/orwwoyyowwro/orwwoyyowwro/orrwoooowrro/.orwwwwwwro./..orrrrrro.../...oooooo.../............/............', close: '............/.oo......oo./.orro..orro./..orroorro../...orrrro.../....orro..../....orro..../...orrrro.../..orroorro../.orro..orro./.oo......oo./............' });
 Object.assign(ICON_ART, { shield: '.oooooooooo./.oWWWwwWWWo./.oWsswwsSWo./.oWsswwsSWo./.oWsswwsSWo./..oWsswsSo../..oWssssSo../...oWssSo.../....oSSo..../.....oo...../............/............' });
 Object.assign(ICON_ART, {"bronze": "............/............/....oooo..../...oeeeeo.../...okkkko.../.oooooooooo./oeeeeooeeeeo/okkkkookkkko/oooooooooooo/............/............/............", "iron": "............/............/....oooo..../...osssso.../...oSSSSo.../.oooooooooo./ossssoosssso/oSSSSooSSSSo/oooooooooooo/............/............/............", "silver": "............/............/....oooo..../...owwwwo.../...oWWWWo.../.oooooooooo./owwwwoowwwwo/oWWWWooWWWWo/oooooooooooo/............/............/............"});
@@ -897,7 +921,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
+Object.assign(EMOJI_ICON, { '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -963,11 +987,62 @@ function ignite(i) {
 function fx(kind, x, y, extra) { effects.push(Object.assign({ k:kind, x, y, t:0 }, extra || {})); }
 
 /* ============================== CREATURES ============================== */
+/* ============================== PERSONA: traits, equipment, history ============================== */
+const TRAITS = ['Pemberani', 'Tangguh', 'Gesit', 'Berumur panjang', 'Rapuh', 'Berbakat'];        // bit 1,2,4,8,16,32
+const W_ATK = [0, .08, .2, .4], A_DEF = [0, .06, .18, .35], S_DEF = [0, .05, .1, .18], A_HP = [0, 2, 5, 9];
+function rollTraits() {
+  let m = 0; const r = Math.random(), n = r < .15 ? 0 : r < .8 ? 1 : 2;
+  for (let i = 0; i < n; i++) { const b = 1 << ri(0, 5); if (b === 2 && (m & 16)) continue; if (b === 16 && (m & 2)) continue; m |= b; }
+  return m;
+}
+function applyStats(c) {                                       // max hp from race, traits, armour, leadership and knighthood; keeps the current hp ratio
+  const R = RACES[c.t]; if (R.engine) return;
+  let m = R.hp; if (c.tr & 2) m *= 1.25; if (c.tr & 16) m *= .8;
+  m += A_HP[c.eq ? c.eq[1] : 0]; if (c.lead) m *= 1.5; if (c.elite) m *= 1.5;
+  m = Math.round(m); const r = c.mhp > 0 ? Math.max(0, c.hp) / c.mhp : 1;
+  c.mhp = m; if (c.hp > 0) c.hp = Math.max(1, m * r);
+}
+const atkMul = c => { let m = 1; if (c.tr & 1) m *= 1.15; const w = c.eq ? c.eq[0] : 0; if (w) m *= 1 + W_ATK[w] * (c.tr & 32 ? 1.25 : 1); if (c.elite) m *= 1.25; return m; };
+const defMul = c => { let m = 1; if (c.eq) m *= (1 + A_DEF[c.eq[1]]) * (1 + S_DEF[c.eq[2]]); if (c.elite) m *= 1.2; return m; };
+function addHist(c, code, arg) {                               // life events of settlers (kept: the last 10)
+  if (!RACES[c.t].civ) return;
+  (c.hist || (c.hist = [])).push([tick, code, arg === undefined ? 0 : arg]); if (c.hist.length > 10) c.hist.shift();
+}
+const GEAR_COST = [ [{ wood: 2 }, { wood: 2 }, { wood: 3 }], [{ bronze: 2 }, { bronze: 3 }, { bronze: 2, wood: 2 }], [{ iron: 2 }, { iron: 4 }, { iron: 3 }] ];
+const afford = (k, c) => ['wood', 'stone', 'bronze', 'iron', 'silver'].every(x => !c[x] || (k[x] || 0) >= c[x]);
+function equipTick() {                                         // every ~10 s: kingdoms arm leaders, knights and soldiers with the best gear their age allows
+  const bud = {};
+  const order = [creatures.filter(c => c.hp > 0 && c.k && (c.lead || c.elite)), creatures.filter(c => c.hp > 0 && c.k && !c.lead && !c.elite && RACES[c.t].civ && !RACES[c.t].engine && isSoldier(c))];
+  for (const list of order) for (const c of list) {
+    const k = kingdoms.get(c.k); if (!k) continue;
+    if (bud[k.id] === undefined) bud[k.id] = 8; if (bud[k.id] <= 0) continue;
+    const tier = Math.min(3, (k.age | 0) + 1), e = c.eq || (c.eq = [0, 0, 0]);
+    for (let sl = 0; sl < 3 && bud[k.id] > 0; sl++) {
+      if (e[sl] >= tier) continue;
+      const cost = GEAR_COST[tier - 1][sl]; if (!afford(k, cost)) continue;
+      for (const x in cost) k[x] -= cost[x];
+      e[sl] = tier; bud[k.id]--;
+      if (sl === 0) addHist(c, 8, tier); else if (sl === 1) addHist(c, 9, tier);
+      if (sl === 1) applyStats(c);
+    }
+  }
+}
+const GEAR_NAME = {
+  human: [['Tombak batu', 'Pedang perunggu', 'Pedang besi'], ['Zirah kulit', 'Zirah perunggu', 'Zirah besi'], ['Perisai kayu', 'Perisai perunggu', 'Perisai besi']],
+  elf: [['Busur kayu', 'Busur komposit', 'Busur panjang'], ['Jubah daun', 'Zirah sisik', 'Zirah rantai'], ['Perisai kulit kayu', 'Perisai perunggu', 'Perisai perak besi']],
+  dwarf: [['Palu batu', 'Kapak perunggu', 'Kapak perang besi'], ['Zirah kulit', 'Zirah perunggu', 'Zirah baja'], ['Perisai kayu', 'Perisai perunggu', 'Perisai menara besi']],
+  orc: [['Gada kayu', 'Kapak perunggu', 'Golok besi'], ['Pelindung kulit', 'Zirah perunggu', 'Zirah besi kasar'], ['Perisai kulit', 'Perisai perunggu', 'Perisai besi']],
+  werewolf: [['Cakar tulang', 'Cakar perunggu', 'Cakar baja'], ['Jubah bulu', 'Zirah perunggu', 'Zirah besi'], ['Perisai tulang', 'Perisai perunggu', 'Perisai besi']],
+};
+const GEAR_KIND = { human: ['spear', 'sword', 'sword'], elf: ['bow', 'bow', 'bow'], dwarf: ['axe', 'axe', 'axe'], orc: ['club', 'axe', 'axe'], werewolf: ['claw', 'claw', 'claw'] };
+const GEAR_ICON = ['⚔️', '🥋', '🛡'], HIST_TXT = { 2: 'Membunuh musuh pertamanya', 3: '5 kemenangan', 4: '10 kemenangan', 5: 'Pahlawan: 25 kemenangan', 6: 'Dinobatkan menjadi pemimpin', 7: 'Diangkat menjadi ksatria besi', 11: 'Nyaris tewas dan selamat' };
+const TIER_COL = [null, ['#8a5a34', '#c8a070'], ['#c8803a', '#f0b868'], ['#aab2be', '#e8eef6']];
 function spawn(type, x, y, force) {
   if (!force && (creatures.length >= MAX_CREATURES * CAPK || (counts[type]||0) >= capOf(type) + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
   const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, gate:-1, gateUntil:0, avoid:0, avoidUntil:0, k:0, lead:0 };
+  if (!R.engine) { c.nid = c.id; c.tr = rollTraits(); c.eq = [0, 0, 0]; c.hist = []; if (c.tr & 8) c.life = Math.round(c.life * 1.3); applyStats(c); c.hp = c.mhp; }
   creatures.push(c); counts[type] = (counts[type]||0) + 1; dirty = true;
   return c;
 }
@@ -1074,7 +1149,8 @@ function stepCreature(c) {
   if (fire[idx]) { c.hp -= 9; if (c.hp <= 0) return; }
   if (c.k && c.hp < c.mhp && (tick + c.id) % 4 === 0) { const kk = kingdoms.get(c.k); if (kk && kk.mod.regen) c.hp = Math.min(c.mhp, c.hp + kk.mod.regen * 4); }
   if (R.hunt) { c.en -= 0.12; if (c.en <= 0) { c.hp = 0; return; } }
-  if ((tick + c.id) % R.mv !== 0) return;
+  if (c.k !== c.lk) { c.lk = c.k; const kj = c.k ? kingdoms.get(c.k) : null; if (kj) { if (c.nj) c.nj = 0; else addHist(c, 10, kj.name); } }
+  if ((tick + c.id) % ((c.tr & 4) ? Math.max(1, R.mv - 1) : R.mv) !== 0) return;
 
   let tg = c.tgt;
   if (tg && (tg.hp <= 0 || Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y)) > (R.hunt ? 24 : 13))) tg = c.tgt = null;
@@ -1085,12 +1161,14 @@ function stepCreature(c) {
     if (d <= rng && R.dmg > 0) {
       c.atk = 10; c.face = tg.x > c.x ? 1 : tg.x < c.x ? -1 : c.face;
       const night = nightNow > .5;
-      const am = (ka ? ka.mod.atk * (night && ka.mod.night ? ka.mod.night : 1) : 1) * (c.elite ? 1.5 : 1);      // tech + night-strength bonuses, iron knights hit harder
-      const dm = (kd ? kd.mod.def * (night && kd.mod.night ? kd.mod.night : 1) : 1) * (tg.elite ? 1.4 : 1);
+      const am = (ka ? ka.mod.atk * (night && ka.mod.night ? ka.mod.night : 1) : 1) * atkMul(c);      // tech + night-strength bonuses, traits and weapons
+      const dm = (kd ? kd.mod.def * (night && kd.mod.night ? kd.mod.night : 1) : 1) * defMul(tg);
       tg.hp -= R.dmg * (.5 + Math.random()) * am / dm;
+      if (tg.hp > 0 && tg.hp < tg.mhp * .2 && !tg.hw) { tg.hw = 1; addHist(tg, 11); }
       if (d > 1) fx('arrow', c.x, c.y, { tx: tg.x, ty: tg.y }); else fx('hit', tg.x, tg.y);
       if (tg.hp <= 0) {
-        c.kills++; if (R.hunt) c.en = Math.min(100, c.en + (GAIN[tg.t] || 45)); c.tgt = null;
+        c.kills++; if (c.kills === 1) addHist(c, 2); else if (c.kills === 5) addHist(c, 3); else if (c.kills === 10) addHist(c, 4); else if (c.kills === 25) addHist(c, 5);
+        if (R.hunt) c.en = Math.min(100, c.en + (GAIN[tg.t] || 45)); c.tgt = null;
         if (ka) {
           if (ka.mod.loot) { ka.gold += 10; ka.food += 8; }                              // raiders loot their victims
           if (ka.mod.steal) c.hp = Math.min(c.mhp, c.hp + c.mhp * ka.mod.steal);          // blood totem heals the killer
@@ -1166,7 +1244,7 @@ let lastEvolve = -1e9, evolutions = 0, nightNow = 0;
 function evolveWolves() {
   const R = RACES.werewolf;
   for (const c of creatures) if (c.t === 'wolf') {
-    c.t = 'werewolf'; c.hp = c.mhp = R.hp; c.age = 0; c.life = ri(R.life[0], R.life[1]);
+    c.t = 'werewolf'; c.hp = c.mhp = R.hp; c.age = 0; c.life = ri(R.life[0], R.life[1]); applyStats(c); c.hp = c.mhp;
     c.tgt = null; c.atk = 0; c.fail = 0; c.en = 100;
     fx('evolve', c.x, c.y);
   }
@@ -1296,7 +1374,7 @@ function towerTick() {                                      // every 1.5 seconds
   }
 }
 function eventsTick() {                                     // every ~10 seconds
-  repairWalls(); siegeTick(); resTick(); updateMarket(); tradeTick(); eliteTick();
+  equipTick(); repairWalls(); siegeTick(); resTick(); updateMarket(); tradeTick(); eliteTick();
   const ks = [...kingdoms.values()];
   for (const k of ks) {
     if (k.ev) {
@@ -1351,7 +1429,7 @@ function splitKingdom(k, hostile) {                         // one side of the r
 function absorbKingdom(a, b) {                              // b joins a: houses, people, resources, techs, relations
   for (let i = 0; i < N; i++) if (kid[i] === b.id) kid[i] = a.id;
   for (const c of creatures) if (c.k === b.id) c.k = a.id;
-  if (b.leader) b.leader.lead = 0;
+  if (b.leader) { b.leader.lead = 0; applyStats(b.leader); }
   a.food = Math.min(400, a.food + b.food); a.wood = Math.min(250, a.wood + b.wood); a.stone = Math.min(250, a.stone + b.stone); a.gold = Math.min(250, a.gold + b.gold);
   for (const key of ['silver', 'bronze', 'iron']) a[key] = Math.min(250, (a[key] || 0) + (b[key] || 0));
   if (b.tech.length > a.tech.length) a.tech = b.tech.slice();
@@ -1497,7 +1575,6 @@ function recalcMods(k) {
     const t = TECH_BY[k.race + ':' + id]; if (!t) continue;
     for (const key in t.fx) { const v = t.fx[key]; if (ADD.has(key)) m[key] += v; else if (MAXED.has(key)) m[key] = Math.max(m[key], v); else m[key] *= v; }
   }
-  const AG = [1, 1.1, 1.22][k.age | 0] || 1; m.atk *= AG; m.def *= AG;                   // bronze / iron age weapons
   k.mod = m;
 }
 function freeTileNear(k, minR, maxR, pred) {
@@ -1637,9 +1714,9 @@ function chooseLeaders() {                                // the oldest member w
   for (const k of kingdoms.values()) {
     const L = k.leader;
     if (L && L.hp > 0 && L.k === k.id) continue;
-    if (L) L.lead = 0;
+    if (L) { L.lead = 0; applyStats(L); }
     k.leader = k.cand;
-    if (k.cand) { k.cand.lead = 1; k.cand.mhp = Math.round(k.cand.mhp * 1.5); k.cand.hp = k.cand.mhp; }
+    if (k.cand) { k.cand.lead = 1; applyStats(k.cand); addHist(k.cand, 6); }
   }
 }
 function computeTerritory() {
@@ -1913,11 +1990,8 @@ function draw() {
         ctx.fillStyle = '#c0c8d4'; ctx.fillRect(mx - sw*.27, fy - sh - K*.5, sw*.54, K*2.5);
         ctx.fillStyle = '#6a7280'; ctx.fillRect(mx - sw*.27, fy - sh + K*1.5, sw*.54, K*.6);
         ctx.fillStyle = RACES[c.t].col; ctx.fillRect(mx - K*.5, fy - sh - K*2.4, K, K*2);
-        const sx2 = mx - hd*sw*.5 - (hd < 0 ? K*2 : 0);
-        ctx.fillStyle = '#1c1424'; ctx.fillRect(sx2 - K*.3, fy - sh*.55 - K*.3, K*2.6, K*3.8);
-        ctx.fillStyle = '#9aa2ae'; ctx.fillRect(sx2, fy - sh*.55, K*2, K*3.2);
-        ctx.fillStyle = '#ffd23f'; ctx.fillRect(sx2 + K*.5, fy - sh*.55 + K, K, K);
       }
+      if (sc >= 8 && c.eq && (c.eq[0] || c.eq[1] || c.eq[2])) drawGear(c, cx + lunge, fy, sw, sh);
       if (crowned) { const K = SPR_K, tx = cx - K*2 + lunge; ctx.fillStyle = '#ffd23f'; ctx.fillRect(tx, fy - sh - K*2, K*4, K); ctx.fillRect(tx, fy - sh - K*3, K, K); ctx.fillRect(tx + K*3, fy - sh - K*3, K, K); ctx.fillRect(tx + K*1.5, fy - sh - K*3, K, K); }
       if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - sw*.4 - 1, fy - sh - 5, sw*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - sw*.4, fy - sh - 4, sw*.8*Math.max(0, c.hp/c.mhp), 2); }
     }
@@ -2339,8 +2413,8 @@ const DESC = {
 const TYPE_NAME = { human: 'Manusia', elf: 'Elf', dwarf: 'Kurcaci', orc: 'Orc', sheep: 'Domba', wolf: 'Serigala', rabbit: 'Kelinci', deer: 'Rusa', werewolf: 'Manusia serigala', ram: 'Pendobrak', catapult: 'Katapel', dcatapult: 'Katapel besi', cart: 'Gerobak' };
 function nameOf(c) {
   if (c.nm) return c.nm;
-  const P = NAME_POOL[c.t], h = hash(c.id, 7, 11);
-  c.nm = Array.isArray(P[0]) ? P[0][Math.floor(h * P[0].length)] + P[1][Math.floor(hash(c.id, 9, 13) * P[1].length)] : P[Math.floor(h * P.length)];
+  const P = NAME_POOL[c.t], sd = c.nid === undefined ? c.id : c.nid, h = hash(sd, 7, 11);
+  c.nm = Array.isArray(P[0]) ? P[0][Math.floor(h * P[0].length)] + P[1][Math.floor(hash(sd, 9, 13) * P[1].length)] : P[Math.floor(h * P.length)];
   return c.nm;
 }
 function roleOf(c) {
@@ -2369,7 +2443,17 @@ function creatureHtml(c) {
   let h = `<div class="ibtns"><button class="awb ibt${following ? ' on' : ''}" data-act="follow">🎯</button><button class="awb ibt" data-act="close">✖</button></div>`;
   h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${st}`;
   h += `<span class="dsc">${DESC[c.t] || ''}</span>`;
+  const trs = TRAITS.filter((_, i) => c.tr & (1 << i));
+  if (trs.length) h += `<div class="row">${trs.map(t => `<span class="tag t">${t}</span>`).join(' ')}</div>`;
   h += bar('❤️', hp, col) + (R.hunt ? bar('⚡', c.en / 100, '#ffd23f') : '') + bar('⏳', c.age / c.life, '#6aa8ff');
+  if (R.civ && GEAR_NAME[c.t]) {                                          // equipment slots: weapon, armour, shield
+    h += '<div class="eq">' + [0, 1, 2].map(sl => { const t = c.eq ? c.eq[sl] : 0; return t ? `<span class="slot t${t}">${GEAR_ICON[sl]}${GEAR_NAME[c.t][sl][t - 1]}</span>` : `<span class="slot e">${GEAR_ICON[sl]}–</span>`; }).join('') + '</div>';
+    const ev = [[tick - c.age, 0, 0]].concat(c.hist || []).slice(-5);
+    h += '<div class="hist">' + ev.map(([t, code, a]) => {
+      const txt = code === 0 ? 'Lahir' : code === 8 ? `Mendapat ${GEAR_NAME[c.t][0][a - 1]}` : code === 9 ? `Mengenakan ${GEAR_NAME[c.t][1][a - 1]}` : code === 10 ? `Bergabung dengan ${a}` : HIST_TXT[code] || '';
+      return `<em>Thn ${Math.max(0, Math.floor(t / 120))}</em> ${txt}`;
+    }).join('<br>') + '</div>';
+  }
   h += `<div class="row">${(c.age / 120).toFixed(1)}/${(c.life / 120).toFixed(1)}${c.kills ? ' · ⚔️ ' + c.kills : ''}${k ? ` · ${LV_ICON[k.level]} ${k.name} ${EMOJI[k.race]}` : ''}</div>`;
   return h;
 }
@@ -2615,7 +2699,8 @@ function serialize2() {
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)),
-    el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []) };      // one packed int per creature
+    el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
+    ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || []]); return a; }, []) };      // one packed int per creature
 }
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
@@ -2652,7 +2737,13 @@ function restore(s) {
     if (c) c.age = age >= 0 ? age : Math.floor(c.life * rnd(0, .4));
     spawned.push(c);
   }
-  for (const j of s.el || []) { const c = spawned[j]; if (c) { c.elite = 1; c.mhp = Math.round(RACES[c.t].hp * 1.8); c.hp = c.mhp; } }
+  for (const r of s.ex || []) {                                          // names, traits, gear, history of settlers
+    const c = spawned[r[0]]; if (!c) continue;
+    const R = RACES[c.t]; c.nid = r[1]; c.tr = r[2]; c.kills = r[4]; c.eq = [r[5] & 3, (r[5] >> 2) & 3, (r[5] >> 4) & 3]; c.hist = r[6] || []; c.lk = c.k; c.nj = 1;
+    c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); c.age = Math.max(0, Math.min(c.life - 50, tick - r[3]));
+  }
+  for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
+  for (const c of spawned) if (c) { c.mhp = 0; applyStats(c); c.hp = c.mhp; }
   return true;
 }
 let saveBusy = false;
