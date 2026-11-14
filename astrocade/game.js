@@ -36,17 +36,19 @@ const RACES = {
   elf:   { col:'#e2a9ff', hp:24, dmg:4, mv:2, civ:1, cap:70, life:[1800,2800], foes:['orc','wolf'], build:[T.FOREST,T.GRASS], bi:2 },
   dwarf: { col:'#ff9a2e', hp:38, dmg:5, mv:3, civ:1, cap:70, life:[1400,2200], foes:['orc','wolf'], build:[T.HILL,T.GRASS], bi:3 },
   orc:   { col:'#ff3d3d', hp:44, dmg:6, mv:2, civ:1, cap:80, life:[800,1300],  foes:['human','elf','dwarf'], build:[T.GRASS,T.HILL,T.BURNT,T.SAND], bi:4 },
+  // Werewolves: evolved wolves. Neutral (nobody's foe, hates nobody) and slow-growing: few houses, rare births, long lives.
+  werewolf: { col:'#5ef0ff', hp:40, dmg:6, mv:2, civ:1, cap:36, life:[2500,4000], foes:[], build:[T.FOREST,T.HILL,T.GRASS], bi:5, buildP:.002, spawnP:.0004 },
   // Wild fauna. prey = wolf food; br = breeding (p per move, tiles, max animals per 8x8 cell); flee = runs from wolves.
   sheep:  { col:'#ffffff', hp:10, dmg:0, mv:3, civ:0, cap:110, life:[600,1100], foes:[], build:[], bi:0, prey:1, br:{ p:.02,  tiles:[T.GRASS], dens:14 } },
   rabbit: { col:'#c9a37a', hp:6,  dmg:0, mv:2, civ:0, cap:160, life:[500,900],  foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.035, tiles:[T.GRASS,T.FOREST,T.HILL], dens:16 } },
   deer:   { col:'#c68a4e', hp:16, dmg:0, mv:2, civ:0, cap:70,  life:[900,1500], foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.014, tiles:[T.FOREST,T.GRASS], dens:8 } },
   wolf:   { col:'#2b2e36', hp:28, dmg:5, mv:1, civ:0, cap:28,  life:[900,1500], foes:['sheep','rabbit','deer'], hunt:1, build:[], bi:0 },
 };
-const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer'];     // index order is part of the save format
-const STAT_ORDER = ['human','elf','dwarf','orc','sheep','rabbit','deer','wolf'];
+const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer','werewolf'];     // index order is part of the save format
+const STAT_ORDER = ['human','elf','dwarf','orc','sheep','rabbit','deer','wolf','werewolf'];
 const GAIN = { rabbit:25, sheep:45, deer:60 };                               // wolf energy per kill (default 45)
-const BUILD_OWNER = [null,'human','elf','dwarf','orc'];
-const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺', rabbit:'🐇', deer:'🦌' };
+const BUILD_OWNER = [null,'human','elf','dwarf','orc','werewolf'];
+const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺', rabbit:'🐇', deer:'🦌', werewolf:'🌕' };
 const TPS = 8;
 const MAX_CREATURES = 1500;           // multiplied by CAPK
 const capOf = t => Math.round(RACES[t].cap * CAPK);
@@ -70,8 +72,8 @@ style.textContent = `
   .awb.on{background:#34457f;border-color:#ffcf4a}
   #awtop{position:absolute;left:0;top:0;width:720px;height:150px;background:#141b33;border-bottom:3px solid #2c3868}
   #awbtns{position:absolute;left:6px;top:4px;display:flex;gap:8px}
-  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:3px;align-items:center;font-size:19px;overflow-x:auto;scrollbar-width:none;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 5px;flex:0 0 auto}
+  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:3px;align-items:center;font-size:17px;overflow-x:auto;scrollbar-width:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 4px;flex:0 0 auto}
   #awyear{position:absolute;right:10px;top:30px;font-size:30px;background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:4px 16px;font-variant-numeric:tabular-nums}
   #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:#141b33;border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
@@ -107,7 +109,7 @@ function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTim
 let tiles, bld, fire, jit;            // allocated by setSize()
 let creatures = [], nextId = 1, tick = 0;
 let speed = 1, paused = editMode;
-let counts = {}, houseCount = 0, hb = [0,0,0,0,0];
+let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
 const effects = [];
 let dirty = false, currentSeed = 0;
 
@@ -240,6 +242,12 @@ const SPRITES = {
     A: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..",".oto.oto..",".oo..oo..."],
     B: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..","..oto.oto.","..oo..oo.."],
   },
+  werewolf: {
+    pal: { o:OUT, g:'#6b6470', G:'#8d8696', e:'#ffe14a', n:'#1c1420', c:'#5ef0ff', d:'#2fa8b8', p:'#3a3448', b:'#2a2430', w:'#f4f1e6' },
+    A: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","..obo.obo."],
+    B: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","...obbbo.."],
+    C: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.","wgccccccgw",".gggccggg.",".oggggggo.",".oppppppo.","..obo.obo."],
+  },
   wolf: {
     pal: { o:OUT, g:'#5b6070', l:'#9aa0b0', e:'#ff5050', n:'#1c1c24', d:'#3a3e4c', b:'#2a2d38', w:'#ffffff', r:'#c02030' },
     A: ["..........","........o.","o.....oggo","og...oggeo",".ogoggggno",".ogggggggo",".oggglllo.",".ogdgoodo.",".ob.bo.bo.",".oo.oo.oo."],
@@ -260,6 +268,10 @@ const HOUSES = {
   dwarf: { // stone house, orange door, chimney
     pal: { o:OUT, S:'#9ea6b2', s:'#b9c0ca', R:'#5a5f6e', d:'#ff9a2e' },
     A: ["......oo..",".oooooSSo.","oRRRRRRRRo","oRRRRRRRRo",".oSSsSSsSo",".oSsSSsSSo",".oSdddSsSo",".oSdddSSSo",".oSdddSsSo",".oooooooo."],
+  },
+  werewolf: { // dark timber lodge with a glowing cyan moon window
+    pal: { o:OUT, T:'#6b5a52', t:'#8a7a70', w:'#8a6a46', k:'#2a1a14', m:'#5ef0ff' },
+    A: ["....oo....","...oTTo...","..oTtTTo..",".oTTtTTTo.","oTtTTTtTTo",".owwwwwwo.",".owkkwmwo.",".owkkwwwo.",".owkkwwwo.",".oooooooo."],
   },
   orc: { // hide tent, red stripe, skull
     pal: { o:OUT, R:'#9a6a44', r:'#ff3d3d', k:'#2a1a14', w:'#f4f1e6' },
@@ -404,8 +416,8 @@ function stepCreature(c) {
         if (o && R.foes.includes(BUILD_OWNER[o]) && Math.random() < .4) { bld[nx + ny*W] = 0; fx('hit', nx, ny); dirty = true; break; }
       }
     }
-    if (bld[idx] === 0 && Math.random() < .02 && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
-        && (hb[R.bi]||0) < capOf(c.t)*.3 && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
+    if (bld[idx] === 0 && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
+        && (hb[R.bi]||0) < (R.buildP ? Math.min(capOf(c.t)*.3, (counts[c.t]||0)*.8 + 1) : capOf(c.t)*.3) && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
       bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
     }
   } else if (R.br) {
@@ -429,6 +441,19 @@ function reapDead() {
   if (any) creatures = creatures.filter(c => c.hp > 0);
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
 }
+// Forced evolution: when wolves hang on by a thread (2-3 left) they all become werewolves.
+let lastEvolve = -1e9, evolutions = 0;
+function evolveWolves() {
+  const R = RACES.werewolf;
+  for (const c of creatures) if (c.t === 'wolf') {
+    c.t = 'werewolf'; c.hp = c.mhp = R.hp; c.age = 0; c.life = ri(R.life[0], R.life[1]);
+    c.tgt = null; c.atk = 0; c.fail = 0; c.en = 100;
+    fx('evolve', c.x, c.y);
+  }
+  lastEvolve = tick; evolutions++; dirty = true;
+  counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
+  toast('🌕 Serigala berevolusi!'); haptic('success');
+}
 // Safety net: if wolves get scarce, a small pack wanders in from wild land (far from settlements, near prey).
 function wolfPack() {
   const levels = [[12, 8], [7, 4], [4, 2]];             // [min distance to settlers, min distance to houses]: relax if the world is crowded
@@ -451,15 +476,16 @@ function step() {
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
   reapDead();
   const wc = counts.wolf || 0;
-  if (wc < 4 * CAPK && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
+  if (wc >= 2 && wc <= 3 && tick - lastEvolve > 1200 && (counts.werewolf || 0) < capOf('werewolf')) evolveWolves();
+  else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
 
-  const spread = []; houseCount = 0; hb = [0,0,0,0,0];
+  const spread = []; houseCount = 0; hb = [0,0,0,0,0,0];
   for (let i = 0; i < N; i++) {
     const b = bld[i];
     if (b) {
       houseCount++; hb[b]++;
       const race = BUILD_OWNER[b];
-      if (Math.random() < .005 && (counts[race]||0) < capOf(race)) {
+      if (Math.random() < (RACES[race].spawnP || .005) && (counts[race]||0) < capOf(race)) {
         const x = i % W, y = (i / W) | 0;
         if (cells[(y>>3)*GW + (x>>3)].length < 12) spawnNear(race, x, y);
       }
@@ -539,7 +565,7 @@ function setSize(idx) {
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
-  creatures = []; effects.length = 0; counts = {}; houseCount = 0; hb = [0,0,0,0,0];
+  creatures = []; effects.length = 0; counts = {}; houseCount = 0; hb = [0,0,0,0,0,0];
 }
 let sc = 6, ox = 0, oy = VIEW.y, frame = 0;
 const fitScale = () => Math.min(VIEW.w / W, VIEW.h / H);      // full-map zoom = minimum zoom
@@ -681,6 +707,11 @@ function drawEffects() {
         ctx.drawImage(sp, -S/2, -S, S, S);
       }
       ctx.restore();
+    } else if (e.k === 'evolve') {
+      life = 40; const p = e.t / life;
+      ctx.strokeStyle = `rgba(94,240,255,${1 - p})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(px, py, sc*(1 + p*4), 0, 7); ctx.stroke();
+      ctx.fillStyle = `rgba(255,255,220,${.6*(1 - p)})`; ctx.beginPath(); ctx.arc(px, py, sc*(.6 + p), 0, 7); ctx.fill();
     } else if (e.k === 'spawn') {
       life = 14; ctx.strokeStyle = `rgba(255,255,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, sc*(.2 + e.t/life*.9), 0, 7); ctx.stroke();
@@ -708,6 +739,7 @@ const TOOLS = {
   rabbit: { g:'life', ic:'🐇', nm:'Kelinci', ms:140, spawn:1 },
   deer:   { g:'life', ic:'🦌', nm:'Rusa', ms:140, spawn:1 },
   wolf:   { g:'life', ic:'🐺', nm:'Serigala', ms:140, spawn:1 },
+  werewolf: { g:'life', ic:'🌕', nm:'Manusia serigala', ms:140, spawn:1 },
   rain:   { g:'powers', ic:'🌧️', nm:'Hujan', ms:40 },
   fire:   { g:'powers', ic:'🔥', nm:'Api', ms:50 },
   bolt:   { g:'powers', ic:'⚡', nm:'Petir', ms:250 },
@@ -795,7 +827,7 @@ let infoT = 0;
 function inspectAt(wx, wy) {
   let best = null, bd = 9;
   for (const c of creatures) { const d = (c.x-wx)**2 + (c.y-wy)**2; if (d < bd) { bd = d; best = c; } }
-  const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa' };
+  const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa', werewolf:'Manusia serigala' };
   if (best) {
     const c = best, R = RACES[c.t];
     infoEl.innerHTML = `<b>${EMOJI[c.t]} ${NM[c.t]}</b><br>❤️ ${Math.ceil(c.hp)}/${c.mhp} · ⏳ ${(c.age/120).toFixed(1)}/${(c.life/120).toFixed(1)}`
@@ -918,7 +950,7 @@ function updateStats() {
   if (editMode) yearEl.textContent = '✏️';
   else {
     yearEl.textContent = '📅 ' + Math.floor(tick / 120);
-    for (const r of STAT_ORDER) h += `<span>${EMOJI[r]}${counts[r] || 0}</span>`;
+    for (const r of STAT_ORDER) if (r !== 'werewolf' || counts.werewolf) h += `<span>${EMOJI[r]}${counts[r] || 0}</span>`;     // werewolf chip appears once they exist
     h += `<span>🏠${houseCount}</span>`;
   }
   statsEl.innerHTML = h;
@@ -928,19 +960,19 @@ function updateStats() {
 function clearSave() { try { lib.deleteUserGameState && lib.deleteUserGameState(); } catch (e) {} }
 function serialize() {
   const bl = []; for (let i = 0; i < N; i++) if (bld[i]) bl.push(i * 8 + bld[i]);
-  return { v: 3, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, tick,
-    cr: creatures.map(c => (c.y * W + c.x) * 8 + RN.indexOf(c.t)) };      // one packed int per creature
+  return { v: 4, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, tick,
+    cr: creatures.map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
 }
 function restore(s) {
-  if (!s || (s.v !== 1 && s.v !== 2 && s.v !== 3)) return false;
+  if (!s || (s.v !== 1 && s.v !== 2 && s.v !== 3 && s.v !== 4)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
   currentSeed = s.seed || 0; tick = s.tick || 0;
-  for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 4) bld[i] = b; }
+  for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) bld[i] = b; }
   for (const v of s.cr || []) {
     let ti, x, y, age = -1;
     if (Array.isArray(v)) { ti = v[0]; x = v[1]; y = v[2]; age = v[3]; }
-    else { const m = s.v === 3 ? 8 : 6; ti = v % m; const pos = (v / m) | 0; x = pos % W; y = (pos / W) | 0; }
+    else { const m = s.v === 4 ? 10 : s.v === 3 ? 8 : 6; ti = v % m; const pos = (v / m) | 0; x = pos % W; y = (pos / W) | 0; }
     const c = RN[ti] ? spawn(RN[ti], x, y, true) : null;
     if (c) c.age = age >= 0 ? age : Math.floor(c.life * rnd(0, .4));
   }
@@ -1005,7 +1037,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles

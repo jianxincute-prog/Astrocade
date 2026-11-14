@@ -41,6 +41,12 @@ const SPRITES = {
     A: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..",".oto.oto..",".oo..oo..."],
     B: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..","..oto.oto.","..oo..oo.."],
   },
+  werewolf: {
+    pal: { o:OUT, g:'#6b6470', G:'#8d8696', e:'#ffe14a', n:'#1c1420', c:'#5ef0ff', d:'#2fa8b8', p:'#3a3448', b:'#2a2430', w:'#f4f1e6' },
+    A: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","..obo.obo."],
+    B: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","...obbbo.."],
+    C: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.","wgccccccgw",".gggccggg.",".oggggggo.",".oppppppo.","..obo.obo."],
+  },
   wolf: {
     pal: { o:OUT, g:'#5b6070', l:'#9aa0b0', e:'#ff5050', n:'#1c1c24', d:'#3a3e4c', b:'#2a2d38', w:'#ffffff', r:'#c02030' },
     A: ["..........","........o.","o.....oggo","og...oggeo",".ogoggggno",".ogggggggo",".oggglllo.",".ogdgoodo.",".ob.bo.bo.",".oo.oo.oo."],
@@ -61,6 +67,10 @@ const HOUSES = {
   dwarf: { // stone house, orange door, chimney
     pal: { o:OUT, S:'#9ea6b2', s:'#b9c0ca', R:'#5a5f6e', d:'#ff9a2e' },
     A: ["......oo..",".oooooSSo.","oRRRRRRRRo","oRRRRRRRRo",".oSSsSSsSo",".oSsSSsSSo",".oSdddSsSo",".oSdddSSSo",".oSdddSsSo",".oooooooo."],
+  },
+  werewolf: { // dark timber lodge with a glowing cyan moon window
+    pal: { o:OUT, T:'#6b5a52', t:'#8a7a70', w:'#8a6a46', k:'#2a1a14', m:'#5ef0ff' },
+    A: ["....oo....","...oTTo...","..oTtTTo..",".oTTtTTTo.","oTtTTTtTTo",".owwwwwwo.",".owkkwmwo.",".owkkwwwo.",".owkkwwwo.",".oooooooo."],
   },
   orc: { // hide tent, red stripe, skull
     pal: { o:OUT, R:'#9a6a44', r:'#ff3d3d', k:'#2a1a14', w:'#f4f1e6' },
