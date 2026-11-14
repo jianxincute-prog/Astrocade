@@ -165,6 +165,8 @@ function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTim
 /* ============================== STATE ============================== */
 let tiles, bld, fire, jit;            // allocated by setSize()
 let kid, own, ownRace, ownEdge, ownScore;      // kingdom id per house tile / territory map (allocated by setSize())
+let wallK = new Uint16Array(1), wallG = new Uint8Array(1);     // wall barrier map: owner kingdom id / is-gate
+const wallGates = new Map();                                   // kingdom id -> gate tile indices
 const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
 let comp = null, compDirty = true;                 // connected land components (wars only happen on the same landmass)
 const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
@@ -484,20 +486,41 @@ const PATLAS = {};
 for (const k in PROPS) { PATLAS[RACES[k].bi] = {}; for (const n of PNAMES) PATLAS[RACES[k].bi][n] = buildSprite({ pal: PROPS[k].pal, A: PROPS[k][n] }, 'A'); }
 const PPRI = { wall: 0, field: 0, well: 1, barn: 1, tower: 2, gate: 3 };
 function propOk(i) { const t = tiles[i]; return t > T.SHALLOW && t !== T.LAVA && t !== T.MOUNTAIN && t !== T.SNOW && !bld[i]; }
-function kingdomProps(k) {
-  const key = `${k.level}|${k.houses}|${k.cap}|${k.mod.walls ? 1 : 0}|${k.mod.farms ? 1 : 0}`;
-  if (k.pv && k.pv.key === key) return k.pv.list;
-  const list = [], used = new Set(), cx = k.cap % W, cy = (k.cap / W) | 0;
-  used.add(k.cap); used.add(k.cap + 1); used.add(k.cap - 1);
-  const R = k.level >= 3 ? 7 : k.level >= 2 ? 5 : k.mod.walls ? 4 : 0;
-  if (R) {                                                  // wall ring with a gate in the middle of each side, towers at the corners of big realms
-    for (let d = -R; d <= R; d++) for (const [x, y] of [[cx + d, cy - R], [cx + d, cy + R], [cx - R, cy + d], [cx + R, cy + d]]) {
-      if (!inb(x, y)) continue;
-      const i = x + y*W; if (used.has(i) || !propOk(i)) continue;
-      const corner = Math.abs(x - cx) === R && Math.abs(y - cy) === R, mid = (x === cx || y === cy);
-      used.add(i); list.push({ t: mid ? 'gate' : corner && k.level >= 3 ? 'tower' : 'wall', x, y });
+function ringCenter(k) {                                    // walls and props stay anchored while the realm's centre stays within 9 tiles, so the capital changing does not move the ring
+  if (!(k.rc >= 0) || Math.hypot(k.rc % W - k.cx, ((k.rc / W) | 0) - k.cy) > 9) k.rc = k.cap;
+  return k.rc;
+}
+const ringR = k => k.level >= 3 ? 7 : k.level >= 2 ? 5 : k.mod.walls ? 4 : 0;
+const terrOk = i => { const t = tiles[i]; return t > T.SHALLOW && t !== T.LAVA && t !== T.MOUNTAIN && t !== T.SNOW; };
+function kingdomRing(k, R) {                                // wall ring around the capital: gate in the middle of each side, towers at the corners of big realms
+  const rc = ringCenter(k), key = R + '|' + rc + '|' + k.level;
+  if (k.rv && k.rv.key === key) return k.rv.list;
+  const list = [], cx = rc % W, cy = (rc / W) | 0;
+  if (R) for (let d = -R; d <= R; d++) for (const [x, y] of [[cx + d, cy - R], [cx + d, cy + R], [cx - R, cy + d], [cx + R, cy + d]]) {
+    if (!inb(x, y) || !terrOk(x + y*W)) continue;
+    const corner = Math.abs(x - cx) === R && Math.abs(y - cy) === R, mid = (x === cx || y === cy);
+    list.push({ t: mid ? 'gate' : corner && k.level >= 3 ? 'tower' : 'wall', x, y });
+  }
+  k.rv = { key, list };
+  return list;
+}
+function rebuildWalls() {
+  wallK.fill(0); wallG.fill(0); wallGates.clear();
+  for (const k of kingdoms.values()) {
+    const R = ringR(k); if (!R) continue;
+    for (const p of kingdomRing(k, R)) {
+      const i = p.x + p.y*W; wallK[i] = k.id;
+      if (p.t === 'gate') { wallG[i] = 1; let g = wallGates.get(k.id); if (!g) wallGates.set(k.id, g = []); g.push(i); }
     }
   }
+}
+function kingdomProps(k) {
+  const rc = ringCenter(k), key = `${k.level}|${k.houses}|${rc}|${k.mod.walls ? 1 : 0}|${k.mod.farms ? 1 : 0}`;
+  if (k.pv && k.pv.key === key) return k.pv.list;
+  const list = [], used = new Set(), cx = rc % W, cy = (rc / W) | 0;
+  used.add(rc); used.add(rc + 1); used.add(rc - 1);
+  const R = ringR(k);
+  for (const p of kingdomRing(k, R)) { used.add(p.x + p.y*W); if (propOk(p.x + p.y*W)) list.push(p); }
   const cand = [];
   for (let dy = -9; dy <= 9; dy++) for (let dx = -9; dx <= 9; dx++) {
     const dd = Math.max(Math.abs(dx), Math.abs(dy));
@@ -701,7 +724,7 @@ function spawn(type, x, y, force) {
   if (!force && (creatures.length >= MAX_CREATURES * CAPK || (counts[type]||0) >= capOf(type) + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
-  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, avoid:0, avoidUntil:0, k:0, lead:0 };
+  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, gate:-1, gateUntil:0, avoid:0, avoidUntil:0, k:0, lead:0 };
   creatures.push(c); counts[type] = (counts[type]||0) + 1; dirty = true;
   return c;
 }
@@ -711,8 +734,33 @@ function spawnNear(type, x, y) {
 }
 const DIRS = [[0,0],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
 
+function wallBlocks(c, i) {                                  // enemy walls stop soldiers and civilians of kingdoms at war with the owner; gates stay open
+  const o = wallK[i]; if (!o || wallG[i] || !c.k || c.k === o) return false;
+  const ko = kingdoms.get(o); return !!ko && ko.enemies.has(c.k);
+}
 function tryMove(c, nx, ny) {
-  if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W])) { if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny; return true; }
+  if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W]) && !wallBlocks(c, nx + ny*W)) { if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny; return true; }
+  return false;
+}
+function moveToward(c, tx, ty) {                            // greedy step toward (tx, ty); if an enemy wall is in the way, detour through its nearest gate
+  if (c.gate >= 0 && c.gateUntil > tick) {
+    const gx = c.gate % W, gy = (c.gate / W) | 0;
+    if (c.x === gx && c.y === gy) c.gate = -1; else { tx = gx; ty = gy; }
+  }
+  const sx = Math.sign(tx - c.x), sy = Math.sign(ty - c.y);
+  if (tryMove(c, c.x + sx, c.y + sy) || tryMove(c, c.x + sx, c.y) || tryMove(c, c.x, c.y + sy)) return true;
+  if (c.gate < 0 || c.gateUntil <= tick) {
+    for (const [ax, ay] of [[sx, sy], [sx, 0], [0, sy]]) {
+      if (!ax && !ay) continue;
+      const i = c.x + ax + (c.y + ay)*W; if (!inb(c.x + ax, c.y + ay) || !wallBlocks(c, i)) continue;
+      const gl = wallGates.get(wallK[i]); if (!gl || !gl.length) break;
+      let best = -1, bd = 1e9;
+      for (const g of gl) { const d = (g % W - c.x)**2 + ((g / W | 0) - c.y)**2; if (d < bd) { bd = d; best = g; } }
+      c.gate = best; c.gateUntil = tick + 200;
+      const gx = best % W, gy = (best / W) | 0, ux = Math.sign(gx - c.x), uy = Math.sign(gy - c.y);
+      return tryMove(c, c.x + ux, c.y + uy) || tryMove(c, c.x + ux, c.y) || tryMove(c, c.x, c.y + uy);
+    }
+  }
   return false;
 }
 function findNearest(c, foes, rad) {
@@ -787,8 +835,7 @@ function stepCreature(c) {
       }
       return;
     }
-    const sx = Math.sign(tg.x - c.x), sy = Math.sign(tg.y - c.y);
-    if (tryMove(c, c.x+sx, c.y+sy) || tryMove(c, c.x+sx, c.y) || tryMove(c, c.x, c.y+sy)) { c.fail = 0; return; }
+    if (moveToward(c, tg.x, tg.y)) { c.fail = 0; return; }
     if (++c.fail > 3) { c.avoid = tg.id; c.avoidUntil = tick + 240; c.tgt = null; c.fail = 0; }   // can't reach it: give up for a while
   }
   if ((tick + c.id) % 2 === 0) {
@@ -815,8 +862,7 @@ function stepCreature(c) {
       if ((c.lead || isSoldier(c)) && ka.front >= 0) {                    // soldiers march on the enemy
         const fx0 = ka.front % W, fy0 = (ka.front / W) | 0;
         if (Math.max(Math.abs(fx0 - c.x), Math.abs(fy0 - c.y)) > 2) {
-          const sx = Math.sign(fx0 - c.x), sy = Math.sign(fy0 - c.y);
-          if (tryMove(c, c.x + sx, c.y + sy) || tryMove(c, c.x + sx, c.y) || tryMove(c, c.x, c.y + sy)) return;
+          if (moveToward(c, fx0, fy0)) return;
         }
       }
     }
@@ -1299,7 +1345,7 @@ function step() {
     k.cx = k.sx / k.houses; k.cy = k.sy / k.houses; k.cap = k.nb;
   }
   if (tick % 8 === 0) economy();
-  if (tick % 16 === 0) updateFronts();
+  if (tick % 16 === 0) { updateFronts(); rebuildWalls(); }
   if (tick % 80 === 0) { diplomacyTick(); eventsTick(); if (!editMode) disasterTick(); }
   if (pendingDis.length) processDisasters();
   if (floods.length && tick % 8 === 0) floodRecede();
@@ -1360,7 +1406,7 @@ function setSize(idx) {
   const z = SIZES[sizeIdx];
   W = z.w; H = z.h; N = W * H; CAPK = z.k;
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
-  kid = new Uint16Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
+  kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   kingdoms.clear(); rels.clear(); nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
@@ -2154,7 +2200,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
