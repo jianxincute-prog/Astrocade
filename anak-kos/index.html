@@ -32,10 +32,14 @@ const CFG = {
   decay: { hunger: 2, energy: 1.8, hygiene: 1, fun: 1.2 }, // per jam game
   start: { hunger: 35, energy: 80, hygiene: 70, fun: 60 },
   sleepRate: 9, sleepRateUpgrade: 15,
-  eventChance: 0.45,
+  eventChance: 0.5,       // peluang kejadian acak per hari (mulai tgl 2, saat karakter sedang santai)
   walkSpeed: 430,
   walkTimeMul: 0.3,       // waktu melambat saat berjalan supaya jalan tidak 'memakan' jam
   sleepTimeMul: 4,        // waktu berjalan 4x saat tidur
+  roachTime: 4.5,         // detik untuk memukul kecoa
+  roachHits: 3,           // jumlah pukulan untuk mengusir kecoa
+  roachSpeed: 260,        // kecepatan terbang kecoa (naik 25% tiap kena)
+  roachHitRadius: 80,     // radius ketukan (besar supaya ramah anak)
 };
 
 const NEEDS = [
@@ -47,11 +51,11 @@ const NEEDS = [
 
 // Perabot: posisi di ruangan, titik berdiri karakter (spot), aksi
 const FURN = [
-  { id: 'bed',   key: '1', icon: '🛏️', name: 'Kasur',  verb: 'Tidur',     x: 40,  y: 330, w: 230, h: 150, spot: [310, 410], sleep: true },
-  { id: 'stove', key: '2', icon: '🍳', name: 'Kompor', verb: 'Masak mi',  x: 30,  y: 540, w: 120, h: 120, spot: [195, 600], hours: 1, cost: 12, eff: { hunger: 45 } },
-  { id: 'bath',  key: '3', icon: '🚿', name: 'Mandi',  verb: 'Mandi',     x: 510, y: 320, w: 190, h: 200, spot: [600, 560], hours: 1, eff: { hygiene: 65, fun: 4 } },
-  { id: 'desk',  key: '4', icon: '💻', name: 'Laptop', verb: 'Freelance', x: 30,  y: 700, w: 130, h: 150, spot: [205, 775], hours: 3, earn: 25, eff: { fun: -8, energy: -5 }, power: true },
-  { id: 'tv',    key: '5', icon: '📺', name: 'TV',     verb: 'Nonton TV', x: 612, y: 615, w: 70,  h: 150, spot: [520, 690], hours: 2, eff: { fun: 40 }, power: true },
+  { id: 'bed',   key: '1', icon: '🛏️', name: 'Kasur',  verb: 'Tidur',     x: 40,  y: 330, w: 230, h: 150, spot: [310, 420], sleep: true },
+  { id: 'stove', key: '2', icon: '🍳', name: 'Kompor', verb: 'Masak mi',  x: 30,  y: 540, w: 120, h: 120, spot: [190, 640], face: -1, pose: 'cook', hold: 'spoon', expr: 'happy', hours: 1, cost: 12, eff: { hunger: 45 } },
+  { id: 'bath',  key: '3', icon: '🚿', name: 'Mandi',  verb: 'Mandi',     x: 510, y: 320, w: 190, h: 200, spot: [600, 470], face: 1, pose: 'shower', expr: 'bliss', hours: 1, eff: { hygiene: 65, fun: 4 } },
+  { id: 'desk',  key: '4', icon: '💻', name: 'Laptop', verb: 'Freelance', x: 30,  y: 700, w: 130, h: 150, spot: [196, 800], face: -1, pose: 'type', expr: 'focus', hours: 3, earn: 25, eff: { fun: -8, energy: -5 }, power: true },
+  { id: 'tv',    key: '5', icon: '📺', name: 'TV',     verb: 'Nonton TV', x: 612, y: 615, w: 70,  h: 150, spot: [527, 715], face: 1, pose: 'tv', hold: 'remote', expr: 'happy', hours: 2, eff: { fun: 40 }, power: true },
   { id: 'door',  key: '6', icon: '🚪', name: 'Kerja',  verb: 'Kerja shift', x: 400, y: 905, w: 140, h: 30, spot: [470, 860], hours: 6, earn: 60, eff: { energy: -14, hygiene: -18, fun: -6 }, away: true },
 ];
 
@@ -62,33 +66,47 @@ const SHOP = [
   { id: 'laptop',  icon: '💻', name: 'Laptop Baru', price: 180, desc: 'Freelance +60% uang' },
 ];
 
+// Kejadian acak: angka efek di sini, adegan/animasinya di SCENES
 const EVENTS = [
-  { id: 'friend', icon: '🙋', title: 'Teman datang numpang makan!',
-    a: { label: 'Ajak makan (−Rp15rb)', money: -15, fun: 20 }, b: { label: 'Pura-pura tidur', fun: -12 } },
-  { id: 'blackout', icon: '🕯️', title: 'Mati lampu sampai besok!', info: 'TV & laptop tidak bisa dipakai',
-    a: { label: 'Yah... oke deh', blackout: true } },
-  { id: 'mom', icon: '📦', title: 'Kiriman dari Ibu di kampung!', info: 'Ada uang saku & rendang',
-    a: { label: 'Asiik! Makasih, Bu', money: 40, hunger: 30, fun: 10 } },
-  { id: 'gorengan', icon: '🍤', title: 'Ibu kos bagi-bagi gorengan', a: { label: 'Makasih, Bu!', hunger: 25, fun: 8 } },
-  { id: 'roach', icon: '🪳', title: 'KECOA TERBANG!!',
-    a: { label: 'Lempar sandal', hygiene: -10, fun: -4 }, b: { label: 'Kabur ke luar', fun: -15, energy: -5 } },
-  { id: 'promo', icon: '🏷️', title: 'Promo mi instan di warung!', info: '3 kali masak gratis',
-    a: { label: 'Borong (−Rp20rb)', money: -20, freeMeals: 3 }, b: { label: 'Lewat aja' } },
-  { id: 'gig', icon: '📱', title: 'Ada orderan desain kilat!',
-    a: { label: 'Ambil (+Rp50rb, capek)', money: 50, energy: -25, fun: -5 }, b: { label: 'Tolak dulu' } },
-  { id: 'listrik', icon: '💡', title: 'Ibu kos tagih uang listrik',
-    a: { label: 'Bayar (−Rp30rb)', money: -30 }, b: { label: 'Bantu angkat galon aja', energy: -20, hygiene: -12 } },
-  { id: 'cat', icon: '🐈', title: 'Kucing tetangga main ke kamar', a: { label: 'Elus-elus', fun: 25 } },
+  { id: 'friend',   icon: '🙋', title: 'Teman numpang makan',
+    a: { label: 'Ajak makan bareng (−Rp15rb)', money: -15, fun: 20, hunger: 15 }, b: { label: 'Pura-pura tidur 😴', fun: -12 } },
+  { id: 'blackout', icon: '🕯️', title: 'Mati lampu!', a: { label: 'Yah... nyalain lilin', blackout: true } },
+  { id: 'mom',      icon: '📦', title: 'Kiriman dari Ibu', a: { label: 'Asiik! Terima paket', money: 40, hunger: 30, fun: 10 } },
+  { id: 'gorengan', icon: '🍤', title: 'Gorengan ibu kos', a: { label: 'Makasih, Bu!', hunger: 25, fun: 8 } },
+  { id: 'roach',    icon: '🪳', title: 'KECOA TERBANG!', win: { fun: 12 }, lose: { hygiene: -12, fun: -15 } },
+  { id: 'promo',    icon: '🏷️', title: 'Promo mi instan',
+    a: { label: 'Borong! (−Rp20rb, 3x gratis)', money: -20, freeMeals: 3 }, b: { label: 'Lewat aja' } },
+  { id: 'gig',      icon: '📱', title: 'Orderan kilat',
+    a: { label: 'Ambil! (+Rp50rb, capek)', money: 50, energy: -25, fun: -5 }, b: { label: 'Tolak dulu' } },
+  { id: 'listrik',  icon: '💡', title: 'Tagihan listrik',
+    a: { label: 'Bayar (−Rp30rb)', money: -30 }, b: { label: 'Bantu angkat galon aja 💪', energy: -20, hygiene: -12 } },
+  { id: 'cat',      icon: '🐈', title: 'Kucing tetangga',
+    a: { label: 'Elus-elus 🐾', fun: 25 }, b: { label: 'Usir pelan-pelan', fun: -3 } },
 ];
+
+// Tampilan karakter (kerangka sama, beda warna/rambut/pakaian)
+const LOOKS = {
+  m:     { skin: '#f5c9a0', hair: '#2a2233', hairStyle: 'short', shirt: '#ff8a3d', shirtLight: '#ffb26b', pants: '#34407a', shoe: '#ffffff', logo: '★' },
+  f:     { skin: '#f8d2ae', hair: '#6b3424', hairStyle: 'long', shirt: '#ff6fa5', shirtLight: '#ffa1c6', pants: '#3f3f7a', skirt: '#7b5cd6', shoe: '#ffffff', logo: '♥', clip: '#ffd43b' },
+  teman: { skin: '#c98f62', hair: '#1b1b1f', hairStyle: 'curly', shirt: '#2fa3d6', shirtLight: '#6cc6ec', pants: '#4a4a4a', shoe: '#e63946', glasses: true, logo: '☺' },
+  ibu:   { skin: '#e2b084', hijab: '#2a9d8f', dress: '#b5446e', dressDots: '#f6bd60', pants: '#b5446e', shoe: '#7a4b2a', shirt: '#b5446e', shirtLight: '#cf6a92' },
+  kurir: { skin: '#d9a06f', hair: '#222', hairStyle: 'short', helmet: '#2b9348', shirt: '#2b9348', shirtLight: '#55c26b', pants: '#2b2d42', shoe: '#111111', logo: '➜' },
+};
 
 /* ------------------ util ------------------ */
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const FONT = '"Trebuchet MS","Segoe UI",system-ui,sans-serif';
+const OUT = '#2b2235';
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const rp = n => { const v = Math.abs(Math.round(n)); return (n < 0 ? '−' : '') + 'Rp' + (v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 2 : 0).replace(/0$/, '').replace('.', ',') + 'jt' : v + 'rb'); };
 function rr(x, y, w, h, r, fill, stroke, lw) {
   ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 3; ctx.stroke(); }
+}
+function ell(x, y, rx, ry, fill, stroke, lw, rot) {
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot || 0, 0, Math.PI * 2);
   if (fill) { ctx.fillStyle = fill; ctx.fill(); }
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 3; ctx.stroke(); }
 }
@@ -104,7 +122,7 @@ function txtFit(s, x, y, size, color, maxW, align) {
 }
 
 /* ------------------ save (prototipe: localStorage; di Astrocade -> lib.saveUserGameState) ------------------ */
-let SAVE = { best: 0, upgrades: {}, tutDone: false, quality: 'auto', muted: false, months: 0 };
+let SAVE = { best: 0, upgrades: {}, tutDone: false, quality: 'auto', muted: false, months: 0, gender: 'm' };
 function loadSave() { try { const s = JSON.parse(localStorage.getItem('anakkos_v1') || 'null'); if (s) SAVE = Object.assign(SAVE, s); } catch (e) {} }
 function writeSave() { try { localStorage.setItem('anakkos_v1', JSON.stringify(SAVE)); } catch (e) {} }
 
@@ -134,14 +152,21 @@ function tone(f, d, type, vol, slide) {
   g.gain.setValueAtTime(vol || 0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
   o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d);
 }
+const later = (ms, fn) => setTimeout(fn, ms);
 const SFX = {
   tap: () => tone(660, 0.07, 'triangle', 0.12),
-  coin: () => { tone(880, 0.08, 'square', 0.07); setTimeout(() => tone(1320, 0.12, 'square', 0.07), 70); },
-  eat: () => { tone(300, 0.1, 'sine', 0.2, 500); setTimeout(() => tone(400, 0.1, 'sine', 0.2, 600), 110); },
+  coin: () => { tone(880, 0.08, 'square', 0.07); later(70, () => tone(1320, 0.12, 'square', 0.07)); },
+  eat: () => { tone(300, 0.1, 'sine', 0.2, 500); later(110, () => tone(400, 0.1, 'sine', 0.2, 600)); },
   bad: () => tone(300, 0.35, 'sawtooth', 0.08, 120),
-  event: () => { tone(520, 0.1, 'triangle', 0.15); setTimeout(() => tone(780, 0.15, 'triangle', 0.15), 110); },
-  win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.2, 'triangle', 0.15), i * 120)),
-  buy: () => { tone(700, 0.08, 'triangle', 0.15); setTimeout(() => tone(1050, 0.18, 'triangle', 0.15), 80); },
+  event: () => { tone(520, 0.1, 'triangle', 0.15); later(110, () => tone(780, 0.15, 'triangle', 0.15)); },
+  win: () => [523, 659, 784, 1046].forEach((f, i) => later(i * 120, () => tone(f, 0.2, 'triangle', 0.15))),
+  buy: () => { tone(700, 0.08, 'triangle', 0.15); later(80, () => tone(1050, 0.18, 'triangle', 0.15)); },
+  knock: () => { tone(180, 0.06, 'square', 0.18, 90); later(160, () => tone(180, 0.06, 'square', 0.18, 90)); },
+  slap: () => { tone(160, 0.12, 'square', 0.22, 60); tone(900, 0.05, 'sawtooth', 0.08, 300); },
+  whoosh: () => tone(500, 0.12, 'sine', 0.06, 250),
+  ring: () => { for (let i = 0; i < 4; i++) later(i * 120, () => tone(i % 2 ? 1180 : 980, 0.1, 'square', 0.06)); },
+  meow: () => tone(820, 0.35, 'triangle', 0.12, 520),
+  pop: () => tone(400, 0.12, 'sine', 0.18, 900),
 };
 function haptic(ms) { /* di Astrocade -> lib.haptics */ }
 
@@ -151,11 +176,12 @@ function emit(x, y, n, opt) {
   const max = TIER[tier()].parts;
   for (let i = 0; i < n && parts.length < max; i++) {
     parts.push({ x, y, vx: rnd(-1, 1) * (opt.sp || 60), vy: (opt.vy || -60) + rnd(-20, 20), life: opt.life || 1, t: 0,
-      r: opt.r || rnd(4, 8), c: opt.c || '#fff', g: opt.g || 0, ch: opt.ch });
+      r: opt.r || rnd(4, 8), c: opt.c || '#fff', g: opt.g || 0, ch: opt.ch, size: opt.size || 22 });
   }
 }
 const floats = [];
 function floatText(x, y, s, c) { floats.push({ x, y, s, c: c || '#fff', t: 0 }); }
+const hearts = (x, y, n) => emit(x, y, n || 6, { ch: '❤', c: '#ff6b81', sp: 70, vy: -90, life: 1.2 });
 
 /* ------------------ state ------------------ */
 let state = 'loading';  // loading | menu | play | end
@@ -166,9 +192,10 @@ const loadSteps = []; let loadDone = 0, loadT = 0;
 function newGame() {
   G = {
     day: 1, hour: CFG.startHour, money: CFG.startMoney, needs: Object.assign({}, CFG.start),
-    act: null, pending: null, ch: { x: 360, y: 640, face: 1, walk: 0 },
+    act: null, pending: null,
+    ch: { x: 360, y: 660, face: 1, walkT: 0, look: SAVE.gender, pose: 'idle', seed: 0 },
     blackout: false, freeMeals: 0, eventDay: 1, usedEvents: [], smelly: false, galau: false,
-    moodSum: 0, moodN: 0, speed: 1, earned: 0, tut: SAVE.tutDone ? 99 : 0, tutT: 0,
+    moodSum: 0, moodN: 0, speed: 1, earned: 0, tut: SAVE.tutDone ? 99 : 0, tutT: 0, scene: null,
   };
   modal = null; state = 'play';
 }
@@ -178,7 +205,7 @@ function showToast(s) { toast = { s, t: 0 }; }
 function furnDisabled(f) { return f.power && G.blackout; }
 
 function order(f) {
-  if (!G || modal) return;
+  if (!G || modal || G.scene) return;
   if (G.act && (G.act.special || G.act.f.away)) { showToast(G.act.special ? 'Lagi tidak sadar... 😵' : 'Lagi kerja di luar!'); return; }
   if (G.act && G.act.f === f) return;
   if (furnDisabled(f)) { showToast('Mati lampu! 🕯️'); SFX.bad(); return; }
@@ -189,8 +216,8 @@ function order(f) {
 
 function startAct(f) {
   if (f.cost) {
-    if (G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 90, 'Gratis! 🏷️', '#9ef'); }
-    else if (G.money >= f.cost) { G.money -= f.cost; floatText(f.spot[0], f.spot[1] - 90, '−' + rp(f.cost), '#ff9b9b'); }
+    if (G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 170, 'Gratis! 🏷️', '#9ef'); }
+    else if (G.money >= f.cost) { G.money -= f.cost; floatText(f.spot[0], f.spot[1] - 170, '−' + rp(f.cost), '#ff9b9b'); }
     else { showToast('Uangnya kurang! 💸'); SFX.bad(); return; }
   }
   const eff = Object.assign({}, f.eff || {});
@@ -208,12 +235,13 @@ function finishAct() {
     if (G.galau) e *= 0.5;
     e = Math.round(e);
     G.money += e; G.earned += e;
-    floatText(f.spot[0], f.spot[1] - 100, '+' + rp(e), '#ffe066');
-    emit(f.spot[0], f.spot[1] - 60, 12, { c: '#ffd43b', sp: 120, vy: -160, g: 300, life: 0.9, r: 7 });
+    floatText(f.spot[0], f.spot[1] - 180, '+' + rp(e), '#ffe066');
+    emit(f.spot[0], f.spot[1] - 120, 12, { c: '#ffd43b', sp: 120, vy: -160, g: 300, life: 0.9, r: 7 });
     SFX.coin(); haptic(20);
+    if (f.away) { G.ch.x = f.spot[0]; G.ch.y = f.spot[1]; G.ch.face = 1; }
   }
   if (f && f.id === 'stove') {
-    emit(f.spot[0], f.spot[1] - 60, 8, { ch: '❤', c: '#ff6b6b', sp: 60, vy: -80, life: 1 });
+    hearts(G.ch.x, G.ch.y - 150, 6);
     if (G.tut === 0) { G.tut = 1; }
   }
   G.act = null;
@@ -237,21 +265,254 @@ function startSpecial(kind) {
   SFX.bad(); shake = 10; haptic(60);
 }
 
-/* ------------------ event ------------------ */
-function rollEvent(force) {
-  let pool = EVENTS.filter(e => !G.usedEvents.includes(e.id));
-  if (!pool.length) { G.usedEvents = []; pool = EVENTS.slice(); }
-  const ev = force ? EVENTS.find(e => e.id === force) : pool[Math.floor(Math.random() * pool.length)];
+/* =========================================================
+   ADEGAN KEJADIAN ACAK (generator: tiap `yield` = 1 frame)
+   ========================================================= */
+function* wait(s) { let t = 0; while (t < s) t += yield; }
+function* moveTo(a, x, y, sp) {
+  sp = sp || 300; a.walking = true;
+  while (true) {
+    const dt = yield; const dx = x - a.x, dy = y - a.y, d = Math.hypot(dx, dy), st = sp * dt;
+    if (Math.abs(dx) > 2) a.face = dx > 0 ? 1 : -1;
+    a.walkT = (a.walkT || 0) + dt * 11;
+    if (d <= st) { a.x = x; a.y = y; break; }
+    a.x += dx / d * st; a.y += dy / d * st;
+  }
+  a.walking = false;
+}
+function* all(...gs) {
+  const done = gs.map(() => false); let dt = 0;
+  while (done.includes(false)) { gs.forEach((g, i) => { if (!done[i]) done[i] = g.next(dt).done; }); dt = yield; }
+}
+function* jump(a, x1, y1, dur, hgt) {
+  const x0 = a.x, y0 = a.y; let t = 0;
+  while (t < dur) { t += yield; const k = Math.min(1, t / dur); a.x = x0 + (x1 - x0) * k; a.y = y0 + (y1 - y0) * k; a.z = Math.sin(k * Math.PI) * (hgt || 60); }
+  a.z = 0;
+}
+function* choose(sc, ev) {
+  sc.fast = 1; sc.choice = ev.b ? [ev.a, ev.b] : [ev.a]; sc.picked = null; SFX.event();
+  while (!sc.picked) yield;
+  const c = sc.picked; sc.choice = null; return c;
+}
+function say(a, s, dur) { a.say = { s, t: 0, dur: dur || 1e9 }; }
+function hush(...as) { for (const a of as) a.say = null; }
+function faceTo(a, b) { a.face = b.x >= a.x ? 1 : -1; }
+function npc(sc, look) { const a = { look, x: 0, y: 0, face: 1, pose: 'idle', walkT: 0, seed: Math.random() * 9 }; sc.actors.push(a); return a; }
+const DOOR_OUT = [470, 1010], DOOR_IN = [470, 850];
+function* enter(sc, a) { a.x = DOOR_OUT[0]; a.y = DOOR_OUT[1]; sc.door = 1; SFX.knock(); yield* wait(0.35); yield* moveTo(a, DOOR_IN[0], DOOR_IN[1], 280); sc.door = 0; }
+function* leave(sc, a) { yield* moveTo(a, DOOR_IN[0], DOOR_IN[1], 320); sc.door = 1; yield* moveTo(a, DOOR_OUT[0], DOOR_OUT[1], 320); sc.door = 0; a.gone = true; }
+function resetPlayer() { const c = G.ch; c.lying = null; c.hidden = false; c.walking = false; c.pose = 'idle'; c.hold = null; c.expr = null; c.say = null; c.sweat = false; }
+
+function applyChoice(c) {
+  if (c.money) { G.money += c.money; floatText(G.ch.x, G.ch.y - 200, (c.money > 0 ? '+' : '−') + rp(Math.abs(c.money)), c.money > 0 ? '#ffe066' : '#ff9b9b'); if (c.money > 0) SFX.coin(); }
+  applyEff(c, 1);
+  if (c.blackout) G.blackout = true;
+  if (c.freeMeals) G.freeMeals += c.freeMeals;
+}
+
+const SCENES = {
+  *friend(sc, ev) {
+    const f = npc(sc, 'teman');
+    yield* enter(sc, f);
+    yield* all(moveTo(f, 430, 720), moveTo(G.ch, 320, 715));
+    faceTo(G.ch, f); faceTo(f, G.ch); f.pose = 'belly';
+    say(f, 'Laper nih... ada makanan? 🥺');
+    const c = yield* choose(sc, ev); hush(f);
+    if (c === ev.a) {
+      sc.props.push({ k: 'bowl', x: 375, y: 735 });
+      G.ch.pose = f.pose = 'eat'; G.ch.hold = f.hold = 'spoon'; G.ch.expr = f.expr = 'eat';
+      SFX.eat(); yield* wait(1.6);
+      hearts(375, 600, 8); applyChoice(c); SFX.coin();
+      G.ch.expr = f.expr = 'happy'; say(f, 'Makasih yaa! 🙏', 1.4); yield* wait(1.1);
+      sc.props.length = 0;
+    } else {
+      G.ch.pose = 'idle'; G.ch.expr = 'sleep'; sc.zzz = G.ch;
+      yield* wait(0.6); f.pose = 'shrug'; f.expr = 'sad'; say(f, 'Yaudah deh... 😢', 1.4); applyChoice(c);
+      yield* wait(1.2); sc.zzz = null;
+    }
+    resetPlayer(); f.pose = 'idle'; f.hold = null; f.expr = null;
+    yield* leave(sc, f);
+  },
+  *blackout(sc, ev) {
+    G.ch.expr = 'shock'; say(G.ch, 'Eh? Lampunya...', 1.3);
+    for (let i = 0; i < 3; i++) { sc.dark = 0.6; yield* wait(0.18); sc.dark = 0; yield* wait(0.27); } // < 3 kedip/detik
+    sc.dark = 0; G.blackout = true; SFX.bad(); shake = 5;
+    yield* wait(0.6);
+    G.ch.pose = 'candle'; G.ch.hold = 'candle'; G.ch.expr = 'meh'; SFX.pop();
+    say(G.ch, 'Mati lampu sampai besok 🕯️');
+    const c = yield* choose(sc, ev); hush(G.ch); applyChoice(c);
+    resetPlayer();
+  },
+  *mom(sc, ev) {
+    const k = npc(sc, 'kurir'); k.pose = 'carry'; k.hold = 'box';
+    yield* enter(sc, k);
+    yield* all(moveTo(k, 545, 760), moveTo(G.ch, 425, 720));
+    faceTo(G.ch, k); say(k, 'Paket! Kiriman dari Ibu 📦');
+    const c = yield* choose(sc, ev); hush(k);
+    k.hold = null; k.pose = 'wave'; G.ch.pose = 'carry'; G.ch.hold = 'box'; SFX.pop();
+    say(k, 'Mari, Kak!', 1);
+    const box = { k: 'box', x: 0, y: 0, open: 0, hide: true };
+    yield* all(leave(sc, k), (function* () {
+      yield* wait(0.5); G.ch.pose = 'idle'; G.ch.hold = null;
+      box.x = G.ch.x - 70; box.y = G.ch.y + 4; box.hide = false; sc.props.push(box);
+      yield* wait(0.5); box.open = 1; SFX.pop();
+      emit(box.x, box.y - 30, 10, { c: '#ffd43b', sp: 140, vy: -220, g: 400, life: 1, r: 7 });
+      emit(box.x, box.y - 30, 3, { ch: '🍖', sp: 50, vy: -140, g: 120, life: 1.3, size: 34 });
+      applyChoice(c); G.ch.pose = 'cheer'; G.ch.expr = 'happy'; hearts(G.ch.x, G.ch.y - 170, 5);
+      yield* wait(1.3);
+    })());
+    sc.props.length = 0; resetPlayer();
+  },
+  *gorengan(sc, ev) {
+    const i = npc(sc, 'ibu'); i.pose = 'offer'; i.hold = 'plate';
+    yield* enter(sc, i);
+    yield* all(moveTo(i, 545, 760), moveTo(G.ch, 425, 720));
+    faceTo(G.ch, i); say(i, 'Nih gorengan, Nak 🍤');
+    const c = yield* choose(sc, ev); hush(i);
+    i.hold = null; i.pose = 'idle'; G.ch.pose = 'eat'; G.ch.hold = 'gorengan'; G.ch.expr = 'eat'; SFX.eat();
+    yield* wait(1.4); applyChoice(c); hearts(G.ch.x, G.ch.y - 160, 6);
+    G.ch.hold = null; G.ch.pose = 'idle'; G.ch.expr = 'happy'; i.expr = 'happy';
+    say(i, 'Sama-sama 😊', 1.2); yield* wait(0.8);
+    resetPlayer(); yield* leave(sc, i);
+  },
+  *listrik(sc, ev) {
+    const i = npc(sc, 'ibu'); i.pose = 'hips';
+    yield* enter(sc, i);
+    yield* all(moveTo(i, 545, 770), moveTo(G.ch, 425, 720));
+    faceTo(G.ch, i); i.pose = 'hips'; say(i, 'Uang listriknya ya, Nak! 💡');
+    const c = yield* choose(sc, ev); hush(i);
+    if (c === ev.a) {
+      G.ch.pose = 'give'; applyChoice(c);
+      emit(G.ch.x, G.ch.y - 90, 8, { c: '#ffd43b', sp: 40, vy: 160, life: 0.6, r: 6 });
+      yield* wait(0.6); i.pose = 'idle'; i.expr = 'happy'; say(i, 'Makasih 👍', 1.2); yield* wait(0.9);
+    } else {
+      sc.props.push({ k: 'galon', x: 470, y: 860 });
+      i.pose = 'idle'; yield* moveTo(i, 560, 800);
+      yield* moveTo(G.ch, 470, 830); sc.props.length = 0;
+      G.ch.pose = 'lift'; G.ch.hold = 'galon'; G.ch.sweat = true; G.ch.expr = 'strain';
+      yield* moveTo(G.ch, 230, 690, 170);
+      sc.props.push({ k: 'galon', x: 175, y: 700 }); G.ch.hold = null; G.ch.pose = 'idle'; G.ch.expr = 'tired'; SFX.pop();
+      applyChoice(c); i.expr = 'happy'; say(i, 'Wah, makasih! Kamu baik deh 😄', 1.4); yield* wait(1.2);
+      sc.keepProps = true;
+    }
+    resetPlayer(); i.expr = null; yield* leave(sc, i);
+  },
+  *promo(sc, ev) {
+    G.ch.pose = 'phone'; G.ch.hold = 'phone'; sc.ring = true; SFX.ring(); yield* wait(0.5); sc.ring = false;
+    say(G.ch, 'Promo mi instan! 🏷️');
+    const c = yield* choose(sc, ev); hush(G.ch);
+    G.ch.hold = null;
+    if (c === ev.a) {
+      G.ch.pose = 'idle'; applyChoice(c);
+      const k = npc(sc, 'kurir'); k.pose = 'carry'; k.hold = 'mi';
+      yield* enter(sc, k); yield* moveTo(k, 230, 700);
+      k.hold = null; k.pose = 'wave'; sc.props.push({ k: 'mi', x: 190, y: 710 }); SFX.pop();
+      say(k, 'Pesanan mi-nya! 🍜', 1.2); G.ch.pose = 'cheer'; G.ch.expr = 'happy'; yield* wait(1);
+      resetPlayer(); yield* leave(sc, k); sc.keepProps = true;
+    } else {
+      G.ch.pose = 'shrug'; say(G.ch, 'Nanti aja deh~', 1.2); yield* wait(1.1);
+    }
+    resetPlayer();
+  },
+  *gig(sc, ev) {
+    G.ch.pose = 'phone'; G.ch.hold = 'phone'; G.ch.expr = 'shock'; sc.ring = true; SFX.ring(); yield* wait(0.5); sc.ring = false;
+    G.ch.expr = null; say(G.ch, 'Orderan desain kilat!? 📱');
+    const c = yield* choose(sc, ev); hush(G.ch); G.ch.hold = null;
+    if (c === ev.a) {
+      G.ch.pose = 'idle';
+      yield* moveTo(G.ch, FURN[3].spot[0], FURN[3].spot[1], 420);
+      G.ch.face = -1; G.ch.pose = 'typefast'; G.ch.expr = 'strain'; G.ch.sweat = true; sc.typing = true;
+      yield* wait(1.8); sc.typing = false;
+      applyChoice(c); emit(G.ch.x, G.ch.y - 120, 14, { c: '#ffd43b', sp: 140, vy: -200, g: 350, life: 1, r: 7 });
+      G.ch.sweat = false; G.ch.pose = 'cheer'; G.ch.expr = 'happy'; yield* wait(1);
+    } else {
+      G.ch.pose = 'shrug'; say(G.ch, 'Lagi nggak sanggup...', 1.2); yield* wait(1.1);
+    }
+    resetPlayer();
+  },
+  *cat(sc, ev) {
+    const cat = npc(sc, 'cat'); cat.x = 365; cat.y = 312; cat.z = 0; cat.face = 1;
+    SFX.meow(); yield* wait(0.3);
+    G.ch.expr = 'shock'; say(G.ch, 'Eh, ada kucing! 🐈', 1.2);
+    yield* jump(cat, 380, 470, 0.6, 70);
+    yield* moveTo(cat, 400, 650, 160);
+    say(cat, 'Meong~ 🐾'); SFX.meow(); G.ch.expr = null;
+    const c = yield* choose(sc, ev); hush(cat, G.ch);
+    if (c === ev.a) {
+      yield* moveTo(G.ch, cat.x + 85, cat.y - 22, 300); faceTo(G.ch, cat); faceTo(cat, G.ch);
+      G.ch.pose = 'pet'; G.ch.expr = 'bliss'; cat.purr = true;
+      for (let i = 0; i < 4; i++) { hearts(cat.x + 10, cat.y - 60, 2); yield* wait(0.4); }
+      applyChoice(c); cat.purr = false;
+    } else {
+      faceTo(G.ch, cat); G.ch.pose = 'wave'; say(G.ch, 'Pulang sana, pus~', 1); applyChoice(c); yield* wait(0.8);
+    }
+    resetPlayer();
+    yield* moveTo(cat, 380, 470, 220); yield* jump(cat, 365, 312, 0.5, 70); cat.gone = true;
+  },
+  *roach(sc, ev) {
+    const r = sc.roach = { x: 150, y: 480, z: 0, tx: 300, ty: 600, hits: 0, stun: 0, ang: 0, flap: 0, retarget: 0, timer: CFG.roachTime, active: false, gone: false };
+    G.ch.expr = 'shock'; G.ch.pose = 'panic'; say(G.ch, 'KECOA TERBANG!! 😱', 1.3); SFX.whoosh(); shake = 6;
+    // kecoa keluar dari kolong kasur
+    yield* wait(0.9);
+    G.ch.pose = 'slap'; G.ch.hold = 'sandal'; G.ch.expr = 'angry'; r.active = true; sc.fastable = false;
+    while (r.timer > 0 && r.hits < CFG.roachHits) {
+      const dt = yield; r.timer -= dt; r.flap += dt * 40;
+      if (r.stun > 0) { r.stun -= dt; continue; }
+      r.retarget -= dt;
+      if (r.retarget <= 0 || Math.hypot(r.tx - r.x, r.ty - r.y) < 20) { r.tx = rnd(70, 650); r.ty = rnd(380, 880); r.retarget = rnd(0.4, 0.8); }
+      const sp = CFG.roachSpeed * (1 + r.hits * 0.25), dx = r.tx - r.x, dy = r.ty - r.y, d = Math.hypot(dx, dy) || 1;
+      r.x += dx / d * sp * dt; r.y += dy / d * sp * dt; r.z = 26 + Math.sin(r.flap * 0.2) * 8;
+      r.ang = Math.atan2(dy, dx);
+      // pemain ikut mengejar pelan
+      const px = r.x - G.ch.x, py = r.y + 60 - G.ch.y, pd = Math.hypot(px, py);
+      if (pd > 90) { G.ch.x += px / pd * 150 * dt; G.ch.y += py / pd * 150 * dt; G.ch.face = px > 0 ? 1 : -1; G.ch.walkT += dt * 11; }
+      G.ch.y = clamp(G.ch.y, 420, 900);
+    }
+    r.active = false; sc.fastable = true;
+    if (r.hits >= CFG.roachHits) {
+      r.dizzy = true; SFX.win(); floatText(360, 560, 'MENANG! 🎉', '#ffe066');
+      G.ch.hold = null; G.ch.pose = 'cheer'; G.ch.expr = 'happy'; applyChoice(ev.win);
+      const sx = r.x, sy = r.y; let t = 0;
+      while (t < 1.2) { t += yield; const k = t / 1.2; r.x = sx + (365 - sx) * k; r.y = sy + (300 - sy) * k; r.z = 30 + Math.sin(k * Math.PI) * 60; r.ang = Math.atan2(300 - sy, 365 - sx); r.flap += 0.6; }
+      r.gone = true; say(G.ch, 'Kabur lewat jendela! 😎', 1.2); yield* wait(1);
+    } else {
+      SFX.bad(); G.ch.hold = null; G.ch.pose = 'panic'; G.ch.expr = 'cry'; say(G.ch, 'HUWAAA!! 😭', 1.6); applyChoice(ev.lose);
+      const pts = [[250, 520], [520, 600], [300, 820], [500, 760]];
+      for (const p of pts) {
+        r.tx = p[0]; r.ty = p[1] - 100;
+        yield* all(moveTo(G.ch, p[0], p[1], 420), (function* () { let t = 0; while (t < 0.5) { const dt = yield; t += dt; r.flap += dt * 40; r.x += (G.ch.x - r.x) * dt * 6; r.y += (G.ch.y - 150 - r.y) * dt * 6; r.z = 20; } })());
+      }
+      r.gone = true;
+    }
+    resetPlayer();
+  },
+};
+
+function canEvent() { return !G.act && !G.pending && !G.scene; }
+function startScene(id) {
+  let ev;
+  if (id) ev = EVENTS.find(e => e.id === id);
+  else {
+    let pool = EVENTS.filter(e => !G.usedEvents.includes(e.id) && !(e.id === 'blackout' && G.blackout));
+    if (!pool.length) { G.usedEvents = []; pool = EVENTS.filter(e => e.id !== 'blackout'); }
+    ev = pool[Math.floor(Math.random() * pool.length)];
+  }
   G.usedEvents.push(ev.id);
-  modal = { type: 'event', ev, t: 0 };
+  G.act = null; G.pending = null; resetPlayer();
+  const sc = { ev, actors: [], props: [], fast: 1, fastable: true, t: 0 };
+  sc.gen = SCENES[ev.id](sc, ev); sc.gen.next();
+  G.scene = sc;
   SFX.event(); haptic(30);
 }
-function applyChoice(c) {
-  if (c.money) { G.money += c.money; floatText(G.ch.x, G.ch.y - 120, (c.money > 0 ? '+' : '−') + rp(Math.abs(c.money)), c.money > 0 ? '#ffe066' : '#ff9b9b'); if (c.money > 0) SFX.coin(); }
-  applyEff(c, 1);
-  if (c.blackout) { G.blackout = true; if (G.act && G.act.f && G.act.f.power) G.act = null; }
-  if (c.freeMeals) G.freeMeals += c.freeMeals;
-  modal = null;
+function updateScene(dt) {
+  const sc = G.scene; sc.t += dt;
+  const d = dt * (sc.choice || !sc.fastable ? 1 : sc.fast);
+  for (const a of [G.ch, ...sc.actors]) if (a.say) { a.say.t += d; if (a.say.t > a.say.dur) a.say = null; }
+  if (sc.zzz && Math.random() < dt * 3) floatText(sc.zzz.x + 30, sc.zzz.y - 170, 'Z', '#cde');
+  if (sc.gen.next(d).done) {
+    G.scene = null; resetPlayer();
+    if (sc.keepProps) G.leftovers = (G.leftovers || []).concat(sc.props);
+  }
 }
 
 /* ------------------ akhir bulan ------------------ */
@@ -267,6 +528,21 @@ function endMonth() {
   endInfo = { money: G.money, left, mood: Math.round(mood), score, stars, paid, isBest, t: 0 };
   state = 'end'; modal = null; toast = null; SFX.win(); haptic(80);
   // [Astrocade] lib.addPlayerScoreToLeaderboard(score)
+}
+
+/* ------------------ pose pemain di luar adegan ------------------ */
+function updatePlayerPose() {
+  const c = G.ch, a = G.act;
+  c.hold = null; c.expr = null; c.pose = 'idle'; c.hidden = false; c.lying = null;
+  if (G.pending) { c.walking = true; c.pose = 'walk'; }
+  else c.walking = false;
+  if (a && !G.pending) {
+    if (a.special) c.lying = a.special;
+    else if (a.f.sleep) c.lying = 'bed';
+    else if (a.f.away) c.hidden = true;
+    else { c.pose = a.f.pose; c.hold = a.f.hold || null; c.expr = a.f.expr || null; c.face = a.f.face || c.face; }
+  }
+  if (G.blackout && !c.hold && (c.pose === 'idle' || c.pose === 'walk')) { c.hold = 'candle'; if (!G.pending) c.pose = 'candle'; }
 }
 
 /* ------------------ update ------------------ */
@@ -285,14 +561,17 @@ function update(dt) {
   if (state === 'loading') return updateLoading(dt);
   if (state !== 'play' || modal) return;
 
+  if (G.scene) { updateScene(dt); return; }
+  updatePlayerPose();
+
   const ch = G.ch;
   // jalan ke perabot
   if (G.pending) {
     const [tx, ty] = G.pending.spot, dx = tx - ch.x, dy = ty - ch.y, d = Math.hypot(dx, dy);
     const step = CFG.walkSpeed * dt * (G.speed > 1 ? 1.5 : 1);
     if (Math.abs(dx) > 2) ch.face = dx > 0 ? 1 : -1;
-    if (d <= step) { ch.x = tx; ch.y = ty; const f = G.pending; G.pending = null; ch.walk = 0; startAct(f); }
-    else { ch.x += dx / d * step; ch.y += dy / d * step; ch.walk += dt * 12; }
+    if (d <= step) { ch.x = tx; ch.y = ty; const f = G.pending; G.pending = null; startAct(f); updatePlayerPose(); }
+    else { ch.x += dx / d * step; ch.y += dy / d * step; ch.walkT += dt * 12; }
   }
 
   const a = G.act;
@@ -301,15 +580,14 @@ function update(dt) {
   const gh = dt / CFG.hourSec * mul;
 
   // waktu
-  const prevHour = G.hour;
   G.hour += gh;
-  if (prevHour < 10 && G.hour >= 10 && G.day >= 2 && G.eventDay < G.day) {
+  if (G.hour >= 10 && G.day >= 2 && G.eventDay < G.day && canEvent()) {
     G.eventDay = G.day;
-    if (G.day === 15) rollEvent('listrik');
-    else if (Math.random() < CFG.eventChance) rollEvent();
+    if (G.day === 15) return startScene('listrik');
+    if (Math.random() < CFG.eventChance) return startScene();
   }
   if (G.hour >= 24) {
-    G.hour -= 24; G.day++; G.blackout = false;
+    G.hour -= 24; G.day++; G.blackout = false; G.leftovers = null;
     if (G.day > CFG.days) { G.day = CFG.days; return endMonth(); }
     floatText(360, 560, 'Tanggal ' + G.day, '#fff');
   }
@@ -329,13 +607,16 @@ function update(dt) {
       if (a.t >= a.total) G.act = null;
     } else if (a.f.sleep) {
       nd.energy += (SAVE.upgrades.kasur ? CFG.sleepRateUpgrade : CFG.sleepRate) * gh;
-      if (Math.random() < dt * 1.5) floatText(a.f.x + 70 + rnd(-10, 10), a.f.y + 30, 'Z', '#cde');
-      if (nd.energy >= 100) { nd.energy = 100; G.act = null; floatText(ch.x, ch.y - 110, 'Segar! ⚡', '#9f9'); }
+      if (Math.random() < dt * 1.5) floatText(a.f.x + 90 + rnd(-10, 10), a.f.y + 20, 'Z', '#cde');
+      if (nd.energy >= 100) { nd.energy = 100; G.act = null; floatText(ch.x, ch.y - 190, 'Segar! ⚡', '#9f9'); }
     } else {
       const step = Math.min(gh, a.total - a.t);
       a.t += step; applyEff(a.eff, step / a.total);
-      if (a.f.id === 'stove' && Math.random() < dt * 8) emit(a.f.x + 60, a.f.y + 30, 1, { c: 'rgba(255,255,255,.7)', sp: 15, vy: -50, life: 1.2, r: rnd(6, 12) });
-      if (a.f.id === 'bath' && Math.random() < dt * 20) emit(a.f.x + 95, a.f.y + 60, 1, { c: '#7cc8ff', sp: 30, vy: 120, life: 0.6, r: 3 });
+      if (a.f.id === 'stove' && Math.random() < dt * 8) emit(a.f.x + 50, a.f.y + 30, 1, { c: 'rgba(255,255,255,.7)', sp: 15, vy: -50, life: 1.2, r: rnd(6, 12) });
+      if (a.f.id === 'bath') {
+        if (Math.random() < dt * 25) emit(ch.x + rnd(-30, 30), ch.y - 200, 1, { c: '#7cc8ff', sp: 10, vy: 260, life: 0.6, r: 3 });
+        if (Math.random() < dt * 4) emit(ch.x + rnd(-30, 30), ch.y - 150, 1, { c: 'rgba(255,255,255,.85)', sp: 20, vy: -30, life: 1, r: rnd(5, 9) });
+      }
       if (a.t >= a.total - 1e-6) finishAct();
     }
   }
@@ -348,7 +629,7 @@ function update(dt) {
   }
   if (nd.hygiene <= 0 && !G.smelly) { G.smelly = true; nd.fun = clamp(nd.fun - 20, 0, 100); showToast('Bau banget! Lalat datang 🪰'); SFX.bad(); }
   if (G.smelly && nd.hygiene > 30) G.smelly = false;
-  if (G.smelly && Math.random() < dt * 3) emit(ch.x + rnd(-30, 30), ch.y - 80, 1, { ch: '🪰', sp: 40, vy: -20, life: 1.2 });
+  if (G.smelly && Math.random() < dt * 3) emit(ch.x + rnd(-30, 30), ch.y - 170, 1, { ch: '🪰', sp: 40, vy: -20, life: 1.2 });
   if (nd.fun <= 3 && !G.galau) { G.galau = true; showToast('Galau... kerja cuma dapat setengah 😔'); }
   if (G.galau && nd.fun > 30) G.galau = false;
 
@@ -389,25 +670,287 @@ function updateLoading(dt) {
 /* ------------------ input ------------------ */
 function btn(x, y, w, h, cb, key) { buttons.push({ x, y, w, h, cb, key }); }
 function hit(b, x, y) { return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h; }
+function tapRoach(x, y) {
+  const r = G.scene.roach;
+  if (Math.hypot(x - r.x, y - (r.y - r.z)) < CFG.roachHitRadius) {
+    r.hits++; r.stun = 0.35; SFX.slap(); haptic(40); shake = 8;
+    floatText(r.x, r.y - r.z - 40, 'PLAK!', '#fff');
+    emit(r.x, r.y - r.z, 6, { ch: '⭐', sp: 120, vy: -80, life: 0.6, size: 20 });
+    G.ch.slapT = 0.25;
+  } else { SFX.whoosh(); emit(x, y, 4, { c: 'rgba(255,255,255,.8)', sp: 80, vy: 0, life: 0.3, r: 4 }); }
+}
 cv.addEventListener('pointerdown', e => {
   ensureAudio();
   const r = cv.getBoundingClientRect();
   const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
   for (let i = buttons.length - 1; i >= 0; i--) if (hit(buttons[i], x, y)) { buttons[i].cb(); return; }
   if (state === 'play' && !modal) {
+    if (G.scene) {
+      if (G.scene.roach && G.scene.roach.active) tapRoach(x, y);
+      else if (!G.scene.choice) G.scene.fast = 3;
+      return;
+    }
     for (const f of FURN) if (x >= f.x - 15 && x <= f.x + f.w + 15 && y >= f.y - 15 && y <= f.y + f.h + 15) { order(f); return; }
   }
 });
 addEventListener('keydown', e => {
   ensureAudio();
   const k = e.key.toLowerCase();
-  // tombol dengan shortcut keyboard (modal/menu)
   for (let i = buttons.length - 1; i >= 0; i--) if (buttons[i].key && buttons[i].key.includes(k)) { e.preventDefault(); buttons[i].cb(); return; }
-  if (state === 'play' && !modal) {
+  if (state === 'play' && !modal && !G.scene) {
     const f = FURN.find(f => f.key === k); if (f) return order(f);
   }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !modal) modal = { type: 'pause', t: 0 }; });
+
+/* =========================================================
+   KARAKTER: kerangka 2D (kepala, badan, lengan atas/bawah, tangan, kaki, sepatu)
+   Sudut: 0 = lurus ke bawah, positif = ke arah +x. Dihitung di ruang lokal (sebelum flip).
+   ========================================================= */
+const S = Math.sin, C = Math.cos;
+const POSES = {
+  idle:   (t) => ({ la: [-0.14 + 0.03 * S(t * 2), 0.18], ra: [0.14 - 0.03 * S(t * 2), -0.18], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: S(t * 2) * 1.5 }),
+  walk:   (t, a) => { const s = S(a.walkT || 0); return { la: [-0.12 - 0.55 * s, 0.35], ra: [0.12 - 0.55 * s, -0.35], ll: [0.42 * s, -0.25 * Math.max(0, s)], rl: [-0.42 * s, 0.25 * Math.max(0, -s)], bob: Math.abs(s) * 5 }; },
+  cook:   (t) => ({ la: [-0.3, 0.5], ra: [1.45 + 0.25 * S(t * 7), -0.8 + 0.25 * C(t * 7)], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: S(t * 3) * 1.5 }),
+  type:   (t) => ({ sit: 1, la: [0.55, 1.0 + 0.25 * S(t * 20)], ra: [1.0, 0.6 + 0.25 * S(t * 20 + 1.6)], ll: [0.15, 0], rl: [0.35, 0], bob: 0 }),
+  typefast: (t) => ({ sit: 1, la: [0.55, 1.0 + 0.4 * S(t * 40)], ra: [1.0, 0.6 + 0.4 * S(t * 40 + 1.6)], ll: [0.15, 0], rl: [0.35, 0], bob: S(t * 30) * 1.5 }),
+  shower: (t) => ({ over: 1, la: [-2.55 + 0.2 * S(t * 11), -0.9], ra: [2.55 - 0.2 * S(t * 11 + 1), 0.9], ll: [-0.08, 0.04], rl: [0.08, -0.04], bob: S(t * 6) * 1.5 }),
+  tv:     (t) => ({ sit: 1, la: [-0.45, 0.7], ra: [1.25, -0.5 + 0.05 * S(t * 2)], ll: [-0.35, 0], rl: [0.35, 0], bob: S(t * 1.5) * 1 }),
+  eat:    (t) => ({ sit: 1, la: [-0.5, 1.4], ra: [0.55, 2.1 + 0.35 * S(t * 9)], ll: [-0.35, 0], rl: [0.35, 0], bob: S(t * 9) * 1 }),
+  phone:  (t) => ({ la: [-0.14, 0.18], ra: [0.35, 2.55], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: S(t * 2) * 1.5 }),
+  candle: (t) => ({ la: [-0.14, 0.18], ra: [0.45, 1.75], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: S(t * 2) * 1.5 }),
+  panic:  (t) => ({ over: 1, la: [-2.5 + 0.5 * S(t * 15), -0.3], ra: [2.5 + 0.5 * S(t * 15 + 1), 0.3], ll: [0.4 * S(t * 20), 0], rl: [-0.4 * S(t * 20), 0], bob: Math.abs(S(t * 20)) * 7 }),
+  cheer:  (t) => ({ over: 1, la: [-2.65, 0.25], ra: [2.65, -0.25], ll: [-0.2, 0.1], rl: [0.2, -0.1], bob: Math.abs(S(t * 8)) * 9 }),
+  hips:   (t) => ({ la: [-0.75, 1.75], ra: [0.75, -1.75], ll: [-0.12, 0.04], rl: [0.12, -0.04], bob: S(t * 2) * 1 }),
+  carry:  (t, a) => { const s = a.walking ? S(a.walkT || 0) : 0; return { la: [-0.45, 2.0], ra: [0.45, -2.0], ll: [0.42 * s, 0], rl: [-0.42 * s, 0], bob: Math.abs(s) * 4 }; },
+  offer:  (t, a) => { const s = a.walking ? S(a.walkT || 0) : 0; return { la: [-0.14, 0.18], ra: [1.25, 0.25], ll: [0.42 * s, 0], rl: [-0.42 * s, 0], bob: Math.abs(s) * 4 }; },
+  give:   (t) => ({ la: [-0.14, 0.18], ra: [1.4, 0.1], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: 0 }),
+  pet:    (t) => ({ sit: 1, la: [-0.3, 0.4], ra: [1.0 + 0.2 * S(t * 7), 0.5], ll: [-0.4, 0], rl: [0.4, 0], bob: 0 }),
+  slap:   (t, a) => { const s = S(a.walkT || 0); const hit = (a.slapT || 0) > 0; return { la: [-0.5, 0.5], ra: hit ? [1.6, 0.4] : [2.5 + 0.25 * S(t * 12), 0.4], ll: [0.42 * s, 0], rl: [-0.42 * s, 0], bob: Math.abs(s) * 4 }; },
+  shrug:  (t) => ({ la: [-1.0, -1.5], ra: [1.0, 1.5], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: 0 }),
+  belly:  (t) => ({ la: [-0.3, 1.5], ra: [0.3, -1.5], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: S(t * 3) * 1.5 }),
+  wave:   (t) => ({ la: [-0.14, 0.18], ra: [2.5 + 0.35 * S(t * 10), 0.4], ll: [-0.06, 0.04], rl: [0.06, -0.04], bob: 0 }),
+  lift:   (t, a) => { const s = a.walking ? S(a.walkT || 0) : 0; return { over: 1, la: [-2.75, -0.35], ra: [2.75, 0.35], ll: [0.35 * s, 0], rl: [-0.35 * s, 0], bob: Math.abs(s) * 3 }; },
+  sleep:  (t) => ({ la: [-0.25, 0.3], ra: [0.7, 1.3], ll: [-0.05, 0.02], rl: [0.08, -0.02], bob: 0 }),
+};
+
+function limb(x, y, a1, l1, a2, l2, w, c1, c2) {
+  const ex = x + S(a1) * l1, ey = y + C(a1) * l1, hx = ex + S(a1 + a2) * l2, hy = ey + C(a1 + a2) * l2;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy);
+  ctx.strokeStyle = OUT; ctx.lineWidth = w + 5; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(hx, hy); ctx.strokeStyle = c2 || c1; ctx.lineWidth = w; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.strokeStyle = c1; ctx.lineWidth = w + 1; ctx.stroke();
+  return [hx, hy];
+}
+
+function drawPerson(a, opt) {
+  opt = opt || {};
+  const L = LOOKS[a.look] || LOOKS.m, t = time + (a.seed || 0);
+  const pose = a.walking && !['carry', 'offer', 'lift', 'slap'].includes(a.pose) ? 'walk' : (a.pose || 'idle');
+  const P = POSES[pose](t, a);
+  const sc = opt.s || 1;
+  ctx.save(); ctx.translate(a.x, a.y);
+  if (!opt.noShadow) ell(0, 3, 30 * sc, 9 * sc, 'rgba(0,0,0,.18)');
+  ctx.scale((a.face || 1) * sc, sc);
+  const sitY = P.sit ? 18 : 0;
+  ctx.translate(0, -(P.bob || 0) + sitY);
+  const legL = P.sit ? 9 : 19, hipY = -40;
+  // kaki
+  for (const [sx, lg] of [[-9, P.ll], [9, P.rl]]) {
+    const [fx, fy] = limb(sx, hipY, lg[0], legL, lg[1], legL, 13, L.pants);
+    ell(fx + (sx < 0 ? -3 : 3), fy + 3, 10, 6.5, L.shoe, OUT, 3);
+  }
+  // rambut panjang (belakang)
+  if (L.hairStyle === 'long') { rr(-37, -128, 74, 70, 30, L.hair, OUT, 3); }
+  if (L.hijab) { ctx.beginPath(); ctx.moveTo(-36, -112); ctx.quadraticCurveTo(-42, -62, -30, -58); ctx.lineTo(30, -58); ctx.quadraticCurveTo(42, -62, 36, -112); ctx.closePath(); ctx.fillStyle = L.hijab; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke(); }
+  // badan
+  const g = ctx.createLinearGradient(-24, -88, 24, -36); g.addColorStop(0, L.shirtLight); g.addColorStop(1, L.shirt);
+  ctx.beginPath();
+  if (L.dress) { ctx.moveTo(-22, -88); ctx.lineTo(22, -88); ctx.quadraticCurveTo(28, -60, 32, -22); ctx.lineTo(-32, -22); ctx.quadraticCurveTo(-28, -60, -22, -88); }
+  else { ctx.moveTo(-20, -88); ctx.quadraticCurveTo(-26, -88, -25, -78); ctx.lineTo(-21, -40); ctx.quadraticCurveTo(-20, -35, -15, -35); ctx.lineTo(15, -35); ctx.quadraticCurveTo(20, -35, 21, -40); ctx.lineTo(25, -78); ctx.quadraticCurveTo(26, -88, 20, -88); }
+  ctx.closePath(); ctx.fillStyle = L.dress ? L.dress : g; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke();
+  if (L.dress) { ctx.fillStyle = L.dressDots; for (const [dx, dy] of [[-14, -70], [8, -76], [-4, -54], [16, -48], [-20, -36], [6, -32]]) { ctx.beginPath(); ctx.arc(dx, dy, 3, 0, 7); ctx.fill(); } }
+  else {
+    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.moveTo(4, -84); ctx.lineTo(22, -80); ctx.lineTo(19, -40); ctx.lineTo(10, -38); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -90, 9, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+    if (L.logo) txt(L.logo, 0, -62, 16, 'rgba(255,255,255,.9)');
+  }
+  if (L.skirt) { ctx.beginPath(); ctx.moveTo(-21, -46); ctx.lineTo(21, -46); ctx.lineTo(28, -26); ctx.lineTo(-28, -26); ctx.closePath(); ctx.fillStyle = L.skirt; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke(); }
+  // barang besar dipegang dua tangan (di belakang tangan)
+  if (a.hold === 'box' || a.hold === 'mi') drawItem(a.hold, 0, -66);
+  const drawArms = () => {
+    const hl = limb(-21, -80, P.la[0], 19, P.la[1], 17, 11, L.shirt, L.skin);
+    const hr = limb(21, -80, P.ra[0], 19, P.ra[1], 17, 11, L.shirt, L.skin);
+    ell(hl[0], hl[1], 7, 7, L.skin, OUT, 2.5); ell(hr[0], hr[1], 7, 7, L.skin, OUT, 2.5);
+    return [hl, hr];
+  };
+  let hands = null;
+  if (!P.over) hands = drawArms();
+  drawHeadFull(L, a, t, opt.expr);
+  if (P.over) hands = drawArms();
+  if (a.hold === 'galon') drawItem('galon', 0, -175);
+  else if (a.hold && a.hold !== 'box' && a.hold !== 'mi') drawItem(a.hold, hands[1][0], hands[1][1], a);
+  if (a.sweat && Math.floor(t * 3) % 2 === 0) txt('💦', 34, -150, 20);
+  ctx.restore();
+}
+
+function drawHeadFull(L, a, t, exprOverride) {
+  const hy = -118;
+  // telinga
+  if (!L.hijab && !L.helmet) { ell(-31, hy + 4, 7, 9, L.skin, OUT, 3); ell(31, hy + 4, 7, 9, L.skin, OUT, 3); }
+  if (L.hijab) ell(0, hy - 2, 38, 37, L.hijab, OUT, 3);
+  // wajah
+  const g = ctx.createRadialGradient(-10, hy - 12, 6, 0, hy, 36); g.addColorStop(0, '#fff2e2'); g.addColorStop(0.35, L.skin); g.addColorStop(1, L.skin);
+  ell(0, hy + (L.hijab ? 3 : 0), L.hijab ? 27 : 32, L.hijab ? 28 : 31, g, OUT, 3);
+  // rambut depan
+  ctx.fillStyle = L.hair; ctx.strokeStyle = OUT; ctx.lineWidth = 3;
+  if (L.hairStyle === 'short') {
+    ctx.beginPath(); ctx.arc(0, hy - 2, 34, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.lineTo(30, hy - 8); ctx.lineTo(22, hy - 18); ctx.lineTo(14, hy - 8); ctx.lineTo(5, hy - 20); ctx.lineTo(-4, hy - 9); ctx.lineTo(-13, hy - 20); ctx.lineTo(-21, hy - 8); ctx.lineTo(-30, hy - 10);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, hy - 2, 26, Math.PI * 1.25, Math.PI * 1.5); ctx.stroke();
+  } else if (L.hairStyle === 'long') {
+    ctx.beginPath(); ctx.arc(0, hy - 2, 35, Math.PI * 1.0, Math.PI * 2.0);
+    ctx.lineTo(34, hy + 22); ctx.quadraticCurveTo(30, hy - 6, 8, hy - 14); ctx.quadraticCurveTo(-16, hy - 6, -28, hy + 14); ctx.lineTo(-35, hy + 18);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, hy - 2, 27, Math.PI * 1.2, Math.PI * 1.45); ctx.stroke();
+    // jepit rambut bunga
+    for (let i = 0; i < 5; i++) { const an = i / 5 * Math.PI * 2; ell(22 + C(an) * 5, hy - 22 + S(an) * 5, 4, 4, L.clip); }
+    ell(22, hy - 22, 3, 3, '#fff');
+  } else if (L.hairStyle === 'curly') {
+    for (let i = 0; i < 9; i++) { const an = Math.PI * (1.0 + i / 8); ell(C(an) * 30, hy - 4 + S(an) * 28, 11, 11, L.hair, OUT, 2.5); }
+    ell(0, hy - 22, 26, 14, L.hair);
+  }
+  if (L.helmet) {
+    ctx.beginPath(); ctx.arc(0, hy - 2, 37, Math.PI * 1.0, Math.PI * 2.0); ctx.closePath(); ctx.fillStyle = L.helmet; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke();
+    rr(-38, hy - 8, 76, 9, 4, '#1b5e20', OUT, 2.5);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, hy - 2, 28, Math.PI * 1.2, Math.PI * 1.45); ctx.stroke();
+  }
+  // ekspresi
+  let ex = exprOverride || a.expr;
+  if (!ex) ex = 'happy';
+  const blink = ((t * 1.0) % 3.3) < 0.13;
+  const ey = hy + 4;
+  ctx.fillStyle = OUT; ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  const closed = ex === 'sleep' || ex === 'bliss' || (blink && ex !== 'shock' && ex !== 'cry');
+  if (closed) {
+    ctx.beginPath();
+    if (ex === 'bliss') { ctx.arc(-11, ey + 2, 5, Math.PI * 1.1, Math.PI * 1.9); ctx.moveTo(16, ey + 1); ctx.arc(11, ey + 2, 5, Math.PI * 1.1, Math.PI * 1.9); }
+    else { ctx.arc(-11, ey - 1, 5, Math.PI * 0.1, Math.PI * 0.9); ctx.moveTo(16, ey - 1); ctx.arc(11, ey - 1, 5, Math.PI * 0.1, Math.PI * 0.9); }
+    ctx.stroke();
+  } else if (ex === 'strain' || ex === 'angry') {
+    ctx.beginPath(); ctx.moveTo(-16, ey - 4); ctx.lineTo(-7, ey); ctx.lineTo(-16, ey + 4); ctx.moveTo(16, ey - 4); ctx.lineTo(7, ey); ctx.lineTo(16, ey + 4); ctx.stroke();
+  } else {
+    const big = ex === 'shock' || ex === 'cry' ? 1.35 : 1;
+    for (const sx of [-11, 11]) {
+      ell(sx, ey, 4.6 * big, 6.4 * big, OUT);
+      ell(sx - 1.4, ey - 2.4, 1.8 * big, 1.8 * big, '#fff'); ell(sx + 1.6, ey + 2.2, 0.9, 0.9, '#fff');
+    }
+  }
+  // alis
+  ctx.lineWidth = 2.6; ctx.beginPath();
+  if (ex === 'sad' || ex === 'cry' || ex === 'tired') { ctx.moveTo(-16, ey - 11); ctx.lineTo(-7, ey - 14); ctx.moveTo(16, ey - 11); ctx.lineTo(7, ey - 14); }
+  else if (ex === 'angry' || ex === 'focus' || ex === 'strain') { ctx.moveTo(-16, ey - 14); ctx.lineTo(-6, ey - 10); ctx.moveTo(16, ey - 14); ctx.lineTo(6, ey - 10); }
+  else if (ex === 'shock') { ctx.moveTo(-16, ey - 15); ctx.lineTo(-7, ey - 17); ctx.moveTo(16, ey - 15); ctx.lineTo(7, ey - 17); }
+  else { ctx.moveTo(-15, ey - 12); ctx.lineTo(-7, ey - 13); ctx.moveTo(15, ey - 12); ctx.lineTo(7, ey - 13); }
+  ctx.stroke();
+  // mulut
+  const my = hy + 17; ctx.lineWidth = 3; ctx.beginPath();
+  if (ex === 'happy' || ex === 'bliss') { ctx.arc(0, my - 4, 7, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+  else if (ex === 'shock' || ex === 'cry') { ell(0, my, 5, 6.5, '#7a2e3a', OUT, 2.5); }
+  else if (ex === 'eat') { const o = Math.abs(S(t * 9)) * 5; ell(0, my, 6, 1.5 + o, '#7a2e3a', OUT, 2.5); }
+  else if (ex === 'sad' || ex === 'tired') { ctx.arc(0, my + 6, 6, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke(); }
+  else if (ex === 'strain') { rr(-7, my - 3, 14, 6, 2, '#fff', OUT, 2); }
+  else if (ex === 'sleep') { ell(0, my, 3, 2.5, '#7a2e3a'); }
+  else { ctx.moveTo(-5, my); ctx.lineTo(5, my); ctx.stroke(); }
+  if (ex === 'cry') { ctx.fillStyle = '#74c0fc'; for (const sx of [-14, 14]) { const yy = ey + 8 + ((t * 40) % 16); ell(sx, yy, 3, 4, '#74c0fc'); } }
+  // pipi
+  ell(-20, hy + 12, 6, 3.5, 'rgba(255,110,120,.35)'); ell(20, hy + 12, 6, 3.5, 'rgba(255,110,120,.35)');
+  if (L.glasses) { ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ell(-11, ey, 9, 8, 'rgba(200,230,255,.25)', OUT, 2.5); ell(11, ey, 9, 8, 'rgba(200,230,255,.25)', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-2, ey); ctx.lineTo(2, ey); ctx.stroke(); }
+}
+
+function drawItem(k, x, y, a) {
+  ctx.save(); ctx.translate(x, y);
+  switch (k) {
+    case 'spoon': ctx.strokeStyle = OUT; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 20); ctx.stroke(); ctx.strokeStyle = '#c8a26a'; ctx.lineWidth = 3; ctx.stroke(); ell(0, 22, 5, 4, '#ddd', OUT, 2); break;
+    case 'remote': rr(-5, -14, 10, 24, 3, '#333', OUT, 2); ell(0, -9, 2, 2, '#ff6b6b'); break;
+    case 'phone': { const v = a && G && G.scene && G.scene.ring ? rnd(-2, 2) : 0; rr(-7 + v, -22, 14, 24, 3, '#222', OUT, 2); rr(-5 + v, -20, 10, 17, 2, '#7cf'); break; }
+    case 'candle':
+      rr(-5, -26, 10, 22, 2, '#fff8e7', OUT, 2);
+      ell(0, -33 + S(time * 20) * 0.8, 4.5, 8 + S(time * 13) * 1.2, '#ffb02e'); ell(0, -31, 2.5, 4.5, '#fff3bf'); break;
+    case 'sandal': ctx.rotate(0.3); rr(-8, -34, 16, 34, 7, '#4dabf7', OUT, 2.5); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-6, -22); ctx.lineTo(6, -22); ctx.stroke(); break;
+    case 'plate': ell(0, 0, 20, 8, '#fff', OUT, 2.5); ell(-6, -4, 7, 5, '#d4892a', OUT, 2); ell(6, -5, 7, 5, '#c97a1f', OUT, 2); break;
+    case 'gorengan': ell(0, -4, 8, 6, '#d4892a', OUT, 2); break;
+    case 'box': rr(-26, -20, 52, 38, 4, '#c8915a', OUT, 3); ctx.fillStyle = '#e8b97f'; ctx.fillRect(-4, -20, 8, 38); txt('❤', 14, 6, 12, '#d9480f'); break;
+    case 'mi': for (let i = 0; i < 3; i++) { rr(-24, -24 + i * 13, 48, 13, 3, i % 2 ? '#ffd43b' : '#ff922b', OUT, 2); } break;
+    case 'galon': rr(-20, -28, 40, 56, 12, 'rgba(116,192,252,.85)', OUT, 3); rr(-8, -36, 16, 10, 3, '#1c7ed6', OUT, 2); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-14, -20, 5, 38); break;
+    case 'bowl': ell(0, -4, 22, 8, '#ffe8a3', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-22, -4); ctx.quadraticCurveTo(0, 26, 22, -4); ctx.fillStyle = '#e8590c'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke(); break;
+  }
+  ctx.restore();
+}
+
+function drawLying(a, cx, cy, blanket) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(-Math.PI / 2);
+  drawPerson({ look: a.look, x: 0, y: 0, face: 1, pose: 'sleep', seed: a.seed }, { noShadow: true, expr: a.lyingExpr || 'sleep' });
+  ctx.restore();
+  if (blanket) {
+    rr(blanket[0], blanket[1], blanket[2], blanket[3], 14, blanket[4], OUT, 3);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3;
+    for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(blanket[0] + i * blanket[2] / 4, blanket[1] + 8); ctx.lineTo(blanket[0] + i * blanket[2] / 4, blanket[1] + blanket[3] - 8); ctx.stroke(); }
+  }
+}
+
+function drawCat(a) {
+  ell(a.x, a.y + 2, 26, 7, 'rgba(0,0,0,.18)');
+  ctx.save(); ctx.translate(a.x, a.y - (a.z || 0)); ctx.scale(a.face || 1, 1);
+  const w = a.walking ? S(a.walkT) * 4 : 0, tail = S(time * (a.purr ? 8 : 3)) * 0.4;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = OUT; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(-22, -16); ctx.quadraticCurveTo(-42, -24, -40 + tail * 10, -48); ctx.stroke();
+  ctx.strokeStyle = '#f4a259'; ctx.lineWidth = 6; ctx.stroke();
+  for (const [lx, ph] of [[-16, 0], [-6, 1], [8, 1], [18, 0]]) rr(lx - 4, -12 + (ph ? w : -w) * 0.5, 9, 14, 4, '#f4a259', OUT, 2.5);
+  ell(0, -20, 26, 14, '#f4a259', OUT, 3);
+  ctx.strokeStyle = '#d9822b'; ctx.lineWidth = 3; for (const sx of [-10, -2, 6]) { ctx.beginPath(); ctx.moveTo(sx, -33); ctx.lineTo(sx + 2, -24); ctx.stroke(); }
+  // kepala
+  ctx.fillStyle = '#f4a259'; ctx.strokeStyle = OUT; ctx.lineWidth = 3;
+  for (const ex of [-1, 1]) { ctx.beginPath(); ctx.moveTo(24 + ex * 10, -44); ctx.lineTo(24 + ex * 13, -60); ctx.lineTo(24 + ex * 2, -50); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  ell(24, -38, 16, 14, '#f4a259', OUT, 3);
+  ctx.strokeStyle = OUT; ctx.lineWidth = 2.5;
+  if (a.purr) { ctx.beginPath(); ctx.arc(18, -40, 4, Math.PI * 1.1, Math.PI * 1.9); ctx.moveTo(34, -40); ctx.arc(30, -40, 4, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+  else { ell(18, -40, 2.6, 3.6, OUT); ell(30, -40, 2.6, 3.6, OUT); }
+  ell(24, -33, 2.5, 2, '#ff8fab');
+  ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(30, -32); ctx.lineTo(44, -34); ctx.moveTo(30, -30); ctx.lineTo(44, -28); ctx.moveTo(18, -32); ctx.lineTo(6, -34); ctx.stroke();
+  ctx.restore();
+}
+
+function drawRoach(r) {
+  if (r.gone) return;
+  ell(r.x, r.y + 4, 16, 5, 'rgba(0,0,0,.15)');
+  ctx.save(); ctx.translate(r.x, r.y - r.z); ctx.rotate(r.ang); ctx.scale(1.5, 1.5);
+  ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  for (const sy of [-1, 1]) for (const lx of [-8, 0, 8]) { ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx - 4 + S(r.flap + lx) * 3, sy * 16); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(18, -4); ctx.quadraticCurveTo(34, -16, 40, -8); ctx.moveTo(18, 4); ctx.quadraticCurveTo(34, 16, 40, 8); ctx.stroke();
+  ell(-2, 0, 20, 12, '#8b4a2b', OUT, 2.5);
+  ell(16, 0, 8, 8, '#5c2e1a', OUT, 2.5);
+  ell(19, -3.5, 2.6, 2.6, '#fff'); ell(19, 3.5, 2.6, 2.6, '#fff');
+  if (r.dizzy) { txt('@', 19, -3.5, 7, OUT); txt('@', 19, 3.5, 7, OUT); }
+  else { ell(20, -3.5, 1.2, 1.2, OUT); ell(20, 3.5, 1.2, 1.2, OUT); }
+  const f = 0.5 + 0.4 * S(r.flap);
+  ctx.globalAlpha = 0.55; ell(-6, -8, 16, 7, '#e8d5c4', OUT, 1.5, -f); ell(-6, 8, 16, 7, '#e8d5c4', OUT, 1.5, f); ctx.globalAlpha = 1;
+  ctx.restore();
+  if (r.stun > 0 || r.dizzy) for (let i = 0; i < 3; i++) { const an = time * 6 + i * 2.1; txt('⭐', r.x + C(an) * 22, r.y - r.z - 28 + S(an) * 6, 14); }
+}
+
+function drawBubble(x, y, s) {
+  ctx.font = 'bold 24px ' + FONT;
+  const w = Math.min(560, ctx.measureText(s).width + 36), bx = clamp(x - w / 2, 24, W - 24 - w);
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = tier() === 'low' ? 0 : 8; ctx.shadowOffsetY = 3;
+  rr(bx, y - 58, w, 52, 22, '#fff', OUT, 3); ctx.restore();
+  rr(bx, y - 58, w, 52, 22, '#fff', OUT, 3);
+  ctx.beginPath(); ctx.moveTo(x - 10, y - 8); ctx.lineTo(x, y + 8); ctx.lineTo(x + 10, y - 8); ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 10, y - 6); ctx.lineTo(x, y + 8); ctx.lineTo(x + 10, y - 6); ctx.stroke();
+  txtFit(s, bx + w / 2, y - 32, 24, OUT, w - 26);
+}
 
 /* ------------------ gambar: ruangan ------------------ */
 function skyColor(h) {
@@ -423,27 +966,21 @@ function nightAlpha(h) {
   return 0.28;
 }
 function drawRoom() {
-  // dinding belakang
   ctx.fillStyle = '#9fc5a8'; ctx.fillRect(20, 240, 680, 90);
   ctx.fillStyle = '#8ab394'; for (let x = 20; x < 700; x += 34) ctx.fillRect(x, 240, 3, 90);
   ctx.fillStyle = '#6b4a2f'; ctx.fillRect(20, 322, 680, 8);
-  // jendela
   const sc = skyColor(G.hour), gr = ctx.createLinearGradient(0, 252, 0, 312);
   gr.addColorStop(0, sc[0]); gr.addColorStop(1, sc[1]);
   rr(300, 250, 130, 64, 6, gr, '#fff', 5);
   if (G.hour < 5 || G.hour >= 20) { txt('🌙', 400, 270, 20); } else if (G.hour >= 7 && G.hour < 17) { txt('☀️', 330, 270, 20); }
   ctx.fillStyle = '#fff'; ctx.fillRect(363, 250, 4, 64);
-  // poster & jam dinding
   rr(455, 254, 40, 54, 3, '#ff8fab'); txt('★', 475, 281, 26, '#fff');
   ctx.beginPath(); ctx.arc(250, 282, 24, 0, 7); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#555'; ctx.lineWidth = 3; ctx.stroke();
   const ang = (G.hour % 12) / 12 * Math.PI * 2 - Math.PI / 2;
   ctx.beginPath(); ctx.moveTo(250, 282); ctx.lineTo(250 + Math.cos(ang) * 14, 282 + Math.sin(ang) * 14); ctx.stroke();
-  // lantai
   ctx.drawImage(floorCanvas, 20, 330);
-  // dinding samping & bawah
   ctx.fillStyle = '#6b4a2f'; ctx.fillRect(14, 240, 8, 700); ctx.fillRect(698, 240, 8, 700); ctx.fillRect(14, 930, 692, 12);
-  // karpet
-  rr(270, 520, 220, 150, 20, '#c77dff55');
+  rr(270, 540, 220, 150, 20, '#c77dff55');
   for (const f of FURN) drawFurn(f);
 }
 function highlight(f) {
@@ -451,17 +988,19 @@ function highlight(f) {
   if (active) { ctx.save(); ctx.shadowColor = '#fff27a'; ctx.shadowBlur = tier() === 'low' ? 0 : 20; rr(f.x - 4, f.y - 4, f.w + 8, f.h + 8, 14, null, '#fff27a', 4); ctx.restore(); }
 }
 function drawFurn(f) {
-  const on = G.act && G.act.f === f && !G.pending;
+  const on = (G.act && G.act.f === f && !G.pending) || (f.id === 'desk' && G.scene && G.scene.typing);
   const dis = furnDisabled(f);
   ctx.save(); if (dis) ctx.globalAlpha = 0.55;
   switch (f.id) {
     case 'bed': {
-      rr(f.x, f.y, f.w, f.h, 12, '#8b5a3c');
+      rr(f.x, f.y, f.w, f.h, 12, '#8b5a3c', OUT, 3);
       rr(f.x + 8, f.y + 8, f.w - 16, f.h - 16, 10, '#f5f5f5');
       rr(f.x + 16, f.y + 18, 60, f.h - 36, 12, '#ffffff', '#ddd', 2);
-      rr(f.x + 90, f.y + 10, f.w - 100, f.h - 20, 10, SAVE.upgrades.kasur ? '#ff8fab' : '#6c8cd5');
-      if (SAVE.upgrades.kasur) for (let i = 0; i < 4; i++) { ctx.fillStyle = '#ffd6e0'; ctx.beginPath(); ctx.arc(f.x + 115 + i * 28, f.y + 75, 7, 0, 7); ctx.fill(); }
-      else { ctx.fillStyle = '#5a78bd'; for (let i = 0; i < 3; i++) ctx.fillRect(f.x + 100 + i * 40, f.y + 12, 6, f.h - 24); }
+      if (!(G.act && G.act.f === f && !G.pending) && G.ch.lying !== 'bed') {
+        rr(f.x + 90, f.y + 10, f.w - 100, f.h - 20, 10, SAVE.upgrades.kasur ? '#ff8fab' : '#6c8cd5');
+        if (SAVE.upgrades.kasur) for (let i = 0; i < 4; i++) { ctx.fillStyle = '#ffd6e0'; ctx.beginPath(); ctx.arc(f.x + 115 + i * 28, f.y + 75, 7, 0, 7); ctx.fill(); }
+        else { ctx.fillStyle = '#5a78bd'; for (let i = 0; i < 3; i++) ctx.fillRect(f.x + 100 + i * 40, f.y + 12, 6, f.h - 24); }
+      }
       break;
     }
     case 'stove': {
@@ -470,7 +1009,7 @@ function drawFurn(f) {
         if (on && oy === 38) { ctx.strokeStyle = '#ff7b2e'; ctx.lineWidth = 4; ctx.stroke(); } }
       rr(f.x + 12, f.y + 22, 46, 32, 8, on ? '#e0a040' : '#9aa');
       if (SAVE.upgrades.rice) { rr(f.x + 72, f.y + 62, 38, 44, 12, '#fff', '#c33', 3); }
-      else rr(f.x + 72, f.y + 20, 36, 80, 6, '#e9e2d0'); // rak
+      else rr(f.x + 72, f.y + 20, 36, 80, 6, '#e9e2d0');
       break;
     }
     case 'bath': {
@@ -479,29 +1018,30 @@ function drawFurn(f) {
       for (let x = f.x; x < f.x + f.w; x += 30) { ctx.beginPath(); ctx.moveTo(x, f.y); ctx.lineTo(x, f.y + f.h); ctx.stroke(); }
       for (let y = f.y; y < f.y + f.h; y += 30) { ctx.beginPath(); ctx.moveTo(f.x, y); ctx.lineTo(f.x + f.w, y); ctx.stroke(); }
       ctx.fillStyle = '#6b4a2f'; ctx.fillRect(f.x - 6, f.y, 8, f.h); ctx.fillRect(f.x - 6, f.y + f.h - 6, 60, 8); ctx.fillRect(f.x + 130, f.y + f.h - 6, 66, 8);
-      rr(f.x + 120, f.y + 20, 56, 70, 14, '#5aa9e6'); // ember/bak
-      ctx.beginPath(); ctx.arc(f.x + 95, f.y + 40, 12, 0, 7); ctx.fillStyle = '#999'; ctx.fill();
-      txt('🪣', f.x + 50, f.y + 120, 34);
+      rr(f.x + 130, f.y + 20, 50, 60, 14, '#5aa9e6', OUT, 2);
+      ctx.beginPath(); ctx.arc(f.x + 90, f.y + 22, 12, 0, 7); ctx.fillStyle = '#999'; ctx.fill();
+      txt('🪣', f.x + 30, f.y + 150, 34);
       break;
     }
     case 'desk': {
-      rr(f.x, f.y, f.w, f.h, 6, '#a0703f');
+      rr(f.x, f.y, f.w, f.h, 6, '#a0703f', OUT, 3);
       const lap = SAVE.upgrades.laptop;
       rr(f.x + 25, f.y + 35, 80, 70, 6, lap ? '#c0c0d0' : '#555');
       rr(f.x + 32, f.y + 42, 66, 46, 3, on ? (Math.sin(time * 6) > 0 ? '#7cf' : '#9df') : '#223');
-      rr(f.x + 140, f.y + 50, 50, 50, 12, '#d95');
+      rr(f.x + 140, f.y + 60, 52, 52, 12, '#d95', OUT, 3);
       break;
     }
     case 'tv': {
       rr(f.x, f.y + 10, f.w, f.h - 20, 6, '#222');
       rr(f.x + 8, f.y + 20, f.w - 16, f.h - 40, 4, on ? `hsl(${(time * 120) % 360},70%,60%)` : '#334');
-      rr(f.x - 120, f.y + 40, 70, 70, 30, '#ef476f'); // beanbag
+      rr(f.x - 122, f.y + 52, 76, 70, 32, '#ef476f', OUT, 3);
       break;
     }
     case 'door': {
-      rr(f.x, f.y - 6, f.w, 40, 4, '#7a4b2a');
-      ctx.beginPath(); ctx.arc(f.x + f.w - 18, f.y + 14, 5, 0, 7); ctx.fillStyle = '#ffd43b'; ctx.fill();
-      rr(f.x + 15, f.y - 50, f.w - 30, 36, 8, '#b5838d'); // keset
+      const open = G.scene && G.scene.door;
+      if (open) { rr(f.x, f.y - 6, f.w, 40, 4, '#2b2235'); rr(f.x - 6, f.y - 40, 16, 74, 4, '#7a4b2a', OUT, 2); }
+      else { rr(f.x, f.y - 6, f.w, 40, 4, '#7a4b2a'); ctx.beginPath(); ctx.arc(f.x + f.w - 18, f.y + 14, 5, 0, 7); ctx.fillStyle = '#ffd43b'; ctx.fill(); }
+      rr(f.x + 15, f.y - 50, f.w - 30, 36, 8, '#b5838d');
       break;
     }
   }
@@ -510,66 +1050,58 @@ function drawFurn(f) {
   if (dis) txt('🕯️', f.x + f.w / 2, f.y + f.h / 2, 30);
 }
 
-/* ------------------ gambar: karakter ------------------ */
+/* ------------------ gambar: aktor (pemain, NPC, kucing) urut kedalaman ------------------ */
 function moodFace() {
   const m = Math.min(G.needs.hunger, G.needs.energy, G.needs.hygiene, G.needs.fun);
   return m < 15 ? 'sad' : m < 40 ? 'meh' : 'happy';
 }
-function drawChar() {
-  const a = G.act, ch = G.ch;
-  if (a && a.f && a.f.away && !G.pending) { // sedang di luar
-    txt('🚶 Kerja shift...', 470, 820, 22, '#5a3a20');
-    return;
+function drawActors() {
+  ctx.save(); ctx.beginPath(); ctx.rect(14, 240, 692, 702); ctx.clip();
+  const ch = G.ch, sc = G.scene;
+  // properti lantai
+  for (const p of (G.leftovers || [])) drawProp(p);
+  if (sc) for (const p of sc.props) drawProp(p);
+  // pemain berbaring
+  if (!sc && ch.lying === 'bed') {
+    const f = FURN[0];
+    drawLying(ch, f.x + f.w - 62, f.y + f.h / 2, [f.x + 104, f.y + 14, f.w - 116, f.h - 28, SAVE.upgrades.kasur ? '#ff8fab' : '#6c8cd5']);
   }
-  if (a && a.f && a.f.sleep && !G.pending) { // di kasur
-    const f = a.f;
-    drawHead(f.x + 46, f.y + f.h / 2, 'sleep', 0.95);
-    rr(f.x + 80, f.y + 14, f.w - 92, f.h - 28, 12, SAVE.upgrades.kasur ? '#ff8fabcc' : '#6c8cd5ee');
-    return;
+  if (!sc && (ch.lying === 'faint' || ch.lying === 'floor')) {
+    drawLying(ch, ch.x + 60, ch.y - 10, null);
+    txt(ch.lying === 'faint' ? '💫' : '💤', ch.x - 40, ch.y - 70 + Math.sin(time * 4) * 6, 34);
   }
-  if (a && a.special) {
-    ctx.save(); ctx.translate(ch.x, ch.y - 20); ctx.rotate(Math.PI / 2);
-    rr(-22, -10, 44, 60, 14, '#ff9f43'); drawHead(0, -30, 'sleep', 1, true); ctx.restore();
-    txt(a.special === 'faint' ? '💫' : '💤', ch.x, ch.y - 90 + Math.sin(time * 4) * 6, 34);
-    return;
-  }
-  const bob = G.pending ? Math.abs(Math.sin(ch.walk)) * 8 : Math.sin(time * 2) * 2;
-  const x = ch.x, y = ch.y - bob;
-  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(ch.x, ch.y + 4, 30, 10, 0, 0, 7); ctx.fill();
-  // kaki
-  const leg = G.pending ? Math.sin(ch.walk) * 8 : 0;
-  rr(x - 16, y - 20 + leg * 0.3, 12, 22, 5, '#3d405b'); rr(x + 4, y - 20 - leg * 0.3, 12, 22, 5, '#3d405b');
-  // badan (kaos)
-  rr(x - 24, y - 70, 48, 54, 16, '#ff9f43');
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 16px ' + FONT; ctx.textAlign = 'center'; ctx.fillText('K', x, y - 42);
-  drawHead(x, y - 98, (a && a.f && a.f.id === 'stove') ? 'happy' : moodFace(), 1);
-  // gelembung pikiran
-  if (!a && !G.pending) {
-    let low = null; for (const n of NEEDS) if (G.needs[n.k] < 30 && (!low || G.needs[n.k] < G.needs[low.k])) low = n;
-    if (low) {
-      const bx = x + 50, by = y - 160 + Math.sin(time * 3) * 4;
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + 26, y - 128, 6, 0, 7); ctx.fill();
-      rr(bx - 30, by - 28, 60, 56, 26, '#fff', '#333', 2); txt(low.icon, bx, by + 2, 30);
+  const list = [];
+  if (!ch.hidden && !(!sc && ch.lying)) list.push(ch);
+  if (sc) for (const a of sc.actors) if (!a.gone) list.push(a);
+  list.sort((p, q) => p.y - q.y);
+  for (const a of list) {
+    if (a.look === 'cat') drawCat(a);
+    else {
+      if (a === ch) ch.expr2 = ch.expr || moodFace();
+      drawPerson(a, a === ch ? { expr: ch.expr2 } : {});
     }
   }
-}
-function drawHead(x, y, face, s, noHair) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  ctx.beginPath(); ctx.arc(0, 0, 30, 0, 7); ctx.fillStyle = '#f2c79b'; ctx.fill();
-  if (!noHair) { ctx.beginPath(); ctx.arc(0, -6, 31, Math.PI * 1.05, Math.PI * 1.95); ctx.fillStyle = '#2d2a32'; ctx.fill(); }
-  ctx.fillStyle = '#2d2a32'; ctx.strokeStyle = '#2d2a32'; ctx.lineWidth = 3;
-  if (face === 'sleep') {
-    ctx.beginPath(); ctx.moveTo(-14, 4); ctx.lineTo(-6, 4); ctx.moveTo(6, 4); ctx.lineTo(14, 4); ctx.stroke();
-  } else {
-    ctx.beginPath(); ctx.arc(-10, 2, 4, 0, 7); ctx.arc(10, 2, 4, 0, 7); ctx.fill();
-    ctx.beginPath();
-    if (face === 'happy') ctx.arc(0, 10, 9, 0.15 * Math.PI, 0.85 * Math.PI);
-    else if (face === 'meh') { ctx.moveTo(-7, 16); ctx.lineTo(7, 16); }
-    else ctx.arc(0, 22, 8, 1.15 * Math.PI, 1.85 * Math.PI);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255,120,120,.35)'; ctx.beginPath(); ctx.arc(-18, 10, 5, 0, 7); ctx.arc(18, 10, 5, 0, 7); ctx.fill();
+  if (sc && sc.roach) drawRoach(sc.roach);
+  if (ch.hidden && !sc) txt('🚶 Kerja shift...', 470, 820, 22, '#5a3a20');
+  // gelembung pikiran pemain
+  if (!sc && !G.act && !G.pending && !ch.lying) {
+    let low = null; for (const n of NEEDS) if (G.needs[n.k] < 30 && (!low || G.needs[n.k] < G.needs[low.k])) low = n;
+    if (low) {
+      const bx = ch.x + 56, by = ch.y - 205 + Math.sin(time * 3) * 4;
+      ell(ch.x + 30, ch.y - 165, 6, 6, '#fff', OUT, 2);
+      rr(bx - 30, by - 28, 60, 56, 26, '#fff', OUT, 2.5); txt(low.icon, bx, by + 2, 30);
+    }
   }
   ctx.restore();
+  // gelembung bicara (di atas semua)
+  if (sc) for (const a of [ch, ...sc.actors]) if (a.say && !a.gone) drawBubble(a.x, a.y - (a.look === 'cat' ? 80 : 170) - (a.z || 0), a.say.s);
+}
+function drawProp(p) {
+  if (p.hide) return;
+  if (p.k === 'box') {
+    if (p.open) { rr(p.x - 26, p.y - 30, 52, 32, 4, '#c8915a', OUT, 3); ctx.save(); ctx.translate(p.x - 26, p.y - 30); ctx.rotate(-0.6); rr(-2, -14, 26, 14, 3, '#e8b97f', OUT, 2); ctx.restore(); }
+    else drawItem('box', p.x, p.y - 16);
+  } else drawItem(p.k, p.x, p.y - 14);
 }
 
 /* ------------------ gambar: HUD ------------------ */
@@ -584,14 +1116,12 @@ function drawHUD() {
   const hh = Math.floor(G.hour), mm = Math.floor((G.hour % 1) * 6) * 10;
   txt(String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 390, 38, 26, '#ffd43b', 'right');
   txt('💰 ' + rp(G.money), 30, 78, 28, G.money >= CFG.rent ? '#8ce99a' : '#fff', 'left');
-  // bar target sewa
   const p = clamp(G.money / CFG.rent, 0, 1);
-  rr(220, 66, 170, 24, 12, '#241a3a'); if (p > 0) rr(220, 66, 170 * p, 24, 12, p >= 1 ? '#51cf66' : '#ffa94d');
+  rr(220, 66, 170, 24, 12, '#241a3a'); if (p > 0) rr(220, 66, Math.max(24, 170 * p), 24, 12, p >= 1 ? '#51cf66' : '#ffa94d');
   txt('Sewa ' + rp(CFG.rent), 305, 79, 15, '#fff');
-  iconBtn(420, 10, '🛒', () => { modal = { type: 'shop', t: 0 }; }, ['s']);
+  iconBtn(420, 10, '🛒', () => { if (!G.scene) modal = { type: 'shop', t: 0 }; }, ['s']);
   iconBtn(520, 10, G.speed > 1 ? '⏩' : '▶️', () => { G.speed = G.speed > 1 ? 1 : 2.5; }, [' '], G.speed > 1);
   iconBtn(620, 10, '⏸️', () => { modal = { type: 'pause', t: 0 }; }, ['p', 'escape']);
-  // kebutuhan
   NEEDS.forEach((n, i) => {
     const x = 14 + i * 175, y = 118, v = G.needs[n.k];
     const crit = v < 25;
@@ -607,7 +1137,25 @@ function drawHUD() {
 }
 function drawPanel() {
   rr(10, 948, 700, 322, 26, '#3a2a5c');
-  // status
+  const sc = G.scene;
+  if (sc) {
+    txtFit(sc.ev.icon + ' ' + sc.ev.title, 30, 984, 26, '#ffd43b', 640, 'left');
+    if (sc.choice) {
+      const opts = sc.choice;
+      opts.forEach((o, i) => {
+        const y = opts.length === 1 ? 1080 : 1036 + i * 116, h = 104;
+        bigBtn(30, y, 660, h, (opts.length > 1 ? (i + 1) + '. ' : '') + o.label, i === 0 ? '#51cf66' : '#868e96', () => { sc.picked = o; }, i === 0 ? ['1', 'enter'] : ['2'], 30);
+      });
+    } else if (sc.roach && sc.roach.active) {
+      const r = sc.roach;
+      txt('KETUK KECOANYA! 👆', 360, 1060, 40, '#fff');
+      for (let i = 0; i < CFG.roachHits; i++) txt(i < r.hits ? '🩴' : '⚪', 300 + i * 60, 1130, 40);
+      rr(110, 1185, 500, 30, 15, '#241a3a'); rr(110, 1185, 500 * clamp(r.timer / CFG.roachTime, 0, 1), 30, 15, r.timer < 1.5 ? '#fa5252' : '#ffd43b');
+    } else {
+      txt('Ketuk layar untuk mempercepat ⏩', 360, 1150, 24, 'rgba(255,255,255,.6)');
+    }
+    return;
+  }
   const a = G.act;
   let status = 'Ketuk perabot untuk beraktivitas', prog = -1;
   if (G.pending) status = '🚶 Menuju ' + G.pending.name + '...';
@@ -622,7 +1170,6 @@ function drawPanel() {
     rr(570, 994, 130, 36, 18, '#e03131'); txt('✖ Batal', 635, 1012, 18, '#fff');
     btn(570, 980, 130, 56, () => { SFX.tap(); G.act = null; G.pending = null; }, ['x', 'backspace']);
   }
-  // 6 tombol aksi
   FURN.forEach((f, i) => {
     const col = i % 3, row = Math.floor(i / 3);
     const x = 22 + col * 228, y = 1042 + row * 114, w = 216, h = 104;
@@ -631,7 +1178,7 @@ function drawPanel() {
     rr(x, y, w, h, 20, active ? '#ffd43b' : dis ? '#6c5a8c' : '#fff');
     txt(f.icon, x + 42, y + 52, 40);
     txt(f.verb, x + 135, y + 36, 21, '#3a2a5c');
-    let sub = f.earn ? '+' + rp(f.earn) : f.cost ? (G.freeMeals ? 'Gratis' : '−' + rp(f.cost)) : f.sleep ? 'Isi energi' : 'Gratis';
+    const sub = f.earn ? '+' + rp(f.earn) : f.cost ? (G.freeMeals ? 'Gratis' : '−' + rp(f.cost)) : f.sleep ? 'Isi energi' : 'Gratis';
     txt(sub, x + 135, y + 66, 18, f.earn ? '#2b8a3e' : f.cost ? '#c92a2a' : '#666');
     if (!lib_touch) { rr(x + w - 32, y + 6, 26, 26, 6, '#3a2a5c'); txt(f.key, x + w - 19, y + 20, 16, '#fff'); }
     btn(x, y, w, h, () => order(f));
@@ -640,7 +1187,7 @@ function drawPanel() {
 
 /* ------------------ tutorial dalam dunia game ------------------ */
 function drawTut() {
-  if (G.tut > 2 || modal) return;
+  if (G.tut > 2 || modal || G.scene) return;
   let f = null, s = '';
   if (G.tut === 0) { f = FURN[1]; s = 'Lapar! Ketuk kompor 🍳'; }
   else if (G.tut === 1) { f = FURN[5]; s = 'Cari uang buat bayar sewa!'; }
@@ -654,7 +1201,7 @@ function drawTut() {
     ctx.lineTo(ax + 9, ay - 34); ctx.lineTo(ax + 9, ay - 6); ctx.lineTo(ax + 22, ay - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
   }
   ctx.font = 'bold 24px ' + FONT; const w = ctx.measureText(s).width + 40;
-  rr(360 - w / 2, 860, w, 52, 26, '#3a2a5cee'); txt(s, 360, 887, 24, '#ffd43b');
+  rr(360 - w / 2, 868, w, 52, 26, '#3a2a5cee'); txt(s, 360, 895, 24, '#ffd43b');
 }
 
 /* ------------------ modal ------------------ */
@@ -667,18 +1214,10 @@ function bigBtn(x, y, w, h, label, color, cb, key, size) {
 function pop(t) { const k = Math.min(1, t * 5); return 0.8 + 0.2 * (1 - Math.pow(1 - k, 3)) + Math.sin(k * Math.PI) * 0.05; }
 function drawModal() {
   ctx.fillStyle = 'rgba(20,12,35,.6)'; ctx.fillRect(0, 0, W, H);
-  buttons = buttons.filter(() => false); // modal menutup input di belakangnya
+  buttons = []; // modal menutup input di belakangnya
   const s = pop(modal.t);
   ctx.save(); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
-  if (modal.type === 'event') {
-    const ev = modal.ev;
-    rr(60, 330, 600, 600, 36, '#fff8e7', '#3a2a5c', 6);
-    txt(ev.icon, 360, 440, 100);
-    txtFit(ev.title, 360, 545, 34, '#3a2a5c', 540);
-    if (ev.info) txtFit(ev.info, 360, 590, 24, '#7a6a90', 540);
-    bigBtn(100, 640, 520, 110, ev.a.label, '#51cf66', () => applyChoice(ev.a), ['1', 'enter']);
-    if (ev.b) bigBtn(100, 780, 520, 110, ev.b.label, '#868e96', () => applyChoice(ev.b), ['2']);
-  } else if (modal.type === 'shop') {
+  if (modal.type === 'shop') {
     rr(40, 200, 640, 900, 36, '#fff8e7', '#3a2a5c', 6);
     txt('🛒 Toko Perabot', 360, 260, 40, '#3a2a5c');
     txt('Uangmu: ' + rp(G.money) + '  •  Perabot dibawa ke bulan berikutnya', 360, 305, 19, '#7a6a90');
@@ -710,7 +1249,7 @@ function drawModal() {
     rr(60, 260, 600, 760, 36, '#fff8e7', '#3a2a5c', 6);
     txt('Cara Main', 360, 330, 42, '#3a2a5c');
     const L = ['👆 Ketuk perabot (atau tombol 1-6)', '🍜⚡🚿😊 Jaga semua kebutuhan', '🚪💻 Kerja untuk kumpulkan uang',
-      '💰 Tanggal 30: bayar sewa ' + rp(CFG.rent), '🎲 Hati-hati kejadian acak!', '🛒 Beli perabot = lebih efisien', '⏩ Spasi: percepat waktu'];
+      '💰 Tanggal 30: bayar sewa ' + rp(CFG.rent), '🎲 Ada kejadian seru tiap hari!', '🪳 Kecoa? Ketuk cepat-cepat!', '⏩ Spasi: percepat waktu'];
     L.forEach((l, i) => txtFit(l, 100, 410 + i * 72, 26, '#3a2a5c', 520, 'left'));
     bigBtn(210, 920, 300, 76, 'Oke!', '#51cf66', () => { modal = null; }, ['escape', 'enter', 'h']);
   }
@@ -718,13 +1257,13 @@ function drawModal() {
 }
 
 /* ------------------ layar menu ------------------ */
-function drawNightBg() {
+function drawNightBg(noBuilding) {
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#20184a'); g.addColorStop(0.55, '#5b3f8c'); g.addColorStop(1, '#f28f6b');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   for (const s of stars) { ctx.globalAlpha = 0.5 + Math.sin(time * 2 + s[3]) * 0.4; ctx.fillStyle = '#fff'; ctx.fillRect(s[0], s[1], s[2], s[2]); }
   ctx.globalAlpha = 1;
   ctx.beginPath(); ctx.arc(590, 150, 50, 0, 7); ctx.fillStyle = '#fff3bf'; ctx.fill();
-  // gedung kos
+  if (noBuilding) return;
   rr(110, 560, 500, 520, 10, '#3b2f5e');
   ctx.fillStyle = '#8b3a3a'; ctx.beginPath(); ctx.moveTo(80, 570); ctx.lineTo(360, 470); ctx.lineTo(640, 570); ctx.closePath(); ctx.fill();
   for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
@@ -737,44 +1276,51 @@ function drawNightBg() {
 }
 function drawMenu() {
   drawNightBg();
-  ctx.save(); ctx.translate(360, 210 + Math.sin(time * 2) * 6); ctx.rotate(-0.04);
+  ctx.save(); ctx.translate(360, 190 + Math.sin(time * 2) * 6); ctx.rotate(-0.04);
   txt('ANAK KOS', 4, 6, 104, '#3a2a5c'); txt('ANAK KOS', 0, 0, 104, '#ffd43b');
   ctx.restore();
-  rr(190, 290, 340, 64, 32, '#ff6b6b'); txt('TANGGAL TUA', 360, 323, 34, '#fff');
-  txt('Bertahan sampai gajian!', 360, 395, 26, '#fff');
-  // maskot di jendela
-  drawHead(360 + 0, 730, 'happy', 1.1);
-  txt('🏆 Skor terbaik: ' + SAVE.best + (SAVE.months ? '   •   Bulan ke-' + (SAVE.months + 1) : ''), 360, 450, 24, '#fff');
+  rr(190, 268, 340, 64, 32, '#ff6b6b'); txt('TANGGAL TUA', 360, 301, 34, '#fff');
+  txt('🏆 Skor terbaik: ' + SAVE.best + (SAVE.months ? '   •   Bulan ke-' + (SAVE.months + 1) : ''), 360, 368, 24, '#fff');
+  // pilih karakter
+  txt('Pilih karakter', 360, 420, 24, '#fff');
+  [['m', 'Cowok', 150], ['f', 'Cewek', 380]].forEach(([g, label, x]) => {
+    const sel = SAVE.gender === g;
+    rr(x, 445, 190, 360, 28, sel ? '#ffd43b' : '#4a3a72', sel ? '#fff' : 'rgba(255,255,255,.4)', sel ? 5 : 3);
+    drawPerson({ look: g, x: x + 95, y: 735, face: 1, pose: sel ? 'wave' : 'idle', seed: g === 'f' ? 1.3 : 0 }, { s: 1.45, expr: sel ? 'happy' : 'meh' });
+    txt(label, x + 95, 775, 28, sel ? '#3a2a5c' : '#fff');
+    btn(x, 445, 190, 360, () => { SFX.tap(); SAVE.gender = g; writeSave(); }, g === 'm' ? ['arrowleft', 'c'] : ['arrowright']);
+  });
   const pulse = 1 + Math.sin(time * 4) * 0.03;
   ctx.save(); ctx.translate(360, 900); ctx.scale(pulse, pulse); ctx.translate(-360, -900);
   bigBtn(160, 840, 400, 120, '▶  MAIN', '#51cf66', () => { newGame(); }, ['enter', ' '], 48);
   ctx.restore();
   iconBtn(170, 1130, SAVE.muted ? '🔇' : '🔊', () => { SAVE.muted = !SAVE.muted; writeSave(); }, ['v']);
   iconBtn(312, 1130, '❓', () => { modal = { type: 'help', t: 0 }; }, ['h']);
-  const q = { auto: 'A', low: 'L', med: 'M', high: 'H' }[SAVE.quality];
-  rr(454, 1130, 96, 96, 22, '#fff', '#3a2a5c', 4); txt('⚙️', 502, 1164, 30); txt(q === 'A' ? 'Auto' : q === 'L' ? 'Low' : q === 'M' ? 'Med' : 'High', 502, 1204, 18, '#3a2a5c');
+  const q = { auto: 'Auto', low: 'Low', med: 'Med', high: 'High' }[SAVE.quality];
+  rr(454, 1130, 96, 96, 22, '#fff', '#3a2a5c', 4); txt('⚙️', 502, 1164, 30); txt(q, 502, 1204, 18, '#3a2a5c');
   btn(454, 1130, 96, 96, () => { SFX.tap(); const o = ['auto', 'low', 'med', 'high']; SAVE.quality = o[(o.indexOf(SAVE.quality) + 1) % 4]; writeSave(); resize(); }, ['q']);
 }
 function drawEnd() {
-  drawNightBg();
+  drawNightBg(true);
   const e = endInfo;
   ctx.save(); const s = pop(e.t); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
-  rr(60, 170, 600, 940, 40, '#fff8e7', '#3a2a5c', 6);
-  txt(e.paid ? 'GAJIAN! 🎉' : 'Waduh... 😅', 360, 250, 56, '#3a2a5c');
-  for (let i = 0; i < 3; i++) txt(i < e.stars ? '⭐' : '☆', 260 + i * 100, 345, 70, i < e.stars ? '#000' : '#bbb');
+  rr(60, 130, 600, 1000, 40, '#fff8e7', '#3a2a5c', 6);
+  drawPerson({ look: SAVE.gender, x: 360, y: 345, face: 1, pose: e.paid ? 'cheer' : 'shrug', seed: 0 }, { s: 1.1, expr: e.paid ? 'happy' : 'sad' });
+  txt(e.paid ? 'GAJIAN! 🎉' : 'Waduh... 😅', 360, 395, 52, '#3a2a5c');
+  for (let i = 0; i < 3; i++) txt(i < e.stars ? '⭐' : '☆', 260 + i * 100, 470, 60, i < e.stars ? '#000' : '#bbb');
   const rows = [['💰 Uang tanggal 30', rp(e.money)], ['🏠 Bayar sewa', '−' + rp(CFG.rent)], ['Sisa', rp(e.left)], ['😊 Rata-rata bahagia', e.mood + '%']];
   rows.forEach((r, i) => {
-    txt(r[0], 110, 440 + i * 62, 26, '#3a2a5c', 'left');
-    txt(r[1], 610, 440 + i * 62, 28, i === 2 ? (e.left >= 0 ? '#2b8a3e' : '#c92a2a') : '#3a2a5c', 'right');
+    txt(r[0], 110, 545 + i * 56, 26, '#3a2a5c', 'left');
+    txt(r[1], 610, 545 + i * 56, 28, i === 2 ? (e.left >= 0 ? '#2b8a3e' : '#c92a2a') : '#3a2a5c', 'right');
   });
-  if (!e.paid) txtFit('Ibu kos kasih keringanan... kali ini saja!', 360, 700, 24, '#c92a2a', 540);
-  rr(130, 730, 460, 110, 26, '#3a2a5c');
-  txt('SKOR ' + e.score, 360, 772, 44, '#ffd43b');
-  txt(e.isBest ? '🏆 Rekor baru!' : 'Terbaik: ' + SAVE.best, 360, 818, 22, '#fff');
-  bigBtn(120, 870, 480, 110, '▶ Bulan Berikutnya', '#51cf66', () => { newGame(); }, ['enter', ' '], 36);
-  bigBtn(220, 1000, 280, 80, '🏠 Menu', '#7950f2', () => { state = 'menu'; }, ['m', 'escape'], 28);
+  if (!e.paid) txtFit('Ibu kos kasih keringanan... kali ini saja!', 360, 775, 24, '#c92a2a', 540);
+  rr(130, 800, 460, 104, 26, '#3a2a5c');
+  txt('SKOR ' + e.score, 360, 840, 44, '#ffd43b');
+  txt(e.isBest ? '🏆 Rekor baru!' : 'Terbaik: ' + SAVE.best, 360, 884, 22, '#fff');
+  bigBtn(120, 925, 480, 100, '▶ Bulan Berikutnya', '#51cf66', () => { newGame(); }, ['enter', ' '], 34);
+  bigBtn(220, 1040, 280, 72, '🏠 Menu', '#7950f2', () => { state = 'menu'; }, ['m', 'escape'], 26);
   ctx.restore();
-  if (e.t < 3 && Math.random() < 0.5) emit(rnd(80, 640), 150, 1, { c: `hsl(${rnd(0, 360)},90%,60%)`, sp: 60, vy: 120, g: 120, life: 3, r: 7 });
+  if (e.t < 3 && Math.random() < 0.5) emit(rnd(80, 640), 120, 1, { c: `hsl(${rnd(0, 360)},90%,60%)`, sp: 60, vy: 120, g: 120, life: 3, r: 7 });
 }
 function drawLoading() {
   drawNightBg();
@@ -795,29 +1341,33 @@ function render() {
   else if (state === 'menu') drawMenu();
   else if (state === 'end') drawEnd();
   else {
+    if (G.ch.slapT > 0) G.ch.slapT -= 1 / 60;
     ctx.save();
     if (shake > 0) ctx.translate(rnd(-shake, shake), rnd(-shake, shake));
     ctx.fillStyle = '#efe4ff'; ctx.fillRect(0, 0, W, H);
     drawRoom();
-    drawChar();
-    // malam / mati lampu
-    const na = G.blackout ? 0.55 : nightAlpha(G.hour);
+    drawActors();
+    // malam / mati lampu / kedip adegan
+    let na = G.blackout ? 0.6 : nightAlpha(G.hour);
+    if (G.scene && G.scene.dark) na = Math.max(na, G.scene.dark);
     if (na > 0) {
       if (G.blackout && tier() !== 'low') {
-        const g = ctx.createRadialGradient(G.ch.x, G.ch.y - 60, 40, G.ch.x, G.ch.y - 60, 260);
-        g.addColorStop(0, 'rgba(255,200,100,0)'); g.addColorStop(1, `rgba(15,10,40,${na})`); ctx.fillStyle = g;
+        const cx = G.ch.x + (G.ch.face || 1) * 26, cy = G.ch.y - 120;
+        const g = ctx.createRadialGradient(cx, cy, 30, cx, cy, 280);
+        g.addColorStop(0, 'rgba(255,190,90,0.05)'); g.addColorStop(0.5, `rgba(15,10,40,${na * 0.6})`); g.addColorStop(1, `rgba(15,10,40,${na})`); ctx.fillStyle = g;
       } else ctx.fillStyle = `rgba(15,10,40,${na})`;
       ctx.fillRect(14, 240, 692, 702);
     }
     drawTut();
     ctx.restore();
+    // gelembung bicara digambar ulang di atas overlay gelap agar terbaca
+    if (G.scene && na > 0) for (const a of [G.ch, ...G.scene.actors]) if (a.say && !a.gone) drawBubble(a.x, a.y - (a.look === 'cat' ? 80 : 170) - (a.z || 0), a.say.s);
     drawHUD();
     drawPanel();
   }
-  // partikel & teks
   for (const p of parts) {
     const a = 1 - p.t / p.life; ctx.globalAlpha = a;
-    if (p.ch) txt(p.ch, p.x, p.y, 22, p.c);
+    if (p.ch) txt(p.ch, p.x, p.y, p.size, p.c);
     else { ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
@@ -844,7 +1394,9 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 initLoadSteps(); resize(); requestAnimationFrame(loop);
-window.__dbg = { get G() { return G; }, CFG, get state() { return state; }, endMonth: () => endMonth(), order: f => order(FURN.find(x => x.id === f)), choose: () => { if (modal && modal.type === "event") applyChoice(modal.ev.a); }, get end() { return endInfo; } };
+window.__dbg = { get G() { return G; }, CFG, get state() { return state; }, endMonth: () => endMonth(),
+  order: f => order(FURN.find(x => x.id === f)), scene: id => startScene(id),
+  choose: i => { if (G && G.scene && G.scene.choice) G.scene.picked = G.scene.choice[i || 0]; }, get end() { return endInfo; } };
 </script>
 </body>
 </html>
