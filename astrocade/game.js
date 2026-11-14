@@ -2327,35 +2327,57 @@ function cpos(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.
 const inView = (p) => p[0] >= VIEW.x && p[0] <= VIEW.x + VIEW.w && p[1] >= VIEW.y && p[1] <= VIEW.y + VIEW.h;
 
 cv.addEventListener('contextmenu', e => e.preventDefault());
+// One finger: a quick tap uses the tool, dragging pans the map (with a little momentum), and holding still for ~0.25 s switches to painting so the tool can be dragged.
+let pend = null, holdT = 0, velX = 0, velY = 0, inertia = false;
+const PAN_SLOP = 10, HOLD_MS = 250;
+function startPaint() {
+  painting = true; lastApply = performance.now(); pend.held = true;
+  const h = toWorld(pend.x, pend.y); hover = h;
+  applyTool(h[0], h[1]); reapDead(); haptic('tap');
+}
 cv.addEventListener('pointerdown', e => {
   const p = cpos(e);
   if (!inView(p)) return;
   cv.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId, { x: p[0], y: p[1] });
-  lastPointer = p;
-  if (ptrs.size >= 2) { painting = false; panning = true; return; }
+  lastPointer = p; inertia = false; velX = velY = 0;
+  if (ptrs.size >= 2) { clearTimeout(holdT); pend = null; painting = false; panning = true; hover = null; return; }
   if (tool === 'hand' || e.button === 1 || e.button === 2) { panning = true; return; }
   hover = toWorld(p[0], p[1]);
-  if (tool === 'inspect') inspectAt(hover[0], hover[1]);
-  else if (!(editMode && !editTool())) {
-    painting = true; lastApply = performance.now();
-    applyTool(hover[0], hover[1]); reapDead();                 // act on touch-down so even a very quick tap lands
-  }
+  pend = { id: e.pointerId, x0: p[0], y0: p[1], x: p[0], y: p[1], held: false, moved: false };
+  if (!(tool === 'inspect' || (editMode && !editTool()))) { clearTimeout(holdT); holdT = setTimeout(() => { if (pend && !pend.moved && !pend.held) startPaint(); }, HOLD_MS); }
 });
 cv.addEventListener('pointermove', e => {
   const p = cpos(e);
-  hover = toWorld(p[0], p[1]);
-  const s = ptrs.get(e.pointerId); if (!s) return;
+  if (!ptrs.has(e.pointerId)) { hover = toWorld(p[0], p[1]); return; }
+  const s = ptrs.get(e.pointerId);
   const ddx = p[0] - s.x, ddy = p[1] - s.y; s.x = p[0]; s.y = p[1];
-  if (ptrs.size === 2) {
-    ox += ddx / 2; oy += ddy / 2; clampCam();
-  } else if (panning) { ox += ddx; oy += ddy; clampCam(); }
+  if (pend && e.pointerId === pend.id) {
+    pend.x = p[0]; pend.y = p[1];
+    if (!pend.held && !pend.moved && Math.hypot(p[0] - pend.x0, p[1] - pend.y0) > PAN_SLOP) { pend.moved = true; clearTimeout(holdT); panning = true; hover = null; }
+  }
+  if (ptrs.size === 2) { ox += ddx / 2; oy += ddy / 2; clampCam(); }
+  else if (panning) { ox += ddx; oy += ddy; clampCam(); velX = velX * .6 + ddx * .4; velY = velY * .6 + ddy * .4; }
+  else if (!painting) hover = toWorld(p[0], p[1]);
+  else hover = toWorld(p[0], p[1]);
   lastPointer = p;
 });
 const endPtr = e => {
   ptrs.delete(e.pointerId);
-  if (ptrs.size === 0) { if (painting && editMode) persistWorld(); painting = false; panning = false; if (e.pointerType !== 'mouse') hover = null; }
-  else if (ptrs.size === 1) { painting = false; panning = true; }
+  if (pend && e.pointerId === pend.id) {
+    clearTimeout(holdT);
+    if (!pend.moved && !pend.held && e.type === 'pointerup') {                 // a tap
+      const h = toWorld(pend.x0, pend.y0); hover = h;
+      if (tool === 'inspect') inspectAt(h[0], h[1]);
+      else if (!(editMode && !editTool())) { applyTool(h[0], h[1]); reapDead(); if (editMode) persistWorld(); }
+    }
+    pend = null;
+  }
+  if (ptrs.size === 0) {
+    if (painting && editMode) persistWorld();
+    inertia = panning && Math.hypot(velX, velY) > 2;
+    painting = false; panning = false; if (e.pointerType !== 'mouse') hover = null;
+  } else if (ptrs.size === 1) { painting = false; panning = true; velX = velY = 0; }
 };
 cv.addEventListener('pointerup', endPtr);
 cv.addEventListener('pointercancel', endPtr);
@@ -2549,6 +2571,7 @@ function loop(now) {
     while (acc >= 1 && n < 30) { step(); acc--; n++; }
     if (acc > 30) acc = 0;
   }
+  if (inertia) { ox += velX; oy += velY; velX *= .88; velY *= .88; clampCam(); if (Math.hypot(velX, velY) < .4) inertia = false; }
   if (painting && now - lastApply >= (TOOLS[tool] ? TOOLS[tool].ms : 100)) {
     lastApply = now;
     const [wx, wy] = toWorld(lastPointer[0], lastPointer[1]); hover = [wx, wy];
@@ -2590,7 +2613,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
