@@ -158,6 +158,22 @@ style.textContent = `
   #awinfo .slot .ic{width:28px;height:28px;flex:0 0 28px}
   #awinfo .slot.e{color:#6a74a0;border-style:dashed}
   #awinfo .slot.t1{border-color:#a08060}#awinfo .slot.t2{border-color:#d89040}#awinfo .slot.t3{border-color:#b8c4d4}
+  #awinfo .eq .slot{font-family:inherit;color:#e8ecff;cursor:pointer;text-align:left}
+  #awinfo .slot.rdy{box-shadow:0 0 14px rgba(255,207,74,.8);border-color:#ffcf4a}
+  #awinfo .tabs{display:flex;gap:8px;margin:6px 0;clear:both}
+  #awinfo .ptab{flex:1;height:58px;border-radius:12px;border:3px solid #0d1228;background:linear-gradient(#2b3769,#1a2248);color:#e8ecff;font-weight:800;font-size:22px;font-family:inherit;cursor:pointer}
+  #awinfo .ptab.on{border-color:#ffcf4a;background:linear-gradient(#4b5cac,#2c3a7e)}
+  #awinfo .fam{font-size:22px;line-height:1.9;clear:both}
+  #awinfo .fam u{display:inline-block;min-width:112px;text-decoration:none;color:#aab4e0}
+  #awinfo .rel{display:inline-block;font-weight:700;font-size:22px;font-family:inherit;color:#ffe9a0;background:#2c3868;border:2px solid #4a5aa0;border-radius:10px;padding:2px 12px;margin:2px 4px 2px 0;cursor:pointer}
+  #awinfo .rel.dead{color:#8a90b0;background:rgba(8,12,30,.6);border-color:#2c3868;cursor:default}
+  #awinfo .bag{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:6px 0;clear:both}
+  #awinfo .bi{height:84px;border-radius:12px;border:3px solid #2c3868;background:rgba(8,12,30,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#e8ecff;font-family:inherit;cursor:pointer;padding:0}
+  #awinfo .bi.e{border-style:dashed;opacity:.5;cursor:default}
+  #awinfo .bi .ic{width:36px;height:36px}
+  #awinfo .bi small{font-size:17px;font-weight:800;color:#ffe9a0}
+  #awinfo .bi.t1{border-color:#a08060}#awinfo .bi.t2{border-color:#d89040}#awinfo .bi.t3{border-color:#b8c4d4}
+  #awinfo .bi.sel{box-shadow:0 0 16px rgba(255,207,74,.9);border-color:#ffcf4a;transform:translateY(-3px)}
   #awinfo .hist{font-size:20px;line-height:1.35;color:#c8d0f0;margin-top:4px;clear:both}
   #awinfo .hist em{font-style:normal;color:#ffcf4a;font-weight:800}
   #awtoast{position:absolute;left:50%;top:204px;transform:translateX(-50%);background:rgba(10,15,36,.95);border:3px solid #2c3868;border-radius:16px;padding:8px 24px;font-size:28px;font-weight:700;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.4)}
@@ -896,6 +912,7 @@ const ICON_ART = {
   drought: '...o....o.../..oeooooeo../...oeeeeo.../..oeeyyeeo../..oeyyyyeo../..oeeyyeeo../...oeeeeo.../.ooeooooeoo./okkkkkkkkkko/okKkkKkkKkko/.oooooooooo./............'
 };
 
+Object.assign(ICON_ART, { bag: '............/....oooo..../...okKKko.../..okkkkkko../.okkkkkkkko./.okEEEEEEko./.okEyyyyEko./.okEEEEEEko./.okkkkkkkko./.okKkkkkKko./..oooooooo../............' });
 Object.assign(ICON_ART, { armor: '............/..oo....oo../.oWWo..oWWo./.oWsWooWsWo./..oWsWWsWo../..oWsWWsWo../..oWssssWo../..oWWWWWWo../...oWssWo.../...oooooo.../............/............' });
 Object.assign(ICON_ART, { target: '...oooooo.../..orrrrrro../.orwwwwwwro./orrwoooowrro/orwwoyyowwro/orwwoyyowwro/orrwoooowrro/.orwwwwwwro./..orrrrrro.../...oooooo.../............/............', close: '............/.oo......oo./.orro..orro./..orroorro../...orrrro.../....orro..../....orro..../...orrrro.../..orroorro../.orro..orro./.oo......oo./............' });
 Object.assign(ICON_ART, { shield: '.oooooooooo./.oWWWwwWWWo./.oWsswwsSWo./.oWsswwsSWo./.oWsswwsSWo./..oWsswsSo../..oWssssSo../...oWssSo.../....oSSo..../.....oo...../............/............' });
@@ -921,7 +938,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
+Object.assign(EMOJI_ICON, { '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -1037,6 +1054,30 @@ const GEAR_NAME = {
 const GEAR_KIND = { human: ['spear', 'sword', 'sword'], elf: ['bow', 'bow', 'bow'], dwarf: ['axe', 'axe', 'axe'], orc: ['club', 'axe', 'axe'], werewolf: ['claw', 'claw', 'claw'] };
 const GEAR_ICON = ['⚔️', '🥋', '🛡'], HIST_TXT = { 2: 'Membunuh musuh pertamanya', 3: '5 kemenangan', 4: '10 kemenangan', 5: 'Pahlawan: 25 kemenangan', 6: 'Dinobatkan menjadi pemimpin', 7: 'Diangkat menjadi ksatria besi', 11: 'Nyaris tewas dan selamat' };
 const TIER_COL = [null, ['#8a5a34', '#c8a070'], ['#c8803a', '#f0b868'], ['#aab2be', '#e8eef6']];
+const inv = [];                                                // universal bag: [slot, tier, origin race] - any race can wear any item
+const INV_MAX = 12;
+function inheritTraits(a, b) {                                  // each trait passes on with 50% (85% if both parents have it), plus a 12% chance of a new one
+  let m = 0;
+  for (let i = 0; i < 6; i++) { const bit = 1 << i, ha = a & bit, hb = b & bit, p = ha && hb ? .85 : (ha || hb) ? .5 : 0; if (Math.random() < p) m |= bit; }
+  if (Math.random() < .12) m |= 1 << ri(0, 5);
+  if ((m & 2) && (m & 16)) m &= ~16;
+  return m;
+}
+function setFamily(c, x, y) {                                   // a newborn at a house gets two adult parents of its kingdom living nearby
+  const R = RACES[c.t], gx = x >> 3, gy = y >> 3, pool = [];
+  for (let yy = Math.max(0, gy - 1); yy <= Math.min(GH - 1, gy + 1); yy++) for (let xx = Math.max(0, gx - 1); xx <= Math.min(GW - 1, gx + 1); xx++)
+    for (const o of cells[yy*GW + xx]) if (o !== c && o.hp > 0 && o.t === c.t && o.k === c.k && o.age > o.life * .12 && o.nid !== undefined) pool.push(o);
+  if (!pool.length) return;
+  const A = pool[ri(0, pool.length - 1)];
+  let B = A.sp ? pool.find(o => o.nid === A.sp) : null;
+  if (!B) B = pool.find(o => o !== A && !o.sp && !A.sp) || pool.find(o => o !== A) || null;
+  c.pa = A.nid; c.pb = B ? B.nid : 0;
+  c.tr = inheritTraits(A.tr | 0, B ? B.tr | 0 : A.tr | 0);
+  c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); applyStats(c); c.hp = c.mhp;
+  A.ch = (A.ch | 0) + 1; if (B) B.ch = (B.ch | 0) + 1;
+  if (B && !A.sp && !B.sp) { A.sp = B.nid; B.sp = A.nid; addHist(A, 14, B.nid); addHist(B, 14, A.nid); }
+  for (const P of B ? [A, B] : [A]) if (P.ch === 1 || P.ch === 3 || P.ch === 6) addHist(P, 15, c.nid);
+}
 function spawn(type, x, y, force) {
   if (!force && (creatures.length >= MAX_CREATURES * CAPK || (counts[type]||0) >= capOf(type) + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
@@ -1766,7 +1807,7 @@ function step() {
       if (dd < k.bd) { k.bd = dd; k.nb = i; }
       // births need food; bigger kingdoms breed a little faster
       if (k.food > 5 && Math.random() < (RACES[race].spawnP || .005) * (1 + k.level*.4) * k.mod.birth * evBirth(k) && (counts[race]||0) < capOf(race)) {
-        if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; } }
+        if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; setFamily(c, x, y); } }
       }
     } else if (kid[i]) kid[i] = 0;
     const f = fire[i];
@@ -2411,12 +2452,11 @@ const DESC = {
   cart: 'Gerobak dagang yang membawa barang antar kerajaan.',
 };
 const TYPE_NAME = { human: 'Manusia', elf: 'Elf', dwarf: 'Kurcaci', orc: 'Orc', sheep: 'Domba', wolf: 'Serigala', rabbit: 'Kelinci', deer: 'Rusa', werewolf: 'Manusia serigala', ram: 'Pendobrak', catapult: 'Katapel', dcatapult: 'Katapel besi', cart: 'Gerobak' };
-function nameOf(c) {
-  if (c.nm) return c.nm;
-  const P = NAME_POOL[c.t], sd = c.nid === undefined ? c.id : c.nid, h = hash(sd, 7, 11);
-  c.nm = Array.isArray(P[0]) ? P[0][Math.floor(h * P[0].length)] + P[1][Math.floor(hash(sd, 9, 13) * P[1].length)] : P[Math.floor(h * P.length)];
-  return c.nm;
+function nameFor(t, sd) {
+  const P = NAME_POOL[t], h = hash(sd, 7, 11);
+  return Array.isArray(P[0]) ? P[0][Math.floor(h * P[0].length)] + P[1][Math.floor(hash(sd, 9, 13) * P[1].length)] : P[Math.floor(h * P.length)];
 }
+function nameOf(c) { return c.nm || (c.nm = nameFor(c.t, c.nid === undefined ? c.id : c.nid)); }
 function roleOf(c) {
   const R = RACES[c.t];
   if (R.cart) return 'Pedagang'; if (R.engine) return 'Mesin perang';
@@ -2437,25 +2477,63 @@ function portraitURL(t) {
   if (!ICON['cr:' + t]) { const sp = ATLAS[t].A, cv2 = document.createElement('canvas'); cv2.width = Math.max(16, sp.width); cv2.height = Math.max(16, sp.height); cv2.getContext('2d').drawImage(sp, Math.floor((cv2.width - sp.width) / 2), cv2.height - sp.height); ICON['cr:' + t] = cv2; }
   return iconURL('cr:' + t);
 }
+let ptab = 0, invSel = -1;                                       // panel tab (0 info, 1 family, 2 bag) and the selected bag item
+const itemName = (race, sl, t) => (GEAR_NAME[race] || GEAR_NAME.human)[sl][t - 1];
+const itemTip = (sl, t) => [`+${Math.round(W_ATK[t] * 100)}% serangan`, `+${Math.round(A_DEF[t] * 100)}% pertahanan, +${A_HP[t]} hp`, `+${Math.round(S_DEF[t] * 100)}% pertahanan`][sl];
+function relatives(c) {
+  const by = new Map(), kids = [];
+  for (const o of creatures) if (o.hp > 0 && o.t === c.t && o.nid !== undefined) { by.set(o.nid, o); if (o !== c && c.nid !== undefined && (o.pa === c.nid || o.pb === c.nid)) kids.push(o); }
+  return { by, kids };
+}
 function creatureHtml(c) {
-  const R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null, hp = Math.max(0, c.hp / c.mhp), st = statusOf(c);
+  const R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null, hp = Math.max(0, c.hp / c.mhp), st = statusOf(c), civ = R.civ && GEAR_NAME[c.t];
   const col = hp > .6 ? '#5fdc6a' : hp > .3 ? '#ffcf4a' : '#ff5a4a', bar = (ic, pct, cl) => `<div class="bar">${ic}<u><i style="width:${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%;background:${cl}"></i></u></div>`;
   let h = `<div class="ibtns"><button class="awb ibt${following ? ' on' : ''}" data-act="follow">🎯</button><button class="awb ibt" data-act="close">✖</button></div>`;
   h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${st}`;
-  h += `<span class="dsc">${DESC[c.t] || ''}</span>`;
   const trs = TRAITS.filter((_, i) => c.tr & (1 << i));
   if (trs.length) h += `<div class="row">${trs.map(t => `<span class="tag t">${t}</span>`).join(' ')}</div>`;
-  h += bar('❤️', hp, col) + (R.hunt ? bar('⚡', c.en / 100, '#ffd23f') : '') + bar('⏳', c.age / c.life, '#6aa8ff');
-  if (R.civ && GEAR_NAME[c.t]) {                                          // equipment slots: weapon, armour, shield
-    h += '<div class="eq">' + [0, 1, 2].map(sl => { const t = c.eq ? c.eq[sl] : 0; return t ? `<span class="slot t${t}">${GEAR_ICON[sl]}${GEAR_NAME[c.t][sl][t - 1]}</span>` : `<span class="slot e">${GEAR_ICON[sl]}–</span>`; }).join('') + '</div>';
-    const ev = [[tick - c.age, 0, 0]].concat(c.hist || []).slice(-5);
-    h += '<div class="hist">' + ev.map(([t, code, a]) => {
-      const txt = code === 0 ? 'Lahir' : code === 8 ? `Mendapat ${GEAR_NAME[c.t][0][a - 1]}` : code === 9 ? `Mengenakan ${GEAR_NAME[c.t][1][a - 1]}` : code === 10 ? `Bergabung dengan ${a}` : HIST_TXT[code] || '';
-      return `<em>Thn ${Math.max(0, Math.floor(t / 120))}</em> ${txt}`;
-    }).join('<br>') + '</div>';
+  if (civ) {                                                                // equipment slots: tap to take an item into the bag, or to wear the selected bag item
+    const sel = invSel >= 0 && inv[invSel] ? inv[invSel] : null;
+    h += '<div class="eq">' + [0, 1, 2].map(sl => { const t = c.eq ? c.eq[sl] : 0, rdy = sel && sel[0] === sl ? ' rdy' : ''; return t ? `<button class="slot t${t}${rdy}" data-act="slot" data-s="${sl}">${GEAR_ICON[sl]}${itemName(c.t, sl, t)}</button>` : `<button class="slot e${rdy}" data-act="slot" data-s="${sl}">${GEAR_ICON[sl]}–</button>`; }).join('') + '</div>';
+    h += `<div class="tabs">${['Info', 'Keluarga', `Tas ${inv.length}/${INV_MAX}`].map((n, i) => `<button class="ptab${ptab === i ? ' on' : ''}" data-act="tab" data-t="${i}">${n}</button>`).join('')}</div>`;
   }
-  h += `<div class="row">${(c.age / 120).toFixed(1)}/${(c.life / 120).toFixed(1)}${c.kills ? ' · ⚔️ ' + c.kills : ''}${k ? ` · ${LV_ICON[k.level]} ${k.name} ${EMOJI[k.race]}` : ''}</div>`;
+  const tab = civ ? ptab : 0;
+  if (tab === 0) {
+    h += `<span class="dsc">${DESC[c.t] || ''}</span>`;
+    h += bar('❤️', hp, col) + (R.hunt ? bar('⚡', c.en / 100, '#ffd23f') : '') + bar('⏳', c.age / c.life, '#6aa8ff');
+    if (civ) {
+      const ev = [[tick - c.age, 0, 0]].concat(c.hist || []).slice(-4), nm = (sd) => nameFor(c.t, sd);
+      h += '<div class="hist">' + ev.map(([t, code, a]) => {
+        const txt = code === 0 ? (c.pa ? `Lahir, anak ${nm(c.pa)}${c.pb ? ' & ' + nm(c.pb) : ''}` : 'Lahir') : code === 8 ? `Mendapat ${itemName(c.t, 0, a)}` : code === 9 ? `Mengenakan ${itemName(c.t, 1, a)}`
+          : code === 10 ? `Bergabung dengan ${a}` : code === 12 ? `Menerima ${itemName(c.t, a >> 2, a & 3)}` : code === 13 ? `${itemName(c.t, a >> 2, a & 3)} diambil` : code === 14 ? `Berpasangan dengan ${nm(a)}` : code === 15 ? `Anak lahir: ${nm(a)}` : HIST_TXT[code] || '';
+        return `<em>Thn ${Math.max(0, Math.floor(t / 120))}</em> ${txt}`;
+      }).join('<br>') + '</div>';
+    }
+    h += `<div class="row">${(c.age / 120).toFixed(1)}/${(c.life / 120).toFixed(1)}${c.kills ? ' · ⚔️ ' + c.kills : ''}${k ? ` · ${LV_ICON[k.level]} ${k.name} ${EMOJI[k.race]}` : ''}</div>`;
+  } else if (tab === 1) {
+    const rel = relatives(c), chip = (nid) => { if (!nid) return '–'; const o = rel.by.get(nid); return o ? `<button class="rel" data-act="sel" data-id="${o.id}">${nameFor(c.t, nid)}</button>` : `<span class="rel dead">${nameFor(c.t, nid)} †</span>`; };
+    h += `<div class="fam"><div><u>Pasangan</u> ${chip(c.sp)}</div><div><u>Orang tua</u> ${c.pa ? chip(c.pa) + (c.pb ? ' ' + chip(c.pb) : '') : '–'}</div>`;
+    h += `<div><u>Anak</u> ${c.ch ? `${c.ch} lahir · ${rel.kids.length} hidup` : '–'}</div>${rel.kids.length ? `<div>${rel.kids.slice(0, 8).map(o => chip(o.nid)).join(' ')}</div>` : ''}</div>`;
+  } else {
+    const sel = invSel >= 0 && inv[invSel] ? inv[invSel] : null;
+    h += '<div class="bag">' + Array.from({ length: INV_MAX }, (_, i) => { const it = inv[i]; return it ? `<button class="bi t${it[1]}${i === invSel ? ' sel' : ''}" data-act="inv" data-i="${i}">${GEAR_ICON[it[0]]}<small>${'I'.repeat(it[1])}</small></button>` : '<span class="bi e"></span>'; }).join('') + '</div>';
+    h += `<div class="row">${sel ? `${itemName(sel[2], sel[0], sel[1])} · ${itemTip(sel[0], sel[1])} → ketuk slot ${['senjata', 'zirah', 'perisai'][sel[0]]}` : inv.length ? 'Ketuk item, lalu ketuk slot di atas untuk memakaikannya' : 'Tas kosong: ketuk slot perlengkapan di atas untuk mengambil item'}</div>`;
+  }
   return h;
+}
+function slotAction(c, sl) {
+  if (!c.eq) c.eq = [0, 0, 0];
+  const it = invSel >= 0 ? inv[invSel] : null;
+  if (it) {
+    if (it[0] !== sl) { toast(GEAR_ICON[it[0]] + ' ≠ ' + GEAR_ICON[sl]); return; }
+    const old = c.eq[sl]; c.eq[sl] = it[1];
+    if (old) inv[invSel] = [sl, old, c.t]; else inv.splice(invSel, 1);
+    addHist(c, 12, sl * 4 + it[1]); invSel = -1; applyStats(c); toast(GEAR_ICON[sl] + ' ' + itemName(c.t, sl, c.eq[sl])); haptic('tap'); dirty = true; return;
+  }
+  const t = c.eq[sl];
+  if (!t) { toast(GEAR_ICON[sl] + ' –'); return; }
+  if (inv.length >= INV_MAX) { toast('🎒 penuh'); return; }
+  inv.push([sl, t, c.t]); c.eq[sl] = 0; addHist(c, 13, sl * 4 + t); applyStats(c); toast('🎒 ' + itemName(c.t, sl, t)); haptic('tap'); dirty = true;
 }
 function pickCreatureAt(px, py) {                                   // nearest creature to a screen point (sprites stand above their tile)
   const fx0 = (px - ox) / sc, fy0 = (py - oy) / sc; let best = null, bd = 1.7;
@@ -2465,7 +2543,7 @@ function pickCreatureAt(px, py) {                                   // nearest c
   }
   return best;
 }
-function showCreature(c) { selected = c; following = false; deadNote = 0; clearTimeout(infoT); infoLast = infoEl.innerHTML = creatureHtml(c); infoEl.style.display = 'block'; }
+function showCreature(c) { selected = c; invSel = -1; following = false; deadNote = 0; clearTimeout(infoT); infoLast = infoEl.innerHTML = creatureHtml(c); infoEl.style.display = 'block'; }
 function closeCreature() { selected = null; following = false; deadNote = 0; infoEl.style.display = 'none'; }
 function refreshCreature() {
   if (!selected) return;
@@ -2477,6 +2555,11 @@ infoEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   if (a.dataset.act === 'close') closeCreature();
   else if (a.dataset.act === 'follow') { following = !following; infoHold = false; refreshCreature(); }
+  else if (!selected) return;
+  else if (a.dataset.act === 'tab') { ptab = +a.dataset.t; infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'slot') { slotAction(selected, +a.dataset.s); infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'inv') { invSel = invSel === +a.dataset.i ? -1 : +a.dataset.i; infoHold = false; refreshCreature(); }
+  else if (a.dataset.act === 'sel') { const t = creatures.find(o => o.id === +a.dataset.id && o.hp > 0); if (t) { showCreature(t); } }
 });
 let infoHold = false, infoLast = '';
 infoEl.addEventListener('pointerdown', () => { infoHold = true; });
@@ -2700,7 +2783,8 @@ function serialize2() {
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
-    ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || []]); return a; }, []) };      // one packed int per creature
+    ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0]); return a; }, []),
+    inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2])]) };      // one packed int per creature
 }
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
@@ -2739,9 +2823,11 @@ function restore(s) {
   }
   for (const r of s.ex || []) {                                          // names, traits, gear, history of settlers
     const c = spawned[r[0]]; if (!c) continue;
-    const R = RACES[c.t]; c.nid = r[1]; c.tr = r[2]; c.kills = r[4]; c.eq = [r[5] & 3, (r[5] >> 2) & 3, (r[5] >> 4) & 3]; c.hist = r[6] || []; c.lk = c.k; c.nj = 1;
+    const R = RACES[c.t]; c.nid = r[1]; c.tr = r[2]; c.kills = r[4]; c.eq = [r[5] & 3, (r[5] >> 2) & 3, (r[5] >> 4) & 3]; c.hist = r[6] || []; c.pa = r[7] || 0; c.pb = r[8] || 0; c.sp = r[9] || 0; c.ch = r[10] || 0; c.lk = c.k; c.nj = 1;
     c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); c.age = Math.max(0, Math.min(c.life - 50, tick - r[3]));
   }
+  inv.length = 0; for (const i of s.inv || []) if (RN[i[2]] && i[0] >= 0 && i[0] < 3 && i[1] >= 1 && i[1] <= 3) inv.push([i[0], i[1], RN[i[2]]]);
+  let mx = nextId; for (const c of spawned) if (c && c.nid !== undefined && c.nid >= mx) mx = c.nid + 1; nextId = mx;       // new ids must not collide with saved name seeds
   for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
   for (const c of spawned) if (c) { c.mhp = 0; applyStats(c); c.hp = c.mhp; }
   return true;
@@ -2808,7 +2894,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
