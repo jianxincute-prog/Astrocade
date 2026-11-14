@@ -42,6 +42,9 @@ const RACES = {
   sheep:  { col:'#ffffff', hp:10, dmg:0, mv:3, civ:0, cap:110, life:[600,1100], foes:[], build:[], bi:0, prey:1, br:{ p:.02,  tiles:[T.GRASS], dens:14 } },
   rabbit: { col:'#c9a37a', hp:6,  dmg:0, mv:2, civ:0, cap:160, life:[500,900],  foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.035, tiles:[T.GRASS,T.FOREST,T.HILL], dens:16 } },
   deer:   { col:'#c68a4e', hp:16, dmg:0, mv:2, civ:0, cap:70,  life:[900,1500], foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.014, tiles:[T.FOREST,T.GRASS], dens:8 } },
+  ram:       { col:'#a8744a', hp:90, dmg:8, mv:3, civ:0, cap:0, life:[2600,2600], foes:[], build:[], bi:0, engine:1 },        // siege engines (not saved)
+  catapult:  { col:'#c89050', hp:60, dmg:6, mv:4, civ:0, cap:0, life:[2600,2600], foes:[], build:[], bi:0, engine:1 },
+  dcatapult: { col:'#9ea6b2', hp:70, dmg:6, mv:4, civ:0, cap:0, life:[2600,2600], foes:[], build:[], bi:0, engine:1 },
   wolf:   { col:'#2b2e36', hp:28, dmg:5, mv:1, civ:0, cap:28,  life:[900,1500], foes:['sheep','rabbit','deer'], hunt:1, build:[], bi:0 },
 };
 // ---- Kingdoms (civilization layer) ----
@@ -267,6 +270,24 @@ function rleDecode(s) {
 // Creatures: frames A,B (walk) and C (attack); sizes vary per species (rabbit 11x10 ... werewolf 14x16). Houses: 10x10, frame A. '.' = transparent.
 const OUT = '#1c1420';
 const SPRITES = {
+  ram: {
+    pal: {"o": "#1c1214", "H": "#a8744a", "h": "#c89868", "D": "#7a4c2c", "k": "#8a5a34", "K": "#5e3a20", "s": "#aab2be", "S": "#6a7078", "w": "#f4f1e6", "r": "#ff3d3d"},
+    A: [".......ooo......", "......owKro.....", "....ooowKrro....", "...ohhhhKhhho...", "..oHHDHHDHHDHo..", ".ooDDDDDDDsssso.", "oKKKKKKKKKssssso", "okkkkkkkkkssssSo", ".ooDDkDDDDkSSSo.", "...okKkookKkoo..", "..okkKkkkkKkko..", "...okKkookKko..."],
+    B: [".......ooo......", "......owKro.....", "....ooowKrro....", "...ohhhhKhhho...", "..oHHDHHDHHDHo..", ".ooDDDDDDDsssso.", "oKKKKKKKKKssssso", "okkkkkkkkkssssSo", ".ooDDkDDDDkSSSo.", "...okkkookkkoo..", "..okKKKkkKKKko..", "...okkkookkko..."],
+    C: ["......ooo.......", ".....owKro......", "...ooowKrro.....", "..ohhhhKhhho....", ".oHHDHHDHHDHooo.", ".oDDDDDDDDDssss.", ".oKKKKKKKKKssss.", "oDkkkkkkkkkssss.", ".oDDkDDDDkDSSSS.", "..okKkookKkoooo.", ".okkKkkkkKkko...", "..okKkookKko...."],
+  },
+  catapult: {
+    pal: {"o": "#1c1424", "k": "#c89050", "K": "#8a5a34", "s": "#c0c8d4", "S": "#7a828e", "y": "#ffd23f", "c": "#ff9a2e", "f": "#3f8cff", "g": "#aab2be"},
+    A: ["ogggo...........", ".ogoo...........", ".oKkkoo.....ooo.", "..oKKkkooo.oKffo", "...ooKKkkkooKfo.", "....oKoKooKoKo..", ".ooooKooooKoKo..", "okkkKkkkkkkKKko.", "oKKKKKKKKKKKKKo.", ".ooKSKooooKSKo..", ".oKKSKKooKKSKKo.", "..oKSKo..oKSKo.."],
+    B: ["ogggo...........", ".ogoo...........", ".oKkkoo.....ooo.", "..oKKkkooo.oKffo", "...ooKKkkkooKfo.", "....oKoKooKoKo..", ".ooooKooooKoKo..", "okkkKkkkkkkKKko.", "oKKKKKKKKKKKKKo.", ".ooKKKooooKKKo..", ".oKSSSKooKSSSKo.", "..oKKKo..oKKKo.."],
+    C: ["...........ogo..", "..........ooko..", "........ookkKoo.", "......ookkKKKffo", ".....okkKKooKfo.", "....oKoKooKoKo..", ".ooooKooooKoKo..", "okkkKkkkkkkKKko.", "oKKKKKKKKKKKKKo.", ".ooKSKooooKSKo..", ".oKKSKKooKKSKKo.", "..oKSKo..oKSKo.."],
+  },
+  dcatapult: {
+    pal: {"o": "#1c1424", "k": "#9ea6b2", "K": "#5a5f78", "s": "#c0c8d4", "S": "#7a828e", "y": "#ffd23f", "c": "#ff9a2e", "f": "#3f8cff", "g": "#ff9a2e"},
+    A: ["ogggo..........", ".ogoo..........", ".oKkkoo........", "..oKKkkooo.....", "...ooKKkkko....", "....oKoKooKo...", ".ooooKooooKooo.", "okksKkkskkkskko", "oKKSKKKSKKKSKKo", ".ooKSKooooKSKo.", ".oKKSKKooKKSKKo", "..oKSKo..oKSKo."],
+    B: ["ogggo..........", ".ogoo..........", ".oKkkoo........", "..oKKkkooo.....", "...ooKKkkko....", "....oKoKooKo...", ".ooooKooooKooo.", "okksKkkskkkskko", "oKKSKKKSKKKSKKo", ".ooKKKooooKKKo.", ".oKSSSKooKSSSKo", "..oKKKo..oKKKo."],
+    C: ["...........ogo.", "..........ooko.", "........ookkKo.", "......ookkKKo..", ".....okkKKoo...", "....oKoKooKo...", ".ooooKooooKooo.", "okksKkkskkkskko", "oKKSKKKSKKKSKKo", ".ooKSKooooKSKo.", ".oKKSKKooKKSKKo", "..oKSKo..oKSKo."],
+  },
   human: {
     pal: { o:'#1c1424', h:'#5b3a22', H:'#8c5c32', s:'#f2c48c', S:'#d49a68', e:'#1c1424', c:'#3f8cff', C:'#86bcff', d:'#2457b8', v:'#1f3f8a', g:'#f0c850', p:'#4a4262', P:'#6a6088', b:'#3a2518', w:'#e8eef8' },
     A: ["...oooooo...", "..ohHHhhho..", ".ohHhhhhhho.", ".ohhssSShho.", ".ohsesSeSho.", "..osssSSSo..", "...osSSSo...", "ovCcccccccvo", "ocCcccccccco", "ocCcccccccco", "osggggggggSo", "..oppPpppo..", "..oppo.oppo.", "..obbo.obbo."],
@@ -757,7 +778,7 @@ function tryMove(c, nx, ny) {
   return false;
 }
 const SIEGE_P = { orc: .7, dwarf: .4, werewolf: .3, human: .15, elf: .08 };      // chance a blocked soldier hits the wall instead of walking to the gate
-const SIEGE_MULT = { orc: 2.5, dwarf: 1.6, werewolf: 1.2, human: 1, elf: .7 };
+const SIEGE_MULT = { ram: 4, catapult: 3, dcatapult: 3.4, orc: 2.5, dwarf: 1.6, werewolf: 1.2, human: 1, elf: .7 };
 const WALL_HP = 60, TOWER_HP = 120;
 function hitWall(c, i) {                                    // attackers chip at a wall segment; damage accumulates until it breaks
   const owner = kingdoms.get(wallK[i]); if (!owner) return;
@@ -837,6 +858,7 @@ function countHouses(x, y, r, owner) {
 }
 function stepCreature(c) {
   const R = RACES[c.t], idx = c.x + c.y*W;
+  if (R.engine) { stepEngine(c); return; }
   c.age++;
   if (c.age > c.life) { c.hp = 0; c.cause = 'old'; return; }
   if (!walkable(c.t, tiles[idx])) { c.hp = 0; fx('splash', c.x, c.y); return; }
@@ -983,6 +1005,62 @@ function repairWalls() {                                   // kingdoms at peace 
     }
   }
 }
+function engineTarget(c, ka) {                              // nearest intact non-gate wall segment of an enemy
+  let best = -1, bd = 1e9;
+  for (const eid of ka.enemies) {
+    const e = kingdoms.get(eid); if (!e) continue; const R = ringR(e); if (!R) continue;
+    for (const p of kingdomRing(e, R)) {
+      const i = p.x + p.y*W; if (p.t === 'gate' || wallK[i] !== e.id) continue;
+      const d = Math.max(Math.abs(p.x - c.x), Math.abs(p.y - c.y)); if (d < bd) { bd = d; best = i; }
+    }
+  }
+  return best;
+}
+function stepEngine(c) {                                    // rams hug the wall, catapults lob rocks from up to 7 tiles; both vanish when the war ends
+  const R = RACES[c.t], ka = kingdoms.get(c.k);
+  c.age++;
+  if (c.age > c.life || !ka || !ka.enemies.size) { c.hp = 0; c.cause = 'old'; return; }
+  if ((tick + c.id) % R.mv !== 0) return;
+  if (c.cd > 0) c.cd--;
+  if (!(c.tt >= 0) || !wallK[c.tt] || (tick + c.id) % 48 === 0) c.tt = engineTarget(c, ka);
+  const range = c.t === 'ram' ? 1 : 7;
+  const step = (tx, ty) => {
+    const sx = Math.sign(tx - c.x), sy = Math.sign(ty - c.y);
+    if (tryMove(c, c.x + sx, c.y + sy) || tryMove(c, c.x + sx, c.y) || tryMove(c, c.x, c.y + sy)) { c.fail = 0; return; }
+    if (++c.fail > 2) { const d = DIRS[ri(1, 8)]; tryMove(c, c.x + d[0], c.y + d[1]); c.fail = 0; }
+  };
+  if (c.tt >= 0) {
+    const tx = c.tt % W, ty = (c.tt / W) | 0;
+    if (Math.max(Math.abs(tx - c.x), Math.abs(ty - c.y)) <= range) {
+      if (!(c.cd > 0)) { c.cd = c.t === 'ram' ? 3 : 5; if (range > 1) fx('rock', c.x, c.y, { tx, ty }); hitWall(c, c.tt); }
+      return;
+    }
+    step(tx, ty); return;
+  }
+  if (c.t !== 'ram') {                                       // no wall left: bombard enemy soldiers
+    const e = findEnemy(c, ka, 8);
+    if (e) {
+      if (!(c.cd > 0)) {
+        c.cd = 4; c.atk = 8; c.face = e.x > c.x ? 1 : -1; fx('rock', c.x, c.y, { tx: e.x, ty: e.y }); fx('boom', e.x, e.y, { r: 2 });
+        for (const o of creatures) if (o.hp > 0 && o.k && ka.enemies.has(o.k) && Math.abs(o.x - e.x) <= 1 && Math.abs(o.y - e.y) <= 1) o.hp -= 10 * ka.mod.atk;
+      }
+      return;
+    }
+  }
+  if (ka.front >= 0) { const fx0 = ka.front % W, fy0 = (ka.front / W) | 0; if (Math.max(Math.abs(fx0 - c.x), Math.abs(fy0 - c.y)) > 3) step(fx0, fy0); }
+}
+function siegeTick() {                                      // kingdoms at war with a walled enemy build engines (orc ram, dwarf/human catapult)
+  const eng = {}; for (const c of creatures) if (c.hp > 0 && RACES[c.t].engine) eng[c.k] = (eng[c.k] || 0) + 1;
+  for (const k of kingdoms.values()) {
+    const type = k.race === 'orc' ? 'ram' : k.race === 'dwarf' ? 'dcatapult' : k.race === 'human' && k.level >= 2 ? 'catapult' : null;
+    if (!type || !k.enemies.size || tick < (k.engCd || 0) || (eng[k.id] || 0) >= (k.level >= 3 ? 3 : 2) || k.pop < 12) continue;
+    let walled = false; for (const eid of k.enemies) { const e = kingdoms.get(eid); if (e && ringR(e)) walled = true; }
+    const wood = type === 'ram' ? 25 : 20, stone = type === 'ram' ? 0 : 15;
+    if (!walled || k.wood < wood || k.stone < stone) continue;
+    const c = spawnNear(type, k.cap % W, (k.cap / W) | 0);
+    if (c) { c.k = k.id; k.wood -= wood; k.stone -= stone; k.engCd = tick + 1200; fx('puff', c.x, c.y); warStats.engines = (warStats.engines || 0) + 1; }
+  }
+}
 function repairStep(c, k) {                                // a civilian walks to the nearest damaged wall segment and mends it (broken ones cost wood)
   let best = -1, bd = 15;
   for (const i of k.wd.keys()) { const d = Math.max(Math.abs((i % W) - c.x), Math.abs(((i / W) | 0) - c.y)); if (d < bd) { bd = d; best = i; } }
@@ -1008,7 +1086,7 @@ function towerTick() {                                      // every 1.5 seconds
   }
 }
 function eventsTick() {                                     // every ~10 seconds
-  repairWalls();
+  repairWalls(); siegeTick();
   const ks = [...kingdoms.values()];
   for (const k of ks) {
     if (k.ev) {
@@ -1326,7 +1404,7 @@ function levelCheck() {                                   // every 5 seconds
 function chooseLeaders() {                                // the oldest member wears the crown
   for (const k of kingdoms.values()) k.cand = null;
   for (const c of creatures) {
-    if (!c.k) continue;
+    if (!c.k || RACES[c.t].engine) continue;
     const k = kingdoms.get(c.k); if (!k) continue;
     if (!k.cand || c.age > k.cand.age) k.cand = c;
   }
@@ -1370,7 +1448,7 @@ function step() {
   else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
 
   for (const k of kingdoms.values()) { k.houses = 0; k.pop = 0; k.sx = 0; k.sy = 0; k.bd = 1e9; }
-  for (const c of creatures) if (c.k) { const k = kingdoms.get(c.k); if (k) k.pop++; else c.k = 0; }
+  for (const c of creatures) if (c.k) { const k = kingdoms.get(c.k); if (k) { if (!RACES[c.t].engine) k.pop++; } else c.k = 0; }
   const spread = []; houseCount = 0;
   for (let i = 0; i < N; i++) {
     const b = bld[i];
@@ -1659,6 +1737,10 @@ function drawEffects() {
     } else if (e.k === 'splash') {
       life = 12; ctx.strokeStyle = `rgba(200,230,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, sc*(.4 + e.t/life*1.2), 0, 7); ctx.stroke();
+    } else if (e.k === 'rock') {
+      life = 14; const p = e.t / life, bx = ox + (e.tx + .5)*sc, by = oy + (e.ty + .5)*sc, ax = px, ay = py;
+      const rx = ax + (bx - ax)*p, ry = ay + (by - ay)*p - Math.sin(p*Math.PI)*sc*3;
+      ctx.fillStyle = '#4a4650'; ctx.fillRect(rx - sc*.2, ry - sc*.2, sc*.4, sc*.4); ctx.fillStyle = '#9a96a0'; ctx.fillRect(rx - sc*.2, ry - sc*.2, sc*.2, sc*.2);
     } else if (e.k === 'shock') {
       life = 30; const p = e.t / life; ctx.strokeStyle = `rgba(150,110,70,${1 - p})`; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.arc(px, py, sc*e.r*p, 0, 7); ctx.stroke(); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, sc*e.r*p*.6, 0, 7); ctx.stroke();
@@ -2176,7 +2258,7 @@ function serialize2() {
   return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl,
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick)]),
-    cr: creatures.map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
+    cr: creatures.filter(c => !RACES[c.t].engine).map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
 }
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
