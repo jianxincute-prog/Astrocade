@@ -1190,6 +1190,7 @@ function step() {
   if (tick % 16 === 0) updateFronts();
   if (tick % 80 === 0) { diplomacyTick(); eventsTick(); if (!editMode) disasterTick(); }
   if (pendingDis.length) processDisasters();
+  if (floods.length && tick % 8 === 0) floodRecede();
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -1414,6 +1415,8 @@ function draw() {
 }
 
 function drawEffects() {
+  cv.style.transform = shakeT > 0 ? `translate(${(Math.random() - .5) * 2 * Math.min(8, shakeT / 4)}px, ${(Math.random() - .5) * 2 * Math.min(8, shakeT / 4)}px)` : '';
+  if (shakeT > 0) shakeT--;
   for (let i = effects.length - 1; i >= 0; i--) {
     const e = effects[i]; e.t++;
     const px = ox + (e.x + .5)*sc, py = oy + (e.y + .5)*sc; let life = 14;
@@ -1442,6 +1445,9 @@ function drawEffects() {
     } else if (e.k === 'splash') {
       life = 12; ctx.strokeStyle = `rgba(200,230,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, sc*(.4 + e.t/life*1.2), 0, 7); ctx.stroke();
+    } else if (e.k === 'shock') {
+      life = 30; const p = e.t / life; ctx.strokeStyle = `rgba(150,110,70,${1 - p})`; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(px, py, sc*e.r*p, 0, 7); ctx.stroke(); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, sc*e.r*p*.6, 0, 7); ctx.stroke();
     } else if (e.k === 'warn') {
       life = e.life; const p = e.t / life, pul = .5 + .5*Math.sin(e.t * .5);
       ctx.strokeStyle = `rgba(255,${80 + pul*80|0},50,${.35 + .5*pul})`; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
@@ -1561,6 +1567,42 @@ function eruptVolcano(wx, wy) {
   forDisc(wx, wy, 7, (x, y, i) => { if (Math.random() < .35) ignite(i); });
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= 30) c.hp = 0;
 }
+let shakeT = 0;
+const floods = [];                                           // { i, orig, until } tiles temporarily under water
+function strikeQuake(wx, wy) {
+  const R = 9; shakeT = 50; haptic('thud');
+  fx('shock', wx, wy, { r: R });
+  forDisc(wx, wy, R, (x, y, i) => {
+    if (bld[i] && Math.random() < .25) { bld[i] = 0; fire[i] = 0; fx('puff', x, y); }
+    else if (tiles[i] > T.SHALLOW && tiles[i] !== T.LAVA && Math.random() < .03) fx('puff', x, y);
+  });
+  for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= R*R && Math.random() < .15) c.hp -= 4;
+}
+function strikeFlood(wx, wy) {                               // sea surges inland from a coast tile, then recedes
+  haptic('thud');
+  const seen = new Set([wx + wy*W]), q = [[wx, wy, 0]], until = tick + 640;
+  while (q.length) {
+    const [x, y, d] = q.shift(), i = x + y*W, t = tiles[i];
+    if (t > T.SHALLOW) {
+      if (Math.random() < .88 && (t === T.SAND || t === T.GRASS || t === T.BURNT || t === T.FOREST) ) {
+        floods.push({ i, orig: t, until: until + ri(0, 120) }); tiles[i] = T.SHALLOW; fire[i] = 0; bld[i] = 0; fx('splash', x, y);
+      } else continue;
+    }
+    if (d >= 6) continue;
+    for (let k = 1; k < 9; k += 2) {
+      const nx = x + DIRS[k][0], ny = y + DIRS[k][1], ni = nx + ny*W;
+      if (inb(nx, ny) && !seen.has(ni)) { seen.add(ni); q.push([nx, ny, d + 1]); }
+    }
+  }
+  for (const c of creatures) if (tiles[c.x + c.y*W] <= T.SHALLOW && floods.some(f => f.i === c.x + c.y*W) && !c.swim) c.hp = 0;
+}
+function floodRecede() {
+  for (let n = floods.length - 1; n >= 0; n--) {
+    const f = floods[n]; if (tick < f.until) continue;
+    floods.splice(n, 1);
+    if (tiles[f.i] === T.SHALLOW) { tiles[f.i] = f.orig; ownDirty = true; fx('splash', f.i % W, (f.i / W) | 0); }
+  }
+}
 function smallKingdomNear(x, y, r) {                         // keep tiny kingdoms from being wiped out by a random disaster
   let bad = false;
   forDisc(x, y, r, (tx, ty, i) => { if (bld[i]) { const k = kingdoms.get(kid[i]); if (!k || k.houses <= 3) bad = true; } });
@@ -1578,21 +1620,30 @@ function disasterTick() {                                    // every ~10 second
     if (p) { pendingDis.push({ type: 'bolt', x: p[0], y: p[1], at: tick + 1 }); fx('warn', p[0], p[1], { life: 10, r: 1, ch: '⚡' }); }
   }
   if (tick >= nextMajor && Math.random() < (L === 1 ? .025 : .07)) {
-    const meteor = Math.random() < .3;
+    const r0 = Math.random(), type = r0 < .4 ? 'volcano' : r0 < .6 ? 'meteor' : r0 < .85 ? 'quake' : 'flood';
     let p = null;
-    if (meteor) {
+    if (type === 'meteor') {
       for (let n = 0; n < 12 && !p; n++) {
         let x, y;
         if (kingdoms.size && Math.random() < .5) { const ks = [...kingdoms.values()], k = ks[ri(0, ks.length - 1)]; x = Math.round(k.cx) + ri(-8, 8); y = Math.round(k.cy) + ri(-8, 8); }
         else { x = ri(0, W - 1); y = ri(0, H - 1); }
         if (inb(x, y) && tiles[x + y*W] > T.SHALLOW && !smallKingdomNear(x, y, 7)) p = [x, y];
       }
+    } else if (type === 'quake') {
+      const ks = [...kingdoms.values()].filter(k => k.houses >= 6);
+      if (ks.length) { const k = ks[ri(0, ks.length - 1)]; p = [Math.round(k.cx) + ri(-4, 4), Math.round(k.cy) + ri(-4, 4)]; if (!inb(p[0], p[1])) p = null; }
+    } else if (type === 'flood') {
+      p = pickSpot((t, x, y) => {
+        if (t !== T.SAND || smallKingdomNear(x, y, 8)) return false;
+        for (let k = 1; k < 9; k += 2) { const nx = x + DIRS[k][0], ny = y + DIRS[k][1]; if (inb(nx, ny) && tiles[nx + ny*W] <= T.SHALLOW) return true; }
+        return false;
+      }, 600);
     } else p = pickSpot((t, x, y) => (t === T.MOUNTAIN || t === T.SNOW) && !smallKingdomNear(x, y, 9), 400);
     if (p) {
-      const wait = meteor ? 32 : 48;
-      pendingDis.push({ type: meteor ? 'meteor' : 'volcano', x: p[0], y: p[1], at: tick + wait });
-      fx('warn', p[0], p[1], { life: wait, r: meteor ? 6 : 4, ch: meteor ? '☄️' : '🌋', smoke: !meteor });
-      toast(meteor ? '☄️ ⚠️' : '🌋 ⚠️'); haptic('warning');
+      const INFO = { volcano: [48, 4, '🌋'], meteor: [32, 6, '☄️'], quake: [24, 9, '🪨'], flood: [40, 6, '🌊'] }[type];
+      pendingDis.push({ type, x: p[0], y: p[1], at: tick + INFO[0] });
+      fx('warn', p[0], p[1], { life: INFO[0], r: INFO[1], ch: INFO[2], smoke: type === 'volcano', shake: type === 'quake' });
+      toast(INFO[2] + ' ⚠️'); haptic('warning');
       nextMajor = tick + (L === 1 ? 1500 : 600);
     }
   }
@@ -1603,6 +1654,8 @@ function processDisasters() {
     pendingDis.splice(i, 1);
     if (d.type === 'bolt') strikeBolt(d.x, d.y, 1);
     else if (d.type === 'meteor') strikeMeteor(d.x, d.y, 4 + ri(0, 1));
+    else if (d.type === 'quake') strikeQuake(d.x, d.y);
+    else if (d.type === 'flood') strikeFlood(d.x, d.y);
     else eruptVolcano(d.x, d.y);
   }
 }
@@ -1801,6 +1854,7 @@ function confirmThen(key, msg, fn) {              // destructive actions need a 
   else { pendingKey = key; pendingT = now; toast('⚠️ ' + msg + ' — tekan lagi'); }
 }
 function newWorld(idx) {
+  floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx);
   generate(1 + ((Math.random() * 1e6) | 0));
   if (!editMode) populate();
@@ -1833,7 +1887,7 @@ const WORLD_ACTIONS = [
   { ic:'🗺️', fn: () => confirmThen('new', 'Dunia baru', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
   ...SIZES.map((z, i) => ({ ic: z.name, on: () => sizeIdx === i,
     fn: () => confirmThen('size' + i, `${z.label} ${z.w}×${z.h}`, () => { newWorld(i); renderRow2(); toast(`🗺️ ${z.label} ${z.w}×${z.h}`); }) })),
-  { ic:'🌊', fn: () => confirmThen('ocean', 'Lautan kosong', () => { emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
+  { ic:'🌊', fn: () => confirmThen('ocean', 'Lautan kosong', () => { floods.length = 0; pendingDis.length = 0; emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
   ...(editMode ? [] : [
     { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
     { ic:'🧹', fn: () => confirmThen('clear', 'Hapus makhluk & rumah', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
@@ -1897,6 +1951,11 @@ function updateStats() {
 /* ============================== SAVE / LOAD (play mode) ============================== */
 function clearSave() { try { lib.deleteUserGameState && lib.deleteUserGameState(); } catch (e) {} }
 function serialize() {
+  const fl = floods.filter(f => tiles[f.i] === T.SHALLOW);
+  for (const f of fl) tiles[f.i] = f.orig;                  // flooded land is saved dry
+  try { return serialize2(); } finally { for (const f of fl) tiles[f.i] = T.SHALLOW; }
+}
+function serialize2() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
@@ -1909,7 +1968,7 @@ function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
-  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0;
+  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0; floods.length = 0;
   const hl = [];
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) { bld[i] = b; hl.push(i); } else hl.push(-1); }
   const ids = [];
@@ -1995,7 +2054,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
