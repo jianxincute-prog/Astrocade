@@ -190,7 +190,10 @@ style.textContent = `
   #awrow2::-webkit-scrollbar{display:none}
   #awrow2 .awb{width:88px;height:88px;flex:0 0 88px;border-radius:26px;scroll-snap-align:start}
   #awbot.compact ~ #awinfo{bottom:130px}
-  #awinfo{position:absolute;left:14px;bottom:272px;width:692px;max-height:700px;overflow-y:auto;touch-action:pan-y;box-sizing:border-box;background:rgba(10,15,36,.97);border:3px solid #2c3868;border-radius:16px;padding:10px 18px;font-size:28px;line-height:1.55;box-shadow:0 4px 0 rgba(0,0,0,.4);display:none}
+  #awinfo{position:absolute;left:10px;bottom:272px;width:700px;max-height:600px;overflow-y:auto;touch-action:pan-y;box-sizing:border-box;background:linear-gradient(180deg,#1c2760,#0b1132);border:2px solid rgba(255,216,130,.35);border-radius:30px;padding:18px 20px 14px;font-size:28px;line-height:1.55;box-shadow:0 -10px 40px rgba(0,0,0,.55),inset 0 1px rgba(255,255,255,.14);display:none;animation:awslide .26s ease-out;overscroll-behavior:contain}
+  #awinfo:before{content:'';display:block;position:sticky;top:-8px;width:64px;height:6px;margin:-8px auto 12px;border-radius:3px;background:rgba(255,255,255,.3);z-index:2}
+  #awinfo.tall{max-height:820px}
+  @keyframes awslide{from{transform:translateY(26px);opacity:0}to{transform:none;opacity:1}}
   #awinfo .jtabs{display:flex;gap:10px;margin:12px 0 8px;clear:both}
   #awinfo .jtab{flex:1;min-width:96px;min-height:96px;font-size:24px}
   #awinfo .jbody{clear:both}
@@ -305,6 +308,22 @@ style.textContent = `
   #awnew .ft{padding:14px 32px 26px;background:linear-gradient(180deg,rgba(11,16,48,0),#0b1030 30%)}
   #awnew .awbig{height:96px;font-size:44px}
   @keyframes awpop{0%{transform:scale(.86);opacity:0}100%{transform:scale(1);opacity:1}}
+  #awtoasts{position:absolute;left:50%;top:172px;transform:translateX(-50%);width:640px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;z-index:9}
+  .tp{display:flex;align-items:center;gap:10px;max-width:640px;padding:8px 22px 8px 18px;border-radius:24px;background:rgba(10,15,40,.95);border:2px solid rgba(255,255,255,.12);border-left:7px solid var(--ac,#8fa0d8);font-size:26px;font-weight:700;color:#eef3ff;box-shadow:0 6px 18px rgba(0,0,0,.45);animation:awtin .28s cubic-bezier(.2,1.2,.4,1)}
+  .tp.out{opacity:0;transform:translateY(-10px);transition:all .25s}
+  .tp.pop{animation:awtpop .25s}
+  .tp .x2{font-size:20px;font-weight:900;color:#ffd870;padding:1px 8px;border-radius:10px;background:rgba(255,216,130,.14)} .tp .x2:empty{display:none}
+  .tp.bad{--ac:#ff6a5a} .tp.good{--ac:#65df9a} .tp.gold{--ac:#ffd23f} .tp.sea{--ac:#55caff}
+  .bn{display:flex;align-items:center;gap:16px;width:620px;box-sizing:border-box;padding:12px 22px 12px 16px;border-radius:28px;background:linear-gradient(90deg,var(--ac),rgba(12,16,44,.97) 46%);border:2px solid rgba(255,255,255,.2);box-shadow:0 10px 30px rgba(0,0,0,.55);animation:awbin .4s cubic-bezier(.2,1.25,.4,1)}
+  .bn.bad{--ac:#7a1f1c} .bn.good{--ac:#1d6b43} .bn.gold{--ac:#7a5a10} .bn.sea{--ac:#134a7a}
+  .bn .bi{width:64px;height:64px;display:grid;place-items:center;font-size:40px;flex:0 0 64px} .bn .bi .ic{width:56px;height:56px;vertical-align:0}
+  .bn .bx{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+  .bn b{font-size:34px;color:#fff;letter-spacing:1px;text-transform:uppercase;font-weight:900;text-shadow:0 2px 0 rgba(0,0,0,.5)}
+  .bn small{font-size:21px;color:#dfe8ff;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bn.out{opacity:0;transform:translateY(-14px);transition:all .3s}
+  @keyframes awtin{from{opacity:0;transform:translateY(-12px)}}
+  @keyframes awbin{from{opacity:0;transform:translateY(-20px) scale(.92)}}
+  @keyframes awtpop{50%{transform:scale(1.06)}}
   #awtut{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:55;display:none}
   #awtut .spot{position:absolute;border:4px solid #ffcf4a;border-radius:22px;box-shadow:0 0 0 2400px rgba(5,8,20,.72),0 0 26px rgba(255,207,74,.7);transition:all .35s}
   #awtut .bub{position:absolute;left:40px;width:640px;box-sizing:border-box;background:rgba(14,20,48,.97);border:3px solid #ffcf4a;border-radius:20px;padding:20px 24px;font-size:30px;font-weight:700;line-height:1.35;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.4)}
@@ -331,16 +350,56 @@ capL.className = capR.className = 'awcap';
 const censusEl = el('div', 'awcensus'), zoomPill = el('div', 'awzoom'), sheetBg = el('div', 'awsheetbg'), sheetEl = el('div', 'awsheet');
 if (editMode) censusEl.style.display = 'none';
 const bot = el('div', 'awbot'), tagEl = el('div', 'awtag', bot), row1 = el('div', 'awrow1', bot), row2 = el('div', 'awrow2', bot);
-const infoEl = el('div', 'awinfo'), toastEl = el('div', 'awtoast');
-new MutationObserver(() => bot.classList.toggle('compact', infoEl.style.display === 'block')).observe(infoEl, { attributes: true, attributeFilter: ['style'] });      // an open info panel shrinks the dock to its tabs
+const infoEl = el('div', 'awinfo'), toastBox = el('div', 'awtoasts');
+new MutationObserver(() => { const on = infoEl.style.display === 'block'; bot.classList.toggle('compact', on); if (!on) infoEl.classList.remove('tall'); }).observe(infoEl, { attributes: true, attributeFilter: ['style'] });
+let shDrag = null;                                             // sheet handle: tap = half/full height, drag down = dismiss
+infoEl.addEventListener('pointerdown', e => {
+  const r = infoEl.getBoundingClientRect(), k = r.height / infoEl.offsetHeight || 1;
+  if ((e.clientY - r.top) / k > 44 || e.target.closest('button,[data-act]')) return;
+  shDrag = { y0: e.clientY, k };
+});
+window.addEventListener('pointerup', e => {
+  if (!shDrag) return; const dy = (e.clientY - shDrag.y0) / shDrag.k; shDrag = null;
+  if (dy > 70) closeCreature(); else if (Math.abs(dy) < 12) infoEl.classList.toggle('tall');
+});      // an open info panel shrinks the dock to its tabs
 
 function mkBtn(parent, label, fn, cls) {
   const b = document.createElement('button'); b.className = 'awb' + (cls ? ' ' + cls : ''); b.textContent = label;
   b.addEventListener('click', e => { e.stopPropagation(); fn(b); });
   parent.appendChild(b); return b;
 }
-let toastT = 0;
-function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => toastEl.style.opacity = 0, 1500); }
+const toastLive = new Map();                                   // visible toasts by text: repeats count up instead of piling up
+function toastKind(s) {
+  if (/⚔|☠|💀|🔥|☄|🌋|🪨|⚡|collapsed|fell to|extinct|killed|sunk|sank|attack|dragged|smashed|lost at sea/i.test(s)) return 'bad';
+  if (/🏆|✨|🙏|🕊|🤝|🏝|New colony|back in service|raised|Goal reached|slain/i.test(s)) return 'good';
+  if (/🪙|🏦|🎒|sold/i.test(s)) return 'gold';
+  if (/🦈|🐙|🐟|⚓|🌊|🎣/.test(s)) return 'sea';
+  return 'info';
+}
+function dropToast(s) { const it = toastLive.get(s); if (!it) return; toastLive.delete(s); it.el.classList.add('out'); setTimeout(() => it.el.remove(), 260); }
+function toast(s) {
+  s = String(s); let it = toastLive.get(s);
+  if (it) { it.n++; it.el.querySelector('.x2').textContent = '×' + it.n; it.el.classList.remove('pop'); void it.el.offsetWidth; it.el.classList.add('pop'); clearTimeout(it.t); }
+  else {
+    const d = document.createElement('div'); d.className = 'tp ' + toastKind(s); d.innerHTML = '<span class="tt"></span><span class="x2"></span>'; d.firstChild.textContent = s;
+    toastBox.appendChild(d); it = { el: d, n: 1, t: 0 }; toastLive.set(s, it);
+    const live = [...toastLive.keys()]; if (live.length > 3) dropToast(live[0]);
+  }
+  it.t = setTimeout(() => dropToast(s), 2400);
+}
+let bannerEl = null, bannerT = 0;
+function banner(icon, title, sub, kind) {                      // big, rare messages: disasters, wars, the kraken
+  if (!bannerEl || !bannerEl.isConnected) { bannerEl = document.createElement('div'); toastBox.prepend(bannerEl); }
+  bannerEl.className = 'bn ' + (kind || 'bad'); bannerEl.innerHTML = '<span class="bi"></span><span class="bx"><b></b><small></small></span>';
+  bannerEl.querySelector('.bi').textContent = icon; bannerEl.querySelector('b').textContent = title; bannerEl.querySelector('small').textContent = sub || '';
+  clearTimeout(bannerT); const me = bannerEl; bannerT = setTimeout(() => { me.classList.add('out'); setTimeout(() => me.remove(), 320); }, 3600);
+}
+function majorBanner(icon, text) {
+  const ic = String(icon).replace(/\uFE0F/g, ''); let t = null;
+  if (ic === '🌋') t = 'Eruption!'; else if (ic === '☄') t = 'Meteor strike!'; else if (ic === '🪨') t = 'Earthquake!';
+  else if (ic === '🌊' && /flood/i.test(text)) t = 'Flood!'; else if (ic === '☠' && /extinct/.test(text)) t = 'Extinction'; else if (ic === '⚔' && /declared war/.test(text)) t = 'War!'; else if (ic === '🏚' && /collapsed/.test(text)) t = 'Kingdom falls';
+  if (t) banner(icon, t, text, 'bad');
+}
 
 /* ============================== STATE ============================== */
 let tiles, bld, fire, jit;            // allocated by setSize()
@@ -1398,14 +1457,14 @@ function summonKraken(x, y, manual) {
   if (!krakenOk(x, y)) return null;
   const k = { id: nextKrakenId++, x, y, tx: x, ty: y, hd: 1, hp: KRAKEN_HP, st: 0, t: 0, life: manual ? 2400 : 1800, manual: !!manual, cd: 120, kills: 0, atk: null, dock: manual || Math.random() < .6, ph: ri(0, 63) };
   krakens.push(k); fx('boom', x, y, { r: 4 }); krakenRoar(x, y); haptic('warning'); shakeT = 14;
-  addChronicle('🐙', manual ? 'A kraken was summoned from the abyss' : 'A kraken has risen from the deep!'); toast('🐙 A kraken rises!');
+  addChronicle('🐙', manual ? 'A kraken was summoned from the abyss' : 'A kraken has risen from the deep!'); banner('🐙', 'Kraken!', manual ? 'Summoned from the abyss' : 'A kraken rises from the deep', 'bad');
   return k;
 }
 function krakenHit(x, y, r, dmg) {                              // smite, lightning and meteors hurt it; 320 health in all
   for (const k of krakens) {
     if (k.st === 2 || (k.x - x) ** 2 + (k.y - y) ** 2 > (r + 2) ** 2) continue;
     k.hp -= dmg; emit('bit', k.x, k.y - 1, 10, { col: '#e8a0ff' });
-    if (k.hp <= 0) { k.st = 2; k.t = 0; k.atk = null; krakenCd = 16000 + ri(0, 8000); fx('boom', Math.round(k.x), Math.round(k.y), { r: 4 }); toast('🐙 The kraken was slain!'); addChronicle('🐙', 'The kraken was slain'); }
+    if (k.hp <= 0) { k.st = 2; k.t = 0; k.atk = null; krakenCd = 16000 + ri(0, 8000); fx('boom', Math.round(k.x), Math.round(k.y), { r: 4 }); banner('🐙', 'Kraken slain!', 'The sea is safe, for now', 'good'); addChronicle('🐙', 'The kraken was slain'); }
   }
 }
 function krakenAttack(k) {
@@ -1418,7 +1477,7 @@ function krakenAttack(k) {
     fx('boom', Math.round(a.ref.x), Math.round(a.ref.y), { r: 3 });
   } else {
     const kg = kingdoms.get(a.kid); fx('boom', a.tx, a.ty, { r: 3 }); emit('debris', a.tx, a.ty, 20); emit('dust', a.tx, a.ty, 10, { sx: 2 }); shakeT = 16; haptic('thud');
-    if (kg) { kg.wood = Math.max(0, (kg.wood | 0) - 25); kg.voyageCd = Math.max(kg.voyageCd || 0, tick + 3000); addChronicle('🐙', `The kraken smashed the harbor of ${kg.name}`); toast(`🐙 The harbor of ${kg.name} was smashed`); }
+    if (kg) { kg.wood = Math.max(0, (kg.wood | 0) - 25); kg.voyageCd = Math.max(kg.voyageCd || 0, tick + 3000); addChronicle('🐙', `The kraken smashed the harbor of ${kg.name}`); banner('🐙', 'Harbor smashed', `The harbor of ${kg.name} was destroyed`, 'bad'); }
     for (const c of creatures) if (Math.abs(c.x - a.tx) <= 3 && Math.abs(c.y - a.ty) <= 3) c.hp -= 15;
   }
 }
@@ -4453,7 +4512,7 @@ function civScore() {                                        // population, hous
 }
 function addChronicle(icon, text) {
   if (editMode || !text) return;
-  chronicle.unshift({ tick, icon, text: String(text) });
+  chronicle.unshift({ tick, icon, text: String(text) }); if (started) majorBanner(icon, String(text));
   if (chronicle.length > CHRONICLE_MAX) chronicle.length = CHRONICLE_MAX;
   dirty = true;
   const body = infoEl.querySelector('.jbody');
