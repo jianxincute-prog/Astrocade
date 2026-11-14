@@ -32,10 +32,10 @@ const LADDER = [T.DEEP, T.SHALLOW, T.SAND, T.GRASS, T.HILL, T.MOUNTAIN, T.SNOW];
 const FLAM = [0,0,0,0.07,0.22,0,0,0,0,0];
 
 const RACES = {
-  human: { col:'#4aa3ff', hp:30, dmg:4, mv:2, civ:1, cap:90, life:[1000,1700], foes:['orc','wolf'], build:[T.GRASS,T.SAND], bi:1 },
-  elf:   { col:'#e2a9ff', hp:24, dmg:4, mv:2, civ:1, cap:70, life:[1800,2800], foes:['orc','wolf'], build:[T.FOREST,T.GRASS], bi:2 },
-  dwarf: { col:'#ff9a2e', hp:38, dmg:5, mv:3, civ:1, cap:70, life:[1400,2200], foes:['orc','wolf'], build:[T.HILL,T.GRASS], bi:3 },
-  orc:   { col:'#ff3d3d', hp:44, dmg:6, mv:2, civ:1, cap:80, life:[800,1300],  foes:['human','elf','dwarf'], build:[T.GRASS,T.HILL,T.BURNT,T.SAND], bi:4 },
+  human: { col:'#4aa3ff', hp:30, dmg:4, mv:2, civ:1, cap:90, life:[1000,1700], foes:['wolf'], build:[T.GRASS,T.SAND], bi:1 },
+  elf:   { col:'#e2a9ff', hp:24, dmg:4, mv:2, civ:1, cap:70, life:[1800,2800], foes:['wolf'], build:[T.FOREST,T.GRASS], bi:2 },
+  dwarf: { col:'#ff9a2e', hp:38, dmg:5, mv:3, civ:1, cap:70, life:[1400,2200], foes:['wolf'], build:[T.HILL,T.GRASS], bi:3 },
+  orc:   { col:'#ff3d3d', hp:44, dmg:6, mv:2, civ:1, cap:80, life:[800,1300],  foes:[], build:[T.GRASS,T.HILL,T.BURNT,T.SAND], bi:4 },
   // Werewolves: evolved wolves. Neutral (nobody's foe, hates nobody) and slow-growing: few houses, rare births, long lives.
   werewolf: { col:'#5ef0ff', hp:40, dmg:6, mv:2, civ:1, cap:36, life:[2500,4000], foes:[], build:[T.FOREST,T.HILL,T.GRASS], bi:5, buildP:.002, spawnP:.0004 },
   // Wild fauna. prey = wolf food; br = breeding (p per move, tiles, max animals per 8x8 cell); flee = runs from wolves.
@@ -118,8 +118,8 @@ style.textContent = `
   .awb.on{background:#34457f;border-color:#ffcf4a}
   #awtop{position:absolute;left:0;top:0;width:720px;height:150px;background:#141b33;border-bottom:3px solid #2c3868}
   #awbtns{position:absolute;left:6px;top:4px;display:flex;gap:8px}
-  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:3px;align-items:center;font-size:17px;overflow-x:auto;scrollbar-width:none;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 4px;flex:0 0 auto}
+  #awstats{position:absolute;left:10px;top:104px;right:10px;height:40px;display:flex;gap:2px;align-items:center;font-size:16px;overflow-x:auto;scrollbar-width:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #awstats span{background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:1px 3px;flex:0 0 auto}
   #awyear{position:absolute;right:10px;top:30px;font-size:30px;background:#1d2646;border:2px solid #2c3868;border-radius:999px;padding:4px 16px;font-variant-numeric:tabular-nums}
   #awbot{position:absolute;left:0;top:1064px;width:720px;height:216px;background:#141b33;border-top:3px solid #2c3868;padding:8px 8px;box-sizing:border-box}
   #awrow1{display:flex;gap:8px;align-items:center}
@@ -155,6 +155,9 @@ function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTim
 let tiles, bld, fire, jit;            // allocated by setSize()
 let kid, own, ownRace, ownEdge, ownScore;      // kingdom id per house tile / territory map (allocated by setSize())
 const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
+let comp = null, compDirty = true;                 // connected land components (wars only happen on the same landmass)
+const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
+const warStats = { declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
 let creatures = [], nextId = 1, tick = 0;
 let speed = 1, paused = editMode;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
@@ -434,7 +437,7 @@ function forDisc(cx, cy, r, fn) {
   }
 }
 function setTile(i, t) {
-  tiles[i] = t;
+  tiles[i] = t; compDirty = true;
   if (t <= T.SHALLOW || t === T.LAVA) { fire[i] = 0; bld[i] = 0; }
   else if (t === T.MOUNTAIN || t === T.SNOW) bld[i] = 0;
   dirty = true;
@@ -492,10 +495,12 @@ function fleeFrom(c, foes, rad) {
 function findTarget(c) {
   const R = RACES[c.t]; let rad = 8, foes = R.foes;
   if (R.hunt) { if (c.en > 75) return null; rad = 22; if (c.en < 45) foes = ['sheep','rabbit','deer','human','elf','dwarf']; }
-  if (!foes.length) return null;
-  if (R.civ && foes.includes('wolf')) {            // settlers only fight wolves that come close
-    return findNearest(c, foes.filter(f => f !== 'wolf'), rad) || findNearest(c, ['wolf'], 2);
+  if (R.civ) {                                          // settlers fight their kingdom's enemies, and wolves that come close
+    const ka = c.k ? kingdoms.get(c.k) : null;
+    const e = ka && ka.enemies.size ? findEnemy(c, ka, (c.lead || isSoldier(c)) ? 12 : 8) : null;
+    return e || (R.foes.includes('wolf') ? findNearest(c, ['wolf'], 2) : null);
   }
+  if (!foes.length) return null;
   return findNearest(c, foes, rad);
 }
 function countHouses(x, y, r, owner) {
@@ -545,15 +550,27 @@ function stepCreature(c) {
     if (R.hunt && c.en > 40 && fleeFrom(c, CIVS, 5)) return;              // fed wolves keep away from settlements
   }
   if (R.civ) {
-    if (Math.random() < .3) {
-      for (let k = 1; k < 9; k++) {
-        const nx = c.x + DIRS[k][0], ny = c.y + DIRS[k][1];
-        if (!inb(nx, ny)) continue;
-        const o = bld[nx + ny*W];
-        if (o && R.foes.includes(BUILD_OWNER[o]) && Math.random() < .4) {
-          bld[nx + ny*W] = 0; fx('hit', nx, ny); dirty = true;
-          const kk = c.k ? kingdoms.get(c.k) : null; if (kk && kk.mod.loot) { kk.wood += 6; kk.stone += 3; }
+    const ka = c.k ? kingdoms.get(c.k) : null;
+    if (ka && ka.enemies.size) {
+      if (Math.random() < .3) {                                           // enemy houses next to us are captured (orcs raze and loot them)
+        for (let k = 1; k < 9; k++) {
+          const nx = c.x + DIRS[k][0], ny = c.y + DIRS[k][1];
+          if (!inb(nx, ny)) continue;
+          const j = nx + ny*W;
+          if (!bld[j]) continue;
+          const ke = kingdoms.get(kid[j]);
+          if (!ke || !ka.enemies.has(ke.id) || Math.random() > .4) continue;
+          fx('hit', nx, ny); dirty = true;
+          if (c.t === 'orc') { bld[j] = 0; kid[j] = 0; warStats.razed++; ka.wood += 4; ka.stone += 2; if (ka.mod.loot) { ka.wood += 6; ka.stone += 3; } }
+          else { bld[j] = R.bi; kid[j] = ka.id; warStats.captured++; ka.gold += 3; ka.wood += 2; }
           break;
+        }
+      }
+      if ((c.lead || isSoldier(c)) && ka.front >= 0) {                    // soldiers march on the enemy
+        const fx0 = ka.front % W, fy0 = (ka.front / W) | 0;
+        if (Math.max(Math.abs(fx0 - c.x), Math.abs(fy0 - c.y)) > 2) {
+          const sx = Math.sign(fx0 - c.x), sy = Math.sign(fy0 - c.y);
+          if (tryMove(c, c.x + sx, c.y + sy) || tryMove(c, c.x + sx, c.y) || tryMove(c, c.x, c.y + sy)) return;
         }
       }
     }
@@ -615,6 +632,119 @@ function wolfPack() {
   }
   return false;
 }
+/* ---- war & diplomacy ---- */
+const AGGR = { orc:.04, human:.012, dwarf:.008, elf:.005, werewolf:0 };            // chance per evaluation that a kingdom picks a fight with a neighbour
+const SOLDIER_PCT = { orc:55, human:30, dwarf:35, elf:25, werewolf:45 };
+const FRIENDS = new Set(['human:elf', 'elf:human', 'human:dwarf', 'dwarf:human', 'elf:dwarf', 'dwarf:elf']);
+const rkey = (a, b) => a < b ? a*65536 + b : b*65536 + a;
+const isSoldier = c => ((c.id * 2654435761) >>> 0) % 100 < SOLDIER_PCT[c.t];
+const kpower = k => (k.pop + 2) * (1 + .2*k.level) * k.mod.atk * k.mod.def;
+let lastWarToast = -1e9;
+function computeComps() {
+  comp.fill(0); let id = 0; const stack = new Int32Array(N);
+  const ok = t => t >= T.SAND && t !== T.LAVA && t !== T.MOUNTAIN && t !== T.SNOW;
+  for (let i = 0; i < N; i++) {
+    if (comp[i] || !ok(tiles[i])) continue;
+    id++; let sp = 0; stack[sp++] = i; comp[i] = id;
+    while (sp) {
+      const j = stack[--sp], x = j % W, y = (j / W) | 0;
+      for (let d = 1; d < 9; d++) {
+        const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
+        if (!inb(nx, ny)) continue;
+        const ni = nx + ny*W;
+        if (!comp[ni] && ok(tiles[ni])) { comp[ni] = id; stack[sp++] = ni; }
+      }
+    }
+  }
+  compDirty = false;
+}
+function rebuildRelations() {
+  for (const k of kingdoms.values()) { k.enemies.clear(); k.allies.clear(); }
+  for (const [key, r] of rels) {
+    const a = kingdoms.get(Math.floor(key / 65536)), b = kingdoms.get(key % 65536);
+    if (!a || !b) continue;
+    if (r.s === 1) { a.enemies.add(b.id); b.enemies.add(a.id); }
+    else if (r.s === 2) { a.allies.add(b.id); b.allies.add(a.id); }
+  }
+}
+function warToast(a, b, joined) {
+  if (tick - lastWarToast < 24) return;                                          // at most one message every ~3 s
+  if (a.level < 1 && b.level < 1) return;
+  lastWarToast = tick;
+  if (b.race === 'werewolf' && !joined) toast(`🌕 ${b.name} tidak lagi netral!`);
+  else toast(`${EMOJI[a.race]}${a.name} ⚔️ ${EMOJI[b.race]}${b.name}`);
+}
+function declareWar(a, b, joined) {
+  rels.set(rkey(a.id, b.id), { s: 1, t: tick, until: 0 });
+  warStats.declared++; if (joined) warStats.joined++; else { warStats['by_' + a.race] = (warStats['by_' + a.race] || 0) + 1; if (b.race === 'werewolf') warStats.vs_werewolf = (warStats.vs_werewolf || 0) + 1; }
+  rebuildRelations(); warToast(a, b, joined); haptic('warning');
+  fx('warcry', a.cap % W, (a.cap / W) | 0); fx('warcry', b.cap % W, (b.cap / W) | 0);
+  if (joined) return;
+  for (const cid of b.allies) { const c = kingdoms.get(cid); if (c && c !== a && !rels.has(rkey(c.id, a.id)) && comp[c.cap] === comp[a.cap] && Math.random() < .7) declareWar(c, a, true); }
+  for (const cid of a.allies) { const c = kingdoms.get(cid); if (c && c !== b && !rels.has(rkey(c.id, b.id)) && comp[c.cap] === comp[b.cap] && Math.random() < .4) declareWar(c, b, true); }
+}
+function endWar(a, b) {
+  rels.set(rkey(a.id, b.id), { s: 3, t: tick, until: tick + 4000 });            // truce before they may fight again
+  warStats.ended++; rebuildRelations();
+  if (tick - lastWarToast >= 24 && (a.level >= 1 || b.level >= 1)) { lastWarToast = tick; toast(`🕊️ ${a.name} & ${b.name}`); }
+}
+function diplomacyTick() {                                                       // every ~10 seconds
+  if (compDirty) computeComps();
+  let changed = false;
+  for (const [key, r] of rels) {                                                 // wars end, truces expire, dead kingdoms vanish from the books
+    const a = kingdoms.get(Math.floor(key / 65536)), b = kingdoms.get(key % 65536);
+    if (!a || !b) { rels.delete(key); changed = true; continue; }
+    if (r.s === 3 && tick > r.until) { rels.delete(key); continue; }
+    if (r.s === 1) {
+      const beaten = (k) => k.houses <= 1 || k.pop <= 2;
+      const age = tick - r.t;
+      if (beaten(a) || beaten(b)) { endWar(a, b); changed = true; }
+      else if (age > 1200 && Math.random() < Math.min(.25, (age - 1200) / 12000)) { endWar(a, b); changed = true; }     // war weariness
+    }
+  }
+  const ks = [...kingdoms.values()];
+  for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) {
+    const a = ks[i], b = ks[j];
+    if (rels.has(rkey(a.id, b.id))) continue;
+    if (comp[a.cap] !== comp[b.cap] || !comp[a.cap]) continue;                   // different landmass: no contact
+    const ra = 6 + a.level*3 + a.mod.radius, rb = 6 + b.level*3 + b.mod.radius;
+    const dist = Math.hypot(a.cx - b.cx, a.cy - b.cy);
+    if (dist > ra + rb + 14) continue;
+    const overlap = dist < ra + rb ? 2 : 1;
+    if (FRIENDS.has(a.race + ':' + b.race) && Math.random() < .03) {            // friendly races sign alliances
+      rels.set(rkey(a.id, b.id), { s: 2, t: tick, until: 0 }); warStats.allied++; changed = true; continue;
+    }
+    for (const [x, y] of [[a, b], [b, a]]) {                                     // x may attack y
+      if (x.pop < (x.race === 'orc' ? 6 : 8) || (x.level < 1 && x.race !== 'orc') || x.enemies.size >= 1) continue;
+      const ratio = Math.max(.4, Math.min(2.5, kpower(x) / kpower(y)));
+      const friendly = FRIENDS.has(x.race + ':' + y.race) ? .3 : 1;
+      if (Math.random() < AGGR[x.race] * ratio * overlap * friendly) { declareWar(x, y, false); changed = true; break; }
+    }
+  }
+  if (changed) rebuildRelations();
+}
+function updateFronts() {                                                         // where each kingdom's soldiers march
+  for (const k of kingdoms.values()) {
+    k.front = -1; if (!k.enemies.size) continue;
+    let bd = 1e9;
+    for (const eid of k.enemies) { const e = kingdoms.get(eid); if (!e) continue; const d = (e.cx - k.cx)**2 + (e.cy - k.cy)**2; if (d < bd) { bd = d; k.front = e.cap; } }
+  }
+}
+function findEnemy(c, ka, rad) {
+  const cx = c.x >> 3, cy = c.y >> 3, cr = Math.ceil(rad/8);
+  let best = null, bd = 1e9;
+  for (let gy = Math.max(0, cy-cr); gy <= Math.min(GH-1, cy+cr); gy++)
+    for (let gx = Math.max(0, cx-cr); gx <= Math.min(GW-1, cx+cr); gx++) {
+      const list = cells[gy*GW + gx];
+      for (let k = 0; k < list.length; k++) {
+        const o = list[k];
+        if (o.hp <= 0 || !o.k || !ka.enemies.has(o.k)) continue;
+        const d = Math.max(Math.abs(o.x - c.x), Math.abs(o.y - c.y));
+        if (d < bd && d <= rad) { bd = d; best = o; }
+      }
+    }
+  return best;
+}
 /* ---- kingdoms ---- */
 function defaultMod() { return { food:1, wood:1, stone:1, gold:1, birth:1, atk:1, def:1, houses:0, radius:0, range:1, night:0, loot:0, steal:0, regen:0, fire:0, farms:0, walls:0, grow:0 }; }
 const ADD = new Set(['houses', 'radius']), MAXED = new Set(['range', 'night', 'loot', 'steal', 'regen', 'fire', 'farms', 'walls', 'grow']);
@@ -669,7 +799,7 @@ function grantTech(k) {                                    // divine gift: the n
 function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
 function newKingdom(race, x, y) {
   const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
-              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
@@ -705,7 +835,7 @@ function economy() {                                      // once per second
     const E = ECO[k.race];
     if (redo || (!k.g && !k.f && !k.m)) terrainStats(k);
     const M = k.mod;
-    k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food - k.pop*.18);     // elves forage the forest
+    k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food - k.pop*.18 * (1 + .15 * k.enemies.size));     // elves forage the forest; war strains the food supply
     k.wood = Math.min(250, k.wood + k.f*.012*E.w*M.wood);
     k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone);                 // quarries / trade even far from hills
     k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g*M.gold);
@@ -816,10 +946,12 @@ function step() {
   }
   for (const i of spread) ignite(i);
   for (const k of kingdoms.values()) {                               // collapse empty kingdoms, re-centre the rest
-    if (k.houses === 0) { kingdoms.delete(k.id); ownDirty = true; continue; }
+    if (k.houses === 0) { kingdoms.delete(k.id); ownDirty = true; warStats.collapsed = (warStats.collapsed || 0) + 1; continue; }
     k.cx = k.sx / k.houses; k.cy = k.sy / k.houses; k.cap = k.nb;
   }
   if (tick % 8 === 0) economy();
+  if (tick % 16 === 0) updateFronts();
+  if (tick % 80 === 0) diplomacyTick();
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -878,7 +1010,7 @@ function setSize(idx) {
   W = z.w; H = z.h; N = W * H; CAPK = z.k;
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
   kid = new Uint16Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
-  kingdoms.clear(); nextKid = 1; ownDirty = true;
+  kingdoms.clear(); rels.clear(); nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
   creatures = []; effects.length = 0; counts = {}; houseCount = 0; hb = [0,0,0,0,0,0];
@@ -936,6 +1068,15 @@ function draw() {
   SPR_K = Math.max(1, Math.round(sc / 6));
   const nightA = cfg.settings.dayNight ? Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2)) * .38 : 0;
   if (sc >= 5) {
+    if (showBorders) {                                                        // dashed red lines between capitals of warring kingdoms
+      ctx.strokeStyle = 'rgba(255,70,70,.45)'; ctx.lineWidth = Math.max(1.5, sc*.3); ctx.setLineDash([sc*.9, sc*.6]);
+      for (const [key, r] of rels) {
+        if (r.s !== 1) continue;
+        const wa = kingdoms.get(Math.floor(key / 65536)), wb = kingdoms.get(key % 65536); if (!wa || !wb) continue;
+        ctx.beginPath(); ctx.moveTo(ox + ((wa.cap % W) + .5)*sc, oy + (((wa.cap / W) | 0) + .5)*sc); ctx.lineTo(ox + ((wb.cap % W) + .5)*sc, oy + (((wb.cap / W) | 0) + .5)*sc); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
     for (const kw of kingdoms.values()) if (kw.mod.walls) {                // stone wall ring around the capital
       const wx = kw.cap % W, wy = (kw.cap / W) | 0;
       if (wx < x0 - 5 || wx > x1 + 5 || wy < y0 - 5 || wy > y1 + 5) continue;
@@ -972,6 +1113,10 @@ function draw() {
         ctx.fillStyle = '#2a2018'; ctx.fillRect(fx0, top - 7*K, K, 8*K);
         ctx.fillStyle = RACES[kg.race].col; ctx.fillRect(fx0 + K, top - 7*K, 5*K, 3*K); ctx.fillRect(fx0 + K, top - 4*K, 3*K, K);
         ctx.fillStyle = '#ffd23f'; for (let l = 0; l < kg.level; l++) ctx.fillRect(fx0 + K*(1 + l*2), top - 8*K, K, K);
+      }
+      if (isCap && kg.enemies.size) {                                            // at war: crossed swords over the capital
+        ctx.save(); ctx.font = `${Math.max(14, SPR_K*7)}px sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = .75 + .25*Math.sin(frame*.15);
+        ctx.fillText('⚔️', cx, hy - SPR_K*11); ctx.restore();
       }
       if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(hx + hw*.2, hy + hh*.2, hw*.6, hh*.55); }
     }
@@ -1066,6 +1211,11 @@ function drawEffects() {
         ctx.drawImage(sp, -sw/2, -sh, sw, sh);
       }
       ctx.restore();
+    } else if (e.k === 'warcry') {
+      life = 40; const p = e.t / life;
+      ctx.strokeStyle = `rgba(255,60,60,${1 - p})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(px, py, sc*(1 + p*6), 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, sc*(.5 + p*3), 0, 7); ctx.stroke();
     } else if (e.k === 'arrow') {
       life = 8; const p = e.t / life;
       const ax = ox + (e.x + .5)*sc, ay = oy + (e.y + .5)*sc, bx = ox + (e.tx + .5)*sc, by = oy + (e.ty + .5)*sc;
@@ -1205,9 +1355,14 @@ function applyTool(wx, wy) {
 }
 
 let infoT = 0;
+function relLine(k) {
+  const nm = set => [...set].map(id => kingdoms.get(id)).filter(Boolean).slice(0, 2).map(o => EMOJI[o.race] + o.name).join(', ');
+  const en = nm(k.enemies), al = nm(k.allies);
+  return (en ? `<br>⚔️ ${en}` : '') + (al ? `<br>🤝 ${al}` : '');
+}
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🔬 ${ic || '–'}${rs}`;
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🔬 ${ic || '–'}${rs}${relLine(k)}`;
 }
 function inspectAt(wx, wy) {
   const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa', werewolf:'Manusia serigala' };
@@ -1359,12 +1514,13 @@ function serialize() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 6, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick,
+  return { v: 7, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick,
+    rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length]),
     cr: creatures.map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
 }
 function restore(s) {
-  if (!s || !(s.v >= 1 && s.v <= 6)) return false;
+  if (!s || !(s.v >= 1 && s.v <= 7)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
   currentSeed = s.seed || 0; tick = s.tick || 0;
@@ -1379,6 +1535,8 @@ function restore(s) {
     recalcMods(k);
     ids.push(k.id);
   }
+  for (const [ia, ib, st, t0, un] of s.rl || []) { const ka = ids[ia - 1], kb = ids[ib - 1]; if (ka && kb) rels.set(rkey(ka, kb), { s: st, t: t0, until: un }); }
+  rebuildRelations();
   if (s.bk) hl.forEach((i, j) => { if (i >= 0) kid[i] = ids[(s.bk[j] || 0) - 1] || 0; });      // 0 -> the next tick founds/joins one
   for (const v of s.cr || []) {
     let ti, x, y, age = -1;
@@ -1448,7 +1606,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, warStats, declareWar, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
