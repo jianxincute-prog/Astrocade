@@ -152,6 +152,10 @@ style.textContent = `
   #awinfo .bar{display:flex;align-items:center;gap:8px;font-size:22px;margin:3px 0;clear:both}
   #awinfo .bar u{display:block;flex:1;height:14px;background:#0b1020;border:2px solid #2c3868;border-radius:7px;overflow:hidden;text-decoration:none}
   #awinfo .bar u i{display:block;height:100%}
+  #awinfo .seeds{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;clear:both}
+  #awinfo .seed{min-height:118px;border-radius:14px;border:3px solid #2c3868;background:linear-gradient(#26305c,#161c3c);color:#e8ecff;font-family:inherit;text-align:left;padding:10px 14px;cursor:pointer}
+  #awinfo .seed b{display:block;font-size:30px}
+  #awinfo .seed small{display:block;font-size:19px;line-height:1.25;color:#aab4e0;margin-top:4px}
   #awinfo .row{font-size:24px;margin-top:4px;clear:both}
   #awinfo .tag.t{background:#3a2a5c;color:#ffe9a0}
   #awinfo .eq{display:flex;gap:8px;margin:6px 0;clear:both}
@@ -295,7 +299,223 @@ function generateLarge(seed) {
     tiles[i] = t;
   }
 }
-function generate(seed) { if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
+/* ============================== EMPTY ISLAND SEEDS (terrain only, no life) ============================== */
+// Islands are described in lon/lat (polygons or ellipses [lon, lat, rx°, ry°, rotation°]) and rasterised with noise-roughened coasts,
+// ridges for mountains, shelves for shallow seas, and named volcano sites. Presets with a custom `gen` build their own terrain.
+const E = (lon, lat, rx, ry, rot, o) => Object.assign({ e: [lon, lat, rx, ry, rot || 0] }, o || {});
+const PL = (pts, o) => Object.assign({ pts }, o || {});
+const PRESETS = [
+  { id: 'indonesia', name: 'Indonesia', desc: 'The Indonesian archipelago: Sumatra, Java, Borneo, Sulawesi, Papua and the Lesser Sundas', w: 336, h: 136, k: 2.6, box: [94.0, 7.4, 6.8], shore: 3, cam: [110.4, -7.5],
+    islands: [
+      PL([[95.25,5.55],[96.2,5.55],[97.3,5.25],[98.2,4.35],[98.8,3.9],[99.6,3.3],[100.4,2.6],[101.2,2.0],[102.0,1.45],[102.9,0.9],[103.6,0.3],[103.8,-0.6],[104.1,-1.1],[104.6,-1.9],[104.9,-2.7],[105.4,-3.5],[105.9,-4.5],[105.8,-5.4],[105.5,-5.9],[104.9,-5.9],[104.5,-5.4],[103.9,-4.9],[103.3,-4.3],[102.5,-4.0],[102.2,-3.4],[101.6,-2.9],[101.0,-2.2],[100.6,-1.4],[100.3,-0.8],[99.7,-0.1],[99.2,0.6],[98.8,1.3],[98.3,2.0],[97.7,2.6],[97.0,3.2],[96.2,3.9],[95.5,4.7]], { fo: .8 }),
+      PL([[105.2,-6.75],[105.8,-6.05],[106.4,-5.95],[106.9,-6.05],[107.4,-6.0],[108.3,-6.3],[108.7,-6.8],[109.5,-6.85],[110.5,-6.9],[111.0,-6.6],[111.6,-6.55],[112.2,-6.9],[112.8,-7.2],[113.4,-7.6],[114.2,-7.8],[114.5,-8.2],[114.2,-8.7],[113.2,-8.3],[112.2,-8.35],[111.2,-8.3],[110.2,-8.05],[109.2,-7.7],[108.4,-7.8],[107.5,-7.75],[106.6,-7.4],[105.9,-6.95]], { fo: .45, mh: .95 }),
+      PL([[109.0,1.9],[109.6,2.1],[110.2,1.7],[111.2,2.6],[111.9,3.0],[113.0,3.6],[113.9,4.5],[114.6,5.0],[115.2,5.4],[115.9,6.1],[116.7,6.9],[117.2,6.6],[118.0,6.3],[118.6,5.8],[119.2,5.3],[118.9,4.6],[118.1,4.5],[117.7,4.0],[117.5,3.2],[118.0,2.5],[118.0,1.7],[117.9,1.0],[117.7,0.4],[117.5,-0.1],[117.3,-0.9],[116.9,-1.4],[116.6,-2.1],[116.4,-2.9],[116.2,-3.5],[115.9,-3.9],[115.2,-3.9],[114.6,-4.0],[113.8,-3.4],[113.0,-3.3],[112.2,-3.4],[111.5,-3.2],[110.9,-3.0],[110.5,-2.5],[110.2,-1.5],[109.9,-0.6],[109.3,-0.1],[109.0,0.4],[108.9,1.0],[108.9,1.5]], { fo: .85 }),
+      PL([[131.0,-0.85],[132.0,-0.35],[133.2,-0.55],[134.1,-0.85],[134.2,-2.0],[134.6,-3.2],[135.4,-3.35],[136.5,-2.7],[137.6,-1.75],[138.5,-1.7],[139.4,-2.3],[140.3,-2.4],[141.0,-2.6],[142.0,-3.0],[142.0,-9.0],[141.0,-9.1],[140.2,-8.5],[139.2,-8.1],[138.4,-8.3],[137.9,-7.4],[137.8,-5.8],[137.3,-5.0],[136.3,-4.4],[135.2,-4.2],[134.2,-3.95],[133.7,-3.6],[133.3,-3.3],[132.9,-3.9],[132.2,-3.5],[131.8,-2.8],[131.2,-2.2],[130.9,-1.5]], { fo: .85, snow: 1, mh: 1.0 }),
+      PL([[123.5,-10.3],[124.0,-9.5],[124.4,-9.0],[125.0,-8.85],[125.9,-8.4],[126.6,-8.4],[127.2,-8.35],[127.0,-8.8],[126.3,-9.0],[125.8,-9.4],[125.0,-9.9],[124.4,-10.25],[123.9,-10.4]], { fo: .35 }),
+      E(123.2, 0.85, 2.1, .28, 5), E(124.8, 1.35, .45, .3), E(119.9, -1.8, .6, 2.0, 8), E(122.3, -1.0, 1.4, .3, -6), E(122.3, -4.0, 1.1, .45, -35), E(119.7, -4.5, .45, 1.2), E(121.0, -2.2, .7, .9),
+      E(128.2, 1.5, .35, .65, 8), E(128.3, .4, .45, .35), E(128.0, -.4, .4, .35, 20), E(128.4, 2.35, .3, .28), E(127.35, .8, .12, .12), E(127.5, -.6, .3, .2),
+      E(115.15, -8.35, .5, .33), E(116.45, -8.55, .45, .4), E(117.7, -8.6, 1.1, .45, -4), E(119.5, -8.6, .2, .15), E(121.5, -8.55, 1.55, .3, 3), E(123.0, -8.4, .3, .15), E(123.5, -8.4, .25, .2), E(124.5, -8.3, .3, .25), E(124.1, -8.4, .15, .2), E(120.0, -9.7, .9, .45, 20), E(121.9, -10.5, .2, .1), E(123.1, -10.7, .25, .15),
+      E(113.3, -7.05, .9, .18), E(115.4, -6.9, .4, .15), E(112.65, -5.8, .15, .15), E(110.5, -5.8, .1, .1), E(105.42, -6.1, .08, .08), E(116.2, -3.3, .25, .3),
+      E(126.1, -7.75, .5, .2), E(127.1, -8.1, .12, .1), E(127.7, -8.2, .3, .1), E(129.8, -7.9, .5, .2), E(131.4, -7.5, .35, .85, -15), E(132.8, -5.7, .2, .4), E(134.4, -6.1, .4, .9),
+      E(129.5, -3.0, 1.6, .45, -8), E(128.2, -3.65, .28, .15), E(126.55, -3.4, .55, .45), E(127.9, -1.55, .55, .35), E(125.9, -1.9, .5, .2), E(124.8, -1.8, .55, .35), E(129.9, -4.5, .1, .08),
+      E(136.0, -1.0, .5, .18), E(136.2, -1.8, .65, .15, -10), E(130.8, -.2, .5, .3), E(130.0, -1.9, .4, .2),
+      E(125.5, 3.5, .2, .3), E(126.8, 4.0, .2, .2), E(108.0, 4.0, .35, .4), E(106.2, 3.1, .2, .2), E(104.0, 1.05, .25, .15), E(104.5, 1.0, .3, .2), E(104.6, -.2, .25, .2),
+      E(106.0, -2.2, .7, .45, -20), E(107.9, -2.9, .4, .3), E(97.6, 1.1, .25, .55, 30), E(96.0, 2.55, .2, .4, 45), E(98.9, -1.45, .35, .55, 40), E(99.6, -2.1, .2, .4, 40), E(100.1, -2.8, .25, .55, 40), E(102.3, -5.3, .2, .15),
+      E(122.6, -5.0, .3, .4), E(122.9, -5.0, .35, .5), E(120.6, -6.2, .15, .45), E(121.9, -.4, .35, .1), E(108.9, -1.5, .2, .2), E(117.6, 3.3, .15, .15),
+    ],
+    ridges: [
+      { pts: [[96.3,4.5],[97.5,3.3],[98.6,2.2],[99.6,1.0],[100.4,-.5],[101.4,-2.0],[102.5,-3.2],[103.6,-4.4],[104.6,-5.4]], w: 2.4, h: .55 },
+      { pts: [[106.1,-6.9],[107.5,-7.2],[108.8,-7.3],[110.0,-7.5],[111.5,-7.6],[112.7,-7.9],[113.8,-8.0]], w: 2.0, h: .6 },
+      { pts: [[133.5,-3.7],[135.0,-4.0],[136.5,-4.1],[138.0,-4.2],[139.5,-4.2],[141.0,-4.6],[142.0,-5.5]], w: 3.4, h: .85 },
+      { pts: [[120.0,.5],[119.7,-1.5],[120.5,-2.8],[121.5,-3.2],[122.3,-4.0]], w: 2.0, h: .4 },
+      { pts: [[114.0,1.2],[115.2,2.2],[116.5,3.4]], w: 3.2, h: .5 }, { pts: [[110.8,-.3],[113.0,.5]], w: 2.4, h: .35 },
+      { pts: [[123.9,-9.9],[125.0,-9.2],[126.5,-8.8]], w: 1.6, h: .4 }, { pts: [[119.8,-8.5],[123.0,-8.4]], w: 1.0, h: .5 }, { pts: [[116.5,-8.5],[118.9,-8.6]], w: 1.0, h: .5 },
+      { pts: [[128.0,-3.1],[130.3,-3.1]], w: 1.4, h: .5 }, { pts: [[115.1,-8.4],[116.5,-8.5]], w: 1.2, h: .5 },
+    ],
+    shelves: [
+      [[98.0,5.5],[102.0,4.0],[104.5,3.5],[108.0,5.5],[112.0,6.5],[117.0,7.0],[118.0,3.5],[117.0,-4.4],[115.0,-4.6],[110.0,-4.3],[107.5,-4.3],[105.5,-6.2],[104.0,-6.3],[102.5,-4.2],[100.0,-1.0],[98.0,2.0]],
+      [[140.5,-8.0],[142.0,-9.0],[142.0,-11.0],[134.0,-9.2],[132.0,-8.2],[135.0,-7.4],[138.5,-8.0]],
+    ],
+    volc: [[105.42,-6.1],[110.45,-7.54],[109.2,-7.24],[112.92,-8.1],[114.24,-8.06],[115.51,-8.34],[116.46,-8.41],[117.99,-8.25],[101.26,-1.7],[98.39,3.17],[127.33,.8],[129.88,-4.52]] },
+  { id: 'japan', name: 'Japan', desc: 'A volcanic island arc from Hokkaido to Kyushu, with Mount Fuji', w: 214, h: 196, k: 2, box: [128.6, 45.9, 12.2], shore: 3, cam: [137.0, 36.0],
+    islands: [
+      PL([[139.8,42.2],[139.4,43.2],[140.3,43.3],[141.2,45.4],[142.0,45.5],[143.5,44.0],[145.3,43.4],[145.8,43.3],[144.0,42.9],[143.3,42.0],[142.0,42.3],[141.0,41.8],[140.4,41.4],[140.1,41.8]], { fo: .5, snow: 1, mh: .75 }),
+      PL([[141.4,41.4],[141.5,40.5],[142.0,39.5],[141.6,38.3],[141.0,37.0],[140.9,36.0],[140.9,35.7],[140.3,35.1],[139.8,34.9],[139.8,35.6],[139.2,35.2],[139.0,34.7],[138.2,34.6],[137.0,34.6],[136.8,34.3],[136.0,33.9],[135.75,33.45],[135.1,34.2],[135.0,34.6],[134.0,34.6],[133.0,34.4],[131.8,33.95],[130.9,34.0],[131.0,34.5],[132.0,35.0],[133.4,35.5],[134.8,35.65],[135.8,35.6],[136.0,36.0],[136.7,37.3],[137.3,37.5],[137.0,36.9],[138.5,37.5],[139.4,38.2],[139.9,39.5],[140.0,40.4],[140.3,40.8],[141.2,41.2]], { fo: .6, snow: 1, mh: 1.0 }),
+      PL([[132.0,33.4],[132.4,34.0],[133.5,34.3],[134.7,34.2],[134.5,33.6],[134.2,33.2],[133.5,33.2],[132.7,32.8],[132.2,33.0]], { fo: .7 }),
+      PL([[129.7,33.4],[130.0,33.9],[131.0,33.7],[131.7,33.3],[131.9,32.5],[131.3,31.4],[130.6,31.0],[130.2,31.2],[130.2,32.0],[129.8,32.7],[129.6,33.0]], { fo: .6 }),
+      E(138.4, 38.0, .25, .35, 40), E(134.9, 34.4, .1, .22, -50), E(129.3, 34.4, .15, .3, -60), E(128.8, 32.7, .25, .25), E(130.5, 30.3, .15, .12), E(131.0, 30.65, .1, .25, -50), E(133.2, 36.2, .2, .15), E(139.4, 34.75, .12, .1), E(131.2, 33.95, .2, .1), E(142.0, 45.2, .15, .1), E(139.5, 45.2, .2, .15),
+    ],
+    ridges: [
+      { pts: [[136.0,35.3],[137.2,36.4],[138.0,36.8]], w: 3.0, h: .55 }, { pts: [[140.5,40.0],[140.7,38.0],[139.9,36.8]], w: 2.4, h: .45 },
+      { pts: [[142.7,44.3],[143.0,43.3]], w: 2.4, h: .5 }, { pts: [[131.0,33.0],[131.6,32.0]], w: 2.0, h: .45 }, { pts: [[133.0,33.8],[134.2,33.6]], w: 1.8, h: .45 },
+    ],
+    volc: [[138.73,35.36],[131.1,32.88],[130.66,31.6],[138.52,36.4],[141.2,45.2],[140.7,40.6]] },
+  { id: 'caribbean', name: 'Caribbean', desc: 'Cuba, Hispaniola, Jamaica and the arc of the Antilles', w: 280, h: 160, k: 2.6, box: [-86.2, 27.2, 10.2], shore: 3, cam: [-72.0, 19.0],
+    islands: [
+      E(-79.5, 21.6, 5.6, .6, -10, { fo: .55 }), E(-71.4, 18.9, 3.1, 1.1, 5, { fo: .6, mh: 1.0 }), E(-77.3, 18.1, .9, .3, 0, { fo: .7 }), E(-66.5, 18.25, .7, .25), E(-82.9, 21.7, .25, .2),
+      E(-77.8, 24.4, .3, .55), E(-78.5, 26.6, .5, .2), E(-76.0, 25.0, .25, .4, 30), E(-75.0, 23.0, .3, .25), E(-73.0, 21.7, .35, .2), E(-71.5, 21.5, .35, .2), E(-80.0, 26.9, .2, .2),
+      E(-64.8, 18.35, .1, .1), E(-64.6, 18.4, .1, .1), E(-63.0, 18.2, .12, .1), E(-62.8, 17.35, .12, .1), E(-62.0, 16.85, .15, .15), E(-61.7, 16.2, .45, .25, 60, { mh: 1.1 }), E(-61.3, 15.4, .2, .35, 80, { mh: 1.2 }),
+      E(-61.0, 14.65, .15, .25, 70), E(-61.0, 13.9, .15, .2, 60), E(-61.2, 13.2, .15, .1), E(-61.2, 12.1, .1, .15), E(-61.3, 10.5, .55, .4, 0, { fo: .7 }), E(-70.0, 12.5, .25, .1, -20), E(-68.9, 12.2, .25, .1, -25),
+    ],
+    ridges: [{ pts: [[-77.0,20.0],[-75.5,20.0],[-74.2,19.9]], w: 2.4, h: .5 }, { pts: [[-72.5,19.2],[-70.6,18.6]], w: 3.0, h: .6 }, { pts: [[-77.6,18.1],[-76.5,18.2]], w: 1.4, h: .5 }, { pts: [[-80.3,22.0],[-79.3,21.9]], w: 1.4, h: .3 }],
+    volc: [[-61.67,16.05],[-61.3,15.4],[-61.17,13.33]] },
+  { id: 'hawaii', name: 'Hawaiian Chain', desc: 'Tall volcanic shield islands in a lonely ocean', w: 232, h: 150, k: 2, box: [-160.6, 22.6, 38], shore: 3, cam: [-156.8, 20.8],
+    islands: [
+      E(-155.5, 19.6, .75, .8, 20, { fo: .5, snow: 1, mh: 1.15 }), E(-156.3, 20.8, .35, .28, 0, { fo: .5, mh: 1.1 }), E(-157.0, 21.1, .4, .1, -10), E(-156.95, 20.8, .12, .14), E(-158.0, 21.45, .3, .22, 20, { mh: 1.0 }), E(-159.55, 22.05, .25, .22, 0, { fo: .7 }), E(-160.15, 21.9, .1, .13), E(-156.6, 20.55, .08, .06),
+    ],
+    ridges: [{ pts: [[-155.7,19.8],[-155.4,19.4]], w: 7, h: .5 }, { pts: [[-156.3,20.75]], w: 4, h: .35 }, { pts: [[-158.1,21.55],[-157.95,21.4]], w: 3, h: .3 }],
+    volc: [[-155.47,19.82],[-155.6,19.47],[-156.25,20.71]] },
+  { id: 'aegean', name: 'Aegean Isles', desc: 'Sun-baked Greek islands: Crete, the Cyclades and the Dodecanese', w: 224, h: 208, k: 2, box: [22.2, 41.2, 32], shore: 3, cam: [25.5, 37.5],
+    islands: [
+      E(24.9, 35.25, 1.4, .25, -5, { fo: .15, mh: .9 }), E(28.0, 36.2, .3, .15, -50, { fo: .3 }), E(27.1, 35.6, .25, .07, -60), E(25.5, 37.05, .17, .12), E(25.15, 37.05, .1, .08), E(24.5, 36.7, .1, .08), E(25.4, 36.4, .08, .08), E(24.7, 37.8, .15, .22, 50), E(25.2, 37.5, .1, .1), E(25.35, 37.45, .07, .06),
+      E(27.1, 36.8, .17, .08), E(26.8, 37.7, .25, .12), E(26.0, 38.4, .22, .2), E(26.3, 39.2, .4, .25), E(25.2, 39.9, .25, .17), E(24.7, 40.7, .15, .14), E(23.7, 38.6, .95, .2, 40, { fo: .35 }), E(24.5, 38.9, .2, .12), E(26.2, 37.6, .3, .1, -10),
+      E(23.0, 36.2, .15, .13), E(23.3, 37.4, .1, .08), E(24.1, 37.1, .1, .15, -50), E(27.6, 36.5, .1, .1), E(26.9, 36.9, .06, .06), E(27.25, 37.0, .1, .06),
+    ],
+    ridges: [{ pts: [[23.9,35.25],[24.9,35.25],[26.0,35.2]], w: 2.0, h: .55 }, { pts: [[23.2,38.0],[24.2,38.9]], w: 1.4, h: .4 }, { pts: [[26.2,39.2]], w: 2.0, h: .3 }],
+    volc: [[25.4,36.4]] },
+  { id: 'atolls', name: 'Coral Atolls', desc: 'Low coral rings around turquoise lagoons, and one high island', w: 220, h: 220, k: 1.6, cam: [110, 110],
+    gen(seed) {
+      const dist = (x, y, a, b) => Math.hypot(x - a, y - b);
+      const rings = [];
+      for (let n = 0, tries = 0; n < 9 && tries < 400; tries++) {
+        const R = 11 + hash(tries, 3, seed) * 14, cx = 22 + hash(tries, 5, seed) * (W - 44), cy = 22 + hash(tries, 7, seed) * (H - 44);
+        if (rings.some(r => dist(cx, cy, r.cx, r.cy) < r.R + R + 10)) continue;
+        rings.push({ cx, cy, R, high: n === 0, gap: hash(tries, 9, seed) * 6.28 }); n++;
+      }
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = x + y*W; let t = T.DEEP, near = 99;
+        for (const r of rings) {
+          const dd = dist(x, y, r.cx, r.cy), ang = Math.atan2(y - r.cy, x - r.cx), wob = (fbm(x/4, y/4, seed + 5) - .5) * 3.4;
+          const rr = dd + wob;
+          if (r.high) {                                         // a tall island with a fringing reef
+            if (rr < r.R * .38) t = rr < r.R * .15 ? T.MOUNTAIN : rr < r.R * .26 ? T.HILL : (fbm(x/6, y/6, seed + 9) > .5 ? T.FOREST : T.GRASS);
+            else if (rr < r.R * .46) t = T.SAND; else if (rr < r.R * .9) t = T.SHALLOW; else if (rr < r.R * 1.05 && t === T.DEEP) t = fbm(x/3, y/3, seed + 2) > .45 ? T.SAND : T.SHALLOW;
+            else if (rr < r.R * 1.5 && t === T.DEEP) t = T.SHALLOW;
+          } else {
+            const open = Math.cos(ang - r.gap) > .93;           // a pass through the reef
+            if (Math.abs(rr - r.R) < 2.4 && !open) { const m = fbm(x/5, y/5, seed + 11); t = m > .56 ? (m > .64 ? T.FOREST : T.GRASS) : T.SAND; }
+            else if (rr < r.R - 2.4 || (open && Math.abs(rr - r.R) < 2.4)) t = T.SHALLOW;
+            else if (rr < r.R + 6 && t === T.DEEP) t = T.SHALLOW;
+          }
+          near = Math.min(near, dd - r.R);
+        }
+        tiles[i] = t;
+      }
+      presetVolc.length = 0;
+    } },
+  { id: 'arctic', name: 'Arctic Isles', desc: 'Frozen islands of ice, tundra and bare rock', w: 240, h: 240, k: 1.8, cam: [120, 120],
+    gen(seed) {
+      const e = new Float32Array(N);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const nx = (x / W - .5) * 2, ny = (y / H - .5) * 2;
+        e[x + y*W] = fbm(x/26, y/26, seed) * .75 + fbm(x/9, y/9, seed + 4) * .25 - Math.hypot(nx, ny) * .12;
+      }
+      const dist = new Int16Array(N).fill(99), q = [];
+      for (let i = 0; i < N; i++) if (e[i] >= .53) dist[i] = 0;
+      const land = new Uint8Array(N); for (let i = 0; i < N; i++) land[i] = e[i] >= .53 ? 1 : 0;
+      for (let i = 0; i < N; i++) if (!land[i]) { const x = i % W, y = (i / W) | 0; if ((x > 0 && land[i-1]) || (x < W-1 && land[i+1]) || (y > 0 && land[i-W]) || (y < H-1 && land[i+W])) { dist[i] = 1; q.push(i); } }
+      for (let h = 0; h < q.length; h++) { const i = q[h], d = dist[i]; if (d >= 5) continue; const x = i % W, y = (i / W) | 0; for (const j of [x > 0 ? i-1 : -1, x < W-1 ? i+1 : -1, y > 0 ? i-W : -1, y < H-1 ? i+W : -1]) if (j >= 0 && !land[j] && dist[j] > d + 1) { dist[j] = d + 1; q.push(j); } }
+      for (let i = 0; i < N; i++) {
+        const v = e[i], x = i % W, y = (i / W) | 0;
+        if (!land[i]) tiles[i] = dist[i] <= 3 ? T.SHALLOW : T.DEEP;
+        else if (v < .545) tiles[i] = fbm(x/5, y/5, seed + 1) > .5 ? T.SAND : T.SNOW;
+        else if (v < .6) tiles[i] = fbm(x/7, y/7, seed + 2) > .62 ? T.FOREST : fbm(x/6, y/6, seed + 3) > .45 ? T.GRASS : T.SNOW;
+        else if (v < .66) tiles[i] = fbm(x/6, y/6, seed + 4) > .5 ? T.HILL : T.SNOW;
+        else tiles[i] = v > .72 ? T.SNOW : T.MOUNTAIN;
+      }
+      presetVolc.length = 0;
+    } },
+];
+for (const p of PRESETS) SIZES.push({ name: 'P', label: p.name, w: p.w, h: p.h, k: p.k, land: 0, coarse: 0, wc: 0, preset: p, empty: true });
+const presetVolc = [];
+function presetCamTile(z) {                                    // where the camera opens on an empty seed
+  const p = z.preset; if (!p) return null;
+  if (p.box) return [Math.round((p.cam[0] - p.box[0]) * p.box[2]), Math.round((p.box[1] - p.cam[1]) * p.box[2])];
+  return [W >> 1, H >> 1];
+}
+function ptInPoly(px, py, pts) {
+  let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function genPreset(z, seed) {
+  currentSeed = seed; creatures = []; effects.length = 0; bld.fill(0); fire.fill(0);
+  for (let i = 0; i < N; i++) jit[i] = Math.floor((hash(i % W, (i / W) | 0, 7) - .5) * 14);
+  const p = z.preset; presetVolc.length = 0;
+  if (p.gen) { p.gen(seed); return; }
+  const [lon0, lat0, s] = p.box, P = (lo, la) => [(lo - lon0) * s, (lat0 - la) * s];
+  const isl = new Uint8Array(N);
+  p.islands.forEach((is, k) => {
+    let test, x0, x1, y0, y1;
+    if (is.pts) {
+      const pts = is.pts.map(q => P(q[0], q[1]));
+      x0 = Math.min(...pts.map(q => q[0])) - 4; x1 = Math.max(...pts.map(q => q[0])) + 4; y0 = Math.min(...pts.map(q => q[1])) - 4; y1 = Math.max(...pts.map(q => q[1])) + 4;
+      test = (wx, wy) => ptInPoly(wx, wy, pts);
+    } else {
+      const [lo, la, rx, ry, rot] = is.e, [cx, cy] = P(lo, la), rxT = Math.max(1.3, rx * s), ryT = Math.max(1.3, ry * s), th = rot * Math.PI / 180, ct = Math.cos(th), st = Math.sin(th), m = Math.max(rxT, ryT) + 4;
+      x0 = cx - m; x1 = cx + m; y0 = cy - m; y1 = cy + m;
+      test = (wx, wy) => { const dx = wx - cx, dy = wy - cy, u = dx * ct - dy * st, v = dx * st + dy * ct; return (u / rxT) ** 2 + (v / ryT) ** 2 <= 1; };
+    }
+    const amp = is.amp === undefined ? (is.pts ? 1 : .7) : is.amp;
+    for (let y = Math.max(0, Math.floor(y0)); y <= Math.min(H - 1, Math.ceil(y1)); y++) for (let x = Math.max(0, Math.floor(x0)); x <= Math.min(W - 1, Math.ceil(x1)); x++) {
+      const wx = x + (fbm(x / 5, y / 5, seed + 3) - .5) * 3.4 * amp, wy = y + (fbm(x / 5 + 40, y / 5 + 40, seed + 4) - .5) * 3.4 * amp;
+      if (test(wx, wy) && !isl[x + y*W]) isl[x + y*W] = k + 1;
+    }
+  });
+  // depth inside land and distance out to sea
+  const depth = new Int16Array(N), dw = new Int16Array(N).fill(99), q = new Int32Array(N); let qh = 0, qt = 0;
+  const nb = (i, f) => { const x = i % W, y = (i / W) | 0; if (x > 0) f(i - 1); if (x < W - 1) f(i + 1); if (y > 0) f(i - W); if (y < H - 1) f(i + W); };
+  for (let i = 0; i < N; i++) if (isl[i]) { let edge = false; nb(i, j => { if (!isl[j]) edge = true; }); const x = i % W, y = (i / W) | 0; if (edge || x === 0 || y === 0 || x === W - 1 || y === H - 1) { depth[i] = 1; q[qt++] = i; } }
+  while (qh < qt) { const i = q[qh++]; nb(i, j => { if (isl[j] && !depth[j]) { depth[j] = depth[i] + 1; q[qt++] = j; } }); }
+  qh = qt = 0;
+  for (let i = 0; i < N; i++) if (!isl[i]) { let edge = false; nb(i, j => { if (isl[j]) edge = true; }); if (edge) { dw[i] = 1; q[qt++] = i; } }
+  while (qh < qt) { const i = q[qh++]; if (dw[i] >= 12) continue; nb(i, j => { if (!isl[j] && dw[j] > dw[i] + 1) { dw[j] = dw[i] + 1; q[qt++] = j; } }); }
+  const dmax = new Float32Array(p.islands.length + 1); for (let i = 0; i < N; i++) if (isl[i]) dmax[isl[i]] = Math.max(dmax[isl[i]], depth[i]);
+  const rg = (p.ridges || []).map(r => ({ seg: r.pts.map(q2 => P(q2[0], q2[1])), w: r.w, h: r.h }));
+  const shelves = (p.shelves || []).map(sh => sh.map(q2 => P(q2[0], q2[1])));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = x + y*W, k = isl[i];
+    if (!k) {
+      let sh = dw[i] <= (p.shore || 3);
+      if (!sh && shelves.length) { const wx = x + (fbm(x / 6, y / 6, seed + 8) - .5) * 5, wy = y + (fbm(x / 6 + 9, y / 6 + 9, seed + 9) - .5) * 5; for (const poly of shelves) if (ptInPoly(wx, wy, poly)) { sh = true; break; } }
+      tiles[i] = sh ? T.SHALLOW : T.DEEP; continue;
+    }
+    const is = p.islands[k - 1], d = depth[i], norm = Math.min(1, d / Math.max(4, dmax[k] * .9));
+    let h = Math.pow(norm, .85) * (is.mh === undefined ? .7 : is.mh * .7) + (fbm(x / 9, y / 9, seed + 11) - .5) * .2;
+    for (const r of rg) {
+      let best = 1e9;
+      for (let a = 0; a < r.seg.length; a++) {
+        const [ax, ay] = r.seg[a], [bx, by] = r.seg[Math.min(a + 1, r.seg.length - 1)], vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+        const t = l2 ? Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / l2)) : 0, dd = Math.hypot(x - (ax + vx * t), y - (ay + vy * t));
+        if (dd < best) best = dd;
+      }
+      if (best < r.w * 3) h += r.h * Math.exp(-((best / r.w) * (best / r.w)));
+    }
+    const mo = fbm(x / 8 + 50, y / 8 + 50, seed + 99), fo = is.fo === undefined ? .6 : is.fo;
+    let t;
+    if (d <= 1 && hash(x, y, 5) < (is.sand === undefined ? .8 : is.sand)) t = T.SAND;
+    else if (h < .07) t = T.SAND;
+    else if (h < .5) t = mo < .3 + fo * .4 ? T.FOREST : T.GRASS;
+    else if (h < .66) t = T.HILL;
+    else if (h < (is.snow ? .92 : 9)) t = T.MOUNTAIN;
+    else t = T.SNOW;
+    tiles[i] = t;
+  }
+  for (const v of p.volc || []) {                                // volcano sites: a high cone with foothills
+    const [cx, cy] = P(v[0], v[1]).map(Math.round); if (!inb(cx, cy)) continue;
+    let landN = 0; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (inb(cx + dx, cy + dy) && isl[cx + dx + (cy + dy) * W]) landN++;
+    if (landN < 5 || !isl[cx + cy * W]) continue;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const x = cx + dx, y = cy + dy, i = x + y * W, r = Math.hypot(dx, dy); if (!inb(x, y) || !isl[i]) continue;
+      if (r <= 1.2) tiles[i] = T.MOUNTAIN; else if (r <= 2.4 && tiles[i] < T.HILL) tiles[i] = T.HILL; else if (r <= 3.2 && (tiles[i] === T.SAND)) tiles[i] = T.GRASS;
+    }
+    tiles[cx + cy * W] = T.MOUNTAIN; presetVolc.push(cx + cy * W);
+  }
+}
+function generate(seed) { const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
 function emptyWorld() {
   nodes = []; oreT.fill(0); oreA.fill(0);
   creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
@@ -778,6 +998,7 @@ const volcanoes = [];                                          // { i, x, y, er:
 function volcanoAt(x, y) { return volcanoes.find(v => v.x === x && v.y === y); }
 function seedVolcanoes() {                                     // a few real volcanoes on big mountain massifs, well apart
   volcanoes.length = 0;
+  if (SIZES[sizeIdx].preset) { for (const i of presetVolc) volcanoes.push({ i, x: i % W, y: (i / W) | 0, er: -1e9 }); return; }
   const want = Math.max(1, Math.round(N / 17000));
   for (let n = 0; n < 4000 && volcanoes.length < want; n++) {
     const x = ri(3, W - 4), y = ri(3, H - 4), i = x + y*W; if (tiles[i] !== T.MOUNTAIN) continue;
@@ -1012,6 +1233,7 @@ function drawAtmosphere() {
     CLOUDS.length = 0; for (let i = 0, n = Math.max(14, Math.min(40, Math.round(W * H / 2800))); i < n; i++) CLOUDS.push({ x: Math.random() * (W + 60) - 30, y: Math.random() * (H + 40) - 20, w: 14 + Math.random() * 18, v: .006 + Math.random() * .008, s: i % 3 });
   }
   const zf = Math.max(0, Math.min(1, (34 - sc) / 22)), cover = 1 + weather.k * (weather.kind === 2 ? .9 : .5);
+  if (zf > .02) { ctx.save(); ctx.beginPath(); ctx.rect(Math.max(VIEW.x, ox), Math.max(VIEW.y, oy), Math.min(VIEW.w, W * sc), Math.min(VIEW.h, H * sc)); ctx.clip(); }
   if (zf > .02) for (const cl of CLOUDS) {
     cl.x += cl.v * (1 + weather.k); if (cl.x > W + 40) cl.x = -40;
     const w = cl.w * sc, h = w * .55, sx = ox + cl.x * sc, sy = oy + cl.y * sc;
@@ -1019,7 +1241,7 @@ function drawAtmosphere() {
     ctx.globalAlpha = .17 * zf * Math.min(1.4, cover); ctx.drawImage(SHADOW_SPR[cl.s], sx + w * .16, sy + h * .5, w, h);
     ctx.globalAlpha = .46 * zf * Math.min(1.5, cover * (weather.kind === 2 ? .85 : 1)); ctx.drawImage(CLOUD_SPR[cl.s], sx, sy, w, h);
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = 1; if (zf > .02) ctx.restore();
   // weather particles
   const k = weather.k;
   if (k > .02 && weather.kind) {
@@ -1273,6 +1495,7 @@ const ICON_ART = {
 };
 
 Object.assign(ICON_ART, {
+  island: '...gg..gg.../..gGGggGGg../.gGGGgkGGGg./..ggGkkGgg../....gkk...../....kk....../.EEEEEEEEEE./EEEEEEEEEEEE/bBbBbBbBbBbB/BbBbBbBbBbBb/............',
   snow: '............/.....BB...../..B..BB..B../...B.BB.B.../....BBBB..../BBBBBBBBBBBB/BBBBBBBBBBBB/....BBBB..../...B.BB.B.../..B..BB..B../.....BB...../............',
   sound: '............/....oo....../...owwo..o../owwwwwwo..o./owwwwwwo.o.o/owwwwwwo.o.o/owwwwwwo.o.o/owwwwwwo..o./...owwo..o../....oo....../............/............',
   mute: '............/....oo....../...owwo...r./owwwwwwo..r./owwwwwwo.r../owwwwwwo.r../owwwwwwo.r../owwwwwwo.r../...owwo..r../....oo...r../............/............',
@@ -1303,7 +1526,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
+Object.assign(EMOJI_ICON, { '🏝': 'island', '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -2346,6 +2569,7 @@ function fitCamera() { sc = fitScale(); clampCam(); }
 function startCamera() {                       // open a bit closer than full map on big worlds, centred on some life
   sc = Math.max(fitScale(), 6);
   let cx = W / 2, cy = H / 2;
+  const pc = presetCamTile(SIZES[sizeIdx]); if (pc) { cx = pc[0]; cy = pc[1]; }
   if (creatures.length) { const c = creatures[(creatures.length / 2) | 0]; cx = c.x; cy = c.y; }
   ox = VIEW.x + VIEW.w/2 - (cx + .5)*sc; oy = VIEW.y + VIEW.h/2 - (cy + .5)*sc; clampCam();
 }
@@ -3076,6 +3300,7 @@ function refreshCreature() {
 infoEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   if (a.dataset.act === 'close') closeCreature();
+  else if (a.dataset.act === 'seed') { const zi = +a.dataset.i; confirmThen('seed' + zi, SIZES[zi].label, () => { newWorld(zi); closeCreature(); renderRow2(); }); }
   else if (a.dataset.act === 'follow') { following = !following; infoHold = false; refreshCreature(); }
   else if (!selected) return;
   else if (a.dataset.act === 'tab') { ptab = +a.dataset.t; infoHold = false; refreshCreature(); }
@@ -3092,6 +3317,11 @@ let infoHold = false, infoLast = '';
 infoEl.addEventListener('pointerdown', () => { infoHold = true; });
 window.addEventListener('pointerup', () => { infoHold = false; });
 window.addEventListener('pointercancel', () => { infoHold = false; });
+function showSeeds() {                                          // picker for the empty island seeds
+  selected = null; following = false; clearTimeout(infoT);
+  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><b>🏝️ Empty island seeds</b><span class="dsc">No life and no houses: you lay the first foundations yourself.</span><div class="seeds">${SIZES.slice(3).map((z, i) => `<button class="seed" data-act="seed" data-i="${i + 3}"><b>${z.label}</b><small>${z.preset.desc}</small></button>`).join('')}</div>`;
+  infoEl.style.display = 'block';
+}
 function inspectAt(wx, wy) {
   const NM = TYPE_NAME;
   closeCreature();
@@ -3204,7 +3434,7 @@ function newWorld(idx) {
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx);
   generate(1 + ((Math.random() * 1e6) | 0));
-  if (!editMode) { seedResources(); seedVolcanoes(); populate(); }
+  if (!editMode) { seedResources(); seedVolcanoes(); if (!SIZES[sizeIdx].empty) populate(); else toast('🏝️ Empty island — start in the Life tab'); }
   startCamera(); persistWorld(); dirty = true; if (!editMode) clearSave();
 }
 /* ---- leaderboard: "civilization score" ---- */
@@ -3232,8 +3462,9 @@ async function submitScore(show) {                           // submit only pers
 }
 const WORLD_ACTIONS = [
   { ic:'🗺️', fn: () => confirmThen('new', 'New world', () => { newWorld(); toast('🗺️ ' + SIZES[sizeIdx].label); }) },
-  ...SIZES.map((z, i) => ({ ic: z.name, on: () => sizeIdx === i,
+  ...SIZES.slice(0, 3).map((z, i) => ({ ic: z.name, on: () => sizeIdx === i,
     fn: () => confirmThen('size' + i, `${z.label} ${z.w}×${z.h}`, () => { newWorld(i); renderRow2(); toast(`🗺️ ${z.label} ${z.w}×${z.h}`); }) })),
+  { ic:'🏝️', fn: () => showSeeds() },
   { ic:'🌊', fn: () => confirmThen('ocean', 'Empty ocean', () => { floods.length = 0; pendingDis.length = 0; emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
   ...(editMode ? [] : [
     { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
@@ -3460,7 +3691,7 @@ async function start() {
     setSize(wantSize);
     if (rleDecode(cfg.world.tiles)) { currentSeed = cfg.world.seed || 0; bld.fill(0); fire.fill(0); creatures = []; }
     else generate(cfg.world.seed || (1 + ((Math.random() * 1e6) | 0)));
-    if (!editMode) { seedResources(); seedVolcanoes(); populate(); }
+    if (!editMode) { seedResources(); seedVolcanoes(); if (!SIZES[sizeIdx].empty) populate(); }
   }
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
   startCamera(); renderRow1(); renderRow2(); updateStats();
@@ -3479,7 +3710,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
