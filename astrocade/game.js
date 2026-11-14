@@ -250,6 +250,24 @@ style.textContent = `
   @keyframes awlogo{50%{transform:translateY(-6px)}}
   @keyframes awshine{0%,55%{left:-130px}100%{left:760px}}
   @keyframes awhop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}}
+  #awtitle .awb.new{position:relative}
+  #awtitle .awb.new:after{content:'NEW';position:absolute;top:-10px;right:-8px;padding:2px 9px;border-radius:12px;background:#e8412c;color:#fff;font-size:16px;font-weight:900;letter-spacing:1px;box-shadow:0 2px 0 #7a1c10;animation:awpulse 1.4s ease-in-out infinite}
+  #awnew{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:90;display:none;align-items:center;justify-content:center;background:rgba(3,5,18,.8)}
+  #awnew .card{width:640px;max-height:1090px;display:flex;flex-direction:column;border-radius:36px;overflow:hidden;background:linear-gradient(180deg,#1f2a62,#0b1030 70%);border:2px solid rgba(255,216,130,.5);box-shadow:0 24px 70px rgba(0,0,0,.65),0 0 0 7px rgba(255,216,130,.07),inset 0 1px rgba(255,255,255,.18);animation:awpop .45s cubic-bezier(.2,1.3,.4,1)}
+  #awnew .hd{padding:28px 32px 16px;text-align:center;background:radial-gradient(ellipse at 50% 0,rgba(255,200,80,.28),rgba(255,200,80,0) 70%)}
+  #awnew .chip{display:inline-block;padding:6px 20px;border-radius:20px;background:linear-gradient(#ffe27a,#e8962a);color:#3a1a04;font-size:22px;font-weight:900;letter-spacing:3px;box-shadow:0 3px 0 #5a2e08}
+  #awnew h1{margin:12px 0 4px;font-size:64px;line-height:1;font-weight:900;color:transparent;background:linear-gradient(180deg,#fff3b0,#ffd23f 45%,#e8862a);-webkit-background-clip:text;background-clip:text;-webkit-text-stroke:3px #3a1606;paint-order:stroke fill;filter:drop-shadow(0 4px 0 #2a0e04)}
+  #awnew .hd p{margin:6px 0 0;font-size:23px;font-weight:700;color:#cfdcff}
+  #awnew .bd{flex:1;overflow-y:auto;padding:4px 32px 12px;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+  #awnew .sec{margin:14px 0 18px;padding:14px 18px 6px;border-radius:22px;background:rgba(120,150,255,.09);border:1px solid rgba(160,190,255,.2)}
+  #awnew h3{margin:0 0 8px;font-size:30px;font-weight:900;color:#ffd870;text-shadow:0 2px 0 rgba(0,0,0,.5)}
+  #awnew ul{margin:0;padding:0;list-style:none}
+  #awnew li{position:relative;margin:0 0 12px;padding-left:24px;font-size:23px;line-height:1.32;color:#dbe5ff}
+  #awnew li:before{content:'';position:absolute;left:2px;top:11px;width:9px;height:9px;background:#ffd23f;box-shadow:0 0 0 2px #7a4a10}
+  #awnew li b{color:#fff}
+  #awnew .ft{padding:14px 32px 26px;background:linear-gradient(180deg,rgba(11,16,48,0),#0b1030 30%)}
+  #awnew .awbig{height:96px;font-size:44px}
+  @keyframes awpop{0%{transform:scale(.86);opacity:0}100%{transform:scale(1);opacity:1}}
   #awtut{position:absolute;left:0;top:0;width:720px;height:1280px;z-index:55;display:none}
   #awtut .spot{position:absolute;border:4px solid #ffcf4a;border-radius:22px;box-shadow:0 0 0 2400px rgba(5,8,20,.72),0 0 26px rgba(255,207,74,.7);transition:all .35s}
   #awtut .bub{position:absolute;left:40px;width:640px;box-sizing:border-box;background:rgba(14,20,48,.97);border:3px solid #ffcf4a;border-radius:20px;padding:20px 24px;font-size:30px;font-weight:700;line-height:1.35;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.4)}
@@ -979,7 +997,7 @@ function ageCheck() {                                        // bronze then iron
 const COMM = ['food', 'wood', 'stone', 'bronze', 'iron', 'silver'];
 const CBASE = { food: .6, wood: 1, stone: 1, bronze: 4, iron: 6, silver: 8 }, CCAP = { food: 400, wood: 250, stone: 250, bronze: 250, iron: 250, silver: 250, gold: 250 };
 const CEMO = { food: '🍞', wood: '🪵', stone: '🪨', bronze: '🥉', iron: '🔩', silver: '🥈' };
-const market = { p: Object.assign({}, CBASE), d: {}, trades: 0 };
+const market = { p: Object.assign({ fin: 7, hide: 10 }, CBASE), d: {}, trades: 0 };
 function needOf(k, c) {                                        // what a kingdom wants to hold soon: next level, next tech, next age
   let n = c === 'food' ? 60 : 12;
   const r = k.level < 3 ? LV_REQ[k.level] : null; if (r && r[c]) n = Math.max(n, r[c] + 5);
@@ -1071,6 +1089,7 @@ function itemValue(sl, t, e) {                                // crafting cost a
 const sellPrice = it => Math.max(1, Math.round(itemValue(it[0], it[1], it[3] | 0) * .75));
 function shopAdd(it, price) { shop.push({ it, price, b: tick }); if (shop.length > 10) shop.shift(); }
 function shopTick() {                                         // every ~10 s: unsold items go stale, kingdoms trim or restock their chests
+  sellCatch();
   for (let i = shop.length - 1; i >= 0; i--) if (tick - shop[i].b > 3000) shop.splice(i, 1);
   for (const k of kingdoms.values()) {
     if (k.chest.length >= chestCap(k) || (k.gold < 15 && k.chest.some(it => it[1] <= 1 && !it[3]))) {          // sell the least valuable piece
@@ -1090,7 +1109,7 @@ function marketHtml() {
   let live = 0; for (const c of creatures) if (c.hp > 0 && RACES[c.t].cart) live++;
   const rows = COMM.map(c => { const d = market.d[c] || 0; return `${CEMO[c]}${market.p[c].toFixed(1)}${d > .02 ? '▲' : d < -.02 ? '▼' : '–'}`; });
   const items = shop.slice(-6).map(r => `${GEAR_ICON[r.it[0]]}${'I'.repeat(r.it[1])}${r.it[3] ? '✨' : ''} ${r.price}`).join(' &nbsp; ');
-  return `<b>🏦 Market</b> 🪙<br>${rows.join(' &nbsp; ')}<br>🛒 ${live} · ${market.trades} · 🎒 ${market.sold | 0}/${market.bought | 0}${items ? '<br>' + items : ''}`;
+  return `<b>🏦 Market</b> 🪙<br>${rows.join(' &nbsp; ')} &nbsp; 🦈${market.p.fin.toFixed(1)}/${market.p.hide.toFixed(1)}<br>🛒 ${live} · ${market.trades} · 🎒 ${market.sold | 0}/${market.bought | 0}${items ? '<br>' + items : ''}`;
 }
 /* ============================== TERRAIN POLISH: peaks, hills, volcanoes, particles, flames ============================== */
 const TERRAIN_PAL = {"o": "#2a2432", "L": "#b4b0bc", "l": "#cfccd6", "M": "#8e8a9a", "D": "#605c70", "d": "#46425a", "S": "#f4f8ff", "s": "#c6d6f0", "b": "#9ab0d8", "g": "#6f9a58", "G": "#4f7a3e", "h": "#8cba6a"}, TERRAIN_PAL_V = {"o": "#2a2432", "L": "#b4b0bc", "l": "#cfccd6", "M": "#8e8a9a", "D": "#605c70", "d": "#46425a", "S": "#f4f8ff", "s": "#c6d6f0", "b": "#9ab0d8", "g": "#6f9a58", "G": "#4f7a3e", "h": "#8cba6a", "e": "#ff8a2a", "y": "#ffe27a", "r": "#d8421e"};
@@ -1238,7 +1257,7 @@ function seedSharks() {
   for (let i = 0; i < N; i++) if (tiles[i] === T.DEEP && shoreD[i] !== 255 && shoreD[i] >= 4) deep++;
   sharkTarget = deep < 150 ? 0 : Math.min(24, Math.max(2, Math.round(deep / 700)));
   for (let q = 0; q < sharkTarget; q++) addShark();
-  krakens = []; krakenCd = 9000 + ri(0, 6000);
+  krakens = []; krakenCd = 9000 + ri(0, 6000); wrecks = [];
 }
 function sharkHit(x, y, r) {                                  // lightning, meteors and smiting kill sharks in range
   for (let q = sharks.length - 1; q >= 0; q--) { const s = sharks[q]; if ((s.x - x) ** 2 + (s.y - y) ** 2 <= r * r + 1) { fx('splash', Math.round(s.x), Math.round(s.y)); emit('bit', s.x, s.y, 8, { col: '#bfe6ff' }); sharks.splice(q, 1); } }
@@ -1440,6 +1459,75 @@ function drawSeaDetails(x0, y0, x1, y1) {                          // ripples th
   }
 }
 function krakenHtml(k) { return `<b>🐙 Kraken</b><br>❤️ ${Math.max(0, Math.ceil(k.hp))}/${KRAKEN_HP} · ${KRAKEN_MODE[k.st]}<br>Sank ${k.kills} ship${k.kills === 1 ? '' : 's'}<br><small>It drags ships under and smashes harbors. Smite, lightning and meteors can slay it.</small>`; }
+/* ============================== SEA LIFE II: harpoons, shark trade, shipwrecks and salvage ============================== */
+let wrecks = [];
+function harpoon(s) {                                          // fishing boats spear fish at their shoal and harpoon any shark that comes close
+  if (!s.phase.startsWith('fishing') || (s.hc = (s.hc || 0) - 1) > 0) return;
+  const k = kingdoms.get(s.kingdomId); if (!k) return;
+  let tgt = null, td = 9;
+  for (const sk of sharks) { const d = Math.hypot(sk.x - s.x, sk.y - s.y); if (d < td) { td = d; tgt = sk; } }
+  const sx = Math.round(s.x), sy = Math.round(s.y);
+  if (tgt) {
+    s.hc = 25; fx('arrow', sx, sy, { tx: Math.round(tgt.x), ty: Math.round(tgt.y) }); fx('hit', Math.round(tgt.x), Math.round(tgt.y)); emit('bit', tgt.x, tgt.y, 5, { col: '#ff8a8a' });
+    tgt.hp -= 24;
+    if (tgt.hp <= 0) {
+      sharks.splice(sharks.indexOf(tgt), 1); fx('splash', Math.round(tgt.x), Math.round(tgt.y));
+      k.fin = Math.min(250, (k.fin | 0) + 1 + (Math.random() < .5 ? 1 : 0)); k.hide = Math.min(250, (k.hide | 0) + 1);
+      addChronicle('🦈', `Harpooners of ${k.name} killed a shark`); toast('🦈 Harpooners killed a shark: fins and hide to sell!');
+    }
+    return;
+  }
+  if (s.phase === 'fishing') {
+    const sh = shoalNear(s.x, s.y, 6, 2);
+    if (sh) { s.hc = 32; fx('arrow', sx, sy, { tx: Math.round(sh.x), ty: Math.round(sh.y) }); fx('splash', Math.round(sh.x), Math.round(sh.y)); emit('bit', sh.x, sh.y - .2, 5, { col: '#d4ecff' }); sh.stock = Math.max(0, sh.stock - .035); s.haul = Math.min(60, (s.haul || 0) + [2, 4, 8][sh.kind]); }
+    else s.hc = 40;
+  } else s.hc = 20;
+}
+function sellCatch() {                                         // shark fins and hides go to market; selling many pushes the price down, and it recovers
+  market.p.fin += (7 - market.p.fin) * .05; market.p.hide += (10 - market.p.hide) * .05;
+  for (const k of kingdoms.values()) {
+    const f = k.fin | 0, h = k.hide | 0; if (!f && !h) continue;
+    const pay = Math.max(1, Math.round(f * market.p.fin + h * market.p.hide));
+    k.gold = Math.min(250, (k.gold | 0) + pay); k.fin = 0; k.hide = 0;
+    market.p.fin = Math.max(3, market.p.fin * (1 - .05 * f)); market.p.hide = Math.max(4.5, market.p.hide * (1 - .05 * h));
+    addChronicle('🪙', `${k.name} sold shark fins and hides for ${pay} gold`); fx('tech', Math.round(k.cap % W), Math.round((k.cap / W) | 0), { ic: '🪙' });
+  }
+}
+function raiseWreck(wk, manual) {                              // refloat a sunken ship: it sails home empty and goes back into service
+  const k = kingdoms.get(wk.kid);
+  if (!k) { if (manual) toast('⚓ Its owners are gone'); return false; }
+  if (ships.some(s => s.kingdomId === k.id)) { if (manual) toast(`⚓ ${k.name} already has a ship at sea`); return false; }
+  if (compDirty) computeComps();
+  const src = k.lm && k.lm.harbor != null && adjacentWater(k.lm.harbor) >= 0 ? k.lm.harbor : coastalLandNear(k, 24);
+  if (src < 0) { if (manual) toast('⚓ It has no harbor'); return false; }
+  const goals = new Int32Array(N); goals.fill(-1); goals[adjacentWater(src)] = src;
+  const route = findWaterRoute(tiles, W, H, wk.x + wk.y*W, goals);
+  if (!route) { if (manual) toast('⚓ No sea route home'); return false; }
+  if (!manual) { if ((k.wood | 0) < 15) return false; k.wood -= 15; }
+  ships.push({ id: nextShipId++, race: k.race, kingdomId: k.id, x: wk.x, y: wk.y, path: route.path, step: 0, move: 0, phase: 'fishing_return', sourceLand: src, targetLand: -1, targetComp: 0, crew: [], wreckAt: 0, fishTimer: 0, salvage: true });
+  wrecks.splice(wrecks.indexOf(wk), 1); fx('splash', wk.x, wk.y); emit('bit', wk.x, wk.y, 10, { col: '#bfe6ff' }); haptic('success');
+  addChronicle('⚓', `${k.name} raised its sunken ship`); toast(`⚓ ${k.name}'s sunken ship was raised`);
+  return true;
+}
+function drawWrecks(x0, y0, x1, y1) {
+  for (const wk of wrecks) {
+    if (wk.x < x0 - 3 || wk.x > x1 + 3 || wk.y < y0 - 3 || wk.y > y1 + 3) continue;
+    const cx = ox + (wk.x + .5)*sc, cy = oy + (wk.y + .5)*sc;
+    if (sc < 5) { ctx.fillStyle = 'rgba(24,14,22,.8)'; ctx.fillRect(cx - 3, cy - 1, 6, 3); ctx.fillStyle = '#c08a50'; ctx.fillRect(cx - 1, cy - 4, 2, 3); continue; }
+    const u = Math.max(1, sc * .1), t = frame * .04 + wk.x;
+    ctx.fillStyle = 'rgba(4,10,30,.4)'; ctx.beginPath(); ctx.ellipse(cx, cy + u * 2, u * 8, u * 3.2, 0, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(cx, cy + u); ctx.rotate(-.28);
+    ctx.fillStyle = '#3e2a1c'; ctx.fillRect(-u * 6, -u, u * 12, u * 3.2); ctx.fillStyle = '#5a3c26'; ctx.fillRect(-u * 6, -u, u * 12, Math.max(1, u * .7));
+    ctx.fillStyle = '#2a1a12'; for (let k = -5; k <= 4; k += 3) ctx.fillRect(k * u, -u * 2.4, Math.max(1, u * .6), u * 1.6);                     // broken ribs
+    ctx.fillStyle = '#4a3020'; ctx.fillRect(-u * .4, -u * 6, Math.max(1, u * .8), u * 5); ctx.fillStyle = 'rgba(214,204,180,.8)'; ctx.fillRect(u * .4, -u * 5.4, u * 2.6, u * 2.2);   // snapped mast and torn sail
+    ctx.restore();
+    ctx.fillStyle = 'rgba(30,100,170,.42)'; ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.6, u * 7, u * 2.4, 0, 0, 7); ctx.fill();               // the water closes over the hull
+    ctx.fillStyle = '#7a5434'; for (let k = 0; k < 3; k++) ctx.fillRect(cx + (k - 1) * u * 4 + SN(t + k * 2) * u, cy + u * 3.4 + SN(t * 1.3 + k) * u * .5, u * 1.6, Math.max(1, u * .5));   // floating planks
+    ctx.strokeStyle = 'rgba(235,248,255,.35)'; ctx.lineWidth = Math.max(1, u * .4); const rp = ((frame + wk.x * 7) % 120) / 120; ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.6, u * (3 + rp * 6), u * (1.2 + rp * 2.4), 0, 0, 7); ctx.stroke();
+    if (Math.random() < .012) emit('bit', wk.x + (Math.random() - .5), wk.y, 2, { col: '#d4ecff' });
+  }
+}
+function wreckHtml(w) { const k = kingdoms.get(w.kid); return `<b>⚓ Sunken ship</b><br>${k ? k.name : 'Unknown owner'} · lost to ${w.why === 'kraken' ? 'the kraken' : w.why === 'shark' ? 'a shark' : 'the sea'}<br><small>Its kingdom may raise it, or use the Salvage power.</small>`; }
 function drawParts() {
   ctx.save();
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -1928,6 +2016,7 @@ Object.assign(ICON_ART, {
   help: '...oooooo.../..oBBBBBBo../.oBBwwwwBBo./.oBwwBBwwBo./.oBBBBBwwBo./.oBBBBwwBBo./.oBBBwwBBBo./.oBBBBBBBBo./.oBBBwwBBBo./..oBBBBBBo../...oooooo.../............' });
 Object.assign(ICON_ART, {
   fish: '............/............/....ooooo.../.o.oBBBBBoo./.ooBBBBwBBBo/.oBBBBBBBoBo/.ooBBbbbBBBo/.o.oBbbbbbo./...ooooooo../............/............/............',
+  anchor: '............/.....oo...../....oWWo..../.....oWo..../..oooWWooo../..oWWWWWWo../.....oWo..../.....oWo..../.o...oWo..o./.oo..oWo.oo./..oooWWWoo../....oooo....',
   kraken: '............/...oooooo.../..oRRRRRRo../.oRRrrRRRRo./.oRyaRRyaRo./.oRRRRRRRRo./..oRRRRRRo../.oRoRoRoRoRo/oRoRoRoRoRo./oRo.oRo.oRo./.o...o...o../............',
   shark: '............/............/....oo....../....osoo..../...osSSo..../o..ossSSoo../oo.osssssSoo/.osssssaSsso/.oowwwwwwwoo/..ooowwwwoo./....ooooo.../............',
 });
@@ -1957,7 +2046,7 @@ const EMOJI_ICON = {
   '⚔':'swords','⭐':'star','😠':'angry','👑':'crown','🌍':'globe','🧱':'wall','🏹':'bow','🌿':'leaf','🌳':'tree','⛏':'pickaxe','🔨':'hammer','🏦':'chest','🪓':'axe','🩸':'blood','🔮':'crystal',
   '✋':'hand','✏':'pencil','📅':'sun','⚠':'warn','⏸':'pause','▶':'play','🥀':'drought',
 };
-Object.assign(EMOJI_ICON, { '🏝': 'island', '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver', '🐟': 'fish', '🦈': 'shark', '🐙': 'kraken' });
+Object.assign(EMOJI_ICON, { '🏝': 'island', '❄': 'snow', '🔊': 'sound', '🔇': 'mute', '❓': 'help', '🎒': 'bag', '🥋': 'armor', '🎯': 'target', '✖': 'close', '🛡': 'shield', '🥉': 'bronze', '🔩': 'iron', '🥈': 'silver', '🐟': 'fish', '🦈': 'shark', '🐙': 'kraken', '⚓': 'anchor' });
 const EMO_RE = new RegExp('(' + Object.keys(EMOJI_ICON).join('|') + ')\\uFE0F?', 'gu');
 const iconUrls = {};
 const iconURL = n => iconUrls[n] || (iconUrls[n] = ICON[n].toDataURL());
@@ -3088,6 +3177,7 @@ function wreckShip(s, si, why) {
   const x = Math.round(s.x), y = Math.round(s.y), k = kingdoms.get(s.kingdomId);
   for (const c of creatures) if (c.boat === s.id) { c.boat = 0; c.hp = 0; c.cause = 'shipwreck'; }
   ships.splice(si, 1); fx('splash', x, y); emit('bit', x, y, 7, { col:'#bfe6ff' }); haptic('thud');
+  if (wrecks.length >= 30) wrecks.shift(); wrecks.push({ x, y, kid: s.kingdomId, race: s.race, t0: tick, why: why || 'storm' });
   const kind = s.phase.startsWith('fishing') ? 'Kapal nelayan' : 'Kapal penjelajah';
   if (why) { const kr = why === 'kraken'; addChronicle(kr ? '🐙' : '🦈', `A ${kr ? 'kraken dragged' : 'shark sank'} the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}${kr ? ' under' : ''}; the crew is lost`); toast(kr ? '🐙 A kraken dragged a ship under!' : '🦈 A shark sank a ship!'); }
   else { addChronicle('🌊', `${kind} ${k ? k.name : ''} karam; awaknya hilang`); toast(`🌊 ${kind} karam di laut`); }
@@ -3096,12 +3186,12 @@ function wreckShip(s, si, why) {
 function voyageTick() {
   for (let si = ships.length - 1; si >= 0; si--) {
     const s = ships[si]; if (extinctRaces.has(s.race)) { ships.splice(si,1); continue; }
+    harpoon(s);
     if (s.phase === 'fishing') {
       if (--s.fishTimer <= 0) {
-        const k = kingdoms.get(s.kingdomId), sh = shoalNear(s.x, s.y, 9, 2); let amt = 18;
-        if (sh) { amt += [4, 8, 16][sh.kind]; sh.stock = Math.max(0, sh.stock - .22); }
+        const k = kingdoms.get(s.kingdomId), sh = shoalNear(s.x, s.y, 9, 2), amt = 10 + (s.haul | 0);
         if (k) addYield(k, 'food', amt);
-        addChronicle('🐟', `${k ? k.name : 'A fishing boat'} brought home a catch of ${sh ? SHOAL[sh.kind].n : 'fish'}`);
+        addChronicle('🐟', `${k ? k.name : 'A fishing boat'} speared ${amt} food worth of ${sh ? SHOAL[sh.kind].n : 'fish'}`); s.haul = 0;
         s.phase = 'fishing_return'; s.path.reverse(); s.step = 0; s.move = 0; dirty = true;
       }
       continue;
@@ -3123,11 +3213,13 @@ function voyageTick() {
         s.phase = 'fishing'; s.fishTimer = 160; addChronicle('🎣', `${kingdoms.get(s.kingdomId)?.name || 'Nelayan'} mulai mencari ikan di laut`);
       } else {
         if (!s.landed) bringCrewHome(s);
-        const k = kingdoms.get(s.kingdomId); if (k && s.phase === 'fishing_return') k.voyageCd = tick + 900;
+        const k = kingdoms.get(s.kingdomId);
+        if (k && s.phase === 'fishing_return') { k.voyageCd = s.salvage ? tick : tick + 900; if (s.salvage) { k.wood = Math.min(250, (k.wood | 0) + 20); addChronicle('⚓', `${k.name}'s raised ship is back in service`); toast(`⚓ ${k.name}'s ship is back in service`); } }
         ships.splice(si,1);
       }
     }
   }
+  if (tick % 400 === 0) for (const wk of [...wrecks]) if (tick - wk.t0 > 1500 && Math.random() < .4) raiseWreck(wk, false);
   if (tick % 80 !== 0) return;
   for (const k of kingdoms.values()) if (k.tech.includes('voyage') && tick >= (k.voyageCd || 0)) launchVoyage(k);
 }
@@ -3457,6 +3549,7 @@ function draw() {
       ctx.setLineDash([]);
     }
     drawSeaDetails(x0, y0, x1, y1);
+    drawWrecks(x0, y0, x1, y1);
     drawShoals(x0, y0, x1, y1);
     drawSharks(x0, y0, x1, y1);
     drawKrakens(x0, y0, x1, y1);
@@ -3712,6 +3805,7 @@ const TOOLS = {
   bless:  { g:'powers', ic:'✨', nm:'Bless', ms:120 },
   smite:  { g:'powers', ic:'💀', nm:'Smite', ms:90 },
   kraken: { g:'powers', ic:'🐙', nm:'Kraken', ms:99999 },
+  salvage:{ g:'powers', ic:'⚓', nm:'Salvage', ms:99999 },
   enlighten:{ g:'realm', ic:'📖', nm:'Knowledge', ms:99999 },
   grace:  { g:'realm', ic:'🙏', nm:'Grace', ms:99999 },
   plague: { g:'realm', ic:'☠️', nm:'Plague', ms:99999 },
@@ -3941,6 +4035,11 @@ function applyTool(wx, wy) {
       if (shoreD[wx + wy*W] === 255) computeShoreD();
       if (tool === 'shark') { if (sharks.length >= 40) { toast('🦈 Too many sharks'); break; } const sk = addShark(wx, wy); if (sk) { fx('splash', wx, wy); emit('bit', wx, wy, 6, { col: '#bfe6ff' }); } else toast('🦈 Needs open water'); }
       else { const kind = [1, 0, 2].find(k => shoalOk(k, wx, wy)); if (kind == null || shoals.length >= 400) { toast('🐟 Needs water'); break; } shoals.push({ x: wx, y: wy, kind, stock: 1, tx: wx, ty: wy, hd: 1, ph: ri(0, 63) }); fx('splash', wx, wy); emit('bit', wx, wy, 6, { col: '#bfe6ff' }); }
+      break;
+    }
+    case 'salvage': {
+      const wk = wrecks.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 9);
+      if (wk) raiseWreck(wk, true); else toast('⚓ No wreck here');
       break;
     }
     case 'kraken':
@@ -4189,9 +4288,10 @@ function inspectAt(wx, wy) {
         + (R.hunt ? `<br>⚡ ${Math.round(c.en)}` : '') + (c.kills ? `<br>⚔️ ${c.kills}` : '') + (k ? `<br>${LV_ICON[k.level]} ${k.name}` : '');
     } else if (inb(wx, wy)) {
       const i = wx + wy*W, k = kingdoms.get(own[i]);
-      const kr = krakens.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 16), sk = kr ? null : sharks.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 4), sh = kr || sk ? null : shoalNear(wx, wy, 2, 2);
+      const kr = krakens.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 16), sk = kr ? null : sharks.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 4), wkk = kr || sk ? null : wrecks.find(q => (q.x - wx) ** 2 + (q.y - wy) ** 2 <= 4), sh = kr || sk || wkk ? null : shoalNear(wx, wy, 2, 2);
       if (kr) infoEl.innerHTML = krakenHtml(kr);
       else if (sk) infoEl.innerHTML = sharkHtml(sk);
+      else if (wkk) infoEl.innerHTML = wreckHtml(wkk);
       else if (sh) infoEl.innerHTML = shoalHtml(sh);
       else if (k) infoEl.innerHTML = kingdomHtml(k);
       else {
@@ -4451,9 +4551,9 @@ function serialize2() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 8, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
+  return { v: 8, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, mf: [+market.p.fin.toFixed(2), +market.p.hide.toFixed(2)], sv: seenVer, wk: wrecks.map(w => [w.x, w.y, kix.get(w.kid) || 0, tick - w.t0, w.why === 'kraken' ? 2 : w.why === 'shark' ? 1 : 0]), rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
-    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick)]),
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => { const s = c.boat ? ships.find(v => v.id === c.boat) : null, i = s ? s.sourceLand : c.y * W + c.x; return i * 10 + RN.indexOf(c.t); }),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
@@ -4484,7 +4584,7 @@ function restore(s) {
     if (a[11]) k.ev = { type: EV_ID[a[11]], left: a[12] || 600 };
     k.unrest = a[13] || 0; k.immune = tick + (a[14] || 0);
     k.silver = a[15] || 0; k.bronze = a[16] || 0; k.iron = a[17] || 0; k.age = a[18] || 0; recalcMods(k);
-    k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]); k.voyageCd = tick + (a[20] || 0);
+    k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]); k.voyageCd = tick + (a[20] || 0); k.fin = a[21] | 0; k.hide = a[22] | 0;
     ids.push(k.id);
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
@@ -4499,7 +4599,7 @@ function restore(s) {
   if (s.bk) hl.forEach((i, j) => { if (i >= 0) kid[i] = ids[(s.bk[j] || 0) - 1] || 0; });      // 0 -> the next tick founds/joins one
   const spawned = [];
   if (s.mk) COMM.forEach((c, j) => { if (s.mk[j]) market.p[c] = s.mk[j]; });
-  market.trades = s.mt || 0;
+  market.trades = s.mt || 0; if (s.mf) { market.p.fin = s.mf[0] || 7; market.p.hide = s.mf[1] || 10; } seenVer = s.sv || '';
   for (const v of s.cr || []) {
     let ti, x, y, age = -1;
     if (Array.isArray(v)) { ti = v[0]; x = v[1]; y = v[2]; age = v[3]; }
@@ -4519,6 +4619,7 @@ function restore(s) {
     const id = v[0] | 0, ship = { id, race, kingdomId: ids[(v[2] | 0) - 1] || 0, x: +v[3], y: +v[4], path, step: Math.max(0, Math.min(path.length-1, v[6] | 0)), move: Math.max(0, Math.min(.99, +v[7] || 0)), phase: v[8], sourceLand: v[9] | 0, targetLand: v[10] | 0, targetComp: v[11] | 0, crew: Array.isArray(v[12]) ? v[12].map(n => n | 0) : [], landed: v[13] | 0, wreckAt: v[14] | 0, fishTimer: Math.max(0, v[15] | 0) };
     ships.push(ship); nextShipId = Math.max(nextShipId, id + 1);
   }
+  wrecks = (s.wk || []).filter(v => inb(v[0], v[1]) && tiles[v[0] + v[1]*W] <= T.SHALLOW).map(v => { const kid = ids[(v[2] | 0) - 1] || 0, kg = kingdoms.get(kid); return { x: v[0], y: v[1], kid, race: kg ? kg.race : 'human', t0: tick - (v[3] | 0), why: ['storm', 'shark', 'kraken'][v[4] | 0] || 'storm' }; });
   const liveShips = new Map(ships.map(s => [s.id, s]));
   for (const c of spawned) if (c && c.boat) {
     const ship = liveShips.get(c.boat);
@@ -4668,6 +4769,45 @@ function titleScene(cv2) {
     const hz = c.createLinearGradient(0, HOR - 28, 0, HOR + 8); hz.addColorStop(0, 'rgba(255,140,80,0)'); hz.addColorStop(.7, 'rgba(255,140,80,.14)'); hz.addColorStop(1, 'rgba(255,140,80,0)'); c.fillStyle = hz; c.fillRect(0, HOR - 28, W2, 36);
   };
 }
+/* ============================== WHAT'S NEW: version popup ============================== */
+const VERSION = '2.0';
+let seenVer = '', hadSave = false;
+const whatsEl = el('div', 'awnew');
+const NEWS = [
+  ['🌊', 'A living ocean', [
+    '<b>Fish shoals</b> drift through the sea: sardines near the shore, grouper on reefs, tuna in the deep. Fishers and boats depend on them, and overfishing scatters a shoal.',
+    '<b>Sharks</b> patrol the deep, chase ships and bite far-out fishers.',
+    '<b>The Kraken</b> is a rare deep-sea terror that drags ships under and smashes harbors. Summon it with the new Kraken power, or slay it with Smite, lightning and meteors.',
+    'Tap any shoal, shark or kraken with <b>Inspect</b> for details. New <b>Fish</b> and <b>Shark</b> tools sit in the Life tab.']],
+  ['⛵', 'Life at sea', [
+    'Fishing boats now <b>spear fish</b> at their shoal for bigger hauls.',
+    'Boats <b>harpoon sharks</b>. Shark fins and hide are sold at the market for gold, and prices move with supply.',
+    'Sunken ships leave <b>wrecks</b>. Kingdoms salvage them on their own, or use the new <b>Salvage</b> power to raise one at once.']],
+  ['✨', 'Premium ocean visuals', [
+    'Depth layers from turquoise shallows to the dark abyss, with rolling swell, shimmering caustics, glints, breakers rolling onto the beach, ripples and whitecaps. Storms make the sea rougher.']],
+  ['🏝️', 'Islands to found your civilization', [
+    '<b>7 empty island seeds</b>: Indonesia (200+ islands, 16 lakes, 30 volcanoes), Japan, Caribbean, Hawaiian Chain, Aegean Isles, Coral Atolls and Arctic Isles.']],
+  ['🎬', 'Menu and polish', [
+    'A new animated main menu, and this What\'s New panel (tap ✨ on the menu to reopen it).']],
+  ['📜', 'Also in this build', [
+    'Weather, day and night, procedural sound and music, and a guided tour.',
+    'Creature panel with traits, equipment, family, bag, loot, enchanted items, the royal chest and item sales.',
+    'Resources and ages, trade caravans, iron knights, walls and gates, sieges and engines, and automatic disasters.',
+    'Pixel-art HUD icons, one-finger panning and a full English translation.']],
+];
+function showWhatsNew() {
+  if (editMode) return;
+  whatsEl.innerHTML = '<div class="card"><div class="hd"><span class="chip">UPDATE ' + VERSION + '</span><h1>Living Seas</h1><p>The ocean comes alive, and so do the islands.</p></div><div class="bd">'
+    + NEWS.map(s => `<div class="sec"><h3>${s[0]} ${s[1]}</h3><ul>${s[2].map(t => `<li>${t}</li>`).join('')}</ul></div>`).join('')
+    + '</div><div class="ft"><button class="awbig" data-act="gotit">Let\'s go!</button></div></div>';
+  whatsEl.style.display = 'flex'; whatsEl.querySelector('.bd').scrollTop = 0;
+}
+whatsEl.addEventListener('click', e => {
+  if (!e.target.closest('[data-act="gotit"]')) return;
+  sndInit(); sndResume(); whatsEl.style.display = 'none';
+  if (seenVer !== VERSION) { seenVer = VERSION; if (hadSave) dirty = true; const nb = titleEl.querySelector('[data-act="news"]'); if (nb) nb.classList.remove('new'); }
+  if (Snd.on) SFX.ui();
+});
 let titleRaf = 0;
 function showTitle(hasSave) {
   if (editMode) return;
@@ -4675,7 +4815,7 @@ function showTitle(hasSave) {
     + '<div class="logo"><div class="tag">A GOD-SIM SANDBOX</div><div class="l1">ASTRO</div><div class="l2">WORLD</div><div class="sub">Shape a world. Watch it live.</div></div>'
     + '<div class="menuPanel"><div class="races"><span>🧑</span><span>🧝</span><span>🧔</span><span>👹</span><span></span></div>'
     + '<div class="feat"><b>🏰 Kingdoms</b><b>⚔️ Wars</b><b>⛵ Voyages</b><b>🌋 Disasters</b></div>'
-    + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Continue' : 'Play'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div><div class="ver">PIXEL WORLD · ${SIZES.filter(z => z.preset && !z.preset.hidden).length} ISLAND SEEDS</div></div></div>`;
+    + `<div class="tb"><button class="awbig" data-act="play">▶ ${hasSave ? 'Continue' : 'Play'}</button><div class="row2"><button class="awb" data-act="help">❓</button><button class="awb${seenVer !== VERSION ? ' new' : ''}" data-act="news">✨</button><button class="awb" data-act="snd">${Snd.on ? '🔊' : '🔇'}</button></div><div class="ver">PIXEL WORLD · ${SIZES.filter(z => z.preset && !z.preset.hidden).length} ISLAND SEEDS</div></div></div>`;
   titleEl.style.display = 'block'; titleEl.style.opacity = 1;
   const draw = titleScene(titleEl.querySelector('canvas')), t0 = performance.now();
   cancelAnimationFrame(titleRaf);
@@ -4689,6 +4829,7 @@ async function finishLoading(hasSave) {
   loadEl.classList.add('fade');
   await new Promise(resolve => setTimeout(resolve, 430));
   loadEl.style.display = 'none';
+  hadSave = !!hasSave; if (!editMode && seenVer !== VERSION) showWhatsNew();
 }
 titleEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
@@ -4696,7 +4837,8 @@ titleEl.addEventListener('click', e => {
   if (a.dataset.act === 'play') {
     cv.style.visibility = 'visible'; started = true; lastT = performance.now(); titleEl.style.opacity = 0; setTimeout(() => { titleEl.style.display = 'none'; if (!tutSeen) startTour(); }, 480);
     if (Snd.on) SFX.fanfare(1);
-  } else if (a.dataset.act === 'help') { startTour(true); }
+  } else if (a.dataset.act === 'news') { showWhatsNew(); }
+  else if (a.dataset.act === 'help') { startTour(true); }
   else if (a.dataset.act === 'snd') { setSound(!Snd.on); a.textContent = Snd.on ? '🔊' : '🔇'; if (Snd.on) SFX.ui(); }
 });
 const TOUR = [
@@ -4758,7 +4900,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, get sharks() { return sharks; }, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
