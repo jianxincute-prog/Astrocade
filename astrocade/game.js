@@ -739,6 +739,98 @@ function marketHtml() {
   const items = shop.slice(-6).map(r => `${GEAR_ICON[r.it[0]]}${'I'.repeat(r.it[1])}${r.it[3] ? '✨' : ''} ${r.price}`).join(' &nbsp; ');
   return `<b>🏦 Pasar</b> 🪙<br>${rows.join(' &nbsp; ')}<br>🛒 ${live} · ${market.trades} · 🎒 ${market.sold | 0}/${market.bought | 0}${items ? '<br>' + items : ''}`;
 }
+/* ============================== TERRAIN POLISH: peaks, hills, volcanoes, particles, flames ============================== */
+const TERRAIN_PAL = {"o": "#2a2432", "L": "#b4b0bc", "l": "#cfccd6", "M": "#8e8a9a", "D": "#605c70", "d": "#46425a", "S": "#f4f8ff", "s": "#c6d6f0", "b": "#9ab0d8", "g": "#6f9a58", "G": "#4f7a3e", "h": "#8cba6a"}, TERRAIN_PAL_V = {"o": "#2a2432", "L": "#b4b0bc", "l": "#cfccd6", "M": "#8e8a9a", "D": "#605c70", "d": "#46425a", "S": "#f4f8ff", "s": "#c6d6f0", "b": "#9ab0d8", "g": "#6f9a58", "G": "#4f7a3e", "h": "#8cba6a", "e": "#ff8a2a", "y": "#ffe27a", "r": "#d8421e"};
+const TERRAIN_SPR_DEF = {
+  rockA: [".......o......", ".....oMlo.....", ".....oMlo.....", ".....oMlDDo...", "....oMMlDo....", "...oLLLlDDo...", "..oMLLLlDDMo..", "..oLLMMlMMDMo.", "..oMMMLlMMMMo.", ".oLLLLMlDDDDDo", "..oMLLMlDDddDo", "oLLMMLLlDdDDdd"],
+  rockB: ["......oo..", "......o...", "....oLlo..", "....oLlDDo", "...oMLlDMo", "...oLMlMDo", "..oLLLlDDo", "...oLLlDMo", ".oLLLMldDo", "oMLLMMlDdD"],
+  rockC: [".......oo.......", ".....oLlMo......", "....oLLlMMo.....", ".....oMlDMo.....", "....oMLlMDDo....", "....oLLlDDDo....", "...oMMMlMDDMo...", "...oMMLlDDDMo...", "..oMMLMlMDMMo...", "..oLMLLlDDDMDo..", ".oMMLLLlDMDDMMo.", ".oLMLLLlDDDDDdo.", "oMLLLLMlDDDDDdo.", "oLMLLLLlDDdDDdDd"],
+  snowA: ["......oo......", ".....osSso....", ".....oSSso....", ".....oSSso....", "....oSSSsso...", "...oSSSSsso...", "..oSSSsSsso...", "...oMLLlDDMo..", "..oLLLLlDDMDo.", ".oLLMLMlDDddDo", ".oLLLLMlDDDdDo", "oMLMMLMlDDdDDD"],
+  snowB: ["....oSo...", ".....oSso.", ".....oSso.", "...oSSSsso", "...oSsSsso", "...oSsSsso", "..oLLMlMDo", "..oMLMlDDo", ".oLLLMlDDo", ".oLLLLlDDD"],
+  snowC: ["......oSo.......", ".....oSSo.......", "......oSo.......", ".....oSSsso.....", "....oSSSso......", "...oSSSSsso.....", "...oSSSSssso....", "..oSSSSSsssso...", "..oLLMLlDDDMo...", ".oLLLMMlDMDMo...", "oLMLLLMlDMDDDMo.", "oLLMLLMldDDDDdo.", "oLMMLMLlDDDDdo..", "oLLLMMMldDDdDDDd"],
+  hillA: ["...ogGGgGo..", "..ohhgGGGGo.", ".ogghGGgGGGo", ".ohhhggGGGGo", ".ohhgGgGGGGo", ".oMMgGggMGMo", "oooooooooooo"],
+  hillB: ["..ohGGGo.", "..ohGgGo.", ".ohgggGGo", ".oghGGGGo", ".oGgggMGo", "ooooooooo"],
+  volcano: ["........ooooo........", ".......ooyyyoo.......", "......orLrerdo.......", "......oLeeeDdeo......", "......orLrMDdro......", ".....oLeeMMDDeDo.....", "....oMMLrLMdDrdo.....", "....oLMLeMMdddddo....", "....oMLLrMMdDDDDo....", "...oLLMMeLMDdDDDDo...", "..oMLMMLLLMdDdDDdo...", "..oLMLMLLMMddDDDdDo..", "..oLLMLLMLMDDDDddDo..", ".oMLLLMMLMMdDDDdDddo.", "oLMMLMLMMMMDddddDDDo.", "ooooooooooooooooooooo"],
+};
+
+const TSP = {}; for (const n in TERRAIN_SPR_DEF) TSP[n] = buildSprite({ pal: n === 'volcano' ? TERRAIN_PAL_V : TERRAIN_PAL, A: TERRAIN_SPR_DEF[n] }, 'A');
+const volcanoes = [];                                          // { i, x, y, er: tick of the last eruption }
+function volcanoAt(x, y) { return volcanoes.find(v => v.x === x && v.y === y); }
+function seedVolcanoes() {                                     // a few real volcanoes on big mountain massifs, well apart
+  volcanoes.length = 0;
+  const want = Math.max(1, Math.round(N / 17000));
+  for (let n = 0; n < 4000 && volcanoes.length < want; n++) {
+    const x = ri(3, W - 4), y = ri(3, H - 4), i = x + y*W; if (tiles[i] !== T.MOUNTAIN) continue;
+    let m = 0; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const t = tiles[x + dx + (y + dy)*W]; if (t === T.MOUNTAIN || t === T.SNOW) m++; }
+    if (m < 14 || volcanoes.some(v => Math.hypot(v.x - x, v.y - y) < 26)) continue;
+    volcanoes.push({ i, x, y, er: -1e9 });
+  }
+}
+const parts = [];
+function emit(kind, x, y, n, o) {
+  o = o || {};
+  for (let k = 0; k < n; k++) {
+    if (parts.length >= 700) parts.shift();
+    const a = Math.random() * 6.283, sp = Math.random(), p = { k: kind, x: x + (Math.random() - .5) * (o.sx || 0), y, vx: 0, vy: 0, m: 40, dk: o.dark || 0, s0: o.s0 || .22, s1: o.s1 || .8 };
+    if (kind === 'smoke') { p.vx = (Math.random() - .35) * .018 + .012; p.vy = -.018 - Math.random() * .03; p.m = 70 + Math.random() * 70; }
+    else if (kind === 'ember') { p.vx = (Math.random() - .5) * .07; p.vy = -.05 - Math.random() * .1; p.m = 30 + Math.random() * 34; }
+    else if (kind === 'ash') { p.vx = (Math.random() - .2) * .04; p.vy = -.02 - Math.random() * .05; p.m = 90 + Math.random() * 70; }
+    else if (kind === 'spark') { p.vx = Math.cos(a) * .16 * sp; p.vy = Math.sin(a) * .16 * sp - .04; p.m = 12 + Math.random() * 10; }
+    else if (kind === 'debris') { p.vx = Math.cos(a) * .24 * sp; p.vy = Math.sin(a) * .24 * sp - .13; p.m = 34 + Math.random() * 24; }
+    else { p.vx = Math.cos(a) * .05 * sp; p.vy = -.01 - Math.random() * .03; p.m = 40 + Math.random() * 24; }     // dust
+    p.l = p.m; parts.push(p);
+  }
+}
+function drawParts() {
+  ctx.save();
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.x += p.vx; p.y += p.vy;
+    if (p.k === 'ember' || p.k === 'debris') p.vy += .004; else if (p.k === 'spark') p.vy += .008;
+    if (--p.l <= 0) { parts.splice(i, 1); continue; }
+    const a = p.l / p.m, sx = ox + (p.x + .5) * sc, sy = oy + (p.y + .5) * sc;
+    if (sx < -60 || sx > 780 || sy < VIEW.y - 80 || sy > VIEW.y + VIEW.h + 40) continue;
+    if (p.k === 'smoke') { const g = p.dk ? 58 : 150; ctx.fillStyle = `rgba(${g},${g - 6},${g - 4},${a * (p.dk ? .62 : .38)})`; ctx.beginPath(); ctx.arc(sx, sy, sc * (p.s0 + (1 - a) * p.s1), 0, 7); ctx.fill(); }
+    else if (p.k === 'ember') { ctx.fillStyle = `rgba(255,${(90 + a * 130) | 0},30,${Math.min(1, a * 1.6)})`; ctx.fillRect(sx - 1, sy - 1, Math.max(2, sc * .1), Math.max(2, sc * .1)); }
+    else if (p.k === 'ash') { ctx.fillStyle = `rgba(70,66,72,${a * .7})`; ctx.fillRect(sx, sy, Math.max(1.5, sc * .07), Math.max(1.5, sc * .07)); }
+    else if (p.k === 'spark') { ctx.strokeStyle = `rgba(255,240,170,${a})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - p.vx * sc * 3, sy - p.vy * sc * 3); ctx.stroke(); }
+    else if (p.k === 'debris') { ctx.fillStyle = `rgba(${(60 + a * 120) | 0},${(40 + a * 50) | 0},34,${Math.min(1, a * 2)})`; ctx.fillRect(sx - 1, sy - 1, Math.max(2, sc * .13), Math.max(2, sc * .13)); }
+    else { ctx.fillStyle = `rgba(170,150,110,${a * .35})`; ctx.beginPath(); ctx.arc(sx, sy, sc * (.2 + (1 - a) * .5), 0, 7); ctx.fill(); }
+  }
+  ctx.restore();
+}
+function drawVolcanoes(x0, y0, x1, y1) {
+  const k = sc / 6 * 1.45, spr = TSP.volcano;
+  for (const v of volcanoes) {
+    if (tiles[v.i] !== T.MOUNTAIN && tiles[v.i] !== T.SNOW) continue;
+    if (v.x < x0 - 4 || v.x > x1 + 4 || v.y < y0 - 2 || v.y > y1 + 7) continue;
+    const w = spr.width * k, h = spr.height * k, cx = ox + (v.x + .5) * sc, fy = oy + (v.y + 1) * sc - sc * .05;
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(cx, fy - k, w * .55, k * 2, 0, 0, 7); ctx.fill();
+    ctx.drawImage(spr, cx - w / 2, fy - h, w, h);
+    const age = tick - v.er, act = age < 480 ? 1 - age / 480 : 0, warn = pendingDis.some(d => d.type === 'volcano' && d.x === v.x && d.y === v.y);
+    const gl = .3 + act * .6 + (warn ? .4 : 0) + Math.sin(frame * .08 + v.i) * .08, ccy = fy - h + k * 1.7;
+    const gr = ctx.createRadialGradient(cx, ccy, 0, cx, ccy, k * (5 + act * 5));
+    gr.addColorStop(0, `rgba(255,190,70,${Math.min(.85, gl)})`); gr.addColorStop(1, 'rgba(255,90,20,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, ccy, k * (5 + act * 5), 0, 7); ctx.fill();
+    const wx = v.x, wy = (ccy - oy) / sc - .5;
+    if (act > 0 || warn) { emit('smoke', wx, wy, 1, { sx: .4, dark: 1, s0: .35, s1: 1.4 }); if (Math.random() < .5 + act * .4) emit('ember', wx, wy, 1, { sx: .3 }); if (act > .5 && Math.random() < .3) emit('ash', wx, wy, 1, { sx: 1 }); }
+    else if (frame % 16 === 0) emit('smoke', wx, wy, 1, { sx: .3, s0: .2, s1: .7 });
+  }
+}
+function tri(ax, ay, bx, by, cx, cy) { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill(); }
+function drawFires(x0, y0, x1, y1) {                           // flames with flicker, smoke and embers; houses burn bigger
+  if (sc < 5) return;
+  for (let y = y0; y <= Math.min(H - 1, y1 + 1); y++) for (let x = x0; x <= x1; x++) {
+    const i = x + y*W; if (!fire[i]) continue;
+    const cx = ox + (x + .5) * sc, by = oy + (y + .92) * sc, big = bld[i] ? 1.55 : 1, fl = Math.sin(frame * .34 + i * 1.7), fl2 = Math.sin(frame * .51 + i * .9);
+    const hgt = sc * (.95 + .3 * fl) * big, wid = sc * .52 * big;
+    if (nightNow > .15) { const gr = ctx.createRadialGradient(cx, by - hgt * .4, 0, cx, by - hgt * .4, sc * 2.2); gr.addColorStop(0, `rgba(255,150,50,${.3 * Math.min(1, nightNow * 1.6)})`); gr.addColorStop(1, 'rgba(255,100,20,0)'); ctx.fillStyle = gr; ctx.fillRect(cx - sc * 2.2, by - hgt - sc * 2, sc * 4.4, sc * 4.4 + hgt); }
+    ctx.fillStyle = '#ff4e12'; tri(cx - wid, by, cx + wid, by, cx + fl2 * sc * .14, by - hgt);
+    ctx.fillStyle = '#ff9c24'; tri(cx - wid * .62, by, cx + wid * .62, by, cx - fl * sc * .1, by - hgt * .72);
+    ctx.fillStyle = '#fff0a0'; tri(cx - wid * .3, by, cx + wid * .3, by, cx + fl2 * sc * .05, by - hgt * .42);
+    if (Math.random() < .035 * big) emit('smoke', x, y - .4, 1, { s0: .2, s1: .9 });
+    if (Math.random() < .045 * big) emit('ember', x, y - .2, 1, { sx: .4 });
+  }
+}
 const PPRI = { wall: 0, field: 0, well: 1, barn: 1, tower: 2, gate: 3 };
 function propOk(i) { const t = tiles[i]; return t > T.SHALLOW && t !== T.LAVA && t !== T.MOUNTAIN && t !== T.SNOW && !bld[i]; }
 function ringCenter(k) {                                    // walls and props stay anchored while the realm's centre stays within 9 tiles, so the capital changing does not move the ring
@@ -838,12 +930,24 @@ function drawDecor(x0, y0, x1, y1) {                          // trees by kind, 
     } else if (t === T.SAND && (treeKindAt(i) & 16)) {
       const w = PALM_SPR.width * u * .75, h = PALM_SPR.height * u * .75;
       ctx.drawImage(PALM_SPR, ox + (x + .5) * sc - w/2, oy + (y + .98) * sc - h, w, h);
+    } else if (t === T.MOUNTAIN || t === T.SNOW) {                  // mountain ranges: rock peaks, snow caps on the white ground
+      const hv = hash(x, y, 41); if (hv > .5) continue;
+      const sp = TSP[(t === T.SNOW ? 'snow' : 'rock') + 'ABC'[(hv * 5 | 0) % 3]], k = u * .82, w = sp.width * k, h = sp.height * k;
+      ctx.drawImage(sp, ox + (x + .5 + (hash(x, y, 42) - .5) * .5) * sc - w/2, oy + (y + 1.05) * sc - h, w, h);
+    } else if (t === T.HILL) {
+      const hv = hash(x, y, 43); if (hv > .55) continue;
+      const sp = TSP[hv > .27 ? 'hillA' : 'hillB'], k = u * .8, w = sp.width * k, h = sp.height * k;
+      ctx.drawImage(sp, ox + (x + .5 + (hash(x, y, 44) - .5) * .4) * sc - w/2, oy + (y + .98) * sc - h, w, h);
     }
-    const ot = oreT[i];
-    if (ot) {
-      const sp = ORE_SPR[ot], w = sp.width * u * .62, h = sp.height * u * .62;
-      ctx.drawImage(sp, ox + (x + .5) * sc - w/2, oy + (y + .95) * sc - h, w, h);
-    }
+  }
+}
+function drawOres(x0, y0, x1, y1) {
+  const u = sc / 6;
+  for (const i of nodes) {
+    const ot = oreT[i]; if (!ot) continue;
+    const x = i % W, y = (i / W) | 0; if (x < x0 - 1 || x > x1 + 1 || y < y0 - 1 || y > y1 + 1) continue;
+    const sp = ORE_SPR[ot], w = sp.width * u * .62, h = sp.height * u * .62;
+    ctx.drawImage(sp, ox + (x + .5) * sc - w/2, oy + (y + .95) * sc - h, w, h);
   }
 }
 function drawProps(x0, y0, x1, y1, ground) {                 // ground=true: flat fields under everything; false: standing props
@@ -2007,7 +2111,7 @@ function setSize(idx) {
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
   kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   oreT = new Uint8Array(N); oreA = new Uint8Array(N); treeK = new Uint8Array(N); nodes = [];
-  drops.length = 0; dropMap.clear();
+  drops.length = 0; dropMap.clear(); volcanoes.length = 0; parts.length = 0;
   kingdoms.clear(); rels.clear(); nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
@@ -2037,12 +2141,27 @@ const zoomBy = f => zoomAt(VIEW.x + VIEW.w/2, VIEW.y + VIEW.h/2, f);
 const toWorld = (px, py) => [Math.floor((px - ox)/sc), Math.floor((py - oy)/sc)];
 
 const SIN = new Float32Array(256); for (let i = 0; i < 256; i++) SIN[i] = Math.sin(i / 256 * Math.PI * 2) * 7;
+const HT = [0, 1, 2, 3, 3.4, 5, 8, 9.5, 3.2, 3];              // rough heights per tile type, for lighting from the north-west
 function renderTerrain() {
-  const d = img.data, fi = (frame * 2) | 0;
+  const d = img.data, fi = (frame * 2) | 0, fr = frame;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = x + y*W, t = tiles[i], c = COL[t]; let j = jit[i];
-    if (t <= 1) j += SIN[(fi + x*22 + y*14) & 255];
+    if (t <= 1) j += SIN[(fi + x*22 + y*14) & 255]; else if (t >= 5 && t <= 7) j *= 1.7;
     let r = c[0] + j, g = c[1] + j, b = c[2] + j;
+    const tl = x > 0 ? tiles[i - 1] : t, tr = x < W - 1 ? tiles[i + 1] : t, tu = y > 0 ? tiles[i - W] : t, td = y < H - 1 ? tiles[i + W] : t;
+    if (t >= 2 && t !== 8) {                                    // relief: slopes facing the light are brighter, the others darker
+      const hn = HT[x > 0 && y > 0 ? tiles[i - W - 1] : t], hs = HT[x < W - 1 && y < H - 1 ? tiles[i + W + 1] : t];
+      let sh = (hs - hn) * 4; sh = sh > 28 ? 28 : sh < -28 ? -28 : sh; r += sh; g += sh; b += sh;
+      if (tl === 8 || tr === 8 || tu === 8 || td === 8) { r += 38; g += 12; b -= 6; }               // lava glow on the neighbours
+    }
+    if (t === 1 && (tl >= 2 || tr >= 2 || tu >= 2 || td >= 2) && tl !== 8 && tr !== 8 && tu !== 8 && td !== 8) {    // surf along the shore
+      const f = (.5 + .5 * Math.sin(fr * .09 + x * .6 + y * .9)) * 62; r += f; g += f; b += f * .9;
+    } else if (t === 2 && (tl <= 1 || tr <= 1 || tu <= 1 || td <= 1)) { r -= 17; g -= 13; b -= 4; }   // wet sand
+    else if (t === 8) {                                          // lava breathes: bright seams over a darker crust
+      const ph = .5 + .5 * Math.sin(fr * .07 + x * .9 + y * 1.3 + (i % 7));
+      r = 205 + 50 * ph; g = 48 + 150 * ph * ph; b = 10 + 30 * ph;
+      if (((i * 2654435761) >>> 0) % 100 < 30) { r *= .55; g *= .38; b *= .4; }
+    }
     if (t === T.FOREST) { const v = treeKindAt(i) & 7; if (v === 2) { r -= 12; g -= 4; b += 10; } else if (v === 3) { r += 22; g += 18; b -= 8; } else if (v === 4) { r += 16; g -= 4; b -= 6; } }
     const ot = oreT[i]; if (ot && sc < 8) { const oc = ORE_RGB[ot]; r = oc[0]; g = oc[1]; b = oc[2]; }
     if (showBorders) { const o = ownRace[i]; if (o) { const bc = BORDER_RGB[o], a = ownEdge[i] ? .6 : .15; r += (bc[0] - r)*a; g += (bc[1] - g)*a; b += (bc[2] - b)*a; } }
@@ -2078,6 +2197,8 @@ function draw() {
       ctx.setLineDash([]);
     }
     drawDecor(x0, y0, x1, y1);
+    drawVolcanoes(x0, y0, x1, y1);
+    drawOres(x0, y0, x1, y1);
     drawDrops(x0, y0, x1, y1);
     drawProps(x0, y0, x1, y1, true);
     for (let y = y0; y <= Math.min(H-1, y1 + 4); y++) for (let x = x0; x <= x1; x++) {
@@ -2115,6 +2236,7 @@ function draw() {
       if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(hx + hw*.2, hy + hh*.2, hw*.6, hh*.55); }
     }
     drawProps(x0, y0, x1, y1, false);
+    drawFires(x0, y0, x1, y1);
     for (const kl of kingdoms.values()) for (const key in kl.lm) {                      // landmarks from technologies
       const li = kl.lm[key], lx = li % W, ly = (li / W) | 0;
       if (lx < x0 - 3 || lx > x1 + 3 || ly < y0 - 3 || ly > y1 + 6) continue;
@@ -2182,13 +2304,19 @@ function drawEffects() {
     const px = ox + (e.x + .5)*sc, py = oy + (e.y + .5)*sc; let life = 14;
     if (e.k === 'bolt') {
       life = 10; ctx.strokeStyle = `rgba(255,255,200,${1 - e.t/life})`; ctx.lineWidth = 5;
-      ctx.beginPath(); let cx = px, cy = py - 700; ctx.moveTo(cx, cy);
-      for (let k = 1; k <= 8; k++) { cx = k === 8 ? px : px + (hash(k, e.seed, 3) - .5) * 60; cy += (py - cy) / (9 - k); ctx.lineTo(cx, cy); }
-      ctx.stroke(); ctx.fillStyle = `rgba(255,255,255,${.45*(1 - e.t/life)})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+      ctx.beginPath(); let cx = px, cy = py - 700; ctx.moveTo(cx, cy); const nodes2 = [];
+      for (let k = 1; k <= 8; k++) { cx = k === 8 ? px : px + (hash(k, e.seed, 3) - .5) * 60; cy += (py - cy) / (9 - k); ctx.lineTo(cx, cy); nodes2.push([cx, cy]); }
+      ctx.stroke(); ctx.lineWidth = 2;
+      for (const kk of [2, 4, 5]) { let bx = nodes2[kk][0], by = nodes2[kk][1]; ctx.beginPath(); ctx.moveTo(bx, by); for (let q = 0; q < 3; q++) { bx += (hash(kk, q, e.seed) - .35) * 40; by += 36 + hash(q, kk, 9) * 20; ctx.lineTo(bx, by); } ctx.stroke(); }
+      const gl = ctx.createRadialGradient(px, py, 0, px, py, sc * 3.5); gl.addColorStop(0, `rgba(210,235,255,${.7*(1 - e.t/life)})`); gl.addColorStop(1, 'rgba(160,200,255,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(px, py, sc * 3.5, 0, 7); ctx.fill();
+      if (e.t === 1) emit('spark', e.x, e.y, 12);
+      ctx.fillStyle = `rgba(255,255,255,${.45*(1 - e.t/life)})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
     } else if (e.k === 'boom') {
       life = 26; const p = e.t/life;
+      if (p < .22) { ctx.fillStyle = `rgba(255,250,210,${(1 - p / .22) * .85})`; ctx.beginPath(); ctx.arc(px, py, e.r*sc*(.5 + p * 3), 0, 7); ctx.fill(); }
       ctx.fillStyle = `rgba(255,${200 - p*150|0},40,${1-p})`; ctx.beginPath(); ctx.arc(px, py, e.r*sc*(.3 + p*1.3), 0, 7); ctx.fill();
       ctx.strokeStyle = `rgba(255,255,255,${1-p})`; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = `rgba(255,214,150,${(1-p) * .65})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px, py, e.r*sc*(.6 + p*2.4), 0, 7); ctx.stroke();       // shockwave
     } else if (e.k === 'rain') {
       life = 12; ctx.strokeStyle = `rgba(150,200,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       const yy = py - (life - e.t) * sc * .9; ctx.beginPath(); ctx.moveTo(px, yy); ctx.lineTo(px - sc*.15, yy + sc*1.2); ctx.stroke();
@@ -2212,12 +2340,29 @@ function drawEffects() {
     } else if (e.k === 'shock') {
       life = 30; const p = e.t / life; ctx.strokeStyle = `rgba(150,110,70,${1 - p})`; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.arc(px, py, sc*e.r*p, 0, 7); ctx.stroke(); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, sc*e.r*p*.6, 0, 7); ctx.stroke();
-    } else if (e.k === 'warn') {
-      life = e.life; const p = e.t / life, pul = .5 + .5*Math.sin(e.t * .5);
+    } else if (e.k === 'warn') {                                 // warnings follow game ticks, so they last as long as the real countdown
+      const rem = Math.max(0, e.until - tick), p = 1 - rem / e.life, pul = .5 + .5*Math.sin(e.t * .25);
+      life = rem <= 0 ? 0 : 1e9;
       ctx.strokeStyle = `rgba(255,${80 + pul*80|0},50,${.35 + .5*pul})`; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
       ctx.beginPath(); ctx.arc(px, py, sc*e.r*(1.15 - .25*p), 0, 7); ctx.stroke(); ctx.setLineDash([]);
-      if (e.smoke && e.t % 3 === 0) { ctx.fillStyle = 'rgba(70,60,70,.55)'; const sy = py - (e.t % 24) * sc * .35; ctx.fillRect(px + (hash(e.t, 7, 1) - .5)*sc*2, sy, sc*.9, sc*.9); }
+      if (e.smoke && e.t % 2 === 0) { emit('smoke', e.x + (hash(e.t, 7, 1) - .5), e.y - 1.2, 1, { dark: 1, s0: .3, s1: 1.2 }); if (e.t % 4 === 0) emit('ember', e.x, e.y - 1.2, 1, { sx: .5 }); }
+      if (e.meteor && rem <= 14) {                               // the meteor streaks in from the upper right during the last moments
+        const f = 1 - rem / 14, hx = px + sc * 10 * (1 - f), hy = py - sc * 22 * (1 - f), rad = sc * (.5 + f * .7);
+        const gr = ctx.createRadialGradient(hx, hy, 0, hx, hy, rad * 2.4); gr.addColorStop(0, 'rgba(255,240,170,.95)'); gr.addColorStop(.35, 'rgba(255,140,40,.8)'); gr.addColorStop(1, 'rgba(255,60,10,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(hx, hy, rad * 2.4, 0, 7); ctx.fill();
+        ctx.fillStyle = '#3a2a22'; ctx.beginPath(); ctx.arc(hx, hy, rad * .7, 0, 7); ctx.fill();
+        emit('ember', (hx - ox) / sc - .5, (hy - oy) / sc - .5, 3, { sx: .4 }); emit('smoke', (hx - ox) / sc - .5, (hy - oy) / sc - .5, 1, { dark: 1, s0: .3, s1: 1 });
+      }
       drawIcon(e.ch, px, py - sc*1.2 - pul*sc*.4, Math.max(22, sc*3.2), .9);
+    } else if (e.k === 'crack') {                                 // ground cracks from the epicentre of an earthquake
+      life = 110; const p = e.t / life, al = p < .15 ? p / .15 : 1 - (p - .15) / .85;
+      ctx.strokeStyle = `rgba(40,26,20,${al * .9})`; ctx.lineWidth = Math.max(2, sc * .1);
+      for (let r = 0; r < 7; r++) {
+        let ang = r * .9 + hash(r, e.seed, 5), cx = px, cy = py; ctx.beginPath(); ctx.moveTo(cx, cy);
+        const len = e.r * sc * (.45 + hash(r, e.seed, 7) * .5) * Math.min(1, p * 8 + .3);
+        for (let k = 1; k <= 6; k++) { ang += (hash(r, k, e.seed) - .5) * .9; cx += Math.cos(ang) * len / 6; cy += Math.sin(ang) * len / 6; ctx.lineTo(cx, cy); }
+        ctx.stroke();
+      }
     } else if (e.k === 'death') {
       life = 30; const sp = ATLAS[e.type].A, sw = sp.width * SPR_K, sh = sp.height * SPR_K, fy = py + sc*.42;
       if (sc < 5) { if (e.t >= life) effects.splice(i, 1); continue; }
@@ -2258,6 +2403,7 @@ function drawEffects() {
     }
     if (e.t >= life) effects.splice(i, 1);
   }
+  drawParts();
 }
 
 /* ============================== TOOLS ============================== */
@@ -2307,7 +2453,8 @@ function strikeBolt(wx, wy, rr) {
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
 }
 function strikeMeteor(wx, wy, R) {
-  fx('boom', wx, wy, { r: R + 2 }); haptic('thud');
+  fx('boom', wx, wy, { r: R + 2 }); haptic('thud'); shakeT = 22;
+  emit('debris', wx, wy, 34); emit('ember', wx, wy, 26, { sx: 1.5 }); emit('smoke', wx, wy, 12, { sx: 2, dark: 1, s0: .4, s1: 1.5 }); emit('dust', wx, wy, 16, { sx: 3 });
   forDisc(wx, wy, R, (x, y, i) => {
     const d = Math.hypot(x - wx, y - wy); bld[i] = 0;
     if (tiles[i] > T.SHALLOW) { if (d < R*.45) setTile(i, T.LAVA); else if (d < R*.8) setTile(i, T.BURNT); }
@@ -2317,8 +2464,10 @@ function strikeMeteor(wx, wy, R) {
   for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= (R+1)**2) c.hp = 0;
 }
 function eruptVolcano(wx, wy) {
-  fx('boom', wx, wy, { r: 5 }); haptic('thud');
-  const flow = (x, y, i) => { if (tiles[i] > T.SHALLOW) { setTile(i, T.LAVA); bld[i] = 0; } };
+  fx('boom', wx, wy, { r: 5 }); haptic('thud'); shakeT = 40;
+  const vv = volcanoAt(wx, wy); if (vv) vv.er = tick;
+  emit('debris', wx, wy - 1.5, 26); emit('ember', wx, wy - 1.5, 40, { sx: 1 }); emit('smoke', wx, wy - 1.5, 14, { sx: 1.2, dark: 1, s0: .4, s1: 1.6 });
+  const flow = (x, y, i) => { if (tiles[i] > T.SHALLOW && i !== wx + wy*W) { setTile(i, T.LAVA); bld[i] = 0; } };
   forDisc(wx, wy, 2, flow);
   for (let n = 0; n < 4; n++) {                              // lava streams run outward from the vent
     const o = DIRS[1 + 2*ri(0, 3)]; let x = wx, y = wy;
@@ -2335,7 +2484,7 @@ let shakeT = 0;
 const floods = [];                                           // { i, orig, until } tiles temporarily under water
 function strikeQuake(wx, wy) {
   const R = 9; shakeT = 50; haptic('thud');
-  fx('shock', wx, wy, { r: R });
+  fx('shock', wx, wy, { r: R }); fx('crack', wx, wy, { r: R, seed: (Math.random() * 999) | 0 }); emit('dust', wx, wy, 26, { sx: R });
   forDisc(wx, wy, R, (x, y, i) => {
     if (bld[i] && Math.random() < .25) { bld[i] = 0; fire[i] = 0; fx('puff', x, y); }
     else if (tiles[i] > T.SHALLOW && tiles[i] !== T.LAVA && Math.random() < .03) fx('puff', x, y);
@@ -2381,7 +2530,7 @@ function disasterTick() {                                    // every ~10 second
   const L = disasterLvl;
   if (Math.random() < (L === 1 ? .06 : .15)) {               // lightning: minor, can start forest fires
     const p = pickSpot((t, x, y) => t === T.FOREST || ((t === T.GRASS || t === T.HILL) && Math.random() < .3), 40);
-    if (p) { pendingDis.push({ type: 'bolt', x: p[0], y: p[1], at: tick + 1 }); fx('warn', p[0], p[1], { life: 10, r: 1, ch: '⚡' }); }
+    if (p) { pendingDis.push({ type: 'bolt', x: p[0], y: p[1], at: tick + 1 }); fx('warn', p[0], p[1], { life: 10, until: tick + 1, r: 1, ch: '⚡' }); }
   }
   if (tick >= nextMajor && Math.random() < (L === 1 ? .025 : .07)) {
     const r0 = Math.random(), type = r0 < .4 ? 'volcano' : r0 < .6 ? 'meteor' : r0 < .85 ? 'quake' : 'flood';
@@ -2402,11 +2551,15 @@ function disasterTick() {                                    // every ~10 second
         for (let k = 1; k < 9; k += 2) { const nx = x + DIRS[k][0], ny = y + DIRS[k][1]; if (inb(nx, ny) && tiles[nx + ny*W] <= T.SHALLOW) return true; }
         return false;
       }, 600);
-    } else p = pickSpot((t, x, y) => (t === T.MOUNTAIN || t === T.SNOW) && !smallKingdomNear(x, y, 9), 400);
+    } else {
+      const vs = volcanoes.filter(v => (tiles[v.i] === T.MOUNTAIN || tiles[v.i] === T.SNOW) && !smallKingdomNear(v.x, v.y, 9));
+      if (vs.length && Math.random() < .85) { const v = vs[ri(0, vs.length - 1)]; p = [v.x, v.y]; }
+      else p = pickSpot((t, x, y) => (t === T.MOUNTAIN || t === T.SNOW) && !smallKingdomNear(x, y, 9), 400);
+    }
     if (p) {
       const INFO = { volcano: [48, 4, '🌋'], meteor: [32, 6, '☄️'], quake: [24, 9, '🪨'], flood: [40, 6, '🌊'] }[type];
       pendingDis.push({ type, x: p[0], y: p[1], at: tick + INFO[0] });
-      fx('warn', p[0], p[1], { life: INFO[0], r: INFO[1], ch: INFO[2], smoke: type === 'volcano', shake: type === 'quake' });
+      fx('warn', p[0], p[1], { life: INFO[0], until: tick + INFO[0], r: INFO[1], ch: INFO[2], smoke: type === 'volcano', shake: type === 'quake', meteor: type === 'meteor' });
       toast(INFO[2] + ' ⚠️'); haptic('warning');
       nextMajor = tick + (L === 1 ? 1500 : 600);
     }
@@ -2830,7 +2983,7 @@ function newWorld(idx) {
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx);
   generate(1 + ((Math.random() * 1e6) | 0));
-  if (!editMode) { seedResources(); populate(); }
+  if (!editMode) { seedResources(); seedVolcanoes(); populate(); }
   startCamera(); persistWorld(); dirty = true; if (!editMode) clearSave();
 }
 /* ---- leaderboard: "civilization score" ---- */
@@ -2940,6 +3093,7 @@ function serialize2() {
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0]); return a; }, []),
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
+    vc: volcanoes.map(v => v.i),
     dr: drops.map(d => [d.x, d.y, d.s, d.t, RN.indexOf(d.r), tick - d.b, d.e | 0]) };      // one packed int per creature
 }
 function restore(s) {
@@ -2964,6 +3118,7 @@ function restore(s) {
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
   else seedResources();
+  volcanoes.length = 0; if (s.vc) { for (const i of s.vc) if (i < N) volcanoes.push({ i, x: i % W, y: (i / W) | 0, er: -1e9 }); } else seedVolcanoes();
   for (const [ia, ib, st, t0, un] of s.rl || []) { const ka = ids[ia - 1], kb = ids[ib - 1]; if (ka && kb) rels.set(rkey(ka, kb), { s: st, t: t0, until: un }); }
   rebuildRelations();
   if (s.bk) hl.forEach((i, j) => { if (i >= 0) kid[i] = ids[(s.bk[j] || 0) - 1] || 0; });      // 0 -> the next tick founds/joins one
@@ -3035,7 +3190,7 @@ async function start() {
     setSize(wantSize);
     if (rleDecode(cfg.world.tiles)) { currentSeed = cfg.world.seed || 0; bld.fill(0); fire.fill(0); creatures = []; }
     else generate(cfg.world.seed || (1 + ((Math.random() * 1e6) | 0)));
-    if (!editMode) { seedResources(); populate(); }
+    if (!editMode) { seedResources(); seedVolcanoes(); populate(); }
   }
   counts = {}; for (const c of creatures) counts[c.t] = (counts[c.t]||0) + 1;
   startCamera(); renderRow1(); renderRow2(); updateStats();
@@ -3052,7 +3207,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
