@@ -44,6 +44,18 @@ const RACES = {
   deer:   { col:'#c68a4e', hp:16, dmg:0, mv:2, civ:0, cap:70,  life:[900,1500], foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.014, tiles:[T.FOREST,T.GRASS], dens:8 } },
   wolf:   { col:'#2b2e36', hp:28, dmg:5, mv:1, civ:0, cap:28,  life:[900,1500], foes:['sheep','rabbit','deer'], hunt:1, build:[], bi:0 },
 };
+// ---- Kingdoms (civilization layer) ----
+const ECO = { human:{f:1.3,w:1,s:1,g:1}, elf:{f:.9,w:1.6,s:.6,g:.6}, dwarf:{f:1.1,w:.7,s:2,g:3}, orc:{f:1,w:1,s:1,g:.8}, werewolf:{f:1,w:1,s:.8,g:.6} };
+const LV_ICON = ['🛖','🏘️','🏙️','🏰'], LV_NAME = ['Suku','Desa','Kota','Kerajaan'];
+const LV_REQ = [ { pop:6, houses:3, wood:15 }, { pop:16, houses:7, stone:30, food:40 }, { pop:32, houses:12, gold:25, stone:40 } ];
+const NAME_P = {
+  human:[['Al','Ber','Cor','Dun','El','Fen','Gar','Hol','Ith','Kar','Lor','Mar'],['ia','ford','ton','mark','heim','vale']],
+  elf:[['Ael','Sil','Lor','Thal','Nyr','Eri','Cael'],['wen','ael','iel','indor','ariel','anor']],
+  dwarf:[['Thor','Dur','Bar','Kaz','Mor','Gim','Bal'],['in','dum','gard','hold','bek','kor']],
+  orc:[['Gor','Zug','Mog','Gra','Kru','Thrak','Ugh'],['ash','gash','uk','nar','dak','mok']],
+  werewolf:[['Lun','Fen','Va','Mar','Grey','Nox','Ulv'],['fang','moon','howl','pelt','mere','claw']],
+};
+const BORDER_RGB = [null, [74,163,255], [226,169,255], [255,154,46], [255,61,61], [94,240,255]];     // by house owner index (race.bi)
 const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer','werewolf'];     // index order is part of the save format
 const STAT_ORDER = ['human','elf','dwarf','orc','sheep','rabbit','deer','wolf','werewolf'];
 const GAIN = { rabbit:25, sheep:45, deer:60 };                               // wolf energy per kill (default 45)
@@ -107,6 +119,8 @@ function toast(s) { toastEl.textContent = s; toastEl.style.opacity = 1; clearTim
 
 /* ============================== STATE ============================== */
 let tiles, bld, fire, jit;            // allocated by setSize()
+let kid, own, ownRace, ownEdge, ownScore;      // kingdom id per house tile / territory map (allocated by setSize())
+const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
 let creatures = [], nextId = 1, tick = 0;
 let speed = 1, paused = editMode;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
@@ -314,6 +328,34 @@ const HOUSES = {
     meta: {"smoke": null, "glow": [{"x": 6, "y": 9, "w": 2, "h": 2, "c": "94,240,255", "always": 1}]},
   },
 };
+// Capital halls (shown for the capital of a Town/Kingdom): bigger, richer version of each race's house style.
+const HALLS = {
+  human: {
+    pal: { o:'#1c1424', R:'#b8553a', r:'#d8795a', Q:'#8a3a28', w:'#ece0c4', W:'#cbbd9a', S:'#9a96a0', s:'#b8b4c0', g:'#8ecbff', G:'#cfeaff', d:'#4a2e1a', y:'#ffd23f', b:'#8a8690', m:'#7a767e' },
+    A: [".......oo.......", "......oRQo......", ".....oRrRQo.....", "....oRrRQRQo....", "...oRrRRQQRQo...", "..oRrRRQQQQRQo..", ".oRrRRQQQQQQRQo.", "oRrRRQQQQQQQQRQo", "oQQQQQQQQQQQQQQo", "oSswwwwwWWWWWSSo", "oSswGgwwWWggWSSo", "oSswggwwWWggWSSo", "oSswwwwyyWWWWSSo", "oSswwwddddWWWSSo", "oSswwwddddWWWSSo", "obbbbbddddbbbbbo"],
+    meta: {"smoke": null, "glow": [{"x": 5, "y": 10, "w": 2, "h": 2, "c": "255,214,104", "always": 0}, {"x": 9, "y": 10, "w": 2, "h": 2, "c": "255,214,104", "always": 0}]},
+  },
+  elf: {
+    pal: { o:'#1c2418', L:'#4fae52', l:'#8fe08a', D:'#2d7a3a', p:'#d8a0ff', t:'#8a5a34', T:'#5e3a20', B:'#b07a48', k:'#2a1a14', y:'#ffe9a0', Y:'#fff6d0' },
+    A: ["......oooo......", "....ooLlLDoo....", "...oLlpLDpLDo...", "..oLlLlLDLDLDo..", ".oLpLLlLDLDDpDo.", ".oLLlLLDDDDLDDo.", "oLlLLpLDDDpDDLDo", "oLLLLLDDDDDDDDDo", "oDLLLDDDDDDDDDDo", "oDDLDDDDDDDDDDDo", ".oDDDpDDDDpDDDo.", "..ooDDDooDDDoo..", "...ooBBBtttoo...", "...otyYtTyyTo...", "...otyYtTyyTo...", "...ottkkkkTTo...", "..oTtBkkkktTTo..", ".ooTTooooooTToo."],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 13, "w": 1, "h": 2, "c": "255,240,160", "always": 0}, {"x": 9, "y": 13, "w": 1, "h": 2, "c": "255,240,160", "always": 0}]},
+  },
+  dwarf: {
+    pal: { o:'#1c1424', S:'#9ea6b2', s:'#c0c8d4', m:'#7a828e', R:'#5a5f78', r:'#7a80a0', Q:'#444860', d:'#4a2e1a', c:'#ff9a2e' },
+    A: ["oSoSo......omomo", "oSSSo..oo..ommmo", "oSsSoRRooQQomSmo", "oSSSoRrRQRQommmo", "oSsSoRRQQQQomSmo", "oSSSSSSSmmmmmmmo", "oSmSSsSSmmSmmmmo", "oSSSSSddddmmmmmo", "oSsSSSdccdmmmSmo", "oSSSSSdccdmmmmmo", "oSmSSSddddmmmmmo", "oSSSSSSSmmmmmmmo", "oSsSSsSSmmSmmSmo", "oooooooooooooooo"],
+    meta: {"smoke": [8, 1], "glow": [{"x": 7, "y": 8, "w": 2, "h": 2, "c": "255,150,40", "always": 1}]},
+  },
+  orc: {
+    pal: { o:'#1c1214', H:'#a8744a', h:'#c89868', D:'#7a4c2c', r:'#ff3d3d', k:'#2a1a14', w:'#f4f1e6', t:'#8a5a34', T:'#5e3a20' },
+    A: ["......w..w......", ".....oHHDDo.....", "....ohhHDHHo....", "...ohhHHDDHHo...", "..orhrrhHrrHro..", ".ohhhHHHDDDHHHo.", "ohhhHHDDDDDDHHHo", "ohhwwHDDDDDwwHHo", "ohhhHkkkkkkDHHHo", "ohhhHkkkkkkDHHHo", "ohhhkkkkkkkkHHHo", "ohhhkkkkkkkkHHHo", "tohhkkkkkkkkHHoT", "tooooooooooooooT"],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 8, "w": 4, "h": 4, "c": "255,122,42", "always": 1}]},
+  },
+  werewolf: {
+    pal: { o:'#1c1424', a:'#e6d9a8', R:'#4a4258', r:'#6b6379', Q:'#352f44', w:'#8a6a46', W:'#6e5236', t:'#5e4630', k:'#241a14', m:'#5ef0ff', M:'#c8fbff', f:'#a89080', F:'#7a6a5c' },
+    A: [".....a.aa.a.....", "......aRRa......", ".....oRrRRo.....", "....oRrrRRRo....", "...oRrrRRRRRo...", "..oRrrmMmmRRRo..", ".oRrrrmmmmRRRRo.", "oRrrrRRRRRRRRRRo", "oQQQQQQQQQQQQQQo", "owwwwwwwWWWWWWWo", "owfFwwwwWWWWFFWo", "owfFwmmwWmmWFFWo", "owwwwmMwWmmWWWWo", "owwwwwkkkkWWWWWo", "owwwwwkkkkWWWWWo", "otttttttttttttto"],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 5, "w": 4, "h": 2, "c": "94,240,255", "always": 1}, {"x": 7, "y": 11, "w": 2, "h": 2, "c": "94,240,255", "always": 1}]},
+  },
+};
 function buildSprite(def, frame) {
   const rows = def[frame] || def.A;
   const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
@@ -327,8 +369,9 @@ function buildSprite(def, frame) {
 
 const ATLAS = {}, HATLAS = {};
 for (const k in SPRITES) { ATLAS[k] = {}; for (const f of ['A','B','C']) ATLAS[k][f] = buildSprite(SPRITES[k], f); }
-const HMETA = {};
+const HMETA = {}, HALLATLAS = {}, HALLMETA = {};
 for (const k in HOUSES) { HATLAS[RACES[k].bi] = buildSprite(HOUSES[k], 'A'); HMETA[RACES[k].bi] = HOUSES[k].meta || {}; }
+for (const k in HALLS) { HALLATLAS[RACES[k].bi] = buildSprite(HALLS[k], 'A'); HALLMETA[RACES[k].bi] = HALLS[k].meta || {}; }
 let SPR_K = 1;      // integer sprite scale: 10px per sprite pixel-block, ~1.7 tiles at the base zoom
 
 /* ============================== UTIL ============================== */
@@ -364,7 +407,7 @@ function spawn(type, x, y, force) {
   if (!force && (creatures.length >= MAX_CREATURES * CAPK || (counts[type]||0) >= capOf(type) + 40)) return null;
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
-  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, avoid:0, avoidUntil:0 };
+  const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, avoid:0, avoidUntil:0, k:0, lead:0 };
   creatures.push(c); counts[type] = (counts[type]||0) + 1; dirty = true;
   return c;
 }
@@ -453,9 +496,14 @@ function stepCreature(c) {
         if (o && R.foes.includes(BUILD_OWNER[o]) && Math.random() < .4) { bld[nx + ny*W] = 0; fx('hit', nx, ny); dirty = true; break; }
       }
     }
+    if (!c.k && (tick + c.id) % 40 === 0) c.k = nearestKingdom(c);
     if (bld[idx] === 0 && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
-        && (hb[R.bi]||0) < (R.buildP ? Math.min(capOf(c.t)*.3, (counts[c.t]||0)*.8 + 1) : capOf(c.t)*.3) && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
-      bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
+        && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
+      const k = c.k ? kingdoms.get(c.k) : null;                        // building costs wood and is capped by the kingdom's level
+      if (!k || (k.houses < maxHouses(k) && k.wood >= 4)) {
+        bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
+        if (k) { k.wood -= 4; kid[idx] = k.id; }
+      }
     }
   } else if (R.br) {
     if (Math.random() < R.br.p && (counts[c.t]||0) < capOf(c.t) && cells[(c.y>>3)*GW + (c.x>>3)].length < R.br.dens && R.br.tiles.includes(tiles[idx])) spawnNear(c.t, c.x, c.y);
@@ -506,6 +554,103 @@ function wolfPack() {
   }
   return false;
 }
+/* ---- kingdoms ---- */
+function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
+function newKingdom(race, x, y) {
+  const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
+              born: tick, name: kName(race), leader: null, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+  kingdoms.set(k.id, k); return k;
+}
+function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
+  const x = i % W, y = (i / W) | 0;
+  let best = 0, bd = 1e9;
+  for (let yy = Math.max(0, y-9); yy <= Math.min(H-1, y+9); yy++) for (let xx = Math.max(0, x-9); xx <= Math.min(W-1, x+9); xx++) {
+    const j = xx + yy*W;
+    if (j === i || !bld[j] || !kid[j]) continue;
+    const k = kingdoms.get(kid[j]);
+    if (!k || k.race !== race) continue;
+    const d = (xx-x)**2 + (yy-y)**2;
+    if (d < bd) { bd = d; best = kid[j]; }
+  }
+  kid[i] = best || newKingdom(race, x, y).id;
+}
+const maxHouses = k => Math.max(2, Math.round((3 + k.level*5) * (k.race === 'werewolf' ? .6 : 1)));
+function nearestKingdom(c) {
+  let best = 0, bd = 15*15;
+  for (const k of kingdoms.values()) { if (k.race !== c.t) continue; const d = (k.cx-c.x)**2 + (k.cy-c.y)**2; if (d < bd) { bd = d; best = k.id; } }
+  return best;
+}
+function terrainStats(k) {
+  const cx = Math.round(k.cx), cy = Math.round(k.cy); let g = 0, f = 0, m = 0;
+  for (let y = Math.max(0, cy-9); y <= Math.min(H-1, cy+9); y++) for (let x = Math.max(0, cx-9); x <= Math.min(W-1, cx+9); x++) {
+    const t = tiles[x + y*W];
+    if (t === T.GRASS) g++; else if (t === T.FOREST) f++; else if (t === T.HILL || t === T.MOUNTAIN) m++;
+  }
+  k.g = g; k.f = f; k.m = m;
+}
+function economy() {                                      // once per second
+  const redo = tick % 120 === 0;
+  for (const k of kingdoms.values()) {
+    const E = ECO[k.race];
+    if (redo || (!k.g && !k.f && !k.m)) terrainStats(k);
+    k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f - k.pop*.18);     // elves forage the forest
+    k.wood = Math.min(250, k.wood + k.f*.012*E.w);
+    k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s);                 // quarries / trade even far from hills
+    k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g);
+    if (k.food <= 0) {                                    // famine: someone starves
+      k.food = 0;
+      if (k.pop > 3 && Math.random() < .3) { for (const c of creatures) if (c.k === k.id && c.hp > 0) { c.hp = 0; c.cause = 'old'; break; } }
+    }
+  }
+}
+function levelCheck() {                                   // every 5 seconds
+  for (const k of kingdoms.values()) {
+    if (k.level >= 3) continue;
+    const r = LV_REQ[k.level], sc = k.race === 'werewolf' ? .6 : 1;
+    if (k.pop >= r.pop*sc && k.houses >= r.houses*sc && k.wood >= (r.wood||0) && k.stone >= (r.stone||0) && k.gold >= (r.gold||0) && k.food >= (r.food||0)) {
+      k.wood -= r.wood || 0; k.stone -= r.stone || 0; k.gold -= r.gold || 0; k.food -= (r.food || 0) * .5;
+      k.level++; ownDirty = true; dirty = true;
+      fx('levelup', Math.round(k.cx), Math.round(k.cy));
+      if (k.level >= 2) toast(`${LV_ICON[k.level]} ${k.name}`);
+    }
+  }
+}
+function chooseLeaders() {                                // the oldest member wears the crown
+  for (const k of kingdoms.values()) k.cand = null;
+  for (const c of creatures) {
+    if (!c.k) continue;
+    const k = kingdoms.get(c.k); if (!k) continue;
+    if (!k.cand || c.age > k.cand.age) k.cand = c;
+  }
+  for (const k of kingdoms.values()) {
+    const L = k.leader;
+    if (L && L.hp > 0 && L.k === k.id) continue;
+    if (L) L.lead = 0;
+    k.leader = k.cand;
+    if (k.cand) { k.cand.lead = 1; k.cand.mhp = Math.round(k.cand.mhp * 1.5); k.cand.hp = k.cand.mhp; }
+  }
+}
+function computeTerritory() {
+  own.fill(0); ownScore.fill(9);
+  for (const k of kingdoms.values()) {
+    const r = 6 + k.level*3, cx = Math.round(k.cx), cy = Math.round(k.cy), r2 = r*r;
+    for (let y = Math.max(0, cy-r); y <= Math.min(H-1, cy+r); y++) for (let x = Math.max(0, cx-r); x <= Math.min(W-1, cx+r); x++) {
+      const d2 = (x-cx)**2 + (y-cy)**2;
+      if (d2 > r2) continue;
+      const i = x + y*W;
+      if (tiles[i] <= T.SHALLOW) continue;
+      const sc = d2 / r2;
+      if (sc < ownScore[i]) { ownScore[i] = sc; own[i] = k.id; }
+    }
+  }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = x + y*W, o = own[i];
+    if (!o) { ownRace[i] = 0; ownEdge[i] = 0; continue; }
+    ownRace[i] = RACES[kingdoms.get(o).race].bi;
+    ownEdge[i] = ((x > 0 && own[i-1] !== o) || (x < W-1 && own[i+1] !== o) || (y > 0 && own[i-W] !== o) || (y < H-1 && own[i+W] !== o)) ? 1 : 0;
+  }
+  ownDirty = false;
+}
 function step() {
   tick++;
   for (const l of cells) l.length = 0;
@@ -516,17 +661,25 @@ function step() {
   if (wc >= 2 && wc <= 3 && tick - lastEvolve > 1200 && (counts.werewolf || 0) < capOf('werewolf')) evolveWolves();
   else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
 
-  const spread = []; houseCount = 0; hb = [0,0,0,0,0,0];
+  for (const k of kingdoms.values()) { k.houses = 0; k.pop = 0; k.sx = 0; k.sy = 0; k.bd = 1e9; }
+  for (const c of creatures) if (c.k) { const k = kingdoms.get(c.k); if (k) k.pop++; else c.k = 0; }
+  const spread = []; houseCount = 0;
   for (let i = 0; i < N; i++) {
     const b = bld[i];
     if (b) {
-      houseCount++; hb[b]++;
+      houseCount++;
       const race = BUILD_OWNER[b];
-      if (Math.random() < (RACES[race].spawnP || .005) && (counts[race]||0) < capOf(race)) {
-        const x = i % W, y = (i / W) | 0;
-        if (cells[(y>>3)*GW + (x>>3)].length < 12) spawnNear(race, x, y);
+      let k = kingdoms.get(kid[i]);
+      if (!k) { assignHouse(i, race); k = kingdoms.get(kid[i]); }
+      const x = i % W, y = (i / W) | 0;
+      k.houses++; k.sx += x; k.sy += y;
+      const dd = (x - k.cx)**2 + (y - k.cy)**2;
+      if (dd < k.bd) { k.bd = dd; k.nb = i; }
+      // births need food; bigger kingdoms breed a little faster
+      if (k.food > 5 && Math.random() < (RACES[race].spawnP || .005) * (1 + k.level*.4) && (counts[race]||0) < capOf(race)) {
+        if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; } }
       }
-    }
+    } else if (kid[i]) kid[i] = 0;
     const f = fire[i];
     if (f) {
       fire[i] = f - 1;
@@ -546,6 +699,13 @@ function step() {
     }
   }
   for (const i of spread) ignite(i);
+  for (const k of kingdoms.values()) {                               // collapse empty kingdoms, re-centre the rest
+    if (k.houses === 0) { kingdoms.delete(k.id); ownDirty = true; continue; }
+    k.cx = k.sx / k.houses; k.cy = k.sy / k.houses; k.cap = k.nb;
+  }
+  if (tick % 8 === 0) economy();
+  if (tick % 40 === 0) { levelCheck(); chooseLeaders(); }
+  if (ownDirty || tick % 60 === 0) computeTerritory();
 
   const ns = Math.round(80 * N / 17760);
   for (let s = 0; s < ns; s++) {
@@ -600,6 +760,8 @@ function setSize(idx) {
   const z = SIZES[sizeIdx];
   W = z.w; H = z.h; N = W * H; CAPK = z.k;
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
+  kid = new Uint16Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
+  kingdoms.clear(); nextKid = 1; ownDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
   creatures = []; effects.length = 0; counts = {}; houseCount = 0; hb = [0,0,0,0,0,0];
@@ -634,6 +796,7 @@ function renderTerrain() {
     const i = x + y*W, t = tiles[i], c = COL[t]; let j = jit[i];
     if (t <= 1) j += SIN[(fi + x*22 + y*14) & 255];
     let r = c[0] + j, g = c[1] + j, b = c[2] + j;
+    if (showBorders) { const o = ownRace[i]; if (o) { const bc = BORDER_RGB[o], a = ownEdge[i] ? .6 : .15; r += (bc[0] - r)*a; g += (bc[1] - g)*a; b += (bc[2] - b)*a; } }
     if (fire[i]) { const fl = (frame*7 + i*13) % 3; r = 255; g = fl === 0 ? 220 : fl === 1 ? 140 : 80; b = 20; }
     const k = i*4; d[k] = r; d[k+1] = g; d[k+2] = b; d[k+3] = 255;
   }
@@ -659,7 +822,10 @@ function draw() {
     for (let y = y0; y <= Math.min(H-1, y1 + 4); y++) for (let x = x0; x <= x1; x++) {
       const idx = x + y*W, b = bld[idx]; if (!b) continue;
       const cx = ox + (x + .5)*sc, fy = oy + (y + 1)*sc - sc*.05;
-      const hs = HATLAS[b], hw = hs.width * SPR_K, hh = hs.height * SPR_K, hx = cx - hw/2, hy = fy - hh, m = HMETA[b];
+      const kg = kingdoms.get(kid[idx]), isCap = !!kg && kg.cap === idx;
+      const hall = isCap && kg.level >= 2 && HALLATLAS[b];
+      const hs = hall || HATLAS[b], hw = hs.width * SPR_K, hh = hs.height * SPR_K, hx = cx - hw/2, hy = fy - hh, m = hall ? HALLMETA[b] : HMETA[b];
+      if (isCap && kg.level >= 3) { ctx.fillStyle = 'rgba(255,215,90,.13)'; ctx.beginPath(); ctx.arc(cx, fy - hh*.45, hw*.85, 0, 7); ctx.fill(); }      // royal aura
       ctx.drawImage(hs, hx, hy, hw, hh);
       if (m.glow) for (const g of m.glow) {                              // lit windows / forge glow
         const al = g.always ? .55 + .25*Math.sin(frame*.09 + x*1.7 + y) : nightA * 2.2;
@@ -669,6 +835,12 @@ function draw() {
         const t = ((frame*.5 + k*20 + x*7 + y*3) % 60) / 60;
         ctx.fillStyle = `rgba(225,225,235,${(1 - t) * .5})`;
         ctx.beginPath(); ctx.arc(hx + m.smoke[0]*SPR_K + Math.sin(t*6 + k)*SPR_K*1.3, hy + m.smoke[1]*SPR_K - t*hh*.8, SPR_K*(.9 + t*1.8), 0, 7); ctx.fill();
+      }
+      if (isCap && kg.level >= 1) {                                         // capital banner: kingdom colour + one gold pip per level
+        const fx0 = hx + hw*.5, top = hy - SPR_K, K = SPR_K;
+        ctx.fillStyle = '#2a2018'; ctx.fillRect(fx0, top - 7*K, K, 8*K);
+        ctx.fillStyle = RACES[kg.race].col; ctx.fillRect(fx0 + K, top - 7*K, 5*K, 3*K); ctx.fillRect(fx0 + K, top - 4*K, 3*K, K);
+        ctx.fillStyle = '#ffd23f'; for (let l = 0; l < kg.level; l++) ctx.fillRect(fx0 + K*(1 + l*2), top - 8*K, K, K);
       }
       if (fire[idx]) { ctx.fillStyle = frame % 6 < 3 ? 'rgba(255,170,30,.8)' : 'rgba(255,80,20,.8)'; ctx.fillRect(hx + hw*.2, hy + hh*.2, hw*.6, hh*.55); }
     }
@@ -681,10 +853,12 @@ function draw() {
       let f = 'A';
       if (c.atk > 0) { f = 'C'; c.atk--; } else if (moving && ((frame >> 3) + c.id) % 2) f = 'B';
       const lunge = c.atk > 3 ? 2 * SPR_K : 0;
-      const spr = ATLAS[c.t][f], sw = spr.width * SPR_K, sh = spr.height * SPR_K;       // sprites may be bigger than 10x10
+      const spr = ATLAS[c.t][f], sw = spr.width * SPR_K, sh = spr.height * SPR_K;
+      const crowned = c.lead && c.k && kingdoms.has(c.k) && kingdoms.get(c.k).level >= 1;       // sprites may be bigger than 10x10
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - sw*.3, fy - Math.max(1, sw*.08), sw*.6, Math.max(1, sw*.1));
       if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -sw/2 + lunge, fy - sh, sw, sh); ctx.restore(); }
       else ctx.drawImage(spr, cx - sw/2 + lunge, fy - sh, sw, sh);
+      if (crowned) { const K = SPR_K, tx = cx - K*2 + lunge; ctx.fillStyle = '#ffd23f'; ctx.fillRect(tx, fy - sh - K*2, K*4, K); ctx.fillRect(tx, fy - sh - K*3, K, K); ctx.fillRect(tx + K*3, fy - sh - K*3, K, K); ctx.fillRect(tx + K*1.5, fy - sh - K*3, K, K); }
       if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - sw*.4 - 1, fy - sh - 5, sw*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - sw*.4, fy - sh - 4, sw*.8*Math.max(0, c.hp/c.mhp), 2); }
     }
   } else {
@@ -753,6 +927,11 @@ function drawEffects() {
         ctx.drawImage(sp, -sw/2, -sh, sw, sh);
       }
       ctx.restore();
+    } else if (e.k === 'levelup') {
+      life = 44; const p = e.t / life;
+      ctx.strokeStyle = `rgba(255,215,80,${1 - p})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(px, py, sc*(1 + p*5), 0, 7); ctx.stroke();
+      ctx.fillStyle = `rgba(255,236,150,${1 - p})`; ctx.fillRect(px - 2, py - p*sc*4, 4, 4); ctx.fillRect(px - sc*1.5, py - p*sc*3, 3, 3); ctx.fillRect(px + sc*1.5, py - p*sc*3.5, 3, 3);
     } else if (e.k === 'evolve') {
       life = 40; const p = e.t / life;
       ctx.strokeStyle = `rgba(94,240,255,${1 - p})`; ctx.lineWidth = 3;
@@ -870,19 +1049,30 @@ function applyTool(wx, wy) {
 }
 
 let infoT = 0;
+function kingdomHtml(k) {
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}`;
+}
 function inspectAt(wx, wy) {
-  let best = null, bd = 9;
-  for (const c of creatures) { const d = (c.x-wx)**2 + (c.y-wy)**2; if (d < bd) { bd = d; best = c; } }
   const NM = { human:'Manusia', elf:'Elf', dwarf:'Kurcaci', orc:'Orc', sheep:'Domba', wolf:'Serigala', rabbit:'Kelinci', deer:'Rusa', werewolf:'Manusia serigala' };
-  if (best) {
-    const c = best, R = RACES[c.t];
-    infoEl.innerHTML = `<b>${EMOJI[c.t]} ${NM[c.t]}</b><br>❤️ ${Math.ceil(c.hp)}/${c.mhp} · ⏳ ${(c.age/120).toFixed(1)}/${(c.life/120).toFixed(1)}`
-      + (R.hunt ? `<br>⚡ ${Math.round(c.en)}` : '') + (c.kills ? `<br>⚔️ ${c.kills}` : '');
-  } else if (inb(wx, wy)) {
-    const i = wx + wy*W, nm = ['Laut dalam','Laut dangkal','Pasir','Rumput','Hutan','Bukit','Gunung','Salju','Lava','Tanah hangus'][tiles[i]];
-    infoEl.innerHTML = `<b>${nm}</b>` + (bld[i] ? `<br>🏠 ${NM[BUILD_OWNER[bld[i]]]}` : '') + (fire[i] ? '<br>🔥' : '');
+  let best = null, bd = 9, house = -1;
+  for (let dy = -1; dy <= 1 && house < 0; dy++) for (let dx = -1; dx <= 1; dx++) { if (inb(wx+dx, wy+dy) && bld[wx+dx + (wy+dy)*W]) { house = wx+dx + (wy+dy)*W; break; } }
+  if (house >= 0 && kingdoms.has(kid[house])) infoEl.innerHTML = kingdomHtml(kingdoms.get(kid[house]));
+  else {
+    for (const c of creatures) { const d = (c.x-wx)**2 + (c.y-wy)**2; if (d < bd) { bd = d; best = c; } }
+    if (best) {
+      const c = best, R = RACES[c.t], k = c.k ? kingdoms.get(c.k) : null;
+      infoEl.innerHTML = `<b>${EMOJI[c.t]} ${NM[c.t]}</b>${c.lead ? ' 👑' : ''}<br>❤️ ${Math.ceil(c.hp)}/${c.mhp} · ⏳ ${(c.age/120).toFixed(1)}/${(c.life/120).toFixed(1)}`
+        + (R.hunt ? `<br>⚡ ${Math.round(c.en)}` : '') + (c.kills ? `<br>⚔️ ${c.kills}` : '') + (k ? `<br>${LV_ICON[k.level]} ${k.name}` : '');
+    } else if (inb(wx, wy)) {
+      const i = wx + wy*W, k = kingdoms.get(own[i]);
+      if (k) infoEl.innerHTML = kingdomHtml(k);
+      else {
+        const nm = ['Laut dalam','Laut dangkal','Pasir','Rumput','Hutan','Bukit','Gunung','Salju','Lava','Tanah hangus'][tiles[i]];
+        infoEl.innerHTML = `<b>${nm}</b>` + (fire[i] ? '<br>🔥' : '');
+      }
+    }
   }
-  infoEl.style.display = 'block'; clearTimeout(infoT); infoT = setTimeout(() => infoEl.style.display = 'none', 3500);
+  infoEl.style.display = 'block'; clearTimeout(infoT); infoT = setTimeout(() => infoEl.style.display = 'none', 4500);
 }
 
 /* ============================== INPUT ============================== */
@@ -955,6 +1145,7 @@ const WORLD_ACTIONS = [
     { ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
     { ic:'🧹', fn: () => confirmThen('clear', 'Hapus makhluk & rumah', () => { creatures = []; bld.fill(0); counts = {}; houseCount = 0; dirty = true; toast('🧹'); }) },
   ]),
+  { ic:'🚩', on: () => showBorders, fn: () => { showBorders = !showBorders; renderRow2(); toast(showBorders ? '🚩 on' : '🚩 off'); } },
   { ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
 ];
 
@@ -997,7 +1188,7 @@ function updateStats() {
   else {
     yearEl.textContent = '📅 ' + Math.floor(tick / 120);
     for (const r of STAT_ORDER) if (r !== 'werewolf' || counts.werewolf) h += `<span>${EMOJI[r]}${counts[r] || 0}</span>`;     // werewolf chip appears once they exist
-    h += `<span>🏠${houseCount}</span>`;
+    h += `<span>🏰${kingdoms.size}·🏠${houseCount}</span>`;
   }
   statsEl.innerHTML = h;
 }
@@ -1005,20 +1196,32 @@ function updateStats() {
 /* ============================== SAVE / LOAD (play mode) ============================== */
 function clearSave() { try { lib.deleteUserGameState && lib.deleteUserGameState(); } catch (e) {} }
 function serialize() {
-  const bl = []; for (let i = 0; i < N; i++) if (bld[i]) bl.push(i * 8 + bld[i]);
-  return { v: 4, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, tick,
+  const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
+  const bl = [], bk = [];
+  for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
+  return { v: 5, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick,
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name]),
     cr: creatures.map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
 }
 function restore(s) {
-  if (!s || (s.v !== 1 && s.v !== 2 && s.v !== 3 && s.v !== 4)) return false;
+  if (!s || !(s.v >= 1 && s.v <= 5)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
   currentSeed = s.seed || 0; tick = s.tick || 0;
-  for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) bld[i] = b; }
+  const hl = [];
+  for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) { bld[i] = b; hl.push(i); } else hl.push(-1); }
+  const ids = [];
+  for (const a of s.kg || []) {                                              // saved kingdoms
+    const race = BUILD_OWNER[a[0]]; if (!race) { ids.push(0); continue; }
+    const k = newKingdom(race, a[1], a[2]);
+    Object.assign(k, { level: a[3], food: a[4], wood: a[5], stone: a[6], gold: a[7], born: a[8] || 0, name: a[9] || k.name });
+    ids.push(k.id);
+  }
+  if (s.bk) hl.forEach((i, j) => { if (i >= 0) kid[i] = ids[(s.bk[j] || 0) - 1] || 0; });      // 0 -> the next tick founds/joins one
   for (const v of s.cr || []) {
     let ti, x, y, age = -1;
     if (Array.isArray(v)) { ti = v[0]; x = v[1]; y = v[2]; age = v[3]; }
-    else { const m = s.v === 4 ? 10 : s.v === 3 ? 8 : 6; ti = v % m; const pos = (v / m) | 0; x = pos % W; y = (pos / W) | 0; }
+    else { const m = s.v >= 4 ? 10 : s.v === 3 ? 8 : 6; ti = v % m; const pos = (v / m) | 0; x = pos % W; y = (pos / W) | 0; }
     const c = RN[ti] ? spawn(RN[ti], x, y, true) : null;
     if (c) c.age = age >= 0 ? age : Math.floor(c.life * rnd(0, .4));
   }
@@ -1083,7 +1286,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles

@@ -14,6 +14,8 @@ Far zoom (tile < 5px) draws dots instead of sprites. Destructive world actions n
 
 Houses: one architectural style per race (human straw cottage, elf treehouse, dwarf stone hall, orc hide tent, werewolf moon lodge) with chimney smoke, lit windows at night and forge/moon glow.
 
+Kingdoms (phase 1 of civilization): houses of one race within 9 tiles form a kingdom with a generated name, a capital and a territory (tinted area with a border line; toggle with the flag button in the world tab). Each kingdom has food/wood/stone/gold: food limits births and famine kills, wood pays for new houses, and kingdoms level up Tribe -> Village -> Town -> Kingdom when population, houses and resources allow. Villages get a capital banner, Towns/Kingdoms a bigger per-race capital hall, Kingdoms a royal aura; the oldest member is crowned. Tap a house or territory with the inspect tool for a summary. Save format v5 stores kingdoms and each house's kingdom.
+
 Wildlife: sheep, rabbits and deer are prey (rabbits/deer flee); wolves hunt them, avoid settlements when fed, and a small pack migrates in from wild land when wolves get scarce so they never stay extinct.
 
 Forced evolution: when only 2-3 wolves remain they all evolve into werewolves (cooldown 1200 ticks). Werewolves are a neutral civilization: nobody is their foe, they fight nobody, and they grow slowly (rare births, few houses scaled to population, long lives, small cap).

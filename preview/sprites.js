@@ -112,6 +112,34 @@ const HOUSES = {
     meta: {"smoke": null, "glow": [{"x": 6, "y": 9, "w": 2, "h": 2, "c": "94,240,255", "always": 1}]},
   },
 };
+// Capital halls (shown for the capital of a Town/Kingdom): bigger, richer version of each race's house style.
+const HALLS = {
+  human: {
+    pal: { o:'#1c1424', R:'#b8553a', r:'#d8795a', Q:'#8a3a28', w:'#ece0c4', W:'#cbbd9a', S:'#9a96a0', s:'#b8b4c0', g:'#8ecbff', G:'#cfeaff', d:'#4a2e1a', y:'#ffd23f', b:'#8a8690', m:'#7a767e' },
+    A: [".......oo.......", "......oRQo......", ".....oRrRQo.....", "....oRrRQRQo....", "...oRrRRQQRQo...", "..oRrRRQQQQRQo..", ".oRrRRQQQQQQRQo.", "oRrRRQQQQQQQQRQo", "oQQQQQQQQQQQQQQo", "oSswwwwwWWWWWSSo", "oSswGgwwWWggWSSo", "oSswggwwWWggWSSo", "oSswwwwyyWWWWSSo", "oSswwwddddWWWSSo", "oSswwwddddWWWSSo", "obbbbbddddbbbbbo"],
+    meta: {"smoke": null, "glow": [{"x": 5, "y": 10, "w": 2, "h": 2, "c": "255,214,104", "always": 0}, {"x": 9, "y": 10, "w": 2, "h": 2, "c": "255,214,104", "always": 0}]},
+  },
+  elf: {
+    pal: { o:'#1c2418', L:'#4fae52', l:'#8fe08a', D:'#2d7a3a', p:'#d8a0ff', t:'#8a5a34', T:'#5e3a20', B:'#b07a48', k:'#2a1a14', y:'#ffe9a0', Y:'#fff6d0' },
+    A: ["......oooo......", "....ooLlLDoo....", "...oLlpLDpLDo...", "..oLlLlLDLDLDo..", ".oLpLLlLDLDDpDo.", ".oLLlLLDDDDLDDo.", "oLlLLpLDDDpDDLDo", "oLLLLLDDDDDDDDDo", "oDLLLDDDDDDDDDDo", "oDDLDDDDDDDDDDDo", ".oDDDpDDDDpDDDo.", "..ooDDDooDDDoo..", "...ooBBBtttoo...", "...otyYtTyyTo...", "...otyYtTyyTo...", "...ottkkkkTTo...", "..oTtBkkkktTTo..", ".ooTTooooooTToo."],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 13, "w": 1, "h": 2, "c": "255,240,160", "always": 0}, {"x": 9, "y": 13, "w": 1, "h": 2, "c": "255,240,160", "always": 0}]},
+  },
+  dwarf: {
+    pal: { o:'#1c1424', S:'#9ea6b2', s:'#c0c8d4', m:'#7a828e', R:'#5a5f78', r:'#7a80a0', Q:'#444860', d:'#4a2e1a', c:'#ff9a2e' },
+    A: ["oSoSo......omomo", "oSSSo..oo..ommmo", "oSsSoRRooQQomSmo", "oSSSoRrRQRQommmo", "oSsSoRRQQQQomSmo", "oSSSSSSSmmmmmmmo", "oSmSSsSSmmSmmmmo", "oSSSSSddddmmmmmo", "oSsSSSdccdmmmSmo", "oSSSSSdccdmmmmmo", "oSmSSSddddmmmmmo", "oSSSSSSSmmmmmmmo", "oSsSSsSSmmSmmSmo", "oooooooooooooooo"],
+    meta: {"smoke": [8, 1], "glow": [{"x": 7, "y": 8, "w": 2, "h": 2, "c": "255,150,40", "always": 1}]},
+  },
+  orc: {
+    pal: { o:'#1c1214', H:'#a8744a', h:'#c89868', D:'#7a4c2c', r:'#ff3d3d', k:'#2a1a14', w:'#f4f1e6', t:'#8a5a34', T:'#5e3a20' },
+    A: ["......w..w......", ".....oHHDDo.....", "....ohhHDHHo....", "...ohhHHDDHHo...", "..orhrrhHrrHro..", ".ohhhHHHDDDHHHo.", "ohhhHHDDDDDDHHHo", "ohhwwHDDDDDwwHHo", "ohhhHkkkkkkDHHHo", "ohhhHkkkkkkDHHHo", "ohhhkkkkkkkkHHHo", "ohhhkkkkkkkkHHHo", "tohhkkkkkkkkHHoT", "tooooooooooooooT"],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 8, "w": 4, "h": 4, "c": "255,122,42", "always": 1}]},
+  },
+  werewolf: {
+    pal: { o:'#1c1424', a:'#e6d9a8', R:'#4a4258', r:'#6b6379', Q:'#352f44', w:'#8a6a46', W:'#6e5236', t:'#5e4630', k:'#241a14', m:'#5ef0ff', M:'#c8fbff', f:'#a89080', F:'#7a6a5c' },
+    A: [".....a.aa.a.....", "......aRRa......", ".....oRrRRo.....", "....oRrrRRRo....", "...oRrrRRRRRo...", "..oRrrmMmmRRRo..", ".oRrrrmmmmRRRRo.", "oRrrrRRRRRRRRRRo", "oQQQQQQQQQQQQQQo", "owwwwwwwWWWWWWWo", "owfFwwwwWWWWFFWo", "owfFwmmwWmmWFFWo", "owwwwmMwWmmWWWWo", "owwwwwkkkkWWWWWo", "owwwwwkkkkWWWWWo", "otttttttttttttto"],
+    meta: {"smoke": null, "glow": [{"x": 6, "y": 5, "w": 4, "h": 2, "c": "94,240,255", "always": 1}, {"x": 7, "y": 11, "w": 2, "h": 2, "c": "94,240,255", "always": 1}]},
+  },
+};
 function buildSprite(def, frame) {
   const rows = def[frame] || def.A;
   const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
