@@ -41,11 +41,11 @@ const SPRITES = {
     A: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..",".oto.oto..",".oo..oo..."],
     B: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..","..oto.oto.","..oo..oo.."],
   },
-  werewolf: {
-    pal: { o:OUT, g:'#6b6470', G:'#8d8696', e:'#ffe14a', n:'#1c1420', c:'#5ef0ff', d:'#2fa8b8', p:'#3a3448', b:'#2a2430', w:'#f4f1e6' },
-    A: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","..obo.obo."],
-    B: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","...obbbo.."],
-    C: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.","wgccccccgw",".gggccggg.",".oggggggo.",".oppppppo.","..obo.obo."],
+  werewolf: { // 14x16 elite sprite
+    pal: { o:OUT, f:'#6f6a85', F:'#a8a3c2', d:'#403b58', m:'#8e8aa8', s:'#cfcbe0', n:'#0e0a12', e:'#ffb800', E:'#fff2a0', w:'#f6f2e8', r:'#b02a40', c:'#5ef0ff', C:'#2aa5b8', p:'#2f2a3c', P:'#4a4460', b:'#1b1722' },
+    A: ["...o......o...","..ofo....ofo..","..offooooffo..","..oFfdffdfFo..",".ofeEffffEefo.",".oFffssssffFo.","..ofssnnssfo..","...ofwrrwfo...",".oFFoddddoFFo.","oFFfmdmmdmfFFo","oFfommccmmofFo","oFfodmccmdofFo","oFfocCCCCcofFo","bw.oppPPppo.wb","..obpPooPpbo..",".obbbw..wbbbo."],
+    B: ["...o......o...","..ofo....ofo..","..offooooffo..","..oFfdffdfFo..",".ofeEffffEefo.",".oFffssssffFo.","..ofssnnssfo..","...ofwrrwfo...",".oFFoddddoFFo.","oFFfmdmmdmfFFo","oFfommccmmofFo","oFfodmccmdofFo","oFfocCCCCcofFo","bw.oppPPppo.wb","..obpPo..oPpbo",".obbbw...wbbo."],
+    C: ["...o......o...","..ofo....ofo..","..offooooffo..","..oFfdffdfFo..","wofeEffffEefow","wwFffssssffFww","oFofssnnssfoFo","oFfofwrrwfofFo","oFFFoddddoFFFo","...fmdmmdmf...","...ommccmmo...","...odmccmdo...","...ocCCCCco...","...oppPPppo...","..obpPooPpbo..",".obbbw..wbbbo."],
   },
   wolf: {
     pal: { o:OUT, g:'#5b6070', l:'#9aa0b0', e:'#ff5050', n:'#1c1c24', d:'#3a3e4c', b:'#2a2d38', w:'#ffffff', r:'#c02030' },
@@ -79,9 +79,9 @@ const HOUSES = {
 };
 function buildSprite(def, frame) {
   const rows = def[frame] || def.A;
-  const c = document.createElement('canvas'); c.width = 10; c.height = 10;
+  const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
   const x = c.getContext('2d');
-  for (let y = 0; y < 10; y++) for (let i = 0; i < 10; i++) {
+  for (let y = 0; y < rows.length; y++) for (let i = 0; i < rows[0].length; i++) {
     const ch = rows[y][i]; if (ch === '.') continue;
     x.fillStyle = def.pal[ch] || '#f0f'; x.fillRect(i, y, 1, 1);
   }

@@ -242,11 +242,11 @@ const SPRITES = {
     A: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..",".oto.oto..",".oo..oo..."],
     B: ["......a.a.",".......aa.","......otto","......ottn",".....ottoo","ottttttto.","otTttwttto","owwwwwwo..","..oto.oto.","..oo..oo.."],
   },
-  werewolf: {
-    pal: { o:OUT, g:'#6b6470', G:'#8d8696', e:'#ffe14a', n:'#1c1420', c:'#5ef0ff', d:'#2fa8b8', p:'#3a3448', b:'#2a2430', w:'#f4f1e6' },
-    A: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","..obo.obo."],
-    B: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.",".ogccccgo.","ogggccgggo","oggggggggo",".oppppppo.","...obbbo.."],
-    C: ["..o....o..",".ogo..ogo.",".oggggggo.",".ogeggego.","..oggnggo.","wgccccccgw",".gggccggg.",".oggggggo.",".oppppppo.","..obo.obo."],
+  werewolf: { // 14x16 elite sprite
+    pal: { o:OUT, f:'#6f6a85', F:'#a8a3c2', d:'#403b58', m:'#8e8aa8', s:'#cfcbe0', n:'#0e0a12', e:'#ffb800', E:'#fff2a0', w:'#f6f2e8', r:'#b02a40', c:'#5ef0ff', C:'#2aa5b8', p:'#2f2a3c', P:'#4a4460', b:'#1b1722' },
+    A: ["...o......o...","..ofo....ofo..","..offooooffo..","..oFfdffdfFo..",".ofeEffffEefo.",".oFffssssffFo.","..ofssnnssfo..","...ofwrrwfo...",".oFFoddddoFFo.","oFFfmdmmdmfFFo","oFfommccmmofFo","oFfodmccmdofFo","oFfocCCCCcofFo","bw.oppPPppo.wb","..obpPooPpbo..",".obbbw..wbbbo."],
+    B: ["...o......o...","..ofo....ofo..","..offooooffo..","..oFfdffdfFo..",".ofeEffffEefo.",".oFffssssffFo.","..ofssnnssfo..","...ofwrrwfo...",".oFFoddddoFFo.","oFFfmdmmdmfFFo","oFfommccmmofFo","oFfodmccmdofFo","oFfocCCCCcofFo","bw.oppPPppo.wb","..obpPo..oPpbo",".obbbw...wbbo."],
+    C: ["...o......o...","..ofo....ofo..","..offooooffo..","..oFfdffdfFo..","wofeEffffEefow","wwFffssssffFww","oFofssnnssfoFo","oFfofwrrwfofFo","oFFFoddddoFFFo","...fmdmmdmf...","...ommccmmo...","...odmccmdo...","...ocCCCCco...","...oppPPppo...","..obpPooPpbo..",".obbbw..wbbbo."],
   },
   wolf: {
     pal: { o:OUT, g:'#5b6070', l:'#9aa0b0', e:'#ff5050', n:'#1c1c24', d:'#3a3e4c', b:'#2a2d38', w:'#ffffff', r:'#c02030' },
@@ -280,9 +280,9 @@ const HOUSES = {
 };
 function buildSprite(def, frame) {
   const rows = def[frame] || def.A;
-  const c = document.createElement('canvas'); c.width = 10; c.height = 10;
+  const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
   const x = c.getContext('2d');
-  for (let y = 0; y < 10; y++) for (let i = 0; i < 10; i++) {
+  for (let y = 0; y < rows.length; y++) for (let i = 0; i < rows[0].length; i++) {
     const ch = rows[y][i]; if (ch === '.') continue;
     x.fillStyle = def.pal[ch] || '#f0f'; x.fillRect(i, y, 1, 1);
   }
@@ -634,11 +634,11 @@ function draw() {
       let f = 'A';
       if (c.atk > 0) { f = 'C'; c.atk--; } else if (moving && ((frame >> 3) + c.id) % 2) f = 'B';
       const lunge = c.atk > 3 ? 2 * SPR_K : 0;
-      const spr = ATLAS[c.t][f];
-      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - S*.3, fy - Math.max(1, S*.08), S*.6, Math.max(1, S*.1));
-      if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -S/2 + lunge, fy - S, S, S); ctx.restore(); }
-      else ctx.drawImage(spr, cx - S/2 + lunge, fy - S, S, S);
-      if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - S*.4 - 1, fy - S - 5, S*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - S*.4, fy - S - 4, S*.8*Math.max(0, c.hp/c.mhp), 2); }
+      const spr = ATLAS[c.t][f], sw = spr.width * SPR_K, sh = spr.height * SPR_K;       // sprites may be bigger than 10x10
+      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - sw*.3, fy - Math.max(1, sw*.08), sw*.6, Math.max(1, sw*.1));
+      if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -sw/2 + lunge, fy - sh, sw, sh); ctx.restore(); }
+      else ctx.drawImage(spr, cx - sw/2 + lunge, fy - sh, sw, sh);
+      if (sc >= 8 && c.hp < c.mhp) { ctx.fillStyle = '#000'; ctx.fillRect(cx - sw*.4 - 1, fy - sh - 5, sw*.8 + 2, 4); ctx.fillStyle = '#4f4'; ctx.fillRect(cx - sw*.4, fy - sh - 4, sw*.8*Math.max(0, c.hp/c.mhp), 2); }
     }
   } else {
     // far zoom (big maps): plain dots instead of sprites
@@ -697,14 +697,14 @@ function drawEffects() {
       life = 12; ctx.strokeStyle = `rgba(200,230,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, sc*(.4 + e.t/life*1.2), 0, 7); ctx.stroke();
     } else if (e.k === 'death') {
-      life = 30; const S = 10 * SPR_K, sp = ATLAS[e.type].A, fy = py + sc*.42;
+      life = 30; const sp = ATLAS[e.type].A, sw = sp.width * SPR_K, sh = sp.height * SPR_K, fy = py + sc*.42;
       if (sc < 5) { if (e.t >= life) effects.splice(i, 1); continue; }
       ctx.save();
-      if (e.old) { ctx.globalAlpha = Math.max(0, .7*(1 - e.t/life)); ctx.drawImage(sp, px - S/2, fy - S - e.t*.25*SPR_K, S, S); }
+      if (e.old) { ctx.globalAlpha = Math.max(0, .7*(1 - e.t/life)); ctx.drawImage(sp, px - sw/2, fy - sh - e.t*.25*SPR_K, sw, sh); }
       else {
         ctx.globalAlpha = e.t < 14 ? 1 : Math.max(0, 1 - (e.t - 14)/16);
         ctx.translate(px, fy); ctx.scale(e.face || 1, 1); ctx.rotate(Math.min(1, e.t/8) * Math.PI/2);
-        ctx.drawImage(sp, -S/2, -S, S, S);
+        ctx.drawImage(sp, -sw/2, -sh, sw, sh);
       }
       ctx.restore();
     } else if (e.k === 'evolve') {
