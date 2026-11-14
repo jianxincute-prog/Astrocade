@@ -1188,7 +1188,8 @@ function step() {
   }
   if (tick % 8 === 0) economy();
   if (tick % 16 === 0) updateFronts();
-  if (tick % 80 === 0) { diplomacyTick(); eventsTick(); }
+  if (tick % 80 === 0) { diplomacyTick(); eventsTick(); if (!editMode) disasterTick(); }
+  if (pendingDis.length) processDisasters();
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -1441,6 +1442,12 @@ function drawEffects() {
     } else if (e.k === 'splash') {
       life = 12; ctx.strokeStyle = `rgba(200,230,255,${1 - e.t/life})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, sc*(.4 + e.t/life*1.2), 0, 7); ctx.stroke();
+    } else if (e.k === 'warn') {
+      life = e.life; const p = e.t / life, pul = .5 + .5*Math.sin(e.t * .5);
+      ctx.strokeStyle = `rgba(255,${80 + pul*80|0},50,${.35 + .5*pul})`; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.arc(px, py, sc*e.r*(1.15 - .25*p), 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      if (e.smoke && e.t % 3 === 0) { ctx.fillStyle = 'rgba(70,60,70,.55)'; const sy = py - (e.t % 24) * sc * .35; ctx.fillRect(px + (hash(e.t, 7, 1) - .5)*sc*2, sy, sc*.9, sc*.9); }
+      drawIcon(e.ch, px, py - sc*1.2 - pul*sc*.4, Math.max(22, sc*3.2), .9);
     } else if (e.k === 'death') {
       life = 30; const sp = ATLAS[e.type].A, sw = sp.width * SPR_K, sh = sp.height * SPR_K, fy = py + sc*.42;
       if (sc < 5) { if (e.t >= life) effects.splice(i, 1); continue; }
@@ -1519,6 +1526,87 @@ const TOOLS = {
   inspect:{ g:'powers', ic:'🔍', nm:'Periksa', ms:0 },
 };
 
+/* ============================== NATURAL DISASTERS (automatic; level set in the world tab) ============================== */
+let disasterLvl = 1;                                         // 0 off, 1 rare, 2 frequent
+let nextMajor = 0;                                           // tick before which no volcano/meteor may be scheduled
+const pendingDis = [];
+const DIS_NAMES = ['Mati', 'Jarang', 'Sering'];
+function strikeBolt(wx, wy, rr) {
+  fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 }); haptic('tap');
+  forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
+  for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
+}
+function strikeMeteor(wx, wy, R) {
+  fx('boom', wx, wy, { r: R + 2 }); haptic('thud');
+  forDisc(wx, wy, R, (x, y, i) => {
+    const d = Math.hypot(x - wx, y - wy); bld[i] = 0;
+    if (tiles[i] > T.SHALLOW) { if (d < R*.45) setTile(i, T.LAVA); else if (d < R*.8) setTile(i, T.BURNT); }
+    else if (d < R*.35) setTile(i, T.SHALLOW);
+  });
+  forDisc(wx, wy, R + 3, (x, y, i) => { if (Math.random() < .6) ignite(i); });
+  for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= (R+1)**2) c.hp = 0;
+}
+function eruptVolcano(wx, wy) {
+  fx('boom', wx, wy, { r: 5 }); haptic('thud');
+  const flow = (x, y, i) => { if (tiles[i] > T.SHALLOW) { setTile(i, T.LAVA); bld[i] = 0; } };
+  forDisc(wx, wy, 2, flow);
+  for (let n = 0; n < 4; n++) {                              // lava streams run outward from the vent
+    const o = DIRS[1 + 2*ri(0, 3)]; let x = wx, y = wy;
+    for (let k = 0, len = ri(5, 9); k < len; k++) {
+      x += o[0] + (Math.random() < .3 ? ri(-1, 1) : 0); y += o[1] + (Math.random() < .3 ? ri(-1, 1) : 0);
+      if (!inb(x, y) || tiles[x + y*W] <= T.SHALLOW) break;
+      forDisc(x, y, Math.random() < .35 ? 1 : 0, flow);
+    }
+  }
+  forDisc(wx, wy, 7, (x, y, i) => { if (Math.random() < .35) ignite(i); });
+  for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= 30) c.hp = 0;
+}
+function smallKingdomNear(x, y, r) {                         // keep tiny kingdoms from being wiped out by a random disaster
+  let bad = false;
+  forDisc(x, y, r, (tx, ty, i) => { if (bld[i]) { const k = kingdoms.get(kid[i]); if (!k || k.houses <= 3) bad = true; } });
+  return bad;
+}
+function pickSpot(test, tries) {
+  for (let n = 0; n < tries; n++) { const x = ri(0, W - 1), y = ri(0, H - 1); if (test(tiles[x + y*W], x, y)) return [x, y]; }
+  return null;
+}
+function disasterTick() {                                    // every ~10 seconds, play mode only
+  if (!disasterLvl) return;
+  const L = disasterLvl;
+  if (Math.random() < (L === 1 ? .06 : .15)) {               // lightning: minor, can start forest fires
+    const p = pickSpot((t, x, y) => t === T.FOREST || ((t === T.GRASS || t === T.HILL) && Math.random() < .3), 40);
+    if (p) { pendingDis.push({ type: 'bolt', x: p[0], y: p[1], at: tick + 1 }); fx('warn', p[0], p[1], { life: 10, r: 1, ch: '⚡' }); }
+  }
+  if (tick >= nextMajor && Math.random() < (L === 1 ? .025 : .07)) {
+    const meteor = Math.random() < .3;
+    let p = null;
+    if (meteor) {
+      for (let n = 0; n < 12 && !p; n++) {
+        let x, y;
+        if (kingdoms.size && Math.random() < .5) { const ks = [...kingdoms.values()], k = ks[ri(0, ks.length - 1)]; x = Math.round(k.cx) + ri(-8, 8); y = Math.round(k.cy) + ri(-8, 8); }
+        else { x = ri(0, W - 1); y = ri(0, H - 1); }
+        if (inb(x, y) && tiles[x + y*W] > T.SHALLOW && !smallKingdomNear(x, y, 7)) p = [x, y];
+      }
+    } else p = pickSpot((t, x, y) => (t === T.MOUNTAIN || t === T.SNOW) && !smallKingdomNear(x, y, 9), 400);
+    if (p) {
+      const wait = meteor ? 32 : 48;
+      pendingDis.push({ type: meteor ? 'meteor' : 'volcano', x: p[0], y: p[1], at: tick + wait });
+      fx('warn', p[0], p[1], { life: wait, r: meteor ? 6 : 4, ch: meteor ? '☄️' : '🌋', smoke: !meteor });
+      toast(meteor ? '☄️ ⚠️' : '🌋 ⚠️'); haptic('warning');
+      nextMajor = tick + (L === 1 ? 1500 : 600);
+    }
+  }
+}
+function processDisasters() {
+  for (let i = pendingDis.length - 1; i >= 0; i--) {
+    const d = pendingDis[i]; if (tick < d.at) continue;
+    pendingDis.splice(i, 1);
+    if (d.type === 'bolt') strikeBolt(d.x, d.y, 1);
+    else if (d.type === 'meteor') strikeMeteor(d.x, d.y, 4 + ri(0, 1));
+    else eruptVolcano(d.x, d.y);
+  }
+}
+
 function applyTool(wx, wy) {
   const r = brushR(), T_ = TOOLS[tool];
   if (!T_ || !inb(wx, wy)) return;
@@ -1548,25 +1636,8 @@ function applyTool(wx, wy) {
       });
       break;
     case 'fire': forDisc(wx, wy, r, (x, y, i) => { if (Math.random() < .7) ignite(i); }); break;
-    case 'bolt': {
-      const rr = Math.max(1, r >> 1);
-      fx('bolt', wx, wy, { seed: (Math.random()*1000)|0 }); haptic('tap');
-      forDisc(wx, wy, rr, (x, y, i) => { ignite(i); bld[i] = 0; });
-      for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= rr*rr + 1) c.hp = 0;
-      break;
-    }
-    case 'meteor': {
-      const R = 4 + (r >> 1);
-      fx('boom', wx, wy, { r: R + 2 }); haptic('thud');
-      forDisc(wx, wy, R, (x, y, i) => {
-        const d = Math.hypot(x - wx, y - wy); bld[i] = 0;
-        if (tiles[i] > T.SHALLOW) { if (d < R*.45) setTile(i, T.LAVA); else if (d < R*.8) setTile(i, T.BURNT); }
-        else if (d < R*.35) setTile(i, T.SHALLOW);
-      });
-      forDisc(wx, wy, R + 3, (x, y, i) => { if (Math.random() < .6) ignite(i); });
-      for (const c of creatures) if ((c.x-wx)**2 + (c.y-wy)**2 <= (R+1)**2) c.hp = 0;
-      break;
-    }
+    case 'bolt': strikeBolt(wx, wy, Math.max(1, r >> 1)); break;
+    case 'meteor': strikeMeteor(wx, wy, 4 + (r >> 1)); break;
     case 'enlighten': {
       const list = kingdomsAt(wx, wy, r);
       for (const kk of list) grantTech(kk);
@@ -1769,6 +1840,7 @@ const WORLD_ACTIONS = [
   ]),
   ...(editMode ? [] : [{ ic:'🏆', fn: () => submitScore(true) }]),
   { ic:'🚩', on: () => showBorders, fn: () => { showBorders = !showBorders; renderRow2(); toast(showBorders ? '🚩 on' : '🚩 off'); } },
+  ...(editMode ? [] : [{ ic:'☄️', on: () => disasterLvl > 0, fn: () => { disasterLvl = (disasterLvl + 1) % 3; pendingDis.length = 0; dirty = true; renderRow2(); toast('☄️ Bencana: ' + DIS_NAMES[disasterLvl]); } }]),
   { ic:'🌗', fn: () => { cfg.settings.dayNight = !cfg.settings.dayNight; toast(cfg.settings.dayNight ? '🌗 on' : '🌗 off'); } },
 ];
 
@@ -1828,7 +1900,7 @@ function serialize() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent,
+  return { v: 8, z: sizeIdx, seed: currentSeed, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl,
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick)]),
     cr: creatures.map(c => (c.y * W + c.x) * 10 + RN.indexOf(c.t)) };      // one packed int per creature
@@ -1837,7 +1909,7 @@ function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 8)) return false;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
-  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0;
+  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0;
   const hl = [];
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) { bld[i] = b; hl.push(i); } else hl.push(-1); }
   const ids = [];
@@ -1923,7 +1995,7 @@ async function start() {
 }
 start();
 
-window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, applyTool, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
