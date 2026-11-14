@@ -170,7 +170,7 @@ const wallGates = new Map();                                   // kingdom id -> 
 const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
 let comp = null, compDirty = true;                 // connected land components (wars only happen on the same landmass)
 const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
-const warStats = { breached: 0, declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
+const warStats = { repaired: 0, towerShots: 0, breached: 0, declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
 let creatures = [], nextId = 1, tick = 0;
 let speed = 1, paused = editMode;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
@@ -499,7 +499,7 @@ function kingdomRing(k, R) {                                // wall ring around 
   if (R) for (let d = -R; d <= R; d++) for (const [x, y] of [[cx + d, cy - R], [cx + d, cy + R], [cx - R, cy + d], [cx + R, cy + d]]) {
     if (!inb(x, y) || !terrOk(x + y*W)) continue;
     const corner = Math.abs(x - cx) === R && Math.abs(y - cy) === R, mid = (x === cx || y === cy);
-    list.push({ t: mid ? 'gate' : corner && k.level >= 3 ? 'tower' : 'wall', x, y });
+    list.push({ t: mid ? 'gate' : corner && k.level >= 2 ? 'tower' : 'wall', x, y });
   }
   k.rv = { key, list };
   return list;
@@ -891,6 +891,7 @@ function stepCreature(c) {
           break;
         }
       }
+      if (ka.wd && ka.wd.size && !c.lead && !isSoldier(c) && c.id % 3 === 0 && (tick + c.id) % 2 === 0 && repairStep(c, ka)) return;     // civilians mend damaged walls
       if ((c.lead || isSoldier(c)) && ka.front >= 0) {                    // soldiers march on the enemy
         const fx0 = ka.front % W, fy0 = (ka.front / W) | 0;
         if (Math.max(Math.abs(fx0 - c.x), Math.abs(fy0 - c.y)) > 2) {
@@ -979,6 +980,30 @@ function repairWalls() {                                   // kingdoms at peace 
     for (const [i, d] of [...k.wd]) {
       if (d >= 1e4) { if (k.wood >= 3) { k.wood -= 3; k.wd.delete(i); if (k.broken) k.broken.delete(i); } }
       else if (d - 25 <= 0) k.wd.delete(i); else k.wd.set(i, d - 25);
+    }
+  }
+}
+function repairStep(c, k) {                                // a civilian walks to the nearest damaged wall segment and mends it (broken ones cost wood)
+  let best = -1, bd = 15;
+  for (const i of k.wd.keys()) { const d = Math.max(Math.abs((i % W) - c.x), Math.abs(((i / W) | 0) - c.y)); if (d < bd) { bd = d; best = i; } }
+  if (best < 0) return false;
+  if (bd > 1) return moveToward(c, best % W, (best / W) | 0);
+  const dmg = k.wd.get(best);
+  if (dmg >= 1e4) { if (k.wood < 3) return false; k.wood -= 3; k.wd.delete(best); if (k.broken) k.broken.delete(best); }
+  else { if (k.wood < .5) return false; k.wood -= .5; if (dmg - 22 <= 0) k.wd.delete(best); else k.wd.set(best, dmg - 22); }
+  c.atk = 6; fx('bless', best % W, (best / W) | 0); warStats.repaired++;
+  return true;
+}
+function towerTick() {                                      // every 1.5 seconds: intact towers shoot enemy soldiers in range
+  for (const k of kingdoms.values()) {
+    if (!k.enemies.size) continue;
+    const R = ringR(k); if (!R) continue;
+    for (const p of kingdomRing(k, R)) {
+      if (p.t !== 'tower' || (k.broken && k.broken.has(p.x + p.y*W))) continue;
+      const rng = (k.level >= 3 ? 7 : 6) + (k.mod.range > 1 ? 2 : 0), tg = findEnemy({ x: p.x, y: p.y }, k, rng);
+      if (!tg) continue;
+      const kd = kingdoms.get(tg.k), dmg = (4 + k.level) * k.mod.atk * (.7 + Math.random() * .6) / (kd ? kd.mod.def : 1);
+      tg.hp -= dmg; fx('arrow', p.x, p.y, { tx: tg.x, ty: tg.y }); fx('hit', tg.x, tg.y); warStats.towerShots++;
     }
   }
 }
@@ -1388,6 +1413,7 @@ function step() {
   }
   if (tick % 8 === 0) economy();
   if (tick % 16 === 0) { updateFronts(); rebuildWalls(); }
+  if (tick % 12 === 0) towerTick();
   if (tick % 80 === 0) { diplomacyTick(); eventsTick(); if (!editMode) disasterTick(); }
   if (pendingDis.length) processDisasters();
   if (floods.length && tick % 8 === 0) floodRecede();
