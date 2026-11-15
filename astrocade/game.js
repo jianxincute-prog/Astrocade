@@ -15,6 +15,7 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+import { TECHS, BRANCHES, BRANCH_NAME, BRANCH_IC, TIER_KP, ageName, ageNeed, ageReady, availableTechs, chooseTech, kpGain, techById, legacyTechIds } from './tech.js';
 
 function run(mode) {
 'use strict';
@@ -66,45 +67,7 @@ const NAME_P = {
   orc:[['Gor','Zug','Mog','Gra','Kru','Thrak','Ugh'],['ash','gash','uk','nar','dak','mok']],
   werewolf:[['Lun','Fen','Va','Mar','Grey','Nox','Ulv'],['fang','moon','howl','pelt','mere','claw']],
 };
-// ---- Technology: four race arts followed by a shared Iron-Age sailing breakthrough ----
-// fx keys: food/wood/stone/gold/birth/atk/def multiply; houses/radius add; range/night/loot/steal/regen/fire/farms/walls/grow are flags or maxima.
-const TECHS = {
-  human: [
-    { id:'agri',    ic:'🌾', n:'Farming',           lv:1, cost:{ wood:30 },            fx:{ food:1.4, birth:1.1, farms:1 } },
-    { id:'walls',   ic:'🧱', n:'Walls',             lv:2, cost:{ stone:60, wood:30 },  fx:{ houses:4, def:1.25, radius:2, walls:1 } },
-    { id:'knight',  ic:'⚔️', n:'Knighthood',        lv:2, cost:{ gold:40, stone:50, iron:12 },  fx:{ atk:1.3, def:1.3 } },
-    { id:'trade',   ic:'🪙', n:'Trade',             lv:3, cost:{ gold:80, silver:12 },            fx:{ gold:2, food:1.2, birth:1.25 } },
-    { id:'voyage',  ic:'⛵', n:'Ocean Voyages',      lv:3, cost:{ wood:90, gold:30, iron:12 },    fx:{}, lm:'harbor' },
-  ],
-  elf: [
-    { id:'forest',  ic:'🌿', n:'Living Forest',     lv:1, cost:{ wood:30 },            fx:{ wood:1.3, food:1.2, grow:1 } },
-    { id:'archer',  ic:'🏹', n:'Archery',           lv:1, cost:{ wood:40, gold:20, bronze:8 },   fx:{ range:3, atk:1.1 } },
-    { id:'ward',    ic:'🔥', n:'Fire Ward',         lv:2, cost:{ wood:60, stone:20, silver:8 },  fx:{ fire:1, def:1.15 } },
-    { id:'treelife',ic:'🌳', n:'Tree of Life',      lv:3, cost:{ wood:120, gold:60 },  fx:{ regen:.08, birth:1.3 }, lm:'lifetree' },
-    { id:'voyage',  ic:'⛵', n:'Star Navigation',    lv:3, cost:{ wood:100, gold:25, iron:10, silver:6 }, fx:{}, lm:'harbor' },
-  ],
-  dwarf: [
-    { id:'mining',  ic:'⛏️', n:'Mining',            lv:1, cost:{ stone:20 },           fx:{ stone:2, gold:1.5 }, lm:'mine' },
-    { id:'forge',   ic:'🔨', n:'Forge',             lv:2, cost:{ stone:60, gold:20, iron:15 },  fx:{ def:1.4, atk:1.2 } },
-    { id:'vault',   ic:'🏦', n:'Vault',             lv:2, cost:{ gold:60, stone:60, silver:15 },  fx:{ gold:2, houses:4 } },
-    { id:'hold',    ic:'🏯', n:'Mountain Hold',     lv:3, cost:{ gold:100, stone:120, iron:20 },fx:{ radius:3, def:1.5 } },
-    { id:'voyage',  ic:'⛵', n:'Deep Keels',         lv:3, cost:{ wood:80, stone:45, iron:16 },    fx:{}, lm:'harbor' },
-  ],
-  orc: [
-    { id:'camp',    ic:'🪓', n:'War Camp',          lv:1, cost:{ wood:30 },            fx:{ atk:1.25, birth:1.2 }, lm:'warbanner' },
-    { id:'raid',    ic:'🩸', n:'Raiding',           lv:1, cost:{ stone:20, gold:10, bronze:8 },  fx:{ loot:1 } },
-    { id:'totem',   ic:'💀', n:'Blood Totem',       lv:2, cost:{ stone:40, gold:30, bronze:10 },  fx:{ steal:.3, atk:1.15 }, lm:'bloodtotem' },
-    { id:'horde',   ic:'👹', n:'The Horde',         lv:3, cost:{ gold:60, wood:60, iron:15 },   fx:{ birth:1.5, houses:4, def:1.25 } },
-    { id:'voyage',  ic:'⛵', n:'War Canoes',         lv:3, cost:{ wood:90, gold:18, iron:10 },     fx:{}, lm:'harbor' },
-  ],
-  werewolf: [
-    { id:'moon',    ic:'🌙', n:'Moon Prayer',       lv:0, cost:{ wood:20 },            fx:{ night:1.4 } },
-    { id:'pack',    ic:'🐾', n:'The Pack',          lv:1, cost:{ stone:20, silver:6 },           fx:{ birth:1.4 } },
-    { id:'spirit',  ic:'🔮', n:'Spirit Totem',      lv:2, cost:{ stone:40, gold:20, silver:8 },  fx:{ radius:3, regen:.05 }, lm:'spirittotem' },
-    { id:'full',    ic:'🌕', n:'Full Moon',         lv:3, cost:{ gold:50, silver:10 },            fx:{ night:2, birth:1.5 } },
-    { id:'voyage',  ic:'⛵', n:'Moonwake Fleet',     lv:3, cost:{ wood:80, gold:22, iron:8 },      fx:{}, lm:'harbor' },
-  ],
-};
+// ---- Technology: see tech.js (15 techs per race in three branches, five ages) ----
 const BORDER_RGB = [null, [74,163,255], [226,169,255], [255,154,46], [255,61,61], [94,240,255]];     // by house owner index (race.bi)
 const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer','werewolf'];     // index order is part of the save format
 const STAT_ORDER = ['human','elf','dwarf','orc','sheep','rabbit','deer','wolf','werewolf'];
@@ -238,6 +201,14 @@ style.textContent = `
   #awinfo .bar{display:flex;align-items:center;gap:8px;font-size:22px;margin:3px 0;clear:both}
   #awinfo .bar u{display:block;flex:1;height:14px;background:#0b1020;border:2px solid #2c3868;border-radius:7px;overflow:hidden;text-decoration:none}
   #awinfo .bar u i{display:block;height:100%}
+  #awinfo .tree{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;clear:both}
+  #awinfo .tree .th{padding:8px 4px;border-radius:10px;background:rgba(255,255,255,.12);text-align:center;font-size:20px;font-weight:700}
+  #awinfo .tree .th.on{background:#ffd34d;color:#222}
+  #awinfo .tree .tc{padding:8px 2px;border-radius:10px;background:rgba(255,255,255,.07);text-align:center;font-size:24px;min-height:48px;opacity:.45}
+  #awinfo .tree .tc.av{opacity:.85;outline:2px dashed #8cf}
+  #awinfo .tree .tc.rs{opacity:1;outline:2px solid #ffd34d}
+  #awinfo .tree .tc.dn{opacity:1;background:rgba(90,200,120,.35)}
+  #awinfo .tree .tc.sel{box-shadow:0 0 0 3px #fff}
   #awinfo .seeds{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;clear:both}
   #awinfo .seed{min-height:118px;border-radius:14px;border:3px solid #2c3868;background:linear-gradient(#26305c,#161c3c);color:#e8ecff;font-family:inherit;text-align:left;padding:10px 14px;cursor:pointer}
   #awinfo .seed b{display:block;font-size:30px}
@@ -1106,10 +1077,14 @@ function mineTick(k, E) {                                    // once per second:
     else if (effects.length < 400 && Math.random() < .4) fx('hit', i % W, (i / W) | 0);
   }
 }
-function ageCheck() {                                        // bronze then iron weapons: +10% / +22% attack and defence
+const AGE_IC = ['🪨', '🥉', '🔩', '🏰', '🔥'];
+function ageCheck() {                                        // five ages: each needs its tier of techs, a level and a stock of metal
   for (const k of kingdoms.values()) {
-    if (k.age < 1 && k.level >= 1 && k.bronze >= 20) { k.bronze -= 20; k.age = 1; recalcMods(k); fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: '🥉' }); }
-    else if (k.age === 1 && k.level >= 2 && k.iron >= 25) { k.iron -= 25; k.age = 2; recalcMods(k); fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: '🔩' }); }
+    const a = k.age | 0, need = ageNeed(a);
+    if (!need || !ageReady(k.race, k.tech, a, k.level) || !canPay(k, need.cost)) continue;
+    pay(k, need.cost); k.age = a + 1; recalcMods(k);
+    fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: AGE_IC[k.age] });
+    if (k.age >= 3) { addChronicle(AGE_IC[k.age], `${k.name} entered the ${ageName(k.age, k.race)}`); if (started) banner(AGE_IC[k.age], ageName(k.age, k.race), `${k.name} advances`, 'good'); }
   }
 }
 /* ============================== MARKET + CARAVANS + IRON KNIGHTS ============================== */
@@ -1120,9 +1095,8 @@ const market = { p: Object.assign({ fin: 7, hide: 10 }, CBASE), d: {}, trades: 0
 function needOf(k, c) {                                        // what a kingdom wants to hold soon: next level, next tech, next age
   let n = c === 'food' ? 60 : 12;
   const r = k.level < 3 ? LV_REQ[k.level] : null; if (r && r[c]) n = Math.max(n, r[c] + 5);
-  const t = TECHS[k.race][k.tech.length]; if (t && t.cost[c]) n = Math.max(n, t.cost[c] + 5);
-  if (c === 'bronze' && k.age < 1) n = Math.max(n, 25);
-  if (c === 'iron' && k.age < 2) n = Math.max(n, 30);
+  const t = k.want; if (t && t.cost[c]) n = Math.max(n, t.cost[c] + 5);
+  const an = ageNeed(k.age | 0); if (an && an.cost[c]) n = Math.max(n, an.cost[c] + 5);
   return n;
 }
 const keepOf = (k, c) => Math.max(needOf(k, c) * 2, c === 'food' ? 150 : 60);
@@ -1215,7 +1189,7 @@ function shopTick() {                                         // every ~10 s: un
       let bi = -1, bv = 1e9; k.chest.forEach((it, j) => { const v = itemValue(it[0], it[1], it[3] | 0); if (v < bv) { bv = v; bi = j; } });
       if (bi >= 0) { const it = k.chest.splice(bi, 1)[0], p = sellPrice(it); k.gold = Math.min(250, k.gold + p); shopAdd(it, p); market.sold = (market.sold | 0) + 1; }
     } else if (shop.length && k.chest.length < chestCap(k) && k.gold >= 40 && Math.random() < .3) {             // buy something worth having
-      let bi = -1, bv = -1; shop.forEach((r, j) => { const pr = Math.round(r.price * 1.15); if ((r.it[1] >= (k.age | 0) + 1 || r.it[3]) && pr <= k.gold - 15) { const v = r.it[1] * 10 + (r.it[3] ? 6 : 0); if (v > bv) { bv = v; bi = j; } } });
+      let bi = -1, bv = -1; shop.forEach((r, j) => { const pr = Math.round(r.price * 1.15); if ((r.it[1] >= Math.min(3, (k.age | 0) + 1) || r.it[3]) && pr <= k.gold - 15) { const v = r.it[1] * 10 + (r.it[3] ? 6 : 0); if (v > bv) { bv = v; bi = j; } } });
       if (bi >= 0) { const r = shop.splice(bi, 1)[0]; k.gold -= Math.round(r.price * 1.15); k.chest.push(r.it); market.bought = (market.bought | 0) + 1; }
     }
     if (k.level >= 2 && (k.silver || 0) >= 15 && tick >= (k.forgeCd || 0)) {                                    // the royal smith enchants a chest item
@@ -2914,7 +2888,8 @@ function absorbKingdom(a, b) {                              // b joins a: houses
   if (b.leader) { b.leader.lead = 0; applyStats(b.leader); }
   a.food = Math.min(400, a.food + b.food); a.wood = Math.min(250, a.wood + b.wood); a.stone = Math.min(250, a.stone + b.stone); a.gold = Math.min(250, a.gold + b.gold);
   for (const key of ['silver', 'bronze', 'iron']) a[key] = Math.min(250, (a[key] || 0) + (b[key] || 0));
-  if (b.tech.length > a.tech.length) a.tech = b.tech.slice();
+  for (const id of b.tech) if (!a.tech.includes(id)) a.tech.push(id);
+  a.kp = (a.kp || 0) + (b.kp || 0);
   a.age = Math.max(a.age || 0, b.age || 0); recalcMods(a);
   for (const it of b.chest) if (a.chest.length < chestCap(a)) a.chest.push(it);
   for (const key in b.lm) if (!(key in a.lm)) a.lm[key] = b.lm[key];
@@ -3097,7 +3072,7 @@ function findEnemy(c, ka, rad) {
   return best;
 }
 /* ---- kingdoms ---- */
-function defaultMod() { return { food:1, wood:1, stone:1, gold:1, birth:1, atk:1, def:1, houses:0, radius:0, range:1, night:0, loot:0, steal:0, regen:0, fire:0, farms:0, walls:0, grow:0 }; }
+function defaultMod() { return { kp:1, food:1, wood:1, stone:1, gold:1, birth:1, atk:1, def:1, houses:0, radius:0, range:1, night:0, loot:0, steal:0, regen:0, fire:0, farms:0, walls:0, grow:0 }; }
 const ADD = new Set(['houses', 'radius']), MAXED = new Set(['range', 'night', 'loot', 'steal', 'regen', 'fire', 'farms', 'walls', 'grow']);
 const TECH_BY = {}; for (const r in TECHS) for (const t of TECHS[r]) TECH_BY[r + ':' + t.id] = t;
 function recalcMods(k) {
@@ -3130,6 +3105,7 @@ function finishTech(k, t) {
   k.tech.push(t.id); k.res = null; recalcMods(k);
   if (t.lm) placeLandmark(k, t.lm);
   if (t.id === 'voyage') { addChronicle('⛵', `${k.name} entered the Age of Exploration`); toast(`⛵ ${k.name} entered the Age of Exploration`); }
+  else if (t.tier >= 4) addChronicle(t.ic, `${k.name} mastered ${t.n}`);
   fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: t.ic });
   ownDirty = true; dirty = true;
 }
@@ -3145,24 +3121,24 @@ function pay(k, c) { k.wood -= c.wood || 0; k.stone -= c.stone || 0; k.gold -= c
 function researchCheck() {                                 // every 5 seconds: finish running research or start the next tech
   for (const k of kingdoms.values()) {
     if (k.res) { k.res.left -= 40; if (k.res.left <= 0) finishTech(k, k.res.t); continue; }
-    const t = TECHS[k.race][k.tech.length];
-    if (!t || k.level < t.lv) continue;
-    if (t.id === 'voyage' && !canResearchVoyage(k.age, k.level, coastalLandNear(k, 24) >= 0)) continue; // only Iron-Age kingdoms with a coast can master sailing
-    const c = t.cost;
-    if (canPay(k, c)) {
-      pay(k, c);
-      k.res = { t, left: 240 };
-    }
+    const cands = availableTechs(k.race, k.tech, k.age | 0, k.level).filter(t => t.id !== 'voyage' || canResearchVoyage(k.age, k.level, coastalLandNear(k, 24) >= 0));
+    if (!cands.length) { k.want = null; continue; }
+    if (!k.want || !cands.includes(k.want) || k.wait > 6) { k.want = chooseTech(k.race, cands, k.focus, Math.random()); k.wait = 0; }
+    const t = k.want, kpc = TIER_KP[t.tier - 1];
+    if ((k.kp || 0) >= kpc && canPay(k, t.cost)) { pay(k, t.cost); k.kp -= kpc; k.res = { t, left: 240 }; k.want = null; k.wait = 0; }
+    else k.wait = (k.wait | 0) + 1;                         // stuck on one tech for a while: pick another
   }
 }
-function grantTech(k) {                                    // divine gift: the next tech instantly, free of charge
-  const t = TECHS[k.race][k.tech.length]; if (!t) return false;
+function grantTech(k) {                                    // divine gift ("Eureka"): finish the running research, or the best tech now, free of charge
+  if (k.res) { finishTech(k, k.res.t); return true; }
+  const t = chooseTech(k.race, availableTechs(k.race, k.tech, k.age | 0, k.level, true), k.focus, Math.random());
+  if (!t) return false;
   finishTech(k, t); return true;
 }
 function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
 function newKingdom(race, x, y) {
   const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
-              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
@@ -3372,6 +3348,7 @@ function economy() {                                      // once per second
     mineTick(k, E);
     k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone);                 // quarries / trade even far from hills
     k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g*M.gold);
+    k.kp = Math.min(3000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp));                 // knowledge points pay for research
     if (M.grow && Math.random() < .5) {                                         // living forest: grass near the capital turns to trees
       const gi = freeTileNear(k, 2, 8, t => t === T.GRASS);
       if (gi >= 0) { tiles[gi] = T.FOREST; k.f++; }
@@ -4210,8 +4187,23 @@ function relLine(k) {
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Age of Exploration' : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${['Stone Age', 'Bronze Age', 'Iron Age'][k.age | 0]}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}${relLine(k)}${evLine(k)}`;
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${ageName(k.age | 0, k.race)}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs} · 📚${Math.floor(k.kp || 0)}${relLine(k)}${evLine(k)}<br><button class="awb" data-act="ktree" data-id="${k.id}" style="margin-top:6px">🔬 Tech tree</button>`;
 }
+let treeSel = null;
+function treeHtml(k) {
+  const owned = new Set(k.tech), av = new Set(availableTechs(k.race, k.tech, k.age | 0, k.level, true).map(t => t.id)), an = ageNeed(k.age | 0);
+  let cells = BRANCHES.map(b => `<div class="th${k.focus === b ? ' on' : ''}" data-act="kfocus" data-id="${k.id}" data-b="${b}">${BRANCH_IC[b]}<br><span style="font-size:14px">${BRANCH_NAME[b]}</span></div>`).join('');
+  for (let tier = 1; tier <= 5; tier++) for (const b of BRANCHES) {
+    const t = TECHS[k.race].find(x => x.br === b && x.tier === tier);
+    const cls = owned.has(t.id) ? 'dn' : k.res && k.res.t === t ? 'rs' : av.has(t.id) ? 'av' : '';
+    cells += `<div class="tc ${cls}${treeSel === t.id ? ' sel' : ''}" data-act="ktech" data-id="${k.id}" data-t="${t.id}">${t.ic}</div>`;
+  }
+  const t = treeSel && techById(k.race, treeSel), cost = t ? Object.entries(t.cost).map(([r, n]) => `${n}${{ food: '🍞', wood: '🪵', stone: '🪨', gold: '🪙', silver: '🥈', bronze: '🥉', iron: '🔩' }[r] || r}`).join(' ') : '';
+  const det = t ? `<br><b>${t.ic} ${t.n}</b> · T${t.tier} · 📚${TIER_KP[t.tier - 1]} ${cost}${t.lv ? ' · ⭐' + t.lv : ''}` : '<br><span class="dsc">Tap a branch to steer research. Tap a tech for details.</span>';
+  const next = an ? `<br><span class="dsc">Next age: ⭐${an.lv} · ${Object.entries(an.cost).map(([r, n]) => n + r).join(' ')} · ${an.techs} tier-${(k.age | 0) + 1} techs</span>` : '';
+  return `<div class="ibtns"><button class="awb ibt" data-act="kback" data-id="${k.id}">↩</button><button class="awb ibt" data-act="close">✖</button></div><b>🔬 ${k.name}</b> · ${ageName(k.age | 0, k.race)} · 📚${Math.floor(k.kp || 0)}<div class="tree">${cells}</div>${det}${next}`;
+}
+function showTree(k) { selected = null; following = false; clearTimeout(infoT); infoEl.innerHTML = treeHtml(k); infoEl.style.display = 'block'; }
 /* ============================== CREATURE PANEL ============================== */
 let selected = null, following = false, deadNote = 0;
 const NAME_POOL = {
@@ -4379,6 +4371,13 @@ function refreshCreature() {
 infoEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   if (a.dataset.act === 'close') closeCreature();
+  else if (a.dataset.act === 'ktree' || a.dataset.act === 'kback' || a.dataset.act === 'kfocus' || a.dataset.act === 'ktech') {
+    const k = kingdoms.get(+a.dataset.id); if (!k) return;
+    if (a.dataset.act === 'kfocus') k.focus = k.focus === a.dataset.b ? null : a.dataset.b;
+    if (a.dataset.act === 'ktech') treeSel = treeSel === a.dataset.t ? null : a.dataset.t;
+    if (a.dataset.act === 'kback') { infoEl.innerHTML = kingdomHtml(k); return; }
+    showTree(k);
+  }
   else if (a.dataset.act === 'journalTab') showJournal(a.dataset.tab);
   else if (a.dataset.act === 'seed') { const zi = +a.dataset.i; confirmThen('seed' + zi, SIZES[zi].label, () => { newWorld(zi); closeCreature(); renderRow2(); }); }
   else if (a.dataset.act === 'follow') { following = !following; infoHold = false; refreshCreature(); }
@@ -4776,9 +4775,9 @@ function serialize2() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 8, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, mf: [+market.p.fin.toFixed(2), +market.p.hide.toFixed(2)], sv: seenVer, wk: wrecks.map(w => [w.x, w.y, kix.get(w.kid) || 0, tick - w.t0, w.why === 'kraken' ? 2 : w.why === 'shark' ? 1 : 0]), rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
+  return { v: 9, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, mf: [+market.p.fin.toFixed(2), +market.p.hide.toFixed(2)], sv: seenVer, wk: wrecks.map(w => [w.x, w.y, kix.get(w.kid) || 0, tick - w.t0, w.why === 'kraken' ? 2 : w.why === 'shark' ? 1 : 0]), rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
-    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.length, k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0]),
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.slice(), k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0, Math.round(k.kp || 0), BRANCHES.indexOf(k.focus)]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => { const s = c.boat ? ships.find(v => v.id === c.boat) : null, i = s ? s.sourceLand : c.y * W + c.x; return i * 10 + RN.indexOf(c.t); }),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
@@ -4801,7 +4800,7 @@ const LEGACY_TEXT = [                                           // chronicle lin
 ];
 const legacyText = t => { for (const [re, to] of LEGACY_TEXT) if (re.test(t)) return t.replace(re, to); return t; };
 function restore(s) {
-  if (!s || !(s.v >= 1 && s.v <= 8)) return false;
+  if (!s || !(s.v >= 1 && s.v <= 9)) return false;
   ships = []; nextShipId = 1;
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
@@ -4816,12 +4815,13 @@ function restore(s) {
     const race = BUILD_OWNER[a[0]]; if (!race) { ids.push(0); continue; }
     const k = newKingdom(race, a[1], a[2]);
     Object.assign(k, { level: a[3], food: a[4], wood: a[5], stone: a[6], gold: a[7], born: a[8] || 0, name: a[9] || k.name });
-    for (const t of TECHS[race].slice(0, a[10] || 0)) { k.tech.push(t.id); if (t.lm) placeLandmark(k, t.lm); }       // techs are sequential: store only how many
+    const ids = Array.isArray(a[10]) ? a[10].filter(id => techById(race, id)) : legacyTechIds(race, a[10] || 0);      // v9 stores tech ids; older saves stored how many techs (a fixed order)
+    for (const id of ids) { k.tech.push(id); const t = techById(race, id); if (t.lm) placeLandmark(k, t.lm); }
     recalcMods(k);
     if (a[11]) k.ev = { type: EV_ID[a[11]], left: a[12] || 600 };
     k.unrest = a[13] || 0; k.immune = tick + (a[14] || 0);
     k.silver = a[15] || 0; k.bronze = a[16] || 0; k.iron = a[17] || 0; k.age = a[18] || 0; recalcMods(k);
-    k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]); k.voyageCd = tick + (a[20] || 0); k.fin = a[21] | 0; k.hide = a[22] | 0;
+    k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]); k.voyageCd = tick + (a[20] || 0); k.fin = a[21] | 0; k.hide = a[22] | 0; k.kp = a[23] == null ? 30 + k.tech.length * 15 : a[23]; k.focus = BRANCHES[a[24]] || null;
     ids.push(k.id);
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
