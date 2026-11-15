@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SETS, createInitialState, pickup, placeCarried, restoreState, reveal, serializeState } from '../logic.mjs';
+import { HALL_BENCHES, HALL_SIZE, HALL_TREES, SETS, createInitialState, pickup, placeCarried, restoreState, reveal, serializeState } from '../logic.mjs';
 import {
   STAGE_ORDER, CLOCK_MIN, clearStage, createRun, pieceAssembled, pieceRevealed, stageScore, stageSpec, startStage, tickRun,
+  STAGE_CENTER, STAGE_SPAWN, PIECE_SECONDS, REVEAL_SECONDS, stageRings,
 } from '../stages.mjs';
 
 test('stage order is a permutation of all statues and never repeats back-to-back', () => {
@@ -69,4 +70,32 @@ test('a slow clear resets the combo and a finished run cannot be cleared again',
   assert.equal(cleared.combo, 0);
   assert.equal(points, 100 + 30);
   assert.equal(clearStage(tickRun(startStage(cleared), 999)).points, 0);
+});
+
+test('every stage lays its pieces out neatly on rings around the statue in the middle of the hall', () => {
+  for (let n = 1; n <= 30; n += 1) {
+    const spec = stageSpec(n); const { inner, outer } = stageRings(n);
+    for (const f of spec.fragments) {
+      const r = Math.hypot(f.x - STAGE_CENTER[0], f.z - STAGE_CENTER[1]);
+      assert.ok(Math.abs(r - inner) < 0.6 || Math.abs(r - outer) < 0.6, `stage ${n} ${f.key} off its ring (${r})`);
+      assert.ok(Math.abs(f.x) <= HALL_SIZE / 2 - 8 && Math.abs(f.z) <= HALL_SIZE / 2 - 8, 'inside the hall, clear of the walls');
+      for (const [x, z] of HALL_TREES) assert.ok(Math.hypot(f.x - x, f.z - z) >= 6, `stage ${n} piece under a tree`);
+      for (const [x, z] of HALL_BENCHES) assert.ok(Math.hypot(f.x - x, f.z - z) >= 6, `stage ${n} piece on a bench`);
+      for (const g of spec.fragments) if (g !== f) assert.ok(Math.hypot(f.x - g.x, f.z - g.z) >= 8, `stage ${n} pieces too close`);
+      assert.ok(Math.hypot(f.x - STAGE_SPAWN.x, f.z - STAGE_SPAWN.z) >= 3.5, 'nothing spawns on top of the visitor');
+    }
+  }
+  assert.ok(stageRings(6).inner > stageRings(1).inner, 'later stages spread the pieces wider');
+  assert.deepEqual(stageRings(40), stageRings(6), 'the rings stop growing');
+});
+
+test('each stage is winnable on foot with time to spare (walk 9 u/s, 6 s per fit puzzle, 2 s per lock)', () => {
+  for (let n = 1; n <= 24; n += 1) {
+    const spec = stageSpec(n); const locks = Object.keys(spec.hiddenByKey).length;
+    let walk = Math.hypot(STAGE_SPAWN.x - spec.fragments[0].x, STAGE_SPAWN.z - spec.fragments[0].z);
+    for (const f of spec.fragments) walk += 2 * Math.hypot(f.x - STAGE_CENTER[0], f.z - STAGE_CENTER[1]);
+    const need = walk / 9 + spec.pieceCount * 6 + locks * 2;
+    const budget = spec.clock + spec.pieceCount * PIECE_SECONDS + locks * REVEAL_SECONDS;
+    assert.ok(need < budget, `stage ${n}: needs ${need.toFixed(0)} s, has ${budget} s`);
+  }
 });

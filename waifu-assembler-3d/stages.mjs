@@ -24,16 +24,27 @@ function random(seed) {
   let value = hash(seed) || 1;
   return () => { value = (value * 1664525 + 1013904223) >>> 0; return value / 0x100000000; };
 }
-function randomPosition(rand, used) {
-  const half = HALL_SIZE / 2;
-  let x = 0, z = 0, tries = 0;
-  do {
-    x = Math.round((rand() * 2 - 1) * (half - 9));
-    // Search strip spans the hall's width and the north half; the annex is close enough for several deliveries.
-    z = Math.round(-half + 7 + rand() * 54);
-    tries += 1;
-  } while (tries < 100 && used.some((p) => Math.hypot(p.x - x, p.z - z) < 10));
-  return { x, z };
+// Stage layout: the stage's statue stands on the medallion in the middle of the hall and its pieces wait on evenly
+// spaced stations around it: up to six on an inner ring, the rest on an outer ring between them. Both rings widen a
+// little each stage (stage 6 and later use the widest), and the whole pattern turns by a stage-specific angle.
+export const STAGE_CENTER = [0, 0];
+export const STAGE_SPAWN = { x: 0, z: 9, yaw: 0 }; // just in front of the statue, facing it
+export const INNER_RING = 13; export const RING_GAP = 11; export const RING_GROWTH = 1; export const RING_GROWTH_STAGES = 5;
+export function stageRings(stage) {
+  const n = Math.max(1, Math.floor(Number(stage) || 1));
+  const inner = INNER_RING + RING_GROWTH * Math.min(n - 1, RING_GROWTH_STAGES);
+  return { inner, outer: inner + RING_GAP };
+}
+export function stageStations(stage, count) {
+  const n = Math.max(1, Math.floor(Number(stage) || 1));
+  const { inner, outer } = stageRings(n);
+  const innerCount = Math.min(count, 6); const outerCount = count - innerCount;
+  const turn = (hash(`stage-${n}-turn`) % 12) * (Math.PI / 6) / 2; // a multiple of 15°
+  const at = (r, a) => ({ x: Math.round(STAGE_CENTER[0] + Math.sin(a) * r * 2) / 2, z: Math.round(STAGE_CENTER[1] + Math.cos(a) * r * 2) / 2, ring: r === inner ? 'inner' : 'outer' });
+  const stations = [];
+  for (let i = 0; i < innerCount; i += 1) stations.push(at(inner, turn + (i * 2 * Math.PI) / innerCount));
+  for (let j = 0; j < outerCount; j += 1) stations.push(at(outer, turn + ((j + 0.5) * 2 * Math.PI) / outerCount));
+  return stations;
 }
 export function lockedKinds(stage) {
   if (stage === 1) return [];
@@ -46,13 +57,14 @@ export function stageSpec(stage) {
   const n = Math.max(1, Math.floor(Number(stage) || 1));
   const setId = STAGE_ORDER[(n - 1) % STAGE_ORDER.length];
   const rand = random(`stage-${n}-${setId}-layout`);
-  const used = [];
-  const base = FRAGMENTS.filter((f) => f.setId === setId).map((f) => {
-    const p = randomPosition(rand, used); used.push(p); return { ...f, ...p };
-  });
   const extraCount = Math.min(EXTRA_ACCESSORIES.length, n - 1);
+  // every piece gets a station; which piece stands where is shuffled per stage so the walk is never the same
+  const stations = stageStations(n, PARTS.length + extraCount);
+  for (let i = stations.length - 1; i > 0; i -= 1) { const j = Math.floor(rand() * (i + 1)); [stations[i], stations[j]] = [stations[j], stations[i]]; }
+  const spot = (i) => ({ x: stations[i].x, z: stations[i].z });
+  const base = FRAGMENTS.filter((f) => f.setId === setId).map((f, i) => ({ ...f, ...spot(i) }));
   const extras = EXTRA_ACCESSORIES.slice(0, extraCount).map((accessory, index) => {
-    const p = randomPosition(rand, used); used.push(p);
+    const p = spot(PARTS.length + index);
     return { key: `${setId}:stage${n}:${accessory.id}`, setId, partId: accessory.id, label: accessory.label, short: accessory.short, ...p,
       index: PARTS.length + index, isAccessory: true, accessoryKind: accessory.kind, visualPartId: accessory.visualPartId, accessorySlot: accessory.slot };
   });

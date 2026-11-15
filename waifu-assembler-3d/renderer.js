@@ -11,7 +11,7 @@ import { COSTUMES, DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
 import { STATUE_POSES } from './poses.mjs';
 import { buildContainer, buildFragment, buildPodium, buildWorld, makeLabel, petalTexture, starTexture } from './world.js';
 import { createAudio } from './audio.js';
-import { clearStage, createRun, EXTRA_ACCESSORIES, STAGE_ORDER, pieceAssembled, pieceRevealed, startStage, stageSpec, tickRun } from './stages.mjs';
+import { clearStage, createRun, EXTRA_ACCESSORIES, STAGE_CENTER, STAGE_ORDER, STAGE_SPAWN, pieceAssembled, pieceRevealed, startStage, stageSpec, tickRun } from './stages.mjs';
 
 // Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead gallery layout editor.
 // The statues stand about 5 units tall on their plinths, so the visitor's eye sits at EYE_HEIGHT to meet them at chest height.
@@ -22,6 +22,7 @@ const PLAY_FOV = 74 * Math.PI / 180;
 const LOW_DETAIL = 0.35; const LOD_DIST = 22; const DETAIL_DIST = 16;
 const DETAIL_KINDS = new Set(['lash', 'cornea', 'tear', 'teeth', 'tongue']);
 const SPAWN = { x: 0, z: HALL_SIZE / 2 - 10 };
+const GALLERY_MID = (ANNEX.nearZ + ANNEX.farZ) / 2; // middle of the sculpture gallery
 // Plinths may be moved anywhere inside the gallery, keeping clear of its walls and doorway.
 const POD_X = ANNEX.maxX - 5; const POD_NEAR = ANNEX.nearZ - 8; const POD_FAR = ANNEX.farZ + 6;
 // Right-handed scene so the gameplay maths (yaw, +Z toward the player) are unchanged from the original renderer.
@@ -50,7 +51,7 @@ export function createGame(mode = 'play') {
   const podiumPositions = {};
   for (const set of SETS) {
     const raw = config.podiumPositions?.[set.id] || INITIAL_PODIUMS[set.id];
-    podiumPositions[set.id] = [clamp(Number(raw[0]) || 0, -POD_X, POD_X), clamp(Number(raw[1]) || -100, POD_FAR, POD_NEAR)];
+    podiumPositions[set.id] = [clamp(Number(raw[0]) || 0, -POD_X, POD_X), clamp(Number(raw[1]) || GALLERY_MID, POD_FAR, POD_NEAR)];
   }
   if (editing) {
     window.gameConfig ||= {};
@@ -103,7 +104,7 @@ export function createGame(mode = 'play') {
   hemi.intensity = 0.56; hemi.diffuse = BAB.Color3.FromHexString('#fbefdc'); hemi.groundColor = BAB.Color3.FromHexString('#7d705e'); hemi.specular = BAB.Color3.FromHexString('#1a1712');
   // the sun falls through the gallery skylight; its shadow map covers the plinths
   const key = new BAB.DirectionalLight('key', new BAB.Vector3(-0.32, -1, -0.22).normalize(), scene);
-  key.position = new BAB.Vector3(20, 60, -100);
+  key.position = new BAB.Vector3(20, 60, GALLERY_MID);
   key.diffuse = BAB.Color3.FromHexString('#ffe6c4'); key.intensity = 1.1;
   key.autoUpdateExtends = false; key.orthoLeft = -32; key.orthoRight = 32; key.orthoBottom = -56; key.orthoTop = 56; key.shadowMinZ = 4; key.shadowMaxZ = 130;
   const fill = new BAB.DirectionalLight('fill', new BAB.Vector3(0.4, -0.45, 0.8).normalize(), scene);
@@ -116,7 +117,7 @@ export function createGame(mode = 'play') {
   shadows.getShadowMap().refreshRate = BAB.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
   const refreshShadows = () => shadows.getShadowMap().resetRefreshCounter();
 
-  let hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, -100));
+  let hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, GALLERY_MID));
 
   // ---------- cinematic post-processing ----------
   let pipeline = null;
@@ -424,7 +425,7 @@ export function createGame(mode = 'play') {
       const podium = podiums.get(set.id);
       const dist = distance2(player.x, player.z, podium.group.position.x, podium.group.position.z);
       const inRange = dist <= 5.2;
-      setHTML(ui.status, `<b>${inRange ? 'PLINTH IN RANGE' : 'TO THE GALLERY'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to its plinth</span>`);
+      setHTML(ui.status, `<b>${inRange ? 'PLINTH IN RANGE' : stageRun ? 'TO THE STATUE' : 'TO THE GALLERY'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to its plinth</span>`);
       const carriedLabel = fragment.label || (PARTS.find((part) => part.id === fragment.partId)?.label ?? fragment.partId);
       setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>Carry <b>${carriedLabel}</b> to its matching plinth</span>`);
       if (!stageRun) { const t = statueTimes[set.id] || 0; const pace = medalFor(t, pars[set.id]); setHTML(ui.clock, `⏱ ${formatTime(t)} &nbsp;·&nbsp; GOLD ≤ ${formatTime(pars[set.id])}<i class="${pace}">${pace.toUpperCase()}</i>`); }
@@ -605,7 +606,22 @@ export function createGame(mode = 'play') {
   }
 
   // ---------- endless stage run: one visible statue, a rising piece count, then the next level ----------
-  const STAGE_PODIUM = [-17, ANNEX.nearZ - 8];
+  // The stage's statue stands on the medallion in the middle of the hall (STAGE_CENTER); its pieces wait on the ring
+  // stations stageSpec() lays out around it, and the visitor starts each stage just in front of it.
+  const STAGE_PODIUM = STAGE_CENTER;
+  // Plinths, statues and fragment stands freeze their world matrices; moving one unfreezes, moves and refreezes them.
+  function relocate(node, move) {
+    const meshes = node.getChildMeshes(false); const frozen = meshes.filter((m) => m.isWorldMatrixFrozen);
+    for (const m of frozen) m.unfreezeWorldMatrix();
+    move(); node.computeWorldMatrix(true);
+    for (const m of meshes) m.computeWorldMatrix(true);
+    for (const m of frozen) m.freezeWorldMatrix();
+  }
+  function aimKeyLight(x, z) { key.position.set(x + 20, 60, z); refreshShadows(); } // the shadow box follows the active plinths
+  function placePodium(podium, x, z) {
+    relocate(podium.group, () => { podium.group.position.set(x, 0, z); podium.face(); });
+    podium.motes.emitter = new BAB.Vector3(x, 0.8, z);
+  }
   function allStagePiecesPlaced() {
     return Boolean(currentStageSpec && currentStageFragments.every((fragment) => state.placed[fragment.setId]?.includes(fragment.partId)));
   }
@@ -617,21 +633,11 @@ export function createGame(mode = 'play') {
   }
   function setStageRoom(setId) {
     for (const set of SETS) {
-      const podium = podiums.get(set.id); const niche = niches.get(set.id); const active = set.id === setId;
-      podium.group.setEnabled(active); niche.setEnabled(active);
-      if (active) {
-        podium.group.unfreezeWorldMatrix(); niche.unfreezeWorldMatrix();
-        for (const mesh of podium.group.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
-        for (const mesh of niche.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
-        podium.group.position.set(STAGE_PODIUM[0], 0, STAGE_PODIUM[1]);
-        const original = podiumPositions[set.id];
-        niche.position.set(STAGE_PODIUM[0] - original[0], 0, STAGE_PODIUM[1] - original[1]);
-        podium.group.computeWorldMatrix(true); niche.computeWorldMatrix(true);
-        for (const mesh of podium.group.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
-        for (const mesh of niche.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
-      } else niche.position.setAll(0);
+      const podium = podiums.get(set.id); const active = set.id === setId;
+      podium.group.setEnabled(active); niches.get(set.id).setEnabled(false); // the hall has no wall niche behind it
+      if (active) placePodium(podium, STAGE_PODIUM[0], STAGE_PODIUM[1]);
     }
-    refreshShadows();
+    aimKeyLight(STAGE_PODIUM[0], STAGE_PODIUM[1]);
   }
   function configureStage(spec) {
     clearStageObjects(); currentStageSpec = spec; currentStageFragments = spec.fragments; currentStageHidden = spec.hiddenByKey;
@@ -643,7 +649,7 @@ export function createGame(mode = 'play') {
       if (f.isAccessory) {
         model = buildFragment(scene, kit, f, null); fragments.set(f.key, model); stageExtraFragments.push(f);
       } else {
-        model.root.position.x = f.x; model.root.position.z = f.z; model.container = null; model.locked = false;
+        relocate(model.root, () => { model.root.position.x = f.x; model.root.position.z = f.z; }); model.container = null; model.locked = false;
       }
       const kind = spec.hiddenByKey[f.key];
       if (kind) {
@@ -657,21 +663,16 @@ export function createGame(mode = 'play') {
     clearStageObjects(); currentStageSpec = null; currentStageFragments = FRAGMENTS; currentStageHidden = HIDDEN_FRAGMENTS;
     world.colliders.splice(0, world.colliders.length, ...fixedColliders);
     for (const f of FRAGMENTS) {
-      const model = fragments.get(f.key); model.root.position.x = f.x; model.root.position.z = f.z;
+      const model = fragments.get(f.key); relocate(model.root, () => { model.root.position.x = f.x; model.root.position.z = f.z; });
       model.container = containers.get(f.key) || null; model.locked = Boolean(model.container) && !state.revealed.includes(f.key);
-      const box = containers.get(f.key); if (box) { box.root.setEnabled(true); world.colliders.push(...box.colliders); }
+      const box = containers.get(f.key); if (box) { box.root.setEnabled(true); world.colliders.push(box.collider); }
     }
     for (const set of SETS) {
-      const podium = podiums.get(set.id); const niche = niches.get(set.id);
-      podium.group.unfreezeWorldMatrix(); niche.unfreezeWorldMatrix();
-      for (const mesh of podium.group.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
-      for (const mesh of niche.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
-      podium.group.position.set(podiumPositions[set.id][0], 0, podiumPositions[set.id][1]); niche.position.setAll(0);
-      podium.group.setEnabled(true); niche.setEnabled(true);
-      podium.group.computeWorldMatrix(true); niche.computeWorldMatrix(true);
-      for (const mesh of podium.group.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
-      for (const mesh of niche.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
+      const podium = podiums.get(set.id);
+      placePodium(podium, podiumPositions[set.id][0], podiumPositions[set.id][1]);
+      podium.group.setEnabled(true); niches.get(set.id).setEnabled(true);
     }
+    aimKeyLight(0, GALLERY_MID);
   }
   function beginStage() {
     if (!stageRun || stageRun.status === 'over') return;
@@ -681,7 +682,10 @@ export function createGame(mode = 'play') {
     // Only current-stage inventory matters. Clear prior stage IDs (including unique ornament keys) from the save.
     state.collected = []; state.revealed = []; state.carried = null;
     stageRun = startStage(stageRun);
-    configureStage(spec); updateHUD();
+    configureStage(spec);
+    // every stage starts in front of its statue, looking at it, with the ring of pieces around
+    player.x = STAGE_SPAWN.x; player.z = STAGE_SPAWN.z; player.yaw = STAGE_SPAWN.yaw; player.pitch = -0.06; aimCamera();
+    updateHUD();
   }
   function enterStagePlay() {
     if (stageRun.status === 'between') beginStage();
@@ -786,7 +790,7 @@ export function createGame(mode = 'play') {
     const fragment = currentFragment(state.carried);
     const podium = podiums.get(fragment.setId);
     if (distance2(player.x, player.z, podium.group.position.x, podium.group.position.z) > 5.2) {
-      toast(`Take it to ${getSet(fragment.setId).name}'s plinth in the gallery`, 'normal');
+      toast(stageRun ? `Take it to ${getSet(fragment.setId).name} in the middle of the hall` : `Take it to ${getSet(fragment.setId).name}'s plinth in the gallery`, 'normal');
       audio.play('notHere', { volume: 0.7 });
       return;
     }
@@ -1002,23 +1006,27 @@ export function createGame(mode = 'play') {
   const ease = (t) => 1 - (1 - t) ** 3;
   const kick = (amount) => { fovKick = Math.min(0.14, fovKick + amount); };
   const anchorInv = new BAB.Matrix(); const localTmp = new BAB.Vector3();
+  // entry is a statue part ({ anchor, solid }, lands at the anchor's origin) or an ornament node (lands on its slot)
   function flyIn(entry, hand, onLand) {
     if (!hand || !entry) { onLand(); return; }
-    entry.anchor.computeWorldMatrix(true).invertToRef(anchorInv);
+    const node = entry.solid || entry; const anchor = entry.anchor || node.parent;
+    const to = entry.solid ? BAB.Vector3.Zero() : (node.__slot ||= node.position.clone());
+    if (!anchor) { onLand(); return; }
+    anchor.computeWorldMatrix(true).invertToRef(anchorInv);
     const from = BAB.Vector3.TransformCoordinates(hand, anchorInv);
-    entry.solid.position.copyFrom(from); entry.solid.scaling.setAll(0.2);
-    flights.push({ node: entry.solid, from, start: performance.now(), dur: 520, onLand, landed: false });
+    node.setEnabled(true); node.position.copyFrom(from); node.scaling.setAll(0.2);
+    flights.push({ node, from, to, start: performance.now(), dur: 520, onLand, landed: false });
   }
   function updateFlights(now) {
     for (let i = flights.length - 1; i >= 0; i -= 1) {
       const f = flights[i]; const t = Math.min(1, (now - f.start) / f.dur);
       if (t < 1) {
         const e = ease(t);
-        BAB.Vector3.LerpToRef(f.from, BAB.Vector3.ZeroReadOnly, e, localTmp); localTmp.y += Math.sin(Math.PI * t) * 0.9;
+        BAB.Vector3.LerpToRef(f.from, f.to, e, localTmp); localTmp.y += Math.sin(Math.PI * t) * 0.9;
         f.node.position.copyFrom(localTmp); f.node.scaling.setAll(0.2 + 0.8 * e);
         continue;
       }
-      if (!f.landed) { f.landed = true; f.node.position.setAll(0); refreshShadows(); f.onLand(); }
+      if (!f.landed) { f.landed = true; f.node.position.copyFrom(f.to); refreshShadows(); f.onLand(); }
       const p = Math.min(1, (now - f.start - f.dur) / 220); // landing pop: 1.08 → 1
       f.node.scaling.setAll(1 + 0.08 * Math.sin(Math.PI * p) * (1 - p));
       if (p >= 1) { f.node.scaling.setAll(1); flights.splice(i, 1); }
@@ -1080,7 +1088,7 @@ export function createGame(mode = 'play') {
     const R = 0.55;
     const push = (cx, cz, r) => { const dx = x - cx; const dz = z - cz; const d = Math.hypot(dx, dz); const min = r + R; if (d < min && d > 1e-4) { x = cx + (dx / d) * min; z = cz + (dz / d) * min; } };
     for (const [cx, cz, r] of world.colliders) push(cx, cz, r);
-    for (const podium of podiums.values()) push(podium.group.position.x, podium.group.position.z, 2.45);
+    for (const podium of podiums.values()) if (podium.group.isEnabled(false)) push(podium.group.position.x, podium.group.position.z, 2.45); // hidden plinths don't block
     for (const model of fragments.values()) if (!model.absent) push(model.root.position.x, model.root.position.z, 0.75);
     const moved = Math.hypot(x - player.x, z - player.z);
     player.x = x; player.z = z;
@@ -1120,7 +1128,7 @@ export function createGame(mode = 'play') {
       const d = Math.hypot(player.x - podium.group.position.x, player.z - podium.group.position.z);
       const show = editing || d < STATUE_VIEW;
       if (show !== podium.figure.isEnabled(false)) { podium.figure.setEnabled(show); refreshShadows(); }
-      podium.labelMesh.setEnabled(editing || (d > 7 && d < 30)); // name cards for nearby statues, hidden when standing right at one
+      podium.labelMesh.setEnabled(editing || (d > (stageRun ? 16 : 7) && d < 30)); // name cards for nearby statues, hidden when standing at one (or at the stage start)
     }
     for (const model of fragments.values()) {
       if (!model.root.isEnabled() || model.locked) continue;
@@ -1703,11 +1711,19 @@ export function createGame(mode = 'play') {
     if (!editing) {
       cine.t += dt;
       const t = cine.t;
-      const z = -100 + 28 * Math.sin(t * 0.045);
-      camera.position.set(1.4 * Math.sin(t * 0.09), 4.3 + 0.3 * Math.sin(t * 0.07), z);
-      cineTarget.set(8 * Math.sin(t * 0.11), 3.6, z - 12); // down the aisle, turning toward one row then the other
-      camera.setTarget(cineTarget);
-      petalEmitter.set(0, 0, z);
+      if (stageRun) { // the stage statue stands in the middle of the hall: slow half-orbit in front of it
+        const a = 0.7 * Math.sin(t * 0.06); const r = 11.5;
+        camera.position.set(STAGE_CENTER[0] + Math.sin(a) * r, 4.4 + 0.3 * Math.sin(t * 0.07), STAGE_CENTER[1] + Math.cos(a) * r);
+        cineTarget.set(STAGE_CENTER[0], 3.4, STAGE_CENTER[1]); camera.setTarget(cineTarget);
+        petalEmitter.set(STAGE_CENTER[0], 0, STAGE_CENTER[1]);
+        for (const podium of podiums.values()) podium.labelMesh.setEnabled(false); // the menu title sits there
+      } else {
+        const z = GALLERY_MID + 28 * Math.sin(t * 0.045);
+        camera.position.set(1.4 * Math.sin(t * 0.09), 4.3 + 0.3 * Math.sin(t * 0.07), z);
+        cineTarget.set(8 * Math.sin(t * 0.11), 3.6, z - 12); // down the aisle, turning toward one row then the other
+        camera.setTarget(cineTarget);
+        petalEmitter.set(0, 0, z);
+      }
       for (const podium of podiums.values()) podium.figure.rotation.y = podium.poseTurn + Math.sin(now * 0.0005 + podium.group.position.x) * 0.06;
     }
     scene.render();
@@ -1896,7 +1912,7 @@ export function createGame(mode = 'play') {
     contextLost = false; clearTimeout(lostTimer); glLost.classList.remove('shown', 'stuck');
     // the reflection probes' studio domes were released after their first render: build them again
     try { hallEnv.dispose?.(); } catch { /* already gone */ }
-    hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, -100)); envFrames = 0;
+    hallEnv = setupStudioReflections(scene, BAB, 'daylight', new BAB.Vector3(0, 4, GALLERY_MID)); envFrames = 0;
     if (studio.scene) { try { studio.env.dispose?.(); } catch { /* already gone */ } studio.env = setupStudioReflections(studio.scene, BAB); studio.envFrames = 0; }
     refreshShadows(); lastFrame = performance.now(); layoutVersion += 1;
   });
@@ -1908,6 +1924,7 @@ export function createGame(mode = 'play') {
     holo, scene, camera, player, eye, state, podiums, fragments, containers, meta, pars, aimCamera, refreshFragments, updateHUD, studio, startPlay, openMenu, openPanel, updateAction, turnPuzzle,
     solvePuzzle() { if (!puzzle) return false; puzzle.yaw = 1; puzzle.flip = 0; turnPuzzle(-1, 0); return true; },
     showMedal: (setId, medal, seconds) => showMedal(getSet(setId), medal, seconds, false),
+    gotoStage(n) { if (!stageRun) return false; stageRun = { ...stageRun, stage: n, status: 'between' }; beginStage(); return true; }, get stageRun() { return stageRun; }, get stageSpec() { return currentStageSpec; },
     get statueTimes() { return statueTimes; }, get lodLeft() { return lodQueue.length; }, get tutorial() { return tutorial; }, get puzzle() { return puzzle; }, get ready() { return ready; }, get phase() { return phase; },
   };
 

@@ -4,7 +4,7 @@ import {
   FRAGMENTS, PARTS, SETS, countPlaced, createInitialState, isGameComplete,
   isSetComplete, pickup, placeCarried, restoreState, serializeState, INITIAL_PODIUMS, HALL_SIZE, ANNEX, GALLERY_DOOR, formatTime,
   HIDDEN_FRAGMENTS, isHidden, reveal, medalFor, betterMedal, countStars, EXPRESSION_UNLOCKS, isExpressionUnlocked,
-  dailyChallenge, dailyMet, puzzleStart, puzzleSolved, statuePar,
+  dailyChallenge, dailyMet, puzzleStart, puzzleSolved, statuePar, HALL_TREES, HALL_BENCHES, GALLERY_ROWS,
 } from '../logic.mjs';
 import { ARM_LENGTHS, SHOULDER, STATUE_POSES, armJoints } from '../poses.mjs';
 
@@ -12,9 +12,24 @@ test('60 fragments cover twelve five-part statue sets inside the restoration hal
   assert.equal(FRAGMENTS.length, 60);
   assert.equal(SETS.length, 12);
   assert.equal(PARTS.length, 5);
-  assert.equal(HALL_SIZE, 150);
+  assert.equal(HALL_SIZE, 96);
   const inner = HALL_SIZE / 2 - 4; // keep clear of the walls, pilasters and windows
   assert.ok(FRAGMENTS.every(({ x, z }) => Math.abs(x) <= inner && Math.abs(z) <= inner));
+});
+
+test('the hall furniture never sits on a fragment, and fragments keep their distance from each other', () => {
+  for (const f of FRAGMENTS) {
+    for (const [x, z] of HALL_TREES) assert.ok(Math.hypot(f.x - x, f.z - z) >= 5, `${f.key} too close to the tree at ${x},${z}`);
+    for (const [x, z] of HALL_BENCHES) assert.ok(Math.hypot(f.x - x, f.z - z) >= 5, `${f.key} too close to the bench at ${x},${z}`);
+    for (const g of FRAGMENTS) if (g !== f) assert.ok(Math.hypot(f.x - g.x, f.z - g.z) >= 5, `${f.key} crowds ${g.key}`);
+  }
+  for (const [x, z] of [...HALL_TREES, ...HALL_BENCHES]) assert.ok(Math.abs(x) <= HALL_SIZE / 2 - 3 && Math.abs(z) <= HALL_SIZE / 2 - 2, 'furniture stays inside the walls');
+});
+
+test('gallery plinth rows are evenly spaced inside the gallery', () => {
+  const steps = GALLERY_ROWS.z.slice(1).map((z, i) => GALLERY_ROWS.z[i] - z);
+  assert.ok(steps.every((d) => d === GALLERY_ROWS.step));
+  assert.ok(GALLERY_ROWS.z[0] <= ANNEX.nearZ - 8 && GALLERY_ROWS.z.at(-1) >= ANNEX.farZ + 6);
 });
 
 test('pickup is one-at-a-time and matching parts snap into the right set', () => {

@@ -1,6 +1,6 @@
 // Babylon.js world dressing: a bright restoration hall (fragments), the vaulted sculpture gallery (twelve plinths),
 // fragment plinths, statue plinths, museum labels and particles.
-import { ANNEX, GALLERY_DOOR, HALL_SIZE, PARTS, getSet } from './logic.mjs';
+import { ANNEX, GALLERY_DOOR, GALLERY_ROWS, HALL_BENCHES, HALL_SIZE, HALL_TREES, PARTS, getSet } from './logic.mjs';
 import { PART_OFFSET } from './statues.js';
 import { roundRect } from './ui.js';
 import { STATUE_POSES } from './poses.mjs';
@@ -259,8 +259,13 @@ export function buildWorld(scene, shadowGen, sets) {
   // hall ceiling: coffers and skylights
   const ceil = BAB.MeshBuilder.CreateGround('hallCeil', { width: HALL_SIZE, height: HALL_SIZE }, scene);
   ceil.position.y = WALL_H; ceil.rotation.x = Math.PI; ceil.material = ceilMat; ceil.parent = root; ceil.isPickable = false;
-  for (const v of [-48, -24, 0, 24, 48]) { b.box(stone, 0, WALL_H - 0.45, v, HALL_SIZE, 0.9, 0.8); b.box(stone, v, WALL_H - 0.45, 0, 0.8, 0.9, HALL_SIZE); }
-  for (const x of [-36, -12, 12, 36]) for (const z of [-36, -12, 12, 36]) b.box(skylight, x, WALL_H - 0.05, z, 13, 0.05, 13);
+  // The hall is divided into six equal bays per side (bay = HALL_SIZE / 6): coffer beams and windows on the inner bay
+  // lines, a skylight in each inner bay and pilasters halfway between windows, so the layout stays even at any size.
+  const bay = HALL_SIZE / 6;
+  const beams = [-2, -1, 0, 1, 2].map((k) => k * bay);
+  for (const v of beams) { b.box(stone, 0, WALL_H - 0.45, v, HALL_SIZE, 0.9, 0.8); b.box(stone, v, WALL_H - 0.45, 0, 0.8, 0.9, HALL_SIZE); }
+  const bayMids = [-1.5, -0.5, 0.5, 1.5].map((k) => k * bay);
+  for (const x of bayMids) for (const z of bayMids) b.box(skylight, x, WALL_H - 0.05, z, bay * 0.8, 0.05, bay * 0.8);
 
   // tall arched garden windows between marble pilasters
   const windowAt = (x, z, along) => { // along: 'z' for side walls, 'x' for the south wall
@@ -275,11 +280,13 @@ export function buildWorld(scene, shadowGen, sets) {
     b.box(stone, inX ? px + sgn * 0.3 : px, 2.95, inX ? pz : pz + sgn * 0.3, inX ? 0.7 : w + 0.8, 0.3, inX ? w + 0.8 : 0.7); // sill
     for (const s of [-1, 1]) b.box(stone, inX ? fx : fx + s * (w / 2 + 0.15), 7.2, inX ? fz + s * (w / 2 + 0.15) : fz, 0.3, 8.4, 0.3); // jambs
   };
-  for (const z of [-40, -20, 0, 20, 40]) { windowAt(-H + 0.01, z, 'z'); windowAt(H - 0.01, z, 'z'); }
-  for (const x of [-42, -18, 18, 42]) windowAt(x, H - 0.01, 'x');
+  const windowsAt = beams;
+  const pilastersAt = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map((k) => k * bay);
+  for (const z of windowsAt) { windowAt(-H + 0.01, z, 'z'); windowAt(H - 0.01, z, 'z'); }
+  for (const x of windowsAt) windowAt(x, H - 0.01, 'x');
   const pilaster = (x, z) => { b.cyl(stone, x, WALL_H / 2, z, WALL_H, 1.5, 1.6, 20); b.box(stone, x, 0.35, z, 2.1, 0.7, 2.1); b.box(stone, x, WALL_H - 1.0, z, 2.0, 0.6, 2.0); b.box(brass, x, 0.74, z, 1.8, 0.08, 1.8); };
-  for (const z of [-50, -30, -10, 10, 30, 50]) { pilaster(-H + 0.4, z); pilaster(H - 0.4, z); }
-  for (const x of [-54, -30, -6, 6, 30, 54]) if (Math.abs(x) > door + 1) pilaster(x, H - 0.4);
+  for (const z of pilastersAt) { pilaster(-H + 0.4, z); pilaster(H - 0.4, z); }
+  for (const x of pilastersAt) pilaster(x, H - 0.4);
 
   // the portal: marble piers, lintel and keystone, a plaque naming the gallery
   for (const s of [-1, 1]) { b.box(stone, s * (door + 0.7), doorH / 2, wallZ, 1.4, doorH, 2.0); b.box(brass, s * (door + 0.7), 0.74, wallZ, 1.5, 0.08, 2.1); }
@@ -299,14 +306,14 @@ export function buildWorld(scene, shadowGen, sets) {
     const r = rng(Math.round(x * 13 + z * 7));
     for (let k = 0; k < 6; k += 1) { const a = k * 1.1; b.sphere(k % 2 ? leaf : leaf2, x + Math.cos(a) * 0.7 * s * r(), 3.6 * s + r() * 1.1 * s, z + Math.sin(a) * 0.7 * s * r(), (1.3 + r() * 0.9) * s, 10); }
   };
-  for (const [x, z] of [[-54, 54], [54, 54], [-54, -54], [54, -54], [-(door + 3.2), wallZ + 2.6], [door + 3.2, wallZ + 2.6], [-56, -30], [56, 30]]) tree(x, z, x === -(door + 3.2) || x === door + 3.2 ? 1.15 : 1);
+  for (const [x, z, s] of HALL_TREES) tree(x, z, s);
   const bench = (x, z, rot) => {
     for (const s of [-1, 0, 1]) colliders.push([x + (rot ? 0 : s * 1.3), z + (rot ? s * 1.3 : 0), 0.75]);
     const along = rot ? [1.2, 4] : [4, 1.2];
     b.box(wood, x, 0.95, z, along[0], 0.22, along[1]);
     for (const s of [-1, 1]) b.box(stone, x + (rot ? 0 : s * 1.5), 0.42, z + (rot ? s * 1.5 : 0), rot ? 1.0 : 0.5, 0.84, rot ? 0.5 : 1.0);
   };
-  bench(-20, 54, false); bench(20, 54, false); bench(0, -19, false); bench(0, 17, false);
+  for (const [x, z] of HALL_BENCHES) bench(x, z, false);
 
   // ---------- sculpture gallery ----------
   const vaultY = WALL_H; const rise = 6;
@@ -316,7 +323,7 @@ export function buildWorld(scene, shadowGen, sets) {
   const lunettes = [wallZ - 1.2, G.farZ].map((z) => { const m = BAB.MeshBuilder.CreateRibbon('lunette', { pathArray: [curve(z, true), curve(z)], sideOrientation: BAB.Mesh.DOUBLESIDE }, scene); m.material = ceilMat; m.parent = root; m.isPickable = false; return m; });
   b.box(skylight, 0, vaultY + rise - 0.06, gz, 5, 0.06, gLen - 6);
   const ribZ = [];
-  for (let z = -68.75; z > G.farZ + 2; z -= 12.5) ribZ.push(z);
+  for (let z = GALLERY_ROWS.z[0] + GALLERY_ROWS.step / 2; z > G.farZ + 2; z -= GALLERY_ROWS.step) ribZ.push(z); // between the plinth rows
   for (const z of ribZ) {
     const rib = BAB.MeshBuilder.CreateTube('rib', { path: curve(z).map((p) => p.add(new BAB.Vector3(0, -0.2, 0))), radius: 0.3, tessellation: 10 }, scene); b.push(stone, rib);
     for (const s of [-1, 1]) { b.cyl(stone, s * (gw - 0.5), WALL_H / 2, z, WALL_H, 1.0, 1.1, 16); b.box(stone, s * (gw - 0.5), 0.35, z, 1.5, 0.7, 1.5); b.box(stone, s * (gw - 0.5), WALL_H - 0.6, z, 1.5, 0.5, 1.5); }

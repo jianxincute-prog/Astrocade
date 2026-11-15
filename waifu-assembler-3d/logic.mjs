@@ -24,11 +24,22 @@ export const PARTS = [
 
 // Restoration hall (fragments are scattered here): x and z within ±HALL_SIZE/2. The statue gallery opens north
 // of it through a single doorway: a long sculpture nave with six plinths along each side of a central aisle.
-export const HALL_SIZE = 150;
-export const ANNEX = { minX: -24, maxX: 24, nearZ: -82, farZ: -170 };
+// A compact 96 x 96 hall: short walks for the timed Stage Run, still room for the 60-piece gallery restoration.
+export const HALL_SIZE = 96;
+export const ANNEX = { minX: -20, maxX: 20, nearZ: -50, farZ: -140 };
 export const GALLERY_DOOR = 7; // half-width of the doorway between hall and gallery
-const ROW_X = 17;
-const ROW_Z = [-92, -106, -120, -134, -148, -162];
+// Six plinths per side of the gallery aisle, evenly spaced from just inside the doorway.
+export const GALLERY_ROWS = { x: 12.5, step: 12.5, z: [-63, -75.5, -88, -100.5, -113, -125.5] };
+const ROW_X = GALLERY_ROWS.x;
+const ROW_Z = GALLERY_ROWS.z;
+// Hall furniture as pure data (the renderer builds it, tests keep fragments clear of it).
+// Trees: [x, z, scale] in the corners, beside the doorway and on the side walls; benches: [x, z] along the south wall.
+export const HALL_TREES = [
+  [-43, 43, 1], [43, 43, 1], [-43, -43, 1], [43, -43, 1],
+  [-(GALLERY_DOOR + 3.2), -HALL_SIZE / 2 + 2.6, 1.15], [GALLERY_DOOR + 3.2, -HALL_SIZE / 2 + 2.6, 1.15],
+  [-44, -15, 1], [44, 15, 1],
+];
+export const HALL_BENCHES = [[-22, 43], [22, 43]];
 export const INITIAL_PODIUMS = {
   office01: [-ROW_X, ROW_Z[0]], nurse01: [ROW_X, ROW_Z[0]],
   ceo01: [-ROW_X, ROW_Z[1]], student01: [ROW_X, ROW_Z[1]],
@@ -40,9 +51,9 @@ export const INITIAL_PODIUMS = {
 
 // Twelve searchable fragment zones (4 x 3) inside the restoration hall, one per statue.
 const ZONES = {
-  office01: [-52, -48], nurse01: [13, 47], ceo01: [52, 0], student01: [-13, 0],
-  idol01: [-52, 47], janitor01: [13, -48], rin01: [52, 47], aoi01: [-13, 47],
-  mei01: [13, 0], yuki01: [-52, 0], kana01: [52, -48], sakura01: [-13, -48],
+  office01: [-33, -30], nurse01: [11, 30], ceo01: [33, 0], student01: [-11, 0],
+  idol01: [-33, 30], janitor01: [11, -30], rin01: [33, 30], aoi01: [-11, 30],
+  mei01: [11, 0], yuki01: [-33, 0], kana01: [33, -30], sakura01: [-11, -30],
 };
 const FRAGMENT_OFFSETS = [[-8, -7], [7, -8], [-7, 8], [8, 7], [0, 0]];
 

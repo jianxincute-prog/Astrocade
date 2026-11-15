@@ -1,6 +1,6 @@
 # Waifu Assembler 3D
 
-Jelajahi aula restorasi terang berukuran 150 × 150, temukan 60 segmen patung yang tersebar di 12 zona, lalu susun kembali dua belas figur (Office, Nurse, CEO, Student, Idol, Janitor, Rin, Aoi, Mei, Yuki, Kana, Sakura) di galeri patung berkubah di utara aula. Blueprint holografik memperlihatkan figur utuh dengan segmen yang sedang dibawa disorot merah. Mode **Stage Run** menantang pemain menyelesaikan satu patung per stage dengan waktu terbatas, fragmen ornamen baru, tirai dan peti yang dibuka, serta skor leaderboard kumulatif.
+Jelajahi aula restorasi terang berukuran 96 × 96, temukan 60 segmen patung yang tersebar di 12 zona, lalu susun kembali dua belas figur (Office, Nurse, CEO, Student, Idol, Janitor, Rin, Aoi, Mei, Yuki, Kana, Sakura) di galeri patung berkubah di utara aula. Blueprint holografik memperlihatkan figur utuh dengan segmen yang sedang dibawa disorot merah. Mode **Stage Run** menantang pemain menyelesaikan satu patung per stage dengan waktu terbatas, fragmen ornamen baru, tirai dan peti yang dibuka, serta skor leaderboard kumulatif.
 
 ## Layar pembuka
 - **Loading sederhana (2D)**: latar gelap hangat, logo kecil, progress bar + persen + status. Scene 3D tidak dirender selama loading sehingga semua waktu dipakai untuk membangun galeri; splash sebelum Babylon.js termuat memakai tampilan yang sama. LOD low-poly hanya dibuat untuk satu patung saat loading (untuk menghangatkan shader), sisanya dicicil per bagian di latar belakang setelah menu tampil (patung yang sudah selesai di save tetap dibuat LOD-nya sebelum digabung). Waktu loading di renderer software: ±25 dtk → ±15 dtk.
@@ -16,6 +16,11 @@ Jelajahi aula restorasi terang berukuran 150 × 150, temukan 60 segmen patung ya
 ## Tutorial interaktif
 - Saat pertama kali bermain, kartu pemandu muncul di atas kontrol dan maju sendiri begitu pemain benar-benar melakukan langkahnya: **1** lihat sekeliling (seret layar) → **2** berjalan (stick/WASD) → **3** ambil potongan (atau OPEN peti/tirai) → **4** bawa ke plinth bernama sama di galeri → **5** ASSEMBLE dan putar sampai pas dengan TARGET.
 - Kontrol yang sedang dibahas berdenyut (stick, tombol aksi, peta). Langkah yang sudah terpenuhi dilewati otomatis. Tombol **SKIP** menutupnya; **REPLAY TUTORIAL** di Settings memulainya lagi. Status selesai tersimpan (`meta.tutorialDone`), tetap setelah NEW RUN, terhapus oleh RESET PROGRESS.
+
+## Tata letak peta
+- **Aula 96 × 96** dibagi 6 bay sama besar (`HALL_SIZE / 6`). Balok langit-langit dan jendela ada di garis bay, skylight di tengah bay, pilaster di antara jendela, jadi dekorasi selalu simetris. Pohon dan bangku didefinisikan di `logic.mjs` (`HALL_TREES`, `HALL_BENCHES`) dan diuji agar tidak menimpa potongan.
+- **Galeri** (x ±20, z −50 … −140): enam plinth per sisi dengan jarak rata 12,5 (`GALLERY_ROWS`); rusuk atap berada tepat di antara baris plinth. Mode Gallery memakai 12 zona potongan 4 × 3 di aula.
+- **Stage Run**: patung stage berdiri di medali tengah aula. Potongan diletakkan di titik-titik rata di sekelilingnya: maksimal 6 di lingkar dalam, sisanya di lingkar luar di sela-selanya (`stageStations`). Lingkar dalam 13 di stage 1 dan melebar 1 per stage sampai 18 (lingkar luar +11). Pola diputar per stage (kelipatan 15°) dan potongan diacak per titik, jadi rute selalu berbeda tapi tetap rapi. Tiap stage pemain mulai tepat di depan patung (`STAGE_SPAWN`).
 
 ## Kedalaman gameplay
 - **Potongan tersembunyi**: 24 dari 60 potongan (2 per patung) disimpan di dalam **peti kayu** (11) atau di balik **tirai beludru** (13). Di peta tampil sebagai "?", HUD menulis *SOMETHING IS HIDDEN HERE*, tombol jadi **OPEN**. Saat dibuka: tutup peti berengsel / tirai tersibak (animasi 0,8 dtk), potongan melayang naik, kilau + SFX peti/tirai. Status terbuka tersimpan (`revealed`).
