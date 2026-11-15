@@ -9,7 +9,7 @@
 export const BRANCHES = ['E', 'M', 'L'];
 export const BRANCH_NAME = { E: 'Economy', M: 'Military', L: 'Lore' };
 export const BRANCH_IC = { E: '🪙', M: '⚔️', L: '📖' };
-export const TIER_KP = [60, 180, 450, 900, 1600];                 // knowledge points a tier-n tech costs
+export const TIER_KP = [60, 200, 700, 2400, 5000];                 // knowledge points a tier-n tech costs
 
 export const AGES = [
   { id: 'stone',    name: 'Stone Age',    race: {} },

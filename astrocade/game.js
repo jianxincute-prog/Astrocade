@@ -402,6 +402,7 @@ function majorBanner(icon, text) {
 let tiles, bld, fire, jit;            // allocated by setSize()
 let kid, own, ownRace, ownEdge, ownScore;      // kingdom id per house tile / territory map (allocated by setSize())
 let wallK = new Uint16Array(1), wallG = new Uint8Array(1), wallT = new Uint8Array(1);
+const lastBand = {}, seenRace = {};                            // wanderers: when each race last got a band, and which races have ever had a people here
 let riv = new Uint8Array(1), road = new Uint8Array(1), trail = new Uint8Array(1), scn = null;          // rivers, roads, worn trails and the running scenario
 let oreT = new Uint8Array(1), oreA = new Uint8Array(1), treeK = new Uint8Array(1), nodes = [];      // resource nodes: type / amount left, cached tree kind, node list     // wall barrier map: owner kingdom id / is-gate
 const wallGates = new Map();                                   // kingdom id -> gate tile indices
@@ -1105,7 +1106,7 @@ function buildCheck() {                                        // every 5 second
       pay(k, b.cost); k.bld.push(b.id); placeLandmark(k, b.id);
       if (k.bld.length === 1 || b.kp) addChronicle(b.ic, b.id === 'wonder' ? `${k.name} completed the ${WONDER_NAME[k.race]}` : `${k.name} built a ${b.n}`);
       if (b.id === 'wonder' && started) banner('🏰', WONDER_NAME[k.race], `${k.name} raised a wonder`, 'good');
-      fx('puff', Math.round(k.cx), Math.round(k.cy)); ownDirty = true; dirty = true; break;
+      fx('puff', Math.round(k.cx), Math.round(k.cy)); sndFx('build', k.cx, k.cy); ownDirty = true; dirty = true; break;
     }
   }
 }
@@ -1115,7 +1116,7 @@ function ageCheck() {                                        // five ages: each 
     const a = k.age | 0, need = ageNeed(a);
     if (!need || !ageReady(k.race, k.tech, a, k.level) || !canPay(k, need.cost)) continue;
     pay(k, need.cost); k.age = a + 1; recalcMods(k);
-    fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: AGE_IC[k.age] });
+    fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: AGE_IC[k.age] }); sndFx('ageup', k.cx, k.cy);
     if (k.age >= 3) { addChronicle(AGE_IC[k.age], `${k.name} entered the ${ageName(k.age, k.race)}`); if (started) banner(AGE_IC[k.age], ageName(k.age, k.race), `${k.name} advances`, 'good'); }
   }
 }
@@ -1818,6 +1819,11 @@ const SFX = {
   hammer: v => { tone(150, .07, { type: 'square', vol: .06 * v, to: 90 }); tone(1700, .09, { type: 'triangle', vol: .04 * v, to: 1300, when: Snd.ctx.currentTime + .05 }); burst(.04, { type: 'highpass', f: 2600, vol: .05 * v }); },
   shot: v => { burst(.12, { type: 'lowpass', f: 2200, to: 260, vol: .28 * v }); tone(140, .12, { type: 'square', vol: .06 * v, to: 60 }); },
   cannon: v => { tone(95, .45, { type: 'sine', vol: .34 * v, to: 36 }); burst(.5, { type: 'lowpass', f: 900, to: 100, vol: .3 * v }); },
+  build: v => { tone(180, .08, { type: 'square', vol: .05 * v, to: 100 }); [523, 784].forEach((f, i) => tone(f, .22, { type: 'triangle', vol: .07 * v, when: Snd.ctx.currentTime + .08 + i * .09, send: 1 })); },
+  ageup: v => { [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, .55, { type: 'triangle', vol: .12 * v, when: Snd.ctx.currentTime + i * .12, send: 1 })); tone(110, 1.1, { type: 'sawtooth', vol: .06 * v, a: .2 }); },
+  season: id => { const notes = { spring: [523, 659, 784, 1047], summer: [440, 554, 659, 880], autumn: [392, 466, 587, 466], winter: [330, 262, 220, 165] }[id] || [440]; notes.forEach((f, i) => tone(f, .7, { type: id === 'winter' ? 'sine' : 'triangle', vol: .05, when: Snd.ctx.currentTime + i * .16, send: 1 })); },
+  chirp: () => { const f = 2300 + Math.random() * 900; for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++) tone(f * (1 + i * .08), .06, { type: 'sine', vol: .016, to: f * 1.3, when: Snd.ctx.currentTime + i * .09 }); },
+  cricket: () => { for (let i = 0; i < 3; i++) tone(4300, .035, { type: 'sine', vol: .01, when: Snd.ctx.currentTime + i * .07 }); },
   birth: v => { tone(784, .12, { type: 'sine', vol: .07 * v }); tone(1047, .2, { type: 'sine', vol: .07 * v, when: Snd.ctx.currentTime + .1 }); },
 };
 function sndAt(x, y) {                                          // louder in view, quieter just outside, silent far away
@@ -1847,6 +1853,8 @@ function sndFx(kind, x, y, extra) {
     case 'shot': if (can('shot', 110)) SFX.shot(v); break;
     case 'cannon': if (can('cannon', 220)) SFX.cannon(v); break;
     case 'birth': if (v >= 1 && sc >= 8 && can('birth', 500)) SFX.birth(v); break;
+    case 'build': if (can('build', 500)) SFX.build(v); break;
+    case 'ageup': if (can('ageup', 1500)) SFX.ageup(Math.max(.5, v)); break;
     case 'death': if (can('death', 250)) tone(210, .22, { type: 'sine', vol: .05 * v, to: 100 }); break;
   }
 }
@@ -1855,7 +1863,13 @@ function sndAmbient(firesInView) {                              // wind, rain an
   Snd.wind.gain.setTargetAtTime(.02 + (weather.kind ? .035 * weather.k : 0) + (nightNow > .5 ? .008 : 0), t, .6);
   Snd.rainBed.gain.setTargetAtTime(weather.kind === 1 || weather.kind === 2 ? (weather.kind === 2 ? .2 : .13) * weather.k : 0, t, .6);
   Snd.fireBed.gain.setTargetAtTime(Math.min(.12, firesInView * .008), t, .4);
+  if (!editMode && started && Snd.on) {                                        // birdsong on spring and summer days, crickets on warm nights
+    const id = seasonOf(tick).id;
+    if (nightNow < .25 && (id === 'spring' || id === 'summer') && weather.kind === 0 && Math.random() < .07) SFX.chirp();
+    else if (nightNow > .5 && (id === 'summer' || id === 'autumn') && weather.kind === 0 && Math.random() < .22) SFX.cricket();
+  }
 }
+function sndSeason() { if (Snd.ctx && Snd.on && !editMode && started) SFX.season(seasonOf(tick).id); }
 const CHORDS = { day: [[0, 4, 7], [7, 11, 14], [9, 12, 16], [5, 9, 12]], night: [[0, 3, 7], [8, 12, 15], [3, 7, 10], [10, 14, 17]] };
 function warCount() { let n = 0; for (const r of rels.values()) if (r.s === 1) n++; return n; }
 function musicTick() {                                           // generative score: pads, soft plucks, and low drums when kingdoms are at war
@@ -2803,6 +2817,20 @@ function evolveWolves() {
   toast(EMOJI.werewolf + ' Wolves have evolved!'); haptic('success');
 }
 // Safety net: if wolves get scarce, a small pack wanders in from wild land (far from settlements, near prey).
+function wanderers() {                                         // a race that is nearly gone (but not erased by war) can be rescued by a small band of wanderers
+  for (const race of CIVS) {
+    if ((counts[race] || 0) >= 4) seenRace[race] = true;
+    if (extinctRaces.has(race) || (SIZES[sizeIdx].empty && !seenRace[race]) || (counts[race] || 0) >= 4 || tick - (lastBand[race] || -1e9) < 1440 || Math.random() > .35) continue;
+    for (const [cd, hd] of [[10, 6], [5, 3]]) for (let g = 0; g < 80; g++) {
+      const x = ri(2, W - 3), y = ri(2, H - 3), t = tiles[x + y*W];
+      if (!RACES[race].build.includes(t) || !walkable(race, t) || bld[x + y*W]) continue;
+      const probe = { x, y, id: 0, avoid: 0, avoidUntil: 0 };
+      if (findNearest(probe, CIVS, cd) || countHouses(x, y, hd, 1) + countHouses(x, y, hd, 2) + countHouses(x, y, hd, 3) + countHouses(x, y, hd, 4) > 0) continue;
+      let n = 0; for (let q = 0; q < 4; q++) if (spawnNear(race, x, y)) n++;
+      if (n) { lastBand[race] = tick; addChronicle(EMOJI[race], `Wanderers of the ${TYPE_NAME[race].toLowerCase()} people arrived`); toast(`${EMOJI[race]} Wanderers arrived`); return; }
+    }
+  }
+}
 function wolfPack() {
   const levels = [[12, 8], [7, 4], [4, 2]];             // [min distance to settlers, min distance to houses]: relax if the world is crowded
   for (const [cd, hd] of levels) for (let g = 0; g < 60; g++) {
@@ -3223,7 +3251,7 @@ function researchCheck() {                                 // every 5 seconds: f
     if (!cands.length) { k.want = null; continue; }
     if (!k.want || !cands.includes(k.want) || k.wait > 6) { k.want = chooseTech(k.race, cands, k.focus, Math.random()); k.wait = 0; }
     const t = k.want, kpc = TIER_KP[t.tier - 1];
-    if ((k.kp || 0) >= kpc && canPay(k, t.cost)) { pay(k, t.cost); k.kp -= kpc; k.res = { t, left: 240 }; k.want = null; k.wait = 0; }
+    if ((k.kp || 0) >= kpc && canPay(k, t.cost)) { pay(k, t.cost); k.kp -= kpc; k.res = { t, left: 480 + 200 * (t.tier - 1) }; k.want = null; k.wait = 0; }
     else k.wait = (k.wait | 0) + 1;                         // stuck on one tech for a while: pick another
   }
 }
@@ -3446,7 +3474,7 @@ function navyLaunch(k) {
   if (!route || route.path.length < 3) { k.navyCd = tick + 2400; return; }
   pay(k, NAVY_COST); k.navyCd = tick + 1500;
   navy.push({ id: nextNavyId++, kid: k.id, race: k.race, age: k.age, x: start % W, y: (start / W) | 0, path: route.path, step: 0, move: 0, hp: warshipHp(k.age), mhp: warshipHp(k.age), kc: 0, phase: 'out', t: 0, home: start });
-  addChronicle('⚓', `${k.name} launched a warship`); toast(`⚓ ${EMOJI[k.race]}${k.name} launched a warship`); dirty = true;
+  fx('warcry', start % W, (start / W) | 0); addChronicle('⚓', `${k.name} launched a warship`); toast(`⚓ ${EMOJI[k.race]}${k.name} launched a warship`); dirty = true;
 }
 function navyTick() {
   if (tick % 80 === 0) for (const k of kingdoms.values()) navyLaunch(k);
@@ -3519,7 +3547,7 @@ function economy() {                                      // once per second
     mineTick(k, E);
     k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone*tb*dmu('stone'));                 // quarries / trade even far from hills
     k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012 + Math.min(40, k.rdn || 0)*.003)*E.g*M.gold*dmu('gold'));       // roads carry trade
-    k.kp = Math.min(3000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld) * dmu('kp')));                 // knowledge points pay for research
+    k.kp = Math.min(8000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld) * dmu('kp')));                 // knowledge points pay for research
     if (k.bld.length) {                                                         // goods chains: sawmill, bakery, smithy
       const d = produce(k);
       k.wood += d.wood; k.food += d.food; k.plank = Math.min(GOODS_CAP.plank, k.plank + d.plank); k.bread = Math.min(GOODS_CAP.bread, k.bread + d.bread);
@@ -3657,6 +3685,8 @@ function step() {
   if (pendingDis.length) processDisasters();
   if (floods.length && tick % 8 === 0) floodRecede();
   if (tick % 120 === 60) scnCheck();
+  if (tick % 120 === 0 && tick > 0) sndSeason();
+  if (tick % 400 === 200 && !editMode) wanderers();
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); ageCheck(); buildCheck(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -3717,6 +3747,7 @@ function setSize(idx) {
   kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   oreT = new Uint8Array(N); oreA = new Uint8Array(N); treeK = new Uint8Array(N); nodes = [];
   riv = new Uint8Array(N); road = new Uint8Array(N); trail = new Uint8Array(N);
+  for (const r in lastBand) delete lastBand[r]; for (const r in seenRace) delete seenRace[r];
   drops.length = 0; dropMap.clear(); volcanoes.length = 0; parts.length = 0;
   kingdoms.clear(); rels.clear(); ships = []; nextShipId = 1; navy = []; nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
@@ -4816,10 +4847,11 @@ function newWorld(idx) {
 }
 /* ---- leaderboard: "civilization score" ---- */
 let bestSent = 0, lbBusy = false;
-function civScore() {                                        // population, houses, level and tech of every kingdom, plus years survived
-  let sc = 0;
-  for (const k of kingdoms.values()) sc += k.pop*2 + k.houses*3 + k.level*60 + k.tech.length*40 + (k.age | 0)*50 + ((k.bronze | 0) + (k.iron | 0) + (k.silver | 0))*.5;
-  return Math.round(sc + (tick / 120) * 2 + market.trades * 3);
+function civScore() {                                        // population, houses, level, tech, age and buildings of every kingdom, plus heroes, musketeers, the variety of peoples and years survived
+  let sc = 0; const races = new Set();
+  for (const k of kingdoms.values()) { sc += k.pop*2 + k.houses*3 + k.level*60 + k.tech.length*20 + (k.age | 0)*80 + k.bld.length*15 + (k.bld.includes('wonder') ? 120 : 0) + ((k.bronze | 0) + (k.iron | 0) + (k.silver | 0))*.5; races.add(k.race); }
+  let heroes = 0, guns = 0; for (const c of creatures) { if (c.hp > 0 && c.hero) heroes++; else if (c.hp > 0 && c.gun) guns++; }
+  return Math.round(sc + heroes * 25 + guns * 10 + races.size * 40 + (tick / 120) * 2 + market.trades * 3 + (scn && scn.status === 'win' ? 300 : 0));
 }
 function addChronicle(icon, text) {
   if (editMode || !text) return;
@@ -5040,7 +5072,7 @@ function mmTick() {
     for (let i = 0; i < N; i++) {
       const t = tiles[i]; let r, g, b;
       if (t <= 1 && wOK) { const dd = shoreD[i], di = t === 1 ? (dd > 4 ? 4 : dd) : (dd < 5 ? 5 : dd > 30 ? 30 : dd); r = WR[di * 3]; g = WR[di * 3 + 1]; b = WR[di * 3 + 2]; }
-      else { const c = COL[t]; r = c[0]; g = c[1]; b = c[2]; }
+      else { const c = COL[t]; r = c[0]; g = c[1]; b = c[2]; if (riv[i]) { r = 120; g = 200; b = 248; } else if (road[i]) { r = 196; g = 164; b = 110; } }       // rivers and roads show on the minimap
       const k = i * 4; d[k] = r; d[k + 1] = g; d[k + 2] = b; d[k + 3] = 255;
     }
     bx.putImageData(im, 0, 0);
@@ -5357,6 +5389,7 @@ const NEWS = [
     'Five <b>scenarios</b> (World tab) give you a prepared world, a goal and a time limit: First Light, Age of Sail, Arctic Survival, Four Realms and Long Peace.']],
   ['🐑', 'A real life cycle', [
     'Every creature is <b>male or female</b>. A birth needs a mature pair of the same kind close together, and animals now breed much more slowly. Children are smaller, and a newborn brings a floating heart.',
+    'A people that is nearly gone can be rescued by wandering settlers. Research now takes longer, so the late ages arrive after a century or more.',
     'The new buildings come alive (spinning saw, smoke, forge sparks, glowing windows), muskets and cannons flash and smoke, and the seasons bring petals, fireflies, falling leaves and snow, all with new sounds.']],
   ['🌊', 'Living Seas (version 2.0)', [
     '<b>Fish shoals</b> drift through the sea: sardines near the shore, grouper on reefs, tuna in the deep. Fishers and boats depend on them, and overfishing scatters a shoal.',

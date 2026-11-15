@@ -7,8 +7,8 @@ export const SCENARIOS = [
     desc: 'Humans and dwarves share the Aegean. Colonise the isles until four kingdoms stand, within 200 years.' },
   { id: 'north', n: 'Arctic Survival', ic: '❄️', world: 'Arctic Isles', setup: [{ race: 'human', n: 10 }], goal: { type: 'pop', v: 40 }, years: 70,
     desc: 'Ten settlers face the long winters of the Arctic. Reach 40 citizens within 70 years.' },
-  { id: 'four', n: 'Four Realms', ic: '🔬', world: null, setup: [{ race: 'human', n: 6 }, { race: 'elf', n: 6 }, { race: 'dwarf', n: 6 }, { race: 'orc', n: 6 }], goal: { type: 'age', v: 4 }, years: 60,
-    desc: 'Four races on one world. Bring any kingdom into the Gunpowder Age within 60 years.' },
+  { id: 'four', n: 'Four Realms', ic: '🔬', world: null, setup: [{ race: 'human', n: 6 }, { race: 'elf', n: 6 }, { race: 'dwarf', n: 6 }, { race: 'orc', n: 6 }], goal: { type: 'age', v: 4 }, years: 140,
+    desc: 'Four races on one world. Bring any kingdom into the Gunpowder Age within 140 years.' },
   { id: 'peace', n: 'Long Peace', ic: '🕊️', world: null, setup: [{ race: 'human', n: 6 }, { race: 'elf', n: 6 }, { race: 'dwarf', n: 6 }, { race: 'orc', n: 6 }], goal: { type: 'hold', v: 4 }, years: 250,
     desc: 'Keep four races alive for 250 years. Wars, plagues and disasters will test you.' },
 ];
