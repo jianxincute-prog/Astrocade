@@ -1,0 +1,17 @@
+import assert from 'node:assert';
+import { REL, pactChance, allyChance, breakChance, betrayalChance, aid, allyKp, PACT_AGE_FOR_ALLIANCE } from '../diplomacy.js';
+assert.ok(pactChance('human', 'elf', true) > pactChance('human', 'orc', false));
+assert.ok(pactChance('orc', 'orc', false) > pactChance('orc', 'human', false));
+assert.ok(pactChance('werewolf', 'human', false) < .01);
+assert.strictEqual(allyChance('human', 'elf', true, PACT_AGE_FOR_ALLIANCE - 1), 0);
+assert.ok(allyChance('human', 'elf', true, PACT_AGE_FOR_ALLIANCE) > allyChance('human', 'orc', false, PACT_AGE_FOR_ALLIANCE));
+assert.strictEqual(allyChance('werewolf', 'elf', false, 99999), 0);
+assert.ok(breakChance(REL.ALLY, 5) > breakChance(REL.ALLY, 1)); assert.ok(breakChance(REL.ALLY, .2) > breakChance(REL.ALLY, 1));
+assert.strictEqual(breakChance(REL.WAR, 1), 0);
+assert.ok(betrayalChance(.04) < .04);
+assert.deepStrictEqual(aid({ food: 300, wood: 0 }, { food: 10, wood: 50 }, true), { key: 'food', amt: 60 });
+assert.ok(aid({ food: 300, wood: 0 }, { food: 10, wood: 50 }, false).amt < 60);
+assert.deepStrictEqual(aid({ food: 100, wood: 200 }, { food: 100, wood: 5 }, true), { key: 'wood', amt: 40 });
+assert.strictEqual(aid({ food: 100, wood: 50 }, { food: 10, wood: 5 }, true), null);
+assert.strictEqual(allyKp(0), 1); assert.ok(Math.abs(allyKp(5) - 1.3) < 1e-9);
+console.log('diplomacy tests ok');

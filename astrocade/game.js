@@ -15,6 +15,7 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+import { REL, PACT_GOLD, pactChance, allyChance, breakChance, betrayalChance, aid, allyKp } from './diplomacy.js';
 import { isAdult, lifeStage, ANIMAL_BREED, crowd, canBreed, isMate, pickPair, pickCrew } from './reproduction.js';
 import { traceRivers, stepTrail, runsEncode, runsDecode } from './landscape.js';
 import { SCENARIOS, SCENARIO_BY, evalScenario } from './scenarios.js';
@@ -418,7 +419,7 @@ let tiles, bld, fire, jit;            // allocated by setSize()
 let kid, own, ownRace, ownEdge, ownScore;      // kingdom id per house tile / territory map (allocated by setSize())
 let wallK = new Uint16Array(1), wallG = new Uint8Array(1), wallT = new Uint8Array(1);
 const lastBand = {}, seenRace = {};                            // wanderers: when each race last got a band, and which races have ever had a people here
-let riv = new Uint8Array(1), road = new Uint8Array(1), trail = new Uint8Array(1), scn = null;          // rivers, roads, worn trails and the running scenario
+let riv = new Uint8Array(1), road = new Uint8Array(1), trail = new Uint8Array(1), townMask = new Uint8Array(1), scn = null;          // rivers, roads, worn trails and the running scenario
 let oreT = new Uint8Array(1), oreA = new Uint8Array(1), treeK = new Uint8Array(1), nodes = [];      // resource nodes: type / amount left, cached tree kind, node list     // wall barrier map: owner kingdom id / is-gate
 const wallGates = new Map();                                   // kingdom id -> gate tile indices
 const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
@@ -1079,7 +1080,7 @@ function treeKindAt(i) {                                       // static grove p
 }
 function addNode(i, t) { if (oreT[i]) return false; oreT[i] = t; oreA[i] = ORE_AMT[t]; nodes.push(i); return true; }
 function spawnOre(t, tries) {
-  for (let n = 0; n < tries; n++) { const i = ri(0, N - 1); if (ORE_TILES[t].includes(tiles[i]) && !bld[i] && !oreT[i]) return addNode(i, t); }
+  for (let n = 0; n < tries; n++) { const i = ri(0, N - 1); if (ORE_TILES[t].includes(tiles[i]) && !bld[i] && !oreT[i] && !townMask[i]) return addNode(i, t); }
   return false;
 }
 function seedResources() {
@@ -2448,7 +2449,7 @@ function setFamily(c, par) {                                    // a newborn get
   for (const P of [A, B]) if (P.ch === 1 || P.ch === 3 || P.ch === 6) addHist(P, 15, c.nid);
 }
 const sexTog = {};                                           // per kind: the sex the next spawn gets (1 = female)
-function newborn(c) { c.age = 0; c.f = Math.random() < .5 ? 1 : 0; fx('birth', c.x, c.y); }
+function newborn(c) { c.age = 0; c.f = Math.random() < .5 ? 1 : 0; if (RACES[c.t].civ && effects.length < 300) fx('birth', c.x, c.y); }       // hearts for the peoples only
 function findMate(c, r = 10) {                                // a mature male of the same kind close by
   const gx = c.x >> 3, gy = c.y >> 3;
   for (let yy = Math.max(0, gy - 1); yy <= Math.min(GH - 1, gy + 1); yy++) for (let xx = Math.max(0, gx - 1); xx <= Math.min(GW - 1, gx + 1); xx++)
@@ -2654,12 +2655,12 @@ function stepCreature(c) {
     if (drops.length && (c.lead || c.elite || isSoldier(c)) && !c.tgt && (tick + c.id) % 6 === 0 && seekDrop(c)) return;
     if (drops.length && ka && ka.chest.length < chestCap(ka) && !(c.lead || c.elite || isSoldier(c)) && !c.tgt && (tick + c.id) % 12 === 0 && seekDrop(c, true)) return;
     if (!c.k && (tick + c.id) % 40 === 0) c.k = nearestKingdom(c);
-    if (bld[idx] === 0 && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
+    if (bld[idx] === 0 && !road[idx] && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2 && !lmNear(c.x, c.y, 1)
         && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
       const k = c.k ? kingdoms.get(c.k) : null;                        // building costs wood and is capped by the kingdom's level
       if (!k || (k.houses < maxHouses(k) && (k.wood >= 4 || k.plank >= 1))) {
         bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
-        if (k) { if (k.plank >= 1) k.plank -= 1; else k.wood -= 4; kid[idx] = k.id; }
+        if (k) { if (k.plank >= 1) k.plank -= 1; else k.wood -= 4; kid[idx] = k.id; carvePath(idx, k.cap, k); }
       }
     }
     if (workStep(c, ka)) return;                                       // everyday jobs: chop, mine, hunt, farm, fish, forage
@@ -3053,7 +3054,7 @@ function kingdomsAt(wx, wy, r) {                            // the kingdom under
   return out;
 }
 /* ---- war & diplomacy ---- */
-const AGGR = { orc:.04, human:.012, dwarf:.008, elf:.005, werewolf:0 };            // chance per evaluation that a kingdom picks a fight with a neighbour
+const AGGR = { orc:.032, human:.009, dwarf:.006, elf:.004, werewolf:0 };            // chance per evaluation that a kingdom picks a fight with a neighbour
 const SOLDIER_PCT = { orc:55, human:30, dwarf:35, elf:25, werewolf:45 };
 const FRIENDS = new Set(['human:elf', 'elf:human', 'human:dwarf', 'dwarf:human', 'elf:dwarf', 'dwarf:elf']);
 const rkey = (a, b) => a < b ? a*65536 + b : b*65536 + a;
@@ -3079,12 +3080,13 @@ function computeComps() {
   compDirty = false;
 }
 function rebuildRelations() {
-  for (const k of kingdoms.values()) { k.enemies.clear(); k.allies.clear(); }
+  for (const k of kingdoms.values()) { k.enemies.clear(); k.allies.clear(); if (k.pacts) k.pacts.clear(); else k.pacts = new Set(); }
   for (const [key, r] of rels) {
     const a = kingdoms.get(Math.floor(key / 65536)), b = kingdoms.get(key % 65536);
     if (!a || !b) continue;
     if (r.s === 1) { a.enemies.add(b.id); b.enemies.add(a.id); }
     else if (r.s === 2) { a.allies.add(b.id); b.allies.add(a.id); }
+    else if (r.s === REL.PACT) { a.pacts.add(b.id); b.pacts.add(a.id); }
   }
 }
 function warToast(a, b, joined) {
@@ -3161,7 +3163,33 @@ function diplomacyTick() {                                                      
   for (const [key, r] of rels) {                                                 // wars end, truces expire, dead kingdoms vanish from the books
     const a = kingdoms.get(Math.floor(key / 65536)), b = kingdoms.get(key % 65536);
     if (!a || !b) { rels.delete(key); changed = true; continue; }
-    if (r.s === 3 && tick > r.until) { rels.delete(key); continue; }
+    if (r.s === 3 && tick > r.until) {                                           // a truce runs out: often the old foes trade afterwards
+      if (Math.random() < .4 && a.race !== 'werewolf' && b.race !== 'werewolf') { r.s = REL.PACT; r.t = tick; changed = true; addChronicle('📜', `${a.name} and ${b.name} turned their truce into a trade pact`); }
+      else rels.delete(key);
+      continue;
+    }
+    if (r.s === REL.PACT || r.s === 2) {                                         // partners: trade, help in hard times, and sometimes fall out
+      const ally = r.s === 2, ratio = kpower(a) / Math.max(1, kpower(b));
+      if (!ally) { a.gold = Math.min(250, a.gold + PACT_GOLD); b.gold = Math.min(250, b.gold + PACT_GOLD); }
+      for (const [g, t] of [[a, b], [b, a]]) {
+        const h = aid(g, t, ally); if (!h) continue;
+        g[h.key] -= h.amt; t[h.key] += h.amt;
+        if (tick - (t.aidT || -1e9) > 2400) { t.aidT = tick; addChronicle(ally ? '🤝' : '📜', `${g.name} sent ${h.amt} ${h.key} to help ${t.name}`); }
+      }
+      if (!ally && Math.random() < allyChance(a.race, b.race, FRIENDS.has(a.race + ':' + b.race), tick - r.t)) {
+        r.s = 2; r.t = tick; warStats.allied++; changed = true;
+        addChronicle('🤝', `${a.name} and ${b.name} became allies`); fx('bless', a.cap % W, (a.cap / W) | 0); fx('bless', b.cap % W, (b.cap / W) | 0);
+        if (started && (a.level >= 1 || b.level >= 1)) banner('🤝', 'New alliance', `${a.name} & ${b.name}`, 'good');
+        continue;
+      }
+      if (Math.random() < breakChance(r.s, ratio)) {
+        rels.delete(key); changed = true; addChronicle('✂️', ally ? `The alliance of ${a.name} and ${b.name} broke apart` : `The trade pact of ${a.name} and ${b.name} ended`);
+        if (ally && tick - lastWarToast >= 24) toast(`✂️ ${a.name} & ${b.name} part ways`);
+        continue;
+      }
+      if (!ally) for (const [x, y] of [[a, b], [b, a]]) if (x.pop >= 8 && !x.enemies.size && Math.random() < betrayalChance(AGGR[x.race])) { addChronicle('⚔️', `${x.name} broke its pact with ${y.name}`); declareWar(x, y, false); changed = true; break; }
+      continue;
+    }
     if (r.s === 1) {
       const beaten = (k) => k.houses <= 1 || k.pop <= 2;
       const age = tick - r.t;
@@ -3178,8 +3206,10 @@ function diplomacyTick() {                                                      
     const dist = Math.hypot(a.cx - b.cx, a.cy - b.cy);
     if (dist > ra + rb + 14) continue;
     const overlap = dist < ra + rb ? 2 : 1;
-    if (FRIENDS.has(a.race + ':' + b.race) && Math.random() < .03) {            // friendly races sign alliances
-      rels.set(rkey(a.id, b.id), { s: 2, t: tick, until: 0 }); warStats.allied++; changed = true; continue;
+    if (!a.enemies.has(b.id) && Math.random() < pactChance(a.race, b.race, FRIENDS.has(a.race + ':' + b.race))) {        // neighbours sign trade pacts
+      rels.set(rkey(a.id, b.id), { s: REL.PACT, t: tick, until: 0 }); changed = true;
+      if (a.level >= 1 || b.level >= 1) { addChronicle('📜', `${a.name} and ${b.name} signed a trade pact`); if (tick - lastWarToast >= 24) toast(`📜 ${a.name} & ${b.name} trade`); }
+      continue;
     }
     for (const [x, y] of [[a, b], [b, a]]) {                                     // x may attack y
       if (x.pop < (x.race === 'orc' ? 6 : 8) || (x.level < 1 && x.race !== 'orc') || x.enemies.size >= 1) continue;
@@ -3236,17 +3266,68 @@ function freeTileNear(k, minR, maxR, pred) {
   }
   return -1;
 }
+function lmNear(x, y, r) {                                      // is any building (landmark) within r tiles?
+  for (const k of kingdoms.values()) for (const key in k.lm) { const i = k.lm[key]; if (Math.abs((i % W) - x) <= r && Math.abs(((i / W) | 0) - y) <= r) return true; }
+  return false;
+}
+function spacedTileNear(k, minR, maxR, pred) {                 // a free tile with no house, wall or other building right next to it
+  const cx = k.cap % W, cy = (k.cap / W) | 0;
+  for (let n = 0; n < 160; n++) {
+    const a = Math.random() * 6.283, r = ri(minR, maxR), x = Math.round(cx + Math.cos(a)*r), y = Math.round(cy + Math.sin(a)*r);
+    if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue;
+    const i = x + y*W, t = tiles[i];
+    if (t <= T.SHALLOW || t === T.LAVA || riv[i] || (pred && !pred(t))) continue;
+    let ok = true;
+    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) { const j = i + dx + dy*W; if (bld[j] || wallK[j]) { ok = false; break; } }
+    if (ok && !lmNear(x, y, 1)) return i;
+  }
+  return -1;
+}
+function carvePath(from, to, k) {                              // a footpath from a new house or building towards the capital, stopping at the first road
+  if (from < 0 || to < 0) return;
+  let x = from % W, y = (from / W) | 0; const tx = to % W, ty = (to / W) | 0, keepForest = k && (k.race === 'elf' || k.race === 'werewolf');
+  for (let n = 0; n < 24; n++) {
+    const dx = Math.sign(tx - x), dy = Math.sign(ty - y); if (!dx && !dy) break;
+    if (Math.abs(tx - x) > Math.abs(ty - y)) x += dx; else if (Math.abs(ty - y) > Math.abs(tx - x)) y += dy; else { x += dx; y += dy; }
+    const j = x + y*W, t = tiles[j];
+    if (bld[j] || t <= T.SHALLOW || t === T.LAVA || t === T.MOUNTAIN || t === T.SNOW) continue;
+    if (road[j] && n > 0) break;
+    if (t === T.FOREST) { if (keepForest) continue; tiles[j] = T.GRASS; if (k) k.wood = Math.min(250, k.wood + 1); }
+    if (oreT[j] === 1) oreT[j] = 0;
+    road[j] = 1; dirty = true;
+  }
+}
+function townTidy() {                                           // towns stay clear: no trees or loose rocks right around houses and buildings, and every house has a path
+  townMask.fill(0); let paths = 0;
+  const clear = (k, x, y, r) => {
+    const keepForest = k.race === 'elf' || k.race === 'werewolf';
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const nx = x + dx, ny = y + dy; if (!inb(nx, ny)) continue; const j = nx + ny*W; townMask[j] = 1;
+      if (tiles[j] === T.FOREST && !fire[j] && !keepForest) { tiles[j] = T.GRASS; k.wood = Math.min(250, k.wood + 1); dirty = true; }
+      else if (tiles[j] === T.SAND && (treeKindAt(j) & 16)) treeK[j] = treeKindAt(j) & 15;                  // palms too
+      if (oreT[j] === 1) { k.stone = Math.min(250, k.stone + oreA[j]); oreT[j] = 0; }                         // loose stones go to the quarry
+    }
+  };
+  for (let i = 0; i < N; i++) {
+    if (!bld[i] || !kid[i]) continue; const k = kingdoms.get(kid[i]); if (!k) continue;
+    const x = i % W, y = (i / W) | 0; clear(k, x, y, i === k.cap ? 2 : 1);
+    if (paths < 40 && i !== k.cap) { let near = false; for (let d = 1; d < 9 && !near; d++) { const nx = x + DIRS[d][0], ny = y + DIRS[d][1]; if (inb(nx, ny) && road[nx + ny*W]) near = true; } if (!near) { carvePath(i, k.cap, k); paths++; } }
+  }
+  for (const k of kingdoms.values()) for (const key in k.lm) { const i = k.lm[key]; clear(k, i % W, (i / W) | 0, 1); }
+}
 function placeLandmark(k, key) {
   if (key === 'harbor') { const i = coastalLandNear(k, 24); if (i >= 0) k.lm[key] = i; return; }
-  let i = key === 'mine' ? freeTileNear(k, 3, 9, t => t === T.HILL || t === T.MOUNTAIN) : -1;
+  let i = key === 'mine' ? spacedTileNear(k, 3, 9, t => t === T.HILL || t === T.MOUNTAIN) : -1;
+  if (i < 0) i = spacedTileNear(k, 2, 8, t => t !== T.MOUNTAIN && t !== T.SNOW);
+  if (i < 0) i = key === 'mine' ? freeTileNear(k, 3, 9, t => t === T.HILL || t === T.MOUNTAIN) : -1;
   if (i < 0) i = freeTileNear(k, 2, 5, t => t !== T.MOUNTAIN && t !== T.SNOW);
-  if (i >= 0) k.lm[key] = i;
+  if (i >= 0) { k.lm[key] = i; carvePath(i, k.cap, k); }
 }
 function finishTech(k, t) {
   k.tech.push(t.id); k.res = null; recalcMods(k);
   if (t.lm) placeLandmark(k, t.lm);
   if (t.id === 'voyage') { addChronicle('⛵', `${k.name} entered the Age of Exploration`); toast(`⛵ ${k.name} entered the Age of Exploration`); }
-  else if (t.tier >= 4) addChronicle(t.ic, `${k.name} mastered ${t.n}`);
+  else if (t.tier >= 4) addChronicle('🔬', `${k.name} mastered ${t.n}`);
   fx('tech', Math.round(k.cx), Math.round(k.cy), { ic: t.ic });
   ownDirty = true; dirty = true;
 }
@@ -3279,7 +3360,7 @@ function grantTech(k) {                                    // divine gift ("Eure
 function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
 function newKingdom(race, x, y) {
   const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
-              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, bld: [], plank: 0, bread: 0, tool: 0, dec: null, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), pacts: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, bld: [], plank: 0, bread: 0, tool: 0, dec: null, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
@@ -3562,7 +3643,7 @@ function economy() {                                      // once per second
     mineTick(k, E);
     k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone*tb*dmu('stone'));                 // quarries / trade even far from hills
     k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012 + Math.min(40, k.rdn || 0)*.003)*E.g*M.gold*dmu('gold'));       // roads carry trade
-    k.kp = Math.min(8000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld) * dmu('kp')));                 // knowledge points pay for research
+    k.kp = Math.min(8000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld) * dmu('kp') * allyKp(k.allies.size)));                 // knowledge points pay for research
     if (k.bld.length) {                                                         // goods chains: sawmill, bakery, smithy
       const d = produce(k);
       k.wood += d.wood; k.food += d.food; k.plank = Math.min(GOODS_CAP.plank, k.plank + d.plank); k.bread = Math.min(GOODS_CAP.bread, k.bread + d.bread);
@@ -3702,6 +3783,7 @@ function step() {
   if (tick % 120 === 60) scnCheck();
   if (tick % 120 === 0 && tick > 0) sndSeason();
   if (tick % 400 === 200 && !editMode) wanderers();
+  if (tick % 120 === 30 && !editMode) townTidy();
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); ageCheck(); buildCheck(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -3761,7 +3843,7 @@ function setSize(idx) {
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
   kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   oreT = new Uint8Array(N); oreA = new Uint8Array(N); treeK = new Uint8Array(N); nodes = [];
-  riv = new Uint8Array(N); road = new Uint8Array(N); trail = new Uint8Array(N);
+  riv = new Uint8Array(N); road = new Uint8Array(N); trail = new Uint8Array(N); townMask = new Uint8Array(N);
   for (const r in lastBand) delete lastBand[r]; for (const r in seenRace) delete seenRace[r];
   drops.length = 0; dropMap.clear(); volcanoes.length = 0; parts.length = 0;
   kingdoms.clear(); rels.clear(); ships = []; nextShipId = 1; navy = []; nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
@@ -3832,7 +3914,7 @@ function renderTerrain() {
     if (t === T.FOREST) { const v = treeKindAt(i) & 7; if (v === 2) { r -= 12; g -= 4; b += 10; } else if (v === 3) { r += 22; g += 18; b -= 8; } else if (v === 4) { r += 16; g -= 4; b -= 6; } }
     const ot = oreT[i]; if (ot && sc < 8) { const oc = ORE_RGB[ot]; r = oc[0]; g = oc[1]; b = oc[2]; }
     if (riv[i] && t >= 2) { const sh = SN(fr * .05 + x * .4 + y * .3) * 9; r = 64 + sh; g = 150 + sh; b = 214 + sh; }                  // river
-    else if (road[i] && t >= 2) { r = 176 + j * .5; g = 146 + j * .5; b = 98 + j * .5; }                                             // worn road
+    else if (road[i] && t >= 2 && sc < 6) { r = 176 + j * .5; g = 146 + j * .5; b = 98 + j * .5; }                                             // worn road
     if (showBorders) { const o = ownRace[i]; if (o) { const bc = BORDER_RGB[o], a = ownEdge[i] ? .6 : .15; r += (bc[0] - r)*a; g += (bc[1] - g)*a; b += (bc[2] - b)*a; } }
     if (fire[i]) { const fl = (frame*7 + i*13) % 3; r = 255; g = fl === 0 ? 220 : fl === 1 ? 140 : 80; b = 20; }
     const k = i*4; d[k] = r; d[k+1] = g; d[k+2] = b; d[k+3] = 255;
@@ -3881,6 +3963,13 @@ function draw() {
         const wa = kingdoms.get(Math.floor(key / 65536)), wb = kingdoms.get(key % 65536); if (!wa || !wb) continue;
         ctx.beginPath(); ctx.moveTo(ox + ((wa.cap % W) + .5)*sc, oy + (((wa.cap / W) | 0) + .5)*sc); ctx.lineTo(ox + ((wb.cap % W) + .5)*sc, oy + (((wb.cap / W) | 0) + .5)*sc); ctx.stroke();
       }
+      ctx.setLineDash([sc*.5, sc*.5]);                                          // green lines between allies, gold between trade partners
+      for (const [key, r] of rels) {
+        if (r.s !== 2 && r.s !== REL.PACT) continue;
+        const wa = kingdoms.get(Math.floor(key / 65536)), wb = kingdoms.get(key % 65536); if (!wa || !wb) continue;
+        ctx.strokeStyle = r.s === 2 ? 'rgba(110,230,140,.5)' : 'rgba(255,214,90,.4)'; ctx.lineWidth = Math.max(1.5, sc*(r.s === 2 ? .25 : .16));
+        ctx.beginPath(); ctx.moveTo(ox + ((wa.cap % W) + .5)*sc, oy + (((wa.cap / W) | 0) + .5)*sc); ctx.lineTo(ox + ((wb.cap % W) + .5)*sc, oy + (((wb.cap / W) | 0) + .5)*sc); ctx.stroke();
+      }
       ctx.setLineDash([]);
     }
     drawSeaDetails(x0, y0, x1, y1);
@@ -3892,6 +3981,7 @@ function draw() {
     drawVolcanoes(x0, y0, x1, y1);
     drawOres(x0, y0, x1, y1);
     drawDrops(x0, y0, x1, y1);
+    drawRoads(x0, y0, x1, y1);
     drawProps(x0, y0, x1, y1, true);
     for (let y = y0; y <= Math.min(H-1, y1 + 4); y++) for (let x = x0; x <= x1; x++) {
       const idx = x + y*W, b = bld[idx]; if (!b) continue;
@@ -4003,6 +4093,27 @@ function draw() {
   ctx.restore();
 }
 
+function drawRoads(x0, y0, x1, y1) {                            // footpaths: soft dirt ribbons that join neighbouring road tiles
+  if (sc < 6) return;
+  const ya = Math.max(0, y0 - 1), yb = Math.min(H - 1, y1 + 1), xa = Math.max(0, x0 - 1), xb = Math.min(W - 1, x1 + 1);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const [wd, col] of [[.62, 'rgba(92,66,38,.5)'], [.46, '#d2b27a']]) {
+    ctx.strokeStyle = col; ctx.lineWidth = sc * wd; ctx.beginPath();
+    for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
+      const i = x + y*W; if (!road[i]) continue;
+      const cx = ox + (x + .5)*sc, cy = oy + (y + .5)*sc; let linked = false;
+      const r = x < W - 1 && road[i + 1], d = y < H - 1 && road[i + W];
+      if (r) { ctx.moveTo(cx, cy); ctx.lineTo(cx + sc, cy); linked = true; }
+      if (d) { ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + sc); linked = true; }
+      if (x < W - 1 && y < H - 1 && road[i + W + 1] && !r && !d) { ctx.moveTo(cx, cy); ctx.lineTo(cx + sc, cy + sc); linked = true; }
+      if (x > 0 && y < H - 1 && road[i + W - 1] && !d && !road[i - 1]) { ctx.moveTo(cx, cy); ctx.lineTo(cx - sc, cy + sc); linked = true; }
+      if (!linked) { ctx.moveTo(cx, cy); ctx.lineTo(cx + .01, cy); }
+    }
+    ctx.stroke();
+  }
+  if (sc >= 14) { ctx.fillStyle = 'rgba(140,108,66,.7)'; const z = Math.max(2, sc * .07); for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) { const i = x + y*W; if (!road[i]) continue; const h = (i * 2654435761) >>> 0; ctx.fillRect(ox + (x + .25 + (h & 7) / 16)*sc, oy + (y + .3 + ((h >> 3) & 7) / 18)*sc, z, z); } }
+  ctx.restore();
+}
 function landmarkLife(key, li, lx, ly, lcx, lfy, lw, lh) {      // production buildings work: saws, chimney smoke, forge sparks, warm windows, a wonder's glow
   const f = frame + (li % 97), night = cfg.settings.dayNight ? nightNow : 0, topY = (lfy - lh - oy) / sc - .5, midY = (lfy - lh * .45 - oy) / sc - .5;
   if (key === 'sawmill') {
@@ -4467,8 +4578,8 @@ function evLine(k) {
 }
 function relLine(k) {
   const nm = set => [...set].map(id => kingdoms.get(id)).filter(Boolean).slice(0, 2).map(o => EMOJI[o.race] + o.name).join(', ');
-  const en = nm(k.enemies), al = nm(k.allies);
-  return (en ? `<br>⚔️ ${en}` : '') + (al ? `<br>🤝 ${al}` : '');
+  const en = nm(k.enemies), al = nm(k.allies), pa = nm(k.pacts || []);
+  return (en ? `<br>⚔️ ${en}` : '') + (al ? `<br>🤝 ${al}` : '') + (pa ? `<br>📜 ${pa}` : '');
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Age of Exploration' : '';
@@ -5030,7 +5141,7 @@ function csChip(key, ch, n) { const p = csPrev[key]; csPrev[key] = n; return `<s
 function censusSheet() {
   const row = (ic, nm, n, mx) => `<div class="rw"><span>${ic}</span><span>${nm}</span><b>${n}</b><i><u style="width:${Math.round(100 * n / Math.max(1, mx))}%"></u></i></div>`;
   const grp = (title, rows) => { const mx = Math.max(1, ...rows.map(r => r[2])); return `<div class="grp"><h4>${title}</h4>${rows.map(r => row(r[0], r[1], r[2], r[3] || mx)).join('')}</div>`; };
-  let wars = 0; for (const r of rels.values()) if (r.s === 1) wars++;
+  let wars = 0, allies = 0, pacts = 0; for (const r of rels.values()) { if (r.s === 1) wars++; else if (r.s === 2) allies++; else if (r.s === REL.PACT) pacts++; }
   let sick = 0; for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick++;
   let adults = 0, young = 0, fem = 0, mal = 0, knights = 0, guns = 0, heroes = 0;
   for (const c of creatures) {
@@ -5047,7 +5158,7 @@ function censusSheet() {
     + grp('Wildlife', [['sheep', 'Sheep'], ['rabbit', 'Rabbits'], ['deer', 'Deer'], ['wolf', 'Wolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
     + grp('Life stages', [['🧑', 'Adults', adults], ['🌱', 'Young', young], ['❤️', 'Females', fem], ['🛡', 'Males', mal]])
     + grp('Sea life', [['🐟', 'Fish shoals', shoals.length], ['🦈', 'Sharks', sharks.length], ['🐙', 'Krakens', krakens.length]])
-    + grp('Realm', [['🏰', 'Kingdoms', kingdoms.size], ['🏠', 'Houses', houseCount], ['⚔️', 'Wars', wars], ['☠️', 'Plague', sick]])
+    + grp('Realm', [['🏰', 'Kingdoms', kingdoms.size], ['🏠', 'Houses', houseCount], ['⚔️', 'Wars', wars], ['🤝', 'Alliances', allies], ['📜', 'Trade pacts', pacts], ['☠️', 'Plague', sick]])
     + grp('Progress', [['🔬', ageKing ? ageName(maxAge, ageKing.race) : 'No ages yet', ageKing ? maxAge + 1 : 0, 5], ['📖', 'Techs known', techs, 15 * nk], ['🔨', 'Buildings', blds, 6 * nk], ['🏰', 'Wonders', wonders, nk]])
     + grp('Armies', [['🛡', 'Knights', knights], ['☄️', 'Musketeers', guns], ['🏆', 'Heroes', heroes], ['🌊', 'Warships', navy.length]])
     + grp('Land', [['🌊', 'River tiles', rivers, Math.max(1, land * .04)], ['🏠', 'Road tiles', roads, Math.max(1, land * .04)]])
@@ -5401,6 +5512,9 @@ const NEWS = [
   ['🐑', '3.5 · A real life cycle', [
     'Every creature is <b>male or female</b>. A birth needs a mature pair of the same kind close together, and animals now breed much more slowly. Children are smaller, and a newborn brings a floating heart.',
     'A people that is nearly gone can be rescued by wandering settlers.']],
+  ['🤝', '3.5 · Allies and tidy towns', [
+    'Kingdoms sign <b>trade pacts</b>, help each other through famine and shortage, and grow them into <b>alliances</b>. Pacts can break and greedy partners can betray them, but wars are rarer.',
+    'Towns are kept clear of trees and loose stones, houses and buildings are joined by <b>footpaths</b>, and buildings keep their distance.']],
   ['✨', '3.5 · A livelier world', [
     'Buildings, muskets, cannons and the seasons are animated, with new sounds. The Census, minimap, tour and score know about the new systems, and research takes longer, so the late ages arrive after a century or more.']],
   ['🏰', '3.0 · Five ages and a tech tree', [

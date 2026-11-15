@@ -1,6 +1,6 @@
 /* Rivers and roads - pure rules (no DOM / window / lib).
  * Rivers run downhill (towards the sea) from the high ground; roads grow where settlers keep walking. */
-export const ROAD_STEPS = 36;
+export const ROAD_STEPS = 150;                    // only well-trodden lines become roads (towns also get footpaths when they build)
 
 /** Distance (in steps over non-lava tiles) from every tile to the nearest water tile. Unreachable tiles get 65535. */
 export function distToWater(tiles, W, H) {

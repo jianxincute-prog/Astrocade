@@ -19,8 +19,8 @@ seed = 7; assert.deepStrictEqual(traceRivers(tiles, W, H, rnd, 3).rivers, rivers
 // roads
 assert.ok(roadable(3) && roadable(2) && !roadable(6) && !roadable(0) && !roadable(8));
 const trail = new Uint8Array(5); let made = 0;
-for (let n = 0; n < 100; n++) if (stepTrail(trail, 2, 3, true)) made++;
-assert.strictEqual(made, 1); assert.strictEqual(trail[2], 100 > 255 ? 255 : 100); assert.ok(ROAD_STEPS < 100);
+for (let n = 0; n < 300; n++) if (stepTrail(trail, 2, 3, true)) made++;
+assert.strictEqual(made, 1); assert.strictEqual(trail[2], 255); assert.ok(ROAD_STEPS < 255);
 assert.strictEqual(stepTrail(trail, 1, 3, false), false); assert.strictEqual(trail[1], 0);
 // run encoding round trip
 const m = new Uint8Array(30); [1, 2, 3, 10, 20, 21].forEach(i => m[i] = 1);
