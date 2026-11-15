@@ -31,6 +31,7 @@ Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, soun
 | `seasons.js` | Pure seasons and royal decrees (v3.0). |
 | `landscape.js` | Pure river tracing, road wear and run-length helpers for saving them (v3.0). |
 | `scenarios.js` | Pure scenario definitions and progress rules (v3.0). |
+| `reproduction.js` | Pure life-cycle rules: sexes, adulthood, breeding rates, parents and mixed crews (v3.0). |
 | `jobs.js` | Pure logic for everyday jobs: chop, mine, hunt, farm, fish, gather (race weights, yields, work length, swing timing). |
 | `work_anim.js` | Canvas drawing for the work animations (axes, pickaxes, hoes, spears, bows, claws, fishing rods) and carried goods. |
 | `sizing.js` | Pure helper for the Character Size setting (0.6 to 2, default 1.2). |
@@ -80,7 +81,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Resources:** ore nodes (stone, bronze, iron, silver, gold) sit on hills and mountains and slowly respawn. Dwarves mine twice as fast. Trees come in kinds (oak, pine, birch, fruit, palm) with different timber yield and race affinity.
 - **Buildings and goods (v3.0):** a kingdom raises one of each building as its level and age allow, and the building appears near the capital. **Sawmill** (level 1) turns wood into planks, and a house costs one plank instead of four wood. **Bakery** (level 1) bakes surplus food into bread, which raises births by 25% and covers short famines. **Smithy** (level 2, Bronze Age) makes tools from spare metal or stone; tools speed up chopping and quarrying by 25% and wear out. **Library** (level 2, Bronze Age) multiplies knowledge by 1.3, the **Academy** (level 3, Medieval Age, needs a library) by 1.5, and the **Wonder** (Grand Cathedral, Moonwell Spire, Great Forge-Hall, Skull Citadel or Moon Obelisk) by 1.15 and calms unrest.
 - **Rivers and roads (v3.0):** rivers are traced from the highlands to the sea (`traceRivers` in `landscape.js`): they are fords, so nobody is blocked; they add food to nearby kingdoms (+0.006 per river tile within about nine tiles) and stop fire. Roads grow by use: a settler walking 36 times over a tile inside its own territory wears it into a road. Settlers and caravans walk one step faster on roads, and a kingdom earns a little gold from the roads in its land (capped at 40 tiles). Rivers and roads are saved (`rvr`, `rdr`); older saves regenerate their rivers.
-- **Scenarios (v3.0):** the World tab lists five scenarios: First Light (Hawaiian Chain, a level-3 kingdom within 35 years), Age of Sail (Aegean Isles, five kingdoms within 100 years), Arctic Survival (Arctic Isles, 80 citizens within 60 years), Four Realms (random world, the Gunpowder Age within 40 years) and Long Peace (keep four races alive for 250 years). Progress shows at the top of the Goals tab; the result is announced by a banner and saved (`sc`).
+- **Scenarios (v3.0):** the World tab lists five scenarios: First Light (Hawaiian Chain, a level-3 kingdom within 35 years), Age of Sail (Aegean Isles, four kingdoms within 200 years), Arctic Survival (Arctic Isles, 40 citizens within 70 years), Four Realms (random world, the Gunpowder Age within 60 years) and Long Peace (keep four races alive for 250 years). Progress shows at the top of the Goals tab; the result is announced by a banner and saved (`sc`).
 - **Seasons and decrees (v3.0):** a year is 120 ticks and the seasons turn every year. Spring boosts food 10% and births 20%, summer food 15%, autumn food 30% and winter cuts food to 70% and births to 75%. The world takes a faint seasonal colour wash, and the year pill shows the season. In a kingdom panel the player can issue a **decree**: Harvest (food x1.5), Scholars (knowledge x2), Tax (gold x1.8) or Industry (wood and stone x1.4). Each lasts four years and then cools down.
 - **Trade:** a world market prices food, wood, stone, bronze, iron and silver by world-wide stock. Kingdoms at peace send wagons to buy what they lack from a neighbour with a surplus (they pay up front; a lost wagon refunds). The Market board in the World tab shows prices with trend arrows, trades and the shop.
 - **War and diplomacy (automatic):** aggression per race (orc high, human and dwarf low, elf very low, werewolves never declare war). Friendly races may form alliances. Wars end when a side is beaten or from war weariness, followed by a truce. Soldiers (25 to 55% of a kingdom) march on the enemy capital; non-orcs capture adjacent houses, orcs raze and loot. The end of a war can collapse a kingdom or, very rarely, extinguish a race (`warOutcome`).
@@ -98,11 +99,12 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Equipment:** three slots (weapon, armour, shield) and three tiers that follow the kingdom's age, with race-specific items. Kingdoms arm their leader, knights and soldiers for wood, bronze or iron. Any race can use any item.
 - **Bag, loot and chest:** a 12-slot universal bag; gear can lie on the ground and be picked up; the victor loots a fallen enemy; every kingdom keeps a royal chest (6 plus 4 per level slots). Items can be sold to the market (75% of their value) and bought from the shop.
 - **Enchantments:** Flaming, Venomous, Vampiric, Storm (weapons); Thorned, Regenerating, Fireproof (armour); Warding, Guardian (shields). They come from crafting, loot and royal smiths. Enchantments live in `c.ec[slot]` (`c.en` is hunters' energy).
+- **Sexes and life stages (v3.0):** every creature is male or female (shown in its panel with its stage: newborn, young, adult or elder). A creature is an adult from 15% of its lifespan. **A birth needs a mature female and a mature male of the same kind close together**; peoples also need the pair to belong to the same kingdom, and the parents recorded are that couple (unmarried parents become partners). Sexes alternate when creatures are placed, so every group has both, a ship's crew always carries both sexes when it can, and the pack of wolves that evolves into werewolves is mixed. Placed creatures start as adults; newborns start at age 0.
 - **Family:** settlers born in a house get two parents; spouses, children and parents are tracked and relatives are jump buttons.
 - **Jobs:** non-leader settlers chop, mine, hunt, farm, fish or forage (soldiers only in peacetime), play the work animation and haul goods home.
 
 ## Wildlife and sea life
-**Land:** sheep, rabbits and deer are prey (rabbits and deer flee); wolves hunt them and a small pack migrates in when wolves get scarce. When only two or three wolves remain they evolve into werewolves, a neutral, slow-growing civilization.
+**Land:** sheep, rabbits and deer are prey (rabbits and deer flee). A mature female with a mature male within about ten tiles can give birth, then rests (sheep and deer about a year, rabbits less); breeding also slows as a kind nears its population cap (`ANIMAL_BREED` and `crowd` in `reproduction.js`). Without predators a kind needs roughly 8 to 12 years to fill the world, instead of the 1 to 4 years it took before; wolves hunt them and a small pack migrates in when wolves get scarce. When only two or three wolves remain they evolve into werewolves, a neutral, slow-growing civilization.
 
 **Sea (version 2.0):**
 - **Fish shoals** drift through the water: sardines near the shore, grouper on reefs, tuna in the deep (`SHOAL`). Shore fishers, fishing boats and sharks depend on them; catches deplete a shoal, overfishing scatters it, and it recovers slowly. Fishing without a nearby shoal gives almost nothing.
@@ -137,7 +139,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 | --- | --- |
 | `z`, `seed`, `tiles`, `bld`, `bk` | world size or preset, seed, RLE terrain, houses and their kingdoms |
 | `kg`, `rl` | kingdom rows (resources, tech ids, events, unrest, age, chest, voyage cooldown, fins, hides, knowledge points, research focus, buildings, planks, bread, tools, decree) and relations; older saves stored a tech count and are migrated |
-| `cr`, `ex`, `el`, `gn`, `hr`, `inv`, `dr` | creatures, personas, iron knights, musketeers, heroes, the bag and ground drops |
+| `cr`, `ex`, `el`, `gn`, `hr`, `fm`, `inv`, `dr` | creatures, personas, iron knights, musketeers, heroes, females, the bag and ground drops |
 | `rs`, `ra`, `vc` | ore nodes and amounts, volcanoes |
 | `mk`, `mt`, `mf` | market prices, trade count, fin and hide prices |
 | `sf`, `wk` | ships and wrecks |
@@ -160,6 +162,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 - Ships that fight the kraken, with a slaying chance under 1%.
 - Seasons that change food and births, and royal decrees.
 - Rivers, roads that wear in where settlers walk, and five scenarios.
+- A real life cycle: male and female creatures, adulthood, and births that need a pair; animals breed far more slowly.
 
 ## What's new in 2.0
 **Living Seas**

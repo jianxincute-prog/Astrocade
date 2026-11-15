@@ -14,5 +14,5 @@ assert.strictEqual(evalScenario(hold, { ...base, years: 5, races: 1 }).status, '
 assert.strictEqual(evalScenario(hold, { ...base, years: 40, races: 3 }).status, 'lose');
 assert.strictEqual(evalScenario(hold, { ...base, years: 120, races: 4 }).status, 'run');
 assert.strictEqual(evalScenario(hold, { ...base, years: 250, races: 4 }).status, 'win');
-const r = evalScenario(SCENARIO_BY.north, { ...base, pop: 25 }); assert.deepStrictEqual([r.value, r.target], [25, 80]);
+const r = evalScenario(SCENARIO_BY.north, { ...base, pop: 25 }); assert.deepStrictEqual([r.value, r.target], [25, 40]);
 console.log('scenarios tests ok');

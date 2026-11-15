@@ -15,6 +15,7 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+import { isAdult, lifeStage, ANIMAL_BREED, crowd, canBreed, isMate, pickPair, pickCrew } from './reproduction.js';
 import { traceRivers, stepTrail, runsEncode, runsDecode } from './landscape.js';
 import { SCENARIOS, SCENARIO_BY, evalScenario } from './scenarios.js';
 import { seasonOf, seasonTintK, DECREES, DECREE_BY, decreeMult, decreeReady, issueDecree } from './seasons.js';
@@ -2391,20 +2392,29 @@ function inheritTraits(a, b) {                                  // each trait pa
   if ((m & 2) && (m & 16)) m &= ~16;
   return m;
 }
-function setFamily(c, x, y) {                                   // a newborn at a house gets two adult parents of its kingdom living nearby
-  const R = RACES[c.t], gx = x >> 3, gy = y >> 3, pool = [];
-  for (let yy = Math.max(0, gy - 1); yy <= Math.min(GH - 1, gy + 1); yy++) for (let xx = Math.max(0, gx - 1); xx <= Math.min(GW - 1, gx + 1); xx++)
-    for (const o of cells[yy*GW + xx]) if (o !== c && o.hp > 0 && o.t === c.t && o.k === c.k && o.age > o.life * .12 && o.nid !== undefined) pool.push(o);
-  if (!pool.length) return;
-  const A = pool[ri(0, pool.length - 1)];
-  let B = A.sp ? pool.find(o => o.nid === A.sp) : null;
-  if (!B) B = pool.find(o => o !== A && !o.sp && !A.sp) || pool.find(o => o !== A) || null;
-  c.pa = A.nid; c.pb = B ? B.nid : 0;
-  c.tr = inheritTraits(A.tr | 0, B ? B.tr | 0 : A.tr | 0);
+function findParents(race, kidn, x, y) {                        // living adults of the kingdom around a house: returns [mother, father] or null
+  const gx = x >> 3, gy = y >> 3, pool = [];
+  for (let yy = Math.max(0, gy - 2); yy <= Math.min(GH - 1, gy + 2); yy++) for (let xx = Math.max(0, gx - 2); xx <= Math.min(GW - 1, gx + 2); xx++)
+    for (const o of cells[yy*GW + xx]) if (o.hp > 0 && o.t === race && o.k === kidn && o.nid !== undefined && isAdult(o.age, o.life)) pool.push(o);
+  return pickPair(pool);
+}
+function setFamily(c, par) {                                    // a newborn gets its mother and father; unmarried parents become partners
+  if (!par) return;
+  const R = RACES[c.t], [A, B] = par;
+  c.pa = A.nid; c.pb = B.nid;
+  c.tr = inheritTraits(A.tr | 0, B.tr | 0);
   c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); applyStats(c); c.hp = c.mhp;
-  A.ch = (A.ch | 0) + 1; if (B) B.ch = (B.ch | 0) + 1;
-  if (B && !A.sp && !B.sp) { A.sp = B.nid; B.sp = A.nid; addHist(A, 14, B.nid); addHist(B, 14, A.nid); }
-  for (const P of B ? [A, B] : [A]) if (P.ch === 1 || P.ch === 3 || P.ch === 6) addHist(P, 15, c.nid);
+  A.ch = (A.ch | 0) + 1; B.ch = (B.ch | 0) + 1;
+  if (!A.sp && !B.sp) { A.sp = B.nid; B.sp = A.nid; addHist(A, 14, B.nid); addHist(B, 14, A.nid); }
+  for (const P of [A, B]) if (P.ch === 1 || P.ch === 3 || P.ch === 6) addHist(P, 15, c.nid);
+}
+const sexTog = {};                                           // per kind: the sex the next spawn gets (1 = female)
+function newborn(c) { c.age = 0; c.f = Math.random() < .5 ? 1 : 0; }
+function findMate(c, r = 10) {                                // a mature male of the same kind close by
+  const gx = c.x >> 3, gy = c.y >> 3;
+  for (let yy = Math.max(0, gy - 1); yy <= Math.min(GH - 1, gy + 1); yy++) for (let xx = Math.max(0, gx - 1); xx <= Math.min(GW - 1, gx + 1); xx++)
+    for (const o of cells[yy*GW + xx]) if (isMate(c, o) && Math.abs(o.x - c.x) <= r && Math.abs(o.y - c.y) <= r) return o;
+  return null;
 }
 function spawn(type, x, y, force) {
   if (extinctRaces.has(type)) return null;
@@ -2412,7 +2422,11 @@ function spawn(type, x, y, force) {
   if (!inb(x, y) || !walkable(type, tiles[x + y*W])) return null;
   const R = RACES[type];
   const c = { id:nextId++, t:type, x, y, dx:x, dy:y, hp:R.hp, mhp:R.hp, age:0, life:ri(R.life[0], R.life[1]), en:rnd(55,100), dir:ri(0,8), tgt:null, kills:0, face:1, atk:0, cause:'', fail:0, gate:-1, gateUntil:0, avoid:0, avoidUntil:0, k:0, lead:0 };
-  if (!R.engine) { c.nid = c.id; c.tr = rollTraits(); c.eq = [0, 0, 0]; c.ec = [0, 0, 0]; c.hist = []; if (c.tr & 8) c.life = Math.round(c.life * 1.3); applyStats(c); c.hp = c.mhp; }
+  if (!R.engine) {
+    c.nid = c.id; c.tr = rollTraits(); c.eq = [0, 0, 0]; c.ec = [0, 0, 0]; c.hist = []; if (c.tr & 8) c.life = Math.round(c.life * 1.3); applyStats(c); c.hp = c.mhp;
+    c.f = sexTog[type] = 1 - (sexTog[type] | 0);                                 // sexes alternate, so every group has both
+    c.age = Math.floor(c.life * rnd(.15, .3));                                    // placed creatures are grown; births reset this to 0
+  }
   creatures.push(c); counts[type] = (counts[type]||0) + 1; dirty = true;
   return c;
 }
@@ -2611,9 +2625,12 @@ function stepCreature(c) {
     }
     if (workStep(c, ka)) return;                                       // everyday jobs: chop, mine, hunt, farm, fish, forage
   } else if (R.br) {
-    if (Math.random() < R.br.p && (counts[c.t]||0) < capOf(c.t) && cells[(c.y>>3)*GW + (c.x>>3)].length < R.br.dens && R.br.tiles.includes(tiles[idx])) spawnNear(c.t, c.x, c.y);
+    const B = ANIMAL_BREED[c.t];                                      // a mature female with a mature male nearby, resting between births, breeds less when crowded
+    if (B && canBreed(c, tick) && Math.random() < B.p * crowd(counts[c.t] || 0, capOf(c.t)) && cells[(c.y>>3)*GW + (c.x>>3)].length < R.br.dens && R.br.tiles.includes(tiles[idx]) && findMate(c)) {
+      const b = spawnNear(c.t, c.x, c.y); if (b) { newborn(b); c.bcd = tick + B.cd; }
+    }
   } else if (R.hunt) {
-    if (c.en > 85 && Math.random() < .006 && (counts.wolf||0) < capOf('wolf')) { c.en -= 35; spawnNear('wolf', c.x, c.y); }
+    if (c.en > 85 && canBreed(c, tick) && Math.random() < ANIMAL_BREED.wolf.p * crowd(counts.wolf || 0, capOf('wolf')) && findMate(c, 8)) { const b = spawnNear('wolf', c.x, c.y); if (b) { newborn(b); c.en -= 35; c.bcd = tick + ANIMAL_BREED.wolf.cd; } }
   }
   const roam = R.hunt && c.en <= 75;                          // hungry wolves roam in straight lines to find prey
   if (Math.random() < (roam ? .06 : .3)) c.dir = roam ? ri(1, 8) : ri(0, 8);
@@ -2765,9 +2782,9 @@ function reapDead() {
 // Forced evolution: when wolves hang on by a thread (2-3 left) they all become werewolves.
 let lastEvolve = -1e9, evolutions = 0, nightNow = 0;
 function evolveWolves() {
-  const R = RACES.werewolf;
+  const R = RACES.werewolf; let evq = 0;
   for (const c of creatures) if (c.t === 'wolf') {
-    c.t = 'werewolf'; c.hp = c.mhp = R.hp; c.age = 0; c.life = ri(R.life[0], R.life[1]); applyStats(c); c.hp = c.mhp;
+    c.t = 'werewolf'; c.hp = c.mhp = R.hp; c.life = ri(R.life[0], R.life[1]); c.age = Math.floor(c.life * .25); c.f = (evq++) & 1; applyStats(c); c.hp = c.mhp;       // the pack is grown, and has both sexes
     c.tgt = null; c.atk = 0; c.fail = 0; c.en = 100;
     fx('evolve', c.x, c.y);
   }
@@ -3277,8 +3294,8 @@ function voyagePlan(k, sourceLand) {
 }
 function boardCrew(k) {
   const crew = creatures.filter(c => c.k === k.id && c.t === k.race && c.hp > 0 && !c.boat && !c.lead && !c.elite && !RACES[c.t].engine && !isSoldier(c));
-  if (crew.length >= 3) return crew.slice(0,3);
-  return creatures.filter(c => c.k === k.id && c.t === k.race && c.hp > 0 && !c.boat && !c.lead && !c.elite && !RACES[c.t].engine).slice(0,3);
+  if (crew.length >= 3) return pickCrew(crew);                  // both sexes aboard, so the colony can grow
+  return pickCrew(creatures.filter(c => c.k === k.id && c.t === k.race && c.hp > 0 && !c.boat && !c.lead && !c.elite && !RACES[c.t].engine));
 }
 function fishingPlan(k, sourceLand) {
   const startWater = adjacentWater(sourceLand); if (startWater < 0) return null;
@@ -3596,7 +3613,8 @@ function step() {
       if (dd < k.bd) { k.bd = dd; k.nb = i; }
       // births need food; bigger kingdoms breed a little faster
       if (k.food > 5 && Math.random() < birthProbability(RACES[race].spawnP, k.level, k.mod.birth * (k.bread >= 1 ? 1.25 : 1) * seasonOf(tick).birth, evBirth(k)) && (counts[race]||0) < capOf(race)) {
-        if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; setFamily(c, x, y); } }
+        const par = cells[(y>>3)*GW + (x>>3)].length < 12 ? findParents(race, k.id, x, y) : null;                         // a mature woman and man of the kingdom must live nearby
+        if (par) { const c = spawnNear(race, x, y); if (c) { newborn(c); c.k = k.id; k.food -= 1.5; setFamily(c, par); } }
       }
     } else if (kid[i]) kid[i] = 0;
     const f = fire[i];
@@ -3658,7 +3676,7 @@ function populate(scale) {
     while (n > 0 && guard++ < 4000) {
       const x = ri(0, W-1), y = ri(0, H-1);
       if (pred(tiles[x + y*W]) && walkable(type, tiles[x + y*W])) {
-        const group = type === 'sheep' ? 4 : 3;
+        const group = type === 'sheep' || RACES[type].civ ? 4 : 3;                // peoples start as two couples
         for (let k = 0; k < group && n > 0; k++) { spawnNear(type, x, y); n--; }
       }
     }
@@ -4385,7 +4403,7 @@ const DESC = {
   werewolf: 'Evolved wolves. Neutral, and stronger at night.',
   sheep: 'Gentle grass-eaters. Prey for wolves.',
   wolf: 'Fierce hunters. They attack sheep, rabbits and deer, even people when starving.',
-  rabbit: 'Quick and fast-breeding. Runs from wolves.',
+  rabbit: 'Quick, and breeds in male-female pairs. Runs from wolves.',
   deer: 'Shy forest dwellers. Run from wolves.',
   ram: 'Orc siege engine. Batters enemy walls.',
   catapult: 'Human siege engine. Hurls rocks from afar.',
@@ -4439,7 +4457,7 @@ function creatureHtml(c) {
   const col = hp > .6 ? '#5fdc6a' : hp > .3 ? '#ffcf4a' : '#ff5a4a', bar = (ic, pct, cl) => `<div class="bar">${ic}<u><i style="width:${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%;background:${cl}"></i></u></div>`;
   const ench = e => e ? ` style="border-color:${ENCH[e].c};box-shadow:0 0 10px ${ENCH[e].c}88"` : '';
   let h = `<div class="ibtns"><button class="awb ibt${following ? ' on' : ''}" data-act="follow">🎯</button><button class="awb ibt" data-act="close">✖</button></div>`;
-  h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${st}`;
+  h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${c.f ? 'Female' : 'Male'}, ${lifeStage(c.age, c.life).toLowerCase()} · ${st}`;
   const trs = TRAITS.filter((_, i) => c.tr & (1 << i));
   if (trs.length) h += `<div class="row">${trs.map(t => `<span class="tag t">${t}</span>`).join(' ')}</div>`;
   const ch = civ ? chestOf(c) : null, sel = civ ? curSel() : null, tabs = ch ? 4 : 3;
@@ -4998,6 +5016,7 @@ function serialize2() {
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     gn: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.gun) a.push(j); return a; }, []),
     hr: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.hero) a.push(j); return a; }, []),
+    fm: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.f) a.push(j); return a; }, []),
     rvr: runsEncode(riv), rdr: runsEncode(road), sc: scn ? [scn.id, tick - scn.t0, scn.status] : 0,
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
@@ -5094,6 +5113,7 @@ function restore(s) {
   for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
   for (const j of s.gn || []) { const c = spawned[j]; if (c) { c.elite = 1; c.gun = 1; } }
   for (const j of s.hr || []) { const c = spawned[j]; if (c) { c.elite = 1; c.hero = 1; } }
+  if (Array.isArray(s.fm)) { const fs = new Set(s.fm); spawned.forEach((c, j) => { if (c) c.f = fs.has(j) ? 1 : 0; }); }
   for (const c of spawned) if (c) { c.mhp = 0; applyStats(c); c.hp = c.mhp; }
   return true;
 }
@@ -5256,6 +5276,8 @@ const NEWS = [
     '<b>Rivers</b> run from the highlands to the sea: they water the fields and stop fires.',
     '<b>Roads</b> appear where settlers keep walking. Walking and caravans are faster on them, and they carry trade.',
     'Five <b>scenarios</b> (World tab) give you a prepared world, a goal and a time limit: First Light, Age of Sail, Arctic Survival, Four Realms and Long Peace.']],
+  ['🐑', 'A real life cycle', [
+    'Every creature is <b>male or female</b>. A birth needs a mature pair of the same kind close together, and animals now breed much more slowly.']],
   ['🌊', 'Living Seas (version 2.0)', [
     '<b>Fish shoals</b> drift through the sea: sardines near the shore, grouper on reefs, tuna in the deep. Fishers and boats depend on them, and overfishing scatters a shoal.',
     '<b>Sharks</b> patrol the deep, chase ships and bite far-out fishers.',
