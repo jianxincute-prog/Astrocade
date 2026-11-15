@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { BUILDINGS, buildable, kpBonus, produce, toolBoost, GOODS_CAP } from '../buildings.js';
-assert.strictEqual(BUILDINGS.length, 5);
+assert.strictEqual(BUILDINGS.length, 6);
+assert.ok(!buildable([], 3, 3).some(b => b.id === 'wonder') && buildable(['library'], 3, 3).some(b => b.id === 'wonder'));
 assert.deepStrictEqual(buildable([], 0, 0), []);
 assert.deepStrictEqual(buildable([], 0, 1).map(b => b.id), ['sawmill', 'bakery']);
 assert.ok(!buildable([], 3, 3).some(b => b.id === 'academy'));                  // academy needs a library

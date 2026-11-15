@@ -11,9 +11,12 @@ export const BUILDINGS = [
   { id: 'bakery', n: 'Bakery', ic: '🍞', lv: 1, age: 0, cost: { wood: 25, stone: 15 }, info: 'Food to bread' },
   { id: 'smithy', n: 'Smithy', ic: '🔨', lv: 2, age: 1, cost: { wood: 20, stone: 30, bronze: 10 }, info: 'Ore to tools' },
   { id: 'library', n: 'Library', ic: '📖', lv: 2, age: 1, cost: { wood: 40, stone: 30, gold: 15 }, info: 'Knowledge x1.3', kp: 1.3 },
+  { id: 'wonder', n: 'Wonder', ic: '🏰', lv: 3, age: 3, cost: { wood: 60, stone: 120, gold: 80, silver: 15 }, info: 'Knowledge x1.15, calms unrest', kp: 1.15, needs: 'library' },
   { id: 'academy', n: 'Academy', ic: '🔬', lv: 3, age: 3, cost: { stone: 60, gold: 40, silver: 10 }, info: 'Knowledge x1.5', kp: 1.5, needs: 'library' },
 ];
 export const BUILDING_BY = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
+/** Each race raises its own wonder. */
+export const WONDER_NAME = { human: 'Grand Cathedral', elf: 'Moonwell Spire', dwarf: 'Great Forge-Hall', orc: 'Skull Citadel', werewolf: 'Moon Obelisk' };
 export const GOODS_CAP = { plank: 80, bread: 60, tool: 40 };
 
 /** Buildings a kingdom may build right now (not owned, age/level met, prerequisite owned). */

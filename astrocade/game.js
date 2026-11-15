@@ -15,8 +15,9 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+import { seasonOf, seasonTintK, DECREES, DECREE_BY, decreeMult, decreeReady, issueDecree } from './seasons.js';
 import { KRAKEN_HP as KRAKEN_MAXHP, FLEE_FRAC, LUCKY_SHOT, VOLLEY_TICKS, GUN_RANGE, firepower, sinkChance, warshipHp, warshipFire } from './naval.js';
-import { BUILDINGS, BUILDING_BY, GOODS_CAP, buildable, kpBonus, produce, toolBoost } from './buildings.js';
+import { WONDER_NAME, BUILDINGS, BUILDING_BY, GOODS_CAP, buildable, kpBonus, produce, toolBoost } from './buildings.js';
 import { TECHS, BRANCHES, BRANCH_NAME, BRANCH_IC, TIER_KP, ageName, ageNeed, ageReady, availableTechs, chooseTech, kpGain, techById, legacyTechIds } from './tech.js';
 
 function run(mode) {
@@ -944,6 +945,7 @@ Object.assign(LANDMARKS, {                                   // production build
   bakery: { pal: { o:'#1c1424', r:'#c8523a', R:'#8a3424', w:'#e8d4a8', y:'#ffd860', k:'#5e3a20', g:'#9aa0aa' }, A: ["....gg....", "....go....", ".oooooooo.", "orrrrrrrro", "oRRRRRRRRo", "owwwwwwwwo", "owyywkkwwo", "owyywkkwwo", "owwwwkkwwo", "oooooooooo"] },
   smithy: { pal: { o:'#1c1424', g:'#6b7280', G:'#9aa0aa', f:'#ff8a2a', F:'#ffd23f', k:'#5e3a20', K:'#8a5a34' }, A: ["...o.o....", "..oGoGo...", ".oGGGGGo..", "oGGGGGGGGo", "oggggggggo", "okkkkkffko", "okKKKKFFko", "okKKKKffko", "okkkkkkkko", "oooooooooo"] },
   library: { pal: { o:'#1c1424', w:'#e8e0cc', W:'#b8ac90', b:'#4a6ac8', r:'#a83a3a', g:'#d8b84a', t:'#7a5a3a' }, A: ["....oo....", "..oowwoo..", ".owwwwwwo.", "oWWWWWWWWo", "owbrgbrgwo", "owbrgbrgwo", "owbrttrgwo", "owbrttrgwo", "oWWWWWWWWo", "oooooooooo"] },
+  wonder: { pal: { o:'#1c1424', w:'#f4f1e6', W:'#c8c0a8', g:'#ffd23f', G:'#c8962a', b:'#4a6ac8', t:'#7a5a3a' }, A: [".....gg.....", "....gGGg....", ".....oo.....", "....owwo....", "...owWWwo...", "..owwwwwwo..", ".oWWWWWWWWo.", "owwbwwwwbwwo", "owwbwttwbwwo", "owwbwttwbwwo", "oWWWWWWWWWWo", "oooooooooooo"] },
   academy: { pal: { o:'#1c1424', w:'#f4f1e6', W:'#c8c0a8', B:'#3a5ab0', b:'#6a8ae0', g:'#ffd23f', t:'#7a5a3a' }, A: ["....gg....", "...gBBg...", "..oBbbBo..", ".oBbbbbBo.", "oWWWWWWWWo", "owWwWWwWwo", "owWwttwWwo", "owWwttwWwo", "oWWWWWWWWo", "oooooooooo"] },
 });
 function buildSprite(def, frame) {
@@ -1092,7 +1094,8 @@ function buildCheck() {                                        // every 5 second
     for (const b of opts) {
       if (!canPay(k, b.cost) || k.food < 40) continue;
       pay(k, b.cost); k.bld.push(b.id); placeLandmark(k, b.id);
-      if (k.bld.length === 1 || b.kp) addChronicle(b.ic, `${k.name} built a ${b.n}`);
+      if (k.bld.length === 1 || b.kp) addChronicle(b.ic, b.id === 'wonder' ? `${k.name} completed the ${WONDER_NAME[k.race]}` : `${k.name} built a ${b.n}`);
+      if (b.id === 'wonder' && started) banner('🏰', WONDER_NAME[k.race], `${k.name} raised a wonder`, 'good');
       fx('puff', Math.round(k.cx), Math.round(k.cy)); ownDirty = true; dirty = true; break;
     }
   }
@@ -1180,6 +1183,12 @@ function stepCart(c) {
   const sx = Math.sign(tx - c.x), sy = Math.sign(ty - c.y);
   if (tryMove(c, c.x + sx, c.y + sy) || tryMove(c, c.x + sx, c.y) || tryMove(c, c.x, c.y + sy)) { c.fail = 0; return; }
   if (++c.fail > 2) { const dd = DIRS[ri(1, 8)]; tryMove(c, c.x + dd[0], c.y + dd[1]); c.fail = 0; }
+}
+function makeHero(c) {                                        // 7 kills in battle: a named hero with a golden crest
+  if (c.hero || !RACES[c.t].civ || RACES[c.t].engine) return;
+  const k = c.k ? kingdoms.get(c.k) : null; if (k && creatures.filter(o => o.k === k.id && o.hero && o.hp > 0).length >= 3) return;
+  c.hero = 1; c.elite = 1; applyStats(c); c.hp = c.mhp; addHist(c, 5); fx('levelup', c.x, c.y);
+  addChronicle('🎖️', `${nameOf(c)} was hailed as a hero${k ? ' of ' + k.name : ''}`); toast(`🎖️ ${nameOf(c)} became a hero`);
 }
 function eliteTick() {                                        // Iron Age kingdoms arm a few soldiers as iron knights (+80% hp, +50% attack, +40% defence)
   const cnt = {}; for (const c of creatures) if (c.hp > 0 && c.elite && c.k) cnt[c.k] = (cnt[c.k] || 0) + 1;
@@ -1925,6 +1934,7 @@ function drawAtmosphere() {
     ctx.restore();
   }
   if (Snd.flash > 0) { ctx.fillStyle = `rgba(220,230,255,${Snd.flash / 8 * .3})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); Snd.flash--; }
+  { const sn = seasonOf(tick); if (sn.tint) { const a = sn.tint[3] * (.5 + .5 * seasonTintK(tick)); ctx.fillStyle = `rgba(${sn.tint[0]},${sn.tint[1]},${sn.tint[2]},${a})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); } }          // seasonal colour wash
   // day cycle: deep blue night, warm dusk, rosy dawn, twinkling stars
   if (cfg.settings.dayNight) {
     const ph = (tick + acc) / (TPS * 90) * Math.PI * 2, c0 = Math.cos(ph), s0 = Math.sin(ph), n = Math.max(0, -c0), w = Math.max(0, 1 - Math.abs(c0) * 2.4);
@@ -2534,7 +2544,8 @@ function stepCreature(c) {
       if (d > 1) fx('arrow', c.x, c.y, { tx: tg.x, ty: tg.y }); else fx('hit', tg.x, tg.y);
       if (tg.hp <= 0) {
         if (tg.eq) lootFrom(c, tg);
-        c.kills++; if (c.kills === 1) addHist(c, 2); else if (c.kills === 5) addHist(c, 3); else if (c.kills === 10) addHist(c, 4); else if (c.kills === 25) addHist(c, 5);
+        c.kills++; if (c.kills === 1) addHist(c, 2); else if (c.kills === 5) addHist(c, 3); else if (c.kills === 10) addHist(c, 4);
+        if (c.kills === 7) makeHero(c); else if (c.kills === 25) addHist(c, 5);
         if (R.hunt) c.en = Math.min(100, c.en + (GAIN[tg.t] || 45)); c.tgt = null;
         if (ka) {
           if (ka.mod.loot) { ka.gold += 10; ka.food += 8; }                              // raiders loot their victims
@@ -3186,7 +3197,7 @@ function grantTech(k) {                                    // divine gift ("Eure
 function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
 function newKingdom(race, x, y) {
   const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
-              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, bld: [], plank: 0, bread: 0, tool: 0, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, bld: [], plank: 0, bread: 0, tool: 0, dec: null, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
@@ -3460,15 +3471,15 @@ function economy() {                                      // once per second
   for (const k of kingdoms.values()) {
     const E = ECO[k.race];
     if (redo || (!k.g && !k.f && !k.m)) terrainStats(k);
-    const M = k.mod, tb = toolBoost(k);
-    k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food * evFood(k) - k.pop*.18 * (1 + .15 * k.enemies.size));     // elves forage the forest; war strains the food supply
+    const M = k.mod, tb = toolBoost(k), sn = seasonOf(tick), dmu = key => decreeMult(k.dec, tick, key);
+    k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food * evFood(k) * sn.food * dmu('food') - k.pop*.18 * (1 + .15 * k.enemies.size));     // elves forage the forest; war strains the food supply
     const aff = TREE_AFF[k.race]; let wd = k.pm * .4; for (let q = 0; q < 4; q++) wd += k.tk[q] * TREE_W[q] * aff[q];       // timber depends on the tree kinds around the realm
-    k.wood = Math.min(250, k.wood + wd*.012*E.w*M.wood*tb);
+    k.wood = Math.min(250, k.wood + wd*.012*E.w*M.wood*tb*dmu('wood'));
     k.food = Math.min(400, k.food + (k.tk[3]*.008 + k.pm*.003)*E.f);                                                 // fruit trees and coconuts feed people
     mineTick(k, E);
-    k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone*tb);                 // quarries / trade even far from hills
-    k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g*M.gold);
-    k.kp = Math.min(3000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld)));                 // knowledge points pay for research
+    k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone*tb*dmu('stone'));                 // quarries / trade even far from hills
+    k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g*M.gold*dmu('gold'));
+    k.kp = Math.min(3000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld) * dmu('kp')));                 // knowledge points pay for research
     if (k.bld.length) {                                                         // goods chains: sawmill, bakery, smithy
       const d = produce(k);
       k.wood += d.wood; k.food += d.food; k.plank = Math.min(GOODS_CAP.plank, k.plank + d.plank); k.bread = Math.min(GOODS_CAP.bread, k.bread + d.bread);
@@ -3485,6 +3496,7 @@ function economy() {                                      // once per second
       if (k.pop > 3 && Math.random() < .3) killOneMember(k);
     }
     if (k.ev && k.ev.type === 'plague' && k.pop > 2 && Math.random() < (M.regen ? .1 : .22)) killOneMember(k);        // plague kills (healers help)
+    if (k.bld.includes('wonder')) k.unrest = Math.max(0, k.unrest - .4);                                              // the wonder calms the realm
     if (k.food <= 0) k.unrest = Math.min(100, k.unrest + .8);                                                          // unrest: hunger, plague and long wars
     else if (k.ev && k.ev.type === 'plague') k.unrest = Math.min(100, k.unrest + .5);
     else if (k.enemies.size) k.unrest = Math.min(100, k.unrest + .1);
@@ -3570,7 +3582,7 @@ function step() {
       const dd = (x - k.cx)**2 + (y - k.cy)**2;
       if (dd < k.bd) { k.bd = dd; k.nb = i; }
       // births need food; bigger kingdoms breed a little faster
-      if (k.food > 5 && Math.random() < birthProbability(RACES[race].spawnP, k.level, k.mod.birth * (k.bread >= 1 ? 1.25 : 1), evBirth(k)) && (counts[race]||0) < capOf(race)) {
+      if (k.food > 5 && Math.random() < birthProbability(RACES[race].spawnP, k.level, k.mod.birth * (k.bread >= 1 ? 1.25 : 1) * seasonOf(tick).birth, evBirth(k)) && (counts[race]||0) < capOf(race)) {
         if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; setFamily(c, x, y); } }
       }
     } else if (kid[i]) kid[i] = 0;
@@ -3857,7 +3869,7 @@ function draw() {
         const K = CHR_K, mx = cx + lunge, hd = c.face < 0 ? -1 : 1;
         ctx.fillStyle = '#c0c8d4'; ctx.fillRect(mx - sw*.27, fy - sh - K*.5, sw*.54, K*2.5);
         ctx.fillStyle = '#6a7280'; ctx.fillRect(mx - sw*.27, fy - sh + K*1.5, sw*.54, K*.6);
-        ctx.fillStyle = RACES[c.t].col; ctx.fillRect(mx - K*.5, fy - sh - K*2.4, K, K*2);
+        ctx.fillStyle = c.hero ? '#ffd23f' : RACES[c.t].col; ctx.fillRect(mx - K*.5, fy - sh - K*2.4, K * (c.hero ? 2 : 1), K*2);
       }
       if (sc >= 8 && c.eq && (c.eq[0] || c.eq[1] || c.eq[2])) drawGear(c, cx + lunge, fy, sw, sh);
       if (jb) {                                                                         // work tools, swings and hauled goods
@@ -4314,7 +4326,12 @@ function relLine(k) {
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Age of Exploration' : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${ageName(k.age | 0, k.race)}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs} · 📚${Math.floor(k.kp || 0)}${k.bld.length ? '<br>' + k.bld.map(id => BUILDING_BY[id].ic + BUILDING_BY[id].n).join(' · ') : ''}${k.bld.length ? `<br>Planks ${k.plank | 0} · Bread ${k.bread | 0} · Tools ${k.tool | 0}` : ''}${relLine(k)}${evLine(k)}<br><button class="awb" data-act="ktree" data-id="${k.id}" style="margin-top:6px">🔬 Tech tree</button>`;
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${ageName(k.age | 0, k.race)}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs} · 📚${Math.floor(k.kp || 0)}${k.bld.length ? '<br>' + k.bld.map(id => BUILDING_BY[id].ic + BUILDING_BY[id].n).join(' · ') : ''}${k.bld.length ? `<br>Planks ${k.plank | 0} · Bread ${k.bread | 0} · Tools ${k.tool | 0}` : ''}${relLine(k)}${evLine(k)}<br><button class="awb" data-act="ktree" data-id="${k.id}" style="margin-top:6px">🔬 Tech tree</button>${decreeHtml(k)}`;
+}
+function decreeHtml(k) {
+  const on = k.dec && tick < k.dec.until ? DECREE_BY[k.dec.id] : null;
+  if (on) return `<br><span class="dsc">${on.ic} ${on.n} decree: ${on.info} · ${Math.ceil((k.dec.until - tick) / 120)} yr left</span>`;
+  return '<br>' + DECREES.map(d => `<button class="awb" data-act="kdecree" data-id="${k.id}" data-d="${d.id}" style="margin:6px 4px 0 0" ${decreeReady(k.dec, d.id, tick) ? '' : 'disabled'}>${d.ic} ${d.n}</button>`).join('');
 }
 let treeSel = null;
 function treeHtml(k) {
@@ -4367,7 +4384,7 @@ function nameOf(c) { return c.nm || (c.nm = nameFor(c.t, c.nid === undefined ? c
 function roleOf(c) {
   const R = RACES[c.t];
   if (R.cart) return 'Merchant'; if (R.engine) return 'War machine';
-  if (c.gun) return 'Musketeer'; if (c.elite) return 'Iron knight'; if (c.lead) return 'Leader';
+  if (c.hero) return 'Hero'; if (c.gun) return 'Musketeer'; if (c.elite) return 'Iron knight'; if (c.lead) return 'Leader';
   if (R.civ) return isSoldier(c) ? 'Soldier' : 'Citizen';
   return R.hunt ? 'Hunter' : 'Prey';
 }
@@ -4498,6 +4515,12 @@ function refreshCreature() {
 infoEl.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   if (a.dataset.act === 'close') closeCreature();
+  else if (a.dataset.act === 'kdecree') {
+    clearTimeout(infoT); const k = kingdoms.get(+a.dataset.id), d = DECREE_BY[a.dataset.d]; if (!k || !d) return;
+    if (!decreeReady(k.dec, d.id, tick)) { toast('📜 A decree is already in force'); return; }
+    if (!canPay(k, d.cost)) { toast('📜 The treasury cannot afford it'); return; }
+    pay(k, d.cost); k.dec = issueDecree(d.id, tick); addChronicle(d.ic, `${k.name} decreed: ${d.n}`); fx('levelup', Math.round(k.cx), Math.round(k.cy)); infoEl.innerHTML = kingdomHtml(k);
+  }
   else if (a.dataset.act === 'ktree' || a.dataset.act === 'kback' || a.dataset.act === 'kfocus' || a.dataset.act === 'ktech') {
     const k = kingdoms.get(+a.dataset.id); if (!k) return;
     if (a.dataset.act === 'kfocus') k.focus = k.focus === a.dataset.b ? null : a.dataset.b;
@@ -4554,7 +4577,7 @@ function inspectAt(wx, wy) {
       }
     }
   }
-  infoEl.style.display = 'block'; clearTimeout(infoT); infoT = setTimeout(() => infoEl.style.display = 'none', 4500);
+  infoEl.style.display = 'block'; clearTimeout(infoT); infoT = setTimeout(() => infoEl.style.display = 'none', house >= 0 ? 12000 : 4500);
 }
 
 /* ============================== INPUT ============================== */
@@ -4820,7 +4843,7 @@ sheetEl.addEventListener('click', e => { if (e.target.closest('[data-act="shclos
 function updateStats() {
   if (editMode) { yearEl.textContent = '✏️'; }
   else {
-    yearEl.innerHTML = `<span>${W_ICON[weather.kind]}</span><span class="sep"></span><span class="st"><small>YEAR</small><b>${Math.floor(tick / 120)}</b></span><span class="sep"></span><span>📜</span>`;
+    yearEl.innerHTML = `<span>${W_ICON[weather.kind]}</span><span class="sep"></span><span class="st"><small>${seasonOf(tick).n.toUpperCase()}</small><b>${Math.floor(tick / 120)}</b></span><span class="sep"></span><span>📜</span>`;
     let pop = 0; for (const r of ['human', 'elf', 'dwarf', 'orc', 'werewolf']) pop += counts[r] || 0;
     let wars = 0; for (const r of rels.values()) if (r.s === 1) wars++;
     let sick = 0; for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick++;
@@ -4904,10 +4927,11 @@ function serialize2() {
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
   return { v: 9, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, mf: [+market.p.fin.toFixed(2), +market.p.hide.toFixed(2)], sv: seenVer, wk: wrecks.map(w => [w.x, w.y, kix.get(w.kid) || 0, tick - w.t0, w.why === 'kraken' ? 2 : w.why === 'shark' ? 1 : 0]), rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
-    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.slice(), k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0, Math.round(k.kp || 0), BRANCHES.indexOf(k.focus), k.bld.slice(), k.plank | 0, k.bread | 0, k.tool | 0]),
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.slice(), k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0, Math.round(k.kp || 0), BRANCHES.indexOf(k.focus), k.bld.slice(), k.plank | 0, k.bread | 0, k.tool | 0, k.dec && k.dec.until > tick ? [k.dec.id, k.dec.until - tick, Math.max(0, k.dec.cd - tick)] : 0]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => { const s = c.boat ? ships.find(v => v.id === c.boat) : null, i = s ? s.sourceLand : c.y * W + c.x; return i * 10 + RN.indexOf(c.t); }),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     gn: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.gun) a.push(j); return a; }, []),
+    hr: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.hero) a.push(j); return a; }, []),
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
     vc: volcanoes.map(v => v.i),
@@ -4952,6 +4976,7 @@ function restore(s) {
     k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]); k.voyageCd = tick + (a[20] || 0); k.fin = a[21] | 0; k.hide = a[22] | 0; k.kp = a[23] == null ? 30 + k.tech.length * 15 : a[23]; k.focus = BRANCHES[a[24]] || null;
     for (const id of (a[25] || [])) if (BUILDING_BY[id]) { k.bld.push(id); placeLandmark(k, id); }
     k.plank = a[26] | 0; k.bread = a[27] | 0; k.tool = a[28] | 0;
+    if (a[29] && DECREE_BY[a[29][0]]) k.dec = { id: a[29][0], until: tick + a[29][1], cd: tick + a[29][2] };
     ids.push(k.id);
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
@@ -4998,6 +5023,7 @@ function restore(s) {
   let mx = nextId; for (const c of spawned) if (c && c.nid !== undefined && c.nid >= mx) mx = c.nid + 1; nextId = mx;       // new ids must not collide with saved name seeds
   for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
   for (const j of s.gn || []) { const c = spawned[j]; if (c) { c.elite = 1; c.gun = 1; } }
+  for (const j of s.hr || []) { const c = spawned[j]; if (c) { c.elite = 1; c.hero = 1; } }
   for (const c of spawned) if (c) { c.mhp = 0; applyStats(c); c.hp = c.mhp; }
   return true;
 }
@@ -5271,7 +5297,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, makeHero, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
