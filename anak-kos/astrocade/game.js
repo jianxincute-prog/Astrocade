@@ -82,6 +82,15 @@ const EVENTS = [
     a: { label: 'Take it! (+Rp50k, tiring)', money: 50, energy: -25, fun: -5 }, b: { label: 'Pass for now' } },
   { id: 'listrik',  icon: '💡', title: 'Electric bill',
     a: { label: 'Pay (−Rp30k)', money: -30 }, b: { label: 'Carry her water jug instead 💪', energy: -20, hygiene: -12 } },
+  { id: 'flashsale', icon: '⚡', title: 'Flash sale!', a: { label: 'Open KlikMart 🛍️' }, b: { label: 'Not now' } },
+  { id: 'wrongpkg', icon: '📦', title: 'Wrong package',
+    a: { label: 'Return it (+Rp10k thanks)', money: 10, fun: 5 }, b: { label: 'Find the owner', fun: 15, snack: 1 } },
+  { id: 'borrowsoap', icon: '🧴', title: 'Neighbor needs soap', cond: () => (SAVE.inv.soap || 0) > 0,
+    a: { label: 'Sure! (−1 soap)', fun: 15, soap: -1 }, b: { label: 'Sorry, I need it', fun: -5 } },
+  { id: 'spill', icon: '🍜', title: 'Noodle spill!' },
+  { id: 'review', icon: '⭐', title: 'Rate your order', cond: () => (G.delivered || 0) > 0,
+    a: { label: 'Give 5 stars (+Rp5k cashback)', money: 5, fun: 3 }, b: { label: 'Maybe later' } },
+  { id: 'delivery', icon: '📦', title: 'Delivery!', noRandom: true, a: { label: 'Thanks! Open it 📦' } },
   { id: 'cat',      icon: '🐈', title: 'A neighbor cat visits',
     a: { label: 'Pet the kitty 🐾', fun: 25 }, b: { label: 'Gently shoo it', fun: -3 } },
 ];
@@ -124,7 +133,7 @@ function txtFit(s, x, y, size, color, maxW, align) {
 }
 
 /* ------------------ save (prototipe: localStorage; di Astrocade -> lib.saveUserGameState) ------------------ */
-let SAVE = { best: 0, upgrades: {}, tutDone: false, quality: 'auto', muted: false, music: true, months: 0, gender: 'm' };
+let SAVE = { best: 0, upgrades: {}, tutDone: false, quality: 'auto', muted: false, music: true, months: 0, gender: 'm', wardrobe: {}, outfit: { shirt: null, hat: false, glasses: false }, inv: {} };
 // Simpanan pemain lewat lib (sandbox tidak mengizinkan localStorage). Disimpan dengan jeda singkat.
 function loadSave() {
   if (typeof lib === 'undefined' || !lib.getUserGameState) return null;
@@ -301,7 +310,8 @@ function newGame() {
   G = {
     day: 1, hour: CFG.startHour, money: CFG.startMoney, needs: Object.assign({}, CFG.start),
     act: null, pending: null,
-    ch: { x: 360, y: 660, face: 1, walkT: 0, look: SAVE.gender, pose: 'idle', seed: 0 },
+    ch: { x: 360, y: 660, face: 1, walkT: 0, look: SAVE.gender, outfit: SAVE.outfit, pose: 'idle', seed: 0 },
+    orders: [], sale: 0, delivered: 0,
     blackout: false, freeMeals: 0, eventDay: 1, usedEvents: [], smelly: false, galau: false,
     moodSum: 0, moodN: 0, speed: 1, earned: 0, tut: SAVE.tutDone ? 99 : 0, tutT: 0, scene: null,
   };
@@ -317,7 +327,7 @@ function order(f) {
   if (G.act && (G.act.special || G.act.f.away)) { showToast(G.act.special ? 'Out cold... 😵' : 'Out at work!'); return; }
   if (G.act && G.act.f === f) return;
   if (furnDisabled(f)) { showToast('Power is out! 🕯️'); SFX.bad(); return; }
-  if (f.cost && G.freeMeals <= 0 && G.money < f.cost) { showToast('Not enough money! 💸'); SFX.bad(); shake = 6; return; }
+  if (f.cost && G.freeMeals <= 0 && !(f.id === 'stove' && SAVE.inv.noodles) && G.money < f.cost) { showToast('Not enough money! 💸'); SFX.bad(); shake = 6; return; }
   SFX.tap(); haptic('tick');
   G.act = null; G.pending = f;
 }
@@ -325,11 +335,14 @@ function order(f) {
 function startAct(f) {
   if (f.cost) {
     if (G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 170, 'Free! 🏷️', '#9ef'); }
+    else if (f.id === 'stove' && SAVE.inv.noodles > 0) { SAVE.inv.noodles--; writeSave(); floatText(f.spot[0], f.spot[1] - 170, 'From the box 🍜', '#9ef'); }
     else if (G.money >= f.cost) { G.money -= f.cost; floatText(f.spot[0], f.spot[1] - 170, '−' + rp(f.cost), '#ff9b9b'); }
     else { showToast('Not enough money! 💸'); SFX.bad(); return; }
   }
   const eff = Object.assign({}, f.eff || {});
   if (f.id === 'stove' && SAVE.upgrades.rice) eff.hunger = 70;
+  if (f.id === 'bath' && SAVE.inv.soap > 0) { SAVE.inv.soap--; writeSave(); eff.hygiene += 25; floatText(f.spot[0], f.spot[1] - 170, 'Soap 🧴 +25', '#9ef'); }
+  if (f.id === 'bath') G.ch.stain = false;
   G.act = { f, t: 0, total: f.hours || 0, eff };
   if (f.id === 'stove') SFX.eat();
   if (G.tut === 1 && (f.id === 'door' || f.id === 'desk')) { G.tut = 2; G.tutT = 0; }
@@ -340,6 +353,7 @@ function finishAct() {
   if (f && f.earn) {
     let e = f.earn;
     if (f.id === 'desk' && SAVE.upgrades.laptop) e *= 1.6;
+    if (f.id === 'door' && worn('uniform')) e *= 1.1;
     if (G.galau) e *= 0.5;
     e = Math.round(e);
     G.money += e; G.earned += e;
@@ -416,9 +430,98 @@ function applyChoice(c) {
   applyEff(c, 1);
   if (c.blackout) G.blackout = true;
   if (c.freeMeals) G.freeMeals += c.freeMeals;
+  let invCh = false; for (const k in INV_INFO) if (c[k]) { SAVE.inv[k] = Math.max(0, (SAVE.inv[k] || 0) + c[k]); invCh = true; } if (invCh) writeSave();
 }
 
 const SCENES = {
+  *delivery(sc, ev) {
+    const now = absHour(), due = G.orders.filter(o => o.eta <= now);
+    G.orders = G.orders.filter(o => o.eta > now);
+    const k = npc(sc, 'kurir'); k.pose = 'carry'; k.hold = 'box';
+    yield* enter(sc, k);
+    yield* all(moveTo(k, 545, 760), moveTo(G.ch, 425, 720));
+    faceTo(G.ch, k); say(k, 'KlikMart delivery! 📦');
+    const c = yield* choose(sc, ev); hush(k);
+    k.hold = null; k.pose = 'wave'; G.ch.pose = 'carry'; G.ch.hold = 'box'; SFX.pop();
+    say(k, 'Have a nice day!', 1);
+    yield* all(leave(sc, k), (function* () {
+      yield* wait(0.6);
+      let got = []; for (const o of due) got = got.concat(deliverOrder(o));
+      G.delivered = (G.delivered || 0) + 1;
+      G.ch.hold = null; G.ch.pose = 'cheer'; G.ch.expr = 'happy'; SFX.buy();
+      emit(G.ch.x, G.ch.y - 120, 14, { ch: '✨', sp: 140, vy: -120, life: 1, size: 20 });
+      say(G.ch, 'Got: ' + got.slice(0, 2).join(', ') + (got.length > 2 ? ' +' + (got.length - 2) : '') + '!', 1.6);
+      yield* wait(1.5);
+    })());
+    resetPlayer();
+  },
+  *flashsale(sc, ev) {
+    G.ch.pose = 'phone'; G.ch.hold = 'phone'; sc.ring = true; SFX.ring(); yield* wait(0.5); sc.ring = false;
+    G.ch.expr = 'shock'; G.sale = absHour() + 2;
+    say(G.ch, 'FLASH SALE! 50% off for 2 hours! ⚡');
+    const c = yield* choose(sc, ev); hush(G.ch);
+    if (c === ev.a) { G.ch.expr = 'happy'; sc.after = () => openPhone('clothes'); }
+    else { G.ch.hold = null; G.ch.pose = 'shrug'; G.ch.expr = 'strain'; say(G.ch, 'Must... save... for rent!', 1.3); yield* wait(1.2); }
+    resetPlayer();
+  },
+  *wrongpkg(sc, ev) {
+    const k = npc(sc, 'kurir'); k.pose = 'carry'; k.hold = 'box';
+    yield* enter(sc, k);
+    yield* all(moveTo(k, 545, 760), moveTo(G.ch, 425, 720));
+    faceTo(G.ch, k); say(k, 'Package for... room 7? 🤔'); G.ch.expr = 'shock';
+    const c = yield* choose(sc, ev); hush(k); G.ch.expr = null;
+    if (c === ev.a) {
+      say(G.ch, "That's not mine!", 1); yield* wait(0.9);
+      k.expr = 'happy'; say(k, 'Thanks for being honest! 🙏', 1.4); applyChoice(c);
+      emit(G.ch.x, G.ch.y - 120, 8, { c: '#ffd43b', sp: 120, vy: -160, g: 300, life: 0.9, r: 7 });
+      yield* wait(1); yield* leave(sc, k);
+    } else {
+      k.hold = null; k.pose = 'wave'; G.ch.pose = 'carry'; G.ch.hold = 'box'; say(k, 'Thanks for helping!', 1);
+      yield* all(leave(sc, k), moveTo(G.ch, 470, 850, 260));
+      G.ch.hidden = true; yield* wait(0.9); G.ch.hidden = false; G.ch.hold = null; G.ch.pose = 'idle';
+      yield* moveTo(G.ch, 470, 740, 260);
+      applyChoice(c); G.ch.pose = 'cheer'; G.ch.expr = 'happy'; hearts(G.ch.x, G.ch.y - 160, 6);
+      say(G.ch, 'Neighbor gave me snacks! 🍪', 1.5); yield* wait(1.3);
+    }
+    resetPlayer();
+  },
+  *borrowsoap(sc, ev) {
+    const f = npc(sc, 'teman');
+    yield* enter(sc, f);
+    yield* all(moveTo(f, 545, 760), moveTo(G.ch, 425, 720));
+    faceTo(G.ch, f); faceTo(f, G.ch); f.pose = 'belly'; f.expr = 'sad';
+    say(f, 'Can I borrow some soap? 🧴');
+    const c = yield* choose(sc, ev); hush(f);
+    if (c === ev.a) { G.ch.pose = 'give'; applyChoice(c); f.expr = 'happy'; f.pose = 'cheer'; hearts(f.x, f.y - 160, 6); say(f, "You're the best! 🙌", 1.3); yield* wait(1.2); }
+    else { applyChoice(c); f.pose = 'shrug'; say(f, 'Oh... okay 😢', 1.2); yield* wait(1.1); }
+    resetPlayer(); f.pose = 'idle'; f.expr = null; yield* leave(sc, f);
+  },
+  *spill(sc, ev) {
+    G.ch.pose = 'eat'; G.ch.hold = 'bowl'; G.ch.expr = 'eat'; yield* wait(1.0);
+    G.ch.expr = 'shock'; G.ch.stain = true; SFX.bad(); shake = 5;
+    emit(G.ch.x, G.ch.y - 80, 12, { c: '#d9822b', sp: 120, vy: -60, g: 400, life: 0.6, r: 5 });
+    G.ch.hold = null; G.ch.pose = 'panic';
+    say(G.ch, 'Oops! Soup on my shirt! 😱');
+    const others = CLOTHES.filter(x => x.kind === 'shirt' && SAVE.wardrobe[x.id] && !worn(x.id));
+    const canChange = others.length > 0 || SAVE.outfit.shirt;
+    const opts = canChange ? { a: { label: 'Change shirt 👕', hygiene: -5 }, b: { label: 'Just wipe it...', hygiene: -25 } } : { a: { label: 'Wipe it off...', hygiene: -25 } };
+    const c = yield* choose(sc, opts); hush(G.ch);
+    applyChoice(c);
+    if (canChange && c === opts.a) {
+      SAVE.outfit.shirt = others.length ? others[0].id : null; writeSave(); G.ch.stain = false;
+      emit(G.ch.x, G.ch.y - 100, 14, { ch: '✨', sp: 120, vy: -80, life: 0.8, size: 20 }); SFX.pop();
+      G.ch.pose = 'cheer'; G.ch.expr = 'happy'; say(G.ch, 'Fresh shirt! 😎', 1.2);
+    } else { G.ch.pose = 'shrug'; G.ch.expr = 'tired'; say(G.ch, 'I need a shower...', 1.3); }
+    yield* wait(1.2);
+    resetPlayer();
+  },
+  *review(sc, ev) {
+    G.ch.pose = 'phone'; G.ch.hold = 'phone'; SFX.event();
+    say(G.ch, 'KlikMart: rate your order? ⭐');
+    const c = yield* choose(sc, ev); hush(G.ch);
+    if (c === ev.a) { applyChoice(c); for (let i = 0; i < 5; i++) emit(G.ch.x - 60 + i * 30, G.ch.y - 200, 1, { ch: '⭐', sp: 10, vy: -60, life: 1.2, size: 26 }); G.ch.expr = 'happy'; say(G.ch, 'Cashback! 🤑', 1.2); yield* wait(1.1); }
+    resetPlayer();
+  },
   *friend(sc, ev) {
     const f = npc(sc, 'teman');
     yield* enter(sc, f);
@@ -560,6 +663,15 @@ const SCENES = {
   *roach(sc, ev) {
     const r = sc.roach = { x: 150, y: 480, z: 0, tx: 300, ty: 600, hits: 0, stun: 0, ang: 0, flap: 0, retarget: 0, timer: CFG.roachTime, active: false, gone: false };
     G.ch.expr = 'shock'; G.ch.pose = 'panic'; say(G.ch, 'FLYING ROACH!! 😱', 1.3); SFX.whoosh(); shake = 6;
+    if (SAVE.inv.spray > 0) { // semprotan serangga: kecoa langsung kabur
+      yield* wait(0.8); SAVE.inv.spray--; writeSave();
+      G.ch.pose = 'give'; G.ch.hold = 'spray'; G.ch.expr = 'angry'; say(G.ch, 'Bug spray! 💨', 1.2); SFX.whoosh();
+      r.x = 300; r.y = 560; r.z = 30;
+      for (let i = 0; i < 10; i++) emit(G.ch.x + 40 * G.ch.face, G.ch.y - 90, 1, { c: 'rgba(200,240,255,.8)', sp: 60, vy: -40, life: 0.8, r: 9 });
+      r.dizzy = true; applyChoice(ev.win); const sx = r.x, sy = r.y; let t = 0;
+      while (t < 1.2) { t += yield; const k = t / 1.2; r.x = sx + (365 - sx) * k; r.y = sy + (300 - sy) * k; r.z = 30 + Math.sin(k * Math.PI) * 60; r.ang = Math.atan2(300 - sy, 365 - sx); r.flap += 0.6; }
+      r.gone = true; G.ch.pose = 'cheer'; G.ch.hold = null; G.ch.expr = 'happy'; say(G.ch, 'Bye bye, roach! 😎', 1.2); yield* wait(1); resetPlayer(); return;
+    }
     // kecoa keluar dari kolong kasur
     yield* wait(0.9);
     G.ch.pose = 'slap'; G.ch.hold = 'sandal'; G.ch.expr = 'angry'; r.active = true; sc.fastable = false;
@@ -601,8 +713,9 @@ function startScene(id) {
   let ev;
   if (id) ev = EVENTS.find(e => e.id === id);
   else {
-    let pool = EVENTS.filter(e => !G.usedEvents.includes(e.id) && !(e.id === 'blackout' && G.blackout));
-    if (!pool.length) { G.usedEvents = []; pool = EVENTS.filter(e => e.id !== 'blackout'); }
+    const ok = e => !e.noRandom && (!e.cond || e.cond()) && !(e.id === 'blackout' && G.blackout);
+    let pool = EVENTS.filter(e => ok(e) && !G.usedEvents.includes(e.id));
+    if (!pool.length) { G.usedEvents = []; pool = EVENTS.filter(ok); }
     ev = pool[Math.floor(Math.random() * pool.length)];
   }
   G.usedEvents.push(ev.id);
@@ -620,11 +733,216 @@ function updateScene(dt) {
   if (sc.gen.next(d).done) {
     G.scene = null; resetPlayer();
     if (sc.keepProps) G.leftovers = (G.leftovers || []).concat(sc.props);
+    if (sc.after) sc.after();
+  }
+}
+
+/* =========================================================
+   KLIKMART: belanja online (pakaian, kebutuhan harian, perabot) + pengiriman
+   ========================================================= */
+const CLOTHES = [
+  { id: 'tee_blue',   name: 'Blue Tee',     price: 30, kind: 'shirt', shirt: '#339af0', light: '#8fd0ff', desc: 'Just looks cool' },
+  { id: 'tee_green',  name: 'Mint Tee',     price: 30, kind: 'shirt', shirt: '#38d9a9', light: '#96f2d7', desc: 'Just looks cool' },
+  { id: 'tee_stripe', name: 'Striped Tee',  price: 45, kind: 'shirt', shirt: '#f03e3e', light: '#ff8787', pattern: 'stripe', desc: 'Just looks cool' },
+  { id: 'uniform',    name: 'Work Uniform', price: 80, kind: 'shirt', shirt: '#1c7ed6', light: '#4dabf7', logo: 'W', collar: true, desc: 'Work shift +10% pay', bonus: 'work' },
+  { id: 'pajamas',    name: 'Pajamas',      price: 60, kind: 'shirt', shirt: '#9775fa', light: '#d0bfff', pattern: 'dots', logo: '', desc: 'Sleep 25% faster', bonus: 'sleep' },
+  { id: 'hoodie',     name: 'Hoodie',       price: 70, kind: 'shirt', shirt: '#495057', light: '#868e96', hood: true, logo: '', desc: 'Fun drains slower at night', bonus: 'night' },
+  { id: 'cap',        name: 'Red Cap',      price: 40, kind: 'hat', desc: 'Just looks cool' },
+  { id: 'shades',     name: 'Sunglasses',   price: 40, kind: 'glasses', desc: 'Just looks cool' },
+];
+const DAILY = [
+  { id: 'noodlebox', name: 'Noodle Box',     price: 45, icon: '🍜', give: { noodles: 5 }, desc: '5 meals, no cooking cost' },
+  { id: 'soap',      name: 'Soap & Shampoo', price: 25, icon: '🧴', give: { soap: 5 },    desc: '5 showers: +25 hygiene' },
+  { id: 'coffee',    name: 'Coffee Sachets', price: 15, icon: '☕', give: { coffee: 3 },  desc: 'Use anytime: +25 energy' },
+  { id: 'snack',     name: 'Snack Pack',     price: 15, icon: '🍪', give: { snack: 3 },   desc: 'Use anytime: +15 fun' },
+  { id: 'spray',     name: 'Bug Spray',      price: 30, icon: '🧯', give: { spray: 1 },   desc: 'Next roach flees at once' },
+];
+const INV_INFO = { noodles: ['🍜', 'Noodles'], soap: ['🧴', 'Soap'], coffee: ['☕', 'Coffee'], snack: ['🍪', 'Snacks'], spray: ['🧯', 'Bug spray'] };
+const EXPRESS_FEE = 10, EXPRESS_HOURS = 3;
+const absHour = () => (G.day - 1) * 24 + G.hour;
+const saleOn = () => G && G.sale && absHour() < G.sale;
+const priceOf = it => saleOn() ? Math.ceil(it.price / 2) : it.price;
+const worn = id => SAVE.outfit && SAVE.outfit.shirt === id;
+function findItem(id) { return CLOTHES.find(x => x.id === id) || DAILY.find(x => x.id === id) || SHOP.find(x => x.id === id); }
+function isPending(id) { return G && G.orders.some(o => o.ids.includes(id)); }
+function placeOrder(it, express) {
+  const cost = priceOf(it) + (express ? EXPRESS_FEE : 0);
+  if (G.money < cost) { SFX.bad(); showToast('Not enough money! 💸'); return false; }
+  G.money -= cost;
+  const eta = express ? absHour() + EXPRESS_HOURS : G.day * 24 + 10; // hemat: besok jam 10
+  G.orders.push({ ids: [it.id], eta, express });
+  SFX.buy(); haptic('tap');
+  showToast(express ? 'Ordered! Arriving in ' + EXPRESS_HOURS + ' hours ⚡' : 'Ordered! Arriving tomorrow 📦');
+  return true;
+}
+function deliverOrder(o) {
+  const got = [];
+  for (const id of o.ids) {
+    const it = findItem(id); if (!it) continue;
+    got.push(it.name);
+    if (CLOTHES.includes(it)) {
+      SAVE.wardrobe[id] = true;
+      if (it.kind === 'shirt') SAVE.outfit.shirt = id; else if (it.kind === 'hat') SAVE.outfit.hat = true; else SAVE.outfit.glasses = true;
+    } else if (DAILY.includes(it)) { for (const k in it.give) SAVE.inv[k] = (SAVE.inv[k] || 0) + it.give[k]; }
+    else SAVE.upgrades[id] = true;
+  }
+  writeSave();
+  return got;
+}
+function useItem(k) {
+  if (!SAVE.inv[k]) return;
+  if (k === 'coffee') { G.needs.energy = clamp(G.needs.energy + 25, 0, 100); floatText(G.ch.x, G.ch.y - 200, '+25 ⚡', '#ffe066'); }
+  else if (k === 'snack') { G.needs.fun = clamp(G.needs.fun + 15, 0, 100); floatText(G.ch.x, G.ch.y - 200, '+15 😊', '#ff8fab'); }
+  else return;
+  SAVE.inv[k]--; writeSave(); SFX.eat(); haptic('tap');
+}
+function openPhone(tab) { modal = { type: 'shop', t: 0, tab: tab || 'clothes', page: 0, sub: null }; }
+
+// pratinjau pakaian kecil di kartu toko
+function drawClothPreview(it, cx, cy) {
+  ctx.save(); ctx.translate(cx, cy);
+  if (it.kind === 'shirt') {
+    const g = ctx.createLinearGradient(0, -30, 0, 30); g.addColorStop(0, it.light); g.addColorStop(1, it.shirt);
+    const path = () => { ctx.beginPath(); ctx.moveTo(-18, -30); ctx.lineTo(-40, -16); ctx.lineTo(-30, 0); ctx.lineTo(-22, -6); ctx.lineTo(-22, 32); ctx.lineTo(22, 32); ctx.lineTo(22, -6); ctx.lineTo(30, 0); ctx.lineTo(40, -16); ctx.lineTo(18, -30); ctx.quadraticCurveTo(0, -18, -18, -30); ctx.closePath(); };
+    path(); ctx.fillStyle = g; ctx.fill();
+    ctx.save(); path(); ctx.clip();
+    if (it.pattern === 'stripe') { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (let y = -26; y < 34; y += 12) ctx.fillRect(-45, y, 90, 5); }
+    if (it.pattern === 'dots') { ctx.fillStyle = 'rgba(255,255,255,.6)'; for (let y = -22; y < 34; y += 12) for (let x = -36 + (y % 24 ? 6 : 0); x < 40; x += 12) { ctx.beginPath(); ctx.arc(x, y, 2.5, 0, 7); ctx.fill(); } }
+    ctx.restore();
+    path(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke();
+    if (it.hood) { ctx.strokeStyle = '#dee2e6'; ctx.lineWidth = 2; ln(-6, -22, -6, -6); ln(6, -22, 6, -6); }
+    if (it.logo) txt(it.logo, 0, 4, 18, 'rgba(255,255,255,.9)');
+    if (it.collar) { poly([[-14, -28], [0, -16], [14, -28]], '#fff', OUT, 2); }
+  } else if (it.kind === 'hat') {
+    ctx.beginPath(); ctx.arc(0, 8, 30, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fillStyle = '#e03131'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke();
+    ell(26, 8, 26, 8, '#c92a2a', OUT, 3); ell(0, -22, 4, 4, '#fff', OUT, 2);
+  } else {
+    rr(-38, -10, 32, 22, 8, '#212529', OUT, 3); rr(6, -10, 32, 22, 8, '#212529', OUT, 3);
+    ctx.strokeStyle = OUT; ctx.lineWidth = 3; ln(-6, -4, 6, -4); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(-32, -6, 8, 3); ctx.fillRect(12, -6, 8, 3);
+  }
+  ctx.restore();
+}
+
+function shopCards(tab) {
+  const cards = [];
+  if (tab === 'clothes') for (const it of CLOTHES) {
+    const own = SAVE.wardrobe[it.id], pend = isPending(it.id);
+    const wearing = it.kind === 'shirt' ? worn(it.id) : it.kind === 'hat' ? SAVE.outfit.hat : SAVE.outfit.glasses;
+    cards.push({ prev: (x, y) => drawClothPreview(it, x, y), name: it.name, desc: it.desc, bonus: !!it.bonus,
+      pill: own ? (wearing && own ? ['Wearing ✓', '#d3f9d8', '#2b8a3e'] : ['Owned', '#e7f5ff', '#1971c2']) : pend ? ['On the way 🚚', '#fff3bf', '#e67700'] : [rp(priceOf(it)), '#ffa94d', '#fff'],
+      tap: () => own ? equip(it) : pend ? showToast('Already on the way 🚚') : (modal.sub = { it }) });
+  }
+  else if (tab === 'daily') for (const it of DAILY) {
+    cards.push({ prev: (x, y) => txt(it.icon, x, y + 4, 60), name: it.name, desc: it.desc,
+      pill: [rp(priceOf(it)), '#ffa94d', '#fff'], tap: () => (modal.sub = { it }) });
+  }
+  else if (tab === 'home') for (const it of SHOP) {
+    const own = SAVE.upgrades[it.id], pend = isPending(it.id);
+    cards.push({ prev: (x, y) => txt(it.icon, x, y + 4, 60), name: it.name, desc: it.desc,
+      pill: own ? ['Owned ✓', '#d3f9d8', '#2b8a3e'] : pend ? ['On the way 🚚', '#fff3bf', '#e67700'] : [rp(priceOf(it)), '#ffa94d', '#fff'],
+      tap: () => own ? null : pend ? showToast('Already on the way 🚚') : (modal.sub = { it }) });
+  }
+  else {
+    cards.push({ prev: (x, y) => drawClothPreview({ kind: 'shirt', shirt: LOOKS[SAVE.gender].shirt, light: LOOKS[SAVE.gender].shirtLight, logo: LOOKS[SAVE.gender].logo }, x, y), name: 'Basic Tee', desc: 'Your trusty old tee',
+      pill: !SAVE.outfit.shirt ? ['Wearing ✓', '#d3f9d8', '#2b8a3e'] : ['Wear', '#748ffc', '#fff'], tap: () => { SAVE.outfit.shirt = null; writeSave(); SFX.tap(); } });
+    for (const it of CLOTHES) if (SAVE.wardrobe[it.id]) {
+      const on = it.kind === 'shirt' ? worn(it.id) : it.kind === 'hat' ? SAVE.outfit.hat : SAVE.outfit.glasses;
+      cards.push({ prev: (x, y) => drawClothPreview(it, x, y), name: it.name, desc: it.desc, bonus: !!it.bonus,
+        pill: on ? (it.kind === 'shirt' ? ['Wearing ✓', '#d3f9d8', '#2b8a3e'] : ['Take off', '#ffe3e3', '#c92a2a']) : ['Wear', '#748ffc', '#fff'], tap: () => equip(it) });
+    }
+    for (const k in INV_INFO) if (SAVE.inv[k]) {
+      const usable = k === 'coffee' || k === 'snack';
+      cards.push({ prev: (x, y) => txt(INV_INFO[k][0], x, y + 4, 56), name: INV_INFO[k][1] + ' ×' + SAVE.inv[k], desc: usable ? (k === 'coffee' ? '+25 energy' : '+15 fun') : 'Used automatically',
+        pill: usable ? ['Use', '#40c057', '#fff'] : ['Auto', '#f1f3f5', '#868e96'], tap: () => usable && useItem(k) });
+    }
+  }
+  return cards;
+}
+function equip(it) {
+  if (it.kind === 'shirt') SAVE.outfit.shirt = worn(it.id) ? null : it.id;
+  else if (it.kind === 'hat') SAVE.outfit.hat = !SAVE.outfit.hat;
+  else SAVE.outfit.glasses = !SAVE.outfit.glasses;
+  writeSave(); SFX.pop(); haptic('tick');
+}
+const SHOP_TABS = [['clothes', 'Clothes', '👕'], ['daily', 'Daily', '🧺'], ['home', 'Home', '🛋️'], ['bag', 'My Stuff', '🎒']];
+function drawPhone() {
+  const m = modal;
+  rr(46, 124, 628, 1072, 60, '#1b1530', OUT, 6);
+  rr(66, 150, 588, 1024, 44, '#fff8f0');
+  rr(300, 132, 120, 14, 7, '#000');
+  ctx.save(); ctx.beginPath(); ctx.roundRect(66, 150, 588, 1024, 44); ctx.clip();
+  const hg = ctx.createLinearGradient(0, 150, 0, 250); hg.addColorStop(0, '#ff922b'); hg.addColorStop(1, '#f76707');
+  ctx.fillStyle = hg; ctx.fillRect(66, 150, 588, 100);
+  drawIcon('cart', 112, 202, 44); outlinedText('KlikMart', 146, 203, 34, '#fff', 'left', 6);
+  rr(470, 182, 166, 44, 22, 'rgba(0,0,0,.25)'); drawIcon('coin', 494, 204, 28); outlinedText(rp(G.money), 624, 205, 22, '#fff', 'right', 4);
+  let top = 262;
+  if (saleOn()) {
+    const left = (G.sale - absHour()), hh = Math.floor(left), mm = Math.floor((left - hh) * 60);
+    const sg = ctx.createLinearGradient(66, 0, 654, 0); sg.addColorStop(0, '#e03131'); sg.addColorStop(1, '#f06595');
+    ctx.fillStyle = sg; ctx.fillRect(66, 252, 588, 46);
+    outlinedText('⚡ FLASH SALE −50%   ⏱ ' + hh + 'h ' + String(mm).padStart(2, '0') + 'm', 360, 276, 22, '#fff', 'center', 4);
+    top = 306;
+  }
+  ctx.restore();
+  // tab
+  SHOP_TABS.forEach(([id, label, ic], i) => {
+    const x = 80 + i * 142, on = m.tab === id;
+    const p = on ? btn3d(x, top, 134, 92, 20, '#ffd8a8', '#ffa94d', '#d9480f') : btn3d(x, top, 134, 92, 20, '#ffffff', '#f1ecfb', '#c9bfe6');
+    txt(ic, x + 67, top + 32 + p, 30); txt(label, x + 67, top + 70 + p, 18, OUT);
+    if (id === 'bag') { const n = G.orders.length; if (n) { ell(x + 124, top + 6, 15, 15, '#e03131', OUT, 2.5); txt(String(n), x + 124, top + 7, 16, '#fff'); } }
+    btn(x, top, 134, 98, () => { if (m.tab !== id) { m.tab = id; m.page = 0; SFX.tap(); } }, [String(i + 1)]);
+  });
+  // kartu
+  const cards = shopCards(m.tab), per = 6, pages = Math.max(1, Math.ceil(cards.length / per));
+  m.page = Math.min(m.page, pages - 1);
+  const y0 = top + 112;
+  if (m.tab === 'bag') {
+    const n = G.orders.length;
+    txt(n ? '🚚 ' + n + ' package' + (n > 1 ? 's' : '') + ' on the way' : 'No packages on the way', 360, y0 + 4, 20, '#7a6a90');
+  }
+  const cy0 = m.tab === 'bag' ? y0 + 24 : y0;
+  cards.slice(m.page * per, m.page * per + per).forEach((c, i) => {
+    const x = 84 + (i % 2) * 282, y = cy0 + Math.floor(i / 2) * 206, w = 270, h = 196;
+    const p = pressed(x, y, w, h) ? 4 : 0;
+    rr(x, y + 5, w, h, 24, 'rgba(60,40,90,.18)');
+    rr(x, y + p, w, h, 24, '#ffffff', OUT, 3);
+    rr(x + 10, y + 10 + p, w - 20, 92, 18, '#fff4e6');
+    c.prev(x + w / 2, y + 56 + p);
+    if (c.bonus) { rr(x + w - 70, y + 14 + p, 58, 26, 13, '#7048e8', OUT, 2); txt('BONUS', x + w - 41, y + 28 + p, 13, '#fff'); }
+    txtFit(c.name, x + w / 2, y + 118 + p, 22, OUT, w - 24);
+    txtFit(c.desc, x + w / 2, y + 142 + p, 15, '#7a6a90', w - 24);
+    const [pt, pb, pf] = c.pill;
+    ctx.font = 'bold 19px ' + FONT; const pw = Math.min(w - 30, ctx.measureText(pt).width + 36);
+    rr(x + w / 2 - pw / 2, y + 156 + p, pw, 32, 16, pb, OUT, 2.5);
+    txt(pt, x + w / 2, y + 173 + p, 19, pf);
+    btn(x, y, w, h, () => { SFX.tap(); c.tap && c.tap(); });
+  });
+  if (!cards.length) txt('Nothing here yet', 360, cy0 + 200, 24, '#adb5bd');
+  // halaman & tutup
+  if (pages > 1) {
+    iconBtn(84, 1064, 'prev', () => { m.page = (m.page + pages - 1) % pages; }, ['arrowleft']);
+    iconBtn(540, 1064, 'next', () => { m.page = (m.page + 1) % pages; }, ['arrowright']);
+    txt((m.page + 1) + ' / ' + pages, 360, 1046, 18, '#7a6a90');
+  }
+  bigBtn(220, 1066, 280, 84, 'Close', '#7950f2', () => { modal = null; }, ['escape', 's']);
+  // pilihan pengiriman
+  if (m.sub) {
+    buttons = [];
+    ctx.fillStyle = 'rgba(30,20,50,.55)'; ctx.beginPath(); ctx.roundRect(66, 150, 588, 1024, 44); ctx.fill();
+    const it = m.sub.it, base = priceOf(it);
+    rr(96, 380, 528, 560, 34, '#fff8f0', OUT, 5);
+    txt('Choose delivery', 360, 430, 32, OUT);
+    txtFit(it.name + ' • ' + rp(base), 360, 470, 22, '#7a6a90', 480);
+    bigBtn(126, 506, 468, 120, '🐢 Saver • Free • tomorrow', '#40c057', () => { if (placeOrder(it, false)) m.sub = null; }, ['1', 'enter'], 28);
+    bigBtn(126, 650, 468, 120, '⚡ Express • +' + rp(EXPRESS_FEE) + ' • ' + EXPRESS_HOURS + ' hours', '#ff922b', () => { if (placeOrder(it, true)) m.sub = null; }, ['2'], 28);
+    txt('Total: ' + rp(base) + ' / ' + rp(base + EXPRESS_FEE), 360, 800, 20, '#7a6a90');
+    bigBtn(230, 830, 260, 84, 'Cancel', '#868e96', () => { m.sub = null; }, ['escape', 'x'], 28);
   }
 }
 
 /* ------------------ akhir bulan ------------------ */
 function endMonth() {
+  for (const o of G.orders) deliverOrder(o); G.orders = [];
   const mood = G.moodN ? G.moodSum / G.moodN : 50;
   const paid = G.money >= CFG.rent;
   const left = G.money - CFG.rent;
@@ -694,6 +1012,7 @@ function update(dt) {
 
   // waktu
   G.hour += gh;
+  if (G.orders.length && canEvent() && G.orders.some(o => o.eta <= absHour())) return startScene('delivery');
   if (G.hour >= 10 && G.day >= 2 && G.eventDay < G.day && canEvent()) {
     G.eventDay = G.day;
     if (G.day === 15) return startScene('listrik');
@@ -710,7 +1029,7 @@ function update(dt) {
   nd.hunger  -= D.hunger * gh * (sleeping ? 0.5 : 1);
   nd.energy  -= D.energy * gh * (sleeping ? 0 : 1);
   nd.hygiene -= D.hygiene * gh;
-  nd.fun     -= D.fun * gh * (sleeping ? 0.3 : 1) * (SAVE.upgrades.speaker ? 0.6 : 1);
+  nd.fun     -= D.fun * gh * (sleeping ? 0.3 : 1) * (SAVE.upgrades.speaker ? 0.6 : 1) * (worn('hoodie') && (G.hour < 6 || G.hour >= 19) ? 0.7 : 1);
 
   // aktivitas
   if (a) {
@@ -719,7 +1038,7 @@ function update(dt) {
       if (a.special === 'floor') nd.energy += 7 * gh;
       if (a.t >= a.total) G.act = null;
     } else if (a.f.sleep) {
-      nd.energy += (SAVE.upgrades.kasur ? CFG.sleepRateUpgrade : CFG.sleepRate) * gh;
+      nd.energy += (SAVE.upgrades.kasur ? CFG.sleepRateUpgrade : CFG.sleepRate) * (worn('pajamas') ? 1.25 : 1) * gh;
       if (Math.random() < dt * 1.5) floatText(a.f.x + 90 + rnd(-10, 10), a.f.y + 20, 'Z', '#cde');
       if (nd.energy >= 100) { nd.energy = 100; G.act = null; floatText(ch.x, ch.y - 190, 'Refreshed! ⚡', '#9f9'); }
     } else {
@@ -867,9 +1186,23 @@ function limb(x, y, a1, l1, a2, l2, w, c1, c2) {
   return [hx, hy];
 }
 
+const OUTFIT_CACHE = {};
+function lookFor(a) {
+  const L = LOOKS[a.look] || LOOKS.m, o = a.outfit;
+  if (!o || (!o.shirt && !o.hat && !o.glasses)) return L;
+  const key = a.look + '|' + o.shirt + '|' + o.hat + '|' + o.glasses;
+  let c = OUTFIT_CACHE[key];
+  if (!c) {
+    c = Object.assign({}, L);
+    const it = o.shirt && CLOTHES.find(x => x.id === o.shirt);
+    if (it) { c.shirt = it.shirt; c.shirtLight = it.light; c.pattern = it.pattern; c.hood = it.hood; c.collar = it.collar; if (it.logo !== undefined) c.logo = it.logo; }
+    c.cap = o.hat; c.shades = o.glasses; OUTFIT_CACHE[key] = c;
+  }
+  return c;
+}
 function drawPerson(a, opt) {
   opt = opt || {};
-  const L = LOOKS[a.look] || LOOKS.m, t = time + (a.seed || 0);
+  const L = lookFor(a), t = time + (a.seed || 0);
   const pose = a.walking && !['carry', 'offer', 'lift', 'slap'].includes(a.pose) ? 'walk' : (a.pose || 'idle');
   const P = POSES[pose](t, a);
   const sc = opt.s || 1;
@@ -886,13 +1219,24 @@ function drawPerson(a, opt) {
   }
   // rambut panjang (belakang)
   if (L.hairStyle === 'long') { rr(-37, -128, 74, 70, 30, L.hair, OUT, 3); }
+  if (L.hood) ell(0, -96, 36, 22, shade(L.shirt, -0.15), OUT, 3);
   if (L.hijab) { ctx.beginPath(); ctx.moveTo(-36, -112); ctx.quadraticCurveTo(-42, -62, -30, -58); ctx.lineTo(30, -58); ctx.quadraticCurveTo(42, -62, 36, -112); ctx.closePath(); ctx.fillStyle = L.hijab; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke(); }
   // badan
   const g = ctx.createLinearGradient(-24, -88, 24, -36); g.addColorStop(0, L.shirtLight); g.addColorStop(1, L.shirt);
   ctx.beginPath();
   if (L.dress) { ctx.moveTo(-22, -88); ctx.lineTo(22, -88); ctx.quadraticCurveTo(28, -60, 32, -22); ctx.lineTo(-32, -22); ctx.quadraticCurveTo(-28, -60, -22, -88); }
   else { ctx.moveTo(-20, -88); ctx.quadraticCurveTo(-26, -88, -25, -78); ctx.lineTo(-21, -40); ctx.quadraticCurveTo(-20, -35, -15, -35); ctx.lineTo(15, -35); ctx.quadraticCurveTo(20, -35, 21, -40); ctx.lineTo(25, -78); ctx.quadraticCurveTo(26, -88, 20, -88); }
-  ctx.closePath(); ctx.fillStyle = L.dress ? L.dress : g; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke();
+  ctx.closePath(); ctx.fillStyle = L.dress ? L.dress : g; ctx.fill();
+  if (L.pattern || a.stain) {
+    ctx.save(); ctx.clip();
+    if (L.pattern === 'stripe') { ctx.fillStyle = 'rgba(255,255,255,.5)'; for (let yy = -86; yy < -34; yy += 10) ctx.fillRect(-30, yy, 60, 4); }
+    if (L.pattern === 'dots') { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (let yy = -82; yy < -34; yy += 10) for (let xx = -24 + ((yy / 10) % 2 ? 5 : 0); xx < 26; xx += 10) { ctx.beginPath(); ctx.arc(xx, yy, 2.2, 0, 7); ctx.fill(); } }
+    if (a.stain) { for (const [sx, sy, r] of [[-8, -62, 7], [6, -52, 5], [-2, -46, 4], [10, -66, 3]]) ell(sx, sy, r, r * 0.8, 'rgba(170,90,30,.75)'); }
+    ctx.restore();
+  }
+  ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke();
+  if (L.hood) { ctx.strokeStyle = '#dee2e6'; ctx.lineWidth = 2; ln(-6, -86, -7, -66); ln(6, -86, 7, -66); ell(-7, -65, 2, 2, '#dee2e6'); ell(7, -65, 2, 2, '#dee2e6'); }
+  if (L.collar) poly([[-12, -88], [0, -78], [12, -88]], '#fff', OUT, 2);
   if (L.dress) { ctx.fillStyle = L.dressDots; for (const [dx, dy] of [[-14, -70], [8, -76], [-4, -54], [16, -48], [-20, -36], [6, -32]]) { ctx.beginPath(); ctx.arc(dx, dy, 3, 0, 7); ctx.fill(); } }
   else {
     ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.moveTo(4, -84); ctx.lineTo(22, -80); ctx.lineTo(19, -40); ctx.lineTo(10, -38); ctx.closePath(); ctx.fill();
@@ -950,6 +1294,11 @@ function drawHeadFull(L, a, t, exprOverride) {
     rr(-38, hy - 8, 76, 9, 4, '#1b5e20', OUT, 2.5);
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, hy - 2, 28, Math.PI * 1.2, Math.PI * 1.45); ctx.stroke();
   }
+  if (L.cap) {
+    ctx.beginPath(); ctx.arc(0, hy - 6, 35, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); ctx.fillStyle = '#e03131'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.stroke();
+    ell(24, hy - 10, 22, 6, '#c92a2a', OUT, 2.5); ell(0, hy - 41, 4, 3, '#fff', OUT, 1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, hy - 6, 27, Math.PI * 1.2, Math.PI * 1.45); ctx.stroke();
+  }
   // ekspresi
   let ex = exprOverride || a.expr;
   if (!ex) ex = 'happy';
@@ -978,6 +1327,11 @@ function drawHeadFull(L, a, t, exprOverride) {
   else if (ex === 'shock') { ctx.moveTo(-16, ey - 15); ctx.lineTo(-7, ey - 17); ctx.moveTo(16, ey - 15); ctx.lineTo(7, ey - 17); }
   else { ctx.moveTo(-15, ey - 12); ctx.lineTo(-7, ey - 13); ctx.moveTo(15, ey - 12); ctx.lineTo(7, ey - 13); }
   ctx.stroke();
+  if (L.shades && ex !== 'sleep') {
+    rr(-21, ey - 7, 18, 13, 5, '#212529', OUT, 2); rr(3, ey - 7, 18, 13, 5, '#212529', OUT, 2);
+    ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ln(-3, ey - 3, 3, ey - 3);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(-17, ey - 4, 5, 2); ctx.fillRect(7, ey - 4, 5, 2);
+  }
   // mulut
   const my = hy + 17; ctx.lineWidth = 3; ctx.beginPath();
   if (ex === 'happy' || ex === 'bliss') { ctx.arc(0, my - 4, 7, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
@@ -1008,6 +1362,7 @@ function drawItem(k, x, y, a) {
     case 'box': rr(-26, -20, 52, 38, 4, '#c8915a', OUT, 3); ctx.fillStyle = '#e8b97f'; ctx.fillRect(-4, -20, 8, 38); txt('❤', 14, 6, 12, '#d9480f'); break;
     case 'mi': for (let i = 0; i < 3; i++) { rr(-24, -24 + i * 13, 48, 13, 3, i % 2 ? '#ffd43b' : '#ff922b', OUT, 2); } break;
     case 'galon': rr(-20, -28, 40, 56, 12, 'rgba(116,192,252,.85)', OUT, 3); rr(-8, -36, 16, 10, 3, '#1c7ed6', OUT, 2); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-14, -20, 5, 38); break;
+    case 'spray': rr(-6, -26, 12, 26, 3, '#40c057', OUT, 2); rr(-4, -32, 8, 7, 2, '#adb5bd', OUT, 1.5); ctx.fillStyle = '#fff'; ctx.fillRect(-5, -18, 10, 6); break;
     case 'bowl': ell(0, -4, 22, 8, '#ffe8a3', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-22, -4); ctx.quadraticCurveTo(0, 26, 22, -4); ctx.fillStyle = '#e8590c'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke(); break;
   }
   ctx.restore();
@@ -1605,6 +1960,9 @@ const ICONS = {
     ctx.fillStyle = '#fcc419'; ctx.fill(); ctx.stroke();
     rr(-4, 5, 8, 7, 1, '#fab005', OUT, 2.5); rr(-12, 12, 24, 7, 2, '#a0693f', OUT, 2.5); ell(-5, -10, 2.5, 5, 'rgba(255,255,255,.6)');
   },
+  phone() { rr(-13, -21, 26, 42, 6, '#343a40', OUT, 3); const g = ctx.createLinearGradient(0, -16, 0, 14); g.addColorStop(0, '#ffa94d'); g.addColorStop(1, '#f76707'); rr(-9, -15, 18, 28, 3, g); txt('K', 0, -1, 14, '#fff'); ell(0, 17, 2.2, 2.2, '#adb5bd'); },
+  prev() { poly([[10, -16], [-12, 0], [10, 16]], '#7950f2', OUT, 3); },
+  next() { poly([[-10, -16], [12, 0], [-10, 16]], '#7950f2', OUT, 3); },
   sandal() { rr(-8, -17, 16, 34, 8, '#4dabf7', OUT, 2.5); ctx.fillStyle = '#fff'; ctx.fillRect(-7, -8, 14, 4); },
   walk() { ell(0, -12, 6, 6, '#ffd43b', OUT, 2.5); ctx.strokeStyle = OUT; ctx.lineWidth = 4; ln(0, -5, 0, 7); ln(0, 7, -7, 17); ln(0, 7, 7, 17); ln(0, -2, -8, 5); ln(0, -2, 8, -6); },
   zzz() { txt('Z', -6, 4, 22, '#748ffc'); txt('z', 8, -8, 15, '#748ffc'); },
@@ -1689,7 +2047,9 @@ function drawHUD() {
   const p = clamp(G.money / CFG.rent, 0, 1);
   gaugeBar(214, 70, 188, 28, p, p >= 1 ? '#8ce99a' : '#ffd43b', p >= 1 ? '#2f9e44' : '#f76707', true);
   outlinedText((p >= 1 ? '✓ ' : '') + 'Rent ' + rp(CFG.rent), 308, 85, 15, '#fff', 'center', 4);
-  iconBtn(418, 8, 'cart', () => { if (!G.scene) modal = { type: 'shop', t: 0 }; }, ['s']);
+  iconBtn(418, 8, 'phone', () => { if (!G.scene) openPhone(saleOn() ? 'clothes' : (modal && modal.tab) || 'clothes'); }, ['s']);
+  if (G.orders.length) { ell(504, 16, 16, 16, '#e03131', OUT, 2.5); txt(String(G.orders.length), 504, 17, 17, '#fff'); }
+  if (saleOn()) { rr(424, 82, 84, 26, 13, '#e03131', OUT, 2); txt('SALE', 466, 96, 15, '#fff'); }
   iconBtn(518, 8, G.speed > 1 ? 'ff' : 'play', () => { G.speed = G.speed > 1 ? 1 : 2.5; }, [' '], G.speed > 1);
   iconBtn(618, 8, 'pause', () => { modal = { type: 'pause', t: 0 }; }, ['p', 'escape']);
   NEEDS.forEach((n, i) => {
@@ -1756,7 +2116,7 @@ function drawPanel() {
   FURN.forEach((f, i) => {
     const col = i % 3, row = Math.floor(i / 3);
     const x = 22 + col * 228, y = 1040 + row * 114, w = 216, h = 100;
-    const dis = furnDisabled(f) || (f.cost && G.money < f.cost && G.freeMeals <= 0);
+    const dis = furnDisabled(f) || (f.cost && G.money < f.cost && G.freeMeals <= 0 && !(f.id === 'stove' && SAVE.inv.noodles));
     const active = (G.act && G.act.f === f) || G.pending === f;
     const [ic2, icol2] = FURN_IC[f.id];
     let p;
@@ -1769,7 +2129,7 @@ function drawPanel() {
     txtFit(f.verb, x + 140, y + 32 + p, 22, dis ? '#efeaff' : '#3a2a5c', 130);
     let sub, sc1, sc2;
     if (f.earn) { sub = '+' + rp(f.earn); sc1 = '#d3f9d8'; sc2 = '#2b8a3e'; }
-    else if (f.cost) { sub = G.freeMeals ? 'Free!' : '−' + rp(f.cost); sc1 = G.freeMeals ? '#d0ebff' : '#ffe3e3'; sc2 = G.freeMeals ? '#1971c2' : '#c92a2a'; }
+    else if (f.cost) { const box = f.id === 'stove' && SAVE.inv.noodles && !G.freeMeals; sub = G.freeMeals ? 'Free!' : box ? 'Box ×' + SAVE.inv.noodles : '−' + rp(f.cost); const blue = box || G.freeMeals; sc1 = blue ? '#d0ebff' : '#ffe3e3'; sc2 = blue ? '#1971c2' : '#c92a2a'; }
     else { sub = f.sleep ? '+Energy' : f.id === 'tv' ? '+Fun' : '+Hygiene'; sc1 = '#f3f0ff'; sc2 = '#7048e8'; }
     rr(x + 88, y + 52 + p, 106, 30, 15, sc1, shade(sc2, 0.3), 2);
     txtFit(sub, x + 141, y + 68 + p, 18, sc2, 96);
@@ -1805,27 +2165,7 @@ function drawModal() {
   const s = pop(modal.t);
   ctx.save(); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
   if (modal.type === 'shop') {
-    rr(40, 200, 640, 900, 36, '#fff8e7', '#3a2a5c', 6);
-    txt('🛒 Furniture Shop', 360, 260, 40, '#3a2a5c');
-    txt('Your money: ' + rp(G.money) + '  •  Furniture stays next month', 360, 305, 19, '#7a6a90');
-    SHOP.forEach((it, i) => {
-      const y = 340 + i * 165, own = SAVE.upgrades[it.id], can = G.money >= it.price;
-      rr(70, y, 580, 150, 24, own ? '#d3f9d8' : '#fff', '#3a2a5c', 3);
-      txt(it.icon, 135, y + 75, 60);
-      txt(it.name, 200, y + 50, 28, '#3a2a5c', 'left');
-      txt(it.desc, 200, y + 92, 20, '#7a6a90', 'left');
-      if (own) txt('✔ Owned', 580, y + 75, 24, '#2b8a3e');
-      else {
-        rr(500, y + 40, 136, 72, 20, can ? '#ffa94d' : '#ced4da', '#3a2a5c', 3);
-        txt(rp(it.price), 568, y + 77, 24, '#fff');
-        btn(500, y + 40, 136, 72, () => {
-          if (!can) { SFX.bad(); showToast('Not enough money yet'); return; }
-          G.money -= it.price; SAVE.upgrades[it.id] = true; writeSave(); SFX.buy(); haptic('tap');
-          emit(360, 400 + i * 165, 20, { c: '#ffd43b', sp: 200, vy: -150, g: 400, life: 1 });
-        }, [String(i + 1)]);
-      }
-    });
-    bigBtn(210, 1010, 300, 76, 'Close', '#7950f2', () => { modal = null; }, ['escape', 's', 'enter']);
+    drawPhone();
   } else if (modal.type === 'pause') {
     rr(110, 330, 500, 650, 36, '#fff8e7', '#3a2a5c', 6);
     txt('Paused', 360, 400, 44, '#3a2a5c');
@@ -1851,7 +2191,7 @@ function drawModal() {
     rr(60, 260, 600, 760, 36, '#fff8e7', '#3a2a5c', 6);
     txt('How to Play', 360, 330, 42, '#3a2a5c');
     const L = ['👆 Tap furniture (or keys 1-6)', '🍜⚡🚿😊 Keep every need up', '🚪💻 Work to earn money',
-      '💰 Day 30: pay rent ' + rp(CFG.rent), '🎲 Surprises every day!', '🪳 Roach? Tap it fast!', '⏩ Space: speed up  •  B: music'];
+      '💰 Day 30: pay rent ' + rp(CFG.rent), '📱 Shop online on KlikMart!', '🪳 Roach? Tap it fast!', '⏩ Space: speed up  •  B: music'];
     L.forEach((l, i) => txtFit(l, 100, 410 + i * 72, 26, '#3a2a5c', 520, 'left'));
     bigBtn(210, 920, 300, 76, 'Got it!', '#51cf66', () => { modal = null; }, ['escape', 'enter', 'h']);
   }
@@ -2078,7 +2418,7 @@ function drawMenu() {
       ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = '#fff3bf'; ctx.beginPath(); ctx.moveTo(x - 30, 640); ctx.lineTo(x + 30, 640); ctx.lineTo(x + 100, fy); ctx.lineTo(x - 100, fy); ctx.closePath(); ctx.fill(); ctx.restore();
       ell(x, fy, 74, 18, null, '#ffd43b', 4);
     }
-    drawPerson({ look: g, x, y: fy, face: g === 'm' ? 1 : -1, pose: sel ? 'wave' : 'idle', seed: g === 'f' ? 1.3 : 0 }, { s: 1.5, expr: sel ? 'happy' : 'meh' });
+    drawPerson({ look: g, outfit: SAVE.outfit, x, y: fy, face: g === 'm' ? 1 : -1, pose: sel ? 'wave' : 'idle', seed: g === 'f' ? 1.3 : 0 }, { s: 1.5, expr: sel ? 'happy' : 'meh' });
     if (sel) { const ay = 730 + Math.sin(time * 5) * 8; poly([[x - 14, ay], [x + 14, ay], [x, ay + 16]], '#ffd43b', OUT, 3); }
     const pw = 108, py = fy + 14;
     rr(x - pw / 2, py + 4, pw, 36, 18, 'rgba(20,10,40,.4)');
@@ -2221,7 +2561,7 @@ function render() {
   if (toast) {
     ctx.globalAlpha = Math.min(1, (2.6 - toast.t) * 3);
     ctx.font = 'bold 24px ' + FONT; const w = Math.min(680, ctx.measureText(toast.s).width + 90);
-    const ty = 250 - Math.max(0, 0.15 - toast.t) * 200;
+    const ty = (modal && modal.type === 'shop' ? 994 : 250) - Math.max(0, 0.15 - toast.t) * 200;
     rr(360 - w / 2, ty + 5, w, 60, 30, 'rgba(20,10,40,.35)');
     const tg = ctx.createLinearGradient(0, ty, 0, ty + 60); tg.addColorStop(0, '#ff6b6b'); tg.addColorStop(1, '#c92a2a');
     rr(360 - w / 2, ty, w, 60, 30, tg, OUT, 3);
