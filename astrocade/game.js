@@ -1532,7 +1532,7 @@ function fleetFire(k) {                                         // every ship an
     if (Math.hypot(v.s.x - k.x, v.s.y - k.y) > GUN_RANGE) continue;
     if ((v.s.kc = (v.s.kc || 0) - 1) > 0) continue;
     v.s.kc = VOLLEY_TICKS; k.hp -= firepower(v.age) * (.6 + Math.random() * .8);
-    fx('arrow', Math.round(v.s.x), Math.round(v.s.y), { tx: Math.round(k.x), ty: Math.round(k.y) }); fx('hit', Math.round(k.x), Math.round(k.y)); emit('bit', k.x, k.y - 1, 4, { col: '#e8a0ff' });
+    fx(v.age >= 3 ? 'cannon' : 'arrow', Math.round(v.s.x), Math.round(v.s.y), { tx: Math.round(k.x), ty: Math.round(k.y) }); fx('hit', Math.round(k.x), Math.round(k.y)); emit('bit', k.x, k.y - 1, 4, { col: '#e8a0ff' });
     if (!k.fought) { k.fought = 1; const kg = kingdoms.get(v.kid); addChronicle('💥', `${kg ? kg.name : 'A crew'} fights the kraken, though the odds are hopeless`); toast('💥 The crew fights back!'); }
   }
   if (k.hp < KRAKEN_MAXHP * FLEE_FRAC && k.hp > 0 && !k.driven) { k.driven = 1; k.st = 2; k.t = 0; k.atk = null; krakenCd = 12000 + ri(0, 6000); banner('🐙', 'Kraken driven off', 'Wounded, it sinks back down', 'good'); addChronicle('🐙', 'The kraken was driven off by cannon fire'); }
@@ -1814,6 +1814,11 @@ const SFX = {
   slash: v => burst(.08, { type: 'highpass', f: 1800, to: 900, vol: .07 * v }),
   rustle: v => burst(.12, { type: 'bandpass', f: 2600, q: .8, vol: .035 * v }),
   coin: () => { tone(1320, .09, { type: 'square', vol: .06 }); tone(1760, .2, { type: 'square', vol: .06, when: Snd.ctx.currentTime + .08 }); },
+  saw: v => { burst(.2, { type: 'bandpass', f: 1100, to: 700, q: 2.2, vol: .1 * v }); tone(190, .18, { type: 'sawtooth', vol: .02 * v, to: 150 }); },
+  hammer: v => { tone(150, .07, { type: 'square', vol: .06 * v, to: 90 }); tone(1700, .09, { type: 'triangle', vol: .04 * v, to: 1300, when: Snd.ctx.currentTime + .05 }); burst(.04, { type: 'highpass', f: 2600, vol: .05 * v }); },
+  shot: v => { burst(.12, { type: 'lowpass', f: 2200, to: 260, vol: .28 * v }); tone(140, .12, { type: 'square', vol: .06 * v, to: 60 }); },
+  cannon: v => { tone(95, .45, { type: 'sine', vol: .34 * v, to: 36 }); burst(.5, { type: 'lowpass', f: 900, to: 100, vol: .3 * v }); },
+  birth: v => { tone(784, .12, { type: 'sine', vol: .07 * v }); tone(1047, .2, { type: 'sine', vol: .07 * v, when: Snd.ctx.currentTime + .1 }); },
 };
 function sndAt(x, y) {                                          // louder in view, quieter just outside, silent far away
   const sx = ox + (x + .5) * sc, sy = oy + (y + .5) * sc;
@@ -1837,6 +1842,11 @@ function sndFx(kind, x, y, extra) {
     case 'evolve': if (can('howl', 1500)) SFX.howl(); break;
     case 'rock': if (can('rock', 200)) SFX.thud(v); break;
     case 'chop': case 'clink': case 'dig': case 'slash': case 'rustle': if (v >= 1 && sc >= 8 && can('work', 110)) SFX[kind](v * .7); break;
+    case 'saw': if (v >= 1 && sc >= 8 && can('saw', 400)) SFX.saw(v * .8); break;
+    case 'hammer': if (v >= 1 && sc >= 8 && can('hammer', 350)) SFX.hammer(v * .8); break;
+    case 'shot': if (can('shot', 110)) SFX.shot(v); break;
+    case 'cannon': if (can('cannon', 220)) SFX.cannon(v); break;
+    case 'birth': if (v >= 1 && sc >= 8 && can('birth', 500)) SFX.birth(v); break;
     case 'death': if (can('death', 250)) tone(210, .22, { type: 'sine', vol: .05 * v, to: 100 }); break;
   }
 }
@@ -1943,7 +1953,7 @@ function drawAtmosphere() {
     ctx.restore();
   }
   if (Snd.flash > 0) { ctx.fillStyle = `rgba(220,230,255,${Snd.flash / 8 * .3})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); Snd.flash--; }
-  { const sn = seasonOf(tick); if (sn.tint) { const a = sn.tint[3] * (.5 + .5 * seasonTintK(tick)); ctx.fillStyle = `rgba(${sn.tint[0]},${sn.tint[1]},${sn.tint[2]},${a})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); } }          // seasonal colour wash
+  { const sn = seasonOf(tick); if (sn.tint) { const a = sn.tint[3] * (.5 + .5 * seasonTintK(tick)); ctx.fillStyle = `rgba(${sn.tint[0]},${sn.tint[1]},${sn.tint[2]},${a})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); } seasonFx(); }          // seasonal colour wash and drifting petals, leaves, snow and fireflies
   // day cycle: deep blue night, warm dusk, rosy dawn, twinkling stars
   if (cfg.settings.dayNight) {
     const ph = (tick + acc) / (TPS * 90) * Math.PI * 2, c0 = Math.cos(ph), s0 = Math.sin(ph), n = Math.max(0, -c0), w = Math.max(0, 1 - Math.abs(c0) * 2.4);
@@ -2405,11 +2415,11 @@ function setFamily(c, par) {                                    // a newborn get
   c.tr = inheritTraits(A.tr | 0, B.tr | 0);
   c.life = Math.round(ri(R.life[0], R.life[1]) * (c.tr & 8 ? 1.3 : 1)); applyStats(c); c.hp = c.mhp;
   A.ch = (A.ch | 0) + 1; B.ch = (B.ch | 0) + 1;
-  if (!A.sp && !B.sp) { A.sp = B.nid; B.sp = A.nid; addHist(A, 14, B.nid); addHist(B, 14, A.nid); }
+  if (!A.sp && !B.sp) { A.sp = B.nid; B.sp = A.nid; addHist(A, 14, B.nid); addHist(B, 14, A.nid); fx('birth', A.x, A.y); }
   for (const P of [A, B]) if (P.ch === 1 || P.ch === 3 || P.ch === 6) addHist(P, 15, c.nid);
 }
 const sexTog = {};                                           // per kind: the sex the next spawn gets (1 = female)
-function newborn(c) { c.age = 0; c.f = Math.random() < .5 ? 1 : 0; }
+function newborn(c) { c.age = 0; c.f = Math.random() < .5 ? 1 : 0; fx('birth', c.x, c.y); }
 function findMate(c, r = 10) {                                // a mature male of the same kind close by
   const gx = c.x >> 3, gy = c.y >> 3;
   for (let yy = Math.max(0, gy - 1); yy <= Math.min(GH - 1, gy + 1); yy++) for (let xx = Math.max(0, gx - 1); xx <= Math.min(GW - 1, gx + 1); xx++)
@@ -2567,7 +2577,7 @@ function stepCreature(c) {
       }
       if (tg.ec && tg.eq && tg.eq[1] && tg.ec[1] === 5 && d <= 1 && hit > 0) c.hp -= hit * .25;                                   // thorns
       if (tg.hp > 0 && tg.hp < tg.mhp * .2 && !tg.hw) { tg.hw = 1; addHist(tg, 11); }
-      if (d > 1) fx('arrow', c.x, c.y, { tx: tg.x, ty: tg.y }); else fx('hit', tg.x, tg.y);
+      if (d > 1) fx(c.gun ? 'shot' : 'arrow', c.x, c.y, { tx: tg.x, ty: tg.y }); else fx('hit', tg.x, tg.y);
       if (tg.hp <= 0) {
         if (tg.eq) lootFrom(c, tg);
         c.kills++; if (c.kills === 1) addHist(c, 2); else if (c.kills === 5) addHist(c, 3); else if (c.kills === 10) addHist(c, 4);
@@ -3458,20 +3468,20 @@ function navyTick() {
     if ((n.kc = (n.kc || 0) - 1) > 0) continue;
     const F = warshipFire(n.age), nx = Math.round(n.x), ny = Math.round(n.y);
     let shot = false;
-    for (const o of navy) if (o !== n && k.enemies.has(o.kid) && Math.hypot(o.x - n.x, o.y - n.y) <= F.range) { o.hp -= F.dmg * (.6 + Math.random() * .8); fx('arrow', nx, ny, { tx: Math.round(o.x), ty: Math.round(o.y) }); fx('hit', Math.round(o.x), Math.round(o.y)); shot = true; break; }
-    if (!shot) for (let si = ships.length - 1; si >= 0; si--) { const s = ships[si]; if (k.enemies.has(s.kingdomId) && Math.hypot(s.x - n.x, s.y - n.y) <= F.range) { fx('arrow', nx, ny, { tx: Math.round(s.x), ty: Math.round(s.y) }); if (Math.random() < .35) wreckShip(s, si, 'navy'); shot = true; break; } }
+    for (const o of navy) if (o !== n && k.enemies.has(o.kid) && Math.hypot(o.x - n.x, o.y - n.y) <= F.range) { o.hp -= F.dmg * (.6 + Math.random() * .8); fx(n.age >= 3 ? 'cannon' : 'arrow', nx, ny, { tx: Math.round(o.x), ty: Math.round(o.y) }); fx('hit', Math.round(o.x), Math.round(o.y)); shot = true; break; }
+    if (!shot) for (let si = ships.length - 1; si >= 0; si--) { const s = ships[si]; if (k.enemies.has(s.kingdomId) && Math.hypot(s.x - n.x, s.y - n.y) <= F.range) { fx(n.age >= 3 ? 'cannon' : 'arrow', nx, ny, { tx: Math.round(s.x), ty: Math.round(s.y) }); if (Math.random() < .35) wreckShip(s, si, 'navy'); shot = true; break; } }
     if (!shot && n.phase === 'siege') {                                                             // bombard enemy houses on the shore
       const r = F.range; let hit = -1;
       for (let a = 0; a < 14 && hit < 0; a++) { const x = nx + ri(-r, r), y = ny + ri(-r, r); if (!inb(x, y)) continue; const i = x + y * W; if (bld[i] && k.enemies.has(kid[i])) hit = i; }
       if (hit >= 0) {
-        const hx = hit % W, hy = (hit / W) | 0; fx('arrow', nx, ny, { tx: hx, ty: hy }); fx('boom', hx, hy, { r: 1 });
+        const hx = hit % W, hy = (hit / W) | 0; fx(n.age >= 3 ? 'cannon' : 'arrow', nx, ny, { tx: hx, ty: hy }); fx('boom', hx, hy, { r: 1 });
         if (Math.random() < .45) { bld[hit] = 0; kid[hit] = 0; warStats.razed++; dirty = true; emit('debris', hx, hy, 8); }
         shot = true;
       }
     }
     if (shot) n.kc = VOLLEY_TICKS + 8; else n.kc = 6;
     const foes = n.phase === 'siege' ? [...k.enemies].map(id => kingdoms.get(id)).filter(e => e && e.age >= 3 && Math.hypot(e.cx - n.x, e.cy - n.y) < 16) : [];
-    if (foes.length && tick % 40 === 0) { n.hp -= 3 * foes.length; fx('arrow', Math.round(foes[0].cx), Math.round(foes[0].cy), { tx: nx, ty: ny }); }   // shore batteries answer
+    if (foes.length && tick % 40 === 0) { n.hp -= 3 * foes.length; fx(n.age >= 3 ? 'cannon' : 'arrow', Math.round(foes[0].cx), Math.round(foes[0].cy), { tx: nx, ty: ny }); }   // shore batteries answer
   }
 }
 function drawNavy(x0, y0, x1, y1) {
@@ -3880,6 +3890,7 @@ function draw() {
       const lw = ls.width * SPR_K, lh = ls.height * SPR_K, lcx = ox + (lx + .5)*sc, lfy = oy + (ly + 1)*sc - sc*.05;
       if (key === 'lifetree') { ctx.fillStyle = 'rgba(255,226,122,.16)'; ctx.beginPath(); ctx.arc(lcx, lfy - lh*.55, lw*.8, 0, 7); ctx.fill(); }
       ctx.drawImage(ls, lcx - lw/2, lfy - lh, lw, lh);
+      if (sc >= 5) landmarkLife(key, li, lx, ly, lcx, lfy, lw, lh);
     }
     const landCreatures = creatures.filter(c => !c.boat);
     for (const c of landCreatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
@@ -3894,7 +3905,8 @@ function draw() {
       else if (jb && jb.ph === 1 && jb.k !== 'fish' && wph >= IMPACT - .04 && wph < IMPACT + .22) f = 'C';
       if (jb && jb.ph === 1 && jb.k !== 'hunt' && jb.k !== 'fish' && !paused && isStrikeFrame(wph)) { const cy = swingCycle(frame, c.id, jb.k); if (cy !== jb.cy) { jb.cy = cy; workImpact(c, jb, c.t); } }
       const lunge = c.atk > 3 ? 2 * CHR_K : 0;
-      const spr = ATLAS[c.t][f], sw = spr.width * CHR_K, sh = spr.height * CHR_K;
+      const gk = c.f !== undefined && c.life ? .6 + .4 * Math.min(1, c.age / (c.life * .15)) : 1;     // children and young animals are smaller
+      const spr = ATLAS[c.t][f], sw = spr.width * CHR_K * gk, sh = spr.height * CHR_K * gk;
       const crowned = c.lead && c.k && kingdoms.has(c.k) && kingdoms.get(c.k).level >= 1;       // sprites may be bigger than 10x10
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - sw*.3, fy - Math.max(1, sw*.08), sw*.6, Math.max(1, sw*.1));
       if (c === selected) { ctx.strokeStyle = `rgba(255,214,74,${.65 + .3*Math.sin(frame*.2)})`; ctx.lineWidth = Math.max(2, CHR_K*.7); ctx.beginPath(); ctx.ellipse(cx, fy - sw*.03, sw*.55, sw*.2, 0, 0, 7); ctx.stroke(); }
@@ -3945,6 +3957,49 @@ function draw() {
   ctx.restore();
 }
 
+function landmarkLife(key, li, lx, ly, lcx, lfy, lw, lh) {      // production buildings work: saws, chimney smoke, forge sparks, warm windows, a wonder's glow
+  const f = frame + (li % 97), night = cfg.settings.dayNight ? nightNow : 0, topY = (lfy - lh - oy) / sc - .5, midY = (lfy - lh * .45 - oy) / sc - .5;
+  if (key === 'sawmill') {
+    const bx = lcx + Math.sin(f * .35) * lw * .1, by = lfy - lh * .42;
+    ctx.fillStyle = '#e4e8ee'; ctx.fillRect(bx - lw * .03, by - lh * .12, Math.max(2, lw * .06), lh * .2);                      // the blade
+    ctx.fillStyle = '#9aa0aa'; ctx.fillRect(bx - lw * .03, by + lh * .04, Math.max(2, lw * .06), Math.max(1, lh * .04));
+    if (f % 9 === 0) emit('bit', lx + (Math.sin(f * .35) * .1), midY, 1, { col: '#f0d8a0' });
+    if (f % 80 === 0) sndFx('saw', lx, ly);
+  } else if (key === 'bakery') {
+    if (f % 15 === 0) emit('smoke', lx - .05, topY + .15, 1, { sx: .1, s0: .12, s1: .45 });
+    if (night > .25) { ctx.fillStyle = `rgba(255,200,90,${.45 * night})`; ctx.fillRect(lcx - lw * .3, lfy - lh * .45, lw * .2, lh * .2); }
+  } else if (key === 'smithy') {
+    const pulse = .5 + .5 * Math.sin(f * .27) * Math.sin(f * .11);
+    const gr = ctx.createRadialGradient(lcx, lfy - lh * .38, 0, lcx, lfy - lh * .38, lw * .55); gr.addColorStop(0, `rgba(255,170,60,${.25 + .35 * pulse})`); gr.addColorStop(1, 'rgba(255,110,20,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(lcx, lfy - lh * .38, lw * .55, 0, 7); ctx.fill();
+    if (f % 11 === 0) emit('spark', lx, midY, 2); if (f % 17 === 0) emit('smoke', lx - .3, topY + .1, 1, { sx: .1, dark: 1, s0: .14, s1: .5 });
+    if (f % 70 === 0) sndFx('hammer', lx, ly);
+  } else if (key === 'library') {
+    if (night > .25) { ctx.fillStyle = `rgba(255,214,120,${.5 * night})`; ctx.fillRect(lcx - lw * .3, lfy - lh * .52, lw * .6, lh * .2); }
+    if (f % 55 === 0) emit('bit', lx + (Math.random() - .5) * .5, midY, 1, { col: '#f4f1e6' });                                          // a page flutters
+  } else if (key === 'academy') {
+    const a = .12 + .1 * Math.sin(f * .08); ctx.fillStyle = `rgba(255,226,120,${a})`; ctx.beginPath(); ctx.arc(lcx, lfy - lh * .82, lw * .3, 0, 7); ctx.fill();
+    if (f % 45 === 0) emit('bit', lx, topY + .2, 1, { col: '#ffe27a' });
+  } else if (key === 'wonder') {
+    const a = .16 + .1 * Math.sin(f * .06), gr = ctx.createRadialGradient(lcx, lfy - lh * .6, 0, lcx, lfy - lh * .6, lw * .9);
+    gr.addColorStop(0, `rgba(255,226,120,${a + .12})`); gr.addColorStop(1, 'rgba(255,200,80,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(lcx, lfy - lh * .6, lw * .9, 0, 7); ctx.fill();
+    if (f % 14 === 0) emit('bit', lx + (Math.random() - .5) * .9, topY + 1.2, 1, { col: '#ffe27a' });
+  }
+}
+/* ---- season weather in the air: petals, fireflies, falling leaves and snow (screen-space, light) ---- */
+const SEASP = [];
+function seasonFx() {
+  const id = seasonOf(tick).id; if (weather.kind === 3 && weather.k > .3 && id === 'winter') return;                        // real snowfall already
+  while (SEASP.length < 56) SEASP.push({ x: Math.random() * 720, y: VIEW.y + Math.random() * VIEW.h, ph: Math.random() * 6.28, s: Math.random(), id: '' });
+  const gl = Math.max(0, nightNow);
+  for (const p of SEASP) {
+    if (p.id !== id && (p.y > VIEW.y + VIEW.h || p.y < VIEW.y - 6 || p.x < -6 || p.x > 726 || !p.id)) { p.id = id; p.y = id === 'summer' ? VIEW.y + Math.random() * VIEW.h : VIEW.y - 4; p.x = Math.random() * 720; p.s = Math.random(); p.ph = Math.random() * 6.28; }
+    if (p.id === 'winter') { p.y += 1 + p.s * .9; p.x += Math.sin(frame * .03 + p.ph) * .5 - .25; if (p.s > .85) continue; ctx.fillStyle = `rgba(250,252,255,${.7 + p.s * .3})`; const z = p.s > .5 ? 4 : 3; ctx.fillRect(p.x, p.y, z, z); }
+    else if (p.id === 'autumn') { p.y += .6 + p.s * .6; p.x += Math.sin(frame * .05 + p.ph) * 1.1 + .5; if (p.s > .55) continue; ctx.fillStyle = p.s < .18 ? '#d8402a' : p.s < .36 ? '#e8892a' : '#e0b030'; ctx.fillRect(p.x, p.y, 5, 3); }
+    else if (p.id === 'spring') { p.y += .45 + p.s * .4; p.x += Math.sin(frame * .04 + p.ph) * .7 + .3; if (p.s > .4) continue; ctx.fillStyle = p.s < .2 ? 'rgba(255,190,214,.85)' : 'rgba(255,240,250,.85)'; ctx.fillRect(p.x, p.y, 3, 3); }
+    else { p.x += Math.sin(frame * .02 + p.ph) * .35; p.y += Math.cos(frame * .017 + p.ph * 2) * .3; if (p.s > .5 || gl < .15) continue; ctx.fillStyle = `rgba(255,236,120,${gl * (.35 + .55 * Math.sin(frame * .1 + p.ph))})`; ctx.fillRect(p.x, p.y, 2, 2); }       // fireflies at dusk
+  }
+}
 function drawEffects() {
   cv.style.transform = shakeT > 0 ? `translate(${(Math.random() - .5) * 2 * Math.min(8, shakeT / 4)}px, ${(Math.random() - .5) * 2 * Math.min(8, shakeT / 4)}px)` : '';
   if (shakeT > 0) shakeT--;
@@ -4033,6 +4088,16 @@ function drawEffects() {
       const ax = ox + (e.x + .5)*sc, ay = oy + (e.y + .5)*sc, bx = ox + (e.tx + .5)*sc, by = oy + (e.ty + .5)*sc;
       const x1p = ax + (bx - ax)*p, y1p = ay + (by - ay)*p;
       ctx.strokeStyle = '#efe2b8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x1p - (bx - ax)*.18, y1p - (by - ay)*.18); ctx.lineTo(x1p, y1p); ctx.stroke();
+    } else if (e.k === 'shot' || e.k === 'cannon') {                          // gunpowder: a muzzle flash, a quick ball and a puff of smoke
+      const big = e.k === 'cannon'; life = big ? 12 : 9; const p = e.t / life;
+      const ax = ox + (e.x + .5)*sc, ay = oy + (e.y + .5)*sc, bx = ox + (e.tx + .5)*sc, by = oy + (e.ty + .5)*sc;
+      if (e.t === 1) { emit('smoke', e.x, e.y - .2, big ? 3 : 2, { sx: .3, s0: big ? .3 : .18, s1: big ? .9 : .5 }); if (big) emit('spark', e.x, e.y, 5); }
+      if (e.t < 4) { const fr = Math.max(3, sc * (big ? .55 : .32)) * (1 - e.t / 4); ctx.fillStyle = `rgba(255,${big ? 200 : 230},120,${.9 - e.t * .2})`; ctx.beginPath(); ctx.arc(ax, ay - sc * .3, fr, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,230,.9)'; ctx.beginPath(); ctx.arc(ax, ay - sc * .3, fr * .45, 0, 7); ctx.fill(); }
+      const q = Math.min(1, p * 1.25), x1p = ax + (bx - ax) * q, y1p = ay + (by - ay) * q - Math.sin(q * Math.PI) * (big ? sc * .8 : 0);
+      ctx.fillStyle = big ? '#262a33' : '#ffe9a0'; const z = Math.max(2, sc * (big ? .22 : .12)); ctx.fillRect(x1p - z / 2, y1p - z / 2, z, z);
+    } else if (e.k === 'birth') {                                             // a pixel heart floats up
+      life = 44; const p = e.t / life, K = Math.max(2, sc * .1), hx = px - K * 2.5, hy = py - sc * .9 - p * sc * 1.1;
+      if (sc >= 6) { ctx.fillStyle = `rgba(255,120,168,${Math.min(1, (1 - p) * 1.6)})`; for (const [r0, row] of ['.X.X.', 'XXXXX', 'XXXXX', '.XXX.', '..X..'].entries()) for (let q = 0; q < 5; q++) if (row[q] === 'X') ctx.fillRect(hx + q * K, hy + r0 * K, K, K); }
     } else if (e.k === 'tech') {
       life = 60; const p = e.t / life;
       drawIcon(e.ic, px, py - sc*1.5 - p*sc*5, Math.max(20, sc*3), Math.min(1, (1 - p) * 1.6));
@@ -5277,7 +5342,8 @@ const NEWS = [
     '<b>Roads</b> appear where settlers keep walking. Walking and caravans are faster on them, and they carry trade.',
     'Five <b>scenarios</b> (World tab) give you a prepared world, a goal and a time limit: First Light, Age of Sail, Arctic Survival, Four Realms and Long Peace.']],
   ['🐑', 'A real life cycle', [
-    'Every creature is <b>male or female</b>. A birth needs a mature pair of the same kind close together, and animals now breed much more slowly.']],
+    'Every creature is <b>male or female</b>. A birth needs a mature pair of the same kind close together, and animals now breed much more slowly. Children are smaller, and a newborn brings a floating heart.',
+    'The new buildings come alive (spinning saw, smoke, forge sparks, glowing windows), muskets and cannons flash and smoke, and the seasons bring petals, fireflies, falling leaves and snow, all with new sounds.']],
   ['🌊', 'Living Seas (version 2.0)', [
     '<b>Fish shoals</b> drift through the sea: sardines near the shore, grouper on reefs, tuna in the deep. Fishers and boats depend on them, and overfishing scatters a shoal.',
     '<b>Sharks</b> patrol the deep, chase ships and bite far-out fishers.',

@@ -99,6 +99,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Equipment:** three slots (weapon, armour, shield) and three tiers that follow the kingdom's age, with race-specific items. Kingdoms arm their leader, knights and soldiers for wood, bronze or iron. Any race can use any item.
 - **Bag, loot and chest:** a 12-slot universal bag; gear can lie on the ground and be picked up; the victor loots a fallen enemy; every kingdom keeps a royal chest (6 plus 4 per level slots). Items can be sold to the market (75% of their value) and bought from the shop.
 - **Enchantments:** Flaming, Venomous, Vampiric, Storm (weapons); Thorned, Regenerating, Fireproof (armour); Warding, Guardian (shields). They come from crafting, loot and royal smiths. Enchantments live in `c.ec[slot]` (`c.en` is hunters' energy).
+- **Animation and sound (v3.0):** children and young animals are drawn smaller (60% to 100% of adult size as they grow up) and a pixel heart floats up at each birth and new partnership. The production buildings animate in `landmarkLife`: a saw blade and sawdust, chimney smoke, forge glow with sparks, windows that light up at night, page flutters, a pulsing academy dome and the wonder's golden aura. Musketeers fire a `shot` effect (flash, ball, smoke) and ships and warships of the Medieval Age on fire a `cannon` effect with a heavier boom. `seasonFx` drifts petals (spring), fireflies at dusk (summer), leaves (autumn) and snow (winter) across the view. New sounds: saw, hammer, shot, cannon and birth.
 - **Sexes and life stages (v3.0):** every creature is male or female (shown in its panel with its stage: newborn, young, adult or elder). A creature is an adult from 15% of its lifespan. **A birth needs a mature female and a mature male of the same kind close together**; peoples also need the pair to belong to the same kingdom, and the parents recorded are that couple (unmarried parents become partners). Sexes alternate when creatures are placed, so every group has both, a ship's crew always carries both sexes when it can, and the pack of wolves that evolves into werewolves is mixed. Placed creatures start as adults; newborns start at age 0.
 - **Family:** settlers born in a house get two parents; spouses, children and parents are tracked and relatives are jump buttons.
 - **Jobs:** non-leader settlers chop, mine, hunt, farm, fish or forage (soldiers only in peacetime), play the work animation and haul goods home.
@@ -163,6 +164,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 - Seasons that change food and births, and royal decrees.
 - Rivers, roads that wear in where settlers walk, and five scenarios.
 - A real life cycle: male and female creatures, adulthood, and births that need a pair; animals breed far more slowly.
+- Livelier visuals and sound: smaller children and a heart for each birth, working buildings, gunpowder flashes and smoke, and seasonal petals, fireflies, leaves and snow.
 
 ## What's new in 2.0
 **Living Seas**
