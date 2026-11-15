@@ -6,7 +6,7 @@ kingdoms grow, trade, sail, fight and fall, then unleash disasters.
 ## Repository layout
 | Path | What it is |
 | --- | --- |
-| [`astrocade/`](astrocade/) | **The current game** (version 2.0 "Living Seas"): the Astrocade build in portrait 720x1280, with its own [README](astrocade/README.md) covering features, controls, the HUD, save format and development notes. |
+| [`astrocade/`](astrocade/) | **The current game** (version 3.0 "Rise of Empires"): the Astrocade build in portrait 720x1280, with its own [README](astrocade/README.md) covering features, controls, the HUD, save format and development notes. |
 | `index.html` | The original single-file desktop prototype (HTML5 canvas, no dependencies). Kept for reference; open it in any browser. |
 | `preview/` | Sprite preview page used while drawing the pixel art (`preview.html`, `sprites.js`, `sprite-preview.png`). |
 

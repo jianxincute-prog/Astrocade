@@ -4,7 +4,7 @@ A WorldBox-style god-sim sandbox for mobile and desktop. Shape an island, drop h
 orcs and animals, and watch kingdoms grow, trade, sail, fight and fall, then unleash disasters.
 Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, sound and music are all generated in code).
 
-**Current version: 2.0 "Living Seas".** See [What's new](#whats-new-in-20).
+**Current version: 3.0 "Rise of Empires".** See [What's new](#whats-new-in-30). Version 2.0 "Living Seas" is described [below](#whats-new-in-20).
 
 ## Contents
 1. [Files](#files)
@@ -25,6 +25,10 @@ Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, soun
 | --- | --- |
 | `index.html` | Loads `game.js` as a module. |
 | `game.js` | The whole game shell: world generation, creatures, kingdoms, economy, diplomacy, sea life, rendering, UI, sound, save/restore. Defines `run(mode)` (`window.run = run`). |
+| `tech.js` | Pure tech tree: 15 techs per race in three branches, five ages, race-flavoured age names, research choice and knowledge-point gain (v3.0). |
+| `buildings.js` | Pure rules for the production buildings (sawmill, bakery, smithy, library, academy, wonder) and their goods chains (v3.0). |
+| `naval.js` | Pure naval rules: ship firepower, kraken odds model, warship stats (v3.0). |
+| `seasons.js` | Pure seasons and royal decrees (v3.0). |
 | `jobs.js` | Pure logic for everyday jobs: chop, mine, hunt, farm, fish, gather (race weights, yields, work length, swing timing). |
 | `work_anim.js` | Canvas drawing for the work animations (axes, pickaxes, hoes, spears, bows, claws, fishing rods) and carried goods. |
 | `sizing.js` | Pure helper for the Character Size setting (0.6 to 2, default 1.2). |
@@ -70,13 +74,17 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 ## Civilization
 - **Kingdoms:** houses of one race within 9 tiles form a kingdom with a generated name, a capital and a territory (toggle borders with the flag in the World tab). Each kingdom holds food, wood, stone, gold, bronze, iron and silver. Food limits births and famine kills; wood pays for houses. Kingdoms level up Tribe, Village, Town, Kingdom as population, houses and resources allow; the oldest member is crowned.
 - **Houses and props:** one architectural style per race (human cottage, elf treehouse, dwarf stone hall, orc hide tent, werewolf moon lodge) with chimney smoke and lit windows at night. Every race has its own wall, corner tower, gate, well, field and granary art (`PROPS`). A wall ring with gates on all four sides surrounds the capital from level 2 (or with the human Walls tech).
-- **Technology:** each race has four sequential techs plus a shared Iron-Age sailing breakthrough, researched automatically (about 30 s) once level and resources allow. Human: farming, walls, knighthood, trade. Elf: living forest, archery, fire ward, tree of life. Dwarf: mining, forge, vault, mountain hold. Orc: war camp, raiding, blood totem, horde. Werewolf: moon prayer, pack, spirit totem, full moon. The Knowledge power grants the next tech instantly.
-- **Resources and ages:** ore nodes (stone, bronze, iron, silver, gold) sit on hills and mountains and slowly respawn. Dwarves mine twice as fast. 20 bronze opens the Bronze Age; 25 iron the Iron Age (stronger walls and the next gear tier). A metal requirement is waived when none exists within reach, so there are no dead ends. Trees come in kinds (oak, pine, birch, fruit, palm) with different timber yield and race affinity.
+- **Ages and technology (v3.0):** five ages: Stone, Bronze, Iron, Medieval and Gunpowder, each with a race-flavoured name (for example the human Feudal Age and Age of Sail and Powder, the dwarf Rune Age and Steam Age). Every race has a tree of 15 techs in three branches (Economy, Military, Lore) and five tiers; a tier needs the previous tier of its branch and enough age and kingdom level. Kingdoms earn **knowledge points** from population and houses (libraries, the academy, wonders and the Scholars decree multiply them), pay them with resources for each tech, and research on their own (about 30 s each), leaning towards their race's favourite branch. Tap a branch in the kingdom's **Tech tree** panel to steer research. The sailing breakthrough is still the tier-3 Economy tech. The **Knowledge** power finishes the running research or grants the best available tech for free. Moving up an age needs the tier's techs, a level and a stock of metal; the metal requirement is waived when none exists within reach.
+- **Resources:** ore nodes (stone, bronze, iron, silver, gold) sit on hills and mountains and slowly respawn. Dwarves mine twice as fast. Trees come in kinds (oak, pine, birch, fruit, palm) with different timber yield and race affinity.
+- **Buildings and goods (v3.0):** a kingdom raises one of each building as its level and age allow, and the building appears near the capital. **Sawmill** (level 1) turns wood into planks, and a house costs one plank instead of four wood. **Bakery** (level 1) bakes surplus food into bread, which raises births by 25% and covers short famines. **Smithy** (level 2, Bronze Age) makes tools from spare metal or stone; tools speed up chopping and quarrying by 25% and wear out. **Library** (level 2, Bronze Age) multiplies knowledge by 1.3, the **Academy** (level 3, Medieval Age, needs a library) by 1.5, and the **Wonder** (Grand Cathedral, Moonwell Spire, Great Forge-Hall, Skull Citadel or Moon Obelisk) by 1.15 and calms unrest.
+- **Seasons and decrees (v3.0):** a year is 120 ticks and the seasons turn every year. Spring boosts food 10% and births 20%, summer food 15%, autumn food 30% and winter cuts food to 70% and births to 75%. The world takes a faint seasonal colour wash, and the year pill shows the season. In a kingdom panel the player can issue a **decree**: Harvest (food x1.5), Scholars (knowledge x2), Tax (gold x1.8) or Industry (wood and stone x1.4). Each lasts four years and then cools down.
 - **Trade:** a world market prices food, wood, stone, bronze, iron and silver by world-wide stock. Kingdoms at peace send wagons to buy what they lack from a neighbour with a surplus (they pay up front; a lost wagon refunds). The Market board in the World tab shows prices with trend arrows, trades and the shop.
 - **War and diplomacy (automatic):** aggression per race (orc high, human and dwarf low, elf very low, werewolves never declare war). Friendly races may form alliances. Wars end when a side is beaten or from war weariness, followed by a truce. Soldiers (25 to 55% of a kingdom) march on the enemy capital; non-orcs capture adjacent houses, orcs raze and loot. The end of a war can collapse a kingdom or, very rarely, extinguish a race (`warOutcome`).
 - **Walls are real barriers:** the ring blocks creatures of a kingdom at war with its owner; attackers detour to the nearest gate. Walls do not block in peace, for allies, neutral werewolves or wildlife.
 - **Siege:** soldiers may hit a blocking wall (orc 70%, dwarf 40%, werewolf 30%, human 15%, elf 8% per blocked move). Wall segments take 60 damage and towers 120; broken segments leave rubble. **Defence:** intact corner towers shoot enemy soldiers in range; civilians repair damaged segments. **Engines:** orcs build battering rams, dwarves iron catapults and level-2 humans wooden catapults; they are real but temporary creatures.
 - **Iron knights:** Iron Age kingdoms arm a few soldiers (+80% hp, +50% attack, +40% defence).
+- **Musketeers and heroes (v3.0):** a Gunpowder Age level-3 kingdom can turn a soldier into a musketeer (2 iron and 40 gold, up to 6): range 4 and +35% attack. A soldier with 7 kills becomes a **hero** with a golden crest (up to 3 per kingdom). Both are saved.
+- **Naval war (v3.0):** a Medieval Age level-2 coastal kingdom at war can launch a **warship** (40 wood, 15 iron, 20 gold; two in the Gunpowder Age). It sails a water route to an enemy coast, bombards houses within range, sinks enemy exploration ships and duels enemy warships, while shore batteries answer. It heads home after about 1100 ticks or when the war ends. Warships are not saved.
 - **Events and realm powers:** plague, drought and golden age strike kingdoms. Unrest builds from famine, plague and long wars; at its peak a mature kingdom rebels and splits. Tiny kingdoms at peace are annexed by a bigger neighbour of their race. The Realm tab offers Grace, Plague, Rebellion, Peace, Unite, Split and Knowledge, acting once per touch.
 - **Score and goals:** the Score button submits the **civilization score** (2 x population + 3 x houses + 60 x level + 40 x techs, plus 2 per year, plus trade points); higher is better. The Chronicle keeps the last 60 events, and three optional goals (50 residents, a level-3 kingdom, one concluded war) are tracked in the Goals tab.
 
@@ -95,7 +103,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 **Sea (version 2.0):**
 - **Fish shoals** drift through the water: sardines near the shore, grouper on reefs, tuna in the deep (`SHOAL`). Shore fishers, fishing boats and sharks depend on them; catches deplete a shoal, overfishing scatters it, and it recovers slowly. Fishing without a nearby shoal gives almost nothing.
 - **Sharks** (up to about 24) patrol the deep, chase ships and bite far-out fishers. They stalk shoals from about 3.6 tiles and never sit inside one; shoals flee from them.
-- **The kraken** is a rare boss: it appears only when there is something at sea to menace, rises, hunts ships (45% plus 5% per risk point, up to 85% to sink one) and smashes harbors (-25 wood and a 3000-tick sailing delay). It has 320 health (Smite 40, lightning 110, meteor 200). The Kraken power summons it manually (always lethal to ships). With Shipwreck Risk 0 it never appears on its own.
+- **The kraken** is a rare boss that the fleet fights, but never really beats (v3.0): every ship and warship within 7 tiles shoots at it (harpoons, then ballistae, then cannons), a wounded kraken lets go of its prey more often, and below half health it is driven off. It is only slain when a dying crew lands a last lucky shot (0.2% per lost ship), so the odds of killing it stay under 1% (about 0.2 to 0.5% for fleets of up to five ships; `simulateKraken` in `naval.js` models it and the tests check it). Otherwise it is a rare boss: it appears only when there is something at sea to menace, rises, hunts ships (45% plus 5% per risk point, up to 85% to sink one) and smashes harbors (-25 wood and a 3000-tick sailing delay). It has 320 health (Smite 40, lightning 110, meteor 200). The Kraken power summons it manually (always lethal to ships). With Shipwreck Risk 0 it never appears on its own.
 - **Tools:** Fish and Shark in the Life tab; Kraken and Salvage in the Powers tab. Inspect any shoal, shark, kraken or wreck for a detail card.
 - Sea life is saved (`sh`, `st`, `sk`, `skt`, `kr`, `krc`).
 
@@ -119,13 +127,13 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Language:** all in-game text is English. Chronicle lines saved by older versions in Indonesian are translated when a save is loaded (`LEGACY_TEXT`).
 
 ## Save format
-Save version 8 with optional fields (older saves load; missing parts are regenerated):
+Save version 9 (v3.0) with optional fields (older saves load; missing parts are regenerated):
 
 | Field | Content |
 | --- | --- |
 | `z`, `seed`, `tiles`, `bld`, `bk` | world size or preset, seed, RLE terrain, houses and their kingdoms |
-| `kg`, `rl` | kingdom rows (resources, tech count, events, unrest, age, chest, voyage cooldown, fins, hides) and relations |
-| `cr`, `ex`, `el`, `inv`, `dr` | creatures, personas, iron knights, the bag and ground drops |
+| `kg`, `rl` | kingdom rows (resources, tech ids, events, unrest, age, chest, voyage cooldown, fins, hides, knowledge points, research focus, buildings, planks, bread, tools, decree) and relations; older saves stored a tech count and are migrated |
+| `cr`, `ex`, `el`, `gn`, `hr`, `inv`, `dr` | creatures, personas, iron knights, musketeers, heroes, the bag and ground drops |
 | `rs`, `ra`, `vc` | ore nodes and amounts, volcanoes |
 | `mk`, `mt`, `mf` | market prices, trade count, fin and hide prices |
 | `sf`, `wk` | ships and wrecks |
@@ -137,7 +145,16 @@ Save version 8 with optional fields (older saves load; missing parts are regener
 - `game.js` is one large module. Key entry points: `generate`/`genPreset` (worlds), `step` (simulation tick, 8 ticks per second, a year is 120 ticks), `draw`/`renderTerrain` (rendering), `updateStats` (HUD), `serialize`/`restore` (saves).
 - Sea code lives together: `SHOAL`, `shoalTick`, `sharkTick`, `krakenTick`, `harpoon`, `sellCatch`, `raiseWreck`, plus `computeShoreD` for depth.
 - `window.__world` exposes internals (kingdoms, ships, shoals, sharks, krakens, `step`, `serialize`, `restore`, `cam`, `applyTool` and more) for automated tests.
-- Pure logic is kept in small modules with Node tests. Hand-drawn art is ASCII grids (`ICON_ART`) and generated sprites (`PROPS`, `ORE_SPR`, ship atlas).
+- Pure logic (`tech.js`, `buildings.js`, `naval.js`, `seasons.js` and the older modules) is kept in small modules with Node tests. Hand-drawn art is ASCII grids (`ICON_ART`) and generated sprites (`PROPS`, `ORE_SPR`, ship atlas).
+
+## What's new in 3.0
+**Rise of Empires**
+- Five ages and a branching tech tree (15 techs per race), with knowledge points and a Tech tree panel.
+- Real buildings and goods chains: sawmill, bakery, smithy, library, academy and a wonder per race.
+- Gunpowder musketeers, battle heroes and warships that fight naval wars.
+- Ships that fight the kraken, with a slaying chance under 1%.
+- Seasons that change food and births, and royal decrees.
+- Not done yet: rivers, roads and carts, and scenarios.
 
 ## What's new in 2.0
 **Living Seas**
