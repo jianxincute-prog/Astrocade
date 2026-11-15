@@ -54,17 +54,28 @@ const NEEDS = [
 // Perabot: posisi di ruangan, titik berdiri karakter (spot), aksi
 const FURN = [
   { id: 'bed',   key: '1', icon: '🛏️', name: 'Bed',  verb: 'Sleep',     x: 40,  y: 330, w: 230, h: 150, spot: [310, 420], sleep: true },
-  { id: 'stove', key: '2', icon: '🍳', name: 'Stove', verb: 'Cook noodles',  x: 30,  y: 540, w: 120, h: 120, spot: [190, 640], face: -1, pose: 'cook', hold: 'spoon', expr: 'happy', hours: 1.5, timeMul: 0.3,
-    phases: [{ until: 0.4, pose: 'cook', hold: 'spoon', expr: 'happy', face: -1 }, { until: 1, pose: 'eat', hold: 'chopsticks', hold2: 'bowlhand', expr: 'eat', face: 1, label: 'Eating noodles' }], cost: 12, eff: { hunger: 45 } },
+  { id: 'stove', key: '2', icon: '🍳', name: 'Stove', verb: 'Cook & eat',  x: 30,  y: 540, w: 120, h: 120, spot: [190, 640], face: -1, pose: 'cook', hold: 'spoon', expr: 'happy', hours: 1.5, timeMul: 0.3,
+    phases: [{ until: 0.4, pose: 'cook', hold: 'spoon', expr: 'happy', face: -1 }, { until: 1, pose: 'eat', hold: 'utensil', hold2: 'dish', expr: 'eat', face: 1, label: 'Eating' }], eff: {} },
   { id: 'bath',  key: '3', icon: '🚿', name: 'Shower',  verb: 'Shower',     x: 510, y: 320, w: 190, h: 200, spot: [600, 470], face: 1, pose: 'shower', expr: 'bliss', hours: 1, eff: { hygiene: 65, fun: 4 } },
   { id: 'desk',  key: '4', icon: '💻', name: 'Laptop', verb: 'Freelance', x: 30,  y: 700, w: 130, h: 150, spot: [196, 800], face: -1, pose: 'type', expr: 'focus', hours: 3, earn: 25, eff: { fun: -8, energy: -5 }, power: true },
   { id: 'tv',    key: '5', icon: '📺', name: 'TV',     verb: 'Watch TV', x: 612, y: 615, w: 70,  h: 150, spot: [527, 715], face: 1, pose: 'tv', hold: 'remote', expr: 'happy', hours: 2, eff: { fun: 40 }, power: true },
   { id: 'door',  key: '6', icon: '🚪', name: 'Work',  verb: 'Work shift', x: 400, y: 905, w: 140, h: 30, spot: [470, 860], hours: 6, earn: 60, eff: { energy: -14, hygiene: -18, fun: -6 }, away: true },
 ];
 
+// Makanan yang bisa dimasak di kompor (harga dalam ribuan)
+const FOODS = [
+  { id: 'noodles',   icon: '🍜', name: 'Instant Noodles', price: 4,  hunger: 45, fun: 0,  dish: 'bowl',  utensil: 'chopsticks', say: 'Slurp!' },
+  { id: 'tempeh',    icon: '🍢', name: 'Tempeh & Tofu',   price: 6,  hunger: 45, fun: 2,  dish: 'plate', utensil: 'spoon', say: 'Crunchy!' },
+  { id: 'eggrice',   icon: '🍳', name: 'Rice & Fried Egg', price: 7, hunger: 55, fun: 4,  dish: 'plate', utensil: 'spoon', say: 'Nom nom!' },
+  { id: 'friedrice', icon: '🍛', name: 'Nasi Goreng',     price: 12, hunger: 65, fun: 8,  dish: 'plate', utensil: 'spoon', say: 'Delicious!' },
+  { id: 'bakso',     icon: '🍲', name: 'Meatball Soup',   price: 15, hunger: 60, fun: 12, dish: 'bowl',  utensil: 'spoon', say: 'Slurp!' },
+  { id: 'chicken',   icon: '🍗', name: 'Fried Chicken',   price: 20, hunger: 75, fun: 15, dish: 'plate', utensil: 'drumstick', say: 'Crunch!' },
+];
+const foodFree = fd => fd.id === 'noodles' && (G.freeMeals > 0 || SAVE.inv.noodles > 0);
+
 const SHOP = [
   { id: 'kasur',   icon: '🛏️', name: 'Comfy Bed', price: 150, desc: 'Sleep much faster' },
-  { id: 'rice',    icon: '🍚', name: 'Rice Cooker', price: 120, desc: 'Cooking: +70 fullness' },
+  { id: 'rice',    icon: '🍚', name: 'Rice Cooker', price: 120, desc: 'Every meal +15 fullness' },
   { id: 'speaker', icon: '🔊', name: 'Speaker',     price: 90,  desc: 'Fun drains slower' },
   { id: 'laptop',  icon: '💻', name: 'New Laptop', price: 180, desc: 'Freelance pays +60%' },
 ];
@@ -78,7 +89,7 @@ const EVENTS = [
   { id: 'gorengan', icon: '🍤', title: 'Snacks from the landlady', a: { label: 'Thanks so much!', hunger: 25, fun: 8 } },
   { id: 'roach',    icon: '🪳', title: 'FLYING COCKROACH!', win: { fun: 12 }, lose: { hygiene: -12, fun: -15 } },
   { id: 'promo',    icon: '🏷️', title: 'Instant noodle sale',
-    a: { label: 'Stock up! (−Rp20k, 3 free)', money: -20, freeMeals: 3 }, b: { label: 'Skip it' } },
+    a: { label: 'Stock up! (−Rp8k for 3 noodles)', money: -8, freeMeals: 3 }, b: { label: 'Skip it' } },
   { id: 'gig',      icon: '📱', title: 'Rush job',
     a: { label: 'Take it! (+Rp50k, tiring)', money: 50, energy: -25, fun: -5 }, b: { label: 'Pass for now' } },
   { id: 'listrik',  icon: '💡', title: 'Electric bill',
@@ -328,23 +339,30 @@ function order(f) {
   if (G.act && (G.act.special || G.act.f.away)) { showToast(G.act.special ? 'Out cold... 😵' : 'Out at work!'); return; }
   if (G.act && G.act.f === f) return;
   if (furnDisabled(f)) { showToast('Power is out! 🕯️'); SFX.bad(); return; }
-  if (f.cost && G.freeMeals <= 0 && !(f.id === 'stove' && SAVE.inv.noodles) && G.money < f.cost) { showToast('Not enough money! 💸'); SFX.bad(); shake = 6; return; }
+  if (f.id === 'stove' && !G.food) { SFX.tap(); modal = { type: 'food', t: 0 }; return; }
+  if (f.id !== 'stove') G.food = null;
   SFX.tap(); haptic('tick');
   G.act = null; G.pending = f;
 }
+function chooseFood(fd) {
+  if (!foodFree(fd) && G.money < fd.price) { showToast('Not enough money! 💸'); SFX.bad(); shake = 6; return; }
+  modal = null; G.food = fd; order(FURN[1]); G.food = fd;
+}
 
 function startAct(f) {
-  if (f.cost) {
-    if (G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 170, 'Free! 🏷️', '#9ef'); }
-    else if (f.id === 'stove' && SAVE.inv.noodles > 0) { SAVE.inv.noodles--; writeSave(); floatText(f.spot[0], f.spot[1] - 170, 'From the box 🍜', '#9ef'); }
-    else if (G.money >= f.cost) { G.money -= f.cost; floatText(f.spot[0], f.spot[1] - 170, '−' + rp(f.cost), '#ff9b9b'); }
+  let food = null;
+  if (f.id === 'stove') {
+    food = G.food || FOODS[0]; G.food = null;
+    if (food.id === 'noodles' && G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 170, 'Free! 🏷️', '#9ef'); }
+    else if (food.id === 'noodles' && SAVE.inv.noodles > 0) { SAVE.inv.noodles--; writeSave(); floatText(f.spot[0], f.spot[1] - 170, 'From the box 🍜', '#9ef'); }
+    else if (G.money >= food.price) { G.money -= food.price; floatText(f.spot[0], f.spot[1] - 170, '−' + rp(food.price), '#ff9b9b'); }
     else { showToast('Not enough money! 💸'); SFX.bad(); return; }
   }
   const eff = Object.assign({}, f.eff || {});
-  if (f.id === 'stove' && SAVE.upgrades.rice) eff.hunger = 70;
+  if (food) { eff.hunger = food.hunger + (SAVE.upgrades.rice ? 15 : 0); if (food.fun) eff.fun = food.fun; }
   if (f.id === 'bath' && SAVE.inv.soap > 0) { SAVE.inv.soap--; writeSave(); eff.hygiene += 25; floatText(f.spot[0], f.spot[1] - 170, 'Soap 🧴 +25', '#9ef'); }
   if (f.id === 'bath') G.ch.stain = false;
-  G.act = { f, t: 0, total: f.hours || 0, eff };
+  G.act = { f, t: 0, total: f.hours || 0, eff, food };
   if (f.id === 'stove') SFX.eat();
   if (G.tut === 1 && (f.id === 'door' || f.id === 'desk')) { G.tut = 2; G.tutT = 0; }
 }
@@ -752,7 +770,7 @@ const CLOTHES = [
   { id: 'shades',     name: 'Sunglasses',   price: 40, kind: 'glasses', desc: 'Just looks cool' },
 ];
 const DAILY = [
-  { id: 'noodlebox', name: 'Noodle Box',     price: 45, icon: '🍜', give: { noodles: 5 }, desc: '5 meals, no cooking cost' },
+  { id: 'noodlebox', name: 'Noodle Box',     price: 15, icon: '🍜', give: { noodles: 5 }, desc: '5 free noodle meals' },
   { id: 'soap',      name: 'Soap & Shampoo', price: 25, icon: '🧴', give: { soap: 5 },    desc: '5 showers: +25 hygiene' },
   { id: 'coffee',    name: 'Coffee Sachets', price: 15, icon: '☕', give: { coffee: 3 },  desc: 'Use anytime: +25 energy' },
   { id: 'snack',     name: 'Snack Pack',     price: 15, icon: '🍪', give: { snack: 3 },   desc: 'Use anytime: +15 fun' },
@@ -972,7 +990,7 @@ function updatePlayerPose() {
     if (a.special) c.lying = a.special;
     else if (a.f.sleep) c.lying = 'bed';
     else if (a.f.away) c.hidden = true;
-    else if (a.f.phases) { const ph = a.f.phases[a.ph || 0]; c.pose = ph.pose; c.hold = ph.hold; c.hold2 = ph.hold2 || null; c.expr = ph.expr; c.face = ph.face; }
+    else if (a.f.phases) { const ph = a.f.phases[a.ph || 0]; c.food = a.food; c.pose = ph.pose; c.hold = ph.hold; c.hold2 = ph.hold2 || null; c.expr = ph.expr; c.face = ph.face; }
     else { c.pose = a.f.pose; c.hold = a.f.hold || null; c.expr = a.f.expr || null; c.face = a.f.face || c.face; }
   }
   if (G.blackout && !c.hold && (c.pose === 'idle' || c.pose === 'walk')) { c.hold = 'candle'; if (!G.pending) c.pose = 'candle'; }
@@ -1048,12 +1066,12 @@ function update(dt) {
       a.t += step; applyEff(a.eff, step / a.total);
       if (a.f.phases) { // tahap aktivitas (masak -> makan)
         const fr = a.t / a.total; let pi = a.f.phases.findIndex(p => fr < p.until); if (pi < 0) pi = a.f.phases.length - 1;
-        if (pi !== (a.ph || 0)) { a.ph = pi; if (a.f.id === 'stove') { SFX.eat(); floatText(ch.x, ch.y - 190, 'Yum! 🍜', '#ffe066'); emit(ch.x + 30, ch.y - 70, 6, { c: 'rgba(255,255,255,.8)', sp: 30, vy: -60, life: 1, r: 7 }); } }
+        if (pi !== (a.ph || 0)) { a.ph = pi; if (a.f.id === 'stove') { SFX.eat(); floatText(ch.x, ch.y - 190, 'Yum! ' + (a.food ? a.food.icon : '🍜'), '#ffe066'); emit(ch.x + 30, ch.y - 70, 6, { c: 'rgba(255,255,255,.8)', sp: 30, vy: -60, life: 1, r: 7 }); } }
       }
       if (a.f.id === 'stove' && !a.ph && Math.random() < dt * 8) emit(a.f.x + 50, a.f.y + 30, 1, { c: 'rgba(255,255,255,.7)', sp: 15, vy: -50, life: 1.2, r: rnd(6, 12) });
       if (a.f.id === 'stove' && a.ph === 1) {
-        if (Math.random() < dt * 5) emit(ch.x - 16 * ch.face + rnd(-6, 6), ch.y - 72, 1, { c: 'rgba(255,255,255,.75)', sp: 8, vy: -40, life: 0.9, r: rnd(4, 8) });
-        if (Math.random() < dt * 0.9) { floatText(ch.x + 40 * ch.face, ch.y - 150, 'Slurp!', '#fff3bf'); tone(rnd(500, 700), 0.12, 'sine', 0.06, 300); }
+        if (a.food && a.food.dish === 'bowl' && Math.random() < dt * 5) emit(ch.x - 16 * ch.face + rnd(-6, 6), ch.y - 72, 1, { c: 'rgba(255,255,255,.75)', sp: 8, vy: -40, life: 0.9, r: rnd(4, 8) });
+        if (Math.random() < dt * 0.9) { floatText(ch.x + 40 * ch.face, ch.y - 150, a.food ? a.food.say : 'Slurp!', '#fff3bf'); tone(rnd(500, 700), 0.12, 'sine', 0.06, 300); }
       }
       if (a.f.id === 'bath') {
         if (Math.random() < dt * 25) emit(ch.x + rnd(-30, 30), ch.y - 200, 1, { c: '#7cc8ff', sp: 10, vy: 260, life: 0.6, r: 3 });
@@ -1374,19 +1392,36 @@ function drawItem(k, x, y, a) {
     case 'mi': for (let i = 0; i < 3; i++) { rr(-24, -24 + i * 13, 48, 13, 3, i % 2 ? '#ffd43b' : '#ff922b', OUT, 2); } break;
     case 'galon': rr(-20, -28, 40, 56, 12, 'rgba(116,192,252,.85)', OUT, 3); rr(-8, -36, 16, 10, 3, '#1c7ed6', OUT, 2); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-14, -20, 5, 38); break;
     case 'spray': rr(-6, -26, 12, 26, 3, '#40c057', OUT, 2); rr(-4, -32, 8, 7, 2, '#adb5bd', OUT, 1.5); ctx.fillStyle = '#fff'; ctx.fillRect(-5, -18, 10, 6); break;
-    case 'bowlhand': {
-      ell(0, 4, 19, 7, '#fff', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-19, 4); ctx.quadraticCurveTo(0, 26, 19, 4); ctx.closePath(); ctx.fillStyle = '#ff6b6b'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.fillRect(-12, 11, 24, 3);
-      ell(0, 3, 15, 5, '#ffd43b'); ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 1.5;
-      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 5 - 3, 2); ctx.quadraticCurveTo(i * 5, 6, i * 5 + 3, 2); ctx.stroke(); }
-      ell(7, 2, 4, 2.5, '#fff8e7'); ell(7, 2, 1.8, 1.2, '#ffa94d'); ell(-7, 3, 3.5, 2, '#69db7c');
+    case 'dish': {
+      const fd = (a && a.food) || FOODS[0];
+      if (fd.dish === 'bowl') {
+        ell(0, 4, 19, 7, '#fff', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-19, 4); ctx.quadraticCurveTo(0, 26, 19, 4); ctx.closePath(); ctx.fillStyle = fd.id === 'bakso' ? '#4dabf7' : '#ff6b6b'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.fillRect(-12, 11, 24, 3);
+        if (fd.id === 'bakso') { ell(0, 3, 15, 5, '#e8c18a'); for (const [bx, by] of [[-6, 1], [5, 2], [0, -1]]) ell(bx, by, 4.5, 4, '#8d5a39', OUT, 1.5); ell(8, 4, 2.5, 1.5, '#69db7c'); }
+        else { ell(0, 3, 15, 5, '#ffd43b'); ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 1.5; for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 5 - 3, 2); ctx.quadraticCurveTo(i * 5, 6, i * 5 + 3, 2); ctx.stroke(); } ell(7, 2, 4, 2.5, '#fff8e7'); ell(7, 2, 1.8, 1.2, '#ffa94d'); ell(-7, 3, 3.5, 2, '#69db7c'); }
+      } else {
+        ell(0, 6, 24, 9, '#ffffff', OUT, 2.5); ell(0, 6, 18, 6, null, '#e9ecef', 1.5);
+        if (fd.id === 'friedrice') { ell(-2, 2, 13, 6, '#e8a33d', OUT, 1.5); ctx.fillStyle = '#c0711f'; for (let i = 0; i < 6; i++) ctx.fillRect(-10 + i * 4, 0 + (i % 2) * 3, 2, 2); ell(4, -2, 7, 4, '#fff', OUT, 1.2); ell(4, -2, 3, 2.2, '#ffd43b'); ell(-12, 4, 3, 1.6, '#69db7c'); }
+        else if (fd.id === 'eggrice') { ell(-4, 3, 11, 5.5, '#fffdf5', OUT, 1.5); ell(8, 2, 8, 5, '#fff', OUT, 1.2); ell(8, 2, 3.5, 2.6, '#ffc107'); }
+        else if (fd.id === 'tempeh') { ell(-6, 3, 9, 5, '#fffdf5', OUT, 1.5); rr(2, -2, 9, 7, 2, '#c8915a', OUT, 1.2); rr(8, 2, 9, 7, 2, '#ffe066', OUT, 1.2); }
+        else { ell(-5, 3, 10, 5, '#fffdf5', OUT, 1.5); ell(9, 3, 7, 3.5, '#69db7c'); ell(6, 1, 4, 2.5, '#ff6b6b'); }
+      }
       break;
     }
-    case 'chopsticks': {
-      ctx.lineCap = 'round'; ctx.strokeStyle = OUT; ctx.lineWidth = 5; ln(-2, 4, 16, -26); ln(3, 6, 20, -22);
-      ctx.strokeStyle = '#e9b872'; ctx.lineWidth = 2.5; ln(-2, 4, 16, -26); ln(3, 6, 20, -22);
-      ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2.5; const w = Math.sin(time * 10) * 3;
-      for (const ox of [-4, 0, 4]) { ctx.beginPath(); ctx.moveTo(2 + ox * 0.3, 4); ctx.quadraticCurveTo(-4 + ox + w, 14, 0 + ox, 24 + Math.abs(w)); ctx.stroke(); }
+    case 'utensil': {
+      const fd = (a && a.food) || FOODS[0];
+      if (fd.utensil === 'chopsticks') {
+        ctx.lineCap = 'round'; ctx.strokeStyle = OUT; ctx.lineWidth = 5; ln(-2, 4, 16, -26); ln(3, 6, 20, -22);
+        ctx.strokeStyle = '#e9b872'; ctx.lineWidth = 2.5; ln(-2, 4, 16, -26); ln(3, 6, 20, -22);
+        ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2.5; const w = Math.sin(time * 10) * 3;
+        for (const ox of [-4, 0, 4]) { ctx.beginPath(); ctx.moveTo(2 + ox * 0.3, 4); ctx.quadraticCurveTo(-4 + ox + w, 14, 0 + ox, 24 + Math.abs(w)); ctx.stroke(); }
+      } else if (fd.utensil === 'drumstick') {
+        ctx.save(); ctx.rotate(-0.6); rr(-3, -2, 6, 16, 3, '#fff8e7', OUT, 2); ell(-3, 15, 3.5, 3.5, '#fff8e7', OUT, 1.5); ell(3, 15, 3.5, 3.5, '#fff8e7', OUT, 1.5);
+        ell(0, -12, 11, 14, '#c97a1f', OUT, 2.5); ell(-4, -16, 4, 6, '#e8a33d'); ctx.restore();
+      } else {
+        ctx.lineCap = 'round'; ctx.strokeStyle = OUT; ctx.lineWidth = 5; ln(0, 4, 10, -20); ctx.strokeStyle = '#ced4da'; ctx.lineWidth = 2.5; ln(0, 4, 10, -20);
+        ell(12, -24, 6, 4.5, '#dee2e6', OUT, 2, -0.5); ell(12, -25, 4, 2.5, fd.id === 'bakso' ? '#8d5a39' : fd.id === 'friedrice' ? '#e8a33d' : '#fffdf5');
+      }
       break;
     }
     case 'bowl': ell(0, -4, 22, 8, '#ffe8a3', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-22, -4); ctx.quadraticCurveTo(0, 26, 22, -4); ctx.fillStyle = '#e8590c'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke(); break;
@@ -2126,7 +2161,7 @@ function drawPanel() {
   if (G.pending) { status = 'Going to ' + G.pending.name + '...'; ic = 'walk'; icol = '#20c997'; }
   else if (a && a.special) { status = a.special === 'faint' ? 'Fainted...' : 'Asleep on the floor...'; prog = a.t / a.total; ic = a.special === 'faint' ? 'dizzy' : 'zzz'; icol = '#e03131'; }
   else if (a && a.f.sleep) { status = 'Sleeping... (time sped up)'; prog = G.needs.energy / 100; ic = 'zzz'; icol = FURN_IC.bed[1]; }
-  else if (a) { status = ((a.f.phases && a.f.phases[a.ph || 0].label) || a.f.verb) + '...'; prog = a.t / a.total; ic = FURN_IC[a.f.id][0]; icol = FURN_IC[a.f.id][1]; }
+  else if (a) { status = ((a.f.phases && a.f.phases[a.ph || 0].label) ? 'Eating ' + (a.food ? a.food.name : '') : a.f.id === 'stove' && a.food ? 'Cooking ' + a.food.name : a.f.verb) + '...'; prog = a.t / a.total; ic = FURN_IC[a.f.id][0]; icol = FURN_IC[a.f.id][1]; }
   badge(46, 994, 26, icol, ic, 32);
   ctx.font = 'bold 24px ' + FONT;
   outlinedText(status, 84, prog >= 0 ? 980 : 994, 24, '#fff', 'left', 5);
@@ -2137,12 +2172,12 @@ function drawPanel() {
   if (canCancel) {
     const p = btn3d(574, 966, 124, 52, 20, '#ff8787', '#e03131', '#a61e1e');
     drawIcon('x', 600, 992 + p, 22); outlinedText('Cancel', 652, 993 + p, 20, '#fff', 'center', 4);
-    btn(574, 960, 124, 64, () => { SFX.tap(); G.act = null; G.pending = null; }, ['x', 'backspace']);
+    btn(574, 960, 124, 64, () => { SFX.tap(); G.act = null; G.pending = null; G.food = null; }, ['x', 'backspace']);
   }
   FURN.forEach((f, i) => {
     const col = i % 3, row = Math.floor(i / 3);
     const x = 22 + col * 228, y = 1040 + row * 114, w = 216, h = 100;
-    const dis = furnDisabled(f) || (f.cost && G.money < f.cost && G.freeMeals <= 0 && !(f.id === 'stove' && SAVE.inv.noodles));
+    const dis = furnDisabled(f) || (f.id === 'stove' && G.money < FOODS[0].price && !foodFree(FOODS[0]));
     const active = (G.act && G.act.f === f) || G.pending === f;
     const [ic2, icol2] = FURN_IC[f.id];
     let p;
@@ -2155,7 +2190,7 @@ function drawPanel() {
     txtFit(f.verb, x + 140, y + 32 + p, 22, dis ? '#efeaff' : '#3a2a5c', 130);
     let sub, sc1, sc2;
     if (f.earn) { sub = '+' + rp(f.earn); sc1 = '#d3f9d8'; sc2 = '#2b8a3e'; }
-    else if (f.cost) { const box = f.id === 'stove' && SAVE.inv.noodles && !G.freeMeals; sub = G.freeMeals ? 'Free!' : box ? 'Box ×' + SAVE.inv.noodles : '−' + rp(f.cost); const blue = box || G.freeMeals; sc1 = blue ? '#d0ebff' : '#ffe3e3'; sc2 = blue ? '#1971c2' : '#c92a2a'; }
+    else if (f.id === 'stove') { const fr = G.freeMeals > 0 || SAVE.inv.noodles > 0; sub = fr ? 'Free 🍜' : 'From ' + rp(FOODS[0].price); sc1 = fr ? '#d0ebff' : '#ffe3e3'; sc2 = fr ? '#1971c2' : '#c92a2a'; }
     else { sub = f.sleep ? '+Energy' : f.id === 'tv' ? '+Fun' : '+Hygiene'; sc1 = '#f3f0ff'; sc2 = '#7048e8'; }
     rr(x + 88, y + 52 + p, 106, 30, 15, sc1, shade(sc2, 0.3), 2);
     txtFit(sub, x + 141, y + 68 + p, 18, sc2, 96);
@@ -2192,6 +2227,26 @@ function drawModal() {
   ctx.save(); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
   if (modal.type === 'shop') {
     drawPhone();
+  } else if (modal.type === 'food') {
+    rr(50, 240, 620, 860, 36, '#fff8e7', '#3a2a5c', 6);
+    txt('What to eat?', 360, 300, 40, '#3a2a5c');
+    txt('Your money: ' + rp(G.money) + (SAVE.upgrades.rice ? '  •  Rice cooker +15 🍚' : ''), 360, 342, 19, '#7a6a90');
+    FOODS.forEach((fd, i) => {
+      const x = 76 + (i % 2) * 290, y = 372 + Math.floor(i / 2) * 200, w = 278, h = 186;
+      const free = foodFree(fd), can = free || G.money >= fd.price, p = pressed(x, y, w, h) ? 4 : 0;
+      rr(x, y + 5, w, h, 24, 'rgba(60,40,90,.18)');
+      rr(x, y + p, w, h, 24, can ? '#ffffff' : '#f1f3f5', OUT, 3);
+      ctx.globalAlpha = can ? 1 : 0.45;
+      rr(x + 10, y + 10 + p, w - 20, 74, 18, '#fff4e6'); txt(fd.icon, x + w / 2, y + 50 + p, 50);
+      txtFit(fd.name, x + w / 2, y + 102 + p, 22, OUT, w - 20);
+      txt('+' + (fd.hunger + (SAVE.upgrades.rice ? 15 : 0)) + ' 🍜' + (fd.fun ? '   +' + fd.fun + ' 😊' : ''), x + w / 2, y + 128 + p, 17, '#7a6a90');
+      const label = free ? (G.freeMeals > 0 ? 'Free 🏷️' : 'Box ×' + SAVE.inv.noodles) : rp(fd.price);
+      ctx.font = 'bold 19px ' + FONT; const pw = ctx.measureText(label).width + 36;
+      rr(x + w / 2 - pw / 2, y + 146 + p, pw, 30, 15, free ? '#d0ebff' : '#ffa94d', OUT, 2.5); txt(label, x + w / 2, y + 162 + p, 19, free ? '#1971c2' : '#fff');
+      ctx.globalAlpha = 1;
+      btn(x, y, w, h, () => chooseFood(fd), [String(i + 1)]);
+    });
+    bigBtn(230, 990, 260, 80, 'Cancel', '#868e96', () => { modal = null; }, ['escape', 'x']);
   } else if (modal.type === 'pause') {
     rr(110, 330, 500, 650, 36, '#fff8e7', '#3a2a5c', 6);
     txt('Paused', 360, 400, 44, '#3a2a5c');
