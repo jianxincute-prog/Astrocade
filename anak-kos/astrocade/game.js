@@ -54,7 +54,8 @@ const NEEDS = [
 // Perabot: posisi di ruangan, titik berdiri karakter (spot), aksi
 const FURN = [
   { id: 'bed',   key: '1', icon: '🛏️', name: 'Bed',  verb: 'Sleep',     x: 40,  y: 330, w: 230, h: 150, spot: [310, 420], sleep: true },
-  { id: 'stove', key: '2', icon: '🍳', name: 'Stove', verb: 'Cook noodles',  x: 30,  y: 540, w: 120, h: 120, spot: [190, 640], face: -1, pose: 'cook', hold: 'spoon', expr: 'happy', hours: 1, cost: 12, eff: { hunger: 45 } },
+  { id: 'stove', key: '2', icon: '🍳', name: 'Stove', verb: 'Cook noodles',  x: 30,  y: 540, w: 120, h: 120, spot: [190, 640], face: -1, pose: 'cook', hold: 'spoon', expr: 'happy', hours: 1.5, timeMul: 0.3,
+    phases: [{ until: 0.4, pose: 'cook', hold: 'spoon', expr: 'happy', face: -1 }, { until: 1, pose: 'eat', hold: 'chopsticks', hold2: 'bowlhand', expr: 'eat', face: 1, label: 'Eating noodles' }], cost: 12, eff: { hunger: 45 } },
   { id: 'bath',  key: '3', icon: '🚿', name: 'Shower',  verb: 'Shower',     x: 510, y: 320, w: 190, h: 200, spot: [600, 470], face: 1, pose: 'shower', expr: 'bliss', hours: 1, eff: { hygiene: 65, fun: 4 } },
   { id: 'desk',  key: '4', icon: '💻', name: 'Laptop', verb: 'Freelance', x: 30,  y: 700, w: 130, h: 150, spot: [196, 800], face: -1, pose: 'type', expr: 'focus', hours: 3, earn: 25, eff: { fun: -8, energy: -5 }, power: true },
   { id: 'tv',    key: '5', icon: '📺', name: 'TV',     verb: 'Watch TV', x: 612, y: 615, w: 70,  h: 150, spot: [527, 715], face: 1, pose: 'tv', hold: 'remote', expr: 'happy', hours: 2, eff: { fun: 40 }, power: true },
@@ -423,7 +424,7 @@ function npc(sc, look) { const a = { look, x: 0, y: 0, face: 1, pose: 'idle', wa
 const DOOR_OUT = [470, 1010], DOOR_IN = [470, 850];
 function* enter(sc, a) { a.x = DOOR_OUT[0]; a.y = DOOR_OUT[1]; sc.door = 1; SFX.knock(); yield* wait(0.35); yield* moveTo(a, DOOR_IN[0], DOOR_IN[1], 280); sc.door = 0; }
 function* leave(sc, a) { yield* moveTo(a, DOOR_IN[0], DOOR_IN[1], 320); sc.door = 1; yield* moveTo(a, DOOR_OUT[0], DOOR_OUT[1], 320); sc.door = 0; a.gone = true; }
-function resetPlayer() { const c = G.ch; c.lying = null; c.hidden = false; c.walking = false; c.pose = 'idle'; c.hold = null; c.expr = null; c.say = null; c.sweat = false; }
+function resetPlayer() { const c = G.ch; c.hold2 = null; c.lying = null; c.hidden = false; c.walking = false; c.pose = 'idle'; c.hold = null; c.expr = null; c.say = null; c.sweat = false; }
 
 function applyChoice(c) {
   if (c.money) { G.money += c.money; floatText(G.ch.x, G.ch.y - 200, (c.money > 0 ? '+' : '−') + rp(Math.abs(c.money)), c.money > 0 ? '#ffe066' : '#ff9b9b'); if (c.money > 0) SFX.coin(); }
@@ -964,13 +965,14 @@ function endMonth() {
 /* ------------------ pose pemain di luar adegan ------------------ */
 function updatePlayerPose() {
   const c = G.ch, a = G.act;
-  c.hold = null; c.expr = null; c.pose = 'idle'; c.hidden = false; c.lying = null;
+  c.hold = null; c.hold2 = null; c.expr = null; c.pose = 'idle'; c.hidden = false; c.lying = null;
   if (G.pending) { c.walking = true; c.pose = 'walk'; }
   else c.walking = false;
   if (a && !G.pending) {
     if (a.special) c.lying = a.special;
     else if (a.f.sleep) c.lying = 'bed';
     else if (a.f.away) c.hidden = true;
+    else if (a.f.phases) { const ph = a.f.phases[a.ph || 0]; c.pose = ph.pose; c.hold = ph.hold; c.hold2 = ph.hold2 || null; c.expr = ph.expr; c.face = ph.face; }
     else { c.pose = a.f.pose; c.hold = a.f.hold || null; c.expr = a.f.expr || null; c.face = a.f.face || c.face; }
   }
   if (G.blackout && !c.hold && (c.pose === 'idle' || c.pose === 'walk')) { c.hold = 'candle'; if (!G.pending) c.pose = 'candle'; }
@@ -1007,7 +1009,7 @@ function update(dt) {
 
   const a = G.act;
   const sleeping = a && (a.f && a.f.sleep || a.special);
-  let mul = G.speed * (sleeping ? CFG.sleepTimeMul : 1) * (a && a.f && a.f.away ? 2 : 1) * (G.pending ? CFG.walkTimeMul : 1);
+  let mul = G.speed * (sleeping ? CFG.sleepTimeMul : 1) * (a && a.f && a.f.away ? 2 : 1) * (G.pending ? CFG.walkTimeMul : 1) * (a && a.f && a.f.timeMul && !G.pending ? a.f.timeMul : 1);
   const gh = dt / CFG.hourSec * mul;
 
   // waktu
@@ -1044,7 +1046,15 @@ function update(dt) {
     } else {
       const step = Math.min(gh, a.total - a.t);
       a.t += step; applyEff(a.eff, step / a.total);
-      if (a.f.id === 'stove' && Math.random() < dt * 8) emit(a.f.x + 50, a.f.y + 30, 1, { c: 'rgba(255,255,255,.7)', sp: 15, vy: -50, life: 1.2, r: rnd(6, 12) });
+      if (a.f.phases) { // tahap aktivitas (masak -> makan)
+        const fr = a.t / a.total; let pi = a.f.phases.findIndex(p => fr < p.until); if (pi < 0) pi = a.f.phases.length - 1;
+        if (pi !== (a.ph || 0)) { a.ph = pi; if (a.f.id === 'stove') { SFX.eat(); floatText(ch.x, ch.y - 190, 'Yum! 🍜', '#ffe066'); emit(ch.x + 30, ch.y - 70, 6, { c: 'rgba(255,255,255,.8)', sp: 30, vy: -60, life: 1, r: 7 }); } }
+      }
+      if (a.f.id === 'stove' && !a.ph && Math.random() < dt * 8) emit(a.f.x + 50, a.f.y + 30, 1, { c: 'rgba(255,255,255,.7)', sp: 15, vy: -50, life: 1.2, r: rnd(6, 12) });
+      if (a.f.id === 'stove' && a.ph === 1) {
+        if (Math.random() < dt * 5) emit(ch.x - 16 * ch.face + rnd(-6, 6), ch.y - 72, 1, { c: 'rgba(255,255,255,.75)', sp: 8, vy: -40, life: 0.9, r: rnd(4, 8) });
+        if (Math.random() < dt * 0.9) { floatText(ch.x + 40 * ch.face, ch.y - 150, 'Slurp!', '#fff3bf'); tone(rnd(500, 700), 0.12, 'sine', 0.06, 300); }
+      }
       if (a.f.id === 'bath') {
         if (Math.random() < dt * 25) emit(ch.x + rnd(-30, 30), ch.y - 200, 1, { c: '#7cc8ff', sp: 10, vy: 260, life: 0.6, r: 3 });
         if (Math.random() < dt * 4) emit(ch.x + rnd(-30, 30), ch.y - 150, 1, { c: 'rgba(255,255,255,.85)', sp: 20, vy: -30, life: 1, r: rnd(5, 9) });
@@ -1258,6 +1268,7 @@ function drawPerson(a, opt) {
   if (P.over) hands = drawArms();
   if (a.hold === 'galon') drawItem('galon', 0, -175);
   else if (a.hold && a.hold !== 'box' && a.hold !== 'mi') drawItem(a.hold, hands[1][0], hands[1][1], a);
+  if (a.hold2) drawItem(a.hold2, hands[0][0], hands[0][1], a);
   if (a.sweat && Math.floor(t * 3) % 2 === 0) txt('💦', 34, -150, 20);
   ctx.restore();
 }
@@ -1363,6 +1374,21 @@ function drawItem(k, x, y, a) {
     case 'mi': for (let i = 0; i < 3; i++) { rr(-24, -24 + i * 13, 48, 13, 3, i % 2 ? '#ffd43b' : '#ff922b', OUT, 2); } break;
     case 'galon': rr(-20, -28, 40, 56, 12, 'rgba(116,192,252,.85)', OUT, 3); rr(-8, -36, 16, 10, 3, '#1c7ed6', OUT, 2); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-14, -20, 5, 38); break;
     case 'spray': rr(-6, -26, 12, 26, 3, '#40c057', OUT, 2); rr(-4, -32, 8, 7, 2, '#adb5bd', OUT, 1.5); ctx.fillStyle = '#fff'; ctx.fillRect(-5, -18, 10, 6); break;
+    case 'bowlhand': {
+      ell(0, 4, 19, 7, '#fff', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-19, 4); ctx.quadraticCurveTo(0, 26, 19, 4); ctx.closePath(); ctx.fillStyle = '#ff6b6b'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.fillRect(-12, 11, 24, 3);
+      ell(0, 3, 15, 5, '#ffd43b'); ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 1.5;
+      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 5 - 3, 2); ctx.quadraticCurveTo(i * 5, 6, i * 5 + 3, 2); ctx.stroke(); }
+      ell(7, 2, 4, 2.5, '#fff8e7'); ell(7, 2, 1.8, 1.2, '#ffa94d'); ell(-7, 3, 3.5, 2, '#69db7c');
+      break;
+    }
+    case 'chopsticks': {
+      ctx.lineCap = 'round'; ctx.strokeStyle = OUT; ctx.lineWidth = 5; ln(-2, 4, 16, -26); ln(3, 6, 20, -22);
+      ctx.strokeStyle = '#e9b872'; ctx.lineWidth = 2.5; ln(-2, 4, 16, -26); ln(3, 6, 20, -22);
+      ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2.5; const w = Math.sin(time * 10) * 3;
+      for (const ox of [-4, 0, 4]) { ctx.beginPath(); ctx.moveTo(2 + ox * 0.3, 4); ctx.quadraticCurveTo(-4 + ox + w, 14, 0 + ox, 24 + Math.abs(w)); ctx.stroke(); }
+      break;
+    }
     case 'bowl': ell(0, -4, 22, 8, '#ffe8a3', OUT, 2.5); ctx.beginPath(); ctx.moveTo(-22, -4); ctx.quadraticCurveTo(0, 26, 22, -4); ctx.fillStyle = '#e8590c'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke(); break;
   }
   ctx.restore();
@@ -1798,7 +1824,7 @@ function drawRoom() {
     ctx.beginPath(); ctx.moveTo(306, 330); ctx.lineTo(424, 330); ctx.lineTo(430 - sk, 560); ctx.lineTo(250 - sk, 560); ctx.closePath(); ctx.fill();
   }
   if (!(isOn(FURN[0]) || G.ch.lying === 'bed')) drawBlanket(FURN[0], false);
-  drawKitchenDyn(FURN[1], isOn(FURN[1]));
+  drawKitchenDyn(FURN[1], isOn(FURN[1]) && !G.act.ph);
   drawBathDyn(FURN[2], isOn(FURN[2]));
   drawLaptop(FURN[3], isOn(FURN[3]) || !!(G.scene && G.scene.typing));
   drawTV(FURN[4], isOn(FURN[4]));
@@ -2100,7 +2126,7 @@ function drawPanel() {
   if (G.pending) { status = 'Going to ' + G.pending.name + '...'; ic = 'walk'; icol = '#20c997'; }
   else if (a && a.special) { status = a.special === 'faint' ? 'Fainted...' : 'Asleep on the floor...'; prog = a.t / a.total; ic = a.special === 'faint' ? 'dizzy' : 'zzz'; icol = '#e03131'; }
   else if (a && a.f.sleep) { status = 'Sleeping... (time sped up)'; prog = G.needs.energy / 100; ic = 'zzz'; icol = FURN_IC.bed[1]; }
-  else if (a) { status = a.f.verb + '...'; prog = a.t / a.total; ic = FURN_IC[a.f.id][0]; icol = FURN_IC[a.f.id][1]; }
+  else if (a) { status = ((a.f.phases && a.f.phases[a.ph || 0].label) || a.f.verb) + '...'; prog = a.t / a.total; ic = FURN_IC[a.f.id][0]; icol = FURN_IC[a.f.id][1]; }
   badge(46, 994, 26, icol, ic, 32);
   ctx.font = 'bold 24px ' + FONT;
   outlinedText(status, 84, prog >= 0 ? 980 : 994, 24, '#fff', 'left', 5);
