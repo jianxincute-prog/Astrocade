@@ -37,3 +37,19 @@ export function aid(giver, taker, ally) {
 }
 /** Knowledge bonus from alliances: +10% per ally, up to three. */
 export const allyKp = allies => 1 + .1 * Math.min(3, allies);
+
+/* ---- unity: fewer, larger realms per island as the ages advance ---- */
+/** How many kingdoms of one people an island may hold: three in the Stone Age, two up to the Iron Age, one afterwards
+ *  (two on a very large landmass). New villages beyond that need another island. */
+export function islandCap(maxAge, landSize) {
+  if (maxAge >= 3) return landSize > 3500 ? 2 : 1;
+  return maxAge >= 1 ? 2 : 3;
+}
+/** Which two realms should join? `list` holds { id, size } of one people on one island; `atWar(a, b)` tells if two are enemies.
+ *  Returns { into, from } (the smallest joins the largest it is not at war with) or null when the island is within its cap. */
+export function pickMerge(list, cap, atWar) {
+  if (list.length <= cap) return null;
+  const sorted = list.slice().sort((a, b) => b.size - a.size), from = sorted[sorted.length - 1];
+  const into = sorted.find(o => o !== from && !atWar(o, from));
+  return into ? { into, from } : null;
+}

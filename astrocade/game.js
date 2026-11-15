@@ -15,7 +15,7 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
-import { REL, PACT_GOLD, pactChance, allyChance, breakChance, betrayalChance, aid, allyKp } from './diplomacy.js';
+import { islandCap, pickMerge, REL, PACT_GOLD, pactChance, allyChance, breakChance, betrayalChance, aid, allyKp } from './diplomacy.js';
 import { isAdult, lifeStage, ANIMAL_BREED, crowd, canBreed, isMate, pickPair, pickCrew } from './reproduction.js';
 import { traceRivers, stepTrail, runsEncode, runsDecode } from './landscape.js';
 import { SCENARIOS, SCENARIO_BY, evalScenario } from './scenarios.js';
@@ -2658,7 +2658,8 @@ function stepCreature(c) {
     if (bld[idx] === 0 && !road[idx] && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2 && !lmNear(c.x, c.y, 1)
         && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
       const k = c.k ? kingdoms.get(c.k) : null;                        // building costs wood and is capped by the kingdom's level
-      if (!k || (k.houses < maxHouses(k) && (k.wood >= 4 || k.plank >= 1))) {
+      const reach = k ? Math.hypot(c.x - k.cx, c.y - k.cy) <= 8 + k.level * 3 + k.mod.radius : canFoundHere(c.t, c.x, c.y);       // realms grow around their capital; a new village needs another island
+      if (reach && (!k || (k.houses < maxHouses(k) && (k.wood >= 4 || k.plank >= 1)))) {
         bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
         if (k) { if (k.plank >= 1) k.plank -= 1; else k.wood -= 4; kid[idx] = k.id; carvePath(idx, k.cap, k); }
       }
@@ -2991,6 +2992,15 @@ function eventsTick() {                                     // every ~10 seconds
     }
     if (best && Math.random() < .15) { absorbKingdom(best, k); warStats.annexed = (warStats.annexed || 0) + 1; }
   }
+  { const groups = new Map();                                // as the ages advance one people unites under one or two realms per island
+    for (const k of ks) if (kingdoms.has(k.id) && comp[k.cap]) { const key = k.race + ':' + comp[k.cap]; (groups.get(key) || groups.set(key, []).get(key)).push(k); }
+    for (const [key, list] of groups) {
+      if (list.length < 2 || Math.random() > .4) continue;
+      const cid = comp[list[0].cap], cap = islandCap(Math.max(...list.map(k => k.age | 0)), compSize[cid] || 0);
+      const m = pickMerge(list.map(k => ({ id: k.id, size: k.houses * 2 + k.pop, k })), cap, (a, b) => a.k.enemies.has(b.k.id));
+      if (m && !m.from.k.enemies.size) { absorbKingdom(m.into.k, m.from.k); warStats.united = (warStats.united || 0) + 1; if (started) toast(`🤝 ${m.from.k.name} united with ${m.into.k.name}`); }
+    }
+  }
   for (const a of ks) if (a.ev && a.ev.type === 'plague') for (const b of ks) {          // plague spreads to touching neighbours
     if (b === a || b.ev || tick <= b.immune || !kingdoms.has(b.id) || !kingdoms.has(a.id) || comp[a.cap] !== comp[b.cap]) continue;
     const reach = 6 + a.level*3 + a.mod.radius + 6 + b.level*3 + b.mod.radius;
@@ -3061,14 +3071,15 @@ const rkey = (a, b) => a < b ? a*65536 + b : b*65536 + a;
 const isSoldier = c => !c.boat && ((c.id * 2654435761) >>> 0) % 100 < SOLDIER_PCT[c.t];
 const kpower = k => (k.pop + 2) * (1 + .2*k.level) * k.mod.atk * k.mod.def;
 let lastWarToast = -1e9;
+let compSize = new Uint32Array(1);
 function computeComps() {
-  comp.fill(0); let id = 0; const stack = new Int32Array(N);
+  comp.fill(0); let id = 0; const stack = new Int32Array(N); const sizes = [0];
   const ok = t => t >= T.SAND && t !== T.LAVA && t !== T.MOUNTAIN && t !== T.SNOW;
   for (let i = 0; i < N; i++) {
     if (comp[i] || !ok(tiles[i])) continue;
-    id++; let sp = 0; stack[sp++] = i; comp[i] = id;
+    id++; let sp = 0; stack[sp++] = i; comp[i] = id; sizes[id] = 0;
     while (sp) {
-      const j = stack[--sp], x = j % W, y = (j / W) | 0;
+      const j = stack[--sp], x = j % W, y = (j / W) | 0; sizes[id]++;
       for (let d = 1; d < 9; d++) {
         const nx = x + DIRS[d][0], ny = y + DIRS[d][1];
         if (!inb(nx, ny)) continue;
@@ -3077,7 +3088,7 @@ function computeComps() {
       }
     }
   }
-  compDirty = false;
+  compSize = Uint32Array.from(sizes); compDirty = false;
 }
 function rebuildRelations() {
   for (const k of kingdoms.values()) { k.enemies.clear(); k.allies.clear(); if (k.pacts) k.pacts.clear(); else k.pacts = new Set(); }
@@ -3316,7 +3327,7 @@ function townTidy() {                                           // towns stay cl
   for (const k of kingdoms.values()) for (const key in k.lm) { const i = k.lm[key]; clear(k, i % W, (i / W) | 0, 1); }
 }
 function placeLandmark(k, key) {
-  if (key === 'harbor') { const i = coastalLandNear(k, 24); if (i >= 0) k.lm[key] = i; return; }
+  if (key === 'harbor') { const i = coastalLandNear(k, 24); if (i >= 0) { k.lm[key] = i; carvePath(i, k.cap, k); } return; }
   let i = key === 'mine' ? spacedTileNear(k, 3, 9, t => t === T.HILL || t === T.MOUNTAIN) : -1;
   if (i < 0) i = spacedTileNear(k, 2, 8, t => t !== T.MOUNTAIN && t !== T.SNOW);
   if (i < 0) i = key === 'mine' ? freeTileNear(k, 3, 9, t => t === T.HILL || t === T.MOUNTAIN) : -1;
@@ -3363,6 +3374,14 @@ function newKingdom(race, x, y) {
               born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), pacts: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, bld: [], plank: 0, bread: 0, tool: 0, dec: null, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
+function raceAgeOn(race, compId) { let a = 0; for (const k of kingdoms.values()) if (k.race === race && comp[k.cap] === compId) a = Math.max(a, k.age | 0); return a; }
+function realmsOn(race, compId) { let n = 0; for (const k of kingdoms.values()) if (k.race === race && comp[k.cap] === compId) n++; return n; }
+function canFoundHere(race, x, y) {                            // a new village is only allowed next to an existing one, or while the island is under its cap of realms
+  if (compDirty) computeComps();
+  if (countHouses(x, y, 9, RACES[race].bi) > 0) return true;
+  const cid = comp[x + y*W]; if (!cid) return true;
+  return realmsOn(race, cid) < islandCap(raceAgeOn(race, cid), compSize[cid] || 0);
+}
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
   const x = i % W, y = (i / W) | 0;
   let best = 0, bd = 1e9;
@@ -3391,13 +3410,31 @@ function adjacentWater(i) {
   }
   return -1;
 }
+let seaMask = new Uint8Array(1), seaT = -1e9;
+function seaTile(j) {                                          // open sea only: a lake or a pond does not count
+  if (seaMask.length !== N || tick - seaT > 600) {
+    seaT = tick; seaMask = new Uint8Array(N); const seen = new Uint8Array(N), stack = new Int32Array(N);
+    for (let i = 0; i < N; i++) {
+      if (seen[i] || tiles[i] > T.SHALLOW) continue;
+      let sp = 0, n = 0; const comp0 = []; stack[sp++] = i; seen[i] = 1;
+      while (sp) { const q = stack[--sp]; comp0.push(q); n++; const x = q % W, y = (q / W) | 0;
+        if (x > 0 && !seen[q - 1] && tiles[q - 1] <= T.SHALLOW) { seen[q - 1] = 1; stack[sp++] = q - 1; }
+        if (x + 1 < W && !seen[q + 1] && tiles[q + 1] <= T.SHALLOW) { seen[q + 1] = 1; stack[sp++] = q + 1; }
+        if (y > 0 && !seen[q - W] && tiles[q - W] <= T.SHALLOW) { seen[q - W] = 1; stack[sp++] = q - W; }
+        if (y + 1 < H && !seen[q + W] && tiles[q + W] <= T.SHALLOW) { seen[q + W] = 1; stack[sp++] = q + W; } }
+      if (n >= 250) for (const q of comp0) seaMask[q] = 1;
+    }
+  }
+  return seaMask[j] === 1;
+}
 function coastalLandNear(k, radius = 24) {
   if (compDirty) computeComps();
   const home = comp[k.cap]; if (!home) return -1;
   const cx = k.cap % W, cy = (k.cap / W) | 0; let best = -1, bd = radius*radius + 1;
   for (let y = Math.max(0,cy-radius); y <= Math.min(H-1,cy+radius); y++) for (let x = Math.max(0,cx-radius); x <= Math.min(W-1,cx+radius); x++) {
     const i = x + y*W, d = (x-cx)**2 + (y-cy)**2;
-    if (d >= bd || comp[i] !== home || tiles[i] <= T.SHALLOW || tiles[i] === T.LAVA || bld[i] || fire[i] || adjacentWater(i) < 0) continue;
+    if (d >= bd || comp[i] !== home || tiles[i] <= T.SHALLOW || tiles[i] === T.LAVA || bld[i] || fire[i] || riv[i] || tiles[i] === T.MOUNTAIN || tiles[i] === T.SNOW) continue;
+    const w = adjacentWater(i); if (w < 0 || !seaTile(w)) continue;
     best = i; bd = d;
   }
   return best;
@@ -3414,6 +3451,7 @@ function voyagePlan(k, sourceLand) {
     for (let dy = -14; dy <= 14; dy++) for (let dx = -14; dx <= 14; dx++) if (Math.max(Math.abs(dx),Math.abs(dy)) <= 14 && inb(x+dx,y+dy)) blocked[x+dx+(y+dy)*W] = 1;
   }
   const reserved = new Set(ships.filter(s => s.phase === 'outbound').map(s => s.targetComp));
+  for (const o of kingdoms.values()) if (o.race === k.race && comp[o.cap] !== home) reserved.add(comp[o.cap]);                // a colony goes to an island where its people do not live yet
   const goals = new Int32Array(N); goals.fill(-1);
   const race = k.race, build = RACES[race].build;
   const offset = ri(0, N-1);
@@ -4023,7 +4061,8 @@ function draw() {
       const li = kl.lm[key], lx = li % W, ly = (li / W) | 0;
       if (lx < x0 - 3 || lx > x1 + 3 || ly < y0 - 3 || ly > y1 + 6) continue;
       const ls = LMATLAS[key]; if (!ls) continue;
-      const lw = ls.width * SPR_K, lh = ls.height * SPR_K, lcx = ox + (lx + .5)*sc, lfy = oy + (ly + 1)*sc - sc*.05;
+      let hoff = 0, voff = 0; if (key === 'harbor') { const wj = adjacentWater(li); if (wj >= 0) { hoff = ((wj % W) - lx) * sc * .55; voff = (((wj / W) | 0) - ly) * sc * .4; } }       // the pier reaches out over the water
+      const lw = ls.width * SPR_K, lh = ls.height * SPR_K, lcx = ox + (lx + .5)*sc + hoff, lfy = oy + (ly + 1)*sc - sc*.05 + voff;
       if (key === 'lifetree') { ctx.fillStyle = 'rgba(255,226,122,.16)'; ctx.beginPath(); ctx.arc(lcx, lfy - lh*.55, lw*.8, 0, 7); ctx.fill(); }
       ctx.drawImage(ls, lcx - lw/2, lfy - lh, lw, lh);
       if (sc >= 5) landmarkLife(key, li, lx, ly, lcx, lfy, lw, lh);
@@ -5514,7 +5553,8 @@ const NEWS = [
     'A people that is nearly gone can be rescued by wandering settlers.']],
   ['🤝', '3.5 · Allies and tidy towns', [
     'Kingdoms sign <b>trade pacts</b>, help each other through famine and shortage, and grow them into <b>alliances</b>. Pacts can break and greedy partners can betray them, but wars are rarer.',
-    'Towns are kept clear of trees and loose stones, houses and buildings are joined by <b>footpaths</b>, and buildings keep their distance.']],
+    'Towns are kept clear of trees and loose stones, houses and buildings are joined by <b>footpaths</b>, and buildings keep their distance.',
+    'As the ages advance each people <b>unites</b> into one or two realms per island, and a new village means a new island. Harbors stand on the real shore.']],
   ['✨', '3.5 · A livelier world', [
     'Buildings, muskets, cannons and the seasons are animated, with new sounds. The Census, minimap, tour and score know about the new systems, and research takes longer, so the late ages arrive after a century or more.']],
   ['🏰', '3.0 · Five ages and a tech tree', [

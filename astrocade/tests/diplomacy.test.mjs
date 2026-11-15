@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { REL, pactChance, allyChance, breakChance, betrayalChance, aid, allyKp, PACT_AGE_FOR_ALLIANCE } from '../diplomacy.js';
+import { islandCap, pickMerge, REL, pactChance, allyChance, breakChance, betrayalChance, aid, allyKp, PACT_AGE_FOR_ALLIANCE } from '../diplomacy.js';
 assert.ok(pactChance('human', 'elf', true) > pactChance('human', 'orc', false));
 assert.ok(pactChance('orc', 'orc', false) > pactChance('orc', 'human', false));
 assert.ok(pactChance('werewolf', 'human', false) < .01);
@@ -14,4 +14,10 @@ assert.ok(aid({ food: 300, wood: 0 }, { food: 10, wood: 50 }, false).amt < 60);
 assert.deepStrictEqual(aid({ food: 100, wood: 200 }, { food: 100, wood: 5 }, true), { key: 'wood', amt: 40 });
 assert.strictEqual(aid({ food: 100, wood: 50 }, { food: 10, wood: 5 }, true), null);
 assert.strictEqual(allyKp(0), 1); assert.ok(Math.abs(allyKp(5) - 1.3) < 1e-9);
+assert.strictEqual(islandCap(0, 500), 3); assert.strictEqual(islandCap(1, 500), 2); assert.strictEqual(islandCap(2, 500), 2); assert.strictEqual(islandCap(3, 500), 1); assert.strictEqual(islandCap(4, 9000), 2); assert.strictEqual(islandCap(2, 9000), 2); assert.strictEqual(islandCap(0, 9000), 3);
+const L = [{ id: 1, size: 50 }, { id: 2, size: 20 }, { id: 3, size: 8 }];
+assert.strictEqual(pickMerge(L, 3, () => false), null);
+let m = pickMerge(L, 2, () => false); assert.deepStrictEqual([m.into.id, m.from.id], [1, 3]);
+m = pickMerge(L, 1, (a, b) => a.id === 1 && b.id === 3); assert.deepStrictEqual([m.into.id, m.from.id], [2, 3]);
+assert.strictEqual(pickMerge(L, 1, () => true), null);
 console.log('diplomacy tests ok');
