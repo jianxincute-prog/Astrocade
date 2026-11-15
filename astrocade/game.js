@@ -5365,32 +5365,33 @@ function titleScene(cv2) {
   };
 }
 /* ============================== WHAT'S NEW: version popup ============================== */
-const VERSION = '3.0';
+const VERSION = '3.5';
 let seenVer = '', hadSave = false;
 const whatsEl = el('div', 'awnew');
 const NEWS = [
-  ['🏰', 'Five ages and a tech tree', [
-    'Two new ages join the Stone, Bronze and Iron Ages: the <b>Medieval</b> and <b>Gunpowder</b> ages, each with a name of its own for every race.',
-    'Every race has a <b>tech tree of 15 techs</b> in three branches (Economy, Military, Lore). Kingdoms earn <b>knowledge points</b> and research on their own.',
-    'Open a kingdom and tap <b>Tech tree</b> to see it. Tap a branch to steer research there.']],
-  ['🔨', 'Real buildings and goods', [
-    'Kingdoms raise a <b>Sawmill</b> (planks), <b>Bakery</b> (bread), <b>Smithy</b> (tools), <b>Library</b>, <b>Academy</b> and one <b>Wonder</b> per race.',
-    'Planks make houses cheap, bread boosts births, tools speed up work, and libraries speed up research.']],
-  ['⚔️', 'Gunpowder and naval war', [
-    '<b>Musketeers</b> shoot from range in the Gunpowder Age, and battle <b>heroes</b> earn a golden crest.',
-    '<b>Warships</b> sail to enemy coasts, bombard their houses and duel other fleets.',
-    'Ships <b>fight the kraken</b> with everything they have. It still wins nearly every time: the odds of slaying it stay under 1%.']],
-  ['🌾', 'Seasons and decrees', [
-    'Spring, summer, autumn and winter turn every year and change food and births.',
-    'In a kingdom panel, issue a <b>decree</b>: Harvest, Scholars, Tax or Industry.']],
-  ['🎯', 'Rivers, roads and scenarios', [
+  ['🎯', '3.5 · Rivers, roads and scenarios', [
     '<b>Rivers</b> run from the highlands to the sea: they water the fields and stop fires.',
     '<b>Roads</b> appear where settlers keep walking. Walking and caravans are faster on them, and they carry trade.',
     'Five <b>scenarios</b> (World tab) give you a prepared world, a goal and a time limit: First Light, Age of Sail, Arctic Survival, Four Realms and Long Peace.']],
-  ['🐑', 'A real life cycle', [
+  ['🐑', '3.5 · A real life cycle', [
     'Every creature is <b>male or female</b>. A birth needs a mature pair of the same kind close together, and animals now breed much more slowly. Children are smaller, and a newborn brings a floating heart.',
-    'A people that is nearly gone can be rescued by wandering settlers. Research now takes longer, so the late ages arrive after a century or more.',
-    'The new buildings come alive (spinning saw, smoke, forge sparks, glowing windows), muskets and cannons flash and smoke, and the seasons bring petals, fireflies, falling leaves and snow, all with new sounds.']],
+    'A people that is nearly gone can be rescued by wandering settlers.']],
+  ['✨', '3.5 · A livelier world', [
+    'Buildings, muskets, cannons and the seasons are animated, with new sounds. The Census, minimap, tour and score know about the new systems, and research takes longer, so the late ages arrive after a century or more.']],
+  ['🏰', '3.0 · Five ages and a tech tree', [
+    'Two new ages join the Stone, Bronze and Iron Ages: the <b>Medieval</b> and <b>Gunpowder</b> ages, each with a name of its own for every race.',
+    'Every race has a <b>tech tree of 15 techs</b> in three branches (Economy, Military, Lore). Kingdoms earn <b>knowledge points</b> and research on their own.',
+    'Open a kingdom and tap <b>Tech tree</b> to see it. Tap a branch to steer research there.']],
+  ['🔨', '3.0 · Real buildings and goods', [
+    'Kingdoms raise a <b>Sawmill</b> (planks), <b>Bakery</b> (bread), <b>Smithy</b> (tools), <b>Library</b>, <b>Academy</b> and one <b>Wonder</b> per race.',
+    'Planks make houses cheap, bread boosts births, tools speed up work, and libraries speed up research.']],
+  ['⚔️', '3.0 · Gunpowder and naval war', [
+    '<b>Musketeers</b> shoot from range in the Gunpowder Age, and battle <b>heroes</b> earn a golden crest.',
+    '<b>Warships</b> sail to enemy coasts, bombard their houses and duel other fleets.',
+    'Ships <b>fight the kraken</b> with everything they have. It still wins nearly every time: the odds of slaying it stay under 1%.']],
+  ['🌾', '3.0 · Seasons and decrees', [
+    'Spring, summer, autumn and winter turn every year and change food and births.',
+    'In a kingdom panel, issue a <b>decree</b>: Harvest, Scholars, Tax or Industry.']],
   ['🌊', 'Living Seas (version 2.0)', [
     '<b>Fish shoals</b> drift through the sea: sardines near the shore, grouper on reefs, tuna in the deep. Fishers and boats depend on them, and overfishing scatters a shoal.',
     '<b>Sharks</b> patrol the deep, chase ships and bite far-out fishers.',
@@ -5414,7 +5415,7 @@ const NEWS = [
 ];
 function showWhatsNew() {
   if (editMode) return;
-  whatsEl.innerHTML = '<div class="card"><div class="hd"><span class="chip">UPDATE ' + VERSION + '</span><h1>Rise of Empires</h1><p>Five ages, real industry and war on the waves.</p></div><div class="bd">'
+  whatsEl.innerHTML = '<div class="card"><div class="hd"><span class="chip">UPDATE ' + VERSION + '</span><h1>Rise of Empires</h1><p>Version 3.5: living worlds, with rivers, scenarios and a real life cycle.</p></div><div class="bd">'
     + NEWS.map(s => `<div class="sec"><h3>${s[0]} ${s[1]}</h3><ul>${s[2].map(t => `<li>${t}</li>`).join('')}</ul></div>`).join('')
     + '</div><div class="ft"><button class="awbig" data-act="gotit">Let\'s go!</button></div></div>';
   whatsEl.style.display = 'flex'; whatsEl.querySelector('.bd').scrollTop = 0;
