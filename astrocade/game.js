@@ -15,6 +15,7 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+import { BUILDINGS, BUILDING_BY, GOODS_CAP, buildable, kpBonus, produce, toolBoost } from './buildings.js';
 import { TECHS, BRANCHES, BRANCH_NAME, BRANCH_IC, TIER_KP, ageName, ageNeed, ageReady, availableTechs, chooseTech, kpGain, techById, legacyTechIds } from './tech.js';
 
 function run(mode) {
@@ -937,6 +938,13 @@ const LANDMARKS = {
   lifetree: { pal: { o:'#1c2418', L:'#4fae52', l:'#8fe08a', D:'#2d7a3a', y:'#ffe27a', t:'#8a5a34', T:'#5e3a20', B:'#b07a48' }, A: ["...oooooo...", "..oLllLLDo..", ".oLlyLDyLDo.", "oLlLLlLDDLDo", "oLLyLLDDyDDo", "oDLLLDDDDDDo", ".oDDDDDDDDo.", "..oDDooDDo..", "...ottTTo...", "...ottTTo...", "..oTttTTTo..", ".oTBttTTtTo.", ".oooTTTTooo.", "oooooooooooo"] },
   harbor: { pal: { o:'#1c1424', w:'#f4f1e6', b:'#8a5a34', B:'#c08a50', d:'#5e3a20', S:'#53c6e8', s:'#e8fbff', g:'#ffcf4a' }, A: [".....w......", "....ww......", "...wssw.....", "..wssssw....", ".wssssssw...", "..wwwwww....", "..bBBBBb....", ".bBBBBBBBb..", "oBBBBBBBBBBo", "oooooooooooo"] },
 };
+Object.assign(LANDMARKS, {                                   // production buildings (version 3.0)
+  sawmill: { pal: { o:'#1c1424', r:'#a8743c', R:'#7a4c2c', w:'#c08a50', s:'#cfd6de', l:'#e8c890' }, A: ["..........", "..oooooo..", ".orrrrrro.", "orRRRRRRro", "owwwwwwwwo", "owssswllwo", "owwwwwllwo", "olllllllwo", "owwwwwwwwo", "oooooooooo"] },
+  bakery: { pal: { o:'#1c1424', r:'#c8523a', R:'#8a3424', w:'#e8d4a8', y:'#ffd860', k:'#5e3a20', g:'#9aa0aa' }, A: ["....gg....", "....go....", ".oooooooo.", "orrrrrrrro", "oRRRRRRRRo", "owwwwwwwwo", "owyywkkwwo", "owyywkkwwo", "owwwwkkwwo", "oooooooooo"] },
+  smithy: { pal: { o:'#1c1424', g:'#6b7280', G:'#9aa0aa', f:'#ff8a2a', F:'#ffd23f', k:'#5e3a20', K:'#8a5a34' }, A: ["...o.o....", "..oGoGo...", ".oGGGGGo..", "oGGGGGGGGo", "oggggggggo", "okkkkkffko", "okKKKKFFko", "okKKKKffko", "okkkkkkkko", "oooooooooo"] },
+  library: { pal: { o:'#1c1424', w:'#e8e0cc', W:'#b8ac90', b:'#4a6ac8', r:'#a83a3a', g:'#d8b84a', t:'#7a5a3a' }, A: ["....oo....", "..oowwoo..", ".owwwwwwo.", "oWWWWWWWWo", "owbrgbrgwo", "owbrgbrgwo", "owbrttrgwo", "owbrttrgwo", "oWWWWWWWWo", "oooooooooo"] },
+  academy: { pal: { o:'#1c1424', w:'#f4f1e6', W:'#c8c0a8', B:'#3a5ab0', b:'#6a8ae0', g:'#ffd23f', t:'#7a5a3a' }, A: ["....gg....", "...gBBg...", "..oBbbBo..", ".oBbbbbBo.", "oWWWWWWWWo", "owWwWWwWwo", "owWwttwWwo", "owWwttwWwo", "oWWWWWWWWo", "oooooooooo"] },
+});
 function buildSprite(def, frame) {
   const rows = def[frame] || def.A;
   const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
@@ -1075,6 +1083,17 @@ function mineTick(k, E) {                                    // once per second:
     const key = ORE_KEYS[t]; k[key] = Math.min(250, (k[key] || 0) + ORE_YIELD[t]);
     if (--oreA[i] <= 0) { oreT[i] = 0; if (effects.length < 400) fx('puff', i % W, (i / W) | 0); }
     else if (effects.length < 400 && Math.random() < .4) fx('hit', i % W, (i / W) | 0);
+  }
+}
+function buildCheck() {                                        // every 5 seconds: a kingdom raises the next building it can afford
+  for (const k of kingdoms.values()) {
+    const opts = buildable(k.bld, k.age | 0, k.level);
+    for (const b of opts) {
+      if (!canPay(k, b.cost) || k.food < 40) continue;
+      pay(k, b.cost); k.bld.push(b.id); placeLandmark(k, b.id);
+      if (k.bld.length === 1 || b.kp) addChronicle(b.ic, `${k.name} built a ${b.n}`);
+      fx('puff', Math.round(k.cx), Math.round(k.cy)); ownDirty = true; dirty = true; break;
+    }
   }
 }
 const AGE_IC = ['🪨', '🥉', '🔩', '🏰', '🔥'];
@@ -2535,9 +2554,9 @@ function stepCreature(c) {
     if (bld[idx] === 0 && Math.random() < (R.buildP || .02) && R.build.includes(tiles[idx]) && (counts[c.t]||0) >= 2
         && countHouses(c.x, c.y, 5, R.bi) < 3 && countHouses(c.x, c.y, 1, R.bi) === 0) {
       const k = c.k ? kingdoms.get(c.k) : null;                        // building costs wood and is capped by the kingdom's level
-      if (!k || (k.houses < maxHouses(k) && k.wood >= 4)) {
+      if (!k || (k.houses < maxHouses(k) && (k.wood >= 4 || k.plank >= 1))) {
         bld[idx] = R.bi; fx('puff', c.x, c.y); dirty = true;
-        if (k) { k.wood -= 4; kid[idx] = k.id; }
+        if (k) { if (k.plank >= 1) k.plank -= 1; else k.wood -= 4; kid[idx] = k.id; }
       }
     }
     if (workStep(c, ka)) return;                                       // everyday jobs: chop, mine, hunt, farm, fish, forage
@@ -2890,6 +2909,8 @@ function absorbKingdom(a, b) {                              // b joins a: houses
   for (const key of ['silver', 'bronze', 'iron']) a[key] = Math.min(250, (a[key] || 0) + (b[key] || 0));
   for (const id of b.tech) if (!a.tech.includes(id)) a.tech.push(id);
   a.kp = (a.kp || 0) + (b.kp || 0);
+  for (const id of b.bld) if (!a.bld.includes(id)) a.bld.push(id);
+  a.plank += b.plank; a.bread += b.bread; a.tool += b.tool;
   a.age = Math.max(a.age || 0, b.age || 0); recalcMods(a);
   for (const it of b.chest) if (a.chest.length < chestCap(a)) a.chest.push(it);
   for (const key in b.lm) if (!(key in a.lm)) a.lm[key] = b.lm[key];
@@ -3138,7 +3159,7 @@ function grantTech(k) {                                    // divine gift ("Eure
 function kName(race) { const p = NAME_P[race]; return p[0][ri(0, p[0].length - 1)] + p[1][ri(0, p[1].length - 1)]; }
 function newKingdom(race, x, y) {
   const k = { id: nextKid++, race, cx: x, cy: y, cap: x + y*W, nb: x + y*W, level: 0, food: 40, wood: 12, stone: 0, gold: 0, houses: 0, pop: 0,
-              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
+              born: tick, name: kName(race), leader: null, tech: [], mod: defaultMod(), res: null, lm: {}, enemies: new Set(), allies: new Set(), front: -1, ev: null, immune: 0, unrest: 0, lastRebel: -1e9, chest: [], silver: 0, bronze: 0, iron: 0, age: 0, kp: 0, want: null, wait: 0, focus: null, bld: [], plank: 0, bread: 0, tool: 0, reach: null, tk: [0, 0, 0, 0], pm: 0, g: 0, f: 0, m: 0, sx: 0, sy: 0, bd: 1e9, cand: null };
   kingdoms.set(k.id, k); return k;
 }
 function assignHouse(i, race) {                          // join the nearest same-race house's kingdom within 9 tiles, else found a new one
@@ -3340,15 +3361,22 @@ function economy() {                                      // once per second
   for (const k of kingdoms.values()) {
     const E = ECO[k.race];
     if (redo || (!k.g && !k.f && !k.m)) terrainStats(k);
-    const M = k.mod;
+    const M = k.mod, tb = toolBoost(k);
     k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food * evFood(k) - k.pop*.18 * (1 + .15 * k.enemies.size));     // elves forage the forest; war strains the food supply
     const aff = TREE_AFF[k.race]; let wd = k.pm * .4; for (let q = 0; q < 4; q++) wd += k.tk[q] * TREE_W[q] * aff[q];       // timber depends on the tree kinds around the realm
-    k.wood = Math.min(250, k.wood + wd*.012*E.w*M.wood);
+    k.wood = Math.min(250, k.wood + wd*.012*E.w*M.wood*tb);
     k.food = Math.min(400, k.food + (k.tk[3]*.008 + k.pm*.003)*E.f);                                                 // fruit trees and coconuts feed people
     mineTick(k, E);
-    k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone);                 // quarries / trade even far from hills
+    k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone*tb);                 // quarries / trade even far from hills
     k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g*M.gold);
-    k.kp = Math.min(3000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp));                 // knowledge points pay for research
+    k.kp = Math.min(3000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld)));                 // knowledge points pay for research
+    if (k.bld.length) {                                                         // goods chains: sawmill, bakery, smithy
+      const d = produce(k);
+      k.wood += d.wood; k.food += d.food; k.plank = Math.min(GOODS_CAP.plank, k.plank + d.plank); k.bread = Math.min(GOODS_CAP.bread, k.bread + d.bread);
+      if (d.ore) { const m = k.iron >= 1 ? 'iron' : k.bronze >= 1 ? 'bronze' : null; if (m) k[m] -= 1; else k.stone -= 4; k.tool = Math.min(GOODS_CAP.tool, k.tool + d.tool); }
+      if (k.tool > 0) k.tool = Math.max(0, k.tool - .03);                        // tools wear out
+      if (k.food < 12 && k.bread >= 1) { k.bread -= 1; k.food += 10; }          // bread stands in for famine
+    }
     if (M.grow && Math.random() < .5) {                                         // living forest: grass near the capital turns to trees
       const gi = freeTileNear(k, 2, 8, t => t === T.GRASS);
       if (gi >= 0) { tiles[gi] = T.FOREST; k.f++; }
@@ -3443,7 +3471,7 @@ function step() {
       const dd = (x - k.cx)**2 + (y - k.cy)**2;
       if (dd < k.bd) { k.bd = dd; k.nb = i; }
       // births need food; bigger kingdoms breed a little faster
-      if (k.food > 5 && Math.random() < birthProbability(RACES[race].spawnP, k.level, k.mod.birth, evBirth(k)) && (counts[race]||0) < capOf(race)) {
+      if (k.food > 5 && Math.random() < birthProbability(RACES[race].spawnP, k.level, k.mod.birth * (k.bread >= 1 ? 1.25 : 1), evBirth(k)) && (counts[race]||0) < capOf(race)) {
         if (cells[(y>>3)*GW + (x>>3)].length < 12) { const c = spawnNear(race, x, y); if (c) { c.k = k.id; k.food -= 1.5; setFamily(c, x, y); } }
       }
     } else if (kid[i]) kid[i] = 0;
@@ -3476,7 +3504,7 @@ function step() {
   if (tick % 80 === 0) { diplomacyTick(); eventsTick(); if (!editMode) disasterTick(); }
   if (pendingDis.length) processDisasters();
   if (floods.length && tick % 8 === 0) floodRecede();
-  if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); ageCheck(); }
+  if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); ageCheck(); buildCheck(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
 
@@ -4187,7 +4215,7 @@ function relLine(k) {
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Age of Exploration' : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${ageName(k.age | 0, k.race)}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs} · 📚${Math.floor(k.kp || 0)}${relLine(k)}${evLine(k)}<br><button class="awb" data-act="ktree" data-id="${k.id}" style="margin-top:6px">🔬 Tech tree</button>`;
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${ageName(k.age | 0, k.race)}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs} · 📚${Math.floor(k.kp || 0)}${k.bld.length ? '<br>' + k.bld.map(id => BUILDING_BY[id].ic + BUILDING_BY[id].n).join(' · ') : ''}${k.bld.length ? `<br>Planks ${k.plank | 0} · Bread ${k.bread | 0} · Tools ${k.tool | 0}` : ''}${relLine(k)}${evLine(k)}<br><button class="awb" data-act="ktree" data-id="${k.id}" style="margin-top:6px">🔬 Tech tree</button>`;
 }
 let treeSel = null;
 function treeHtml(k) {
@@ -4777,7 +4805,7 @@ function serialize2() {
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
   return { v: 9, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, mf: [+market.p.fin.toFixed(2), +market.p.hide.toFixed(2)], sv: seenVer, wk: wrecks.map(w => [w.x, w.y, kix.get(w.kid) || 0, tick - w.t0, w.why === 'kraken' ? 2 : w.why === 'shark' ? 1 : 0]), rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
-    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.slice(), k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0, Math.round(k.kp || 0), BRANCHES.indexOf(k.focus)]),
+    kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.slice(), k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0, Math.round(k.kp || 0), BRANCHES.indexOf(k.focus), k.bld.slice(), k.plank | 0, k.bread | 0, k.tool | 0]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => { const s = c.boat ? ships.find(v => v.id === c.boat) : null, i = s ? s.sourceLand : c.y * W + c.x; return i * 10 + RN.indexOf(c.t); }),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
@@ -4822,6 +4850,8 @@ function restore(s) {
     k.unrest = a[13] || 0; k.immune = tick + (a[14] || 0);
     k.silver = a[15] || 0; k.bronze = a[16] || 0; k.iron = a[17] || 0; k.age = a[18] || 0; recalcMods(k);
     k.chest = (a[19] || []).filter(i => RN[i[2]]).map(i => [i[0], i[1], RN[i[2]], i[3] | 0]); k.voyageCd = tick + (a[20] || 0); k.fin = a[21] | 0; k.hide = a[22] | 0; k.kp = a[23] == null ? 30 + k.tech.length * 15 : a[23]; k.focus = BRANCHES[a[24]] || null;
+    for (const id of (a[25] || [])) if (BUILDING_BY[id]) { k.bld.push(id); placeLandmark(k, id); }
+    k.plank = a[26] | 0; k.bread = a[27] | 0; k.tool = a[28] | 0;
     ids.push(k.id);
   }
   if (s.rs) { nodes = []; s.rs.forEach((v, j) => { const i = v >> 3, t = v & 7; if (i < N && t >= 1 && t <= 5 && !oreT[i]) { oreT[i] = t; oreA[i] = (s.ra && s.ra[j]) || ORE_AMT[t]; nodes.push(i); } }); }
