@@ -56,7 +56,7 @@ Run the tests with `for t in tests/*.mjs; do node "$t"; done`.
 The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy look of the main menu.
 
 - **Top bar (108 px):** time capsule (pause, speed), a status pill (weather, year, chronicle button) and a capsule with the Hand tool and sound.
-- **Census strip:** population, kingdoms, houses and wars at a glance (plus plague when active). Numbers flash green or red and bump when they change. Tap it for the **Census** sheet: Civilizations, Wildlife, Sea life and Realm, each row with a comparison bar.
+- **Census strip:** population, kingdoms, houses and wars at a glance (plus plague when active). Numbers flash green or red and bump when they change. Tap it for the **Census** sheet (it names the season and year and scrolls): Civilizations, Wildlife, Life stages (adults, young, females, males), Sea life, Realm, Progress (highest age, techs known, buildings, wonders), Armies (knights, musketeers, heroes, warships) and Land (river and road tiles), each row with a comparison bar.
 - **Zoom pill and minimap:** zoom sits on the right edge of the map. The minimap (top left) shows depth-shaded terrain, kingdoms in race colours, ships, krakens and the current view; tap or drag to jump, and the corner button hides it.
 - **Alert badges:** pulsing badges for wars, plague, a kraken and fresh eruptions; each shows a count and centres the camera on the event when tapped (tap again for the next one).
 - **Dock (bottom):** a floating glass panel. A line above the tabs names the chosen tool with a one-line hint. Tabs are Terrain, Life, Powers, Realm and World. Tools sit in one scrollable row. The brush control shows a preview dot and dims when the tool ignores brush size. While an info sheet is open the dock shrinks to its tabs; tapping a tab closes the sheet.
@@ -130,7 +130,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Loading screen and main menu:** a short loading screen, then a procedural pixel night scene (moon, stars, a volcano island with a lit village, a sailing ship, birds), the gold logo, race badges and a Play or Continue button with help, What's New and sound buttons.
 - **What's New popup:** shown once per version right after loading (the version is stored in the save as `sv`); the sparkle button on the main menu reopens it, with a NEW badge until it has been seen.
 - **Sound:** everything is synthesised with Web Audio (UI ticks, hits, thunder, explosions, horns, splashes, a kraken roar), with ambient beds for wind, rain and fire and a generative score that darkens at night and at war. Sound only plays for events in or near the view; the speaker button is saved (`sn`).
-- **Tour:** a spotlight tour for first-time players (tap, drag and paint, tool tabs and row, zoom, minimap, time, sound, chronicle, census). It is remembered (`tu`) and can be replayed from the menu or the World tab.
+- **Tour:** a spotlight tour for first-time players (13 steps: tap, sexes and life stages, kingdoms with the Tech tree and decrees, drag and paint, tool tabs, scenarios, tool row, zoom, minimap, time, sound, chronicle and season, census). It is remembered (`tu`) and can be replayed from the menu or the World tab.
 - **Language:** all in-game text is English. Chronicle lines saved by older versions in Indonesian are translated when a save is loaded (`LEGACY_TEXT`).
 
 ## Save format

@@ -148,7 +148,7 @@ style.textContent = `
   #awzoom{position:absolute;right:10px;top:180px;z-index:5;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:34px;background:rgba(8,12,34,.62);border:2px solid rgba(255,216,130,.25);box-shadow:0 6px 18px rgba(0,0,0,.4)}
   #awzoom .awb{width:84px;height:84px;flex:0 0 84px;border-radius:26px;font-size:46px}
   #awsheetbg{position:absolute;left:0;top:166px;width:720px;height:784px;display:none;z-index:6}
-  #awsheet{position:absolute;left:10px;right:10px;top:170px;display:none;z-index:7;box-sizing:border-box;padding:14px 16px 18px;border-radius:30px;background:linear-gradient(#1c2760,#0b1132);border:2px solid rgba(255,216,130,.4);box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px rgba(255,255,255,.14);animation:awpop .25s ease-out}
+  #awsheet{max-height:880px;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;position:absolute;left:10px;right:10px;top:170px;display:none;z-index:7;box-sizing:border-box;padding:14px 16px 18px;border-radius:30px;background:linear-gradient(#1c2760,#0b1132);border:2px solid rgba(255,216,130,.4);box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px rgba(255,255,255,.14);animation:awpop .25s ease-out}
   #awsheet .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:32px;font-weight:900;color:#ffe9a8}
   #awsheet .sh .awb{width:76px;height:76px;flex:0 0 76px;border-radius:24px;font-size:36px}
   #awsheet .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -4972,14 +4972,28 @@ let sheetOpen = false;
 function csChip(key, ch, n) { const p = csPrev[key]; csPrev[key] = n; return `<span class="cs${p == null || p === n ? '' : n > p ? ' up' : ' dn'}">${ch}<b>${n}</b></span>`; }
 function censusSheet() {
   const row = (ic, nm, n, mx) => `<div class="rw"><span>${ic}</span><span>${nm}</span><b>${n}</b><i><u style="width:${Math.round(100 * n / Math.max(1, mx))}%"></u></i></div>`;
-  const grp = (title, rows) => { const mx = Math.max(1, ...rows.map(r => r[2])); return `<div class="grp"><h4>${title}</h4>${rows.map(r => row(r[0], r[1], r[2], mx)).join('')}</div>`; };
+  const grp = (title, rows) => { const mx = Math.max(1, ...rows.map(r => r[2])); return `<div class="grp"><h4>${title}</h4>${rows.map(r => row(r[0], r[1], r[2], r[3] || mx)).join('')}</div>`; };
   let wars = 0; for (const r of rels.values()) if (r.s === 1) wars++;
   let sick = 0; for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick++;
-  return `<div class="sh"><span>Census</span><button class="awb" data-act="shclose" aria-label="Close">✖</button></div><div class="grid">`
+  let adults = 0, young = 0, fem = 0, mal = 0, knights = 0, guns = 0, heroes = 0;
+  for (const c of creatures) {
+    if (RACES[c.t].engine || c.hp <= 0) continue;
+    if (isAdult(c.age, c.life)) adults++; else young++; if (c.f) fem++; else mal++;
+    if (c.hero) heroes++; else if (c.gun) guns++; else if (c.elite) knights++;
+  }
+  let maxAge = 0, ageKing = null, techs = 0, blds = 0, wonders = 0;
+  for (const k of kingdoms.values()) { if (!ageKing || (k.age | 0) > maxAge) { maxAge = k.age | 0; ageKing = k; } techs += k.tech.length; blds += k.bld.length; if (k.bld.includes('wonder')) wonders++; }
+  let rivers = 0, roads = 0, land = 0; for (let i = 0; i < N; i++) { if (riv[i]) rivers++; if (road[i]) roads++; if (tiles[i] >= 2) land++; }
+  const nk = Math.max(1, kingdoms.size);
+  return `<div class="sh"><span>Census · ${seasonOf(tick).n}, year ${Math.floor(tick / 120)}</span><button class="awb" data-act="shclose" aria-label="Close">✖</button></div><div class="grid">`
     + grp('Civilizations', [['human', 'Humans'], ['elf', 'Elves'], ['dwarf', 'Dwarves'], ['orc', 'Orcs'], ['werewolf', 'Werewolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
     + grp('Wildlife', [['sheep', 'Sheep'], ['rabbit', 'Rabbits'], ['deer', 'Deer'], ['wolf', 'Wolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
+    + grp('Life stages', [['🧑', 'Adults', adults], ['🌱', 'Young', young], ['❤️', 'Females', fem], ['🛡', 'Males', mal]])
     + grp('Sea life', [['🐟', 'Fish shoals', shoals.length], ['🦈', 'Sharks', sharks.length], ['🐙', 'Krakens', krakens.length]])
     + grp('Realm', [['🏰', 'Kingdoms', kingdoms.size], ['🏠', 'Houses', houseCount], ['⚔️', 'Wars', wars], ['☠️', 'Plague', sick]])
+    + grp('Progress', [['🔬', ageKing ? ageName(maxAge, ageKing.race) : 'No ages yet', ageKing ? maxAge + 1 : 0, 5], ['📖', 'Techs known', techs, 15 * nk], ['🔨', 'Buildings', blds, 6 * nk], ['🏰', 'Wonders', wonders, nk]])
+    + grp('Armies', [['🛡', 'Knights', knights], ['☄️', 'Musketeers', guns], ['🏆', 'Heroes', heroes], ['🌊', 'Warships', navy.length]])
+    + grp('Land', [['🌊', 'River tiles', rivers, Math.max(1, land * .04)], ['🏠', 'Road tiles', roads, Math.max(1, land * .04)]])
     + '</div>';
 }
 function setSheet(open) {
@@ -5413,15 +5427,18 @@ titleEl.addEventListener('click', e => {
 });
 const TOUR = [
   { r: [150, 420, 420, 330], t: 'Tap a creature or house to see its info', f: 'tap', y: 790 },
+  { r: [150, 420, 420, 330], t: 'Every creature is male or female, young or adult. A birth needs a mature pair of the same kind close together.', y: 790 },
+  { r: [150, 420, 420, 330], t: 'Tap a house to open its kingdom: the Tech tree steers research, and royal decrees boost food, knowledge, gold or industry.', f: 'tap', y: 790 },
   { r: [150, 420, 420, 330], t: 'Drag with one finger to move the map. Hold briefly, then drag, to paint with the tool.', f: 'drag', y: 790 },
   { r: [18, 1068, 448, 92], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 820 },
+  { r: [18, 1068, 448, 92], t: 'In the World tab, Scenarios start a prepared world with a goal and a time limit.', y: 820 },
   { r: [18, 1166, 664, 92], t: 'Scroll this row for more tools. The chosen tool is named just above the dock.', y: 820 },
   { r: [614, 180, 96, 184], t: 'Zoom the map in and out', y: 400 },
   { r: [4, 170, 196, 150], t: 'Minimap: tap or drag to jump anywhere. The corner button hides it.', f: 'tap', y: 420 },
   { r: [10, 6, 186, 96], t: 'Pause and speed up time', y: 230 },
   { r: [614, 6, 96, 96], t: 'Sound on or off', y: 230 },
-  { r: [206, 6, 308, 96], t: 'Tap the year and weather badge for the world chronicle and optional goals', f: 'tap', y: 230 },
-  { r: [10, 114, 700, 46], t: 'Key numbers at a glance. Tap the strip for the full census.', f: 'tap', y: 240 },
+  { r: [206, 6, 308, 96], t: 'Tap the year badge for the world chronicle and goals. It also names the season.', f: 'tap', y: 230 },
+  { r: [10, 114, 700, 46], t: 'Key numbers at a glance. Tap the strip for the full census: peoples, ages, buildings, armies and more.', f: 'tap', y: 240 },
 ];
 let tourI = 0;
 function startTour(force) { if (editMode) return; tourI = 0; tutEl.style.display = 'block'; if (force) { cv.style.visibility = 'visible'; titleEl.style.display = 'none'; started = true; lastT = performance.now(); } renderTour(); }
