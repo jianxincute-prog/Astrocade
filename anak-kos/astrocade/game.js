@@ -1,6 +1,6 @@
 
 /* =========================================================
-   KOST LIFE: BROKE TILL PAYDAY — boarding-house life sim (Astrocade, multi-file)
+   SURVIVE UNTIL PAYDAY — boarding-house life sim (Astrocade, multi-file)
    Konsep: urus satu anak kos di satu kamar selama 30 hari. Jaga 4 kebutuhan
    (lapar, energi, bersih, senang), kerja untuk kumpulkan uang sewa, hadapi
    kejadian acak beranimasi (termasuk kecoa interaktif). Skor = sisa uang setelah
@@ -1881,9 +1881,9 @@ function openLeaderboard() {
 function drawMenu() {
   drawNightBg();
   ctx.save(); ctx.translate(360, 190 + Math.sin(time * 2) * 6); ctx.rotate(-0.04);
-  txt('KOST LIFE', 4, 6, 104, '#3a2a5c'); txt('KOST LIFE', 0, 0, 104, '#ffd43b');
+  txt('SURVIVE', 4, 6, 112, '#3a2a5c'); txt('SURVIVE', 0, 0, 112, '#ffd43b');
   ctx.restore();
-  rr(160, 268, 400, 64, 32, '#ff6b6b'); txt('BROKE TILL PAYDAY', 360, 301, 30, '#fff');
+  rr(180, 268, 360, 64, 32, '#ff6b6b'); txt('UNTIL PAYDAY', 360, 301, 36, '#fff');
   txt('🏆 Best score: ' + SAVE.best + (SAVE.months ? '   •   Month ' + (SAVE.months + 1) : ''), 360, 368, 24, '#fff');
   // pilih karakter
   txt('Choose your character', 360, 420, 24, '#fff');
@@ -1930,8 +1930,8 @@ function drawEnd() {
 }
 function drawLoading() {
   drawNightBg();
-  txt('KOST LIFE', 360, 300, 96, '#ffd43b');
-  txt('Broke Till Payday', 360, 380, 36, '#fff');
+  txt('SURVIVE', 360, 300, 104, '#ffd43b');
+  txt('Until Payday', 360, 380, 40, '#fff');
   const p = loadDone / loadSteps.length;
   rr(160, 1150, 400, 30, 15, '#241a3a'); rr(160, 1150, Math.max(30, 400 * p), 30, 15, '#ffd43b');
   txt('Tidying up the room... ' + Math.round(p * 100) + '%', 360, 1210, 22, '#fff');
@@ -2013,7 +2013,7 @@ function showParams() {
   if (typeof lib === 'undefined' || !lib.showGameParameters) return;
   const S = (key, min, max, step) => ({ key: 'cfg.' + key, type: 'slider', min, max, step });
   lib.showGameParameters({
-    name: 'Kost Life: Broke Till Payday',
+    name: 'Survive Until Payday',
     params: {
       'Real seconds per game hour': S('hourSec', 0.2, 1.2, 0.05),
       'Days per month': S('days', 7, 30, 1),

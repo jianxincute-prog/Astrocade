@@ -1,4 +1,4 @@
-# Kost Life: Broke Till Payday
+# Survive Until Payday
 
 A cozy life-sim for mobile portrait (720x1280). The player looks after one young renter in a
 single boarding-house room ("kost") for 30 days, keeping 4 needs up (Hunger, Energy, Hygiene, Fun)
