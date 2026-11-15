@@ -133,7 +133,12 @@ style.textContent = `
   .ic{width:24px;height:24px;image-rendering:pixelated;vertical-align:-5px}
   .ic.cr{width:32px;height:32px;vertical-align:-8px}
   .awb{box-sizing:border-box;width:96px;height:96px;flex:0 0 96px;border-radius:18px;border:3px solid #0d1228;background:linear-gradient(#2b3769,#1a2248);box-shadow:inset 0 3px 0 rgba(255,255,255,.14),inset 0 -5px 0 rgba(0,0,0,.28),0 3px 0 #080b1c;color:#e8ecff;font-size:40px;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;cursor:pointer}
-  .awb:active{transform:translateY(2px)}
+  .awb{transition:transform .14s cubic-bezier(.3,1.7,.5,1)}
+  .awb:active{transform:translateY(3px) scale(.95)}
+  .awb.pop{animation:awselpop .32s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes awselpop{0%{transform:scale(.86)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+  #awtag.tagin{animation:awtagin .22s ease-out}
+  @keyframes awtagin{from{opacity:0;transform:translateX(-10px)}}
   .awb.on{background:linear-gradient(#4b5cac,#2c3a7e);border-color:#ffcf4a;box-shadow:inset 0 3px 0 rgba(255,255,255,.25),inset 0 -5px 0 rgba(0,0,0,.22),0 0 16px rgba(255,207,74,.5)}
   .awb .ic,.awb .ic.cr{width:48px;height:48px;vertical-align:0}
   #awtop{position:absolute;left:0;top:0;width:720px;height:108px;background:linear-gradient(#1b2658,#0e1536);border-bottom:2px solid rgba(255,216,130,.32);box-shadow:0 4px 16px rgba(0,0,0,.5),inset 0 -1px rgba(255,255,255,.06)}
@@ -154,8 +159,23 @@ style.textContent = `
   #awcensus .more{flex:0 0 60px}
   #awcensus .more:after{content:'';border:9px solid transparent;border-top-color:#ffd870;margin-top:9px;transition:transform .2s}
   #awcensus.open .more:after{transform:rotate(180deg);margin-top:-9px}
-  @keyframes awup{0%{border-color:#65df9a;color:#9dffc4;box-shadow:0 0 14px rgba(101,223,154,.55)}100%{box-shadow:none}}
-  @keyframes awdn{0%{border-color:#ff7a6a;color:#ffb0a6;box-shadow:0 0 14px rgba(255,122,106,.55)}100%{box-shadow:none}}
+  @keyframes awup{0%{border-color:#65df9a;color:#9dffc4;box-shadow:0 0 14px rgba(101,223,154,.55)}35%{transform:scale(1.07)}100%{box-shadow:none}}
+  @keyframes awdn{0%{border-color:#ff7a6a;color:#ffb0a6;box-shadow:0 0 14px rgba(255,122,106,.55)}35%{transform:scale(1.07)}100%{box-shadow:none}}
+  #awmm{position:absolute;left:10px;top:176px;z-index:5;padding:6px;border-radius:20px;background:rgba(8,12,34,.74);border:2px solid rgba(255,216,130,.32);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+  #awmm canvas{position:relative;left:auto;top:auto;display:block;border-radius:12px;image-rendering:pixelated;touch-action:none;cursor:crosshair}
+  #awmm .awb.mmt{position:absolute;right:-14px;top:-14px;width:48px;height:48px;flex:none;border-radius:24px}
+  #awmm .awb.mmt .ic{width:28px;height:28px}
+  #awmm.shut{padding:0;background:none;border:none;box-shadow:none}
+  #awmm.shut canvas{display:none}
+  #awmm.shut .awb.mmt{position:static;width:64px;height:64px;border-radius:22px}
+  #awmm.shut .awb.mmt .ic{width:36px;height:36px}
+  #awalerts{position:absolute;right:10px;top:376px;z-index:5;display:flex;flex-direction:column;gap:10px}
+  .al{position:relative;width:84px;height:84px;border-radius:28px;border:3px solid var(--ac,#ff6a5a);background:linear-gradient(#3a1f2c,#1a0f1a);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;animation:awalert 1.5s ease-in-out infinite}
+  .al .ic{width:48px;height:48px;vertical-align:0}
+  .al b{position:absolute;right:-6px;bottom:-6px;min-width:30px;height:30px;box-sizing:border-box;padding:0 6px;border-radius:15px;background:var(--ac,#ff6a5a);color:#fff;font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center}
+  .al.plague{--ac:#65df9a} .al.kraken{--ac:#c27bff} .al.volcano{--ac:#ff9a3a}
+  .al:active{transform:scale(.94)}
+  @keyframes awalert{0%,100%{box-shadow:0 0 0 0 rgba(255,106,90,.5)}50%{box-shadow:0 0 0 12px rgba(255,106,90,0)}}
   #awzoom{position:absolute;right:10px;top:180px;z-index:5;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:34px;background:rgba(8,12,34,.62);border:2px solid rgba(255,216,130,.25);box-shadow:0 6px 18px rgba(0,0,0,.4)}
   #awzoom .awb{width:84px;height:84px;flex:0 0 84px;border-radius:26px;font-size:46px}
   #awsheetbg{position:absolute;left:0;top:166px;width:720px;height:784px;display:none;z-index:6}
@@ -3630,7 +3650,7 @@ function drawShips(x0, y0, x1, y1) {
   }
 }
 function draw() {
-  frame++;
+  frame++; mmTick();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
   ctx.save();
@@ -4595,13 +4615,14 @@ const tabBtns = [];
 function renderRow1() {
   row1.innerHTML = ''; tabBtns.length = 0;
   for (const [g, ic] of GROUPS) {
-    const b = mkBtn(row1, ic, () => { if (bot.classList.contains('compact')) { closeCreature(); infoEl.style.display = 'none'; } group = g; renderRow1(); renderRow2(); }, g === group ? 'on' : '');
+    const b = mkBtn(row1, ic, () => { if (bot.classList.contains('compact')) { closeCreature(); infoEl.style.display = 'none'; } group = g; popSel = true; renderRow1(); renderRow2(); popSel = false; }, g === group ? 'on' : '');
     tabBtns.push(b);
   }
   const bb = el('div', 'awbrush', row1); bb.classList.toggle('dim', !brushUsed());
   mkBtn(bb, '−', () => setBrush(brush - 1));
   const sp = document.createElement('span'); sp.id = 'awbv'; sp.innerHTML = brushDot(); bb.appendChild(sp);
   mkBtn(bb, '+', () => setBrush(brush + 1));
+  if (popSel) { const o = row1.querySelector(':scope > .awb.on'); if (o) o.classList.add('pop'); }
   updateTag();
 }
 function brushUsed() { const t = TOOLS[tool]; return !!t && t.ms < 5000 && tool !== 'inspect'; }      // the brush size only matters for painting and spawning tools
@@ -4612,12 +4633,13 @@ function renderRow2() {
   if (group === 'world') { for (const a of WORLD_ACTIONS) mkBtn(row2, a.ic, () => { setTag(a.ic, a.nm, a.h); a.fn(); }, a.on && a.on() ? 'on' : ''); }
   else for (const [id, t] of Object.entries(TOOLS)) if (t.g === group) mkBtn(row2, t.ic, () => selectTool(id), tool === id ? 'on' : '');
   const on = row2.querySelector('.awb.on'); row2.scrollLeft = on ? Math.max(0, on.offsetLeft - 24) : 0; fadeRow2();
+  if (popSel && on) on.classList.add('pop');
 }
 row2.addEventListener('scroll', () => fadeRow2(), { passive: true });
 function fadeRow2() { row2.style.setProperty('--fl', row2.scrollLeft > 4 ? '36px' : '0px'); row2.style.setProperty('--fr', row2.scrollLeft + row2.clientWidth < row2.scrollWidth - 4 ? '44px' : '0px'); }
 const GROUP_NAME = { terrain: 'Terrain', life: 'Life', powers: 'Powers', realm: 'Realm', world: 'World' };
 const TOOL_HINT = { raise: 'Raise land from the sea', lower: 'Lower land into the sea', grass: 'Paint grass', forest: 'Plant forest', sand: 'Paint sand', lava: 'Pour lava', rain: 'Douses fires and greens the land', fire: 'Set things ablaze', bolt: 'Strike lightning', meteor: 'Call down a meteor', bless: 'Heal and bless creatures', smite: 'Strike creatures down', kraken: 'Summon a kraken in open water', salvage: 'Tap a wreck to raise it', inspect: 'Tap anything for details', enlighten: 'Teach a kingdom a technology', grace: 'Bless a kingdom with plenty', plague: 'Strike a kingdom with plague', revolt: 'Start a rebellion in a kingdom', peace: 'End the wars of a kingdom', unite: 'Merge a kingdom with a neighbour', split: 'Split a kingdom in two', fish: 'Place a fish shoal in the water', shark: 'Place a shark in open water' };
-function setTag(ic, nm, hint) { tagEl.innerHTML = `<span class="tk">${ic}</span><b>${nm || ''}</b><span class="th">${hint || ''}</span><span class="tg">${(GROUP_NAME[group] || '').toUpperCase()}</span>`; }
+function setTag(ic, nm, hint) { tagEl.classList.remove('tagin'); void tagEl.offsetWidth; tagEl.classList.add('tagin'); tagEl.innerHTML = `<span class="tk">${ic}</span><b>${nm || ''}</b><span class="th">${hint || ''}</span><span class="tg">${(GROUP_NAME[group] || '').toUpperCase()}</span>`; }
 function updateTag() {                                         // the name and hint of the chosen tool sit just above the dock
   const t = TOOLS[tool];
   if (tool === 'hand') setTag('✋', 'Hand', 'Drag to move the map');
@@ -4628,8 +4650,9 @@ function updateTag() {                                         // the name and h
 function selectTool(id) {
   tool = id; handBtn.classList.toggle('on', id === 'hand');
   if (TOOLS[id]) group = TOOLS[id].g;
-  renderRow1(); renderRow2();
+  popSel = true; renderRow1(); renderRow2(); popSel = false;
 }
+let popSel = false;                                            // the freshly chosen tab or tool pops
 function togglePause() { paused = !paused; pauseBtn.textContent = paused ? '▶' : '⏸'; pauseBtn.classList.toggle('on', paused); }
 
 let pauseBtn = null;
@@ -4678,7 +4701,68 @@ function updateStats() {
     censusEl.innerHTML = csChip('pop', '👥', pop) + csChip('kg', '🏰', kingdoms.size) + csChip('hs', '🏠', houseCount) + csChip('wr', '⚔️', wars) + (sick ? csChip('pl', '☠️', sick) : '') + '<span class="cs more"></span>';
     if (sheetOpen) sheetEl.innerHTML = censusSheet();
   }
+  refreshAlerts();
   checkObjectives(); refreshGoalsPanel();
+}
+
+/* ============================== MINIMAP + ALERT BADGES ============================== */
+function jumpTo(x, y, minSc, quiet) {                          // centre the camera on a tile (optionally zooming in a little)
+  if (minSc && sc < minSc) sc = minSc;
+  ox = VIEW.x + VIEW.w / 2 - (x + .5) * sc; oy = VIEW.y + VIEW.h / 2 - (y + .5) * sc; clampCam();
+  if (!quiet) fx('bless', Math.round(x), Math.round(y));
+}
+const mmWrap = el('div', 'awmm'), mmCv = document.createElement('canvas'), mmBase = document.createElement('canvas');
+mmWrap.appendChild(mmCv);
+let mmOpen = true, mmBaseF = -1e9, mmW = 0, mmH = 0, mmDown = false;
+const mmTog = mkBtn(mmWrap, '🗺️', () => { mmOpen = !mmOpen; mmWrap.classList.toggle('shut', !mmOpen); mmBaseF = -1e9; });
+mmTog.classList.add('mmt'); mmTog.setAttribute('aria-label', 'Toggle minimap');
+const mmGo = e => { const r = mmCv.getBoundingClientRect(); jumpTo(Math.max(0, Math.min(W - 1, (e.clientX - r.left) / r.width * W)), Math.max(0, Math.min(H - 1, (e.clientY - r.top) / r.height * H)), 0, true); };
+mmCv.addEventListener('pointerdown', e => { mmDown = true; try { mmCv.setPointerCapture(e.pointerId); } catch (x) {} mmGo(e); e.stopPropagation(); });
+mmCv.addEventListener('pointermove', e => { if (mmDown) mmGo(e); });
+mmCv.addEventListener('pointerup', () => { mmDown = false; }); mmCv.addEventListener('pointercancel', () => { mmDown = false; });
+function mmTick() {
+  if (!mmOpen || frame % 6) return;
+  if (mmW !== W || mmH !== H) { mmW = W; mmH = H; mmBase.width = mmCv.width = W; mmBase.height = mmCv.height = H; const k = Math.min(168 / W, 168 / H); mmCv.style.width = Math.round(W * k) + 'px'; mmCv.style.height = Math.round(H * k) + 'px'; mmBaseF = -1e9; }
+  if (frame - mmBaseF > 120) {                                 // terrain bitmap, refreshed every couple of seconds
+    mmBaseF = frame; const bx = mmBase.getContext('2d'), im = bx.createImageData(W, H), d = im.data, wOK = shoreD.length === N;
+    for (let i = 0; i < N; i++) {
+      const t = tiles[i]; let r, g, b;
+      if (t <= 1 && wOK) { const dd = shoreD[i], di = t === 1 ? (dd > 4 ? 4 : dd) : (dd < 5 ? 5 : dd > 30 ? 30 : dd); r = WR[di * 3]; g = WR[di * 3 + 1]; b = WR[di * 3 + 2]; }
+      else { const c = COL[t]; r = c[0]; g = c[1]; b = c[2]; }
+      const k = i * 4; d[k] = r; d[k + 1] = g; d[k + 2] = b; d[k + 3] = 255;
+    }
+    bx.putImageData(im, 0, 0);
+  }
+  const c2 = mmCv.getContext('2d'), u = Math.max(1, W / 168);
+  c2.drawImage(mmBase, 0, 0);
+  for (const k of kingdoms.values()) { const col = BORDER_RGB[RACES[k.race].bi] || [255, 255, 255], z = u * (1.4 + k.level * .5); c2.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; c2.fillRect(k.cx - z / 2, k.cy - z / 2, z, z); c2.strokeStyle = 'rgba(0,0,0,.7)'; c2.lineWidth = u * .5; c2.strokeRect(k.cx - z / 2, k.cy - z / 2, z, z); }
+  c2.fillStyle = '#fff'; for (const s of ships) c2.fillRect(s.x - u * .5, s.y - u * .5, u * 1.2, u * 1.2);
+  c2.fillStyle = '#ff4a4a'; for (const k of krakens) { const z = u * (2 + Math.sin(frame * .2)); c2.fillRect(k.x - z / 2, k.y - z / 2, z, z); }
+  const vx = (VIEW.x - ox) / sc, vy = (VIEW.y - oy) / sc, vw = VIEW.w / sc, vh = VIEW.h / sc;
+  c2.strokeStyle = '#fff'; c2.lineWidth = u * 1.3; c2.strokeRect(Math.max(0, vx), Math.max(0, vy), Math.min(W, vw) - 0, Math.min(H, vh) - 0);
+}
+function alertList() {                                         // threats worth jumping to: wars, plague, a kraken, an erupting volcano
+  const L = [], wars = [], sick = [];
+  for (const [key, r] of rels) if (r.s === 1) { const a = kingdoms.get(Math.floor(key / 65536)), b = kingdoms.get(key % 65536); if (a && b) wars.push([((a.cap % W) + (b.cap % W)) / 2, (((a.cap / W) | 0) + ((b.cap / W) | 0)) / 2]); }
+  if (wars.length) L.push({ k: 'war', ic: '⚔️', pts: wars });
+  for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick.push([k.cx, k.cy]);
+  if (sick.length) L.push({ k: 'plague', ic: '☠️', pts: sick });
+  const kr = krakens.filter(k => k.st !== 2).map(k => [k.x, k.y]); if (kr.length) L.push({ k: 'kraken', ic: '🐙', pts: kr });
+  const vo = volcanoes.filter(v => tick - v.er < 700).map(v => [v.x, v.y]); if (vo.length) L.push({ k: 'volcano', ic: '🌋', pts: vo });
+  return L;
+}
+const alertsEl = el('div', 'awalerts'); let alertKey = '';
+const alertIdx = {};
+alertsEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-al]'); if (!b) return;
+  const cur = alertList().find(a => a.k === b.dataset.al); if (!cur) return;
+  const i = (alertIdx[cur.k] || 0) % cur.pts.length; alertIdx[cur.k] = i + 1; jumpTo(cur.pts[i][0], cur.pts[i][1], 14);
+});
+function refreshAlerts() {
+  if (editMode) return;
+  const L = alertList(), key = L.map(a => a.k + a.pts.length).join(',');
+  if (key === alertKey) return; alertKey = key;
+  alertsEl.innerHTML = L.map(a => `<button class="al ${a.k}" data-al="${a.k}" aria-label="Jump to ${a.k}">${a.ic}${a.pts.length > 1 ? `<b>${a.pts.length}</b>` : ''}</button>`).join('');
 }
 
 /* ============================== SAVE / LOAD (play mode) ============================== */
@@ -5000,6 +5084,7 @@ const TOUR = [
   { r: [18, 1068, 448, 92], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 820 },
   { r: [18, 1166, 664, 92], t: 'Scroll this row for more tools. The chosen tool is named just above the dock.', y: 820 },
   { r: [614, 180, 96, 184], t: 'Zoom the map in and out', y: 400 },
+  { r: [4, 170, 196, 150], t: 'Minimap: tap or drag to jump anywhere. The corner button hides it.', f: 'tap', y: 420 },
   { r: [10, 6, 186, 96], t: 'Pause and speed up time', y: 230 },
   { r: [614, 6, 96, 96], t: 'Sound on or off', y: 230 },
   { r: [206, 6, 308, 96], t: 'Tap the year and weather badge for the world chronicle and optional goals', f: 'tap', y: 230 },
