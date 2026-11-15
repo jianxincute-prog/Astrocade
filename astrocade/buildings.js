@@ -28,7 +28,7 @@ export function produce(k) {
   const o = k.bld || [], d = { wood: 0, food: 0, ore: 0, plank: 0, bread: 0, tool: 0 };
   if (o.includes('sawmill') && k.wood > 40 && (k.plank || 0) < GOODS_CAP.plank) { d.wood -= 3; d.plank += 1.5; }
   if (o.includes('bakery') && k.food > 160 && (k.bread || 0) < GOODS_CAP.bread) { d.food -= 6; d.bread += 1; }
-  if (o.includes('smithy') && k.wood > 12 && (k.tool || 0) < GOODS_CAP.tool && ((k.iron || 0) >= 1 || (k.bronze || 0) >= 1 || (k.stone || 0) >= 4)) { d.wood -= 2; d.ore = 1; d.tool += .4; }   // ore, or stone when there is no metal
+  if (o.includes('smithy') && k.wood > 12 && (k.tool || 0) < GOODS_CAP.tool && ((k.iron || 0) >= 20 || (k.bronze || 0) >= 20 || (k.stone || 0) >= 4)) { d.wood -= 2; d.ore = 1; d.tool += .4; }   // spare metal only (the army keeps its reserve), otherwise stone
   return d;
 }
 /** Tool wear and the work boost they give. */

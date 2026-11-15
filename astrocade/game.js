@@ -15,6 +15,7 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+import { KRAKEN_HP as KRAKEN_MAXHP, FLEE_FRAC, LUCKY_SHOT, VOLLEY_TICKS, GUN_RANGE, firepower, sinkChance, warshipHp, warshipFire } from './naval.js';
 import { BUILDINGS, BUILDING_BY, GOODS_CAP, buildable, kpBonus, produce, toolBoost } from './buildings.js';
 import { TECHS, BRANCHES, BRANCH_NAME, BRANCH_IC, TIER_KP, ageName, ageNeed, ageReady, availableTechs, chooseTech, kpGain, techById, legacyTechIds } from './tech.js';
 
@@ -407,7 +408,7 @@ const warStats = { repaired: 0, towerShots: 0, breached: 0, declared: 0, ended: 
 const chronicle = []; const completedGoals = new Set(); let warsResolved = 0;
 const CHRONICLE_MAX = 60;
 let creatures = [], nextId = 1, tick = 0;
-let ships = [], nextShipId = 1;                 // civilization exploration vessels; crew are citizens marked with ship id
+let ships = [], nextShipId = 1, navy = [], nextNavyId = 1;                 // civilization exploration vessels; crew are citizens marked with ship id
 let speed = 1, paused = editMode, started = editMode, fireView = 0, sndBtn = null, tutSeen = false;
 let counts = {}, houseCount = 0, hb = [0,0,0,0,0,0];
 const effects = [];
@@ -733,7 +734,7 @@ function genPreset(z, seed) {
 }
 function generate(seed) { waterDirty = true; const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
 function emptyWorld() {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1;
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   nodes = []; oreT.fill(0); oreA.fill(0);
   creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
   for (let i = 0; i < N; i++) jit[i] = Math.floor((hash(i, 3, 5) - .5) * 14);
@@ -1183,6 +1184,10 @@ function stepCart(c) {
 function eliteTick() {                                        // Iron Age kingdoms arm a few soldiers as iron knights (+80% hp, +50% attack, +40% defence)
   const cnt = {}; for (const c of creatures) if (c.hp > 0 && c.elite && c.k) cnt[c.k] = (cnt[c.k] || 0) + 1;
   for (const k of kingdoms.values()) {
+    if (k.age >= 4 && k.level >= 3 && k.iron >= 2 && k.gold >= 40) {                    // Gunpowder Age: a knight takes up the musket (ranged, hits harder)
+      const m = creatures.find(c => c.k === k.id && c.hp > 0 && c.elite && !c.gun) || creatures.find(c => c.k === k.id && c.hp > 0 && !c.gun && RACES[c.t].civ && !RACES[c.t].engine && isSoldier(c));
+      if (m && creatures.filter(c => c.k === k.id && c.gun && c.hp > 0).length < 6) { m.gun = 1; m.elite = 1; applyStats(m); k.iron -= 2; k.gold -= 40; addHist(m, 7); fx('levelup', m.x, m.y); if (!k.gunToast) { k.gunToast = 1; addChronicle('💥', `${k.name} fielded its first musketeers`); } }
+    }
     if (k.age < 2 || k.level < 2 || k.iron < 8 || (cnt[k.id] || 0) >= Math.min(8, 2 + (k.level - 2) * 2 + (k.pop >> 5))) continue;
     const cx = k.cap % W, cy = (k.cap / W) | 0; let best = null, bd = 15;
     for (const c of creatures) {
@@ -1482,10 +1487,19 @@ function krakenHit(x, y, r, dmg) {                              // smite, lightn
 }
 function krakenAttack(k) {
   const a = k.atk, risk = +((cfg.settings && cfg.settings.shipwreckRisk) ?? 3);
+  if (a.kind === 'navy') {                                       // a warship is tougher than a sailing ship: it takes a beating and may survive
+    if (!navy.includes(a.ref)) return;
+    a.ref.hp -= 40 + Math.random() * 20; fx('boom', Math.round(a.ref.x), Math.round(a.ref.y), { r: 3 });
+    if (a.ref.hp <= 0) { k.kills++; if (Math.random() < LUCKY_SHOT) { krakenHit(k.x, k.y, 0, 1e9); addChronicle('🎯', 'The dying warship crew put a last shot into the kraken\'s eye'); } }
+    return;
+  }
   if (a.kind === 'ship') {
     const si = ships.indexOf(a.ref); if (si < 0) return;
     const kg = kingdoms.get(a.ref.kingdomId), nm = kg ? kg.name : 'A';
-    if (Math.random() < (k.manual ? .9 : Math.min(.85, .45 + risk * .05))) { wreckShip(a.ref, si, 'kraken'); k.kills++; }
+    if (Math.random() < sinkChance(risk, k.manual, k.hp)) {
+      wreckShip(a.ref, si, 'kraken'); k.kills++;
+      if (Math.random() < LUCKY_SHOT) { krakenHit(k.x, k.y, 0, 1e9); addChronicle('🎯', `The dying crew of ${nm} put a last shot into the kraken's eye`); }       // under 1% per lost ship
+    }
     else { addChronicle('🐙', `The kraken seized a ship of ${nm}, but it broke free`); toast(`🐙 A ship of ${nm} broke free of the kraken`); }
     fx('boom', Math.round(a.ref.x), Math.round(a.ref.y), { r: 3 });
   } else {
@@ -1493,6 +1507,17 @@ function krakenAttack(k) {
     if (kg) { kg.wood = Math.max(0, (kg.wood | 0) - 25); kg.voyageCd = Math.max(kg.voyageCd || 0, tick + 3000); addChronicle('🐙', `The kraken smashed the harbor of ${kg.name}`); banner('🐙', 'Harbor smashed', `The harbor of ${kg.name} was destroyed`, 'bad'); }
     for (const c of creatures) if (Math.abs(c.x - a.tx) <= 3 && Math.abs(c.y - a.ty) <= 3) c.hp -= 15;
   }
+}
+function fleetFire(k) {                                         // every ship and warship in range shoots at the kraken (wounds it, never kills it on its own)
+  const vs = [...ships.map(s => ({ s, age: (kingdoms.get(s.kingdomId) || {}).age | 0, kid: s.kingdomId })), ...navy.map(s => ({ s, age: s.age, kid: s.kid }))];
+  for (const v of vs) {
+    if (Math.hypot(v.s.x - k.x, v.s.y - k.y) > GUN_RANGE) continue;
+    if ((v.s.kc = (v.s.kc || 0) - 1) > 0) continue;
+    v.s.kc = VOLLEY_TICKS; k.hp -= firepower(v.age) * (.6 + Math.random() * .8);
+    fx('arrow', Math.round(v.s.x), Math.round(v.s.y), { tx: Math.round(k.x), ty: Math.round(k.y) }); fx('hit', Math.round(k.x), Math.round(k.y)); emit('bit', k.x, k.y - 1, 4, { col: '#e8a0ff' });
+    if (!k.fought) { k.fought = 1; const kg = kingdoms.get(v.kid); addChronicle('💥', `${kg ? kg.name : 'A crew'} fights the kraken, though the odds are hopeless`); toast('💥 The crew fights back!'); }
+  }
+  if (k.hp < KRAKEN_MAXHP * FLEE_FRAC && k.hp > 0 && !k.driven) { k.driven = 1; k.st = 2; k.t = 0; k.atk = null; krakenCd = 12000 + ri(0, 6000); banner('🐙', 'Kraken driven off', 'Wounded, it sinks back down', 'good'); addChronicle('🐙', 'The kraken was driven off by cannon fire'); }
 }
 function krakenTick() {
   const risk = +((cfg.settings && cfg.settings.shipwreckRisk) ?? 3);
@@ -1505,18 +1530,20 @@ function krakenTick() {
     if (k.st === 0) { if (k.t >= 90) { k.st = 1; k.t = 0; } continue; }
     if (k.st === 2) { if (k.t >= 80) { fx('splash', Math.round(k.x), Math.round(k.y)); krakens.splice(q, 1); if (krakenCd < 12000) krakenCd = 12000 + ri(0, 9000); } continue; }
     if (k.cd > 0) k.cd--;
+    fleetFire(k); if (k.st === 2) continue;
     if (--k.life <= 0 || k.kills >= 3) { k.st = 2; k.t = 0; k.atk = null; continue; }
     if (k.atk) { k.atk.t++; if (k.atk.t === 40) krakenAttack(k); if (k.atk.t >= 75) { k.atk = null; k.cd = 260; } continue; }
     let tgt = null, td = 1e9;
     for (const s of ships) { const d = Math.hypot(s.x - k.x, s.y - k.y); if (d < 18 && d < td) { td = d; tgt = { kind: 'ship', ref: s, x: s.x, y: s.y }; } }
+    for (const s of navy) { const d = Math.hypot(s.x - k.x, s.y - k.y); if (d < 18 && d < td) { td = d; tgt = { kind: 'navy', ref: s, x: s.x, y: s.y }; } }
     if (!tgt && k.dock) for (const g of kingdoms.values()) if (g.lm && g.lm.harbor != null) { const hx = g.lm.harbor % W, hy = (g.lm.harbor / W) | 0, d = Math.hypot(hx - k.x, hy - k.y); if (d < 24 && d < td) { td = d; tgt = { kind: 'dock', kid: g.id, x: hx, y: hy, tx: hx, ty: hy }; } }
     if (tgt) {
       k.tx = tgt.x; k.ty = tgt.y;
-      if (k.cd <= 0 && td < (tgt.kind === 'ship' ? 2.8 : 3.4)) { k.atk = Object.assign({ t: 0 }, tgt); krakenRoar(k.x, k.y); continue; }
+      if (k.cd <= 0 && td < (tgt.kind !== 'dock' ? 2.8 : 3.4)) { k.atk = Object.assign({ t: 0 }, tgt); krakenRoar(k.x, k.y); continue; }
     } else if ((Math.abs(k.tx - k.x) < 1 && Math.abs(k.ty - k.y) < 1) || Math.random() < .01) for (let a = 0; a < 10; a++) { const tx = Math.round(k.x) + ri(-12, 12), ty = Math.round(k.y) + ri(-12, 12); if (krakenOk(tx, ty)) { k.tx = tx; k.ty = ty; break; } }
     const dx = k.tx - k.x, dy = k.ty - k.y, dist = Math.hypot(dx, dy);
     if (dist > .05) {
-      const stp = Math.min(tgt && tgt.kind === 'ship' ? .27 : .18, dist), nx = k.x + dx / dist * stp, ny = k.y + dy / dist * stp;
+      const stp = Math.min(tgt && tgt.kind !== 'dock' ? .27 : .18, dist), nx = k.x + dx / dist * stp, ny = k.y + dy / dist * stp;
       if (krakenOk(Math.round(nx), Math.round(ny))) { k.x = nx; k.y = ny; if (Math.abs(dx) > .1) k.hd = dx > 0 ? 1 : -1; } else { k.tx = k.x; k.ty = k.y; }
     }
   }
@@ -2251,7 +2278,7 @@ function applyStats(c) {                                       // max hp from ra
   m = Math.round(m); const r = c.mhp > 0 ? Math.max(0, c.hp) / c.mhp : 1;
   c.mhp = m; if (c.hp > 0) c.hp = Math.max(1, m * r);
 }
-const atkMul = c => { let m = 1; if (c.tr & 1) m *= 1.15; const w = c.eq ? c.eq[0] : 0; if (w) m *= 1 + W_ATK[w] * (c.tr & 32 ? 1.25 : 1); if (c.elite) m *= 1.25; return m; };
+const atkMul = c => { let m = 1; if (c.tr & 1) m *= 1.15; const w = c.eq ? c.eq[0] : 0; if (w) m *= 1 + W_ATK[w] * (c.tr & 32 ? 1.25 : 1); if (c.elite) m *= 1.25; if (c.gun) m *= 1.35; return m; };
 const defMul = c => { let m = 1; if (c.eq) m *= (1 + A_DEF[c.eq[1]]) * (1 + S_DEF[c.eq[2]]); if (c.elite) m *= 1.2; return m; };
 function addHist(c, code, arg) {                               // life events of settlers (kept: the last 10)
   if (!RACES[c.t].civ) return;
@@ -2486,7 +2513,7 @@ function stepCreature(c) {
   if (!tg && (tick + c.id) % 3 === 0) tg = c.tgt = findTarget(c);
   if (tg) {
     const d = Math.max(Math.abs(tg.x-c.x), Math.abs(tg.y-c.y));
-    const ka = c.k ? kingdoms.get(c.k) : null, kd = tg.k ? kingdoms.get(tg.k) : null, rng = ka ? ka.mod.range : 1;
+    const ka = c.k ? kingdoms.get(c.k) : null, kd = tg.k ? kingdoms.get(tg.k) : null, rng = Math.max(ka ? ka.mod.range : 1, c.gun ? 4 : 1);
     if (d <= rng && R.dmg > 0) {
       c.atk = 10; c.face = tg.x > c.x ? 1 : tg.x < c.x ? -1 : c.face;
       const night = nightNow > .5;
@@ -3304,7 +3331,8 @@ function wreckShip(s, si, why) {
   ships.splice(si, 1); fx('splash', x, y); emit('bit', x, y, 7, { col:'#bfe6ff' }); haptic('thud');
   if (wrecks.length >= 30) wrecks.shift(); wrecks.push({ x, y, kid: s.kingdomId, race: s.race, t0: tick, why: why || 'storm' });
   const kind = s.phase.startsWith('fishing') ? 'Fishing boat' : 'Exploration ship';
-  if (why) { const kr = why === 'kraken'; addChronicle(kr ? '🐙' : '🦈', `A ${kr ? 'kraken dragged' : 'shark sank'} the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}${kr ? ' under' : ''}; the crew is lost`); toast(kr ? '🐙 A kraken dragged a ship under!' : '🦈 A shark sank a ship!'); }
+  if (why === 'navy') { addChronicle('⚔️', `An enemy warship sank the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}`); toast('⚔️ A ship was sunk by a warship'); }
+  else if (why) { const kr = why === 'kraken'; addChronicle(kr ? '🐙' : '🦈', `A ${kr ? 'kraken dragged' : 'shark sank'} the ${kind.toLowerCase()} of ${k ? k.name : 'a kingdom'}${kr ? ' under' : ''}; the crew is lost`); toast(kr ? '🐙 A kraken dragged a ship under!' : '🦈 A shark sank a ship!'); }
   else { addChronicle('🌊', `${kind} of ${k ? k.name : 'a kingdom'} was lost at sea; its crew is gone`); toast(`🌊 ${kind} lost at sea`); }
   dirty = true;
 }
@@ -3348,6 +3376,77 @@ function voyageTick() {
   if (tick % 80 !== 0) return;
   for (const k of kingdoms.values()) if (k.tech.includes('voyage') && tick >= (k.voyageCd || 0)) launchVoyage(k);
 }
+/* ---------- naval war (version 3.0): warships sail to an enemy coast, bombard it and duel other fleets ---------- */
+const NAVY_COST = { wood: 40, iron: 15, gold: 20 };
+function navyLaunch(k) {
+  if (k.age < 3 || k.level < 2 || !k.enemies.size || tick < (k.navyCd || 0)) return;
+  if (navy.filter(n => n.kid === k.id).length >= (k.age >= 4 ? 2 : 1) || !canPay(k, NAVY_COST) || k.food < 60) return;
+  const src = coastalLandNear(k, 24); if (src < 0) { k.navyCd = tick + 2400; return; }
+  const start = adjacentWater(src); if (start < 0) { k.navyCd = tick + 2400; return; }
+  const goals = new Int32Array(N); goals.fill(-1); let any = false, foe = null;
+  for (const id of k.enemies) {
+    const e = kingdoms.get(id); if (!e) continue;
+    const ex = Math.round(e.cx), ey = Math.round(e.cy);
+    for (let y = Math.max(0, ey - 16); y <= Math.min(H - 1, ey + 16); y++) for (let x = Math.max(0, ex - 16); x <= Math.min(W - 1, ex + 16); x++) {
+      const i = x + y * W; if (tiles[i] <= T.SHALLOW || tiles[i] === T.LAVA) continue;
+      const w = adjacentWater(i); if (w >= 0 && goals[w] < 0) { goals[w] = i; any = true; foe = foe || e; }
+    }
+  }
+  const route = any ? findWaterRoute(tiles, W, H, start, goals) : null;
+  if (!route || route.path.length < 3) { k.navyCd = tick + 2400; return; }
+  pay(k, NAVY_COST); k.navyCd = tick + 1500;
+  navy.push({ id: nextNavyId++, kid: k.id, race: k.race, age: k.age, x: start % W, y: (start / W) | 0, path: route.path, step: 0, move: 0, hp: warshipHp(k.age), mhp: warshipHp(k.age), kc: 0, phase: 'out', t: 0, home: start });
+  addChronicle('⚓', `${k.name} launched a warship`); toast(`⚓ ${EMOJI[k.race]}${k.name} launched a warship`); dirty = true;
+}
+function navyTick() {
+  if (tick % 80 === 0) for (const k of kingdoms.values()) navyLaunch(k);
+  for (let q = navy.length - 1; q >= 0; q--) {
+    const n = navy[q], k = kingdoms.get(n.kid);
+    if (!k || n.hp <= 0 || extinctRaces.has(n.race)) {
+      if (k && n.hp <= 0) { addChronicle('⚓', `A warship of ${k.name} was sunk`); toast(`⚓ A warship of ${k.name} went down`); }
+      fx('splash', Math.round(n.x), Math.round(n.y)); fx('boom', Math.round(n.x), Math.round(n.y), { r: 2 }); navy.splice(q, 1); continue;
+    }
+    if (n.phase !== 'siege') {
+      if (n.step < n.path.length - 1) {
+        n.move += .3; while (n.move >= 1 && n.step < n.path.length - 1) { n.move -= 1; n.step++; }
+        const a = n.path[n.step], b = n.path[Math.min(n.step + 1, n.path.length - 1)], f = n.step >= n.path.length - 1 ? 0 : n.move;
+        n.x = (a % W) + ((b % W) - (a % W)) * f; n.y = ((a / W) | 0) + (((b / W) | 0) - ((a / W) | 0)) * f;
+      } else if (n.phase === 'out') { n.phase = 'siege'; n.t = 0; }
+      else { navy.splice(q, 1); continue; }                                                       // back in port
+    }
+    if (n.phase === 'siege') { n.t++; if (n.t > 1100 || !k.enemies.size) { n.phase = 'home'; n.path = n.path.slice().reverse(); n.step = 0; n.move = 0; } }
+    if ((n.kc = (n.kc || 0) - 1) > 0) continue;
+    const F = warshipFire(n.age), nx = Math.round(n.x), ny = Math.round(n.y);
+    let shot = false;
+    for (const o of navy) if (o !== n && k.enemies.has(o.kid) && Math.hypot(o.x - n.x, o.y - n.y) <= F.range) { o.hp -= F.dmg * (.6 + Math.random() * .8); fx('arrow', nx, ny, { tx: Math.round(o.x), ty: Math.round(o.y) }); fx('hit', Math.round(o.x), Math.round(o.y)); shot = true; break; }
+    if (!shot) for (let si = ships.length - 1; si >= 0; si--) { const s = ships[si]; if (k.enemies.has(s.kingdomId) && Math.hypot(s.x - n.x, s.y - n.y) <= F.range) { fx('arrow', nx, ny, { tx: Math.round(s.x), ty: Math.round(s.y) }); if (Math.random() < .35) wreckShip(s, si, 'navy'); shot = true; break; } }
+    if (!shot && n.phase === 'siege') {                                                             // bombard enemy houses on the shore
+      const r = F.range; let hit = -1;
+      for (let a = 0; a < 14 && hit < 0; a++) { const x = nx + ri(-r, r), y = ny + ri(-r, r); if (!inb(x, y)) continue; const i = x + y * W; if (bld[i] && k.enemies.has(kid[i])) hit = i; }
+      if (hit >= 0) {
+        const hx = hit % W, hy = (hit / W) | 0; fx('arrow', nx, ny, { tx: hx, ty: hy }); fx('boom', hx, hy, { r: 1 });
+        if (Math.random() < .45) { bld[hit] = 0; kid[hit] = 0; warStats.razed++; dirty = true; emit('debris', hx, hy, 8); }
+        shot = true;
+      }
+    }
+    if (shot) n.kc = VOLLEY_TICKS + 8; else n.kc = 6;
+    const foes = n.phase === 'siege' ? [...k.enemies].map(id => kingdoms.get(id)).filter(e => e && e.age >= 3 && Math.hypot(e.cx - n.x, e.cy - n.y) < 16) : [];
+    if (foes.length && tick % 40 === 0) { n.hp -= 3 * foes.length; fx('arrow', Math.round(foes[0].cx), Math.round(foes[0].cy), { tx: nx, ty: ny }); }   // shore batteries answer
+  }
+}
+function drawNavy(x0, y0, x1, y1) {
+  for (const n of navy) {
+    if (n.x < x0 - 2 || n.x > x1 + 2 || n.y < y0 - 2 || n.y > y1 + 2) continue;
+    const cx = ox + (n.x + .5) * sc, cy = oy + (n.y + .5) * sc;
+    if (sc < 5) { ctx.fillStyle = '#ff4a4a'; ctx.fillRect(cx - 3, cy - 3, 6, 6); continue; }
+    const sp = SHIP_ATLAS[n.race], K = Math.max(1, Math.round(sc / 8)), w = sp.width * K, h = sp.height * K;
+    ctx.strokeStyle = 'rgba(255,150,120,.6)'; ctx.lineWidth = Math.max(1, sc * .08); ctx.beginPath(); ctx.ellipse(cx, cy + h * .32, w * .6, Math.max(1, sc * .12), 0, 0, Math.PI * 2); ctx.stroke();
+    let face = 1; if (n.step < n.path.length - 1) { const a = n.path[n.step], b = n.path[n.step + 1]; face = (b % W) >= (a % W) ? 1 : -1; }
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(face, 1); ctx.imageSmoothingEnabled = false; ctx.drawImage(sp, -w / 2, -h / 2, w, h);
+    ctx.fillStyle = '#c8302a'; ctx.fillRect(-w * .05, -h * .62, w * .28, h * .12); ctx.restore();                       // red pennant
+    const f = Math.max(0, n.hp / n.mhp); ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(cx - w * .4, cy - h * .75, w * .8, 3); ctx.fillStyle = f > .5 ? '#6adf7a' : '#ff6a5a'; ctx.fillRect(cx - w * .4, cy - h * .75, w * .8 * f, 3);
+  }
+}
 function terrainStats(k) {
   const cx = Math.round(k.cx), cy = Math.round(k.cy); let g = 0, f = 0, m = 0, pm = 0; const tk = [0, 0, 0, 0];
   for (let y = Math.max(0, cy-9); y <= Math.min(H-1, cy+9); y++) for (let x = Math.max(0, cx-9); x <= Math.min(W-1, cx+9); x++) {
@@ -3373,7 +3472,7 @@ function economy() {                                      // once per second
     if (k.bld.length) {                                                         // goods chains: sawmill, bakery, smithy
       const d = produce(k);
       k.wood += d.wood; k.food += d.food; k.plank = Math.min(GOODS_CAP.plank, k.plank + d.plank); k.bread = Math.min(GOODS_CAP.bread, k.bread + d.bread);
-      if (d.ore) { const m = k.iron >= 1 ? 'iron' : k.bronze >= 1 ? 'bronze' : null; if (m) k[m] -= 1; else k.stone -= 4; k.tool = Math.min(GOODS_CAP.tool, k.tool + d.tool); }
+      if (d.ore) { const m = k.iron >= 20 ? 'iron' : k.bronze >= 20 ? 'bronze' : null; if (m) k[m] -= 1; else k.stone -= 4; k.tool = Math.min(GOODS_CAP.tool, k.tool + d.tool); }
       if (k.tool > 0) k.tool = Math.max(0, k.tool - .03);                        // tools wear out
       if (k.food < 12 && k.bread >= 1) { k.bread -= 1; k.food += 10; }          // bread stands in for famine
     }
@@ -3451,7 +3550,7 @@ function step() {
   for (const l of cells) l.length = 0;
   for (const c of creatures) if (!c.boat) cells[(c.y>>3)*GW + (c.x>>3)].push(c);
   for (let i = 0; i < creatures.length; i++) stepCreature(creatures[i]);
-  reapDead(); voyageTick(); shoalTick(); sharkTick(); krakenTick();
+  reapDead(); voyageTick(); navyTick(); shoalTick(); sharkTick(); krakenTick();
   const wc = counts.wolf || 0;
   if (wc >= 2 && wc <= 3 && tick - lastEvolve > 1200 && (counts.werewolf || 0) < capOf('werewolf')) evolveWolves();
   else if (wc < 4 * CAPK && tick - lastEvolve > 600 && Math.random() < (wc === 0 ? 1/80 : 1/300)) wolfPack();
@@ -3564,7 +3663,7 @@ function setSize(idx) {
   kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   oreT = new Uint8Array(N); oreA = new Uint8Array(N); treeK = new Uint8Array(N); nodes = [];
   drops.length = 0; dropMap.clear(); volcanoes.length = 0; parts.length = 0;
-  kingdoms.clear(); rels.clear(); ships = []; nextShipId = 1; nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
+  kingdoms.clear(); rels.clear(); ships = []; nextShipId = 1; navy = []; nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
   off.width = W; off.height = H; img = octx.createImageData(W, H);
   creatures = []; effects.length = 0; counts = {}; houseCount = 0; hb = [0,0,0,0,0,0];
@@ -3789,7 +3888,7 @@ function draw() {
       ctx.fillStyle = RACES[c.t].col; ctx.fillRect(ox + (c.dx + .5)*sc - ds/2, oy + (c.dy + .5)*sc - ds/2, ds, ds);
     }
   }
-  drawShips(x0, y0, x1, y1);
+  drawShips(x0, y0, x1, y1); drawNavy(x0, y0, x1, y1);
   drawEffects();
   drawAtmosphere();
   if (hover && tool !== 'inspect' && TOOLS[tool]) {
@@ -4268,7 +4367,7 @@ function nameOf(c) { return c.nm || (c.nm = nameFor(c.t, c.nid === undefined ? c
 function roleOf(c) {
   const R = RACES[c.t];
   if (R.cart) return 'Merchant'; if (R.engine) return 'War machine';
-  if (c.elite) return 'Iron knight'; if (c.lead) return 'Leader';
+  if (c.gun) return 'Musketeer'; if (c.elite) return 'Iron knight'; if (c.lead) return 'Leader';
   if (R.civ) return isSoldier(c) ? 'Soldier' : 'Citizen';
   return R.hunt ? 'Hunter' : 'Prey';
 }
@@ -4543,7 +4642,7 @@ function confirmThen(key, msg, fn) {              // destructive actions need a 
   else { pendingKey = key; pendingT = now; toast('⚠️ ' + msg + ' — tap again'); }
 }
 function newWorld(idx) {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1;
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx);
   generate(1 + ((Math.random() * 1e6) | 0));
@@ -4808,6 +4907,7 @@ function serialize2() {
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.slice(), k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0, Math.round(k.kp || 0), BRANCHES.indexOf(k.focus), k.bld.slice(), k.plank | 0, k.bread | 0, k.tool | 0]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => { const s = c.boat ? ships.find(v => v.id === c.boat) : null, i = s ? s.sourceLand : c.y * W + c.x; return i * 10 + RN.indexOf(c.t); }),
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
+    gn: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.gun) a.push(j); return a; }, []),
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
     vc: volcanoes.map(v => v.i),
@@ -4829,7 +4929,7 @@ const LEGACY_TEXT = [                                           // chronicle lin
 const legacyText = t => { for (const [re, to] of LEGACY_TEXT) if (re.test(t)) return t.replace(re, to); return t; };
 function restore(s) {
   if (!s || !(s.v >= 1 && s.v <= 9)) return false;
-  ships = []; nextShipId = 1;
+  ships = []; nextShipId = 1; navy = [];
   setSize(s.v === 1 ? 0 : s.z);                                                 // v1 saves were always the small map
   if (!rleDecode(s.tiles)) return false;
   extinctRaces.clear(); for (const r of s.xr || []) if (['human','elf','dwarf','orc','werewolf'].includes(r)) extinctRaces.add(r);
@@ -4897,6 +4997,7 @@ function restore(s) {
   inv.length = 0; for (const i of s.inv || []) if (RN[i[2]] && i[0] >= 0 && i[0] < 3 && i[1] >= 1 && i[1] <= 3) inv.push([i[0], i[1], RN[i[2]], i[3] | 0]);
   let mx = nextId; for (const c of spawned) if (c && c.nid !== undefined && c.nid >= mx) mx = c.nid + 1; nextId = mx;       // new ids must not collide with saved name seeds
   for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
+  for (const j of s.gn || []) { const c = spawned[j]; if (c) { c.elite = 1; c.gun = 1; } }
   for (const c of spawned) if (c) { c.mhp = 0; applyStats(c); c.hp = c.mhp; }
   return true;
 }
@@ -5170,7 +5271,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles

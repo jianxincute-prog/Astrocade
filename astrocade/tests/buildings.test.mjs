@@ -13,6 +13,7 @@ assert.strictEqual(produce({ bld: ['sawmill'], wood: 100, plank: GOODS_CAP.plank
 assert.strictEqual(produce({ bld: ['bakery'], food: 100, bread: 0 }).bread, 0);  // only surplus food is baked
 assert.strictEqual(produce({ bld: ['bakery'], food: 200, bread: 0 }).bread, 1);
 assert.strictEqual(produce({ bld: ['smithy'], wood: 50, iron: 0, bronze: 0, stone: 0 }).tool, 0);
-assert.strictEqual(produce({ bld: ['smithy'], wood: 50, iron: 3 }).ore, 1);
+assert.strictEqual(produce({ bld: ['smithy'], wood: 50, iron: 30 }).ore, 1);
+assert.strictEqual(produce({ bld: ['smithy'], wood: 50, iron: 5, stone: 0 }).tool, 0);   // no tools from the iron reserve
 assert.strictEqual(toolBoost({ tool: 0 }), 1); assert.strictEqual(toolBoost({ tool: 5 }), 1.25);
 console.log('buildings tests ok');
