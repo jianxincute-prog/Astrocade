@@ -6,20 +6,20 @@
     "sfxVolume": 0.8
   },
   "podiumPositions": {
-    "office01": [-12.5, -75],
-    "nurse01": [12.5, -75],
-    "ceo01": [-12.5, -87.5],
-    "student01": [12.5, -87.5],
-    "idol01": [-12.5, -100],
-    "janitor01": [12.5, -100],
-    "rin01": [-12.5, -112.5],
-    "aoi01": [12.5, -112.5],
-    "mei01": [-12.5, -125],
-    "yuki01": [12.5, -125],
-    "kana01": [-12.5, -137.5],
-    "sakura01": [12.5, -137.5]
+    "office01": [-17, -92],
+    "nurse01": [17, -92],
+    "ceo01": [-17, -106],
+    "student01": [17, -106],
+    "idol01": [-17, -120],
+    "janitor01": [17, -120],
+    "rin01": [-17, -134],
+    "aoi01": [17, -134],
+    "mei01": [-17, -148],
+    "yuki01": [17, -148],
+    "kana01": [-17, -162],
+    "sakura01": [17, -162]
   },
   "persistent_storage_config": {
-    "leaderboard": { "sort_ascending": true }
+    "leaderboard": { "sort_ascending": false }
   }
 }

@@ -24,11 +24,11 @@ export const PARTS = [
 
 // Restoration hall (fragments are scattered here): x and z within ±HALL_SIZE/2. The statue gallery opens north
 // of it through a single doorway: a long sculpture nave with six plinths along each side of a central aisle.
-export const HALL_SIZE = 120;
-export const ANNEX = { minX: -20, maxX: 20, nearZ: -62, farZ: -152 };
+export const HALL_SIZE = 150;
+export const ANNEX = { minX: -24, maxX: 24, nearZ: -82, farZ: -170 };
 export const GALLERY_DOOR = 7; // half-width of the doorway between hall and gallery
-const ROW_X = 12.5;
-const ROW_Z = [-75, -87.5, -100, -112.5, -125, -137.5];
+const ROW_X = 17;
+const ROW_Z = [-92, -106, -120, -134, -148, -162];
 export const INITIAL_PODIUMS = {
   office01: [-ROW_X, ROW_Z[0]], nurse01: [ROW_X, ROW_Z[0]],
   ceo01: [-ROW_X, ROW_Z[1]], student01: [ROW_X, ROW_Z[1]],
@@ -40,9 +40,9 @@ export const INITIAL_PODIUMS = {
 
 // Twelve searchable fragment zones (4 x 3) inside the restoration hall, one per statue.
 const ZONES = {
-  office01: [-39, -36], nurse01: [13, 36], ceo01: [39, -2], student01: [-13, -2],
-  idol01: [-39, 36], janitor01: [13, -36], rin01: [39, 36], aoi01: [-13, 36],
-  mei01: [13, -2], yuki01: [-39, -2], kana01: [39, -36], sakura01: [-13, -36],
+  office01: [-52, -48], nurse01: [13, 47], ceo01: [52, 0], student01: [-13, 0],
+  idol01: [-52, 47], janitor01: [13, -48], rin01: [52, 47], aoi01: [-13, 47],
+  mei01: [13, 0], yuki01: [-52, 0], kana01: [52, -48], sakura01: [-13, -48],
 };
 const FRAGMENT_OFFSETS = [[-8, -7], [7, -8], [-7, 8], [8, 7], [0, 0]];
 
@@ -64,8 +64,8 @@ export function createInitialState() {
   return { carried: null, collected: [], revealed: [], placed: Object.fromEntries(SETS.map((set) => [set.id, []])) };
 }
 
-export function reveal(state, key) {
-  if (!isHidden(key) || state.revealed.includes(key)) return state;
+export function reveal(state, key, hidden = HIDDEN_FRAGMENTS) {
+  if (!hidden[key] || state.revealed.includes(key)) return state;
   return { ...state, revealed: [...state.revealed, key] };
 }
 
@@ -73,19 +73,19 @@ export function getSet(setId) {
   return SETS.find((set) => set.id === setId) ?? null;
 }
 
-export function getFragment(key) {
-  return FRAGMENTS.find((fragment) => fragment.key === key) ?? null;
+export function getFragment(key, pool = FRAGMENTS) {
+  return pool.find((fragment) => fragment.key === key) ?? null;
 }
 
-export function pickup(state, key) {
-  const fragment = getFragment(key);
+export function pickup(state, key, pool = FRAGMENTS, hidden = HIDDEN_FRAGMENTS) {
+  const fragment = getFragment(key, pool);
   if (!fragment || state.carried || state.collected.includes(key) || state.placed[fragment.setId]?.includes(fragment.partId)) return state;
-  if (isHidden(key) && !state.revealed?.includes(key)) return state; // still inside its chest / behind its curtain
+  if (hidden[key] && !state.revealed?.includes(key)) return state; // still inside its chest / behind its curtain
   return { ...state, carried: key, collected: [...state.collected, key] };
 }
 
-export function placeCarried(state, setId) {
-  const fragment = getFragment(state.carried);
+export function placeCarried(state, setId, pool = FRAGMENTS) {
+  const fragment = getFragment(state.carried, pool);
   if (!fragment || fragment.setId !== setId || state.placed[setId]?.includes(fragment.partId)) return state;
   return {
     ...state,
@@ -94,8 +94,9 @@ export function placeCarried(state, setId) {
   };
 }
 
-export function isSetComplete(state, setId) {
-  return (state.placed[setId]?.length ?? 0) === PARTS.length;
+export function isSetComplete(state, setId, requiredPartIds = PARTS.map((part) => part.id)) {
+  const placed = state.placed[setId] ?? [];
+  return requiredPartIds.every((partId) => placed.includes(partId));
 }
 
 export function isGameComplete(state) {
@@ -106,21 +107,21 @@ export function countPlaced(state) {
   return SETS.reduce((total, set) => total + (state.placed[set.id]?.length ?? 0), 0);
 }
 
-export function restoreState(saved) {
+export function restoreState(saved, pool = FRAGMENTS, hidden = HIDDEN_FRAGMENTS) {
   const clean = createInitialState();
   if (!saved || typeof saved !== 'object') return clean;
   for (const set of SETS) {
     const valid = Array.isArray(saved.placed?.[set.id])
-      ? saved.placed[set.id].filter((partId) => PARTS.some((part) => part.id === partId))
+      ? saved.placed[set.id].filter((partId) => PARTS.some((part) => part.id === partId) || /^ornament0[1-7]$/.test(partId))
       : [];
     clean.placed[set.id] = [...new Set(valid)];
   }
-  const alreadyPlaced = new Set(SETS.flatMap((set) => clean.placed[set.id].map((partId) => `${set.id}:${partId}`)));
+  const alreadyPlaced = new Set(pool.filter((fragment) => clean.placed[fragment.setId]?.includes(fragment.partId)).map((fragment) => fragment.key));
   clean.collected = Array.isArray(saved.collected)
-    ? [...new Set(saved.collected.filter((key) => getFragment(key) && !alreadyPlaced.has(key)))]
+    ? [...new Set(saved.collected.filter((key) => getFragment(key, pool) && !alreadyPlaced.has(key)))]
     : [];
-  clean.revealed = Array.isArray(saved.revealed) ? [...new Set(saved.revealed.filter((key) => isHidden(key)))] : [];
-  const carried = getFragment(saved.carried);
+  clean.revealed = Array.isArray(saved.revealed) ? [...new Set(saved.revealed.filter((key) => Boolean(hidden[key])))] : [];
+  const carried = getFragment(saved.carried, pool);
   clean.carried = carried && !alreadyPlaced.has(carried.key) ? carried.key : null;
   if (clean.carried && !clean.collected.includes(clean.carried)) clean.collected.push(clean.carried);
   if (clean.carried && clean.collected.length > 0) clean.collected = clean.collected.filter((key) => key !== clean.carried);

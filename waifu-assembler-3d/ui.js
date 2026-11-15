@@ -7,7 +7,7 @@ export function uiMarkup(editing) {
     <div class="hud ${editing ? 'edit-mode' : ''}">
       <header class="topbar">
         <div class="brand"><div class="brand-mark">✦</div><div><small>ATELIER K—07</small><strong>WAIFU <em>ASSEMBLER</em></strong></div></div>
-        <div class="score"><small>${editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN'}</small><b id="progress-count">0 <i>/ 60</i></b><span>PARTS PLACED</span></div>
+        <div class="score"><small id="score-title">${editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN'}</small><b id="progress-count">0 <i>/ 60</i></b><span id="score-caption">PARTS PLACED</span><i id="stage-readout"></i></div>
       </header>
       <section class="status-card"><div class="status-icon">⌖</div><div id="status-message"><b>SEARCH THE HALL</b><span>60 fragments are waiting to be found</span></div><div class="status-target" id="target-info"><i class="target-dot"></i><span>Check the map for your next fragment</span></div></section>
       <section class="map-card"><div class="card-cap"><span>FIELD SCAN</span><span class="scan-live">● LIVE</span></div><canvas id="mini-map" width="158" height="188"></canvas><div class="map-legend"><i></i> FRAGMENT <span>◇ GALLERY</span></div></section>
@@ -33,7 +33,7 @@ export function uiMarkup(editing) {
       <div id="medal-pop" class="medal-pop"><div class="medal-disc" id="medal-disc"><span>★</span></div><div><small id="medal-kind">GOLD MEDAL</small><b id="medal-name">OFFICE-01</b><span id="medal-time">1:12 · par 1:42</span></div></div>
       <div id="finish-banner" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small>RESTORATION COMPLETE</small><h2>Twelve figures.<br>One brilliant curator.</h2><p>All twelve statues stand restored in the sculpture gallery, from Office-01 to Sakura-01. The atelier looks rather pleased with itself.</p><div id="finish-time" class="finish-time"></div><div id="finish-medals" class="finish-medals"></div><button id="finish-close">BACK TO THE HALL</button><button id="finish-rank">RANKING</button></div></div>
       <section id="editor-panel" class="editor-panel">
-        <div class="editor-head"><span>✦ &nbsp; SCULPTURE GALLERY</span><small>NORTH OF THE 120 × 120 HALL</small></div>
+        <div class="editor-head"><span>✦ &nbsp; SCULPTURE GALLERY</span><small>NORTH OF THE 150 × 150 HALL</small></div>
         <p>Choose a wall-side podium, then drag it. The spacious center stays open.</p>
         <canvas id="editor-map" width="320" height="276" aria-label="Drag a podium to reposition it"></canvas>
         <div class="editor-selected" id="editor-selected"></div>
@@ -55,6 +55,8 @@ export function uiMarkup(editing) {
       </section>
       ${editing ? '<div class="edit-badge">EDITOR MODE <span>· gameplay paused</span></div>' : ''}
     </div>
+    <div id="stage-clear" class="finish-banner"><div class="finish-card"><div class="finish-spark">✦</div><small id="stage-clear-level">STAGE CLEAR</small><h2>Beautifully restored.</h2><p id="stage-clear-points"></p><div id="stage-clear-total" class="finish-time"></div><button id="stage-next">NEXT STAGE</button></div></div>
+    <div id="stage-over" class="finish-banner"><div class="finish-card"><div class="finish-spark">⧗</div><small>RUN OVER</small><h2>Time's up.</h2><p id="stage-over-text"></p><div id="stage-over-score" class="finish-time"></div><div id="stage-over-best" class="finish-medals"></div><button id="stage-again">STAGE AGAIN</button><button id="stage-menu">MENU</button></div></div>
     <div id="gl-lost" class="gl-lost"><div><b>Restoring the gallery…</b><span>The graphics were interrupted. Your progress is saved.</span><button id="gl-reload">RELOAD</button></div></div>
     <div id="boot" class="boot">
       <div class="boot-mark">✦</div>
@@ -67,7 +69,8 @@ export function uiMarkup(editing) {
         <div id="menu-meta" class="menu-meta"></div>
         <div id="daily-card" class="daily-card"><div class="daily-icon">☀</div><div><small id="daily-head">TODAY'S CHALLENGE</small><b id="daily-text"></b><span id="daily-status"></span></div></div>
         <div class="menu-buttons">
-          <button id="menu-play" class="menu-btn primary"><span>▶</span><b id="menu-play-label">PLAY</b></button>
+          <button id="menu-stage" class="menu-btn primary"><span>⧗</span><b>STAGE RUN</b><small>endless · one statue per level</small></button>
+          <button id="menu-play" class="menu-btn"><span>▤</span><b id="menu-play-label">GALLERY</b><small>free restoration</small></button>
           <div class="menu-row">
             <button id="menu-settings" class="menu-btn"><span>⚙</span><b>SETTINGS</b></button>
             <button id="menu-leaderboard" class="menu-btn"><span>♛</span><b>RANKING</b></button>
@@ -86,7 +89,7 @@ export function uiMarkup(editing) {
         <button id="set-reset" class="danger">RESET PROGRESS</button>
       </section>
       <section id="leaderboard-panel" class="panel" aria-label="Leaderboard">
-        <h2>Fastest Curators <button class="panel-close" data-close aria-label="Close leaderboard">✕</button></h2>
+        <h2>Stage Champions <button class="panel-close" data-close aria-label="Close leaderboard">✕</button></h2>
         <div id="lb-body" class="lb-body"></div>
       </section>
     </div>`;
@@ -119,6 +122,8 @@ export function installStyles() {
     @keyframes count-pop { 0% { transform:scale(1); } 40% { transform:scale(1.28); color:#ffe08a; } 100% { transform:scale(1); } }
     .score b { transform-origin:right center; }
     .score span { color:#a19789; font-size:8px; letter-spacing:1.8px; font-weight:800; }
+    #stage-readout { display:none; margin-top:3px; color:#f0d08f; font:800 8px system-ui; font-style:normal; letter-spacing:.5px; }
+    .score.stage-mode #stage-readout { display:block; }
     .status-card { position:absolute; top:106px; left:22px; right:22px; min-height:73px; display:grid; grid-template-columns:40px 1fr auto; align-items:center; gap:12px; padding:12px 15px; border:1px solid rgba(237,217,177,.16); border-radius:17px; background:rgba(26,21,16,.82); backdrop-filter:blur(16px); box-shadow:0 12px 30px rgba(0,0,0,.17); }
     .status-icon { width:36px; height:36px; display:grid; place-items:center; color:#eccf96; font-size:23px; border-radius:12px; background:rgba(226,182,93,.12); }
     #status-message b { display:block; color:#fcf8f0; font-size:11px; letter-spacing:1.5px; }

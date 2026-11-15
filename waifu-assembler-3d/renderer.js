@@ -1,6 +1,6 @@
 import {
   ANNEX, FRAGMENTS, GALLERY_DOOR, HALL_SIZE, INITIAL_PODIUMS, PARTS, SETS,
-  countPlaced, createInitialState, formatTime, getFragment, getSet, isGameComplete,
+  countPlaced, createInitialState, formatTime, getFragment, getSet, isGameComplete, isSetComplete,
   pickup, placeCarried, restoreState, serializeState,
   DAILY_STARS, EXPRESSION_UNLOCKS, HIDDEN_FRAGMENTS, betterMedal, countStars, dailyChallenge, dailyMet,
   isExpressionUnlocked, medalFor, puzzleSolved, puzzleStart, reveal, statuePar,
@@ -11,6 +11,7 @@ import { COSTUMES, DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
 import { STATUE_POSES } from './poses.mjs';
 import { buildContainer, buildFragment, buildPodium, buildWorld, makeLabel, petalTexture, starTexture } from './world.js';
 import { createAudio } from './audio.js';
+import { clearStage, createRun, EXTRA_ACCESSORIES, STAGE_ORDER, pieceAssembled, pieceRevealed, startStage, stageSpec, tickRun } from './stages.mjs';
 
 // Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead gallery layout editor.
 // The statues stand about 5 units tall on their plinths, so the visitor's eye sits at EYE_HEIGHT to meet them at chest height.
@@ -190,7 +191,7 @@ export function createGame(mode = 'play') {
   } else aimCamera();
 
   const ui = {
-    progress: root.querySelector('#progress-count'), status: root.querySelector('#status-message'),
+    progress: root.querySelector('#progress-count'), score: root.querySelector('.score'), scoreTitle: root.querySelector('#score-title'), scoreCaption: root.querySelector('#score-caption'), stageReadout: root.querySelector('#stage-readout'), status: root.querySelector('#status-message'),
     target: root.querySelector('#target-info'), action: root.querySelector('#mobile-action'),
     actionLabel: root.querySelector('#action-label'), toast: root.querySelector('#toast'),
     blueprint: root.querySelector('#blueprint-card'), blueprintTitle: root.querySelector('#blueprint-title'),
@@ -207,6 +208,10 @@ export function createGame(mode = 'play') {
   let toastUntil = 0;
   let hasInteracted = false;
   let finishedShown = false;
+  let stageRun = null; // endless stage run (stages.mjs); null while in the gallery
+  let stageSetId = null; // the statue the current stage restores
+  let stageStash = null; // the serialized gallery progress, kept safe while a stage run is going
+  let stageNextTimer = 0;
   let disposed = false;
   let ready = false; // the gallery and fragments exist
   let phase = 'loading'; // loading → menu ⇄ play (edit mode: loading → edit)
@@ -214,12 +219,18 @@ export function createGame(mode = 'play') {
   let bestSeconds = null;
   // Meta progress outlives a NEW RUN: the best medal per statue, the statues ever restored (Studio portraits),
   // stars from daily challenges and the daily streak. statueTimes is this run's medal clock per statue.
-  const freshMeta = () => ({ medals: {}, restored: [], dailyStars: 0, daily: null, streak: 0, lastDailyDay: null, tutorialDone: false });
+  const freshMeta = () => ({ medals: {}, restored: [], dailyStars: 0, daily: null, streak: 0, lastDailyDay: null, tutorialDone: false, stageBest: 0 });
   const meta = freshMeta();
   let statueTimes = {};
   let clocking = []; // statues whose clock is running: a piece collected, not yet whole
   const pars = Object.fromEntries(SETS.map((set) => [set.id, statuePar(set.id, podiumPositions[set.id], speed)]));
   const containers = new Map(); // fragment key → chest / curtained alcove hiding it
+  const fixedColliders = world.colliders.slice();
+  let currentStageSpec = null;
+  let currentStageFragments = FRAGMENTS;
+  let currentStageHidden = HIDDEN_FRAGMENTS;
+  let stageExtraFragments = [];
+  const stageContainers = new Map();
   let puzzle = null; // the turn-and-fit puzzle in progress
   let lastFrame = performance.now();
   let lookPointer = null;
@@ -246,7 +257,7 @@ export function createGame(mode = 'play') {
     if (!save) return;
     prefs.muted = audio.muted;
     const times = Object.fromEntries(Object.entries(statueTimes).map(([id, t]) => [id, Math.round(t * 10) / 10]));
-    const payload = { waifuAssembler: serializeState(state), playSeconds: Math.round(playSeconds), bestSeconds, prefs: { ...prefs }, audioMuted: audio.muted, meta: { ...meta }, statueTimes: times };
+    const payload = { waifuAssembler: serializeState(state), stageRun: stageRun ? { ...stageRun } : null, stageStash, playSeconds: Math.round(playSeconds), bestSeconds, prefs: { ...prefs }, audioMuted: audio.muted, meta: { ...meta }, statueTimes: times };
     try { return Promise.resolve(save(payload)).catch(() => {}); } catch { return null; /* local play remains available */ }
   };
   // ---------- 3D hologram projection inside the HUD card ----------
@@ -288,9 +299,9 @@ export function createGame(mode = 'play') {
     holo.root?.setEnabled(false); holo.root = null;
     holo.key = key;
     if (!key) return;
-    const fragment = getFragment(key); const h = holoFigure(fragment.setId);
-    const ghostMat = kit.holoMaterial(fragment.setId);
-    for (const [partId, meshes] of h.parts) for (const m of meshes) m.material = partId === fragment.partId ? heldMat : ghostMat;
+    const fragment = currentFragment(key); const h = holoFigure(fragment.setId);
+    const ghostMat = kit.holoMaterial(fragment.setId); const highlighted = fragment.visualPartId || fragment.partId;
+    for (const [partId, meshes] of h.parts) for (const m of meshes) m.material = partId === highlighted ? heldMat : ghostMat;
     const c = BAB.Color3.FromHexString(getSet(fragment.setId).color);
     holoRingMat.emissiveColor = c.scale(1.1); holoBeamMat.emissiveColor = c;
     holo.root = h.root; holo.spin = h.spin;
@@ -313,46 +324,54 @@ export function createGame(mode = 'play') {
   }
   const refreshPodiums = () => {
     for (const set of SETS) {
-      const podium = podiums.get(set.id);
-      const placed = state.placed[set.id] || [];
-      const medal = placed.length === PARTS.length && meta.medals[set.id];
-      podium.label.setText(medal ? `${set.name}  ·  ${medal.toUpperCase()}` : `${set.name}  ·  ${placed.length}/5`);
+      const podium = podiums.get(set.id); const placed = state.placed[set.id] || [];
+      const shown = !stageRun || set.id === stageSetId;
+      podium.group.setEnabled(shown);
+      niches.get(set.id)?.setEnabled(shown);
+      podium.labelMesh.setEnabled(shown);
+      const required = stageRun && set.id === stageSetId ? currentStageFragments.map((f) => f.partId) : PARTS.map((p) => p.id);
+      const done = required.every((partId) => placed.includes(partId));
+      const medal = done && !stageRun && meta.medals[set.id];
+      podium.label.setText(medal ? `${set.name}  ·  ${medal.toUpperCase()}` : `${set.name}  ·  ${placed.length}/${required.length}`);
       if (!podium.merged) for (const part of PARTS) {
-        const built = placed.includes(part.id);
-        const entry = podium.figureParts.get(part.id);
-        entry.ghost.setEnabled(!built);
-        entry.solid.setEnabled(built);
+        const built = placed.includes(part.id); const entry = podium.figureParts.get(part.id);
+        entry.ghost.setEnabled(shown && !built); entry.solid.setEnabled(shown && built);
       }
-      podium.finished.setEnabled(placed.length === PARTS.length);
-      podium.motes.emitRate = placed.length ? 2 + placed.length * 3 : 0;
-      refreshShadows();
+      for (const extra of EXTRA_ACCESSORIES) podium.accessories.get(extra.id)?.setEnabled(shown && placed.includes(extra.id));
+      podium.finished.setEnabled(shown && done);
+      podium.motes.emitRate = shown && placed.length ? 2 + placed.length * 3 : 0;
     }
+    refreshShadows();
   };
   const refreshFragments = () => {
+    const activePool = stageRun ? currentStageFragments : FRAGMENTS;
+    const activeKeys = new Set(activePool.map((f) => f.key));
     for (const fragment of FRAGMENTS) {
-      const model = fragments.get(fragment.key);
-      model.absent = model.gone || state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
-      model.locked = Boolean(model.container) && !state.revealed.includes(fragment.key);
+      const model = fragments.get(fragment.key); const active = !stageRun || activeKeys.has(fragment.key);
+      model.absent = model.gone || !active || state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
+      model.locked = active && Boolean(model.container) && !state.revealed.includes(fragment.key);
       if (!model.gone) { model.root.setEnabled(!model.absent); model.shown = !model.absent; model.spin.setEnabled(!model.locked); }
       const box = model.container;
-      if (box && !model.locked && !box.opened && !box.opening) { box.animate(1); box.opened = true; } // opened in an earlier session
+      if (box && active && !model.locked && !box.opened && !box.opening) { box.animate(1); box.opened = true; }
     }
-    clocking = SETS.filter((set) => (state.placed[set.id]?.length || 0) < PARTS.length && state.collected.some((k) => k.startsWith(`${set.id}:`))).map((set) => set.id);
+    for (const fragment of stageExtraFragments) {
+      const model = fragments.get(fragment.key); if (!model) continue;
+      model.absent = state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
+      model.locked = Boolean(model.container) && !state.revealed.includes(fragment.key);
+      model.root.setEnabled(!model.absent); model.shown = !model.absent; model.spin.setEnabled(!model.locked);
+    }
+    clocking = stageRun ? [] : SETS.filter((set) => (state.placed[set.id]?.length || 0) < PARTS.length && state.collected.some((k) => k.startsWith(`${set.id}:`))).map((set) => set.id);
     nearestCache.at = -1;
-    if (carriedVisual) {
-      carriedVisual.dispose(false, false);
-      carriedVisual = null;
-    }
+    if (carriedVisual) { carriedVisual.dispose(false, false); carriedVisual = null; }
     if (state.carried) {
-      const fragment = getFragment(state.carried);
+      const fragment = currentFragment(state.carried);
       const source = fragments.get(state.carried)?.spin.getChildren()[0];
-      carriedVisual = source ? source.clone('carried', null) : buildStatuePart(kit, scene, fragment.partId, fragment.setId, false);
+      carriedVisual = source ? source.clone('carried', null) : buildStatuePart(kit, scene, fragment.visualPartId || fragment.partId, fragment.setId, false);
       carriedVisual.setEnabled(true); for (const m of carriedVisual.getChildMeshes()) m.setEnabled(true);
-      carriedVisual.position.setAll(0); carriedVisual.scaling.setAll(0.19);
+      carriedVisual.position.setAll(0); carriedVisual.scaling.setAll(fragment.isAccessory ? 0.42 : 0.19);
       for (const m of carriedVisual.getChildMeshes()) m.renderingGroupId = 1;
     }
-    refreshPodiums();
-    updateBlueprint();
+    refreshPodiums(); updateBlueprint();
   };
   function updateBlueprint() {
     rebuildHologram();
@@ -360,12 +379,12 @@ export function createGame(mode = 'play') {
       ui.blueprint.classList.remove('shown');
       return;
     }
-    const fragment = getFragment(state.carried);
+    const fragment = currentFragment(state.carried);
     const set = getSet(fragment.setId);
     const part = PARTS.find((item) => item.id === fragment.partId);
     ui.blueprint.classList.add('shown'); layoutVersion += 1; setTimeout(() => { layoutVersion += 1; }, 260); // after the card's slide-in
     ui.blueprintTitle.textContent = set.name;
-    ui.blueprintFoot.textContent = `HELD COMPONENT  /  ${part.short}`;
+    ui.blueprintFoot.textContent = `HELD COMPONENT  /  ${part?.short || fragment.short || fragment.label || fragment.partId}`;
     ui.blueprint.style.setProperty('--holo', set.color);
   }
   // Saved progress and preferences are requested right away and applied once the gallery is built.
@@ -380,25 +399,35 @@ export function createGame(mode = 'play') {
   })();
 
   const setHTML = (el, html) => { if (el.__html !== html) { el.innerHTML = html; el.__html = html; } }; // skip identical DOM writes
+  const currentPool = () => stageRun ? currentStageFragments : FRAGMENTS;
+  const currentFragment = (key) => getFragment(key, currentPool());
+  const stageRequiredIds = () => currentStageFragments.map((fragment) => fragment.partId);
+  const stageComplete = () => Boolean(stageRun && currentStageSpec && isSetComplete(state, stageSetId, stageRequiredIds()));
   let shownCount = -1;
   const updateHUD = () => {
-    const count = countPlaced(state);
-    if (count !== shownCount) { // the counter pops whenever a part is placed
-      ui.progress.textContent = `${count} / ${FRAGMENTS.length}`;
+    const count = stageRun ? (state.placed[stageSetId]?.length || 0) : countPlaced(state);
+    const denominator = stageRun ? currentStageFragments.length : FRAGMENTS.length;
+    if (count !== shownCount || denominator !== updateHUD.denominator) { // the counter pops whenever a part is placed
+      ui.progress.textContent = `${count} / ${denominator}`;
+      updateHUD.denominator = denominator;
       if (shownCount >= 0 && count > shownCount) { ui.progress.classList.remove('pop'); void ui.progress.offsetWidth; ui.progress.classList.add('pop'); }
       shownCount = count;
     }
+    ui.score.classList.toggle('stage-mode', Boolean(stageRun));
+    ui.scoreTitle.textContent = stageRun ? `STAGE ${stageRun.stage}` : (editing ? 'EDITOR PREVIEW' : 'RESTORATION RUN');
+    ui.scoreCaption.textContent = stageRun ? 'PIECES COLLECTED' : 'PARTS PLACED';
+    ui.stageReadout.textContent = stageRun ? `${Math.ceil(stageRun.clock)}s · ${stageRun.score} PTS` : '';
     const nearest = nearestAvailable();
     if (state.carried) {
-      const fragment = getFragment(state.carried);
+      const fragment = currentFragment(state.carried);
       const set = getSet(fragment.setId);
       const podium = podiums.get(set.id);
       const dist = distance2(player.x, player.z, podium.group.position.x, podium.group.position.z);
       const inRange = dist <= 5.2;
       setHTML(ui.status, `<b>${inRange ? 'PLINTH IN RANGE' : 'TO THE GALLERY'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m to its plinth</span>`);
-      setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>Carry <b>${fragment.partId.replace('armL', 'left arm').replace('armR', 'right arm')}</b> to its matching plinth</span>`);
-      const t = statueTimes[set.id] || 0; const pace = medalFor(t, pars[set.id]);
-      setHTML(ui.clock, `⏱ ${formatTime(t)} &nbsp;·&nbsp; GOLD ≤ ${formatTime(pars[set.id])}<i class="${pace}">${pace.toUpperCase()}</i>`);
+      const carriedLabel = fragment.label || (PARTS.find((part) => part.id === fragment.partId)?.label ?? fragment.partId);
+      setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>Carry <b>${carriedLabel}</b> to its matching plinth</span>`);
+      if (!stageRun) { const t = statueTimes[set.id] || 0; const pace = medalFor(t, pars[set.id]); setHTML(ui.clock, `⏱ ${formatTime(t)} &nbsp;·&nbsp; GOLD ≤ ${formatTime(pars[set.id])}<i class="${pace}">${pace.toUpperCase()}</i>`); }
       ui.action.disabled = !inRange;
       ui.action.classList.toggle('ready', inRange);
       ui.actionLabel.textContent = inRange ? 'ASSEMBLE' : 'RESTORE';
@@ -409,7 +438,7 @@ export function createGame(mode = 'play') {
       const angle = Math.atan2(nearest.fragment.x - player.x, -(nearest.fragment.z - player.z)) - player.yaw;
       const arrow = Math.abs(angle) < .35 ? '↑' : Math.abs(angle) < 1.15 ? (angle > 0 ? '↗' : '↖') : Math.abs(angle) < 2.35 ? (angle > 0 ? '→' : '←') : '↓';
       const close = dist <= useRange;
-      const hidden = nearest.locked ? HIDDEN_FRAGMENTS[nearest.fragment.key] : null;
+      const hidden = nearest.locked ? (stageRun ? currentStageHidden[nearest.fragment.key] : HIDDEN_FRAGMENTS[nearest.fragment.key]) : null;
       const where = hidden === 'chest' ? 'locked in a chest' : 'behind a velvet curtain';
       setHTML(ui.status, `<b>${close ? (hidden ? 'SOMETHING IS HIDDEN HERE' : 'FRAGMENT NEARBY') : 'SEARCH THE HALL'}</b><span>${set.name} &nbsp;·&nbsp; ${Math.ceil(dist)}m away</span>`);
       setHTML(ui.target, `<i class="target-dot" style="--dot:${set.color}"></i><span>${arrow} &nbsp;${set.name} / ${hidden ? `<b>?</b> ${where}` : nearest.part.label}</span>`);
@@ -423,6 +452,10 @@ export function createGame(mode = 'play') {
       ui.action.disabled = true;
       ui.actionLabel.textContent = 'COMPLETE';
     }
+    if (stageRun) {
+      const label = stageRun.status === 'over' ? 'TIME UP' : stageRun.status === 'between' ? 'NEXT STAGE…' : `⏱ ${Math.ceil(stageRun.clock)}s`;
+      setHTML(ui.clock, `STAGE ${stageRun.stage} &nbsp;·&nbsp; ${label} &nbsp;·&nbsp; ${stageRun.score} pts`);
+    } else if (!state.carried) setHTML(ui.clock, '');
     drawMiniMap();
   };
   const nearestCache = { at: -1, x: 0, z: 0, value: null };
@@ -433,10 +466,11 @@ export function createGame(mode = 'play') {
   }
   function findNearest() {
     let best = null;
-    for (const fragment of FRAGMENTS) {
+    const pool = currentPool();
+    for (const fragment of pool) {
       if (fragments.get(fragment.key)?.absent) continue;
       const distance = Math.hypot(player.x - fragment.x, player.z - fragment.z);
-      if (!best || distance < best.distance) best = { fragment, distance, part: PARTS.find((part) => part.id === fragment.partId), locked: Boolean(fragments.get(fragment.key)?.locked) };
+      if (!best || distance < best.distance) best = { fragment, distance, part: PARTS.find((part) => part.id === fragment.partId) || { id: fragment.partId, label: fragment.label || fragment.partId }, locked: Boolean(fragments.get(fragment.key)?.locked) };
     }
     return best;
   }
@@ -457,13 +491,14 @@ export function createGame(mode = 'play') {
     ctx.fillStyle = 'rgba(244,238,226,.2)'; ctx.fillRect(px(ANNEX.minX), pz(north), (ANNEX.maxX - ANNEX.minX) * k, (-half - north) * k);
     ctx.strokeRect(px(ANNEX.minX), pz(north), (ANNEX.maxX - ANNEX.minX) * k, (-half - north) * k);
     ctx.fillStyle = 'rgba(24,19,14,1)'; ctx.fillRect(px(-GALLERY_DOOR), pz(-half) - 1.5, GALLERY_DOOR * 2 * k, 3);
-    for (const set of SETS) {
-      const p = podiums.get(set.id).group.position; const done = (state.placed[set.id]?.length || 0) === PARTS.length;
+    const mapSets = stageRun ? SETS.filter((set) => set.id === stageSetId) : SETS;
+    for (const set of mapSets) {
+      const p = podiums.get(set.id).group.position; const done = stageRun ? stageComplete() : (state.placed[set.id]?.length || 0) >= PARTS.length;
       ctx.beginPath(); ctx.arc(px(p.x), pz(p.z), 2.6, 0, Math.PI * 2);
-      ctx.fillStyle = set.color; ctx.globalAlpha = done ? 1 : 0.55; ctx.fill();
+      ctx.fillStyle = set.color; ctx.globalAlpha = done ? 1 : 0.78; ctx.fill();
       ctx.globalAlpha = 1; ctx.strokeStyle = done ? '#ffe2a8' : 'rgba(255,255,255,.5)'; ctx.stroke();
     }
-    for (const f of FRAGMENTS) {
+    for (const f of (stageRun ? currentStageFragments : FRAGMENTS)) {
       if (state.collected.includes(f.key) || state.placed[f.setId]?.includes(f.partId)) continue;
       if (fragments.get(f.key)?.locked) { // secrets show as a "?" until their chest or curtain is opened
         ctx.globalAlpha = 1; ctx.fillStyle = '#f2c35f'; ctx.font = '900 9px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -569,13 +604,171 @@ export function createGame(mode = 'play') {
     niches.set(setId, world.niche(getSet(setId), position[0], position[1]));
   }
 
+  // ---------- endless stage run: one visible statue, a rising piece count, then the next level ----------
+  const STAGE_PODIUM = [-17, ANNEX.nearZ - 8];
+  function allStagePiecesPlaced() {
+    return Boolean(currentStageSpec && currentStageFragments.every((fragment) => state.placed[fragment.setId]?.includes(fragment.partId)));
+  }
+  function clearStageObjects() {
+    for (const box of stageContainers.values()) box.root.dispose(false, false);
+    stageContainers.clear();
+    for (const fragment of stageExtraFragments) { const model = fragments.get(fragment.key); model?.root.dispose(false, false); fragments.delete(fragment.key); }
+    stageExtraFragments = [];
+  }
+  function setStageRoom(setId) {
+    for (const set of SETS) {
+      const podium = podiums.get(set.id); const niche = niches.get(set.id); const active = set.id === setId;
+      podium.group.setEnabled(active); niche.setEnabled(active);
+      if (active) {
+        podium.group.unfreezeWorldMatrix(); niche.unfreezeWorldMatrix();
+        for (const mesh of podium.group.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
+        for (const mesh of niche.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
+        podium.group.position.set(STAGE_PODIUM[0], 0, STAGE_PODIUM[1]);
+        const original = podiumPositions[set.id];
+        niche.position.set(STAGE_PODIUM[0] - original[0], 0, STAGE_PODIUM[1] - original[1]);
+        podium.group.computeWorldMatrix(true); niche.computeWorldMatrix(true);
+        for (const mesh of podium.group.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
+        for (const mesh of niche.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
+      } else niche.position.setAll(0);
+    }
+    refreshShadows();
+  }
+  function configureStage(spec) {
+    clearStageObjects(); currentStageSpec = spec; currentStageFragments = spec.fragments; currentStageHidden = spec.hiddenByKey;
+    // Hide the gallery's usual locks. Only this stage's assigned curtain/chests are collidable and visible.
+    for (const box of containers.values()) box.root.setEnabled(false);
+    world.colliders.splice(0, world.colliders.length, ...fixedColliders);
+    for (const f of spec.fragments) {
+      let model = fragments.get(f.key);
+      if (f.isAccessory) {
+        model = buildFragment(scene, kit, f, null); fragments.set(f.key, model); stageExtraFragments.push(f);
+      } else {
+        model.root.position.x = f.x; model.root.position.z = f.z; model.container = null; model.locked = false;
+      }
+      const kind = spec.hiddenByKey[f.key];
+      if (kind) {
+        const box = buildContainer(scene, f, kind); stageContainers.set(f.key, box); model.container = box;
+        model.locked = !state.revealed.includes(f.key); world.colliders.push(box.collider);
+      }
+    }
+    setStageRoom(spec.setId); refreshPodiums(); refreshFragments();
+  }
+  function restoreGalleryRoom() {
+    clearStageObjects(); currentStageSpec = null; currentStageFragments = FRAGMENTS; currentStageHidden = HIDDEN_FRAGMENTS;
+    world.colliders.splice(0, world.colliders.length, ...fixedColliders);
+    for (const f of FRAGMENTS) {
+      const model = fragments.get(f.key); model.root.position.x = f.x; model.root.position.z = f.z;
+      model.container = containers.get(f.key) || null; model.locked = Boolean(model.container) && !state.revealed.includes(f.key);
+      const box = containers.get(f.key); if (box) { box.root.setEnabled(true); world.colliders.push(...box.colliders); }
+    }
+    for (const set of SETS) {
+      const podium = podiums.get(set.id); const niche = niches.get(set.id);
+      podium.group.unfreezeWorldMatrix(); niche.unfreezeWorldMatrix();
+      for (const mesh of podium.group.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
+      for (const mesh of niche.getChildMeshes(true)) mesh.unfreezeWorldMatrix();
+      podium.group.position.set(podiumPositions[set.id][0], 0, podiumPositions[set.id][1]); niche.position.setAll(0);
+      podium.group.setEnabled(true); niche.setEnabled(true);
+      podium.group.computeWorldMatrix(true); niche.computeWorldMatrix(true);
+      for (const mesh of podium.group.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
+      for (const mesh of niche.getChildMeshes(true)) { mesh.computeWorldMatrix(true); mesh.freezeWorldMatrix(); }
+    }
+  }
+  function beginStage() {
+    if (!stageRun || stageRun.status === 'over') return;
+    const spec = stageSpec(stageRun.stage); stageSetId = spec.setId;
+    // Preserve already-finished figures; this level reuses only its active statue and clears its old pieces.
+    state.placed[stageSetId] = [];
+    // Only current-stage inventory matters. Clear prior stage IDs (including unique ornament keys) from the save.
+    state.collected = []; state.revealed = []; state.carried = null;
+    stageRun = startStage(stageRun);
+    configureStage(spec); updateHUD();
+  }
+  function enterStagePlay() {
+    if (stageRun.status === 'between') beginStage();
+    if (stageRun.status === 'over') { root.querySelector('#stage-over').classList.add('shown'); return; }
+    phase = 'play'; closePanels(); menuEl.classList.remove('shown'); hudEl.classList.remove('offstage');
+    camera.fov = PLAY_FOV; fovKick = 0; lastFrame = performance.now(); aimCamera(); updateHUD(); saveProgress(true);
+  }
+  function startStageRun(forceNew = false) {
+    if (editing || !ready) return;
+    if (stageRun && !forceNew && stageRun.status !== 'over') { enterStagePlay(); return; }
+    if (stageRun) endStageRun();
+    stageStash = serializeState(state);
+    stageRun = createRun(); Object.assign(state, createInitialState());
+    if ([...podiums.values()].some((p) => p.merged)) {
+      // Rebuild only when an old gallery save had merged meshes; the new stage state is persisted first.
+      saveProgress(true).finally(() => { if (window.run) window.run(mode); }); return;
+    }
+    beginStage(); enterStagePlay();
+    toast(`STAGE 1 · ${getSet(stageSetId).name}`, 'normal', 2600);
+  }
+  function updateStageClock(step) {
+    const before = stageRun.status; stageRun = tickRun(stageRun, step);
+    if (before === 'running' && stageRun.status === 'over') stageOver();
+  }
+  function stagePlaced(fragment, hand, podium) {
+    const set = getSet(fragment.setId); stageRun = pieceAssembled(stageRun);
+    refreshFragments(); updateHUD(); saveProgress();
+    const count = state.placed[set.id].length; const complete = allStagePiecesPlaced();
+    const target = fragment.isAccessory ? podium.accessories.get(fragment.partId) : podium.figureParts.get(fragment.partId);
+    flyIn(target, hand, () => {
+      sparkle(new BAB.Vector3(podium.group.position.x, 2.4, podium.group.position.z), set.color, 110);
+      kick(complete ? 0.09 : 0.045); safeHaptic(complete ? 'success' : 'tap'); audio.play('place', { rate: 0.96 + count * 0.02 });
+      if (complete) stageClear(set.id); else toast(`${set.name} · ${count}/${currentStageFragments.length} pieces`, 'success');
+    });
+  }
+  function stageClear(setId) {
+    if (!stageRun || stageRun.status !== 'running') return;
+    const set = getSet(setId); const clearedLevel = stageRun.stage;
+    const { run, points } = clearStage(stageRun); stageRun = run;
+    if (!meta.restored.includes(setId)) meta.restored.push(setId);
+    meta.stageBest = Math.max(meta.stageBest || 0, run.score);
+    celebrate(podiums.get(setId), set); kick(0.1); audio.play('complete'); audio.duck(4);
+    submitScore(run.score); // cumulative stage score is posted immediately to the descending global board
+    root.querySelector('#stage-clear-level').textContent = `STAGE ${clearedLevel} COMPLETE · ${set.name}`;
+    root.querySelector('#stage-clear-points').textContent = `+${points} points · ${currentStageFragments.length} fragments restored`;
+    root.querySelector('#stage-clear-total').textContent = `TOTAL ${run.score} PTS`;
+    root.querySelector('#stage-clear').classList.add('shown'); saveProgress(true); updateHUD();
+    clearTimeout(stageNextTimer);
+    stageNextTimer = setTimeout(() => nextStage(), 2600);
+  }
+  function nextStage() {
+    clearTimeout(stageNextTimer); root.querySelector('#stage-clear').classList.remove('shown');
+    if (!stageRun || stageRun.status !== 'between') return;
+    beginStage(); toast(`STAGE ${stageRun.stage} · ${getSet(stageSetId).name}`, 'normal', 2200); saveProgress(true);
+  }
+  root.querySelector('#stage-next').addEventListener('click', nextStage);
+  function stageOver() {
+    clearTimeout(stageNextTimer); root.querySelector('#stage-clear').classList.remove('shown');
+    meta.stageBest = Math.max(meta.stageBest || 0, stageRun.score);
+    root.querySelector('#stage-over-score').textContent = `${stageRun.score} pts`;
+    root.querySelector('#stage-over-text').textContent = `You reached stage ${Math.max(1, stageRun.stage)} · ${meta.restored.length} statues restored.`;
+    root.querySelector('#stage-over-best').textContent = `BEST ${meta.stageBest} pts`;
+    root.querySelector('#stage-over').classList.add('shown'); audio.play('notHere', { volume: 0.8 }); safeHaptic('tap'); updateHUD(); saveProgress(true);
+  }
+  function endStageRun() {
+    clearTimeout(stageNextTimer); const runState = serializeState(state); const stash = stageStash;
+    stageRun = null; stageSetId = null; stageStash = null;
+    root.querySelector('#stage-clear').classList.remove('shown'); root.querySelector('#stage-over').classList.remove('shown');
+    restoreGalleryRoom();
+    if (stash) {
+      const gallery = restoreState(stash);
+      for (const set of SETS) if (meta.restored.includes(set.id) && runState.placed[set.id]?.length) gallery.placed[set.id] = runState.placed[set.id].slice();
+      Object.assign(state, gallery);
+    }
+    refreshPodiums(); refreshFragments(); updateHUD(); saveProgress(true);
+  }
+  root.querySelector('#menu-stage').addEventListener('click', () => { audio.play('tap', { volume: 0.7 }); startStageRun(); });
+  root.querySelector('#stage-again').addEventListener('click', () => { audio.play('tap', { volume: 0.6 }); startStageRun(true); });
+  root.querySelector('#stage-menu').addEventListener('click', () => { audio.play('tap', { volume: 0.6 }); endStageRun(); openMenu(); });
+
   function updateAction() {
-    if (editing || phase !== 'play' || puzzle) return;
+    if (editing || phase !== 'play' || puzzle || (stageRun && stageRun.status !== 'running')) return;
     if (!state.carried) {
       const target = nearestAvailable();
       if (!target || target.distance > useRange) return;
       if (target.locked) { openContainer(target.fragment, target.part); return; }
-      const next = pickup(state, target.fragment.key);
+      const next = pickup(state, target.fragment.key, currentPool(), stageRun ? currentStageHidden : HIDDEN_FRAGMENTS);
       if (next === state) return;
       hasInteracted = true;
       Object.assign(state, next);
@@ -590,7 +783,7 @@ export function createGame(mode = 'play') {
       audio.play('pickup', { rate: 0.94 + Math.random() * 0.12 });
       return;
     }
-    const fragment = getFragment(state.carried);
+    const fragment = currentFragment(state.carried);
     const podium = podiums.get(fragment.setId);
     if (distance2(player.x, player.z, podium.group.position.x, podium.group.position.z) > 5.2) {
       toast(`Take it to ${getSet(fragment.setId).name}'s plinth in the gallery`, 'normal');
@@ -601,10 +794,11 @@ export function createGame(mode = 'play') {
   }
   // ---------- hidden pieces: chests and curtained alcoves ----------
   function openContainer(fragment, part) {
-    const box = containers.get(fragment.key); const model = fragments.get(fragment.key);
-    const next = reveal(state, fragment.key);
+    const box = stageRun ? stageContainers.get(fragment.key) : containers.get(fragment.key); const model = fragments.get(fragment.key);
+    const next = reveal(state, fragment.key, stageRun ? currentStageHidden : HIDDEN_FRAGMENTS);
     if (!box || next === state) return;
     hasInteracted = true; Object.assign(state, next);
+    if (stageRun) stageRun = pieceRevealed(stageRun);
     const start = performance.now(); box.opening = true;
     effects.push((now) => { const t = Math.min(1, (now - start) / 820); box.animate(t); if (t >= 1) { box.opening = false; box.opened = true; return false; } return true; });
     model.rise = { start: start + 260 };
@@ -628,7 +822,7 @@ export function createGame(mode = 'play') {
   const qTmp = { base: new BAB.Quaternion(), flip: new BAB.Quaternion(), yaw: new BAB.Quaternion() };
   const AXIS_X = new BAB.Vector3(1, 0, 0); const AXIS_Y = new BAB.Vector3(0, 1, 0);
   function startPuzzle(fragment) {
-    if (!carriedVisual) { placeNow(fragment); return; }
+    if (fragment.isAccessory || !carriedVisual) { placeNow(fragment); return; }
     const p = puzzleStart(`${fragment.key}:${Math.floor(playSeconds)}`);
     const hand = carriedVisual.getAbsolutePosition().clone();
     // centre the part on its own bounds so it turns in place, then size it to fill the middle of the screen
@@ -757,12 +951,13 @@ export function createGame(mode = 'play') {
   }
   function placeNow(fragment) {
     const podium = podiums.get(fragment.setId);
-    const next = placeCarried(state, fragment.setId);
+    const next = placeCarried(state, fragment.setId, currentPool());
     if (next === state) return;
     hasInteracted = true;
     const hand = carriedVisual ? carriedVisual.getAbsolutePosition().clone() : null;
     endPuzzle();
     Object.assign(state, next);
+    if (stageRun) { stagePlaced(fragment, hand, podium); return; }
     const set = getSet(fragment.setId);
     refreshFragments(); updateHUD();
     const count = state.placed[set.id].length; const done = count === PARTS.length;
@@ -778,7 +973,7 @@ export function createGame(mode = 'play') {
     if (allDone) { // lock the time now; the banner waits for the last part to land
       finishedShown = true; final = Math.max(1, Math.round(playSeconds)); isBest = !bestSeconds || final < bestSeconds;
       if (isBest) bestSeconds = final;
-      submitScore(final);
+      // the gallery time no longer ranks; stage runs post their score
     }
     saveProgress(allDone);
     flyIn(podium.figureParts.get(fragment.partId), hand, () => { // effects fire when the part lands on the statue
@@ -913,8 +1108,8 @@ export function createGame(mode = 'play') {
   const FRAGMENT_VIEW = 46; const STATUE_VIEW = 92;
   let beaconKey = null;
   function updateObjects(now, dt) {
-    for (const fragment of FRAGMENTS) { // only fragments near the visitor are drawn; fog hides the rest anyway
-      const model = fragments.get(fragment.key);
+    for (const fragment of (stageRun ? currentStageFragments : FRAGMENTS)) { // only the active stage pieces are rendered
+      const model = fragments.get(fragment.key); if (!model) continue;
       const near = editing || Math.abs(player.x - fragment.x) + Math.abs(player.z - fragment.z) < FRAGMENT_VIEW * 1.3 && Math.hypot(player.x - fragment.x, player.z - fragment.z) < FRAGMENT_VIEW;
       const show = !model.absent && near;
       if (show !== model.shown) { model.root.setEnabled(show); model.shown = show; }
@@ -954,14 +1149,15 @@ export function createGame(mode = 'play') {
         beaconKey = best;
       }
       if (best) fragments.get(best).ringMat.alpha = 0.75 + Math.sin(now * 0.006) * 0.2;
-      const target = best ? getFragment(best) : null;
+      const target = best ? currentFragment(best) : null;
       const showLabel = target && Math.hypot(player.x - target.x, player.z - target.z) < 18;
       nearLabel.mesh.setEnabled(Boolean(showLabel));
       if (showLabel) {
         const set = getSet(target.setId); const part = PARTS.find((p) => p.id === target.partId);
-        const hidden = fragments.get(best).locked ? HIDDEN_FRAGMENTS[best] : null;
-        nearLabel.setText(hidden ? `${set.name} · ${hidden === 'chest' ? 'LOCKED CHEST' : 'CURTAINED ALCOVE'}` : `${set.name} · ${part.short}`, hidden ? '#c9a466' : set.color);
-        nearLabel.mesh.position.set(target.x, HIDDEN_FRAGMENTS[best] === 'curtain' ? 5.2 : 4.35, target.z);
+        const hidden = fragments.get(best).locked ? (stageRun ? currentStageHidden[best] : HIDDEN_FRAGMENTS[best]) : null;
+        const pieceName = part?.short || target.short || target.label || target.partId;
+        nearLabel.setText(hidden ? `${set.name} · ${hidden === 'chest' ? 'LOCKED CHEST' : 'CURTAINED ALCOVE'}` : `${set.name} · ${pieceName}`, hidden ? '#c9a466' : set.color);
+        nearLabel.mesh.position.set(target.x, hidden === 'curtain' ? 5.2 : 4.35, target.z);
       }
       const elapsed = now - stateChangedAt;
       if (elapsed > 190) { stateChangedAt = now; updateHUD(); }
@@ -1107,10 +1303,11 @@ export function createGame(mode = 'play') {
     if (phase === 'menu') { renderShowcase(now, dt); return; }
     if (phase === 'play') { fovKick *= Math.exp(-dt * 5); camera.fov = PLAY_FOV + fovKick; }
     if (phase === 'play') {
-      if (!puzzle) movePlayer(dt);
+      if (!puzzle && (!stageRun || stageRun.status === 'running')) movePlayer(dt);
       const step = Math.min(rawDt, 1); // real time, not the capped step
-      if (!isGameComplete(state)) playSeconds += step;
-      for (const id of clocking) statueTimes[id] = (statueTimes[id] || 0) + step; // per-statue medal clocks
+      if (stageRun && !puzzle) updateStageClock(step);
+      if (!stageRun && !isGameComplete(state)) playSeconds += step;
+      if (!stageRun) for (const id of clocking) statueTimes[id] = (statueTimes[id] || 0) + step; // per-statue medal clocks
       if (tutorial) updateTutorial();
     }
     updateObjects(now, dt);
@@ -1226,7 +1423,15 @@ export function createGame(mode = 'play') {
     if (!podium.merged) for (const { ghost, solid } of podium.figureParts.values()) { ghost.setEnabled(!on); solid.setEnabled(on); }
     if (on) { podium.finished.setEnabled(false); podium.labelMesh.setEnabled(false); podium.figure.setEnabled(true); }
   }
-  function showcaseAll(on) { for (const podium of podiums.values()) showcase(podium, on); refreshShadows(); }
+  function showcaseAll(on) { for (const set of SETS) { podiums.get(set.id).group.setEnabled(on); niches.get(set.id).setEnabled(on); showcase(podiums.get(set.id), on); } refreshShadows(); }
+  function showcaseOne(setId) {
+    for (const set of SETS) {
+      const podium = podiums.get(set.id); const visible = set.id === setId;
+      podium.group.setEnabled(visible); niches.get(set.id).setEnabled(visible);
+      if (visible) showcase(podium, true);
+    }
+    refreshShadows();
+  }
   async function boot() {
     const steps = SETS.length + 1; let step = 0;
     const progress = (label, advance = true) => {
@@ -1266,14 +1471,15 @@ export function createGame(mode = 'play') {
     }
     refreshShadows(); progress('OPENING THE GALLERY');
     applySave(await savedGame); if (disposed) return;
-    if (!editing) for (const set of SETS) { mergeStatue(set.id); setMedalBadge(set.id); } // statues already finished in the save
+    if (!editing && !stageRun) for (const set of SETS) { mergeStatue(set.id); setMedalBadge(set.id); } // gallery statues already finished in the save
     bootStatus.textContent = 'PREPARING SHADERS';
     await precompileShaders(); if (disposed) return;
     ready = true;
     refreshFragments(); updateHUD();
     scene.onAfterRenderObservable.addOnce(freezeStatics); // after the first full frame has compiled every effect
     if (editing) { phase = 'edit'; refreshEditorMap(); hudEl.classList.remove('offstage'); bootEl.classList.add('done'); return; }
-    showcaseAll(true);
+    if (stageRun) { refreshPodiums(); if (stageRun.status === 'over') stageOver(); }
+    else showcaseOne(STAGE_ORDER[0]);
     bootEl.classList.add('done');
     openMenu();
   }
@@ -1420,7 +1626,16 @@ export function createGame(mode = 'play') {
   function applySave(saved) {
     if (!saved) return;
     const progress = saved.waifuAssembler || (saved.placed ? saved : null);
-    if (progress) Object.assign(state, restoreState(progress));
+    const savedRun = saved.stageRun && ['between', 'running', 'over'].includes(saved.stageRun.status) ? saved.stageRun : null;
+    if (savedRun) {
+      stageRun = { ...createRun(), ...savedRun, stage: Math.max(1, Math.floor(Number(savedRun.stage) || 1)), score: Math.max(0, Number(savedRun.score) || 0) };
+      stageStash = saved.stageStash || null;
+      currentStageSpec = stageSpec(stageRun.stage); stageSetId = currentStageSpec.setId;
+      currentStageFragments = currentStageSpec.fragments; currentStageHidden = currentStageSpec.hiddenByKey;
+      if (progress) Object.assign(state, restoreState(progress, currentStageFragments, currentStageHidden));
+      if (stageRun.status === 'between') state.placed[stageSetId] = [];
+      configureStage(currentStageSpec);
+    } else if (progress) Object.assign(state, restoreState(progress));
     playSeconds = Math.max(0, Number(saved.playSeconds) || 0);
     bestSeconds = Number(saved.bestSeconds) > 0 ? Math.round(Number(saved.bestSeconds)) : null;
     const p = saved.prefs || {};
@@ -1437,6 +1652,7 @@ export function createGame(mode = 'play') {
     meta.streak = Math.max(0, Math.round(Number(m.streak) || 0));
     meta.lastDailyDay = typeof m.lastDailyDay === 'string' ? m.lastDailyDay.slice(0, 10) : null;
     meta.tutorialDone = Boolean(m.tutorialDone);
+    meta.stageBest = Math.max(0, Math.round(Number(m.stageBest) || 0));
     const d = m.daily;
     meta.daily = d && typeof d.day === 'string' ? { day: d.day.slice(0, 10), done: Boolean(d.done), reveals: Math.max(0, Number(d.reveals) || 0), completions: Array.isArray(d.completions) ? d.completions.filter((c) => ids.has(c?.setId)).slice(-24) : [] } : null;
     statueTimes = Object.fromEntries(Object.entries(saved.statueTimes || {}).filter(([id, t]) => ids.has(id) && Number.isFinite(Number(t))).map(([id, t]) => [id, Math.max(0, Number(t))]));
@@ -1525,16 +1741,18 @@ export function createGame(mode = 'play') {
     root.querySelector('#finish-banner').classList.remove('shown');
     hudEl.classList.add('offstage'); nearLabel.mesh.setEnabled(false);
     carriedVisual?.setEnabled(false); holo.root?.setEnabled(false);
-    camera.fov = 1.02; showcaseAll(true); updateMenuMeta(); closePanels();
+    camera.fov = 1.02; if (stageRun) refreshPodiums(); else showcaseOne(STAGE_ORDER[0]); updateMenuMeta(); closePanels();
     menuEl.classList.add('shown');
     saveProgress(true);
   }
   function startPlay() {
+    if (stageRun?.status === 'over') { root.querySelector('#stage-over').classList.add('shown'); return; }
+    if (stageRun?.status === 'between') beginStage();
     closePanels(); menuEl.classList.remove('shown'); hudEl.classList.remove('offstage');
     phase = 'play'; refreshPodiums(); carriedVisual?.setEnabled(true);
     camera.fov = PLAY_FOV; fovKick = 0; lastFrame = performance.now();
     aimCamera(); updateHUD();
-    if (!tutorial && !meta.tutorialDone && !countPlaced(state) && !state.carried) startTutorial();
+    if (!tutorial && !meta.tutorialDone && !countPlaced(state) && !state.carried && !stageRun) startTutorial();
     else if (tutorial) showTutorialStep();
   }
   // ---------- interactive tutorial: five short steps that advance as the player actually does each thing ----------
@@ -1589,7 +1807,7 @@ export function createGame(mode = 'play') {
   });
   function closePanels() { for (const panel of Object.values(panels)) panel.classList.remove('shown'); disarmReset(); }
   function openPanel(name) { closePanels(); panels[name].classList.add('shown'); if (name === 'settings') syncSettings(); else loadLeaderboard(); }
-  root.querySelector('#menu-play').addEventListener('click', () => { audio.play('tap', { volume: 0.7 }); startPlay(); });
+  root.querySelector('#menu-play').addEventListener('click', () => { audio.play('tap', { volume: 0.7 }); if (stageRun) endStageRun(); startPlay(); });
   root.querySelector('#menu-settings').addEventListener('click', () => openPanel('settings'));
   root.querySelector('#menu-leaderboard').addEventListener('click', () => openPanel('leaderboard'));
   root.querySelector('#menu-open').addEventListener('click', () => { if (phase === 'play') openMenu(); });
@@ -1620,6 +1838,7 @@ export function createGame(mode = 'play') {
       newRunButton.classList.add('armed'); newRunButton.querySelector('b').textContent = 'TAP AGAIN · RESTART THIS RUN';
       clearTimeout(newRunTimer); newRunTimer = setTimeout(disarmNewRun, 3500); return;
     }
+    if (stageRun) endStageRun();
     Object.assign(state, createInitialState()); playSeconds = 0; statueTimes = {}; finishedShown = false;
     newRunButton.querySelector('b').textContent = 'STARTING…';
     Promise.resolve(saveProgress(true)).finally(() => { if (window.run) window.run(mode); else window.location.reload(); });
@@ -1633,6 +1852,7 @@ export function createGame(mode = 'play') {
     }
     disarmReset();
     const opened = state.revealed.length > 0 || Object.keys(meta.medals).length > 0;
+    if (stageRun) endStageRun();
     Object.assign(state, createInitialState()); playSeconds = 0; finishedShown = false; statueTimes = {};
     Object.assign(meta, freshMeta());
     if (opened || [...podiums.values()].some((p) => p.merged)) { // merged statues, open chests and medal badges: rebuild
@@ -1644,8 +1864,8 @@ export function createGame(mode = 'play') {
     resetButton.textContent = 'PROGRESS RESET'; resetTimer = setTimeout(disarmReset, 1800);
   });
   // ranking: fastest full restoration (lower time is better)
-  async function submitScore(seconds) {
-    try { await window.lib?.addPlayerScoreToLeaderboard?.(seconds, 10); } catch (error) { try { window.lib?.log?.(`Leaderboard: ${error.message}`); } catch { /* optional */ } }
+  async function submitScore(score) {
+    try { await window.lib?.addPlayerScoreToLeaderboard?.(score, 10); } catch (error) { try { window.lib?.log?.(`Leaderboard: ${error.message}`); } catch { /* optional */ } }
   }
   async function loadLeaderboard() {
     const body = root.querySelector('#lb-body');
@@ -1653,16 +1873,16 @@ export function createGame(mode = 'play') {
     let res = null;
     try { res = await window.lib?.getTopNEntriesFromLeaderboard?.(10); } catch { res = null; }
     if (disposed || !panels.leaderboard.classList.contains('shown')) return;
-    const mine = bestSeconds
-      ? `<div class="lb-note">Your best: <b>${formatTime(bestSeconds)}</b>${res?.userRank ? `  ·  rank #${res.userRank}` : ''}</div>`
-      : '<div class="lb-note">Restore all twelve statues to set your time.</div>';
+    const mine = meta.stageBest
+      ? `<div class="lb-note">Your best: <b>${meta.stageBest} pts</b>${res?.userRank ? `  ·  rank #${res.userRank}` : ''}</div>`
+      : '<div class="lb-note">Clear a stage in STAGE RUN to post a score.</div>';
     const entries = Array.isArray(res?.entries) ? res.entries : [];
     if (!res) { body.innerHTML = `<div class="lb-note">The ranking is unavailable right now.</div>${mine}`; return; }
     if (!entries.length) { body.innerHTML = `<div class="lb-note">No restorations recorded yet. Be the first curator!</div>${mine}`; return; }
     body.innerHTML = entries.map((e, i) => {
       const name = escapeHtml(e.username || 'Curator');
       const avatar = e.profilePicture ? `<img src="${escapeHtml(e.profilePicture)}" alt="">` : escapeHtml(name.slice(0, 1).toUpperCase());
-      return `<div class="lb-row${res.userRank === i + 1 ? ' me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-avatar">${avatar}</span><span class="lb-name">${name}</span><span class="lb-time">${formatTime(e.score)}</span></div>`;
+      return `<div class="lb-row${res.userRank === i + 1 ? ' me' : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-avatar">${avatar}</span><span class="lb-name">${name}</span><span class="lb-time">${e.score} pts</span></div>`;
     }).join('') + mine;
   }
   // ---------- WebGL context loss (phone backgrounded, GPU reset): pause, save, rebuild, or offer a reload ----------

@@ -12,7 +12,7 @@ test('60 fragments cover twelve five-part statue sets inside the restoration hal
   assert.equal(FRAGMENTS.length, 60);
   assert.equal(SETS.length, 12);
   assert.equal(PARTS.length, 5);
-  assert.equal(HALL_SIZE, 120);
+  assert.equal(HALL_SIZE, 150);
   const inner = HALL_SIZE / 2 - 4; // keep clear of the walls, pilasters and windows
   assert.ok(FRAGMENTS.every(({ x, z }) => Math.abs(x) <= inner && Math.abs(z) <= inner));
 });
