@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Anak Kos: Tanggal Tua</title>
+<title>Kost Life: Broke Till Payday</title>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
   body{display:flex;align-items:center;justify-content:center;
@@ -43,45 +43,45 @@ const CFG = {
 };
 
 const NEEDS = [
-  { k: 'hunger',  icon: '🍜', name: 'Lapar'  },
-  { k: 'energy',  icon: '⚡', name: 'Energi' },
-  { k: 'hygiene', icon: '🚿', name: 'Bersih' },
-  { k: 'fun',     icon: '😊', name: 'Senang' },
+  { k: 'hunger',  icon: '🍜', name: 'Hunger'  },
+  { k: 'energy',  icon: '⚡', name: 'Energy' },
+  { k: 'hygiene', icon: '🚿', name: 'Hygiene' },
+  { k: 'fun',     icon: '😊', name: 'Fun' },
 ];
 
 // Perabot: posisi di ruangan, titik berdiri karakter (spot), aksi
 const FURN = [
-  { id: 'bed',   key: '1', icon: '🛏️', name: 'Kasur',  verb: 'Tidur',     x: 40,  y: 330, w: 230, h: 150, spot: [310, 420], sleep: true },
-  { id: 'stove', key: '2', icon: '🍳', name: 'Kompor', verb: 'Masak mi',  x: 30,  y: 540, w: 120, h: 120, spot: [190, 640], face: -1, pose: 'cook', hold: 'spoon', expr: 'happy', hours: 1, cost: 12, eff: { hunger: 45 } },
-  { id: 'bath',  key: '3', icon: '🚿', name: 'Mandi',  verb: 'Mandi',     x: 510, y: 320, w: 190, h: 200, spot: [600, 470], face: 1, pose: 'shower', expr: 'bliss', hours: 1, eff: { hygiene: 65, fun: 4 } },
+  { id: 'bed',   key: '1', icon: '🛏️', name: 'Bed',  verb: 'Sleep',     x: 40,  y: 330, w: 230, h: 150, spot: [310, 420], sleep: true },
+  { id: 'stove', key: '2', icon: '🍳', name: 'Stove', verb: 'Cook noodles',  x: 30,  y: 540, w: 120, h: 120, spot: [190, 640], face: -1, pose: 'cook', hold: 'spoon', expr: 'happy', hours: 1, cost: 12, eff: { hunger: 45 } },
+  { id: 'bath',  key: '3', icon: '🚿', name: 'Shower',  verb: 'Shower',     x: 510, y: 320, w: 190, h: 200, spot: [600, 470], face: 1, pose: 'shower', expr: 'bliss', hours: 1, eff: { hygiene: 65, fun: 4 } },
   { id: 'desk',  key: '4', icon: '💻', name: 'Laptop', verb: 'Freelance', x: 30,  y: 700, w: 130, h: 150, spot: [196, 800], face: -1, pose: 'type', expr: 'focus', hours: 3, earn: 25, eff: { fun: -8, energy: -5 }, power: true },
-  { id: 'tv',    key: '5', icon: '📺', name: 'TV',     verb: 'Nonton TV', x: 612, y: 615, w: 70,  h: 150, spot: [527, 715], face: 1, pose: 'tv', hold: 'remote', expr: 'happy', hours: 2, eff: { fun: 40 }, power: true },
-  { id: 'door',  key: '6', icon: '🚪', name: 'Kerja',  verb: 'Kerja shift', x: 400, y: 905, w: 140, h: 30, spot: [470, 860], hours: 6, earn: 60, eff: { energy: -14, hygiene: -18, fun: -6 }, away: true },
+  { id: 'tv',    key: '5', icon: '📺', name: 'TV',     verb: 'Watch TV', x: 612, y: 615, w: 70,  h: 150, spot: [527, 715], face: 1, pose: 'tv', hold: 'remote', expr: 'happy', hours: 2, eff: { fun: 40 }, power: true },
+  { id: 'door',  key: '6', icon: '🚪', name: 'Work',  verb: 'Work shift', x: 400, y: 905, w: 140, h: 30, spot: [470, 860], hours: 6, earn: 60, eff: { energy: -14, hygiene: -18, fun: -6 }, away: true },
 ];
 
 const SHOP = [
-  { id: 'kasur',   icon: '🛏️', name: 'Kasur Empuk', price: 150, desc: 'Tidur jauh lebih cepat' },
-  { id: 'rice',    icon: '🍚', name: 'Rice Cooker', price: 120, desc: 'Masak: +70 kenyang' },
-  { id: 'speaker', icon: '🔊', name: 'Speaker',     price: 90,  desc: 'Senang turun lebih lambat' },
-  { id: 'laptop',  icon: '💻', name: 'Laptop Baru', price: 180, desc: 'Freelance +60% uang' },
+  { id: 'kasur',   icon: '🛏️', name: 'Comfy Bed', price: 150, desc: 'Sleep much faster' },
+  { id: 'rice',    icon: '🍚', name: 'Rice Cooker', price: 120, desc: 'Cooking: +70 fullness' },
+  { id: 'speaker', icon: '🔊', name: 'Speaker',     price: 90,  desc: 'Fun drains slower' },
+  { id: 'laptop',  icon: '💻', name: 'New Laptop', price: 180, desc: 'Freelance pays +60%' },
 ];
 
 // Kejadian acak: angka efek di sini, adegan/animasinya di SCENES
 const EVENTS = [
-  { id: 'friend',   icon: '🙋', title: 'Teman numpang makan',
-    a: { label: 'Ajak makan bareng (−Rp15rb)', money: -15, fun: 20, hunger: 15 }, b: { label: 'Pura-pura tidur 😴', fun: -12 } },
-  { id: 'blackout', icon: '🕯️', title: 'Mati lampu!', a: { label: 'Yah... nyalain lilin', blackout: true } },
-  { id: 'mom',      icon: '📦', title: 'Kiriman dari Ibu', a: { label: 'Asiik! Terima paket', money: 40, hunger: 30, fun: 10 } },
-  { id: 'gorengan', icon: '🍤', title: 'Gorengan ibu kos', a: { label: 'Makasih, Bu!', hunger: 25, fun: 8 } },
-  { id: 'roach',    icon: '🪳', title: 'KECOA TERBANG!', win: { fun: 12 }, lose: { hygiene: -12, fun: -15 } },
-  { id: 'promo',    icon: '🏷️', title: 'Promo mi instan',
-    a: { label: 'Borong! (−Rp20rb, 3x gratis)', money: -20, freeMeals: 3 }, b: { label: 'Lewat aja' } },
-  { id: 'gig',      icon: '📱', title: 'Orderan kilat',
-    a: { label: 'Ambil! (+Rp50rb, capek)', money: 50, energy: -25, fun: -5 }, b: { label: 'Tolak dulu' } },
-  { id: 'listrik',  icon: '💡', title: 'Tagihan listrik',
-    a: { label: 'Bayar (−Rp30rb)', money: -30 }, b: { label: 'Bantu angkat galon aja 💪', energy: -20, hygiene: -12 } },
-  { id: 'cat',      icon: '🐈', title: 'Kucing tetangga',
-    a: { label: 'Elus-elus 🐾', fun: 25 }, b: { label: 'Usir pelan-pelan', fun: -3 } },
+  { id: 'friend',   icon: '🙋', title: 'Hungry friend drops by',
+    a: { label: 'Share a meal (−Rp15k)', money: -15, fun: 20, hunger: 15 }, b: { label: 'Pretend to sleep 😴', fun: -12 } },
+  { id: 'blackout', icon: '🕯️', title: 'Power outage!', a: { label: 'Ugh... light a candle', blackout: true } },
+  { id: 'mom',      icon: '📦', title: 'Package from Mom', a: { label: 'Yay! Take the package', money: 40, hunger: 30, fun: 10 } },
+  { id: 'gorengan', icon: '🍤', title: 'Snacks from the landlady', a: { label: 'Thanks so much!', hunger: 25, fun: 8 } },
+  { id: 'roach',    icon: '🪳', title: 'FLYING COCKROACH!', win: { fun: 12 }, lose: { hygiene: -12, fun: -15 } },
+  { id: 'promo',    icon: '🏷️', title: 'Instant noodle sale',
+    a: { label: 'Stock up! (−Rp20k, 3 free)', money: -20, freeMeals: 3 }, b: { label: 'Skip it' } },
+  { id: 'gig',      icon: '📱', title: 'Rush job',
+    a: { label: 'Take it! (+Rp50k, tiring)', money: 50, energy: -25, fun: -5 }, b: { label: 'Pass for now' } },
+  { id: 'listrik',  icon: '💡', title: 'Electric bill',
+    a: { label: 'Pay (−Rp30k)', money: -30 }, b: { label: 'Carry her water jug instead 💪', energy: -20, hygiene: -12 } },
+  { id: 'cat',      icon: '🐈', title: 'A neighbor cat visits',
+    a: { label: 'Pet the kitty 🐾', fun: 25 }, b: { label: 'Gently shoo it', fun: -3 } },
 ];
 
 // Tampilan karakter (kerangka sama, beda warna/rambut/pakaian)
@@ -99,7 +99,7 @@ const FONT = '"Trebuchet MS","Segoe UI",system-ui,sans-serif';
 const OUT = '#2b2235';
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const rp = n => { const v = Math.abs(Math.round(n)); return (n < 0 ? '−' : '') + 'Rp' + (v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 2 : 0).replace(/0$/, '').replace('.', ',') + 'jt' : v + 'rb'); };
+const rp = n => { const v = Math.abs(Math.round(n)); return (n < 0 ? '−' : '') + 'Rp' + (v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 2 : 0).replace(/0$/, '') + 'M' : v + 'k'); };
 function rr(x, y, w, h, r, fill, stroke, lw) {
   ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
   if (fill) { ctx.fillStyle = fill; ctx.fill(); }
@@ -301,19 +301,19 @@ function furnDisabled(f) { return f.power && G.blackout; }
 
 function order(f) {
   if (!G || modal || G.scene) return;
-  if (G.act && (G.act.special || G.act.f.away)) { showToast(G.act.special ? 'Lagi tidak sadar... 😵' : 'Lagi kerja di luar!'); return; }
+  if (G.act && (G.act.special || G.act.f.away)) { showToast(G.act.special ? 'Out cold... 😵' : 'Out at work!'); return; }
   if (G.act && G.act.f === f) return;
-  if (furnDisabled(f)) { showToast('Mati lampu! 🕯️'); SFX.bad(); return; }
-  if (f.cost && G.freeMeals <= 0 && G.money < f.cost) { showToast('Uangnya kurang! 💸'); SFX.bad(); shake = 6; return; }
+  if (furnDisabled(f)) { showToast('Power is out! 🕯️'); SFX.bad(); return; }
+  if (f.cost && G.freeMeals <= 0 && G.money < f.cost) { showToast('Not enough money! 💸'); SFX.bad(); shake = 6; return; }
   SFX.tap(); haptic(10);
   G.act = null; G.pending = f;
 }
 
 function startAct(f) {
   if (f.cost) {
-    if (G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 170, 'Gratis! 🏷️', '#9ef'); }
+    if (G.freeMeals > 0) { G.freeMeals--; floatText(f.spot[0], f.spot[1] - 170, 'Free! 🏷️', '#9ef'); }
     else if (G.money >= f.cost) { G.money -= f.cost; floatText(f.spot[0], f.spot[1] - 170, '−' + rp(f.cost), '#ff9b9b'); }
-    else { showToast('Uangnya kurang! 💸'); SFX.bad(); return; }
+    else { showToast('Not enough money! 💸'); SFX.bad(); return; }
   }
   const eff = Object.assign({}, f.eff || {});
   if (f.id === 'stove' && SAVE.upgrades.rice) eff.hunger = 70;
@@ -351,11 +351,11 @@ function startSpecial(kind) {
   if (kind === 'faint') {
     G.act = { special: 'faint', t: 0, total: 4 };
     G.needs.hunger = 45; G.needs.fun = clamp(G.needs.fun - 20, 0, 100);
-    showToast('Pingsan kelaparan! Ibu kos bawain nasi 🍚');
+    showToast('Fainted from hunger! Landlady brought rice 🍚');
   } else {
     G.act = { special: 'floor', t: 0, total: 6 };
     G.needs.fun = clamp(G.needs.fun - 15, 0, 100);
-    showToast('Ketiduran di lantai... 😴');
+    showToast('Fell asleep on the floor... 😴');
   }
   SFX.bad(); shake = 10; haptic(60);
 }
@@ -411,30 +411,30 @@ const SCENES = {
     yield* enter(sc, f);
     yield* all(moveTo(f, 430, 720), moveTo(G.ch, 320, 715));
     faceTo(G.ch, f); faceTo(f, G.ch); f.pose = 'belly';
-    say(f, 'Laper nih... ada makanan? 🥺');
+    say(f, 'So hungry... got any food? 🥺');
     const c = yield* choose(sc, ev); hush(f);
     if (c === ev.a) {
       sc.props.push({ k: 'bowl', x: 375, y: 735 });
       G.ch.pose = f.pose = 'eat'; G.ch.hold = f.hold = 'spoon'; G.ch.expr = f.expr = 'eat';
       SFX.eat(); yield* wait(1.6);
       hearts(375, 600, 8); applyChoice(c); SFX.coin();
-      G.ch.expr = f.expr = 'happy'; say(f, 'Makasih yaa! 🙏', 1.4); yield* wait(1.1);
+      G.ch.expr = f.expr = 'happy'; say(f, 'Thanks a lot! 🙏', 1.4); yield* wait(1.1);
       sc.props.length = 0;
     } else {
       G.ch.pose = 'idle'; G.ch.expr = 'sleep'; sc.zzz = G.ch;
-      yield* wait(0.6); f.pose = 'shrug'; f.expr = 'sad'; say(f, 'Yaudah deh... 😢', 1.4); applyChoice(c);
+      yield* wait(0.6); f.pose = 'shrug'; f.expr = 'sad'; say(f, 'Oh... okay then 😢', 1.4); applyChoice(c);
       yield* wait(1.2); sc.zzz = null;
     }
     resetPlayer(); f.pose = 'idle'; f.hold = null; f.expr = null;
     yield* leave(sc, f);
   },
   *blackout(sc, ev) {
-    G.ch.expr = 'shock'; say(G.ch, 'Eh? Lampunya...', 1.3);
+    G.ch.expr = 'shock'; say(G.ch, 'Huh? The lights...', 1.3);
     for (let i = 0; i < 3; i++) { sc.dark = 0.6; yield* wait(0.18); sc.dark = 0; yield* wait(0.27); } // < 3 kedip/detik
     sc.dark = 0; G.blackout = true; SFX.bad(); shake = 5;
     yield* wait(0.6);
     G.ch.pose = 'candle'; G.ch.hold = 'candle'; G.ch.expr = 'meh'; SFX.pop();
-    say(G.ch, 'Mati lampu sampai besok 🕯️');
+    say(G.ch, 'No power till tomorrow 🕯️');
     const c = yield* choose(sc, ev); hush(G.ch); applyChoice(c);
     resetPlayer();
   },
@@ -442,10 +442,10 @@ const SCENES = {
     const k = npc(sc, 'kurir'); k.pose = 'carry'; k.hold = 'box';
     yield* enter(sc, k);
     yield* all(moveTo(k, 545, 760), moveTo(G.ch, 425, 720));
-    faceTo(G.ch, k); say(k, 'Paket! Kiriman dari Ibu 📦');
+    faceTo(G.ch, k); say(k, 'Delivery! From your mom 📦');
     const c = yield* choose(sc, ev); hush(k);
     k.hold = null; k.pose = 'wave'; G.ch.pose = 'carry'; G.ch.hold = 'box'; SFX.pop();
-    say(k, 'Mari, Kak!', 1);
+    say(k, 'Have a nice day!', 1);
     const box = { k: 'box', x: 0, y: 0, open: 0, hide: true };
     yield* all(leave(sc, k), (function* () {
       yield* wait(0.5); G.ch.pose = 'idle'; G.ch.hold = null;
@@ -462,24 +462,24 @@ const SCENES = {
     const i = npc(sc, 'ibu'); i.pose = 'offer'; i.hold = 'plate';
     yield* enter(sc, i);
     yield* all(moveTo(i, 545, 760), moveTo(G.ch, 425, 720));
-    faceTo(G.ch, i); say(i, 'Nih gorengan, Nak 🍤');
+    faceTo(G.ch, i); say(i, 'Have some fried snacks, dear 🍤');
     const c = yield* choose(sc, ev); hush(i);
     i.hold = null; i.pose = 'idle'; G.ch.pose = 'eat'; G.ch.hold = 'gorengan'; G.ch.expr = 'eat'; SFX.eat();
     yield* wait(1.4); applyChoice(c); hearts(G.ch.x, G.ch.y - 160, 6);
     G.ch.hold = null; G.ch.pose = 'idle'; G.ch.expr = 'happy'; i.expr = 'happy';
-    say(i, 'Sama-sama 😊', 1.2); yield* wait(0.8);
+    say(i, 'Anytime, dear 😊', 1.2); yield* wait(0.8);
     resetPlayer(); yield* leave(sc, i);
   },
   *listrik(sc, ev) {
     const i = npc(sc, 'ibu'); i.pose = 'hips';
     yield* enter(sc, i);
     yield* all(moveTo(i, 545, 770), moveTo(G.ch, 425, 720));
-    faceTo(G.ch, i); i.pose = 'hips'; say(i, 'Uang listriknya ya, Nak! 💡');
+    faceTo(G.ch, i); i.pose = 'hips'; say(i, 'Electric bill is due, dear! 💡');
     const c = yield* choose(sc, ev); hush(i);
     if (c === ev.a) {
       G.ch.pose = 'give'; applyChoice(c);
       emit(G.ch.x, G.ch.y - 90, 8, { c: '#ffd43b', sp: 40, vy: 160, life: 0.6, r: 6 });
-      yield* wait(0.6); i.pose = 'idle'; i.expr = 'happy'; say(i, 'Makasih 👍', 1.2); yield* wait(0.9);
+      yield* wait(0.6); i.pose = 'idle'; i.expr = 'happy'; say(i, 'Thank you 👍', 1.2); yield* wait(0.9);
     } else {
       sc.props.push({ k: 'galon', x: 470, y: 860 });
       i.pose = 'idle'; yield* moveTo(i, 560, 800);
@@ -487,14 +487,14 @@ const SCENES = {
       G.ch.pose = 'lift'; G.ch.hold = 'galon'; G.ch.sweat = true; G.ch.expr = 'strain';
       yield* moveTo(G.ch, 230, 690, 170);
       sc.props.push({ k: 'galon', x: 175, y: 700 }); G.ch.hold = null; G.ch.pose = 'idle'; G.ch.expr = 'tired'; SFX.pop();
-      applyChoice(c); i.expr = 'happy'; say(i, 'Wah, makasih! Kamu baik deh 😄', 1.4); yield* wait(1.2);
+      applyChoice(c); i.expr = 'happy'; say(i, 'Oh, thank you! So kind 😄', 1.4); yield* wait(1.2);
       sc.keepProps = true;
     }
     resetPlayer(); i.expr = null; yield* leave(sc, i);
   },
   *promo(sc, ev) {
     G.ch.pose = 'phone'; G.ch.hold = 'phone'; sc.ring = true; SFX.ring(); yield* wait(0.5); sc.ring = false;
-    say(G.ch, 'Promo mi instan! 🏷️');
+    say(G.ch, 'Instant noodle sale! 🏷️');
     const c = yield* choose(sc, ev); hush(G.ch);
     G.ch.hold = null;
     if (c === ev.a) {
@@ -502,16 +502,16 @@ const SCENES = {
       const k = npc(sc, 'kurir'); k.pose = 'carry'; k.hold = 'mi';
       yield* enter(sc, k); yield* moveTo(k, 230, 700);
       k.hold = null; k.pose = 'wave'; sc.props.push({ k: 'mi', x: 190, y: 710 }); SFX.pop();
-      say(k, 'Pesanan mi-nya! 🍜', 1.2); G.ch.pose = 'cheer'; G.ch.expr = 'happy'; yield* wait(1);
+      say(k, 'Your noodles are here! 🍜', 1.2); G.ch.pose = 'cheer'; G.ch.expr = 'happy'; yield* wait(1);
       resetPlayer(); yield* leave(sc, k); sc.keepProps = true;
     } else {
-      G.ch.pose = 'shrug'; say(G.ch, 'Nanti aja deh~', 1.2); yield* wait(1.1);
+      G.ch.pose = 'shrug'; say(G.ch, 'Maybe later~', 1.2); yield* wait(1.1);
     }
     resetPlayer();
   },
   *gig(sc, ev) {
     G.ch.pose = 'phone'; G.ch.hold = 'phone'; G.ch.expr = 'shock'; sc.ring = true; SFX.ring(); yield* wait(0.5); sc.ring = false;
-    G.ch.expr = null; say(G.ch, 'Orderan desain kilat!? 📱');
+    G.ch.expr = null; say(G.ch, 'A rush design job!? 📱');
     const c = yield* choose(sc, ev); hush(G.ch); G.ch.hold = null;
     if (c === ev.a) {
       G.ch.pose = 'idle';
@@ -521,17 +521,17 @@ const SCENES = {
       applyChoice(c); emit(G.ch.x, G.ch.y - 120, 14, { c: '#ffd43b', sp: 140, vy: -200, g: 350, life: 1, r: 7 });
       G.ch.sweat = false; G.ch.pose = 'cheer'; G.ch.expr = 'happy'; yield* wait(1);
     } else {
-      G.ch.pose = 'shrug'; say(G.ch, 'Lagi nggak sanggup...', 1.2); yield* wait(1.1);
+      G.ch.pose = 'shrug'; say(G.ch, 'Too tired for that...', 1.2); yield* wait(1.1);
     }
     resetPlayer();
   },
   *cat(sc, ev) {
     const cat = npc(sc, 'cat'); cat.x = 365; cat.y = 312; cat.z = 0; cat.face = 1;
     SFX.meow(); yield* wait(0.3);
-    G.ch.expr = 'shock'; say(G.ch, 'Eh, ada kucing! 🐈', 1.2);
+    G.ch.expr = 'shock'; say(G.ch, 'Oh, a kitty! 🐈', 1.2);
     yield* jump(cat, 380, 470, 0.6, 70);
     yield* moveTo(cat, 400, 650, 160);
-    say(cat, 'Meong~ 🐾'); SFX.meow(); G.ch.expr = null;
+    say(cat, 'Meow~ 🐾'); SFX.meow(); G.ch.expr = null;
     const c = yield* choose(sc, ev); hush(cat, G.ch);
     if (c === ev.a) {
       yield* moveTo(G.ch, cat.x + 85, cat.y - 22, 300); faceTo(G.ch, cat); faceTo(cat, G.ch);
@@ -539,14 +539,14 @@ const SCENES = {
       for (let i = 0; i < 4; i++) { hearts(cat.x + 10, cat.y - 60, 2); yield* wait(0.4); }
       applyChoice(c); cat.purr = false;
     } else {
-      faceTo(G.ch, cat); G.ch.pose = 'wave'; say(G.ch, 'Pulang sana, pus~', 1); applyChoice(c); yield* wait(0.8);
+      faceTo(G.ch, cat); G.ch.pose = 'wave'; say(G.ch, 'Go home, kitty~', 1); applyChoice(c); yield* wait(0.8);
     }
     resetPlayer();
     yield* moveTo(cat, 380, 470, 220); yield* jump(cat, 365, 312, 0.5, 70); cat.gone = true;
   },
   *roach(sc, ev) {
     const r = sc.roach = { x: 150, y: 480, z: 0, tx: 300, ty: 600, hits: 0, stun: 0, ang: 0, flap: 0, retarget: 0, timer: CFG.roachTime, active: false, gone: false };
-    G.ch.expr = 'shock'; G.ch.pose = 'panic'; say(G.ch, 'KECOA TERBANG!! 😱', 1.3); SFX.whoosh(); shake = 6;
+    G.ch.expr = 'shock'; G.ch.pose = 'panic'; say(G.ch, 'FLYING ROACH!! 😱', 1.3); SFX.whoosh(); shake = 6;
     // kecoa keluar dari kolong kasur
     yield* wait(0.9);
     G.ch.pose = 'slap'; G.ch.hold = 'sandal'; G.ch.expr = 'angry'; r.active = true; sc.fastable = false;
@@ -565,13 +565,13 @@ const SCENES = {
     }
     r.active = false; sc.fastable = true;
     if (r.hits >= CFG.roachHits) {
-      r.dizzy = true; SFX.win(); floatText(360, 560, 'MENANG! 🎉', '#ffe066');
+      r.dizzy = true; SFX.win(); floatText(360, 560, 'GOT IT! 🎉', '#ffe066');
       G.ch.hold = null; G.ch.pose = 'cheer'; G.ch.expr = 'happy'; applyChoice(ev.win);
       const sx = r.x, sy = r.y; let t = 0;
       while (t < 1.2) { t += yield; const k = t / 1.2; r.x = sx + (365 - sx) * k; r.y = sy + (300 - sy) * k; r.z = 30 + Math.sin(k * Math.PI) * 60; r.ang = Math.atan2(300 - sy, 365 - sx); r.flap += 0.6; }
-      r.gone = true; say(G.ch, 'Kabur lewat jendela! 😎', 1.2); yield* wait(1);
+      r.gone = true; say(G.ch, 'It flew out the window! 😎', 1.2); yield* wait(1);
     } else {
-      SFX.bad(); G.ch.hold = null; G.ch.pose = 'panic'; G.ch.expr = 'cry'; say(G.ch, 'HUWAAA!! 😭', 1.6); applyChoice(ev.lose);
+      SFX.bad(); G.ch.hold = null; G.ch.pose = 'panic'; G.ch.expr = 'cry'; say(G.ch, 'WAAAH!! 😭', 1.6); applyChoice(ev.lose);
       const pts = [[250, 520], [520, 600], [300, 820], [500, 760]];
       for (const p of pts) {
         r.tx = p[0]; r.ty = p[1] - 100;
@@ -684,7 +684,7 @@ function update(dt) {
   if (G.hour >= 24) {
     G.hour -= 24; G.day++; G.blackout = false; G.leftovers = null;
     if (G.day > CFG.days) { G.day = CFG.days; return endMonth(); }
-    floatText(360, 560, 'Tanggal ' + G.day, '#fff');
+    floatText(360, 560, 'Day ' + G.day, '#fff');
   }
 
   // kebutuhan turun
@@ -703,7 +703,7 @@ function update(dt) {
     } else if (a.f.sleep) {
       nd.energy += (SAVE.upgrades.kasur ? CFG.sleepRateUpgrade : CFG.sleepRate) * gh;
       if (Math.random() < dt * 1.5) floatText(a.f.x + 90 + rnd(-10, 10), a.f.y + 20, 'Z', '#cde');
-      if (nd.energy >= 100) { nd.energy = 100; G.act = null; floatText(ch.x, ch.y - 190, 'Segar! ⚡', '#9f9'); }
+      if (nd.energy >= 100) { nd.energy = 100; G.act = null; floatText(ch.x, ch.y - 190, 'Refreshed! ⚡', '#9f9'); }
     } else {
       const step = Math.min(gh, a.total - a.t);
       a.t += step; applyEff(a.eff, step / a.total);
@@ -722,10 +722,10 @@ function update(dt) {
     if (nd.hunger <= 0) startSpecial('faint');
     else if (nd.energy <= 0 && !(G.act && G.act.f && G.act.f.sleep)) startSpecial('floor');
   }
-  if (nd.hygiene <= 0 && !G.smelly) { G.smelly = true; nd.fun = clamp(nd.fun - 20, 0, 100); showToast('Bau banget! Lalat datang 🪰'); SFX.bad(); }
+  if (nd.hygiene <= 0 && !G.smelly) { G.smelly = true; nd.fun = clamp(nd.fun - 20, 0, 100); showToast('So stinky! Flies incoming 🪰'); SFX.bad(); }
   if (G.smelly && nd.hygiene > 30) G.smelly = false;
   if (G.smelly && Math.random() < dt * 3) emit(ch.x + rnd(-30, 30), ch.y - 170, 1, { ch: '🪰', sp: 40, vy: -20, life: 1.2 });
-  if (nd.fun <= 3 && !G.galau) { G.galau = true; showToast('Galau... kerja cuma dapat setengah 😔'); }
+  if (nd.fun <= 3 && !G.galau) { G.galau = true; showToast('Feeling down... work pays half 😔'); }
   if (G.galau && nd.fun > 30) G.galau = false;
 
   G.moodSum += (nd.hunger + nd.energy + nd.hygiene + nd.fun) / 4 * gh; G.moodN += gh;
@@ -1149,7 +1149,7 @@ function drawBackWall() {
   rr(-21, -28, 42, 54, 3, '#fff', OUT, 2.5);
   const pg = ctx.createLinearGradient(0, -24, 0, 12); pg.addColorStop(0, '#ffa94d'); pg.addColorStop(1, '#ff6b6b'); rr(-17, -24, 34, 38, 2, pg);
   ell(0, -8, 7, 7, '#fff3bf'); ctx.fillStyle = '#5f3dc4'; ctx.beginPath(); ctx.moveTo(-17, 14); ctx.lineTo(-6, -2); ctx.lineTo(3, 9); ctx.lineTo(9, 2); ctx.lineTo(17, 14); ctx.fill();
-  txt('SEMANGAT!', 0, 20, 6, OUT);
+  txt('DREAM BIG', 0, 20, 6, OUT);
   ctx.fillStyle = 'rgba(255,236,153,.9)'; ctx.fillRect(-25, -31, 12, 6); ctx.fillRect(13, -31, 12, 6);
   ctx.restore();
 }
@@ -1462,7 +1462,7 @@ function drawActors() {
     }
   }
   if (sc && sc.roach) drawRoach(sc.roach);
-  if (ch.hidden && !sc) txt('🚶 Kerja shift...', 470, 820, 22, '#5a3a20');
+  if (ch.hidden && !sc) txt('🚶 At work...', 470, 820, 22, '#5a3a20');
   // gelembung pikiran pemain
   if (!sc && !G.act && !G.pending && !ch.lying) {
     let low = null; for (const n of NEEDS) if (G.needs[n.k] < 30 && (!low || G.needs[n.k] < G.needs[low.k])) low = n;
@@ -1638,8 +1638,8 @@ function badge(x, y, r, col, icon, isz) {
 function drawHUD() {
   panelBg(8, 8, 404, 102, 24);
   drawIcon('cal', 36, 37, 30);
-  outlinedText('Tgl ' + G.day, 60, 38, 27, '#fff', 'left', 5);
-  ctx.font = 'bold 27px ' + FONT; const dw = ctx.measureText('Tgl ' + G.day).width;
+  outlinedText('Day ' + G.day, 60, 38, 27, '#fff', 'left', 5);
+  ctx.font = 'bold 27px ' + FONT; const dw = ctx.measureText('Day ' + G.day).width;
   txt('/' + CFG.days, 64 + dw, 40, 18, 'rgba(255,255,255,.6)', 'left');
   const hh = Math.floor(G.hour), mm = Math.floor((G.hour % 1) * 6) * 10, night = G.hour < 6 || G.hour >= 18;
   rr(282, 18, 120, 40, 20, 'rgba(10,5,25,.45)', 'rgba(255,255,255,.15)', 2);
@@ -1649,7 +1649,7 @@ function drawHUD() {
   outlinedText(rp(G.money), 60, 83, 28, G.money >= CFG.rent ? '#8ce99a' : '#fff', 'left', 5);
   const p = clamp(G.money / CFG.rent, 0, 1);
   gaugeBar(214, 70, 188, 28, p, p >= 1 ? '#8ce99a' : '#ffd43b', p >= 1 ? '#2f9e44' : '#f76707', true);
-  outlinedText((p >= 1 ? '✓ ' : '') + 'Sewa ' + rp(CFG.rent), 308, 85, 15, '#fff', 'center', 4);
+  outlinedText((p >= 1 ? '✓ ' : '') + 'Rent ' + rp(CFG.rent), 308, 85, 15, '#fff', 'center', 4);
   iconBtn(418, 8, 'cart', () => { if (!G.scene) modal = { type: 'shop', t: 0 }; }, ['s']);
   iconBtn(518, 8, G.speed > 1 ? 'ff' : 'play', () => { G.speed = G.speed > 1 ? 1 : 2.5; }, [' '], G.speed > 1);
   iconBtn(618, 8, 'pause', () => { modal = { type: 'pause', t: 0 }; }, ['p', 'escape']);
@@ -1682,7 +1682,7 @@ function drawPanel() {
       });
     } else if (sc.roach && sc.roach.active) {
       const r = sc.roach;
-      outlinedText('KETUK KECOANYA!', 360, 1062, 42, '#fff', 'center', 7);
+      outlinedText('TAP THE ROACH!', 360, 1062, 42, '#fff', 'center', 7);
       for (let i = 0; i < CFG.roachHits; i++) {
         const cx = 300 + i * 60;
         ell(cx, 1128, 24, 24, i < r.hits ? '#ffd43b' : '#211838', OUT, 3);
@@ -1691,16 +1691,16 @@ function drawPanel() {
       gaugeBar(110, 1180, 500, 32, r.timer / CFG.roachTime, r.timer < 1.5 ? '#ff8787' : '#ffe066', r.timer < 1.5 ? '#e03131' : '#f59f00', true);
     } else {
       ctx.globalAlpha = 0.55 + 0.25 * Math.sin(time * 4);
-      drawIcon('ff', 360, 1110, 40); txt('Ketuk layar untuk mempercepat', 360, 1160, 24, '#fff');
+      drawIcon('ff', 360, 1110, 40); txt('Tap to speed up', 360, 1160, 24, '#fff');
       ctx.globalAlpha = 1;
     }
     return;
   }
   const a = G.act;
-  let status = 'Ketuk perabot untuk beraktivitas', prog = -1, ic = 'walk', icol = '#7c6fa6';
-  if (G.pending) { status = 'Menuju ' + G.pending.name + '...'; ic = 'walk'; icol = '#20c997'; }
-  else if (a && a.special) { status = a.special === 'faint' ? 'Pingsan...' : 'Ketiduran di lantai...'; prog = a.t / a.total; ic = a.special === 'faint' ? 'dizzy' : 'zzz'; icol = '#e03131'; }
-  else if (a && a.f.sleep) { status = 'Tidur... (waktu dipercepat)'; prog = G.needs.energy / 100; ic = 'zzz'; icol = FURN_IC.bed[1]; }
+  let status = 'Tap furniture to do things', prog = -1, ic = 'walk', icol = '#7c6fa6';
+  if (G.pending) { status = 'Going to ' + G.pending.name + '...'; ic = 'walk'; icol = '#20c997'; }
+  else if (a && a.special) { status = a.special === 'faint' ? 'Fainted...' : 'Asleep on the floor...'; prog = a.t / a.total; ic = a.special === 'faint' ? 'dizzy' : 'zzz'; icol = '#e03131'; }
+  else if (a && a.f.sleep) { status = 'Sleeping... (time sped up)'; prog = G.needs.energy / 100; ic = 'zzz'; icol = FURN_IC.bed[1]; }
   else if (a) { status = a.f.verb + '...'; prog = a.t / a.total; ic = FURN_IC[a.f.id][0]; icol = FURN_IC[a.f.id][1]; }
   badge(46, 994, 26, icol, ic, 32);
   ctx.font = 'bold 24px ' + FONT;
@@ -1711,7 +1711,7 @@ function drawPanel() {
   if (tags.length) txt(tags.join(' '), canCancel ? 560 : 694, 976, 20, '#fff', 'right');
   if (canCancel) {
     const p = btn3d(574, 966, 124, 52, 20, '#ff8787', '#e03131', '#a61e1e');
-    drawIcon('x', 600, 992 + p, 22); outlinedText('Batal', 652, 993 + p, 20, '#fff', 'center', 4);
+    drawIcon('x', 600, 992 + p, 22); outlinedText('Cancel', 652, 993 + p, 20, '#fff', 'center', 4);
     btn(574, 960, 124, 64, () => { SFX.tap(); G.act = null; G.pending = null; }, ['x', 'backspace']);
   }
   FURN.forEach((f, i) => {
@@ -1730,8 +1730,8 @@ function drawPanel() {
     txtFit(f.verb, x + 140, y + 32 + p, 22, dis ? '#efeaff' : '#3a2a5c', 130);
     let sub, sc1, sc2;
     if (f.earn) { sub = '+' + rp(f.earn); sc1 = '#d3f9d8'; sc2 = '#2b8a3e'; }
-    else if (f.cost) { sub = G.freeMeals ? 'Gratis!' : '−' + rp(f.cost); sc1 = G.freeMeals ? '#d0ebff' : '#ffe3e3'; sc2 = G.freeMeals ? '#1971c2' : '#c92a2a'; }
-    else { sub = f.sleep ? '+Energi' : f.id === 'tv' ? '+Senang' : '+Bersih'; sc1 = '#f3f0ff'; sc2 = '#7048e8'; }
+    else if (f.cost) { sub = G.freeMeals ? 'Free!' : '−' + rp(f.cost); sc1 = G.freeMeals ? '#d0ebff' : '#ffe3e3'; sc2 = G.freeMeals ? '#1971c2' : '#c92a2a'; }
+    else { sub = f.sleep ? '+Energy' : f.id === 'tv' ? '+Fun' : '+Hygiene'; sc1 = '#f3f0ff'; sc2 = '#7048e8'; }
     rr(x + 88, y + 52 + p, 106, 30, 15, sc1, shade(sc2, 0.3), 2);
     txtFit(sub, x + 141, y + 68 + p, 18, sc2, 96);
     if (!lib_touch) { rr(x + w - 28, y - 8 + p, 26, 26, 8, '#3a2a5c', '#fff', 2); txt(f.key, x + w - 15, y + 6 + p, 15, '#fff'); }
@@ -1743,9 +1743,9 @@ function drawPanel() {
 function drawTut() {
   if (G.tut > 2 || modal || G.scene) return;
   let f = null, s = '';
-  if (G.tut === 0) { f = FURN[1]; s = 'Lapar! Ketuk kompor 🍳'; }
-  else if (G.tut === 1) { f = FURN[5]; s = 'Cari uang buat bayar sewa!'; }
-  else { s = 'Ngantuk? Ketuk kasur. Bertahan sampai tgl 30!'; }
+  if (G.tut === 0) { f = FURN[1]; s = 'Hungry! Tap the stove 🍳'; }
+  else if (G.tut === 1) { f = FURN[5]; s = 'Earn money to pay rent!'; }
+  else { s = 'Sleepy? Tap the bed. Survive to day 30!'; }
   if (G.tut === 1 && G.act) return;
   if (G.tut === 0 && (G.pending || G.act)) return;
   if (f) {
@@ -1767,40 +1767,40 @@ function drawModal() {
   ctx.save(); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
   if (modal.type === 'shop') {
     rr(40, 200, 640, 900, 36, '#fff8e7', '#3a2a5c', 6);
-    txt('🛒 Toko Perabot', 360, 260, 40, '#3a2a5c');
-    txt('Uangmu: ' + rp(G.money) + '  •  Perabot dibawa ke bulan berikutnya', 360, 305, 19, '#7a6a90');
+    txt('🛒 Furniture Shop', 360, 260, 40, '#3a2a5c');
+    txt('Your money: ' + rp(G.money) + '  •  Furniture stays next month', 360, 305, 19, '#7a6a90');
     SHOP.forEach((it, i) => {
       const y = 340 + i * 165, own = SAVE.upgrades[it.id], can = G.money >= it.price;
       rr(70, y, 580, 150, 24, own ? '#d3f9d8' : '#fff', '#3a2a5c', 3);
       txt(it.icon, 135, y + 75, 60);
       txt(it.name, 200, y + 50, 28, '#3a2a5c', 'left');
       txt(it.desc, 200, y + 92, 20, '#7a6a90', 'left');
-      if (own) txt('✔ Punya', 580, y + 75, 24, '#2b8a3e');
+      if (own) txt('✔ Owned', 580, y + 75, 24, '#2b8a3e');
       else {
         rr(500, y + 40, 136, 72, 20, can ? '#ffa94d' : '#ced4da', '#3a2a5c', 3);
         txt(rp(it.price), 568, y + 77, 24, '#fff');
         btn(500, y + 40, 136, 72, () => {
-          if (!can) { SFX.bad(); showToast('Uangnya belum cukup'); return; }
+          if (!can) { SFX.bad(); showToast('Not enough money yet'); return; }
           G.money -= it.price; SAVE.upgrades[it.id] = true; writeSave(); SFX.buy(); haptic(30);
           emit(360, 400 + i * 165, 20, { c: '#ffd43b', sp: 200, vy: -150, g: 400, life: 1 });
         }, [String(i + 1)]);
       }
     });
-    bigBtn(210, 1010, 300, 76, 'Tutup', '#7950f2', () => { modal = null; }, ['escape', 's', 'enter']);
+    bigBtn(210, 1010, 300, 76, 'Close', '#7950f2', () => { modal = null; }, ['escape', 's', 'enter']);
   } else if (modal.type === 'pause') {
     rr(110, 330, 500, 650, 36, '#fff8e7', '#3a2a5c', 6);
-    txt('Jeda', 360, 400, 44, '#3a2a5c');
-    bigBtn(160, 460, 400, 100, '▶ Lanjut', '#51cf66', () => { modal = null; }, ['p', 'escape', 'enter']);
+    txt('Paused', 360, 400, 44, '#3a2a5c');
+    bigBtn(160, 460, 400, 100, '▶ Resume', '#51cf66', () => { modal = null; }, ['p', 'escape', 'enter']);
     bigBtn(160, 590, 400, 100, '🏠 Menu', '#7950f2', () => { modal = null; state = 'menu'; }, ['m']);
-    bigBtn(160, 720, 400, 90, SAVE.muted ? '🔇 Efek suara: Mati' : '🔊 Efek suara: Nyala', '#868e96', () => { SAVE.muted = !SAVE.muted; writeSave(); }, ['v'], 26);
-    bigBtn(160, 840, 400, 90, SAVE.music ? '🎵 Musik: Nyala' : '🎵 Musik: Mati', '#f06595', () => { SAVE.music = !SAVE.music; writeSave(); }, ['b'], 26);
+    bigBtn(160, 720, 400, 90, SAVE.muted ? '🔇 Sound FX: Off' : '🔊 Sound FX: On', '#868e96', () => { SAVE.muted = !SAVE.muted; writeSave(); }, ['v'], 26);
+    bigBtn(160, 840, 400, 90, SAVE.music ? '🎵 Music: On' : '🎵 Music: Off', '#f06595', () => { SAVE.music = !SAVE.music; writeSave(); }, ['b'], 26);
   } else if (modal.type === 'help') {
     rr(60, 260, 600, 760, 36, '#fff8e7', '#3a2a5c', 6);
-    txt('Cara Main', 360, 330, 42, '#3a2a5c');
-    const L = ['👆 Ketuk perabot (atau tombol 1-6)', '🍜⚡🚿😊 Jaga semua kebutuhan', '🚪💻 Kerja untuk kumpulkan uang',
-      '💰 Tanggal 30: bayar sewa ' + rp(CFG.rent), '🎲 Ada kejadian seru tiap hari!', '🪳 Kecoa? Ketuk cepat-cepat!', '⏩ Spasi: percepat waktu  •  B: musik'];
+    txt('How to Play', 360, 330, 42, '#3a2a5c');
+    const L = ['👆 Tap furniture (or keys 1-6)', '🍜⚡🚿😊 Keep every need up', '🚪💻 Work to earn money',
+      '💰 Day 30: pay rent ' + rp(CFG.rent), '🎲 Surprises every day!', '🪳 Roach? Tap it fast!', '⏩ Space: speed up  •  B: music'];
     L.forEach((l, i) => txtFit(l, 100, 410 + i * 72, 26, '#3a2a5c', 520, 'left'));
-    bigBtn(210, 920, 300, 76, 'Oke!', '#51cf66', () => { modal = null; }, ['escape', 'enter', 'h']);
+    bigBtn(210, 920, 300, 76, 'Got it!', '#51cf66', () => { modal = null; }, ['escape', 'enter', 'h']);
   }
   ctx.restore();
 }
@@ -1820,19 +1820,19 @@ function drawNightBg(noBuilding) {
     rr(150 + c * 112, 600 + r * 130, 82, 90, 6, lit ? '#ffd86b' : '#2a2148');
   }
   rr(320, 960, 80, 120, 6, '#6b4a2f');
-  rr(225, 500, 270, 50, 10, '#fff8e7'); txt('KOS PUTRA-PUTRI', 360, 526, 24, '#8b3a3a');
+  rr(225, 500, 270, 50, 10, '#fff8e7'); txt('KOST ROOMS', 360, 526, 24, '#8b3a3a');
   ctx.fillStyle = '#2b2440'; ctx.fillRect(0, 1080, W, 200);
 }
 function drawMenu() {
   drawNightBg();
   ctx.save(); ctx.translate(360, 190 + Math.sin(time * 2) * 6); ctx.rotate(-0.04);
-  txt('ANAK KOS', 4, 6, 104, '#3a2a5c'); txt('ANAK KOS', 0, 0, 104, '#ffd43b');
+  txt('KOST LIFE', 4, 6, 104, '#3a2a5c'); txt('KOST LIFE', 0, 0, 104, '#ffd43b');
   ctx.restore();
-  rr(190, 268, 340, 64, 32, '#ff6b6b'); txt('TANGGAL TUA', 360, 301, 34, '#fff');
-  txt('🏆 Skor terbaik: ' + SAVE.best + (SAVE.months ? '   •   Bulan ke-' + (SAVE.months + 1) : ''), 360, 368, 24, '#fff');
+  rr(160, 268, 400, 64, 32, '#ff6b6b'); txt('BROKE TILL PAYDAY', 360, 301, 30, '#fff');
+  txt('🏆 Best score: ' + SAVE.best + (SAVE.months ? '   •   Month ' + (SAVE.months + 1) : ''), 360, 368, 24, '#fff');
   // pilih karakter
-  txt('Pilih karakter', 360, 420, 24, '#fff');
-  [['m', 'Cowok', 150], ['f', 'Cewek', 380]].forEach(([g, label, x]) => {
+  txt('Choose your character', 360, 420, 24, '#fff');
+  [['m', 'Boy', 150], ['f', 'Girl', 380]].forEach(([g, label, x]) => {
     const sel = SAVE.gender === g;
     rr(x, 445, 190, 360, 28, sel ? '#ffd43b' : '#4a3a72', sel ? '#fff' : 'rgba(255,255,255,.4)', sel ? 5 : 3);
     drawPerson({ look: g, x: x + 95, y: 735, face: 1, pose: sel ? 'wave' : 'idle', seed: g === 'f' ? 1.3 : 0 }, { s: 1.45, expr: sel ? 'happy' : 'meh' });
@@ -1841,7 +1841,7 @@ function drawMenu() {
   });
   const pulse = 1 + Math.sin(time * 4) * 0.03;
   ctx.save(); ctx.translate(360, 900); ctx.scale(pulse, pulse); ctx.translate(-360, -900);
-  bigBtn(160, 840, 400, 120, '▶  MAIN', '#51cf66', () => { newGame(); }, ['enter', ' '], 48);
+  bigBtn(160, 840, 400, 120, '▶  PLAY', '#51cf66', () => { newGame(); }, ['enter', ' '], 48);
   ctx.restore();
   iconBtn(108, 1130, SAVE.music ? 'music' : 'nomusic', () => { SAVE.music = !SAVE.music; writeSave(); }, ['b']);
   iconBtn(244, 1130, SAVE.muted ? 'mute' : 'sound', () => { SAVE.muted = !SAVE.muted; writeSave(); }, ['v']);
@@ -1856,29 +1856,29 @@ function drawEnd() {
   ctx.save(); const s = pop(e.t); ctx.translate(360, 640); ctx.scale(s, s); ctx.translate(-360, -640);
   rr(60, 130, 600, 1000, 40, '#fff8e7', '#3a2a5c', 6);
   drawPerson({ look: SAVE.gender, x: 360, y: 345, face: 1, pose: e.paid ? 'cheer' : 'shrug', seed: 0 }, { s: 1.1, expr: e.paid ? 'happy' : 'sad' });
-  txt(e.paid ? 'GAJIAN! 🎉' : 'Waduh... 😅', 360, 395, 52, '#3a2a5c');
+  txt(e.paid ? 'PAYDAY! 🎉' : 'Uh-oh... 😅', 360, 395, 52, '#3a2a5c');
   for (let i = 0; i < 3; i++) txt(i < e.stars ? '⭐' : '☆', 260 + i * 100, 470, 60, i < e.stars ? '#000' : '#bbb');
-  const rows = [['💰 Uang tanggal 30', rp(e.money)], ['🏠 Bayar sewa', '−' + rp(CFG.rent)], ['Sisa', rp(e.left)], ['😊 Rata-rata bahagia', e.mood + '%']];
+  const rows = [['💰 Money on day 30', rp(e.money)], ['🏠 Rent', '−' + rp(CFG.rent)], ['Left over', rp(e.left)], ['😊 Avg. happiness', e.mood + '%']];
   rows.forEach((r, i) => {
     txt(r[0], 110, 545 + i * 56, 26, '#3a2a5c', 'left');
     txt(r[1], 610, 545 + i * 56, 28, i === 2 ? (e.left >= 0 ? '#2b8a3e' : '#c92a2a') : '#3a2a5c', 'right');
   });
-  if (!e.paid) txtFit('Ibu kos kasih keringanan... kali ini saja!', 360, 775, 24, '#c92a2a', 540);
+  if (!e.paid) txtFit('The landlady lets it slide... just this once!', 360, 775, 24, '#c92a2a', 540);
   rr(130, 800, 460, 104, 26, '#3a2a5c');
-  txt('SKOR ' + e.score, 360, 840, 44, '#ffd43b');
-  txt(e.isBest ? '🏆 Rekor baru!' : 'Terbaik: ' + SAVE.best, 360, 884, 22, '#fff');
-  bigBtn(120, 925, 480, 100, '▶ Bulan Berikutnya', '#51cf66', () => { newGame(); }, ['enter', ' '], 34);
+  txt('SCORE ' + e.score, 360, 840, 44, '#ffd43b');
+  txt(e.isBest ? '🏆 New record!' : 'Best: ' + SAVE.best, 360, 884, 22, '#fff');
+  bigBtn(120, 925, 480, 100, '▶ Next Month', '#51cf66', () => { newGame(); }, ['enter', ' '], 34);
   bigBtn(220, 1040, 280, 72, '🏠 Menu', '#7950f2', () => { state = 'menu'; }, ['m', 'escape'], 26);
   ctx.restore();
   if (e.t < 3 && Math.random() < 0.5) emit(rnd(80, 640), 120, 1, { c: `hsl(${rnd(0, 360)},90%,60%)`, sp: 60, vy: 120, g: 120, life: 3, r: 7 });
 }
 function drawLoading() {
   drawNightBg();
-  txt('ANAK KOS', 360, 300, 96, '#ffd43b');
-  txt('Tanggal Tua', 360, 380, 36, '#fff');
+  txt('KOST LIFE', 360, 300, 96, '#ffd43b');
+  txt('Broke Till Payday', 360, 380, 36, '#fff');
   const p = loadDone / loadSteps.length;
   rr(160, 1150, 400, 30, 15, '#241a3a'); rr(160, 1150, Math.max(30, 400 * p), 30, 15, '#ffd43b');
-  txt('Menyiapkan kamar kos... ' + Math.round(p * 100) + '%', 360, 1210, 22, '#fff');
+  txt('Tidying up the room... ' + Math.round(p * 100) + '%', 360, 1210, 22, '#fff');
 }
 
 /* ------------------ render utama ------------------ */
