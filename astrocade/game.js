@@ -15,6 +15,8 @@ import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
 import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
+import { traceRivers, stepTrail, runsEncode, runsDecode } from './landscape.js';
+import { SCENARIOS, SCENARIO_BY, evalScenario } from './scenarios.js';
 import { seasonOf, seasonTintK, DECREES, DECREE_BY, decreeMult, decreeReady, issueDecree } from './seasons.js';
 import { KRAKEN_HP as KRAKEN_MAXHP, FLEE_FRAC, LUCKY_SHOT, VOLLEY_TICKS, GUN_RANGE, firepower, sinkChance, warshipHp, warshipFire } from './naval.js';
 import { WONDER_NAME, BUILDINGS, BUILDING_BY, GOODS_CAP, buildable, kpBonus, produce, toolBoost } from './buildings.js';
@@ -399,6 +401,7 @@ function majorBanner(icon, text) {
 let tiles, bld, fire, jit;            // allocated by setSize()
 let kid, own, ownRace, ownEdge, ownScore;      // kingdom id per house tile / territory map (allocated by setSize())
 let wallK = new Uint16Array(1), wallG = new Uint8Array(1), wallT = new Uint8Array(1);
+let riv = new Uint8Array(1), road = new Uint8Array(1), trail = new Uint8Array(1), scn = null;          // rivers, roads, worn trails and the running scenario
 let oreT = new Uint8Array(1), oreA = new Uint8Array(1), treeK = new Uint8Array(1), nodes = [];      // resource nodes: type / amount left, cached tree kind, node list     // wall barrier map: owner kingdom id / is-gate
 const wallGates = new Map();                                   // kingdom id -> gate tile indices
 const kingdoms = new Map(); let nextKid = 1, showBorders = true, ownDirty = true;
@@ -733,10 +736,15 @@ function genPreset(z, seed) {
     tiles[cx + cy * W] = T.MOUNTAIN; presetVolc.push(cx + cy * W);
   }
 }
-function generate(seed) { waterDirty = true; const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); }
+function genRivers(clear) {                                         // rivers run from the highlands to the sea; the same seed gives the same rivers
+  let q = ((currentSeed | 0) * 2654435761 >>> 0) || 1; const rnd = () => (q = (q * 1664525 + 1013904223) >>> 0) / 4294967296;
+  riv.set(traceRivers(tiles, W, H, rnd).mask); road.fill(0); trail.fill(0);
+  if (clear) for (let i = 0; i < N; i++) if (riv[i] && tiles[i] === T.FOREST) tiles[i] = T.GRASS;       // no trees in the riverbed
+}
+function generate(seed) { waterDirty = true; const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); genRivers(true); }
 function emptyWorld() {
   extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
-  nodes = []; oreT.fill(0); oreA.fill(0);
+  nodes = []; oreT.fill(0); oreA.fill(0); riv.fill(0); road.fill(0); trail.fill(0); scn = null;
   creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
   for (let i = 0; i < N; i++) jit[i] = Math.floor((hash(i, 3, 5) - .5) * 14);
 }
@@ -1166,7 +1174,7 @@ function stepCart(c) {
   const R = RACES.cart, A = kingdoms.get(c.k), tr = c.trade;
   c.age++;
   if (!A || !tr || c.age > c.life) { c.hp = 0; c.cause = 'old'; return; }
-  if ((tick + c.id) % R.mv !== 0) return;
+  if ((tick + c.id) % Math.max(1, R.mv - (road[c.x + c.y * W] ? 1 : 0)) !== 0) return;                    // caravans roll faster on roads
   const dest = tr.phase === 0 ? kingdoms.get(tr.to) : A;
   if (!dest) { c.hp = 0; c.cause = 'old'; return; }
   const tx = dest.cap % W, ty = (dest.cap / W) | 0;
@@ -2265,7 +2273,7 @@ function setTile(i, t) {
   dirty = true;
 }
 function ignite(i) {
-  if (fire[i]) return;
+  if (fire[i] || riv[i]) return;                                    // rivers stop fire
   if (bld[i]) { const kk = kingdoms.get(kid[i]); if (kk && kk.mod.fire) return; }       // fire-ward tech: houses never catch fire
   const t = tiles[i];
   if (bld[i]) fire[i] = 14; else if (t === T.FOREST) fire[i] = 16; else if (t === T.GRASS) fire[i] = 7;
@@ -2419,7 +2427,11 @@ function wallBlocks(c, i) {                                  // enemy walls stop
   const ko = kingdoms.get(o); return !!ko && ko.enemies.has(c.k);
 }
 function tryMove(c, nx, ny) {
-  if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W]) && !wallBlocks(c, nx + ny*W)) { if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny; return true; }
+  if (inb(nx, ny) && walkable(c.t, tiles[nx + ny*W]) && !wallBlocks(c, nx + ny*W)) {
+    if (nx !== c.x) c.face = nx > c.x ? 1 : -1; c.x = nx; c.y = ny;
+    if (c.k && RACES[c.t].civ) { const j = nx + ny*W; if (stepTrail(trail, j, tiles[j], own[j] === c.k) && !road[j]) { road[j] = 1; dirty = true; } }       // settlers wear roads into the ground
+    return true;
+  }
   return false;
 }
 const SIEGE_P = { orc: .7, dwarf: .4, werewolf: .3, human: .15, elf: .08 };      // chance a blocked soldier hits the wall instead of walking to the gate
@@ -2515,7 +2527,7 @@ function stepCreature(c) {
   if (c.k && c.hp < c.mhp && (tick + c.id) % 4 === 0) { const kk = kingdoms.get(c.k); if (kk && kk.mod.regen) c.hp = Math.min(c.mhp, c.hp + kk.mod.regen * 4); }
   if (R.hunt) { c.en -= 0.12; if (c.en <= 0) { c.hp = 0; return; } }
   if (c.k !== c.lk) { c.lk = c.k; const kj = c.k ? kingdoms.get(c.k) : null; if (kj) { if (c.nj) c.nj = 0; else addHist(c, 10, kj.name); } }
-  if ((tick + c.id) % ((c.tr & 4) ? Math.max(1, R.mv - 1) : R.mv) !== 0) return;
+  if ((tick + c.id) % Math.max(1, ((c.tr & 4) ? Math.max(1, R.mv - 1) : R.mv) - (road[idx] && R.civ ? 1 : 0)) !== 0) return;       // roads make walking faster
   if (drops.length && R.civ) pickupAt(c);
 
   let tg = c.tgt;
@@ -3459,12 +3471,13 @@ function drawNavy(x0, y0, x1, y1) {
   }
 }
 function terrainStats(k) {
-  const cx = Math.round(k.cx), cy = Math.round(k.cy); let g = 0, f = 0, m = 0, pm = 0; const tk = [0, 0, 0, 0];
+  const cx = Math.round(k.cx), cy = Math.round(k.cy); let g = 0, f = 0, m = 0, pm = 0, rv = 0, rd = 0; const tk = [0, 0, 0, 0];
   for (let y = Math.max(0, cy-9); y <= Math.min(H-1, cy+9); y++) for (let x = Math.max(0, cx-9); x <= Math.min(W-1, cx+9); x++) {
     const i = x + y*W, t = tiles[i];
+    if (riv[i]) rv++; if (road[i]) rd++;
     if (t === T.GRASS) g++; else if (t === T.FOREST) { f++; tk[(treeKindAt(i) & 7) - 1]++; } else if (t === T.HILL || t === T.MOUNTAIN) m++; else if (t === T.SAND && (treeKindAt(i) & 16)) pm++;
   }
-  k.g = g; k.f = f; k.m = m; k.tk = tk; k.pm = pm;
+  k.g = g; k.f = f; k.m = m; k.tk = tk; k.pm = pm; k.rvn = rv; k.rdn = rd;
 }
 function economy() {                                      // once per second
   const redo = tick % 120 === 0, rebellions = [];
@@ -3475,10 +3488,10 @@ function economy() {                                      // once per second
     k.food = Math.min(400, k.food + (k.g*.012 + k.f*(k.race === 'elf' ? .012 : .006) + k.houses*.25) * E.f * M.food * evFood(k) * sn.food * dmu('food') - k.pop*.18 * (1 + .15 * k.enemies.size));     // elves forage the forest; war strains the food supply
     const aff = TREE_AFF[k.race]; let wd = k.pm * .4; for (let q = 0; q < 4; q++) wd += k.tk[q] * TREE_W[q] * aff[q];       // timber depends on the tree kinds around the realm
     k.wood = Math.min(250, k.wood + wd*.012*E.w*M.wood*tb*dmu('wood'));
-    k.food = Math.min(400, k.food + (k.tk[3]*.008 + k.pm*.003)*E.f);                                                 // fruit trees and coconuts feed people
+    k.food = Math.min(400, k.food + (k.tk[3]*.008 + k.pm*.003 + (k.rvn || 0)*.006)*E.f);                                 // rivers water the fields                                                 // fruit trees and coconuts feed people
     mineTick(k, E);
     k.stone = Math.min(250, k.stone + (k.m*.01 + k.houses*.02)*E.s*M.stone*tb*dmu('stone'));                 // quarries / trade even far from hills
-    k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012)*E.g*M.gold*dmu('gold'));
+    k.gold = Math.min(250, k.gold + (k.m*.004 + k.houses*.012 + Math.min(40, k.rdn || 0)*.003)*E.g*M.gold*dmu('gold'));       // roads carry trade
     k.kp = Math.min(3000, (k.kp || 0) + kpGain(k.pop, k.houses, k.level, M.kp * kpBonus(k.bld) * dmu('kp')));                 // knowledge points pay for research
     if (k.bld.length) {                                                         // goods chains: sawmill, bakery, smithy
       const d = produce(k);
@@ -3615,6 +3628,7 @@ function step() {
   if (tick % 80 === 0) { diplomacyTick(); eventsTick(); if (!editMode) disasterTick(); }
   if (pendingDis.length) processDisasters();
   if (floods.length && tick % 8 === 0) floodRecede();
+  if (tick % 120 === 60) scnCheck();
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); ageCheck(); buildCheck(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -3674,6 +3688,7 @@ function setSize(idx) {
   tiles = new Uint8Array(N); bld = new Uint8Array(N); fire = new Uint8Array(N); jit = new Int8Array(N);
   kid = new Uint16Array(N); wallK = new Uint16Array(N); wallG = new Uint8Array(N); wallT = new Uint8Array(N); own = new Uint16Array(N); ownRace = new Uint8Array(N); ownEdge = new Uint8Array(N); ownScore = new Float32Array(N);
   oreT = new Uint8Array(N); oreA = new Uint8Array(N); treeK = new Uint8Array(N); nodes = [];
+  riv = new Uint8Array(N); road = new Uint8Array(N); trail = new Uint8Array(N);
   drops.length = 0; dropMap.clear(); volcanoes.length = 0; parts.length = 0;
   kingdoms.clear(); rels.clear(); ships = []; nextShipId = 1; navy = []; nextKid = 1; ownDirty = true; comp = new Uint16Array(N); compDirty = true;
   GW = Math.ceil(W / 8); GH = Math.ceil(H / 8); cells = Array.from({ length: GW * GH }, () => []);
@@ -3742,6 +3757,8 @@ function renderTerrain() {
     }
     if (t === T.FOREST) { const v = treeKindAt(i) & 7; if (v === 2) { r -= 12; g -= 4; b += 10; } else if (v === 3) { r += 22; g += 18; b -= 8; } else if (v === 4) { r += 16; g -= 4; b -= 6; } }
     const ot = oreT[i]; if (ot && sc < 8) { const oc = ORE_RGB[ot]; r = oc[0]; g = oc[1]; b = oc[2]; }
+    if (riv[i] && t >= 2) { const sh = SN(fr * .05 + x * .4 + y * .3) * 9; r = 64 + sh; g = 150 + sh; b = 214 + sh; }                  // river
+    else if (road[i] && t >= 2) { r = 176 + j * .5; g = 146 + j * .5; b = 98 + j * .5; }                                             // worn road
     if (showBorders) { const o = ownRace[i]; if (o) { const bc = BORDER_RGB[o], a = ownEdge[i] ? .6 : .15; r += (bc[0] - r)*a; g += (bc[1] - g)*a; b += (bc[2] - b)*a; } }
     if (fire[i]) { const fl = (frame*7 + i*13) % 3; r = 255; g = fl === 0 ? 220 : fl === 1 ? 140 : 80; b = 20; }
     const k = i*4; d[k] = r; d[k+1] = g; d[k+2] = b; d[k+3] = 255;
@@ -4528,6 +4545,7 @@ infoEl.addEventListener('click', e => {
     if (a.dataset.act === 'kback') { infoEl.innerHTML = kingdomHtml(k); return; }
     showTree(k);
   }
+  else if (a.dataset.act === 'scn') { const d = SCENARIO_BY[a.dataset.id]; if (d) confirmThen('scn' + d.id, d.n, () => { startScenario(d); renderRow2(); closeCreature(); }); }
   else if (a.dataset.act === 'journalTab') showJournal(a.dataset.tab);
   else if (a.dataset.act === 'seed') { const zi = +a.dataset.i; confirmThen('seed' + zi, SIZES[zi].label, () => { newWorld(zi); closeCreature(); renderRow2(); }); }
   else if (a.dataset.act === 'follow') { following = !following; infoHold = false; refreshCreature(); }
@@ -4664,10 +4682,51 @@ function confirmThen(key, msg, fn) {              // destructive actions need a 
   if (pendingKey === key && now - pendingT < 2600) { pendingKey = ''; fn(); }
   else { pendingKey = key; pendingT = now; toast('⚠️ ' + msg + ' — tap again'); }
 }
+function scnSnap() {
+  let pop = 0, maxLevel = 0, maxAge = 0; const races = new Set();
+  for (const r of ['human', 'elf', 'dwarf', 'orc', 'werewolf']) pop += counts[r] || 0;
+  for (const k of kingdoms.values()) { maxLevel = Math.max(maxLevel, k.level); maxAge = Math.max(maxAge, k.age | 0); races.add(k.race); }
+  return { years: (tick - scn.t0) / 120, pop, maxLevel, maxAge, kingdoms: kingdoms.size, races: races.size };
+}
+function scnCheck() {                                          // once a year: judge the running scenario
+  if (!scn || scn.status !== 'run' || editMode) return;
+  const def = SCENARIO_BY[scn.id], r = evalScenario(def, scnSnap()); if (r.status === 'run') return;
+  scn.status = r.status; dirty = true;
+  if (r.status === 'win') { addChronicle('🏆', `Scenario complete: ${def.n}`); banner('🏆', 'Scenario complete', def.n, 'good'); }
+  else { addChronicle('💀', `Scenario failed: ${def.n}`); banner('💀', 'Scenario failed', def.n, 'bad'); }
+}
+function startScenario(def) {
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
+  floods.length = 0; pendingDis.length = 0;
+  const wi = def.world ? SIZES.findIndex(z => z.preset && z.label === def.world) : 1;
+  setSize(wi < 0 ? 1 : wi); generate(1 + ((Math.random() * 1e6) | 0));
+  seedResources(); seedVolcanoes(); seedShoals(); seedSharks();
+  if (!SIZES[sizeIdx].empty) { populate(); for (const c of creatures) if (RACES[c.t].civ) c.hp = 0; reapDead(); }      // keep the wildlife, drop the ready-made peoples
+  const anchors = [];
+  for (const e of def.setup) {                                  // each people starts in its own corner of the world
+    let best = null, bd = -1;
+    for (let n = 0; n < 160; n++) {
+      const x = ri(2, W - 3), y = ri(2, H - 3), t = tiles[x + y*W]; if (!RACES[e.race].build.includes(t) || !walkable(e.race, t)) continue;
+      const d = anchors.length ? Math.min(...anchors.map(a => Math.hypot(a[0] - x, a[1] - y))) : 1e6;
+      if (d > bd) { bd = d; best = [x, y]; }
+    }
+    if (!best) continue; anchors.push(best);
+    for (let q = 0; q < e.n; q++) spawnNear(e.race, best[0] + ri(-2, 2), best[1] + ri(-2, 2));
+  }
+  scn = { id: def.id, t0: tick, status: 'run' };
+  startCamera(); persistWorld(); dirty = true; clearSave();
+  if (anchors.length) { sc = Math.max(sc, 14); ox = VIEW.x + VIEW.w/2 - (anchors[0][0] + .5)*sc; oy = VIEW.y + VIEW.h/2 - (anchors[0][1] + .5)*sc; clampCam(); }
+  toast(`${def.ic} ${def.n}`); banner(def.ic, def.n, `Goal within ${def.years} years`, 'good');
+}
+function showScenarios() {
+  selected = null; following = false; clearTimeout(infoT);
+  infoEl.innerHTML = `<div class="ibtns"><button class="awb ibt" data-act="close">✖</button></div><b>🎯 Scenarios</b><span class="dsc">A prepared world, a goal and a time limit.</span><div class="seeds">${SCENARIOS.map(d => `<button class="seed" data-act="scn" data-id="${d.id}"><b>${d.ic} ${d.n}</b><small>${d.desc}</small></button>`).join('')}</div>`;
+  infoEl.style.display = 'block';
+}
 function newWorld(idx) {
   extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   floods.length = 0; pendingDis.length = 0;
-  setSize(idx == null ? sizeIdx : idx);
+  setSize(idx == null ? sizeIdx : idx); scn = null;
   generate(1 + ((Math.random() * 1e6) | 0));
   if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); seedSharks(); if (!SIZES[sizeIdx].empty) populate(); else toast('🏝️ Empty island — start in the Life tab'); }
   startCamera(); persistWorld(); dirty = true; if (!editMode) clearSave();
@@ -4691,9 +4750,15 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, ch => ({ '&':'&amp
 function chronicleBody() {
   return chronicle.length ? chronicle.map(e => `<div class="jrow"><span class="jicon">${escapeHtml(e.icon)}</span><div><small>Year ${Math.floor(e.tick / 120)}</small><span>${escapeHtml(e.text)}</span></div></div>`).join('') : '<div class="jempty">No major events yet. Let the world run and its story will appear here.</div>';
 }
+function scenarioCard() {
+  if (!scn) return '';
+  const def = SCENARIO_BY[scn.id], r = evalScenario(def, scnSnap()), pct = Math.round(objectiveRatio(r.value, r.target) * 100), left = Math.max(0, Math.ceil(def.years - (tick - scn.t0) / 120));
+  const note = scn.status === 'win' ? 'Complete' : scn.status === 'lose' ? 'Failed' : `${left} years left`;
+  return `<div class="jgoal"><div class="jgoaltop"><b>${def.ic} ${escapeHtml(def.n)}</b><strong class="jcount">${scn.status === 'win' ? '✓' : `${Math.min(r.value, r.target)}/${r.target}`}</strong></div><small>${escapeHtml(def.desc)} · ${note}</small><div class="jbar"><i style="width:${pct}%;${scn.status === 'win' ? 'background:#65df9a' : scn.status === 'lose' ? 'background:#ff6a5a' : ''}"></i></div></div>`;
+}
 function goalsBody() {
   const vals = currentGoalValues();
-  return OBJECTIVES.map(g => {
+  return scenarioCard() + OBJECTIVES.map(g => {
     const v = Math.max(0, vals[g.id] || 0), done = completedGoals.has(g.id), pct = Math.round(objectiveRatio(v, g.target) * 100);
     return `<div class="jgoal" data-goal="${g.id}"><div class="jgoaltop"><b>${g.icon} ${escapeHtml(g.title)}</b><strong class="jcount">${done ? '✓' : `${Math.min(v, g.target)}/${g.target}`}</strong></div><small>${escapeHtml(g.detail)}</small><div class="jbar"><i style="width:${pct}%;${done ? 'background:#65df9a' : ''}"></i></div></div>`;
   }).join('');
@@ -4747,6 +4812,7 @@ const WORLD_ACTIONS = [
   ...SIZES.slice(0, 3).map((z, i) => ({ nm: z.label, h: `${z.w}×${z.h} map`, ic: z.name, on: () => sizeIdx === i,
     fn: () => confirmThen('size' + i, `${z.label} ${z.w}×${z.h}`, () => { newWorld(i); renderRow2(); toast(`🗺️ ${z.label} ${z.w}×${z.h}`); }) })),
   { nm: 'Island seeds', h: 'Start from an empty island', ic:'🏝️', fn: () => showSeeds() },
+  ...(editMode ? [] : [{ nm: 'Scenarios', h: 'Prepared worlds with a goal', ic:'🎯', fn: () => showScenarios() }]),
   { nm: 'Empty ocean', h: 'Clear the map to open sea', ic:'🌊', fn: () => confirmThen('ocean', 'Empty ocean', () => { floods.length = 0; pendingDis.length = 0; emptyWorld(); currentSeed = 0; startCamera(); persistWorld(); dirty = true; toast('🌊'); }) },
   ...(editMode ? [] : [
     { nm: 'Wildlife', h: 'Add more animals', ic:'🐾', fn: () => { populate(1); toast('🐾'); } },
@@ -4932,6 +4998,7 @@ function serialize2() {
     el: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.elite) a.push(j); return a; }, []),
     gn: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.gun) a.push(j); return a; }, []),
     hr: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.hero) a.push(j); return a; }, []),
+    rvr: runsEncode(riv), rdr: runsEncode(road), sc: scn ? [scn.id, tick - scn.t0, scn.status] : 0,
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
     inv: inv.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]),
     vc: volcanoes.map(v => v.i),
@@ -4959,7 +5026,10 @@ function restore(s) {
   extinctRaces.clear(); for (const r of s.xr || []) if (['human','elf','dwarf','orc','werewolf'].includes(r)) extinctRaces.add(r);
   chronicle.length = 0; for (const e of s.jl || []) if (Array.isArray(e) && e.length >= 3) chronicle.push({ tick: Math.max(0, e[0] | 0), icon: String(e[1]), text: legacyText(String(e[2])) }); chronicle.length = Math.min(chronicle.length, CHRONICLE_MAX);
   completedGoals.clear(); for (const id of s.go || []) if (OBJECTIVES.some(g => g.id === id)) completedGoals.add(id); warsResolved = Math.max(0, s.wf | 0);
-  currentSeed = s.seed || 0; tick = s.tick || 0; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0; floods.length = 0; Snd.on = s.sn !== 0; tutSeen = !!s.tu;
+  currentSeed = s.seed || 0; tick = s.tick || 0;
+  if (Array.isArray(s.rvr)) runsDecode(s.rvr, riv); else genRivers();
+  runsDecode(s.rdr, road); trail.fill(0);
+  scn = s.sc && SCENARIO_BY[s.sc[0]] ? { id: s.sc[0], t0: tick - (s.sc[1] | 0), status: s.sc[2] || 'run' } : null; bestSent = s.bs || 0; disasterLvl = s.dl == null ? 1 : s.dl; pendingDis.length = 0; floods.length = 0; Snd.on = s.sn !== 0; tutSeen = !!s.tu;
   const hl = [];
   for (const v of s.bld || []) { const i = v >> 3, b = v & 7; if (i < N && b >= 1 && b <= 5) { bld[i] = b; hl.push(i); } else hl.push(-1); }
   const ids = [];
@@ -5182,6 +5252,10 @@ const NEWS = [
   ['🌾', 'Seasons and decrees', [
     'Spring, summer, autumn and winter turn every year and change food and births.',
     'In a kingdom panel, issue a <b>decree</b>: Harvest, Scholars, Tax or Industry.']],
+  ['🎯', 'Rivers, roads and scenarios', [
+    '<b>Rivers</b> run from the highlands to the sea: they water the fields and stop fires.',
+    '<b>Roads</b> appear where settlers keep walking. Walking and caravans are faster on them, and they carry trade.',
+    'Five <b>scenarios</b> (World tab) give you a prepared world, a goal and a time limit: First Light, Age of Sail, Arctic Survival, Four Realms and Long Peace.']],
   ['🌊', 'Living Seas (version 2.0)', [
     '<b>Fish shoals</b> drift through the sea: sardines near the shore, grouper on reefs, tuna in the deep. Fishers and boats depend on them, and overfishing scatters a shoal.',
     '<b>Sharks</b> patrol the deep, chase ships and bite far-out fishers.',
@@ -5288,7 +5362,7 @@ async function start() {
   }
   if (!restored) {
     setSize(wantSize);
-    if (rleDecode(cfg.world.tiles)) { currentSeed = cfg.world.seed || 0; bld.fill(0); fire.fill(0); creatures = []; }
+    if (rleDecode(cfg.world.tiles)) { currentSeed = cfg.world.seed || 0; bld.fill(0); fire.fill(0); creatures = []; genRivers(); }
     else generate(cfg.world.seed || (1 + ((Math.random() * 1e6) | 0)));
     if (!editMode) { seedResources(); seedVolcanoes(); seedShoals(); seedSharks(); if (!SIZES[sizeIdx].empty) populate(); }
   }
@@ -5311,7 +5385,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, makeHero, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, get riv() { return riv; }, get road() { return road; }, get scn() { return scn; }, startScenario, SCENARIOS, scnCheck, genRivers, makeHero, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles

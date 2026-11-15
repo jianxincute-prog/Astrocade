@@ -29,6 +29,8 @@ Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, soun
 | `buildings.js` | Pure rules for the production buildings (sawmill, bakery, smithy, library, academy, wonder) and their goods chains (v3.0). |
 | `naval.js` | Pure naval rules: ship firepower, kraken odds model, warship stats (v3.0). |
 | `seasons.js` | Pure seasons and royal decrees (v3.0). |
+| `landscape.js` | Pure river tracing, road wear and run-length helpers for saving them (v3.0). |
+| `scenarios.js` | Pure scenario definitions and progress rules (v3.0). |
 | `jobs.js` | Pure logic for everyday jobs: chop, mine, hunt, farm, fish, gather (race weights, yields, work length, swing timing). |
 | `work_anim.js` | Canvas drawing for the work animations (axes, pickaxes, hoes, spears, bows, claws, fishing rods) and carried goods. |
 | `sizing.js` | Pure helper for the Character Size setting (0.6 to 2, default 1.2). |
@@ -77,6 +79,8 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Ages and technology (v3.0):** five ages: Stone, Bronze, Iron, Medieval and Gunpowder, each with a race-flavoured name (for example the human Feudal Age and Age of Sail and Powder, the dwarf Rune Age and Steam Age). Every race has a tree of 15 techs in three branches (Economy, Military, Lore) and five tiers; a tier needs the previous tier of its branch and enough age and kingdom level. Kingdoms earn **knowledge points** from population and houses (libraries, the academy, wonders and the Scholars decree multiply them), pay them with resources for each tech, and research on their own (about 30 s each), leaning towards their race's favourite branch. Tap a branch in the kingdom's **Tech tree** panel to steer research. The sailing breakthrough is still the tier-3 Economy tech. The **Knowledge** power finishes the running research or grants the best available tech for free. Moving up an age needs the tier's techs, a level and a stock of metal; the metal requirement is waived when none exists within reach.
 - **Resources:** ore nodes (stone, bronze, iron, silver, gold) sit on hills and mountains and slowly respawn. Dwarves mine twice as fast. Trees come in kinds (oak, pine, birch, fruit, palm) with different timber yield and race affinity.
 - **Buildings and goods (v3.0):** a kingdom raises one of each building as its level and age allow, and the building appears near the capital. **Sawmill** (level 1) turns wood into planks, and a house costs one plank instead of four wood. **Bakery** (level 1) bakes surplus food into bread, which raises births by 25% and covers short famines. **Smithy** (level 2, Bronze Age) makes tools from spare metal or stone; tools speed up chopping and quarrying by 25% and wear out. **Library** (level 2, Bronze Age) multiplies knowledge by 1.3, the **Academy** (level 3, Medieval Age, needs a library) by 1.5, and the **Wonder** (Grand Cathedral, Moonwell Spire, Great Forge-Hall, Skull Citadel or Moon Obelisk) by 1.15 and calms unrest.
+- **Rivers and roads (v3.0):** rivers are traced from the highlands to the sea (`traceRivers` in `landscape.js`): they are fords, so nobody is blocked; they add food to nearby kingdoms (+0.006 per river tile within about nine tiles) and stop fire. Roads grow by use: a settler walking 36 times over a tile inside its own territory wears it into a road. Settlers and caravans walk one step faster on roads, and a kingdom earns a little gold from the roads in its land (capped at 40 tiles). Rivers and roads are saved (`rvr`, `rdr`); older saves regenerate their rivers.
+- **Scenarios (v3.0):** the World tab lists five scenarios: First Light (Hawaiian Chain, a level-3 kingdom within 35 years), Age of Sail (Aegean Isles, five kingdoms within 100 years), Arctic Survival (Arctic Isles, 80 citizens within 60 years), Four Realms (random world, the Gunpowder Age within 40 years) and Long Peace (keep four races alive for 250 years). Progress shows at the top of the Goals tab; the result is announced by a banner and saved (`sc`).
 - **Seasons and decrees (v3.0):** a year is 120 ticks and the seasons turn every year. Spring boosts food 10% and births 20%, summer food 15%, autumn food 30% and winter cuts food to 70% and births to 75%. The world takes a faint seasonal colour wash, and the year pill shows the season. In a kingdom panel the player can issue a **decree**: Harvest (food x1.5), Scholars (knowledge x2), Tax (gold x1.8) or Industry (wood and stone x1.4). Each lasts four years and then cools down.
 - **Trade:** a world market prices food, wood, stone, bronze, iron and silver by world-wide stock. Kingdoms at peace send wagons to buy what they lack from a neighbour with a surplus (they pay up front; a lost wagon refunds). The Market board in the World tab shows prices with trend arrows, trades and the shop.
 - **War and diplomacy (automatic):** aggression per race (orc high, human and dwarf low, elf very low, werewolves never declare war). Friendly races may form alliances. Wars end when a side is beaten or from war weariness, followed by a truce. Soldiers (25 to 55% of a kingdom) march on the enemy capital; non-orcs capture adjacent houses, orcs raze and loot. The end of a war can collapse a kingdom or, very rarely, extinguish a race (`warOutcome`).
@@ -139,6 +143,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 | `sf`, `wk` | ships and wrecks |
 | `sh`, `st`, `sk`, `skt`, `kr`, `krc` | shoals, shark target, sharks, krakens and the kraken cooldown |
 | `jl`, `go`, `wf`, `xr` | chronicle, completed goals, wars ended, extinct races |
+| `rvr`, `rdr`, `sc` | river and road tile runs, the running scenario |
 | `tick`, `bs`, `dl`, `sn`, `tu`, `sv` | clock, best score sent, disaster level, sound, tour seen, last seen version |
 
 ## Development notes
@@ -154,7 +159,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 - Gunpowder musketeers, battle heroes and warships that fight naval wars.
 - Ships that fight the kraken, with a slaying chance under 1%.
 - Seasons that change food and births, and royal decrees.
-- Not done yet: rivers, roads and carts, and scenarios.
+- Rivers, roads that wear in where settlers walk, and five scenarios.
 
 ## What's new in 2.0
 **Living Seas**
