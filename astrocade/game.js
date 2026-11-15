@@ -13,7 +13,7 @@ import { pickJob, workLen, reach, swingPhase, swingCycle, isStrikeFrame, IMPACT,
 import { drawWorker, drawCarry } from './work_anim.js';
 import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
 import { birthProbability, WEREWOLF_BIRTH_RATE, warOutcome } from './sim_rules.js';
-import { OBJECTIVES, objectiveValues, objectiveRatio } from './objectives.js';
+import { OBJECTIVES, GROUPS as GOAL_GROUPS, GOAL_BONUS, newGoalStats, objectiveValues, objectiveRatio } from './objectives.js';
 import { findWaterRoute, canResearchVoyage, shipwreckProbability } from './navigation.js';
 import { islandCap, pickMerge, REL, PACT_GOLD, pactChance, allyChance, breakChance, betrayalChance, aid, allyKp } from './diplomacy.js';
 import { isAdult, lifeStage, ANIMAL_BREED, crowd, canBreed, isMate, pickPair, pickCrew } from './reproduction.js';
@@ -193,6 +193,11 @@ style.textContent = `
   #awinfo .jrow small{display:block;font-size:17px;color:#aab4e0;font-weight:800}
   #awinfo .jrow span{display:block;overflow-wrap:anywhere}
   #awinfo .jgoal{border-top:1px solid #34406c;padding:14px 2px 10px;font-size:22px}
+  #awinfo .jgoal.jdone{opacity:.72}
+  #awinfo .jgh{display:flex;justify-content:space-between;margin:18px 0 0;font-size:18px;letter-spacing:2px;color:#9fb0e8;font-weight:900;text-transform:uppercase;clear:both}
+  #awinfo .jgsum{padding:10px 2px 6px;font-size:22px;color:#dbe5ff}
+  #awinfo .jgsum b{font-size:30px;color:#ffe9a0}
+  #awinfo .jgsum .jbar{margin-top:8px}
   #awinfo .jgoaltop{display:flex;justify-content:space-between;gap:10px;align-items:center}
   #awinfo .jgoaltop strong{color:#ffcf4a;white-space:nowrap}
   #awinfo .jgoal small{display:block;font-size:18px;color:#aab4e0;line-height:1.3;margin:2px 0 8px}
@@ -427,7 +432,7 @@ const extinctRaces = new Set();                       // wars can permanently en
 let comp = null, compDirty = true;                 // connected land components (wars only happen on the same landmass)
 const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
 const warStats = { repaired: 0, towerShots: 0, breached: 0, declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
-const chronicle = []; const completedGoals = new Set(); let warsResolved = 0;
+const chronicle = []; const completedGoals = new Set(), gstats = newGoalStats(); let warsResolved = 0, roadCount = 0;       // gstats: counters the goals read, saved with the game
 const CHRONICLE_MAX = 60;
 let creatures = [], nextId = 1, tick = 0;
 let ships = [], nextShipId = 1, navy = [], nextNavyId = 1;                 // civilization exploration vessels; crew are citizens marked with ship id
@@ -761,7 +766,7 @@ function genRivers(clear) {                                         // rivers ru
 }
 function generate(seed) { waterDirty = true; const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); genRivers(true); }
 function emptyWorld() {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   nodes = []; oreT.fill(0); oreA.fill(0); riv.fill(0); road.fill(0); trail.fill(0); scn = null;
   creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
   for (let i = 0; i < N; i++) jit[i] = Math.floor((hash(i, 3, 5) - .5) * 14);
@@ -1517,7 +1522,7 @@ function krakenHit(x, y, r, dmg) {                              // smite, lightn
   for (const k of krakens) {
     if (k.st === 2 || (k.x - x) ** 2 + (k.y - y) ** 2 > (r + 2) ** 2) continue;
     k.hp -= dmg; emit('bit', k.x, k.y - 1, 10, { col: '#e8a0ff' });
-    if (k.hp <= 0) { k.st = 2; k.t = 0; k.atk = null; krakenCd = 16000 + ri(0, 8000); fx('boom', Math.round(k.x), Math.round(k.y), { r: 4 }); banner('🐙', 'Kraken slain!', 'The sea is safe, for now', 'good'); addChronicle('🐙', 'The kraken was slain'); }
+    if (k.hp <= 0) { k.st = 2; k.t = 0; k.atk = null; krakenCd = 16000 + ri(0, 8000); fx('boom', Math.round(k.x), Math.round(k.y), { r: 4 }); banner('🐙', 'Kraken slain!', 'The sea is safe, for now', 'good'); gstats.krakenSlain++; addChronicle('🐙', 'The kraken was slain'); }
   }
 }
 function krakenAttack(k) {
@@ -1552,7 +1557,7 @@ function fleetFire(k) {                                         // every ship an
     fx(v.age >= 3 ? 'cannon' : 'arrow', Math.round(v.s.x), Math.round(v.s.y), { tx: Math.round(k.x), ty: Math.round(k.y) }); fx('hit', Math.round(k.x), Math.round(k.y)); emit('bit', k.x, k.y - 1, 4, { col: '#e8a0ff' });
     if (!k.fought) { k.fought = 1; const kg = kingdoms.get(v.kid); addChronicle('💥', `${kg ? kg.name : 'A crew'} fights the kraken, though the odds are hopeless`); toast('💥 The crew fights back!'); }
   }
-  if (k.hp < KRAKEN_MAXHP * FLEE_FRAC && k.hp > 0 && !k.driven) { k.driven = 1; k.st = 2; k.t = 0; k.atk = null; krakenCd = 12000 + ri(0, 6000); banner('🐙', 'Kraken driven off', 'Wounded, it sinks back down', 'good'); addChronicle('🐙', 'The kraken was driven off by cannon fire'); }
+  if (k.hp < KRAKEN_MAXHP * FLEE_FRAC && k.hp > 0 && !k.driven) { k.driven = 1; gstats.krakenDriven++; k.st = 2; k.t = 0; k.atk = null; krakenCd = 12000 + ri(0, 6000); banner('🐙', 'Kraken driven off', 'Wounded, it sinks back down', 'good'); addChronicle('🐙', 'The kraken was driven off by cannon fire'); }
 }
 function krakenTick() {
   const risk = +((cfg.settings && cfg.settings.shipwreckRisk) ?? 3);
@@ -1657,7 +1662,7 @@ function harpoon(s) {                                          // fishing boats 
     if (tgt.hp <= 0) {
       sharks.splice(sharks.indexOf(tgt), 1); fx('splash', Math.round(tgt.x), Math.round(tgt.y));
       k.fin = Math.min(250, (k.fin | 0) + 1 + (Math.random() < .5 ? 1 : 0)); k.hide = Math.min(250, (k.hide | 0) + 1);
-      addChronicle('🦈', `Harpooners of ${k.name} killed a shark`); toast('🦈 Harpooners killed a shark: fins and hide to sell!');
+      gstats.sharks++; addChronicle('🦈', `Harpooners of ${k.name} killed a shark`); toast('🦈 Harpooners killed a shark: fins and hide to sell!');
     }
     return;
   }
@@ -2449,7 +2454,7 @@ function setFamily(c, par) {                                    // a newborn get
   for (const P of [A, B]) if (P.ch === 1 || P.ch === 3 || P.ch === 6) addHist(P, 15, c.nid);
 }
 const sexTog = {};                                           // per kind: the sex the next spawn gets (1 = female)
-function newborn(c) { c.age = 0; c.f = Math.random() < .5 ? 1 : 0; if (RACES[c.t].civ && effects.length < 300) fx('birth', c.x, c.y); }       // hearts for the peoples only
+function newborn(c) { c.age = 0; c.f = Math.random() < .5 ? 1 : 0; if (RACES[c.t].civ) { gstats.births++; if (effects.length < 300) fx('birth', c.x, c.y); } }       // hearts for the peoples only
 function findMate(c, r = 10) {                                // a mature male of the same kind close by
   const gx = c.x >> 3, gy = c.y >> 3;
   for (let yy = Math.max(0, gy - 1); yy <= Math.min(GH - 1, gy + 1); yy++) for (let xx = Math.max(0, gx - 1); xx <= Math.min(GW - 1, gx + 1); xx++)
@@ -2844,7 +2849,7 @@ function wanderers() {                                         // a race that is
       const probe = { x, y, id: 0, avoid: 0, avoidUntil: 0 };
       if (findNearest(probe, CIVS, cd) || countHouses(x, y, hd, 1) + countHouses(x, y, hd, 2) + countHouses(x, y, hd, 3) + countHouses(x, y, hd, 4) > 0) continue;
       let n = 0; for (let q = 0; q < 4; q++) if (spawnNear(race, x, y)) n++;
-      if (n) { lastBand[race] = tick; addChronicle(EMOJI[race], `Wanderers of the ${TYPE_NAME[race].toLowerCase()} people arrived`); toast(`${EMOJI[race]} Wanderers arrived`); return; }
+      if (n) { lastBand[race] = tick; gstats.bands++; addChronicle(EMOJI[race], `Wanderers of the ${TYPE_NAME[race].toLowerCase()} people arrived`); toast(`${EMOJI[race]} Wanderers arrived`); return; }
     }
   }
 }
@@ -3052,7 +3057,7 @@ function absorbKingdom(a, b) {                              // b joins a: houses
     const o = x === b.id ? y : x; rels.delete(key);
     if (o !== a.id && !rels.has(rkey(a.id, o))) rels.set(rkey(a.id, o), r);
   }
-  kingdoms.delete(b.id); rebuildRelations(); ownDirty = true; dirty = true; warStats.merged = (warStats.merged || 0) + 1;
+  kingdoms.delete(b.id); rebuildRelations(); ownDirty = true; dirty = true; warStats.merged = (warStats.merged || 0) + 1; gstats.unions++;
   addChronicle('🤝', `${b.name} joined ${a.name}`);
   fx('levelup', Math.round(a.cx), Math.round(a.cy));
 }
@@ -3309,7 +3314,7 @@ function carvePath(from, to, k) {                              // a footpath fro
   }
 }
 function townTidy() {                                           // towns stay clear: no trees or loose rocks right around houses and buildings, and every house has a path
-  townMask.fill(0); let paths = 0;
+  townMask.fill(0); let paths = 0; roadCount = 0; for (let i = 0; i < N; i++) if (road[i]) roadCount++;
   const clear = (k, x, y, r) => {
     const keepForest = k.race === 'elf' || k.race === 'werewolf';
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -3527,7 +3532,7 @@ function foundIslandColony(ship) {
   const x = i % W, y = (i / W) | 0, k = newKingdom(race, x, y);
   bld[i] = RACES[race].bi; kid[i] = k.id; k.food = 35; k.wood = 18; k.stone = 8; k.voyageCd = tick + 1200;
   disembarkCrew(ship, k, i); ownDirty = true; dirty = true; rebuildRelations();
-  addChronicle('🏝️', `${k.name} founded a colony on a new island`); toast(`🏝️ New colony: ${k.name}`); fx('levelup', x, y);
+  gstats.colonies++; addChronicle('🏝️', `${k.name} founded a colony on a new island`); toast(`🏝️ New colony: ${k.name}`); fx('levelup', x, y);
   return true;
 }
 function bringCrewHome(ship) {
@@ -3608,7 +3613,7 @@ function navyLaunch(k) {
   if (!route || route.path.length < 3) { k.navyCd = tick + 2400; return; }
   pay(k, NAVY_COST); k.navyCd = tick + 1500;
   navy.push({ id: nextNavyId++, kid: k.id, race: k.race, age: k.age, x: start % W, y: (start / W) | 0, path: route.path, step: 0, move: 0, hp: warshipHp(k.age), mhp: warshipHp(k.age), kc: 0, phase: 'out', t: 0, home: start });
-  fx('warcry', start % W, (start / W) | 0); addChronicle('⚓', `${k.name} launched a warship`); toast(`⚓ ${EMOJI[k.race]}${k.name} launched a warship`); dirty = true;
+  fx('warcry', start % W, (start / W) | 0); gstats.warships++; addChronicle('⚓', `${k.name} launched a warship`); toast(`⚓ ${EMOJI[k.race]}${k.name} launched a warship`); dirty = true;
 }
 function navyTick() {
   if (tick % 80 === 0) for (const k of kingdoms.values()) navyLaunch(k);
@@ -4825,7 +4830,7 @@ infoEl.addEventListener('click', e => {
     clearTimeout(infoT); const k = kingdoms.get(+a.dataset.id), d = DECREE_BY[a.dataset.d]; if (!k || !d) return;
     if (!decreeReady(k.dec, d.id, tick)) { toast('📜 A decree is already in force'); return; }
     if (!canPay(k, d.cost)) { toast('📜 The treasury cannot afford it'); return; }
-    pay(k, d.cost); k.dec = issueDecree(d.id, tick); addChronicle(d.ic, `${k.name} decreed: ${d.n}`); fx('levelup', Math.round(k.cx), Math.round(k.cy)); infoEl.innerHTML = kingdomHtml(k);
+    pay(k, d.cost); gstats.decrees++; k.dec = issueDecree(d.id, tick); addChronicle(d.ic, `${k.name} decreed: ${d.n}`); fx('levelup', Math.round(k.cx), Math.round(k.cy)); infoEl.innerHTML = kingdomHtml(k);
   }
   else if (a.dataset.act === 'ktree' || a.dataset.act === 'kback' || a.dataset.act === 'kfocus' || a.dataset.act === 'ktech') {
     const k = kingdoms.get(+a.dataset.id); if (!k) return;
@@ -4981,11 +4986,11 @@ function scnCheck() {                                          // once a year: j
   if (!scn || scn.status !== 'run' || editMode) return;
   const def = SCENARIO_BY[scn.id], r = evalScenario(def, scnSnap()); if (r.status === 'run') return;
   scn.status = r.status; dirty = true;
-  if (r.status === 'win') { addChronicle('🏆', `Scenario complete: ${def.n}`); banner('🏆', 'Scenario complete', def.n, 'good'); }
+  if (r.status === 'win') { gstats.scnWins++; addChronicle('🏆', `Scenario complete: ${def.n}`); banner('🏆', 'Scenario complete', def.n, 'good'); }
   else { addChronicle('💀', `Scenario failed: ${def.n}`); banner('💀', 'Scenario failed', def.n, 'bad'); }
 }
 function startScenario(def) {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   floods.length = 0; pendingDis.length = 0;
   const wi = def.world ? SIZES.findIndex(z => z.preset && z.label === def.world) : 1;
   setSize(wi < 0 ? 1 : wi); generate(1 + ((Math.random() * 1e6) | 0));
@@ -5013,7 +5018,7 @@ function showScenarios() {
   infoEl.style.display = 'block';
 }
 function newWorld(idx) {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx); scn = null;
   generate(1 + ((Math.random() * 1e6) | 0));
@@ -5026,7 +5031,7 @@ function civScore() {                                        // population, hous
   let sc = 0; const races = new Set();
   for (const k of kingdoms.values()) { sc += k.pop*2 + k.houses*3 + k.level*60 + k.tech.length*20 + (k.age | 0)*80 + k.bld.length*15 + (k.bld.includes('wonder') ? 120 : 0) + ((k.bronze | 0) + (k.iron | 0) + (k.silver | 0))*.5; races.add(k.race); }
   let heroes = 0, guns = 0; for (const c of creatures) { if (c.hp > 0 && c.hero) heroes++; else if (c.hp > 0 && c.gun) guns++; }
-  return Math.round(sc + heroes * 25 + guns * 10 + races.size * 40 + (tick / 120) * 2 + market.trades * 3 + (scn && scn.status === 'win' ? 300 : 0));
+  return Math.round(sc + heroes * 25 + guns * 10 + races.size * 40 + (tick / 120) * 2 + market.trades * 3 + (scn && scn.status === 'win' ? 300 : 0) + completedGoals.size * GOAL_BONUS);
 }
 function addChronicle(icon, text) {
   if (editMode || !text) return;
@@ -5047,11 +5052,17 @@ function scenarioCard() {
   return `<div class="jgoal"><div class="jgoaltop"><b>${def.ic} ${escapeHtml(def.n)}</b><strong class="jcount">${scn.status === 'win' ? '✓' : `${Math.min(r.value, r.target)}/${r.target}`}</strong></div><small>${escapeHtml(def.desc)} · ${note}</small><div class="jbar"><i style="width:${pct}%;${scn.status === 'win' ? 'background:#65df9a' : scn.status === 'lose' ? 'background:#ff6a5a' : ''}"></i></div></div>`;
 }
 function goalsBody() {
-  const vals = currentGoalValues();
-  return scenarioCard() + OBJECTIVES.map(g => {
-    const v = Math.max(0, vals[g.id] || 0), done = completedGoals.has(g.id), pct = Math.round(objectiveRatio(v, g.target) * 100);
-    return `<div class="jgoal" data-goal="${g.id}"><div class="jgoaltop"><b>${g.icon} ${escapeHtml(g.title)}</b><strong class="jcount">${done ? '✓' : `${Math.min(v, g.target)}/${g.target}`}</strong></div><small>${escapeHtml(g.detail)}</small><div class="jbar"><i style="width:${pct}%;${done ? 'background:#65df9a' : ''}"></i></div></div>`;
-  }).join('');
+  const vals = currentGoalValues(), done = OBJECTIVES.filter(g => completedGoals.has(g.id)).length, total = OBJECTIVES.length;
+  let h = scenarioCard() + `<div class="jgsum"><b>${done}/${total}</b> goals reached · +${GOAL_BONUS} score each<div class="jbar"><i style="width:${Math.round(100 * done / total)}%;background:#65df9a"></i></div></div>`;
+  for (const gr of GOAL_GROUPS) {
+    const list = OBJECTIVES.filter(g => g.group === gr.id), n = list.filter(g => completedGoals.has(g.id)).length;
+    h += `<div class="jgh"><span>${gr.ic} ${gr.n}</span><span>${n}/${list.length}</span></div>`;
+    h += list.map(g => {
+      const v = Math.max(0, vals[g.id] || 0), ok = completedGoals.has(g.id), pct = Math.round(objectiveRatio(v, g.target) * 100);
+      return `<div class="jgoal${ok ? ' jdone' : ''}" data-goal="${g.id}"><div class="jgoaltop"><b>${g.icon} ${escapeHtml(g.title)}</b><strong class="jcount">${ok ? '✓' : `${Math.min(v, g.target)}/${g.target}`}</strong></div><small>${escapeHtml(g.detail)}</small><div class="jbar"><i style="width:${pct}%;${ok ? 'background:#65df9a' : ''}"></i></div></div>`;
+    }).join('');
+  }
+  return h;
 }
 function refreshGoalsPanel() {
   if (!infoEl.querySelector('.jgoal')) return;
@@ -5061,16 +5072,22 @@ function refreshGoalsPanel() {
     const v = Math.max(0, vals[g.id] || 0), done = completedGoals.has(g.id), count = card.querySelector('.jcount'), bar = card.querySelector('.jbar i');
     if (count) count.textContent = done ? '✓' : `${Math.min(v, g.target)}/${g.target}`;
     if (bar) { bar.style.width = `${Math.round(objectiveRatio(v, g.target) * 100)}%`; bar.style.background = done ? '#65df9a' : ''; }
+    card.classList.toggle('jdone', done);
   }
 }
-function currentGoalValues() { return objectiveValues(counts, [...kingdoms.values()].map(k => k.level), warsResolved); }
+function currentGoalValues() {
+  let allies = 0, pacts = 0; for (const r of rels.values()) { if (r.s === 2) allies++; else if (r.s === REL.PACT) pacts++; }
+  let heroes = 0, guns = 0; for (const c of creatures) { if (c.hp <= 0) continue; if (c.hero) heroes++; else if (c.gun) guns++; }
+  return objectiveValues({ counts, kingdoms: [...kingdoms.values()].map(k => ({ level: k.level, age: k.age | 0, techs: k.tech.length, bld: k.bld, race: k.race })), warsEnded: warsResolved, allies, pacts, roads: roadCount, trades: market.trades, heroes, guns, years: tick / 120, score: civScore(), g: gstats });
+}
 function checkObjectives() {
   if (editMode || !started) return;
-  const vals = currentGoalValues();
+  const vals = currentGoalValues(); let any = false;
   for (const g of OBJECTIVES) if (!completedGoals.has(g.id) && vals[g.id] >= g.target) {
-    completedGoals.add(g.id); addChronicle('🏆', `Goal reached: ${g.title}`);
-    toast(`🏆 Goal reached · ${g.title}`); dirty = true;
+    completedGoals.add(g.id); any = true; addChronicle('🏆', `Goal reached: ${g.title}`);
+    banner(g.icon, g.title, `Goal reached · ${completedGoals.size}/${OBJECTIVES.length}`, 'good'); fx('levelup', W >> 1, H >> 1); dirty = true;
   }
+  return any;
 }
 function showJournal(tab = 'chronicle') {
   selected = null; following = false; deadNote = 0; infoHold = false; clearTimeout(infoT);
@@ -5295,7 +5312,7 @@ function serialize2() {
   const kl = [...kingdoms.values()], kix = new Map(kl.map((k, n) => [k.id, n + 1]));
   const bl = [], bk = [];
   for (let i = 0; i < N; i++) if (bld[i]) { bl.push(i * 8 + bld[i]); bk.push(kix.get(kid[i]) || 0); }     // bk: kingdom (1-based) of each house
-  return { v: 9, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, mf: [+market.p.fin.toFixed(2), +market.p.hide.toFixed(2)], sv: seenVer, wk: wrecks.map(w => [w.x, w.y, kix.get(w.kid) || 0, tick - w.t0, w.why === 'kraken' ? 2 : w.why === 'shark' ? 1 : 0]), rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
+  return { v: 9, z: sizeIdx, seed: currentSeed, xr: [...extinctRaces], jl: chronicle.map(e => [e.tick, e.icon, e.text]), go: [...completedGoals], gs: { ...gstats }, wf: warsResolved, tiles: rleEncode(), bld: bl, bk, tick, bs: bestSent, dl: disasterLvl, sn: Snd.on ? 1 : 0, tu: tutSeen ? 1 : 0, mk: COMM.map(c => +market.p[c].toFixed(2)), mt: market.trades, mf: [+market.p.fin.toFixed(2), +market.p.hide.toFixed(2)], sv: seenVer, wk: wrecks.map(w => [w.x, w.y, kix.get(w.kid) || 0, tick - w.t0, w.why === 'kraken' ? 2 : w.why === 'shark' ? 1 : 0]), rs: nodes.filter(i => oreT[i]).map(i => i * 8 + oreT[i]), ra: nodes.filter(i => oreT[i]).map(i => oreA[i]),
     rl: [...rels].map(([key, r]) => [kix.get(Math.floor(key / 65536)) || 0, kix.get(key % 65536) || 0, r.s, r.t, r.until]).filter(x => x[0] && x[1]),
     kg: kl.map(k => [RACES[k.race].bi, Math.round(k.cx), Math.round(k.cy), k.level, k.food | 0, k.wood | 0, k.stone | 0, k.gold | 0, k.born, k.name, k.tech.slice(), k.ev ? EV_ID.indexOf(k.ev.type) : 0, k.ev ? k.ev.left : 0, Math.round(k.unrest), Math.max(0, k.immune - tick), k.silver | 0, k.bronze | 0, k.iron | 0, k.age | 0, k.chest.map(i => [i[0], i[1], RN.indexOf(i[2]), i[3] | 0]), Math.max(0, (k.voyageCd || 0) - tick), k.fin | 0, k.hide | 0, Math.round(k.kp || 0), BRANCHES.indexOf(k.focus), k.bld.slice(), k.plank | 0, k.bread | 0, k.tool | 0, k.dec && k.dec.until > tick ? [k.dec.id, k.dec.until - tick, Math.max(0, k.dec.cd - tick)] : 0]),
     cr: creatures.filter(c => !RACES[c.t].engine).map(c => { const s = c.boat ? ships.find(v => v.id === c.boat) : null, i = s ? s.sourceLand : c.y * W + c.x; return i * 10 + RN.indexOf(c.t); }),
@@ -5330,7 +5347,7 @@ function restore(s) {
   if (!rleDecode(s.tiles)) return false;
   extinctRaces.clear(); for (const r of s.xr || []) if (['human','elf','dwarf','orc','werewolf'].includes(r)) extinctRaces.add(r);
   chronicle.length = 0; for (const e of s.jl || []) if (Array.isArray(e) && e.length >= 3) chronicle.push({ tick: Math.max(0, e[0] | 0), icon: String(e[1]), text: legacyText(String(e[2])) }); chronicle.length = Math.min(chronicle.length, CHRONICLE_MAX);
-  completedGoals.clear(); for (const id of s.go || []) if (OBJECTIVES.some(g => g.id === id)) completedGoals.add(id); warsResolved = Math.max(0, s.wf | 0);
+  completedGoals.clear(); Object.assign(gstats, newGoalStats(), s.gs || {}); for (const id of s.go || []) if (OBJECTIVES.some(g => g.id === id)) completedGoals.add(id); warsResolved = Math.max(0, s.wf | 0);
   currentSeed = s.seed || 0; tick = s.tick || 0;
   if (Array.isArray(s.rvr)) runsDecode(s.rvr, riv); else genRivers();
   runsDecode(s.rdr, road); trail.fill(0);
@@ -5551,6 +5568,8 @@ const NEWS = [
   ['🐑', '3.5 · A real life cycle', [
     'Every creature is <b>male or female</b>. A birth needs a mature pair of the same kind close together, and animals now breed much more slowly. Children are smaller, and a newborn brings a floating heart.',
     'A people that is nearly gone can be rescued by wandering settlers.']],
+  ['🎯', '3.5 · Many more goals', [
+    'The Goals tab now holds <b>33 goals in seven groups</b>: population, ages, techs, roads, trade, alliances, heroes, warships, colonies, sharks, the kraken, scenarios and more. Each goal reached gives a banner and <b>+50 score</b>.']],
   ['🤝', '3.5 · Allies and tidy towns', [
     'Kingdoms sign <b>trade pacts</b>, help each other through famine and shortage, and grow them into <b>alliances</b>. Pacts can break and greedy partners can betray them, but wars are rarer.',
     'Towns are kept clear of trees and loose stones, houses and buildings are joined by <b>footpaths</b>, and buildings keep their distance.',

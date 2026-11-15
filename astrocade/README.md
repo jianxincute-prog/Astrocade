@@ -92,7 +92,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Musketeers and heroes (v3.0):** a Gunpowder Age level-3 kingdom can turn a soldier into a musketeer (2 iron and 40 gold, up to 6): range 4 and +35% attack. A soldier with 7 kills becomes a **hero** with a golden crest (up to 3 per kingdom). Both are saved.
 - **Naval war (v3.0):** a Medieval Age level-2 coastal kingdom at war can launch a **warship** (40 wood, 15 iron, 20 gold; two in the Gunpowder Age). It sails a water route to an enemy coast, bombards houses within range, sinks enemy exploration ships and duels enemy warships, while shore batteries answer. It heads home after about 1100 ticks or when the war ends. Warships are not saved.
 - **Events and realm powers:** plague, drought and golden age strike kingdoms. Unrest builds from famine, plague and long wars; at its peak a mature kingdom rebels and splits. Tiny kingdoms at peace are annexed by a bigger neighbour of their race. The Realm tab offers Grace, Plague, Rebellion, Peace, Unite, Split and Knowledge, acting once per touch.
-- **Score and goals:** the Score button submits the **civilization score** (per kingdom: 2 x population + 3 x houses + 60 x level + 20 x techs + 80 x age + 15 x buildings, plus 120 for a wonder and half a point per bronze, iron or silver; then 25 per hero, 10 per musketeer, 40 per people with a kingdom, 300 for a won scenario, 2 per year and 3 per trade); higher is better. The Chronicle keeps the last 60 events, and three optional goals (50 residents, a level-3 kingdom, one concluded war) are tracked in the Goals tab.
+- **Score and goals:** the Score button submits the **civilization score** (per kingdom: 2 x population + 3 x houses + 60 x level + 20 x techs + 80 x age + 15 x buildings, plus 120 for a wonder and half a point per bronze, iron or silver; then 25 per hero, 10 per musketeer, 40 per people with a kingdom, 300 for a won scenario, 2 per year and 3 per trade); higher is better. The Chronicle keeps the last 60 events, and 33 optional goals in seven groups (Civilization, Knowledge, Industry, Diplomacy, Military, The sea, Life and time) are tracked in the Goals tab: population milestones, kingdom levels, ages, tech counts, wonders, roads, trade, decrees, pacts and alliances, unions, heroes and musketeers, warships, colonies, sharks, the kraken, births, wandering bands, years survived, scenarios and score. Each goal reached adds 50 score and shows a banner; progress is saved (`go`, `gs`).
 
 ## Individuals and equipment
 - **Creature panel:** tap a creature to see a portrait, generated name, role (Citizen, Soldier, Leader, Iron knight, Hunter, Prey, Merchant, War machine), status, current activity, bars and tabs: Info, Family, Bag, Chest. A gold ring marks it; the target button follows it.
@@ -150,7 +150,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 | `mk`, `mt`, `mf` | market prices, trade count, fin and hide prices |
 | `sf`, `wk` | ships and wrecks |
 | `sh`, `st`, `sk`, `skt`, `kr`, `krc` | shoals, shark target, sharks, krakens and the kraken cooldown |
-| `jl`, `go`, `wf`, `xr` | chronicle, completed goals, wars ended, extinct races |
+| `jl`, `go`, `gs`, `wf`, `xr` | chronicle, completed goals, goal counters, wars ended, extinct races |
 | `rvr`, `rdr`, `sc` | river and road tile runs, the running scenario |
 | `tick`, `bs`, `dl`, `sn`, `tu`, `sv` | clock, best score sent, disaster level, sound, tour seen, last seen version |
 
@@ -162,6 +162,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 
 ## What's new in 3.5
 **Rise of Empires, version 3.5**
+- 33 goals in seven groups, each worth +50 score.
 - Rivers, roads that wear in where settlers walk, and five scenarios.
 - A real life cycle: male and female creatures, adulthood, and births that need a pair; animals breed far more slowly; wanderers rescue a nearly extinct people.
 - Livelier visuals and sound: smaller children and a heart for each birth, working buildings, gunpowder flashes and smoke, seasonal petals, fireflies, leaves and snow, and new sounds.
