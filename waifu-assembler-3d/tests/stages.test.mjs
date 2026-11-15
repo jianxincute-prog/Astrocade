@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { HALL_BENCHES, HALL_SIZE, HALL_TREES, SETS, createInitialState, pickup, placeCarried, restoreState, reveal, serializeState } from '../logic.mjs';
 import {
   STAGE_ORDER, CLOCK_MIN, clearStage, createRun, pieceAssembled, pieceRevealed, stageScore, stageSpec, startStage, tickRun,
-  STAGE_CENTER, STAGE_SPAWN, PIECE_SECONDS, REVEAL_SECONDS, stageRings,
+  STAGE_CENTER, STAGE_SPAWN, PIECE_SECONDS, REVEAL_SECONDS, stageRadius,
 } from '../stages.mjs';
 
 test('stage order is a permutation of all statues and never repeats back-to-back', () => {
@@ -20,11 +20,20 @@ test('obstacles follow the design: open, curtains, chests, then mixed', () => {
   assert.deepEqual([...new Set(Object.values(stageSpec(7).hiddenByKey))].sort(), ['chest', 'curtain']);
 });
 
-test('extra ornaments become collectible and stage saves preserve their placed state', () => {
+test('every stage restores the same five segments; difficulty comes from hiding places and the clock', () => {
+  for (let n = 1; n <= 30; n += 1) {
+    const spec = stageSpec(n);
+    assert.equal(spec.pieceCount, 5);
+    assert.deepEqual(spec.fragments.map((f) => f.partId).sort(), ['armL', 'armR', 'head', 'legs', 'torso']);
+    assert.ok(spec.fragments.every((f) => !f.isAccessory), 'no ornament pieces');
+    assert.equal(Object.keys(spec.hiddenByKey).length, n === 1 ? 0 : n === 2 ? 1 : n === 3 ? 2 : Math.min(4, n - 1));
+    assert.ok(Object.keys(spec.hiddenByKey).length <= 4, 'at least one piece is always lying in the open');
+  }
+});
+
+test('a stage save keeps its placed segments across a restore', () => {
   const spec = stageSpec(4);
-  assert.equal(spec.pieceCount, 8);
-  assert.equal(spec.extraCount, 3);
-  const fragment = spec.fragments.find((item) => item.isAccessory);
+  const fragment = spec.fragments[0];
   let state = createInitialState();
   if (spec.hiddenByKey[fragment.key]) state = reveal(state, fragment.key, spec.hiddenByKey);
   state = pickup(state, fragment.key, spec.fragments, spec.hiddenByKey);
@@ -32,7 +41,10 @@ test('extra ornaments become collectible and stage saves preserve their placed s
   state = placeCarried(state, fragment.setId, spec.fragments);
   const restored = restoreState(serializeState(state), spec.fragments, spec.hiddenByKey);
   assert.ok(restored.placed[fragment.setId].includes(fragment.partId));
-  assert.ok(!restored.collected.includes(fragment.key), 'a placed ornament must not return as an unplaced save item');
+  assert.ok(!restored.collected.includes(fragment.key), 'a placed piece must not return as an unplaced save item');
+  // saves from the ornament version carry ornament ids: they are dropped instead of breaking the statue
+  const old = restoreState({ placed: { [fragment.setId]: ['head', 'ornament02', 'ornament07'] }, collected: [], revealed: [], carried: null }, spec.fragments, spec.hiddenByKey);
+  assert.deepEqual(old.placed[fragment.setId], ['head']);
 });
 
 test('the clock starts at 90 seconds, shrinks per stage and never drops below the floor', () => {
@@ -72,12 +84,12 @@ test('a slow clear resets the combo and a finished run cannot be cleared again',
   assert.equal(clearStage(tickRun(startStage(cleared), 999)).points, 0);
 });
 
-test('every stage lays its pieces out neatly on rings around the statue in the middle of the hall', () => {
+test('every stage lays its five pieces out evenly on a ring around the statue in the middle of the hall', () => {
   for (let n = 1; n <= 30; n += 1) {
-    const spec = stageSpec(n); const { inner, outer } = stageRings(n);
+    const spec = stageSpec(n); const r = stageRadius(n);
     for (const f of spec.fragments) {
-      const r = Math.hypot(f.x - STAGE_CENTER[0], f.z - STAGE_CENTER[1]);
-      assert.ok(Math.abs(r - inner) < 0.6 || Math.abs(r - outer) < 0.6, `stage ${n} ${f.key} off its ring (${r})`);
+      const d = Math.hypot(f.x - STAGE_CENTER[0], f.z - STAGE_CENTER[1]);
+      assert.ok(Math.abs(d - r) < 0.6, `stage ${n} ${f.key} off its ring (${d})`);
       assert.ok(Math.abs(f.x) <= HALL_SIZE / 2 - 8 && Math.abs(f.z) <= HALL_SIZE / 2 - 8, 'inside the hall, clear of the walls');
       for (const [x, z] of HALL_TREES) assert.ok(Math.hypot(f.x - x, f.z - z) >= 6, `stage ${n} piece under a tree`);
       for (const [x, z] of HALL_BENCHES) assert.ok(Math.hypot(f.x - x, f.z - z) >= 6, `stage ${n} piece on a bench`);
@@ -85,8 +97,8 @@ test('every stage lays its pieces out neatly on rings around the statue in the m
       assert.ok(Math.hypot(f.x - STAGE_SPAWN.x, f.z - STAGE_SPAWN.z) >= 3.5, 'nothing spawns on top of the visitor');
     }
   }
-  assert.ok(stageRings(6).inner > stageRings(1).inner, 'later stages spread the pieces wider');
-  assert.deepEqual(stageRings(40), stageRings(6), 'the rings stop growing');
+  assert.ok(stageRadius(6) > stageRadius(1), 'later stages spread the pieces wider');
+  assert.equal(stageRadius(40), stageRadius(6), 'the ring stops growing');
 });
 
 test('each stage is winnable on foot with time to spare (walk 9 u/s, 6 s per fit puzzle, 2 s per lock)', () => {

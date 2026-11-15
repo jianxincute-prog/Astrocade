@@ -11,7 +11,7 @@ import { COSTUMES, DEFAULT_EXPR, FACE_PRESETS } from './faces.mjs';
 import { STATUE_POSES } from './poses.mjs';
 import { buildContainer, buildFragment, buildPodium, buildWorld, makeLabel, petalTexture, starTexture } from './world.js';
 import { createAudio } from './audio.js';
-import { clearStage, createRun, EXTRA_ACCESSORIES, STAGE_CENTER, STAGE_ORDER, STAGE_SPAWN, pieceAssembled, pieceRevealed, startStage, stageSpec, tickRun } from './stages.mjs';
+import { clearStage, createRun, STAGE_CENTER, STAGE_ORDER, STAGE_SPAWN, pieceAssembled, pieceRevealed, startStage, stageSpec, tickRun } from './stages.mjs';
 
 // Babylon.js presentation, input, and Astrocade shell. Play is first-person; Edit is a touch-friendly overhead gallery layout editor.
 // The statues stand about 5 units tall on their plinths, so the visitor's eye sits at EYE_HEIGHT to meet them at chest height.
@@ -230,7 +230,6 @@ export function createGame(mode = 'play') {
   let currentStageSpec = null;
   let currentStageFragments = FRAGMENTS;
   let currentStageHidden = HIDDEN_FRAGMENTS;
-  let stageExtraFragments = [];
   const stageContainers = new Map();
   let puzzle = null; // the turn-and-fit puzzle in progress
   let lastFrame = performance.now();
@@ -338,7 +337,6 @@ export function createGame(mode = 'play') {
         const built = placed.includes(part.id); const entry = podium.figureParts.get(part.id);
         entry.ghost.setEnabled(shown && !built); entry.solid.setEnabled(shown && built);
       }
-      for (const extra of EXTRA_ACCESSORIES) podium.accessories.get(extra.id)?.setEnabled(shown && placed.includes(extra.id));
       podium.finished.setEnabled(shown && done);
       podium.motes.emitRate = shown && placed.length ? 2 + placed.length * 3 : 0;
     }
@@ -355,21 +353,15 @@ export function createGame(mode = 'play') {
       const box = model.container;
       if (box && active && !model.locked && !box.opened && !box.opening) { box.animate(1); box.opened = true; }
     }
-    for (const fragment of stageExtraFragments) {
-      const model = fragments.get(fragment.key); if (!model) continue;
-      model.absent = state.collected.includes(fragment.key) || state.placed[fragment.setId]?.includes(fragment.partId);
-      model.locked = Boolean(model.container) && !state.revealed.includes(fragment.key);
-      model.root.setEnabled(!model.absent); model.shown = !model.absent; model.spin.setEnabled(!model.locked);
-    }
     clocking = stageRun ? [] : SETS.filter((set) => (state.placed[set.id]?.length || 0) < PARTS.length && state.collected.some((k) => k.startsWith(`${set.id}:`))).map((set) => set.id);
     nearestCache.at = -1;
     if (carriedVisual) { carriedVisual.dispose(false, false); carriedVisual = null; }
     if (state.carried) {
       const fragment = currentFragment(state.carried);
       const source = fragments.get(state.carried)?.spin.getChildren()[0];
-      carriedVisual = source ? source.clone('carried', null) : buildStatuePart(kit, scene, fragment.visualPartId || fragment.partId, fragment.setId, false);
+      carriedVisual = source ? source.clone('carried', null) : buildStatuePart(kit, scene, fragment.partId, fragment.setId, false);
       carriedVisual.setEnabled(true); for (const m of carriedVisual.getChildMeshes()) m.setEnabled(true);
-      carriedVisual.position.setAll(0); carriedVisual.scaling.setAll(fragment.isAccessory ? 0.42 : 0.19);
+      carriedVisual.position.setAll(0); carriedVisual.scaling.setAll(0.19);
       for (const m of carriedVisual.getChildMeshes()) m.renderingGroupId = 1;
     }
     refreshPodiums(); updateBlueprint();
@@ -628,8 +620,6 @@ export function createGame(mode = 'play') {
   function clearStageObjects() {
     for (const box of stageContainers.values()) box.root.dispose(false, false);
     stageContainers.clear();
-    for (const fragment of stageExtraFragments) { const model = fragments.get(fragment.key); model?.root.dispose(false, false); fragments.delete(fragment.key); }
-    stageExtraFragments = [];
   }
   function setStageRoom(setId) {
     for (const set of SETS) {
@@ -645,12 +635,8 @@ export function createGame(mode = 'play') {
     for (const box of containers.values()) box.root.setEnabled(false);
     world.colliders.splice(0, world.colliders.length, ...fixedColliders);
     for (const f of spec.fragments) {
-      let model = fragments.get(f.key);
-      if (f.isAccessory) {
-        model = buildFragment(scene, kit, f, null); fragments.set(f.key, model); stageExtraFragments.push(f);
-      } else {
-        relocate(model.root, () => { model.root.position.x = f.x; model.root.position.z = f.z; }); model.container = null; model.locked = false;
-      }
+      const model = fragments.get(f.key);
+      relocate(model.root, () => { model.root.position.x = f.x; model.root.position.z = f.z; }); model.container = null; model.locked = false;
       const kind = spec.hiddenByKey[f.key];
       if (kind) {
         const box = buildContainer(scene, f, kind); stageContainers.set(f.key, box); model.container = box;
@@ -679,7 +665,7 @@ export function createGame(mode = 'play') {
     const spec = stageSpec(stageRun.stage); stageSetId = spec.setId;
     // Preserve already-finished figures; this level reuses only its active statue and clears its old pieces.
     state.placed[stageSetId] = [];
-    // Only current-stage inventory matters. Clear prior stage IDs (including unique ornament keys) from the save.
+    // Only current-stage inventory matters. Clear prior stage IDs from the save.
     state.collected = []; state.revealed = []; state.carried = null;
     stageRun = startStage(stageRun);
     configureStage(spec);
@@ -714,8 +700,7 @@ export function createGame(mode = 'play') {
     const set = getSet(fragment.setId); stageRun = pieceAssembled(stageRun);
     refreshFragments(); updateHUD(); saveProgress();
     const count = state.placed[set.id].length; const complete = allStagePiecesPlaced();
-    const target = fragment.isAccessory ? podium.accessories.get(fragment.partId) : podium.figureParts.get(fragment.partId);
-    flyIn(target, hand, () => {
+    flyIn(podium.figureParts.get(fragment.partId), hand, () => {
       sparkle(new BAB.Vector3(podium.group.position.x, 2.4, podium.group.position.z), set.color, 110);
       kick(complete ? 0.09 : 0.045); safeHaptic(complete ? 'success' : 'tap'); audio.play('place', { rate: 0.96 + count * 0.02 });
       if (complete) stageClear(set.id); else toast(`${set.name} · ${count}/${currentStageFragments.length} pieces`, 'success');
@@ -826,7 +811,7 @@ export function createGame(mode = 'play') {
   const qTmp = { base: new BAB.Quaternion(), flip: new BAB.Quaternion(), yaw: new BAB.Quaternion() };
   const AXIS_X = new BAB.Vector3(1, 0, 0); const AXIS_Y = new BAB.Vector3(0, 1, 0);
   function startPuzzle(fragment) {
-    if (fragment.isAccessory || !carriedVisual) { placeNow(fragment); return; }
+    if (!carriedVisual) { placeNow(fragment); return; }
     const p = puzzleStart(`${fragment.key}:${Math.floor(playSeconds)}`);
     const hand = carriedVisual.getAbsolutePosition().clone();
     // centre the part on its own bounds so it turns in place, then size it to fill the middle of the screen
@@ -1006,27 +991,23 @@ export function createGame(mode = 'play') {
   const ease = (t) => 1 - (1 - t) ** 3;
   const kick = (amount) => { fovKick = Math.min(0.14, fovKick + amount); };
   const anchorInv = new BAB.Matrix(); const localTmp = new BAB.Vector3();
-  // entry is a statue part ({ anchor, solid }, lands at the anchor's origin) or an ornament node (lands on its slot)
   function flyIn(entry, hand, onLand) {
     if (!hand || !entry) { onLand(); return; }
-    const node = entry.solid || entry; const anchor = entry.anchor || node.parent;
-    const to = entry.solid ? BAB.Vector3.Zero() : (node.__slot ||= node.position.clone());
-    if (!anchor) { onLand(); return; }
-    anchor.computeWorldMatrix(true).invertToRef(anchorInv);
+    entry.anchor.computeWorldMatrix(true).invertToRef(anchorInv);
     const from = BAB.Vector3.TransformCoordinates(hand, anchorInv);
-    node.setEnabled(true); node.position.copyFrom(from); node.scaling.setAll(0.2);
-    flights.push({ node, from, to, start: performance.now(), dur: 520, onLand, landed: false });
+    entry.solid.position.copyFrom(from); entry.solid.scaling.setAll(0.2);
+    flights.push({ node: entry.solid, from, start: performance.now(), dur: 520, onLand, landed: false });
   }
   function updateFlights(now) {
     for (let i = flights.length - 1; i >= 0; i -= 1) {
       const f = flights[i]; const t = Math.min(1, (now - f.start) / f.dur);
       if (t < 1) {
         const e = ease(t);
-        BAB.Vector3.LerpToRef(f.from, f.to, e, localTmp); localTmp.y += Math.sin(Math.PI * t) * 0.9;
+        BAB.Vector3.LerpToRef(f.from, BAB.Vector3.ZeroReadOnly, e, localTmp); localTmp.y += Math.sin(Math.PI * t) * 0.9;
         f.node.position.copyFrom(localTmp); f.node.scaling.setAll(0.2 + 0.8 * e);
         continue;
       }
-      if (!f.landed) { f.landed = true; f.node.position.copyFrom(f.to); refreshShadows(); f.onLand(); }
+      if (!f.landed) { f.landed = true; f.node.position.setAll(0); refreshShadows(); f.onLand(); }
       const p = Math.min(1, (now - f.start - f.dur) / 220); // landing pop: 1.08 → 1
       f.node.scaling.setAll(1 + 0.08 * Math.sin(Math.PI * p) * (1 - p));
       if (p >= 1) { f.node.scaling.setAll(1); flights.splice(i, 1); }

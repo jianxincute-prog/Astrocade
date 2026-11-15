@@ -3,8 +3,7 @@
 import { ANNEX, GALLERY_DOOR, GALLERY_ROWS, HALL_BENCHES, HALL_SIZE, HALL_TREES, PARTS, getSet } from './logic.mjs';
 import { PART_OFFSET } from './statues.js';
 import { roundRect } from './ui.js';
-import { STATUE_POSES, armJoints } from './poses.mjs';
-import { EXTRA_ACCESSORIES } from './stages.mjs';
+import { STATUE_POSES } from './poses.mjs';
 
 const B = () => window.BABYLON;
 const c3 = (hex) => B().Color3.FromHexString(typeof hex === 'number' ? `#${hex.toString(16).padStart(6, '0')}` : hex);
@@ -377,37 +376,6 @@ export function mergeByMaterial(parent, meshes = parent.getChildMeshes(true)) {
 const mixHex = (a, b2, t) => { const p = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)); const A = p(a); const Bc = p(b2); return `#${A.map((v, i) => Math.round(v + (Bc[i] - v) * t).toString(16).padStart(2, '0')).join('')}`; };
 
 // ---------- fragment display: a small marble plinth, the part floating above it ----------
-// Ornament models are drawn at a generous size so they read as collectibles in the hall. Worn on a statue they are
-// scaled down by kind (ON_STATUE_SIZE), so a brooch is a small jewel instead of a crystal bigger than the chest.
-export const ON_STATUE_SIZE = { ribbon: 0.62, cuff: 0.55, crown: 0.68, gem: 0.2, jewel: 0.22, star: 0.19 };
-export function buildAccessoryMesh(scene, setId, accessory, parent = null, size = 1) {
-  const BAB = B();
-  const set = getSet(setId);
-  const root = new BAB.TransformNode(`accessory-${setId}-${accessory.partId || accessory.id}`, scene);
-  if (parent) root.parent = parent;
-  const body = new BAB.TransformNode('accessoryBody', scene); body.parent = root; body.scaling.setAll(size); // `root` is what flights and slots move; `body` only carries the size
-  const gem = pbrMat(scene, `accessoryGem-${setId}-${accessory.accessoryKind || accessory.kind}`, set.color, { metallic: 0.62, roughness: 0.26, emissive: set.color, emissiveScale: 0.12 });
-  const gold = pbrMat(scene, `accessoryGold-${setId}`, '#d6ad61', { metallic: 0.86, roughness: 0.22 });
-  const sphere = (name, material, position, scaling) => { const m = BAB.MeshBuilder.CreateSphere(name, { diameter: 1, segments: 10 }, scene); m.parent = body; m.position.set(...position); m.scaling.set(...scaling); m.material = material; m.isPickable = false; return m; };
-  const kind = accessory.accessoryKind || accessory.kind;
-  if (kind === 'ribbon') {
-    sphere('ribbonL', gem, [-0.18, 0, 0], [0.38, 0.28, 0.14]);
-    sphere('ribbonR', gem, [0.18, 0, 0], [0.38, 0.28, 0.14]);
-    sphere('ribbonKnot', gold, [0, 0, 0.05], [0.15, 0.15, 0.16]);
-  } else if (kind === 'cuff') {
-    const m = BAB.MeshBuilder.CreateTorus('cuff', { diameter: 0.42, thickness: 0.07, tessellation: 20 }, scene); m.parent = body; m.rotation.x = Math.PI / 2; m.material = gold; m.isPickable = false;
-    sphere('cuffGem', gem, [0, 0, 0.18], [0.16, 0.2, 0.12]);
-  } else if (kind === 'crown') {
-    const band = BAB.MeshBuilder.CreateTorus('crownBand', { diameter: 0.6, thickness: 0.055, tessellation: 24 }, scene); band.parent = body; band.material = gold; band.isPickable = false;
-    for (const x of [-0.22, 0, 0.22]) { const spike = BAB.MeshBuilder.CreateCylinder('crownPoint', { height: 0.26, diameterTop: 0, diameterBottom: 0.14, tessellation: 8 }, scene); spike.parent = body; spike.position.set(x, 0.13, 0); spike.material = gold; spike.isPickable = false; }
-    sphere('crownGem', gem, [0, 0.02, 0.22], [0.16, 0.19, 0.12]);
-  } else {
-    const bead = BAB.MeshBuilder.CreatePolyhedron('ornamentGem', { type: 2, size: kind === 'star' ? 0.52 : 0.44 }, scene); bead.parent = body; bead.material = gem; bead.isPickable = false;
-    if (kind === 'jewel' || kind === 'star' || kind === 'gem') { const ring = BAB.MeshBuilder.CreateTorus('ornamentRim', { diameter: 0.57, thickness: 0.045, tessellation: 20 }, scene); ring.parent = body; ring.material = gold; ring.isPickable = false; }
-  }
-  return root;
-}
-
 export function buildFragment(scene, kit, fragment, part) {
   const BAB = B();
   const set = getSet(fragment.setId);
@@ -415,8 +383,7 @@ export function buildFragment(scene, kit, fragment, part) {
   const baseY = 2.3;
   root.position.set(fragment.x, 0, fragment.z); // the root and the plinth never move; only `spin` bobs and turns
   const spin = new BAB.TransformNode('spin', scene); spin.parent = root; spin.scaling.setAll(0.8); spin.position.y = baseY;
-  if (fragment.isAccessory) buildAccessoryMesh(scene, fragment.setId, fragment).parent = spin;
-  else part.parent = spin;
+  part.parent = spin;
   const floor = new BAB.TransformNode('floor', scene); floor.parent = root;
   const stone = pbrMat(scene, 'plinthStone', '#e6dfd3', { roughness: 0.5 });
   const brass = pbrMat(scene, 'brass', '#c9a466', { metallic: 0.85, roughness: 0.32 });
@@ -528,19 +495,6 @@ export function buildPodium(scene, kit, set, position, shadowGen, parts) {
     figureParts.set(part.id, { ghost, solid, anchor });
     if (shadowGen) for (const m of solid.getChildMeshes()) shadowGen.addShadowCaster(m);
   }
-  const accessories = new Map();
-  for (const accessory of EXTRA_ACCESSORIES) {
-    const node = buildAccessoryMesh(scene, set.id, accessory, figure, ON_STATUE_SIZE[accessory.kind] ?? 0.5);
-    node.position.set(...accessory.slot);
-    if (accessory.kind === 'cuff') { // the wrist charm sits on this statue's actual right wrist, lying around the forearm
-      const { E, W } = armJoints(set.id, 1);
-      node.position.set(E[0] + (W[0] - E[0]) * 0.86, E[1] + (W[1] - E[1]) * 0.86, E[2] + (W[2] - E[2]) * 0.86);
-      const along = new BAB.Vector3(W[0] - E[0], W[1] - E[1], W[2] - E[2]).normalize();
-      node.rotationQuaternion = BAB.Quaternion.FromUnitVectorsToRef(BAB.Vector3.Up(), along, new BAB.Quaternion());
-    }
-    node.setEnabled(false);
-    accessories.set(accessory.id, node);
-  }
   // soft portrait light in front of the face, affecting only this statue
   const portrait = new BAB.PointLight(`portrait-${set.id}`, new BAB.Vector3(0.35, 5.0, 2.4), scene);
   portrait.parent = facing; portrait.diffuse = c3('#ffeedd'); portrait.specular = c3('#f4e8dc'); portrait.intensity = 2.4; portrait.range = 8;
@@ -571,5 +525,5 @@ export function buildPodium(scene, kit, set, position, shadowGen, parts) {
     facing.rotation.y = Math.atan2(dir[0], dir[1]);
   };
   face();
-  return { setId: set.id, group, facing, face, figure, figureParts, accessories, portrait, plinthMeshes: solidPlinth, poseTurn: pose.turn, finished: finish, selection, motes, label: { setText: label.setText }, labelMesh: label.mesh };
+  return { setId: set.id, group, facing, face, figure, figureParts, portrait, plinthMeshes: solidPlinth, poseTurn: pose.turn, finished: finish, selection, motes, label: { setText: label.setText }, labelMesh: label.mesh };
 }

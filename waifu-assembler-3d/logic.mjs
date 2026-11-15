@@ -123,7 +123,7 @@ export function restoreState(saved, pool = FRAGMENTS, hidden = HIDDEN_FRAGMENTS)
   if (!saved || typeof saved !== 'object') return clean;
   for (const set of SETS) {
     const valid = Array.isArray(saved.placed?.[set.id])
-      ? saved.placed[set.id].filter((partId) => PARTS.some((part) => part.id === partId) || /^ornament0[1-7]$/.test(partId))
+      ? saved.placed[set.id].filter((partId) => PARTS.some((part) => part.id === partId))
       : [];
     clean.placed[set.id] = [...new Set(valid)];
   }
