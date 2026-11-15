@@ -1712,22 +1712,17 @@ export function createGame(mode = 'play') {
   }
   function updateMenuMeta() {
     const placed = countPlaced(state); const complete = isGameComplete(state);
-    const parts = [];
-    if (placed) parts.push(`${placed} / ${FRAGMENTS.length} RESTORED`);
-    if (placed) parts.push(formatTime(playSeconds));
-    if (bestSeconds) parts.push(`BEST ${formatTime(bestSeconds)}`);
-    const stars = countStars(meta); if (stars || Object.keys(meta.medals).length) parts.push(`★ ${stars}`);
-    root.querySelector('#menu-meta').textContent = parts.join('  ·  ');
-    root.querySelector('#menu-play-label').textContent = complete ? 'EXPLORE' : placed ? 'CONTINUE' : 'PLAY';
+    // one short line: stars and the best Stage Run score
+    const stars = countStars(meta); const parts = [];
+    if (stars) parts.push(`★ ${stars}`);
+    if (meta.stageBest) parts.push(`BEST ${meta.stageBest}`);
+    root.querySelector('#menu-meta').textContent = parts.join('   ·   ');
+    root.querySelector('#menu-gallery-count').textContent = placed ? (complete ? '✓' : `${placed}/${FRAGMENTS.length}`) : '';
     menuEl.classList.toggle('complete', placed > 0); disarmNewRun();
-    // today's challenge
+    // today's challenge: the task, and a short chip (reward, or done + streak)
     const daily = ensureDaily(); const c = dailyChallenge(daily.day);
-    let status;
-    if (daily.done) status = `✓ COMPLETE · +${DAILY_STARS}★ earned · ${meta.streak}-day streak`;
-    else if (c.kind === 'secrets') status = `${Math.min(daily.reveals, c.count)} / ${c.count} opened today · reward +${DAILY_STARS}★`;
-    else if (c.kind === 'speed' && (state.placed[c.setId]?.length || 0) === PARTS.length) status = `Already restored this run · start a NEW RUN to try · +${DAILY_STARS}★`;
-    else status = `Reward +${DAILY_STARS}★${meta.streak && meta.lastDailyDay === dayBefore(daily.day) ? ` · keep your ${meta.streak}-day streak` : ''}`;
-    root.querySelector('#daily-text').textContent = c.text; root.querySelector('#daily-status').textContent = status;
+    root.querySelector('#daily-text').textContent = c.text;
+    root.querySelector('#daily-status').textContent = daily.done ? `✓${meta.streak > 1 ? ` 🔥${meta.streak}` : ''}` : `+${DAILY_STARS}★`;
     root.querySelector('#daily-card').classList.toggle('done', daily.done);
   }
   function openMenu() {
@@ -1828,16 +1823,16 @@ export function createGame(mode = 'play') {
   root.querySelectorAll('#set-quality button').forEach((b) => b.addEventListener('click', () => { prefs.quality = b.dataset.v; applyQuality(); syncSettings(); saveProgress(); }));
   // NEW RUN: a fresh restoration (new times, closed chests) that keeps medals, portraits, stars and the streak
   const newRunButton = root.querySelector('#menu-newrun'); let newRunTimer = 0;
-  function disarmNewRun() { clearTimeout(newRunTimer); newRunButton.classList.remove('armed'); newRunButton.querySelector('b').textContent = 'NEW RUN'; }
+  function disarmNewRun() { clearTimeout(newRunTimer); newRunButton.classList.remove('armed'); newRunButton.querySelector('b').textContent = ''; }
   newRunButton.addEventListener('click', () => {
     audio.play('tap', { volume: 0.6 });
     if (!isGameComplete(state) && !newRunButton.classList.contains('armed')) { // unfinished run: confirm first
-      newRunButton.classList.add('armed'); newRunButton.querySelector('b').textContent = 'TAP AGAIN · RESTART THIS RUN';
+      newRunButton.classList.add('armed'); newRunButton.querySelector('b').textContent = 'SURE?';
       clearTimeout(newRunTimer); newRunTimer = setTimeout(disarmNewRun, 3500); return;
     }
     if (stageRun) endStageRun();
     Object.assign(state, createInitialState()); playSeconds = 0; statueTimes = {}; finishedShown = false;
-    newRunButton.querySelector('b').textContent = 'STARTING…';
+    newRunButton.classList.add('armed'); newRunButton.querySelector('b').textContent = '…';
     Promise.resolve(saveProgress(true)).finally(() => { if (window.run) window.run(mode); else window.location.reload(); });
   });
   const resetButton = root.querySelector('#set-reset'); let resetTimer = 0;

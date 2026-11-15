@@ -67,15 +67,15 @@ export function uiMarkup(editing) {
       ${logoMarkup()}
       <div class="menu-foot">
         <div id="menu-meta" class="menu-meta"></div>
-        <div id="daily-card" class="daily-card"><div class="daily-icon">☀</div><div><small id="daily-head">TODAY'S CHALLENGE</small><b id="daily-text"></b><span id="daily-status"></span></div></div>
+        <div id="daily-card" class="daily-card"><i class="daily-icon">☀</i><b id="daily-text"></b><em id="daily-status"></em></div>
         <div class="menu-buttons">
-          <button id="menu-stage" class="menu-btn primary"><span>⧗</span><b>STAGE RUN</b><small>endless · one statue per level</small></button>
-          <button id="menu-play" class="menu-btn"><span>▤</span><b id="menu-play-label">GALLERY</b><small>free restoration</small></button>
+          <button id="menu-stage" class="menu-btn primary"><span>⧗</span><b>STAGE RUN</b></button>
+          <button id="menu-play" class="menu-btn"><span>▤</span><b>GALLERY</b><em id="menu-gallery-count"></em></button>
           <div class="menu-row">
-            <button id="menu-settings" class="menu-btn"><span>⚙</span><b>SETTINGS</b></button>
-            <button id="menu-leaderboard" class="menu-btn"><span>♛</span><b>RANKING</b></button>
+            <button id="menu-settings" class="menu-btn icon" aria-label="Settings"><span>⚙</span></button>
+            <button id="menu-leaderboard" class="menu-btn icon" aria-label="Ranking"><span>♛</span></button>
+            <button id="menu-newrun" class="menu-btn icon newrun" aria-label="New gallery run"><span>↻</span><b></b></button>
           </div>
-          <button id="menu-newrun" class="menu-btn newrun"><span>↻</span><b>NEW RUN</b><small>keep medals &amp; stars</small></button>
         </div>
       </div>
       <section id="settings-panel" class="panel" aria-label="Settings">
@@ -96,7 +96,7 @@ export function uiMarkup(editing) {
 }
 
 function logoMarkup() {
-  return '<div class="logo"><small>ATELIER K—07 · RESTORATION</small><h1>Waifu <em>Assembler</em></h1><p>Twelve statues · one gallery</p></div>';
+  return '<div class="logo"><h1>Waifu <em>Assembler</em></h1></div>';
 }
 
 export function installStyles() {
@@ -217,19 +217,22 @@ export function installStyles() {
     @keyframes menu-in { from { opacity:0 } to { opacity:1 } }
     .logo { text-align:center; text-shadow:0 4px 26px rgba(50,25,8,.55); }
     .logo small { display:block; color:#f2d49c; font:800 13px system-ui; letter-spacing:4px; }
-    .logo h1 { margin:14px 0 8px; font:600 66px/0.98 Georgia,"Times New Roman",serif; letter-spacing:1px; color:#fff8ec; }
+    .logo h1 { margin:0; font:600 66px/0.98 Georgia,"Times New Roman",serif; letter-spacing:1px; color:#fff8ec; }
     .logo h1 em { display:block; color:#f3c978; font-style:italic; }
     .logo p { margin:0; color:#f8e8cf; font:italic 500 19px Georgia,serif; letter-spacing:1px; }
     .boot-foot { padding:0 12px; }
     .boot-bar { height:6px; border-radius:8px; background:rgba(255,240,214,.24); overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.25); }
     .boot-bar i { display:block; height:100%; width:4%; border-radius:8px; background:linear-gradient(90deg,#d79b45,#f6d38b,#fff3d6); transition:width .25s ease; }
     .boot-status { margin-top:16px; text-align:center; color:#fbeedb; font:700 14px system-ui; letter-spacing:2.5px; text-shadow:0 2px 10px rgba(40,20,5,.6); }
-    .menu-meta { min-height:24px; margin-bottom:16px; text-align:center; color:#fbe7c8; font:600 15px system-ui; letter-spacing:1.5px; text-shadow:0 2px 10px rgba(40,20,5,.6); }
-    .menu-buttons { display:flex; flex-direction:column; gap:16px; }
-    .menu-row { display:flex; gap:16px; }
+    .menu-meta { min-height:22px; margin-bottom:14px; text-align:center; color:#fbe7c8; font:700 15px system-ui; letter-spacing:2px; text-shadow:0 2px 10px rgba(40,20,5,.6); }
+    .menu-buttons { display:flex; flex-direction:column; gap:14px; }
+    .menu-row { display:flex; gap:14px; }
     .menu-btn { flex:1; height:100px; display:flex; align-items:center; justify-content:center; gap:14px; border-radius:26px; border:1px solid rgba(255,226,172,.55);
       background:rgba(44,31,21,.62); backdrop-filter:blur(12px); color:#fff2db; font:700 22px Georgia,serif; letter-spacing:3px; box-shadow:0 10px 26px rgba(30,15,5,.3); cursor:pointer; touch-action:manipulation; }
     .menu-btn span { font-size:24px; color:#f3c978; }
+    .menu-btn { white-space:nowrap; padding:0 14px; }
+    .menu-btn em { font-style:normal; margin-left:4px; padding:5px 12px; border-radius:14px; background:rgba(243,201,120,.18); color:#f3c978; font:800 15px system-ui; letter-spacing:1px; } .menu-btn em:empty { display:none; }
+    .menu-btn.icon { height:96px; min-width:0; } .menu-btn.icon span { font-size:34px; } .menu-btn.icon b { display:none; }
     .menu-btn.primary { height:118px; background:linear-gradient(180deg,#f6d690,#d59c48); color:#3a2310; border-color:#ffe8b8; font-size:32px; box-shadow:0 14px 34px rgba(110,62,18,.45); }
     .menu-btn.primary span { color:#5a3412; font-size:28px; }
     .menu-btn:active { transform:scale(.98); }
@@ -300,13 +303,14 @@ export function installStyles() {
     .finish-medals { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin:4px 0 10px; }
     .finish-medals i { width:22px; height:22px; border-radius:50%; font-style:normal; } .finish-medals i.gold { background:#f2c35f; } .finish-medals i.silver { background:#cfd5de; } .finish-medals i.bronze { background:#c88a5a; }
     /* daily challenge + new run */
-    .daily-card { display:flex; gap:16px; align-items:center; margin:0 0 16px; padding:14px 20px; border-radius:24px; background:rgba(44,31,21,.62); backdrop-filter:blur(12px); border:1px solid rgba(255,226,172,.45); color:#fff2db; }
+    .daily-card { display:flex; gap:14px; align-items:center; margin:0 0 14px; padding:12px 16px; border-radius:24px; background:rgba(44,31,21,.62); backdrop-filter:blur(12px); border:1px solid rgba(255,226,172,.45); color:#fff2db; }
     .daily-card.done { border-color:#8fe0b0; }
-    .daily-icon { width:54px; height:54px; flex:none; border-radius:16px; display:grid; place-items:center; font-size:28px; color:#3a2310; background:linear-gradient(180deg,#f6d690,#d59c48); }
+    .daily-icon { width:48px; height:48px; flex:none; border-radius:15px; display:grid; place-items:center; font-style:normal; font-size:26px; color:#3a2310; background:linear-gradient(180deg,#f6d690,#d59c48); }
+    .daily-card b { flex:1; min-width:0; font:600 18px/1.25 Georgia,serif; }
+    .daily-card em { flex:none; font-style:normal; padding:6px 12px; border-radius:14px; background:rgba(243,201,120,.18); color:#f3c978; font:800 14px system-ui; letter-spacing:.5px; white-space:nowrap; } .daily-card.done em { background:rgba(143,224,176,.2); color:#9fe7bb; }
     .daily-card.done .daily-icon { background:linear-gradient(180deg,#bff0cf,#62c08a); }
-    .daily-card small { display:block; color:#f3c978; font:900 11px system-ui; letter-spacing:2.5px; } .daily-card b { display:block; margin:3px 0; font:600 19px Georgia,serif; } .daily-card span { color:#e8d6ba; font:600 13px system-ui; letter-spacing:.5px; }
-    .menu-buttons > .menu-btn { flex:none; } .menu-btn.newrun { display:none; height:76px; font-size:20px; } .menu-btn.newrun small { font:600 12px system-ui; letter-spacing:1px; color:#e8d6ba; }
-    .menu.complete .menu-btn.newrun { display:flex; } .menu-btn.newrun.armed { background:#c0503a; border-color:#ffb9a6; }
+    .menu-buttons > .menu-btn { flex:none; } .menu-btn.newrun { display:none; } .menu-btn.newrun b { font:800 13px system-ui; letter-spacing:1px; color:#fff; }
+    .menu.complete .menu-btn.newrun { display:flex; } .menu-btn.newrun.armed { background:#c0503a; border-color:#ffb9a6; } .menu-btn.newrun.armed span { display:none; } .menu-btn.newrun.armed b { display:block; }
     .finish-stars { margin-left:8px; color:#f6d690; font:800 15px system-ui; }
     .studio-costume.locked { opacity:.8; border-style:dashed; }
     /* studio rewards */
@@ -342,6 +346,7 @@ export function installStyles() {
     .edit-mode .mobile-controls,.edit-mode .movement-hint,.edit-mode .map-card,.edit-mode .status-card { display:none; }
     .fatal { position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;padding:32px;color:white;text-align:center;background:#211b16; }
     .fatal b { font-size:24px; }.fatal span{color:#d1c8b7}.fatal small{color:#887f71;font-size:10px}
+    @media (max-height:800px) { .boot, .menu { padding-top:44px; padding-bottom:36px; } .logo h1 { font-size:50px; } .menu-btn { height:80px; font-size:19px; letter-spacing:2px; gap:10px; } .menu-btn em { font-size:13px; padding:4px 9px; } .menu-btn.primary { height:94px; font-size:26px; } .menu-btn.icon { height:80px; } .daily-card { margin-bottom:10px; padding:8px 12px; } .menu-meta { margin-bottom:10px; } }
     @media (max-width:520px) {
       .topbar{left:16px;right:16px;top:14px}.brand strong{font-size:15px}.brand-mark{width:38px;height:38px}
       .status-card{top:94px;left:14px;right:14px;grid-template-columns:32px 1fr;gap:8px;padding:10px 11px;min-height:65px}
@@ -354,7 +359,7 @@ export function installStyles() {
       .fit-head{top:96px;left:14px;right:92px;width:auto;margin:0;padding:10px 14px}.fit-head span{display:none}.fit-head b{font-size:19px;margin:2px 0 0}.fit-cancel{top:96px;right:14px}
       .fit-pad{bottom:50px;gap:12px}.fit-pad button{width:94px;height:94px;border-radius:24px}.fit-pad button span{font-size:34px;line-height:34px}.fit-hint{bottom:18px;font-size:9px}
       .medal-pop{top:150px;width:calc(100% - 40px);box-sizing:border-box}.medal-disc{width:56px;height:56px;flex:none}.medal-pop b{font-size:19px}.medal-pop span{font-size:12px}
-      .daily-card{padding:12px 14px;gap:12px}.daily-icon{width:44px;height:44px;font-size:22px}.daily-card b{font-size:16px}.daily-card span{font-size:12px}
+      .daily-card{padding:10px 12px;gap:10px}.daily-icon{width:40px;height:40px;font-size:21px}.daily-card b{font-size:15px}.daily-card em{font-size:12px;padding:5px 9px}
       .studio-costume{top:150px;right:14px;height:48px;padding:0 12px;font-size:10px}
       .coach{bottom:200px;width:calc(100% - 28px);grid-template-columns:42px 1fr auto;gap:10px;padding:11px 11px 11px 12px}.coach-icon{width:42px;height:42px;font-size:21px}.coach-body b{font-size:17px}.coach-body span{font-size:12px}#coach-skip{min-width:52px;height:38px;font-size:10px}
       .toast{bottom:185px;font-size:11px}.editor-panel{left:12px;top:167px;width:min(340px,calc(100vw - 24px))}.edit-badge{right:12px;bottom:24px;font-size:8px}
