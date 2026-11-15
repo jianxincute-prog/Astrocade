@@ -207,6 +207,21 @@ style.textContent = `
   #awinfo .bar{display:flex;align-items:center;gap:8px;font-size:22px;margin:3px 0;clear:both}
   #awinfo .bar u{display:block;flex:1;height:14px;background:#0b1020;border:2px solid #2c3868;border-radius:7px;overflow:hidden;text-decoration:none}
   #awinfo .bar u i{display:block;height:100%}
+  #awinfo .kres{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;clear:both}
+  #awinfo .kres span{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.08);font-size:22px;font-weight:800;color:#dbe5ff;white-space:nowrap}
+  #awinfo .kres em{font-style:normal;color:#fff;font-size:25px;font-variant-numeric:tabular-nums}
+  #awinfo .kh{margin:16px 0 6px;font-size:18px;letter-spacing:2px;color:#9fb0e8;font-weight:900;text-transform:uppercase;clear:both}
+  #awinfo .kact{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;width:100%;min-height:100px;box-sizing:border-box;padding:10px 18px;border-radius:18px;border:3px solid #0d1228;background:linear-gradient(#2b3769,#1a2248);box-shadow:inset 0 3px 0 rgba(255,255,255,.14),inset 0 -5px 0 rgba(0,0,0,.28),0 3px 0 #080b1c;color:#e8ecff;font-family:inherit;text-align:left;cursor:pointer}
+  #awinfo .kact:active{transform:translateY(2px)}
+  #awinfo .kact .kt{font-size:28px;font-weight:900;color:#ffe9a0;line-height:1.2}
+  #awinfo .kact small{display:block;font-size:20px;font-weight:700;color:#aab4e0;line-height:1.25}
+  #awinfo .kact .ic{width:34px;height:34px;vertical-align:-7px}
+  #awinfo .kact.kbad{opacity:.55}
+  #awinfo .kact:disabled{opacity:.45;cursor:default}
+  #awinfo .kdec{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #awinfo .kdone{padding:12px 18px;border-radius:18px;border:3px solid #6a8a3a;background:linear-gradient(#2a4a2c,#16301c)}
+  #awinfo .kdone .kt{display:block;font-size:28px;font-weight:900;color:#d8ffb0}
+  #awinfo .kdone small{display:block;font-size:20px;font-weight:700;color:#bfe0a8;margin:2px 0 8px}
   #awinfo .tree{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;clear:both}
   #awinfo .tree .th{padding:8px 4px;border-radius:10px;background:rgba(255,255,255,.12);text-align:center;font-size:20px;font-weight:700}
   #awinfo .tree .th.on{background:#ffd34d;color:#222}
@@ -4457,12 +4472,22 @@ function relLine(k) {
 }
 function kingdomHtml(k) {
   const ic = k.tech.map(id => TECH_BY[k.race + ':' + id].ic).join(''), rs = k.res ? ` · ⏳${k.res.t.ic} ${k.res.t.n}` : '', sailEra = k.tech.includes('voyage') ? ' · ⛵ Age of Exploration' : '';
-  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}<br>🍞${k.food | 0} 🪵${k.wood | 0} 🪨${k.stone | 0} 🪙${k.gold | 0}<br>🥉${k.bronze | 0} 🔩${k.iron | 0} 🥈${k.silver | 0} · ${ageName(k.age | 0, k.race)}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs} · 📚${Math.floor(k.kp || 0)}${k.bld.length ? '<br>' + k.bld.map(id => BUILDING_BY[id].ic + BUILDING_BY[id].n).join(' · ') : ''}${k.bld.length ? `<br>Planks ${k.plank | 0} · Bread ${k.bread | 0} · Tools ${k.tool | 0}` : ''}${relLine(k)}${evLine(k)}<br><button class="awb" data-act="ktree" data-id="${k.id}" style="margin-top:6px">🔬 Tech tree</button>${decreeHtml(k)}`;
+  const res = [['🍞', k.food], ['🪵', k.wood], ['🪨', k.stone], ['🪙', k.gold], ['🥉', k.bronze], ['🔩', k.iron], ['🥈', k.silver], ['📚', k.kp]];
+  const next = k.res ? `Researching ${k.res.t.n}` : k.focus ? `Focus: ${BRANCH_NAME[k.focus]}` : 'Research runs on its own';
+  return `<b>${LV_ICON[k.level]} ${k.name}</b> ${EMOJI[k.race]}<br>${k.level ? '⭐'.repeat(k.level) + ' ' : ''}${LV_NAME[k.level]} · 👥${k.pop} · 🏠${k.houses}`
+    + `<div class="kres">${res.map(([i, n]) => `<span>${i}<em>${Math.floor(n || 0)}</em></span>`).join('')}</div>`
+    + `${ageName(k.age | 0, k.race)}${sailEra} · 🎒${k.chest.length}/${chestCap(k)}${k.age >= 2 ? ' · 🛡' + creatures.filter(c => c.k === k.id && c.elite).length : ''}<br>🔬 ${ic || '–'}${rs}`
+    + `${k.bld.length ? '<br>' + k.bld.map(id => BUILDING_BY[id].ic + BUILDING_BY[id].n).join(' · ') : ''}${k.bld.length ? `<br>Planks ${k.plank | 0} · Bread ${k.bread | 0} · Tools ${k.tool | 0}` : ''}${relLine(k)}${evLine(k)}`
+    + `<div class="kh">Research</div><button class="kact" data-act="ktree" data-id="${k.id}"><span class="kt">🔬 Tech tree</span><small>${next}</small></button>`
+    + `<div class="kh">Royal decrees</div>${decreeHtml(k)}`;
 }
 function decreeHtml(k) {
-  const on = k.dec && tick < k.dec.until ? DECREE_BY[k.dec.id] : null;
-  if (on) return `<br><span class="dsc">${on.ic} ${on.n} decree: ${on.info} · ${Math.ceil((k.dec.until - tick) / 120)} yr left</span>`;
-  return '<br>' + DECREES.map(d => `<button class="awb" data-act="kdecree" data-id="${k.id}" data-d="${d.id}" style="margin:6px 4px 0 0" ${decreeReady(k.dec, d.id, tick) ? '' : 'disabled'}>${d.ic} ${d.n}</button>`).join('');
+  const on = k.dec && tick < k.dec.until ? DECREE_BY[k.dec.id] : null, cost = c => Object.entries(c).map(([r, n]) => n + { gold: '🪙', food: '🍞', wood: '🪵', stone: '🪨' }[r]).join(' ');
+  if (on) { const left = k.dec.until - tick, pct = Math.round(100 * left / on.dur); return `<div class="kdone"><span class="kt">${on.ic} ${on.n}</span><small>${on.info} · ${Math.ceil(left / 120)} yr left</small><div class="jbar"><i style="width:${pct}%"></i></div></div>`; }
+  return '<div class="kdec">' + DECREES.map(d => {
+    const ready = decreeReady(k.dec, d.id, tick), cd = Math.max(0, Math.max(k.dec ? k.dec.until : 0, k.dec ? k.dec.cd : 0) - tick), poor = ready && !canPay(k, d.cost);
+    return `<button class="kact${poor || !ready ? ' kbad' : ''}" data-act="kdecree" data-id="${k.id}" data-d="${d.id}" ${ready ? '' : 'disabled'}><span class="kt">${d.ic} ${d.n}</span><small>${d.info}</small><small>${ready ? 'Cost ' + cost(d.cost) : 'Ready in ' + Math.ceil(cd / 120) + ' yr'}</small></button>`;
+  }).join('') + '</div>';
 }
 let treeSel = null;
 function treeHtml(k) {
@@ -4688,7 +4713,7 @@ function inspectAt(wx, wy) {
   closeCreature();
   let best = null, bd = 9, house = -1;
   for (let dy = -1; dy <= 1 && house < 0; dy++) for (let dx = -1; dx <= 1; dx++) { if (inb(wx+dx, wy+dy) && bld[wx+dx + (wy+dy)*W]) { house = wx+dx + (wy+dy)*W; break; } }
-  if (house >= 0 && kingdoms.has(kid[house])) infoEl.innerHTML = kingdomHtml(kingdoms.get(kid[house]));
+  if (house >= 0 && kingdoms.has(kid[house])) { infoEl.innerHTML = kingdomHtml(kingdoms.get(kid[house])); infoEl.classList.add('tall'); infoEl.scrollTop = 0; }
   else {
     for (const c of creatures) { const d = (c.x-wx)**2 + (c.y-wy)**2; if (d < bd) { bd = d; best = c; } }
     if (best) {
@@ -5524,7 +5549,7 @@ async function start() {
 }
 start();
 
-window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, get riv() { return riv; }, get road() { return road; }, get scn() { return scn; }, startScenario, SCENARIOS, scnCheck, genRivers, makeHero, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, kingdomHtml, get riv() { return riv; }, get road() { return road; }, get scn() { return scn; }, startScenario, SCENARIOS, scnCheck, genRivers, makeHero, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles
