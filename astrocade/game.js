@@ -1593,45 +1593,63 @@ function drawKrakens(x0, y0, x1, y1) {
     if (k.x < x0 - 12 || k.x > x1 + 12 || k.y < y0 - 12 || k.y > y1 + 12) continue;
     const cx = ox + (k.x + .5)*sc, cy = oy + (k.y + .5)*sc, t = frame * .05 + k.ph;
     const rise = k.st === 0 ? Math.min(1, k.t / 90) : k.st === 2 ? Math.max(0, 1 - k.t / 80) : 1, e = rise * rise * (3 - 2 * rise);
-    if (sc < 5) { ctx.fillStyle = `rgba(30,10,40,${.6 * e})`; ctx.beginPath(); ctx.arc(cx, cy, Math.max(4, sc * 2.4 * e), 0, 7); ctx.fill(); ctx.fillStyle = '#ffd24a'; ctx.fillRect(cx - 2, cy - 1, 2, 2); ctx.fillRect(cx + 1, cy - 1, 2, 2); continue; }
+    if (sc < 5) { ctx.fillStyle = `rgba(30,10,40,${.6 * e})`; ctx.beginPath(); ctx.arc(cx, cy, Math.max(4, sc * 2.4 * e), 0, 7); ctx.fill(); ctx.fillStyle = '#ff3a2a'; ctx.fillRect(cx - 3, cy - 1, 2, 2); ctx.fillRect(cx + 1, cy - 1, 2, 2); continue; }
     const u = sc * .24 * e + .01;
     ctx.fillStyle = `rgba(4,10,30,${.38 * e})`; ctx.beginPath(); ctx.ellipse(cx, cy + u * 2, u * 15, u * 8, 0, 0, 7); ctx.fill();                     // the huge shape under the water
     ctx.strokeStyle = `rgba(210,235,255,${.4 * e})`; ctx.lineWidth = Math.max(1, u * .5);
     for (let r = 0; r < 3; r++) { const rr = u * (9 + r * 3.2), a0 = t * (1.2 - r * .25) + r * 2; ctx.beginPath(); ctx.ellipse(cx, cy + u * 2, rr, rr * .5, 0, a0, a0 + 2.2); ctx.stroke(); }   // whirlpool
     const at = k.atk, tgx = at ? ox + (at.kind === 'ship' ? at.ref.x + .5 : at.tx + .5) * sc : 0, tgy = at ? oy + (at.kind === 'ship' ? at.ref.y + .5 : at.ty + .5) * sc : 0, reach = at ? Math.min(1, at.t / 28) * (at.t > 60 ? Math.max(0, 1 - (at.t - 60) / 15) : 1) : 0;
+    const mad = at ? Math.min(1, at.t / 18) : 0, pulse = .5 + .5 * Math.sin(t * 2.2);                                                       // the angrier it is, the wider the maw and the redder the eyes
+    const au = ctx.createRadialGradient(cx, cy, u * 2, cx, cy, u * 14); au.addColorStop(0, `rgba(170,20,40,${(.2 + .14 * mad + .05 * pulse) * e})`); au.addColorStop(1, 'rgba(170,20,40,0)'); ctx.fillStyle = au; ctx.fillRect(cx - u * 14, cy - u * 14, u * 28, u * 28);   // blood-red menace in the water
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 7) * Math.PI, bx = cx + Math.cos(a) * u * 3.2, by = cy + u * .8 + Math.sin(a) * u * 1.6, grab = at && (i === 1 || i === 3 || i === 6) && reach > 0;
-      let px = bx, py = by, dir = a;
-      for (let j = 0; j < 12; j++) {
-        const f = j / 12; let nx, ny;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 9) * Math.PI, bx = cx + Math.cos(a) * u * 3.6, by = cy + u * .8 + Math.sin(a) * u * 1.7, grab = at && (i === 1 || i === 4 || i === 7) && reach > 0, len = (i % 3 === 0 ? 1.35 : 1.1) * u * e;
+      let px = bx, py = by, dir = a, lx = bx, ly = by;
+      for (let j = 0; j < 13; j++) {
+        const f = j / 13; let nx, ny;
         if (grab) {                                               // reach out, arch over and wrap the target
           const m = f * reach, ex = bx + (tgx - bx) * m, ey = by + (tgy - by) * m - Math.sin(m * Math.PI) * u * 7 + Math.sin(t * 5 + i + j) * u * .3 * (1 - reach);
           nx = ex; ny = ey;
         } else {
-          dir += SN(t * .21 + i * 1.1 + j * .55) * .3 * (f + .3) + (i < 4 ? -.05 : .05) * f; const ls = u * 1.15 * e;
+          dir += SN(t * .21 + i * 1.1 + j * .55) * .34 * (f + .3) + (i < 5 ? -.05 : .05) * f; const ls = len;
           nx = px + Math.cos(dir) * ls; ny = py + Math.sin(dir) * ls;
         }
-        ctx.strokeStyle = j < 6 ? '#6a2a5c' : '#8c4476'; ctx.lineWidth = Math.max(1, u * 1.9 * (1 - f * .82));
-        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(nx, ny); ctx.stroke();
-        if (j % 3 === 1 && u > 1.2) { ctx.fillStyle = '#e9b0d0'; ctx.fillRect(nx - u * .25, ny + u * .15, Math.max(1, u * .5), Math.max(1, u * .5)); }   // suckers
-        px = nx; py = ny;
+        const w = Math.max(1, u * 2.2 * (1 - f * .85));
+        ctx.strokeStyle = '#1c0a1e'; ctx.lineWidth = w + Math.max(1, u * .5); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(nx, ny); ctx.stroke();      // dark outline
+        ctx.strokeStyle = j < 6 ? '#4a1640' : '#7a2a60'; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(nx, ny); ctx.stroke();
+        if (u > 1.2) {
+          ctx.strokeStyle = 'rgba(190,70,110,.45)'; ctx.lineWidth = Math.max(1, w * .22); ctx.beginPath(); ctx.moveTo(px, py - w * .25); ctx.lineTo(nx, ny - w * .25); ctx.stroke();   // wet sheen
+          if (j % 2 === 1) { ctx.fillStyle = '#f0c8d8'; ctx.beginPath(); ctx.arc(nx, ny + w * .32, Math.max(1, u * .34 * (1 - f * .6)), 0, 7); ctx.fill(); }              // suckers
+        }
+        lx = px; ly = py; px = nx; py = ny;
       }
+      if (u > 1.2) { const ang = Math.atan2(py - ly, px - lx); ctx.fillStyle = '#e9e0cc'; ctx.beginPath(); ctx.moveTo(px + Math.cos(ang) * u * 1.7, py + Math.sin(ang) * u * 1.7); ctx.lineTo(px + Math.cos(ang + 2.3) * u * .55, py + Math.sin(ang + 2.3) * u * .55); ctx.lineTo(px + Math.cos(ang - 2.3) * u * .55, py + Math.sin(ang - 2.3) * u * .55); ctx.fill(); }   // a barbed claw on every tip
     }
     ctx.lineCap = 'butt';
-    ctx.fillStyle = '#6a2858'; ctx.beginPath(); ctx.ellipse(cx, cy + u * .2, u * 4.8, u * 3, 0, 0, 7); ctx.fill();                                  // head
-    ctx.fillStyle = '#7a2f68'; ctx.beginPath(); ctx.ellipse(cx, cy - u * 2.4, u * 4.2, u * 5.2, 0, 0, 7); ctx.fill();                               // mantle
-    ctx.fillStyle = 'rgba(190,100,160,.55)'; ctx.beginPath(); ctx.ellipse(cx - u * 1.2, cy - u * 3.6, u * 1.6, u * 2.6, -.3, 0, 7); ctx.fill();
-    ctx.fillStyle = '#5a1f4a'; for (const q of [[-1.6, -4.6, .5], [1.4, -5.4, .6], [2.4, -3, .45], [-2.4, -2.4, .5], [.2, -6.8, .4]]) { ctx.beginPath(); ctx.arc(cx + q[0] * u, cy + q[1] * u, q[2] * u, 0, 7); ctx.fill(); }
-    const gl = .7 + .3 * SN(t * 1.3), ey = cy - u * .1;
+    ctx.fillStyle = '#2a0c28'; ctx.beginPath(); ctx.ellipse(cx, cy + u * .2, u * 5.2, u * 3.3, 0, 0, 7); ctx.fill();                                  // head
+    ctx.fillStyle = '#44173f'; ctx.beginPath(); ctx.ellipse(cx, cy - u * 2.6, u * 4.4, u * 5.6, 0, 0, 7); ctx.fill();                               // mantle
+    ctx.fillStyle = '#5a2152'; ctx.beginPath(); ctx.ellipse(cx + u * 1, cy - u * 2.8, u * 2.4, u * 4.6, .15, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(210,120,170,.4)'; ctx.beginPath(); ctx.ellipse(cx - u * 1.5, cy - u * 3.8, u * 1.3, u * 2.7, -.3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a0c28'; for (let q = -2; q <= 2; q++) { const sx = cx + q * u * 1.55, sy = cy - u * (7.4 - Math.abs(q) * .9); ctx.beginPath(); ctx.moveTo(sx - u * .6, sy + u * 1.1); ctx.lineTo(sx, sy - u * (1.7 - Math.abs(q) * .22)); ctx.lineTo(sx + u * .6, sy + u * 1.1); ctx.fill(); }   // a crest of spines
+    ctx.strokeStyle = `rgba(255,60,50,${.22 + .3 * pulse + .2 * mad})`; ctx.lineWidth = Math.max(1, u * .22); ctx.beginPath();
+    for (const v of [[-2.8, -1.2, -3.4, -5], [-1, -1.5, -1.2, -6.2], [1.3, -1.4, 1.6, -6], [2.9, -1.1, 3.5, -4.6], [.2, -3, .5, -5.4]]) { ctx.moveTo(cx + v[0] * u, cy + v[1] * u); ctx.quadraticCurveTo(cx + (v[0] + v[2]) * .55 * u + u * .5, cy + (v[1] + v[3]) * .5 * u, cx + v[2] * u, cy + v[3] * u); }
+    ctx.stroke();                                                                                                                                   // glowing veins
+    ctx.fillStyle = '#1c0a1e'; for (const q of [[-1.6, -4.6, .5], [1.4, -5.4, .6], [2.6, -3, .45], [-2.6, -2.4, .5], [.2, -6.4, .4]]) { ctx.beginPath(); ctx.arc(cx + q[0] * u, cy + q[1] * u, q[2] * u, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = 'rgba(230,200,190,.55)'; ctx.lineWidth = Math.max(1, u * .18); ctx.beginPath(); ctx.moveTo(cx + 1.8 * u, cy - 5 * u); ctx.lineTo(cx + 3.2 * u, cy - 2.6 * u); ctx.moveTo(cx + 2.2 * u, cy - 5.2 * u); ctx.lineTo(cx + 3.5 * u, cy - 3.3 * u); ctx.stroke();   // old claw scars
+    const ey = cy - u * .2, gl = .75 + .25 * SN(t * 1.3);
     for (const sd of [-1, 1]) {
-      const ex = cx + sd * u * 2.1, g2 = ctx.createRadialGradient(ex, ey, 0, ex, ey, u * 2.2); g2.addColorStop(0, `rgba(255,210,70,${.55 * gl * e})`); g2.addColorStop(1, 'rgba(255,210,70,0)'); ctx.fillStyle = g2; ctx.fillRect(ex - u * 2.2, ey - u * 2.2, u * 4.4, u * 4.4);
-      ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.ellipse(ex, ey, u * 1.05, u * .85, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = '#1a0a1c'; ctx.fillRect(ex - u * .18, ey - u * .75, Math.max(1, u * .36), u * 1.5);
-      ctx.fillStyle = '#3a1030'; ctx.fillRect(ex - u * 1.3, ey - u * 1.4 + (sd < 0 ? 0 : 0), u * 2.6, Math.max(1, u * .45));
+      const ex = cx + sd * u * 2.3, g2 = ctx.createRadialGradient(ex, ey, 0, ex, ey, u * 2.8); g2.addColorStop(0, `rgba(255,${Math.round(150 - 110 * mad)},40,${(.6 + .2 * mad) * gl * e})`); g2.addColorStop(1, 'rgba(255,60,30,0)'); ctx.fillStyle = g2; ctx.fillRect(ex - u * 2.8, ey - u * 2.8, u * 5.6, u * 5.6);
+      ctx.fillStyle = mad > .3 ? '#ff4a2a' : '#ffb02e'; ctx.beginPath(); ctx.ellipse(ex, ey, u * 1.25, u * .95, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#12040f'; ctx.beginPath(); ctx.ellipse(ex, ey, u * .26, u * .85, 0, 0, 7); ctx.fill();                                          // a slit pupil
+      ctx.fillStyle = '#240a22'; ctx.beginPath(); ctx.moveTo(ex + sd * u * 1.6, ey - u * 1.9); ctx.lineTo(ex - sd * u * 1.6, ey - u * 1.9); ctx.lineTo(ex - sd * u * 1.6, ey - u * .15); ctx.fill();   // an angry brow
     }
-    ctx.fillStyle = 'rgba(22,76,150,.62)'; ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.8, u * 5.4, u * 1.7, 0, 0, 7); ctx.fill();                      // the waterline hides the lower body
-    ctx.strokeStyle = 'rgba(235,248,255,.65)'; ctx.lineWidth = Math.max(1, u * .4); ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.8, u * 5.4, u * 1.7, 0, .15, Math.PI - .15); ctx.stroke();
+    const mw = u * (1.1 + 1.4 * mad), my = cy + u * 1;                                                                                              // beak and fangs
+    ctx.fillStyle = '#0c0210'; ctx.beginPath(); ctx.ellipse(cx, my, u * 2, mw, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f2ead6'; for (let q = -3; q <= 3; q++) { const tx = cx + q * u * .52, big = Math.abs(q) % 2; ctx.beginPath(); ctx.moveTo(tx - u * .24, my - mw * .8); ctx.lineTo(tx, my - mw * .8 + u * (.9 + big * .5 + mad * .6)); ctx.lineTo(tx + u * .24, my - mw * .8); ctx.fill(); }
+    ctx.fillStyle = '#c9b48a'; ctx.beginPath(); ctx.moveTo(cx - u * .9, my - mw * .5); ctx.quadraticCurveTo(cx, my + mw * .9 + u * .6, cx + u * .9, my - mw * .5); ctx.quadraticCurveTo(cx, my + mw * .2, cx - u * .9, my - mw * .5); ctx.fill();
+    ctx.fillStyle = 'rgba(22,76,150,.62)'; ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.8, u * 5.6, u * 1.7, 0, 0, 7); ctx.fill();                      // the waterline hides the lower body
+    ctx.strokeStyle = 'rgba(235,248,255,.65)'; ctx.lineWidth = Math.max(1, u * .4); ctx.beginPath(); ctx.ellipse(cx, cy + u * 1.8, u * 5.6, u * 1.7, 0, .15, Math.PI - .15); ctx.stroke();
+    if (e > .6 && u > 1.2 && frame % 3 === 0) { ctx.fillStyle = 'rgba(210,235,255,.7)'; for (let q = 0; q < 3; q++) { const dx = cx + (((frame * 7 + q * 131) % 100) / 100 - .5) * u * 9, dy = cy - u * 5 + ((frame * 3 + q * 47) % 60) / 60 * u * 8; ctx.fillRect(dx, dy, Math.max(1, u * .22), Math.max(2, u * .6)); } }   // water streaming off its skin
     if (e < 1 && k.st !== 1 && Math.random() < .3) emit('bit', k.x + (Math.random() - .5) * 5, k.y + Math.random(), 2, { col: '#d4ecff' });
   }
 }
