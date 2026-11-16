@@ -149,7 +149,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Loading screen and main menu:** a short loading screen, then a procedural pixel night scene (moon, stars, a volcano island with a lit village, a sailing ship, birds), the gold logo, race badges and a Play or Continue button with help, What's New and sound buttons.
 - **What's New popup:** shown once per version right after loading (the version is stored in the save as `sv`); the sparkle button on the main menu reopens it, with a NEW badge until it has been seen.
 - **Sound:** everything is synthesised with Web Audio (UI ticks, hits, thunder, explosions, horns, splashes, a kraken roar), with ambient beds for wind, rain and fire and a generative score that darkens at night and at war. Sound only plays for events in or near the view; the speaker button is saved (`sn`).
-- **Tour:** a spotlight tour for first-time players (13 steps: tap, sexes and life stages, kingdoms with the Tech tree and decrees, drag and paint, tool tabs, scenarios, tool row, zoom, minimap, time, sound, chronicle and season, census). It is remembered (`tu`) and can be replayed from the menu or the World tab.
+- **Tour:** a spotlight tour for first-time players (15 steps: tap, sexes and life stages, lifelong professions, kingdoms with the Tech tree and decrees, drag and paint, tool tabs, scenarios, tool row, zoom, minimap, time, sound, chronicle and season, pirates, census). It is remembered (`tu`) and can be replayed from the menu or the World tab.
 - **Language:** all in-game text is English. Chronicle lines saved by older versions in Indonesian are translated when a save is loaded (`LEGACY_TEXT`).
 
 ## Save format

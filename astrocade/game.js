@@ -5948,6 +5948,7 @@ titleEl.addEventListener('click', e => {
 const TOUR = [
   { r: [150, 420, 420, 330], t: 'Tap a creature or house to see its info', f: 'tap', y: 790 },
   { r: [150, 420, 420, 330], t: 'Every creature is male or female, young or adult. A birth needs a mature pair of the same kind close together.', y: 790 },
+  { r: [150, 420, 420, 330], t: 'Every adult has ONE lifelong profession: farmer, miner, builder, trader and more. The clothes tell the trade, and practice earns mastery.', y: 790 },
   { r: [150, 420, 420, 330], t: 'Tap a house to open its kingdom: the Tech tree steers research, and royal decrees boost food, knowledge, gold or industry.', f: 'tap', y: 790 },
   { r: [150, 420, 420, 330], t: 'Drag with one finger to move the map. Hold briefly, then drag, to paint with the tool.', f: 'drag', y: 790 },
   { r: [18, 1068, 448, 92], t: 'Pick a tool category here: terrain, life, powers, realm, world', y: 820 },
@@ -5958,7 +5959,8 @@ const TOUR = [
   { r: [10, 6, 186, 96], t: 'Pause and speed up time', y: 230 },
   { r: [614, 6, 96, 96], t: 'Sound on or off', y: 230 },
   { r: [206, 6, 308, 96], t: 'Tap the year badge for the world chronicle and goals. It also names the season.', f: 'tap', y: 230 },
-  { r: [10, 114, 700, 46], t: 'Key numbers at a glance. Tap the strip for the full census: peoples, ages, buildings, armies and more.', f: 'tap', y: 240 },
+  { r: [206, 6, 308, 96], t: 'Restless kingdoms may lose rebels who turn pirate and raid rich coasts. Allies help, and the Pirates goals are in this chronicle.', y: 230 },
+  { r: [10, 114, 700, 46], t: 'Key numbers at a glance. Tap the strip for the full census: peoples, professions, pirates, ages, armies and more.', f: 'tap', y: 240 },
 ];
 let tourI = 0;
 function startTour(force) { if (editMode) return; tourI = 0; tutEl.style.display = 'block'; if (force) { cv.style.visibility = 'visible'; titleEl.style.display = 'none'; started = true; lastT = performance.now(); } renderTour(); }
