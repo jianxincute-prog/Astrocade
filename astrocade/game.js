@@ -12,6 +12,7 @@
 import { PROFS, PROF_IDS, PROF_BY, needBoost, pickProfession, masteryLevel, MASTERY_NAME, yieldMult, speedMult, buildDiscount, traderGold, traderCd } from './professions.js';
 import { JOB_W } from './jobs.js';
 import { drawOutfit } from './outfits.js';
+import { PIRATE, ORIGIN_RACES, BASE_NAMES, defectionChance, bandSize, islandsOf, pickIsle, baseTile } from './pirates.js';
 import { pickJob, workLen, reach, swingPhase, swingCycle, isStrikeFrame, IMPACT, JOB_YIELD, CARRY, STATUS, addYield } from './jobs.js';
 import { drawWorker, drawCarry } from './work_anim.js';
 import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
@@ -56,6 +57,8 @@ const RACES = {
   orc:   { col:'#ff3d3d', hp:44, dmg:6, mv:2, civ:1, cap:80, life:[800,1300],  foes:[], build:[T.GRASS,T.HILL,T.BURNT,T.SAND], bi:4 },
   // Werewolves: evolved wolves. Neutral (nobody's foe, hates nobody) and slow-growing: few houses, rare births, long lives.
   werewolf: { col:'#5ef0ff', hp:40, dmg:6, mv:2, civ:1, cap:36, life:[2500,4000], foes:[], build:[T.FOREST,T.HILL,T.GRASS], bi:5, buildP:.002, spawnP:WEREWOLF_BIRTH_RATE },
+  // Pirates: rebels of restless kingdoms (any people but werewolves) who live on a hideout island. Not a kingdom, they never breed: only mutiny feeds them.
+  pirate: { col:'#8a1c2e', hp:36, dmg:5, mv:2, civ:0, pirate:1, cap:40, life:[1200,2000], foes:['human','elf','dwarf','orc','werewolf'], build:[], bi:0 },
   // Wild fauna. prey = wolf food; br = breeding (p per move, tiles, max animals per 8x8 cell); flee = runs from wolves.
   sheep:  { col:'#ffffff', hp:10, dmg:0, mv:3, civ:0, cap:110, life:[600,1100], foes:[], build:[], bi:0, prey:1, br:{ p:.02,  tiles:[T.GRASS], dens:14 } },
   rabbit: { col:'#c9a37a', hp:6,  dmg:0, mv:2, civ:0, cap:160, life:[500,900],  foes:[], build:[], bi:0, prey:1, flee:1, br:{ p:.035, tiles:[T.GRASS,T.FOREST,T.HILL], dens:16 } },
@@ -79,11 +82,11 @@ const NAME_P = {
 };
 // ---- Technology: see tech.js (15 techs per race in three branches, five ages) ----
 const BORDER_RGB = [null, [74,163,255], [226,169,255], [255,154,46], [255,61,61], [94,240,255]];     // by house owner index (race.bi)
-const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer','werewolf'];     // index order is part of the save format
+const RN = ['human','elf','dwarf','orc','sheep','wolf','rabbit','deer','werewolf','pirate'];     // index order is part of the save format
 const STAT_ORDER = ['human','elf','dwarf','orc','sheep','rabbit','deer','wolf','werewolf'];
 const GAIN = { rabbit:25, sheep:45, deer:60 };                               // wolf energy per kill (default 45)
 const BUILD_OWNER = [null,'human','elf','dwarf','orc','werewolf'];
-const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺', rabbit:'🐇', deer:'🦌', werewolf:'\uE001' };
+const EMOJI = { human:'🧑', elf:'🧝', dwarf:'🧔', orc:'👹', sheep:'🐑', wolf:'🐺', rabbit:'🐇', deer:'🦌', werewolf:'\uE001', pirate:'💀' };
 const TPS = 8;
 const MAX_CREATURES = 1500;           // multiplied by CAPK
 const capOf = t => Math.round(RACES[t].cap * CAPK);
@@ -435,6 +438,7 @@ const extinctRaces = new Set();                       // wars can permanently en
 let comp = null, compDirty = true;                 // connected land components (wars only happen on the same landmass)
 const rels = new Map();                              // kingdom pair -> { s: 1 war | 2 alliance | 3 truce, t, until }
 const warStats = { repaired: 0, towerShots: 0, breached: 0, declared: 0, ended: 0, captured: 0, razed: 0, allied: 0, joined: 0 };
+const pirateBases = []; let pirateCd = 0;                      // hideout islands of the pirates: { x, y, name, t0, idle }
 const chronicle = []; const completedGoals = new Set(), gstats = newGoalStats(); let warsResolved = 0, roadCount = 0;       // gstats: counters the goals read, saved with the game
 const CHRONICLE_MAX = 60;
 let creatures = [], nextId = 1, tick = 0;
@@ -769,7 +773,7 @@ function genRivers(clear) {                                         // rivers ru
 }
 function generate(seed) { waterDirty = true; const z = SIZES[sizeIdx]; if (z.preset) genPreset(z, seed); else if (sizeIdx === 0) generateSmall(seed); else generateLarge(seed); genRivers(true); }
 function emptyWorld() {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); pirateBases.length = 0; pirateCd = 0; warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   nodes = []; oreT.fill(0); oreA.fill(0); riv.fill(0); road.fill(0); trail.fill(0); scn = null;
   creatures = []; effects.length = 0; bld.fill(0); fire.fill(0); tiles.fill(T.DEEP);
   for (let i = 0; i < N; i++) jit[i] = Math.floor((hash(i, 3, 5) - .5) * 14);
@@ -993,8 +997,34 @@ function buildSprite(def, frame) {
   return c;
 }
 
+// Pirates: ONE kind, one uniform look (tricorn with a skull, eye patch, striped shirt, red sash); only the skin, ears, beard or tusks say which people they were born to.
+const PIRATE_PAL = { o:'#1c1424', k:'#241a30', w:'#f4f1e6', g:'#d8a030', B:'#3a2a50', t:'#e8e2d0', N:'#2a3a6a', r:'#c0392b', p:'#4a3a30', P:'#5e4a3c', b:'#2a1e18', n:'#12080e', e:'#1c1424' };
+const PIRATE_SKIN = { human:{ s:'#f2c48c', S:'#d49a68', h:'#5b3a22' }, elf:{ s:'#f8dcc0', S:'#e0b898', h:'#f3e7a0' }, dwarf:{ s:'#f0b48a', S:'#c88a64', h:'#c8662a' }, orc:{ s:'#7fb858', S:'#5a8a3a', h:'#2a3a1e' } };
+const PIRATE_ROWS = {
+  A: ['...oooooo...', '..okkkkkko..', '.okkkwwkkko.', 'ookkkkkkkkoo', '.ohhssSShho.', '.ohsnsSeSho.', '..osssSSSo..', '...osSSSo...', 'orBtNtNtNBro', 'oBBNtNtNtNBo', 'oSBtNtNtNBSo', 'orrrrrgrrrro', '..oppPpppo..', '..oppo.oppo.', '..obbo.obbo.'],
+  B: ['...oooooo...', '..okkkkkko..', '.okkkwwkkko.', 'ookkkkkkkkoo', '.ohhssSShho.', '.ohsnsSeSho.', '..osssSSSo..', '...osSSSo...', 'orBtNtNtNBro', 'oBBNtNtNtNBo', 'oSBtNtNtNBSo', 'orrrrrgrrrro', '..oppPpppo..', '..opo..oppo.', '..obo..obbo.'],
+};
+PIRATE_ROWS.C = PIRATE_ROWS.A.map((r, y) => y <= 9 && r[11] === '.' ? r.slice(0, 11) + 'w' : r);
+PIRATE_ROWS.C[8] = 'orBtNtNtNBsg'; PIRATE_ROWS.C[9] = 'oBBNtNtNtNso';
+function pirateSprite(og) {
+  const mk = rows => rows.map((row, y) => {
+    if (og === 'elf' && y === 5) return 's' + row.slice(1, 11) + 'S';                  // pointed ears
+    if (og === 'dwarf' && y === 6) return '..ohhhhhho..';                              // a bushy beard
+    if (og === 'dwarf' && y === 7) return '...ohhhho...';
+    if (og === 'orc' && y === 6) return '..oswSSwso..';                                // tusks
+    return row;
+  });
+  return { pal: Object.assign({}, PIRATE_PAL, PIRATE_SKIN[og]), A: mk(PIRATE_ROWS.A), B: mk(PIRATE_ROWS.B), C: mk(PIRATE_ROWS.C) };
+}
+SPRITES.pirate = pirateSprite('human');
+const PIR_ATLAS = {};
+for (const og of ORIGIN_RACES) { const d = pirateSprite(og); PIR_ATLAS[og] = {}; for (const f of ['A', 'B', 'C']) PIR_ATLAS[og][f] = null; PIR_ATLAS[og].def = d; }
+const PIR_BASE_DEF = { pal: { o:'#1c1424', k:'#241a30', w:'#f4f1e6', b:'#8a5a34', B:'#c08a50', d:'#3a2a4a', D:'#5a4a6a', n:'#120a18' },
+  A: ['..ooooooooob..', '..okkkkkkkob..', '..okkwkwkkob..', '..okkkwkkkob..', '..okwkkkwkob..', '..ooooooooob..', '....oo.....b..', '...oddo....b..', '..oddddo...b..', '.odddDddo..b..', 'odddDDDddo.bo.', 'oddDnnnDddoBBo', 'odDDnnnDDdoBBo', 'oooooooooooooo'] };
 const ATLAS = {}, HATLAS = {};
 for (const k in SPRITES) { ATLAS[k] = {}; for (const f of ['A','B','C']) ATLAS[k][f] = buildSprite(SPRITES[k], f); }
+for (const og of ORIGIN_RACES) for (const f of ['A', 'B', 'C']) PIR_ATLAS[og][f] = buildSprite(PIR_ATLAS[og].def, f);
+const PIR_BASE = buildSprite(PIR_BASE_DEF, 'A');
 const HMETA = {}, HALLATLAS = {}, HALLMETA = {};
 for (const k in HOUSES) { HATLAS[RACES[k].bi] = buildSprite(HOUSES[k], 'A'); HMETA[RACES[k].bi] = HOUSES[k].meta || {}; }
 for (const k in HALLS) { HALLATLAS[RACES[k].bi] = buildSprite(HALLS[k], 'A'); HALLMETA[RACES[k].bi] = HALLS[k].meta || {}; }
@@ -2583,7 +2613,7 @@ function findTarget(c) {
   if (R.civ) {                                          // settlers fight their kingdom's enemies, and wolves that come close
     const ka = c.k ? kingdoms.get(c.k) : null;
     const e = ka && ka.enemies.size ? findEnemy(c, ka, (c.lead || isSoldier(c)) ? 12 : 8) : null;
-    return e || (R.foes.includes('wolf') ? findNearest(c, ['wolf'], 2) : null);
+    return e || findNearest(c, ['pirate'], (c.lead || isSoldier(c)) ? 8 : 3) || (R.foes.includes('wolf') ? findNearest(c, ['wolf'], 2) : null);
   }
   if (!foes.length) return null;
   return findNearest(c, foes, rad);
@@ -2700,6 +2730,7 @@ function stepCreature(c) {
   } else if (R.hunt) {
     if (c.en > 85 && canBreed(c, tick) && Math.random() < ANIMAL_BREED.wolf.p * crowd(counts.wolf || 0, capOf('wolf')) && findMate(c, 8)) { const b = spawnNear('wolf', c.x, c.y); if (b) { newborn(b); c.en -= 35; c.bcd = tick + ANIMAL_BREED.wolf.cd; } }
   }
+  if (R.pirate && !c.tgt) { const pb = pirateBaseOf(c); if (pb && cheb(c, pb.x, pb.y) > 7 && Math.random() < .6 && moveToward(c, pb.x, pb.y)) return; }       // pirates stay by their hideout
   const roam = R.hunt && c.en <= 75;                          // hungry wolves roam in straight lines to find prey
   if (Math.random() < (roam ? .06 : .3)) c.dir = roam ? ri(1, 8) : ri(0, 8);
   const d = DIRS[c.dir];
@@ -2720,6 +2751,55 @@ function assignProf(c, ka) {
 const profMatches = (c, jk) => !!c.prof && PROF_BY[c.prof].job === jk;
 const profLevel = (c, jk) => profMatches(c, jk) ? masteryLevel(c.mx | 0) : 0;
 const scaleCost = (c, d) => d > 0 ? Object.fromEntries(Object.entries(c).map(([a, v]) => [a, typeof v === 'number' ? Math.ceil(v * (1 - d)) : v])) : c;
+/* ---- Pirates: rebels of restless kingdoms turn pirate and settle a small empty island (see pirates.js) ---- */
+function pirateCount() { let n = 0; for (const c of creatures) if (c.hp > 0 && c.t === 'pirate') n++; return n; }
+function pirateBaseOf(c) { let best = null, bd = 1e9; for (const b of pirateBases) { const d = cheb(c, b.x, b.y); if (d < bd) { bd = d; best = b; } } return best; }
+function pirateIsles(k) {
+  const { label, list } = islandsOf(tiles, W, H, t => t > T.SHALLOW && t !== T.LAVA), busy = new Set();
+  for (let i = 0; i < N; i++) if (bld[i] && label[i]) busy.add(label[i]);
+  for (const b of pirateBases) if (label[b.x + b.y*W]) busy.add(label[b.x + b.y*W]);
+  const at = (x, y) => label[Math.round(x) + Math.round(y) * W] || 0;
+  for (const kk of kingdoms.values()) { const l = at(kk.cx, kk.cy); if (l) busy.add(l); }
+  return { label, isles: list.map(s => ({ ...s, busy: busy.has(s.id) })), from: { x: k.cx, y: k.cy, isle: at(k.cx, k.cy) } };
+}
+function turnPirate(c, k, base) {                              // a rebel puts on the tricorn: one wicked kind, whatever the birth
+  counts[c.t] = Math.max(0, (counts[c.t] | 0) - 1); counts.pirate = (counts.pirate | 0) + 1;
+  c.og = c.t; c.ok = k.name; c.t = 'pirate'; c.k = 0; c.lk = 0; c.job = null; c.tgt = null; c.prof = undefined; c.mx = 0; c.nm = null; c.cap = 0;
+  const R = RACES.pirate; c.life = ri(R.life[0], R.life[1]); c.age = Math.min(c.age, Math.floor(c.life * .4));
+  c.mhp = 0; applyStats(c); c.hp = c.mhp;
+  for (let q = 0; q < 40; q++) { const x = base.x + ri(-3, 3), y = base.y + ri(-3, 3); if (inb(x, y) && walkable('pirate', tiles[x + y*W]) && !bld[x + y*W]) { c.x = c.dx = x; c.y = c.dy = y; break; } }
+  fx('puff', c.x, c.y);
+}
+function pirateCheck() {                                       // every 120 ticks
+  for (let i = pirateBases.length - 1; i >= 0; i--) {          // an empty hideout is abandoned in the end
+    const b = pirateBases[i]; let near = 0; for (const c of creatures) if (c.hp > 0 && c.t === 'pirate' && cheb(c, b.x, b.y) <= 14) { near++; break; }
+    b.idle = near ? 0 : (b.idle | 0) + 120;
+    if (b.idle > PIRATE.idleLimit) { pirateBases.splice(i, 1); addChronicle('💀', `The pirate hideout ${b.name} lies abandoned`); dirty = true; }
+  }
+  if (tick < pirateCd || pirateCount() >= PIRATE.maxPirates) return;
+  const ks = [...kingdoms.values()].sort(() => Math.random() - .5);
+  for (const k of ks) {
+    if (Math.random() >= defectionChance({ race: k.race, pop: k.pop, level: k.level, unrest: k.unrest, food: k.food })) continue;
+    const pool = creatures.filter(c => c.k === k.id && c.hp > 0 && !c.boat && !c.lead && !c.elite && !c.hero && !c.gun && !c.job && RACES[c.t].civ && c.nid !== undefined && isAdult(c.age, c.life));
+    const n = bandSize(k.pop, Math.random()); if (pool.length < n + 6) continue;          // a realm is never stripped bare
+    let base = null;
+    const fresh = pirateBases.length < PIRATE.maxBases && (pirateBases.length === 0 || (pirateCount() >= 4 && Math.random() < .4));
+    if (fresh) {
+      const { label, isles, from } = pirateIsles(k), isle = pickIsle(isles, from, Math.random());
+      const bi = isle ? baseTile(label, isle.id, W, H, isle.cx, isle.cy, i => (tiles[i] === T.GRASS || tiles[i] === T.SAND) && !bld[i]) : -1;
+      if (bi >= 0) { const used = new Set(pirateBases.map(b => b.name)); base = { x: bi % W, y: (bi / W) | 0, name: BASE_NAMES.find(nm => !used.has(nm)) || 'Rum Rock', t0: tick, idle: 0 }; pirateBases.push(base); }
+    }
+    if (!base) base = pirateBases[0] || null;
+    if (!base) continue;                                                                    // no empty island to hide on: the grumbling goes on
+    pool.sort((a, b) => (isSoldier(b) ? 1 : 0) - (isSoldier(a) ? 1 : 0) + Math.random() - .5);
+    const band = pool.slice(0, n), race = band[0].t;
+    for (const c of band) turnPirate(c, k, base);
+    band[0].cap = 1; k.unrest = Math.max(0, k.unrest - 18); pirateCd = tick + PIRATE.cooldown;
+    addChronicle('💀', `${n} rebels of ${k.name} turned pirate and sailed for ${base.name}`);
+    if (started) banner('💀', 'Mutiny!', `${n} ${TYPE_NAME[race].toLowerCase()} rebels of ${k.name} turned pirate`, 'bad');
+    sndFx('warcry', base.x, base.y); ownDirty = true; dirty = true; return;
+  }
+}
 function canWork(c, ka) { return !c.lead && !c.elite && !(ka && ka.enemies.size && isSoldier(c)); }
 function findWorkSpot(c, job, ka) {
   if (job === 'hunt') {
@@ -3872,6 +3952,7 @@ function step() {
   if (tick % 120 === 0 && tick > 0) sndSeason();
   if (tick % 400 === 200 && !editMode) wanderers();
   if (tick % 120 === 30 && !editMode) townTidy();
+  if (tick % 120 === 75 && !editMode) pirateCheck();
   if (tick % 40 === 0) { levelCheck(); researchCheck(); chooseLeaders(); ageCheck(); buildCheck(); }
   nightNow = Math.max(0, -Math.cos(tick / (TPS * 90) * Math.PI * 2));
   if (ownDirty || tick % 60 === 0) computeTerritory();
@@ -4117,6 +4198,11 @@ function draw() {
       ctx.drawImage(ls, lcx - lw/2, lfy - lh, lw, lh);
       if (sc >= 5) landmarkLife(key, li, lx, ly, lcx, lfy, lw, lh);
     }
+    for (const pb of pirateBases) {                                                  // hideouts: a black flag over a tent and a barrel
+      if (pb.x < x0 - 3 || pb.x > x1 + 3 || pb.y < y0 - 3 || pb.y > y1 + 6) continue;
+      const lw = PIR_BASE.width * SPR_K, lh = PIR_BASE.height * SPR_K, lcx = ox + (pb.x + .5)*sc, lfy = oy + (pb.y + 1)*sc - sc*.05;
+      ctx.drawImage(PIR_BASE, lcx - lw/2, lfy - lh, lw, lh);
+    }
     const landCreatures = creatures.filter(c => !c.boat);
     for (const c of landCreatures) { c.dx += (c.x - c.dx) * .3; c.dy += (c.y - c.dy) * .3; }
     const order = landCreatures.sort((a, b) => a.dy - b.dy);
@@ -4131,7 +4217,7 @@ function draw() {
       if (jb && jb.ph === 1 && jb.k !== 'hunt' && jb.k !== 'fish' && !paused && isStrikeFrame(wph)) { const cy = swingCycle(frame, c.id, jb.k); if (cy !== jb.cy) { jb.cy = cy; workImpact(c, jb, c.t); } }
       const lunge = c.atk > 3 ? 2 * CHR_K : 0;
       const gk = c.f !== undefined && c.life ? .6 + .4 * Math.min(1, c.age / (c.life * .15)) : 1;     // children and young animals are smaller
-      const spr = ATLAS[c.t][f], sw = spr.width * CHR_K * gk, sh = spr.height * CHR_K * gk;
+      const spr = c.t === 'pirate' ? PIR_ATLAS[c.og || 'human'][f] : ATLAS[c.t][f], sw = spr.width * CHR_K * gk, sh = spr.height * CHR_K * gk;
       const crowned = c.lead && c.k && kingdoms.has(c.k) && kingdoms.get(c.k).level >= 1;       // sprites may be bigger than 10x10
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(cx - sw*.3, fy - Math.max(1, sw*.08), sw*.6, Math.max(1, sw*.1));
       if (c === selected) { ctx.strokeStyle = `rgba(255,214,74,${.65 + .3*Math.sin(frame*.2)})`; ctx.lineWidth = Math.max(2, CHR_K*.7); ctx.beginPath(); ctx.ellipse(cx, fy - sw*.03, sw*.55, sw*.2, 0, 0, 7); ctx.stroke(); }
@@ -4715,6 +4801,7 @@ const NAME_POOL = {
   werewolf: [['Lun', 'Fen', 'Va', 'Gre', 'Nox', 'Ulv', 'Sko', 'Mar'], ['fang', 'ra', 'mar', 'wyr', 'claw', 'howl']],
   sheep: ['Wolly', 'Puff', 'Cloud', 'Baa', 'Cotton', 'Fleece'], rabbit: ['Hop', 'Fluff', 'Bounce', 'Nibble', 'Thumper', 'Tuft'],
   deer: ['Elm', 'Fawn', 'Aspen', 'Brook', 'Birch', 'Dew'], wolf: ['Fang', 'Shadow', 'Ash', 'Dusk', 'Claw', 'Grey'],
+  pirate: ['Black Jack', 'One-Eye Pete', 'Red Anne', 'Salty Tom', 'Mad Morgan', 'Rusty Hook', 'Barnacle Bill', 'Cutlass Kate', 'Dread Dan', 'Scarlet Mary', 'Long Tom', 'Silver Ned', 'Grim Gus', 'Storm Sally', 'Bone Bart', 'Peg-Leg Pip'],
   ram: ['Ram'], catapult: ['Catapult'], dcatapult: ['Iron Catapult'], cart: ['Wagon'],
 };
 const DESC = {
@@ -4723,6 +4810,7 @@ const DESC = {
   dwarf: 'Tough miners of the hills. Masters of forging and finding metal.',
   orc: 'Fierce warriors who live off war and plunder.',
   werewolf: 'Evolved wolves. Neutral, and stronger at night.',
+  pirate: 'A rebel who turned pirate. Humans, elves, dwarves and orcs all end up one wicked kind. They hide on a small island and fear nothing.',
   sheep: 'Gentle grass-eaters. Prey for wolves.',
   wolf: 'Fierce hunters. They attack sheep, rabbits and deer, even people when starving.',
   rabbit: 'Quick, and breeds in male-female pairs. Runs from wolves.',
@@ -4732,7 +4820,7 @@ const DESC = {
   dcatapult: 'Dwarven iron catapult. Hurls rocks from afar.',
   cart: 'Trade wagon carrying goods between kingdoms.',
 };
-const TYPE_NAME = { human: 'Human', elf: 'Elf', dwarf: 'Dwarf', orc: 'Orc', sheep: 'Sheep', wolf: 'Wolf', rabbit: 'Rabbit', deer: 'Deer', werewolf: 'Werewolf', ram: 'Ram', catapult: 'Catapult', dcatapult: 'Iron catapult', cart: 'Wagon' };
+const TYPE_NAME = { human: 'Human', elf: 'Elf', dwarf: 'Dwarf', orc: 'Orc', sheep: 'Sheep', wolf: 'Wolf', rabbit: 'Rabbit', deer: 'Deer', werewolf: 'Werewolf', pirate: 'Pirate', ram: 'Ram', catapult: 'Catapult', dcatapult: 'Iron catapult', cart: 'Wagon' };
 function nameFor(t, sd) {
   const P = NAME_POOL[t], h = hash(sd, 7, 11);
   return Array.isArray(P[0]) ? P[0][Math.floor(h * P[0].length)] + P[1][Math.floor(hash(sd, 9, 13) * P[1].length)] : P[Math.floor(h * P.length)];
@@ -4742,6 +4830,7 @@ function roleOf(c) {
   const R = RACES[c.t];
   if (R.cart) return 'Merchant'; if (R.engine) return 'War machine';
   if (c.hero) return 'Hero'; if (c.gun) return 'Musketeer'; if (c.elite) return 'Iron knight'; if (c.lead) return 'Leader';
+  if (R.pirate) return c.cap ? '💀 Pirate captain' : '💀 Pirate';
   if (R.civ) return isSoldier(c) ? '🛡 Soldier' : c.prof ? PROF_BY[c.prof].ic + ' ' + PROF_BY[c.prof].n : 'Citizen';
   return R.hunt ? 'Hunter' : 'Prey';
 }
@@ -4779,7 +4868,7 @@ function creatureHtml(c) {
   const col = hp > .6 ? '#5fdc6a' : hp > .3 ? '#ffcf4a' : '#ff5a4a', bar = (ic, pct, cl) => `<div class="bar">${ic}<u><i style="width:${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%;background:${cl}"></i></u></div>`;
   const ench = e => e ? ` style="border-color:${ENCH[e].c};box-shadow:0 0 10px ${ENCH[e].c}88"` : '';
   let h = `<div class="ibtns"><button class="awb ibt${following ? ' on' : ''}" data-act="follow">🎯</button><button class="awb ibt" data-act="close">✖</button></div>`;
-  h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${c.f ? 'Female' : 'Male'}, ${lifeStage(c.age, c.life).toLowerCase()}${c.prof && c.prof !== 'soldier' ? ' · ' + MASTERY_NAME[masteryLevel(c.mx | 0)].toLowerCase() : ''} · ${st}`;
+  h += `<img class="pt" src="${portraitURL(c.t)}" alt=""><b>${nameOf(c)}</b><span class="tag">${roleOf(c)}</span><br>${TYPE_NAME[c.t]}${c.t === 'pirate' && c.og ? ` (once a ${TYPE_NAME[c.og].toLowerCase()}${c.ok ? ' of ' + c.ok : ''})` : ''}${c.lead ? ' 👑' : ''}${c.elite ? ' 🛡' : ''} · ${c.f ? 'Female' : 'Male'}, ${lifeStage(c.age, c.life).toLowerCase()}${c.prof && c.prof !== 'soldier' ? ' · ' + MASTERY_NAME[masteryLevel(c.mx | 0)].toLowerCase() : ''} · ${st}`;
   const trs = TRAITS.filter((_, i) => c.tr & (1 << i));
   if (trs.length) h += `<div class="row">${trs.map(t => `<span class="tag t">${t}</span>`).join(' ')}</div>`;
   const ch = civ ? chestOf(c) : null, sel = civ ? curSel() : null, tabs = ch ? 4 : 3;
@@ -5036,7 +5125,7 @@ function scnCheck() {                                          // once a year: j
   else { addChronicle('💀', `Scenario failed: ${def.n}`); banner('💀', 'Scenario failed', def.n, 'bad'); }
 }
 function startScenario(def) {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); pirateBases.length = 0; pirateCd = 0; warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   floods.length = 0; pendingDis.length = 0;
   const wi = def.world ? SIZES.findIndex(z => z.preset && z.label === def.world) : 1;
   setSize(wi < 0 ? 1 : wi); generate(1 + ((Math.random() * 1e6) | 0));
@@ -5064,7 +5153,7 @@ function showScenarios() {
   infoEl.style.display = 'block';
 }
 function newWorld(idx) {
-  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); warsResolved = 0; ships = []; nextShipId = 1; navy = [];
+  extinctRaces.clear(); chronicle.length = 0; completedGoals.clear(); Object.assign(gstats, newGoalStats()); pirateBases.length = 0; pirateCd = 0; warsResolved = 0; ships = []; nextShipId = 1; navy = [];
   floods.length = 0; pendingDis.length = 0;
   setSize(idx == null ? sizeIdx : idx); scn = null;
   generate(1 + ((Math.random() * 1e6) | 0));
@@ -5260,6 +5349,7 @@ function censusSheet() {
   return `<div class="sh"><span>Census · ${seasonOf(tick).n}, year ${Math.floor(tick / 120)}</span><button class="awb" data-act="shclose" aria-label="Close">✖</button></div><div class="grid">`
     + grp('Civilizations', [['human', 'Humans'], ['elf', 'Elves'], ['dwarf', 'Dwarves'], ['orc', 'Orcs'], ['werewolf', 'Werewolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
     + grp('Professions', PROFS.map(p => [p.ic, p.n, pcn[p.id] | 0]))
+    + grp('Pirates', [['💀', 'Pirates', counts.pirate | 0], ['🏝', 'Hideouts', pirateBases.length]])
     + grp('Wildlife', [['sheep', 'Sheep'], ['rabbit', 'Rabbits'], ['deer', 'Deer'], ['wolf', 'Wolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
     + grp('Life stages', [['🧑', 'Adults', adults], ['🌱', 'Young', young], ['❤️', 'Females', fem], ['🛡', 'Males', mal]])
     + grp('Sea life', [['🐟', 'Fish shoals', shoals.length], ['🦈', 'Sharks', sharks.length], ['🐙', 'Krakens', krakens.length]])
@@ -5369,6 +5459,8 @@ function serialize2() {
     gn: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.gun) a.push(j); return a; }, []),
     hr: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.hero) a.push(j); return a; }, []),
     fm: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.f) a.push(j); return a; }, []),
+    pb: pirateBases.map(b => [b.x, b.y, b.name]), pcd: Math.max(0, pirateCd - tick),
+    pg: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.t === 'pirate') a.push([j, ORIGIN_RACES.indexOf(c.og), c.nid | 0, c.ok || '', c.cap ? 1 : 0]); return a; }, []),
     pf: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (c.prof) a.push([j, PROF_IDS.indexOf(c.prof), c.mx | 0]); return a; }, []),
     rvr: runsEncode(riv), rdr: runsEncode(road), sc: scn ? [scn.id, tick - scn.t0, scn.status] : 0,
     ex: creatures.filter(c => !RACES[c.t].engine).reduce((a, c, j) => { if (RACES[c.t].civ) a.push([j, c.nid | 0, c.tr | 0, tick - c.age, c.kills | 0, c.eq ? c.eq[0] | c.eq[1] << 2 | c.eq[2] << 4 : 0, c.hist || [], c.pa | 0, c.pb | 0, c.sp | 0, c.ch | 0, c.ec ? c.ec[0] | c.ec[1] << 4 | c.ec[2] << 8 : 0, c.boat | 0]); return a; }, []),
@@ -5466,6 +5558,8 @@ function restore(s) {
   for (const j of s.el || []) { const c = spawned[j]; if (c) c.elite = 1; }
   for (const j of s.gn || []) { const c = spawned[j]; if (c) { c.elite = 1; c.gun = 1; } }
   for (const j of s.hr || []) { const c = spawned[j]; if (c) { c.elite = 1; c.hero = 1; } }
+  pirateBases.length = 0; for (const b of s.pb || []) if (inb(b[0], b[1]) && tiles[b[0] + b[1]*W] > T.SHALLOW) pirateBases.push({ x: b[0], y: b[1], name: String(b[2] || 'Rum Rock'), t0: tick, idle: 0 }); pirateCd = tick + (s.pcd | 0);
+  for (const e of s.pg || []) { const c = spawned[e[0]]; if (c && c.t === 'pirate') { c.og = ORIGIN_RACES[e[1]] || 'human'; c.nid = e[2] || c.nid; c.ok = String(e[3] || ''); c.cap = e[4] ? 1 : 0; c.nm = null; } }
   for (const e of s.pf || []) { const c = spawned[e[0]]; if (c && PROF_IDS[e[1]]) { c.prof = PROF_IDS[e[1]]; c.mx = e[2] | 0; } }
   if (Array.isArray(s.fm)) { const fs = new Set(s.fm); spawned.forEach((c, j) => { if (c) c.f = fs.has(j) ? 1 : 0; }); }
   for (const c of spawned) if (c) { c.mhp = 0; applyStats(c); c.hp = c.mhp; }
@@ -5773,7 +5867,7 @@ async function start() {
 }
 start();
 
-window.__world = { profCounts: () => { const o = {}; for (const c of creatures) if (c.hp > 0 && c.prof) o[c.prof] = (o[c.prof] | 0) + 1; return o; }, profCensus, get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, kingdomHtml, get riv() { return riv; }, get road() { return road; }, get scn() { return scn; }, startScenario, SCENARIOS, scnCheck, genRivers, makeHero, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
+window.__world = { pirateBases, pirateCheck, pirateCount, turnPirate, get pirateCd() { return pirateCd; }, set pirateCd(v) { pirateCd = v; }, profCounts: () => { const o = {}; for (const c of creatures) if (c.hp > 0 && c.prof) o[c.prof] = (o[c.prof] | 0) + 1; return o; }, profCensus, get ox() { return ox; }, get oy() { return oy; }, cam: (x, y, z) => { sc = z; ox = VIEW.x + VIEW.w/2 - (x + .5)*sc; oy = VIEW.y + VIEW.h/2 - (y + .5)*sc; clampCam(); }, get tiles() { return tiles; }, get comp() { return comp; }, get own() { return own; }, get bld() { return bld; }, get fire() { return fire; }, get size() { return sizeIdx; }, get evolutions() { return evolutions; }, get kingdoms() { return kingdoms; }, get effects() { return effects; }, get rels() { return rels; }, civScore, submitScore, get bestSent() { return bestSent; }, warStats, declareWar, splitKingdom, absorbKingdom, startEvent, eventsTick, get tickNow() { return tick; }, computeComps, diplomacyTick, grantTech, recalcMods, get kid() { return kid; }, get lastEvolve() { return lastEvolve; }, get tick() { return tick; }, get creatures() { return creatures; }, get counts() { return counts; }, step, spawn, newWorld, get W() { return W; }, get H() { return H; }, Snd, weather, SFX, tone, startTour, get started() { return started; }, set started(v) { started = v; }, volcanoes, parts, emit, seedVolcanoes, drops, addDrop, shop, shopTick, itemValue, rollEnchant, ENCH, get inv() { return inv; }, setFamily, get selected() { return selected; }, get following() { return following; }, market, tradeTick, eliteTick, updateMarket, serialize, restore, get ships() { return ships; }, get navy() { return navy; }, kingdomHtml, get riv() { return riv; }, get road() { return road; }, get scn() { return scn; }, startScenario, SCENARIOS, scnCheck, genRivers, makeHero, get shoals() { return shoals; }, get sharks() { return sharks; }, get wrecks() { return wrecks; }, raiseWreck, harpoon, sellCatch, showWhatsNew, get seenVer() { return seenVer; }, VERSION, get krakens() { return krakens; }, summonKraken, krakenTick, krakenHit, get krakenCd() { return krakenCd; }, set krakenCd(v) { krakenCd = v; }, computeShoreD, addShark, seedSharks, sharkTick, seedShoals, fishingPlan, shoalNear, SHOAL, launchVoyage, voyageTick, coastalLandNear, voyagePlan, get techs() { return TECHS; }, get nodes() { return nodes; }, get oreT() { return oreT; }, get oreA() { return oreA; }, get wallK() { return wallK; }, get wallG() { return wallG; }, applyTool, floods, disasterTick, pendingDis, get nextMajor() { return nextMajor; }, set nextMajor(v) { nextMajor = v; }, get disasterLvl() { return disasterLvl; }, set disasterLvl(v) { disasterLvl = v; }, setTool: id => { tool = id; }, get W() { return W; }, get H() { return H; }, T };
 }
 
 // The platform boots the game by calling window.run(mode); publishing bundles

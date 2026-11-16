@@ -33,6 +33,7 @@ Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, soun
 | `scenarios.js` | Pure scenario definitions and progress rules (v3.0). |
 | `diplomacy.js` | Pure diplomacy rules: trade pacts, alliances, breaks, betrayal and aid between partners (v3.5). |
 | `reproduction.js` | Pure life-cycle rules: sexes, adulthood, breeding rates, parents and mixed crews (v3.0). |
+| `pirates.js` | Pure pirate rules: mutiny chance, band size, island labelling and the hideout island and tile (v4.0). |
 | `outfits.js` | Canvas drawing of the profession clothes over the race sprites (v4.0). |
 | `professions.js` | Pure logic for lifelong professions: race liking, realm needs, share cap, mastery, builder and trader effects. |
 | `jobs.js` | Pure logic for everyday jobs: chop, mine, hunt, farm, fish, gather (race weights, yields, work length, swing timing). |
@@ -112,6 +113,12 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Family:** settlers born in a house get two parents; spouses, children and parents are tracked and relatives are jump buttons.
 - **Jobs:** non-leader settlers chop, mine, hunt, farm, fish or forage (soldiers only in peacetime), play the work animation and haul goods home.
 
+## Pirates (v4.0, in progress)
+- **A new, wicked kind of creature.** Pirates are not a fifth people. Rebels of restless kingdoms (humans, elves, dwarves and orcs; never werewolves) turn pirate: whatever their birth, they all belong to the one kind *Pirate*, with one uniform look (tricorn with a skull, eye patch, checkered shirt, red sash). Only the skin, pointed ears, beard or tusks tell which people they once belonged to, and the panel says so ("once a dwarf of Kazhold").
+- **Born of chaos.** Every two seconds the world checks its kingdoms: one with a mature size (14+ settlers), unrest of 40% or more (hunger, plague, long wars) and a chance that grows with the unrest loses a crew of 3 to 5 adult rebels (soldiers first, never leaders, knights, heroes or musketeers, and a realm is never stripped bare). A mutiny banner and a chronicle line announce it, the realm calms a little, and at most one mutiny happens per 900 ticks, up to 24 living pirates.
+- **A hideout on a small island.** The rebels hide on a small empty island (10 to 220 land tiles, no kingdom, house or other hideout on it, 12 to 110 tiles from their kingdom, around 30 preferred). A hideout is a black-flag tent with a barrel; there are at most two, and one that stays empty for 3000 ticks is abandoned. Pirates stay by it, never breed (only mutiny feeds them), fight any settler who comes close, and settlers who see them fight back. The first rebel of a band is its captain.
+- **Where to see them.** The Census has a Pirates group (pirates and hideouts) and the chronicle records mutinies and abandoned hideouts. Saves keep the hideouts and cooldown (`pb`, `pcd`) and each pirate's origin, former realm and rank (`pg`); the creature index 9 is the pirate.
+
 ## Wildlife and sea life
 **Land:** sheep, rabbits and deer are prey (rabbits and deer flee). A mature female with a mature male within about ten tiles can give birth, then rests (sheep and deer about a year, rabbits less); breeding also slows as a kind nears its population cap (`ANIMAL_BREED` and `crowd` in `reproduction.js`). Without predators a kind needs roughly 8 to 12 years to fill the world, instead of the 1 to 4 years it took before; wolves hunt them and a small pack migrates in when wolves get scarce. When only two or three wolves remain they evolve into werewolves, a neutral, slow-growing civilization.
 
@@ -149,6 +156,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 | `z`, `seed`, `tiles`, `bld`, `bk` | world size or preset, seed, RLE terrain, houses and their kingdoms |
 | `kg`, `rl` | kingdom rows (resources, tech ids, events, unrest, age, chest, voyage cooldown, fins, hides, knowledge points, research focus, buildings, planks, bread, tools, decree) and relations; older saves stored a tech count and are migrated |
 | `pf` | professions: [creature index, profession index, tasks done] |
+| `pb`, `pcd`, `pg` | pirate hideouts [x, y, name], mutiny cooldown, pirates [creature index, origin people, persona, former realm, captain] |
 | `cr`, `ex`, `el`, `gn`, `hr`, `fm`, `inv`, `dr` | creatures, personas, iron knights, musketeers, heroes, females, the bag and ground drops |
 | `rs`, `ra`, `vc` | ore nodes and amounts, volcanoes |
 | `mk`, `mt`, `mf` | market prices, trade count, fin and hide prices |
