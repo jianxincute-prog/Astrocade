@@ -3,15 +3,15 @@
  * what the realm needs right now, and a share cap so no single trade swamps the rest. Practice earns mastery.
  * Soldiers keep the old rule (a fixed share of every people); their peacetime chores stay random. */
 export const PROFS = [
-  { id: 'farmer', n: 'Farmer', job: 'farm', w: 'farm' },
-  { id: 'lumberjack', n: 'Lumberjack', job: 'chop', w: 'chop' },
-  { id: 'miner', n: 'Miner', job: 'mine', w: 'mine' },
-  { id: 'hunter', n: 'Hunter', job: 'hunt', w: 'hunt' },
-  { id: 'fisher', n: 'Fisher', job: 'fish', w: 'fish' },
-  { id: 'gatherer', n: 'Gatherer', job: 'gather', w: 'gather' },
-  { id: 'builder', n: 'Builder', job: 'build' },
-  { id: 'soldier', n: 'Soldier', job: null },
-  { id: 'trader', n: 'Trader', job: null },
+  { id: 'farmer', ic: '🌾', n: 'Farmer', job: 'farm', w: 'farm' },
+  { id: 'lumberjack', ic: '🪓', n: 'Lumberjack', job: 'chop', w: 'chop' },
+  { id: 'miner', ic: '⛏', n: 'Miner', job: 'mine', w: 'mine' },
+  { id: 'hunter', ic: '🏹', n: 'Hunter', job: 'hunt', w: 'hunt' },
+  { id: 'fisher', ic: '🐟', n: 'Fisher', job: 'fish', w: 'fish' },
+  { id: 'gatherer', ic: '🌿', n: 'Gatherer', job: 'gather', w: 'gather' },
+  { id: 'builder', ic: '🔨', n: 'Builder', job: 'build' },
+  { id: 'soldier', ic: '🛡', n: 'Soldier', job: null },
+  { id: 'trader', ic: '🪙', n: 'Trader', job: null },
 ];
 export const PROF_IDS = PROFS.map(p => p.id);
 export const PROF_BY = Object.fromEntries(PROFS.map(p => [p.id, p]));

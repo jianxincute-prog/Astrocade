@@ -9,8 +9,9 @@
  * Edit mode : simulation frozen; sculpt terrain or regenerate the world. The result is
  *             written to gameConfig.world (RLE tiles) and becomes the play-mode start map.
  */
-import { PROF_IDS, PROF_BY, needBoost, pickProfession, masteryLevel, MASTERY_NAME, yieldMult, speedMult, buildDiscount, traderGold, traderCd } from './professions.js';
+import { PROFS, PROF_IDS, PROF_BY, needBoost, pickProfession, masteryLevel, MASTERY_NAME, yieldMult, speedMult, buildDiscount, traderGold, traderCd } from './professions.js';
 import { JOB_W } from './jobs.js';
+import { drawOutfit } from './outfits.js';
 import { pickJob, workLen, reach, swingPhase, swingCycle, isStrikeFrame, IMPACT, JOB_YIELD, CARRY, STATUS, addYield } from './jobs.js';
 import { drawWorker, drawCarry } from './work_anim.js';
 import { charScale, CHAR_SIZE_MIN, CHAR_SIZE_MAX } from './sizing.js';
@@ -4131,6 +4132,7 @@ function draw() {
       if (c === selected) { ctx.strokeStyle = `rgba(255,214,74,${.65 + .3*Math.sin(frame*.2)})`; ctx.lineWidth = Math.max(2, CHR_K*.7); ctx.beginPath(); ctx.ellipse(cx, fy - sw*.03, sw*.55, sw*.2, 0, 0, 7); ctx.stroke(); }
       if (c.face < 0) { ctx.save(); ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.drawImage(spr, -sw/2 + lunge, fy - sh, sw, sh); ctx.restore(); }
       else ctx.drawImage(spr, cx - sw/2 + lunge, fy - sh, sw, sh);
+      if (c.prof && sc >= 5 && !c.elite && !c.lead) drawOutfit(ctx, { prof: c.prof, race: c.t, cx: cx + lunge, fy, sw, sh, spw: spr.width, hd: c.face < 0 ? -1 : 1, col: RACES[c.t].col });     // profession clothes
       if (c.elite) {                                                                    // iron knight: helmet, crest and shield over the race sprite
         const K = CHR_K, mx = cx + lunge, hd = c.face < 0 ? -1 : 1;
         ctx.fillStyle = '#c0c8d4'; ctx.fillRect(mx - sw*.27, fy - sh - K*.5, sw*.54, K*2.5);
@@ -4735,7 +4737,7 @@ function roleOf(c) {
   const R = RACES[c.t];
   if (R.cart) return 'Merchant'; if (R.engine) return 'War machine';
   if (c.hero) return 'Hero'; if (c.gun) return 'Musketeer'; if (c.elite) return 'Iron knight'; if (c.lead) return 'Leader';
-  if (R.civ) return isSoldier(c) ? 'Soldier' : c.prof ? PROF_BY[c.prof].n : 'Citizen';
+  if (R.civ) return isSoldier(c) ? '🛡 Soldier' : c.prof ? PROF_BY[c.prof].ic + ' ' + PROF_BY[c.prof].n : 'Citizen';
   return R.hunt ? 'Hunter' : 'Prey';
 }
 function statusOf(c) {
@@ -5239,10 +5241,12 @@ function censusSheet() {
   let wars = 0, allies = 0, pacts = 0; for (const r of rels.values()) { if (r.s === 1) wars++; else if (r.s === 2) allies++; else if (r.s === REL.PACT) pacts++; }
   let sick = 0; for (const k of kingdoms.values()) if (k.ev && k.ev.type === 'plague') sick++;
   let adults = 0, young = 0, fem = 0, mal = 0, knights = 0, guns = 0, heroes = 0;
+  const pcn = {};
   for (const c of creatures) {
     if (RACES[c.t].engine || c.hp <= 0) continue;
     if (isAdult(c.age, c.life)) adults++; else young++; if (c.f) fem++; else mal++;
     if (c.hero) heroes++; else if (c.gun) guns++; else if (c.elite) knights++;
+    if (c.prof) pcn[c.prof] = (pcn[c.prof] | 0) + 1;
   }
   let maxAge = 0, ageKing = null, techs = 0, blds = 0, wonders = 0;
   for (const k of kingdoms.values()) { if (!ageKing || (k.age | 0) > maxAge) { maxAge = k.age | 0; ageKing = k; } techs += k.tech.length; blds += k.bld.length; if (k.bld.includes('wonder')) wonders++; }
@@ -5250,6 +5254,7 @@ function censusSheet() {
   const nk = Math.max(1, kingdoms.size);
   return `<div class="sh"><span>Census · ${seasonOf(tick).n}, year ${Math.floor(tick / 120)}</span><button class="awb" data-act="shclose" aria-label="Close">✖</button></div><div class="grid">`
     + grp('Civilizations', [['human', 'Humans'], ['elf', 'Elves'], ['dwarf', 'Dwarves'], ['orc', 'Orcs'], ['werewolf', 'Werewolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
+    + grp('Professions', PROFS.map(p => [p.ic, p.n, pcn[p.id] | 0]))
     + grp('Wildlife', [['sheep', 'Sheep'], ['rabbit', 'Rabbits'], ['deer', 'Deer'], ['wolf', 'Wolves']].map(([r, n]) => [EMOJI[r], n, counts[r] || 0]))
     + grp('Life stages', [['🧑', 'Adults', adults], ['🌱', 'Young', young], ['❤️', 'Females', fem], ['🛡', 'Males', mal]])
     + grp('Sea life', [['🐟', 'Fish shoals', shoals.length], ['🦈', 'Sharks', sharks.length], ['🐙', 'Krakens', krakens.length]])
