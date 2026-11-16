@@ -13,6 +13,9 @@ All people, celebrities and scandals are fictional. Gossip files are harmless co
 ## Horror
 A framed old photo hangs in every corner of the house (10 frames). It always shows the same pale figure at the end of a dark hallway, and the figure's eyes follow the player. While the player is in another room the figure creeps closer (the cap grows with each clue found and at midnight). Photos that can see the player raise a red fear vignette and a haptic heartbeat. Inspect a frame for text that changes with how close the figure is. Non-graphic: silhouettes and eyes only.
 
+## Characters
+The player, Rani and the neighbours have detailed faces and outfits. Neighbours turn their head to you; when Bu Wati, Pak Darto or Rani talk, the camera cuts to a close-up of their face (collision-aware, never blocked by the player) while their mouth moves.
+
 ## Doors
 Six hinged doors (bedroom, kitchen, living room, dining room, front door, storage). Use the action button to open or close; a door will not close while you stand in it. The storage door has a red/green lock light and opens when enough clues are found.
 
@@ -25,7 +28,7 @@ Six hinged doors (bedroom, kitchen, living room, dining room, front door, storag
 - `src/doors.mjs` — hinged door system (animation, colliders, locking, blocking check).
 - `src/watchers.mjs` — the watching photos: procedural photo textures per stage, tracking eyes, creeping, fear score.
 - `src/neighborhood.mjs` — the housing complex: main road with zebra crossing, cross street, ~14 houses, parked and moving cars, street lamps, pos ronda, warung, fences; walkable bounds and zone names.
-- `src/actors.mjs` — low-poly character builder (player and Rani).
+- `src/actors.mjs` — low-poly character factory with real faces (eyes with iris and highlight, brows, nose, mouth, ears, cheeks), hair styles (short, long, hijab, grey), outfits, hands and shoes. Each body part is baked into one vertex-coloured mesh (~9 draw calls per character). Animations: walk, breathing, blinking, head turning towards the player, mouth moving while talking. `LOOKS` holds the cast (player, Rani, Bu Wati, Pak Darto).
 - `src/phone.mjs` — in-game phone overlay (Messages, Photos, Contacts, Notes, Phone, AFTER) with full-screen photo viewer.
 - `src/story.mjs` — contacts, messages, notes, AFTER archive, clues, finale text and endings.
 - `src/logic.mjs` — pure clock rules. `tests/logic.test.mjs` — Node unit tests (`node --test tests/logic.test.mjs tests/neighborhood.test.mjs`).

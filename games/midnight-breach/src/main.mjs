@@ -5,7 +5,7 @@ import { clockDisplayAt } from './logic.mjs';
 import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, ENDINGS, FINALE, NPC, PHOTO_LINES } from './story.mjs';
 import { BOUNDS, NPC_SPOTS } from './neighborhood.mjs';
 import { buildWorld, roomAt, SPOTS } from './world.mjs';
-import { makeCharacter } from './actors.mjs';
+import { makeCharacter, LOOKS } from './actors.mjs';
 import { createPhone, preloadPhotos } from './phone.mjs';
 
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -88,15 +88,15 @@ export async function mountGame(mode) {
   const camera = new T.PerspectiveCamera(48, width() / height(), 0.1, 160);
   const world = buildWorld();
   scene.add(world.group);
-  const player = makeCharacter({ shirt: 0x4aa8c8, pants: 0x2b3050, hair: 0x14121c });
+  const player = makeCharacter(LOOKS.player);
   scene.add(player);
-  const rani = makeCharacter({ shirt: 0xe07a82, pants: 0x3a3454, hair: 0x2a1a20, ghost: true });
+  const rani = makeCharacter(LOOKS.rani);
   rani.position.set(SPOTS.rani.x, 0, SPOTS.rani.z);
   rani.visible = false;
   scene.add(rani);
   const npcs = {
-    wati: makeCharacter({ skin: 0xd9a784, shirt: 0xd070a0, pants: 0x4a3a5a, hair: 0x6a3a5a }),
-    darto: makeCharacter({ skin: 0xc9966e, shirt: 0xf0f0f0, pants: 0x3a5a8a, hair: 0xaaaaaa }),
+    wati: makeCharacter(LOOKS.wati),
+    darto: makeCharacter(LOOKS.darto),
   };
   for (const id in npcs) {
     npcs[id].position.set(NPC_SPOTS[id].x, 0, NPC_SPOTS[id].z);
@@ -507,7 +507,7 @@ export async function mountGame(mode) {
     haptic('warning');
     openPhone({ event: true });
   }
-  const camWant = new T.Vector3();
+  const camWant = new T.Vector3(), lookWant = new T.Vector3(), lookCur = new T.Vector3(0, 0.3, 0);
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const dt = Math.min(0.11, (now - (lastT || now)) / 1000);
@@ -547,16 +547,25 @@ export async function mountGame(mode) {
       const b = world.beacons[id];
       if (b.visible) { b.position.y = 1.9 + Math.sin(simTime * 3) * 0.12; b.rotation.y = simTime * 1.5; }
     }
+    const wrap = a => ((a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    const dlg = state.dialog;
+    const speaker = dlg ? (dlg.choices ? dlg.lines[dlg.lines.length - 1] : dlg.lines[dlg.i])?.who : null;
     for (const id in npcs) {
       const n = npcs[id], sp = NPC_SPOTS[id];
-      const close = Math.hypot(state.px - sp.x, state.pz - sp.z) < 6;
-      const want = close ? Math.atan2(state.px - sp.x, state.pz - sp.z) : sp.face;
-      n.rotation.y += (((want - n.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 5);
-      n.userData.walk(0, 0);
+      const dist = Math.hypot(state.px - sp.x, state.pz - sp.z);
+      const toPlayer = Math.atan2(state.px - sp.x, state.pz - sp.z);
+      const want = dist < 6 ? toPlayer : sp.face;
+      n.rotation.y += wrap(want - n.rotation.y) * Math.min(1, dt * 5);
+      n.userData.look(dist < 10 ? wrap(toPlayer - n.rotation.y) : 0);
+      n.userData.setTalking(speaker === NPC[id].label);
+      n.userData.walk(simTime, 0);
     }
     if (rani.visible) {
       rani.position.y = Math.sin(simTime * 1.6) * 0.06;
       rani.rotation.y = Math.atan2(state.px - rani.position.x, state.pz - rani.position.z);
+      rani.userData.look(0);
+      rani.userData.setTalking(speaker === 'Rani');
+      rani.userData.walk(simTime, 0);
     }
 
     // horror: photos watch from every corner, doors open by themselves after midnight
@@ -585,14 +594,40 @@ export async function mountGame(mode) {
       }
     }
     if (playing || state.phase === 'ending') {
-      camWant.set(state.px, 12.4, state.pz + 8.8);
-      camera.position.lerp(camWant, 1 - Math.exp(-6 * dt));
-      camera.lookAt(state.px, 0.3, state.pz - 0.4);
+      // Cinematic close-up on whoever is talking (Rani or a neighbour), otherwise the follow camera.
+      let talker = playing ? (speaker === 'Rani' && rani.visible ? rani : speaker === 'Bu Wati' ? npcs.wati : speaker === 'Pak Darto' ? npcs.darto : null) : null;
+      if (talker) {
+        // pick a free spot beside the line of sight (so the player never blocks the face)
+        const ry = talker.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry), rx = fz, rz = -fx;
+        const tx = talker.position.x, tz = talker.position.z;
+        // choose the free spot whose line of sight to the face stays farthest from the player
+        let spot = null, bestClear = -1;
+        const segDist = (px, pz, ax, az, bx, bz) => {
+          const dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1)));
+          return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+        };
+        for (const [fa, ra] of [[1.9, 1.9], [1.9, -1.9], [2.7, 1.3], [2.7, -1.3], [3.3, 0.5], [3.3, -0.5]]) {
+          const cx = tx + fx * fa + rx * ra, cz = tz + fz * fa + rz * ra;
+          if (hit(cx, cz)) continue;
+          const clear = segDist(state.px, state.pz, cx, cz, tx, tz);
+          if (clear > bestClear) { bestClear = clear; spot = [cx, cz]; }
+        }
+        if (spot) { camWant.set(spot[0], 1.8, spot[1]); lookWant.set(tx, 1.32 + talker.position.y, tz); } else talker = null;
+      }
+      if (!talker) {
+        camWant.set(state.px, 11.2, state.pz + 8.0);
+        lookWant.set(state.px, 0.3, state.pz - 0.4);
+      }
+      const k = 1 - Math.exp(-(talker ? 4 : 5) * dt);
+      camera.position.lerp(camWant, k);
+      lookCur.lerp(lookWant, k);
+      camera.lookAt(lookCur);
     } else {
       const a = simTime * 0.1;
       camera.position.set(Math.sin(a) * 34, 26, 8 + Math.cos(a) * 34);
       camera.lookAt(2, 0, 8);
     }
+    if (window.__camHold) { camera.position.set(...window.__camHold.pos); camera.lookAt(...window.__camHold.look); }
     if (playing) {
       updateNearest();
       if (Math.floor(simTime * 4) !== Math.floor((simTime - dt) * 4)) { updateHud(); phone.tick(); }
@@ -610,7 +645,7 @@ export async function mountGame(mode) {
   };
 
   // Debug hook so automated checks can drive the game deterministically.
-  window.__mb = { state, interactables, doors: world.doors, watchers: world.watchers, openPhone, closePhone, interact, say, advanceDialog, clock, world, camera, scene, SPOTS };
+  window.__mb = { chars: { player, rani, ...npcs }, state, interactables, doors: world.doors, watchers: world.watchers, openPhone, closePhone, interact, say, advanceDialog, clock, world, camera, scene, SPOTS };
 
   // ---------------- Boot ----------------
   setProgress(0.8, 'Menyiapkan ponsel…');
