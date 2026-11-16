@@ -37,6 +37,7 @@ export const STATUS = {
   farm: ['Going to the fields', 'Farming', 'Bringing wheat'],
   fish: ['Going fishing', 'Fishing', 'Bringing fish'],
   gather: ['Going foraging', 'Foraging', 'Bringing berries'],
+  build: ['Going to a building site', 'Building', 'Building'],
 };
 
 /** Weighted pick among the jobs that are available right now. `avail` maps job -> bool. */
@@ -58,7 +59,7 @@ export function workLen(job, rnd) { return job === 'fish' ? 22 + Math.floor(rnd 
 export function reach(job, race) { return job === 'farm' || job === 'fish' ? 0 : job === 'hunt' ? (race === 'elf' ? 3 : 1) : 1; }
 
 /** Swing period in render frames per job (fishing has no swing). */
-export const PERIOD = { chop: 34, mine: 38, farm: 42, gather: 30, fish: 90, hunt: 24 };
+export const PERIOD = { build: 36, chop: 34, mine: 38, farm: 42, gather: 30, fish: 90, hunt: 24 };
 
 /** 0..1 position in the current swing cycle. */
 export function swingPhase(frame, id, job) { const p = PERIOD[job] || 36; return ((frame + id * 7) % p) / p; }

@@ -33,6 +33,7 @@ Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, soun
 | `scenarios.js` | Pure scenario definitions and progress rules (v3.0). |
 | `diplomacy.js` | Pure diplomacy rules: trade pacts, alliances, breaks, betrayal and aid between partners (v3.5). |
 | `reproduction.js` | Pure life-cycle rules: sexes, adulthood, breeding rates, parents and mixed crews (v3.0). |
+| `professions.js` | Pure logic for lifelong professions: race liking, realm needs, share cap, mastery, builder and trader effects. |
 | `jobs.js` | Pure logic for everyday jobs: chop, mine, hunt, farm, fish, gather (race weights, yields, work length, swing timing). |
 | `work_anim.js` | Canvas drawing for the work animations (axes, pickaxes, hoes, spears, bows, claws, fishing rods) and carried goods. |
 | `sizing.js` | Pure helper for the Character Size setting (0.6 to 2, default 1.2). |
@@ -95,6 +96,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Score and goals:** the Score button submits the **civilization score** (per kingdom: 2 x population + 3 x houses + 60 x level + 20 x techs + 80 x age + 15 x buildings, plus 120 for a wonder and half a point per bronze, iron or silver; then 25 per hero, 10 per musketeer, 40 per people with a kingdom, 300 for a won scenario, 2 per year and 3 per trade); higher is better. The Chronicle keeps the last 60 events, and 33 optional goals in seven groups (Civilization, Knowledge, Industry, Diplomacy, Military, The sea, Life and time) are tracked in the Goals tab: population milestones, kingdom levels, ages, tech counts, wonders, roads, trade, decrees, pacts and alliances, unions, heroes and musketeers, warships, colonies, sharks, the kraken, births, wandering bands, years survived, scenarios and score. Each goal reached adds 50 score and shows a banner; progress is saved (`go`, `gs`).
 
 ## Individuals and equipment
+- **Professions (v4.0, in progress):** every adult settler gets ONE lifelong profession from its kingdom, chosen once when they grow up and never changed: Farmer, Lumberjack, Miner, Hunter, Fisher, Gatherer, Builder, Soldier or Trader. The choice follows the people's liking for each trade (dwarves love the mine, elves forage, werewolves hunt), what the realm lacks (hunger makes farmers, an empty woodpile lumberjacks) and a 40% share cap per trade. Soldiers keep the old fixed share of each people and do random chores in peace. Practice earns **mastery** (Apprentice, Journeyman, Skilled, Expert, Master: +10% goods per level and 6% shorter work). Builders raise the realm's labour, which makes its next building up to 25% cheaper; traders add gold and shorten the trade-cart cooldown. The panel shows the profession and mastery. Old saves give their adults a profession on the first day.
 - **Creature panel:** tap a creature to see a portrait, generated name, role (Citizen, Soldier, Leader, Iron knight, Hunter, Prey, Merchant, War machine), status, current activity, bars and tabs: Info, Family, Bag, Chest. A gold ring marks it; the target button follows it.
 - **Traits:** 0 to 2 per creature (Brave, Sturdy, Swift, Long-lived, Frail, Gifted), inherited by children (50% per trait, 85% if both parents have it, plus a 12% mutation). Settlers keep a ten-line life history.
 - **Equipment:** three slots (weapon, armour, shield) and three tiers that follow the kingdom's age, with race-specific items. Kingdoms arm their leader, knights and soldiers for wood, bronze or iron. Any race can use any item.
@@ -145,6 +147,7 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 | --- | --- |
 | `z`, `seed`, `tiles`, `bld`, `bk` | world size or preset, seed, RLE terrain, houses and their kingdoms |
 | `kg`, `rl` | kingdom rows (resources, tech ids, events, unrest, age, chest, voyage cooldown, fins, hides, knowledge points, research focus, buildings, planks, bread, tools, decree) and relations; older saves stored a tech count and are migrated |
+| `pf` | professions: [creature index, profession index, tasks done] |
 | `cr`, `ex`, `el`, `gn`, `hr`, `fm`, `inv`, `dr` | creatures, personas, iron knights, musketeers, heroes, females, the bag and ground drops |
 | `rs`, `ra`, `vc` | ore nodes and amounts, volcanoes |
 | `mk`, `mt`, `mf` | market prices, trade count, fin and hide prices |
