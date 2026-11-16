@@ -14,6 +14,6 @@ assert.deepStrictEqual([v.population, v.realm, v.peace], [49, 3, 2]);
 assert.deepStrictEqual([v.kingdoms5, v.peoples5, v.lv3x3, v.age2, v.techs15, v.wonder, v.bld6, v.ally1, v.pacts3, v.roads200, v.years100, v.years300, v.colony1, v.colony3], [3, 3, 1, 2, 15, 1, 2, 1, 4, 250, 120, 120, 2, 2]);
 const empty = objectiveValues({});
 for (const o of OBJECTIVES) assert.strictEqual(empty[o.id], 0, o.id);                                    // an empty world starts every goal at zero
-assert.deepStrictEqual(Object.keys(newGoalStats()).sort(), ['bands', 'births', 'colonies', 'decrees', 'krakenDriven', 'krakenSlain', 'scnWins', 'sharks', 'unions', 'warships']);
+assert.deepStrictEqual(Object.keys(newGoalStats()).sort(), ['bands', 'births', 'colonies', 'decrees', 'hideoutsEnded', 'krakenDriven', 'krakenSlain', 'mutinies', 'pirateSunk', 'piratesAid', 'raids', 'scnWins', 'sharks', 'unions', 'warships']);
 assert.strictEqual(objectiveRatio(25, 50), .5); assert.strictEqual(objectiveRatio(90, 50), 1); assert.strictEqual(objectiveRatio(-1, 50), 0);
 console.log('objectives tests ok');

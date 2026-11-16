@@ -16,6 +16,19 @@ export const PIRATE = {
 export const ORIGIN_RACES = ['human', 'elf', 'dwarf', 'orc'];      // werewolves never turn pirate
 export const BASE_NAMES = ['Skull Cove', 'Rum Rock', 'Black Reef', "Dead Man's Isle", 'Cutthroat Bay', 'Gallows Point', 'Rotten Keel', 'Bone Harbor'];
 
+/** A pirate raid: a ship of up to four pirates sails to a rich coastal kingdom, shells and plunders it for a while, then goes home. */
+export const RAID = { minCrew: 3, maxCrew: 4, shipHp: 70, cooldown: 900, stay: 360, range: 120, maxRoute: 220, fleeFrac: .2, volley: 30, speed: .3, shootRange: 5 };
+/** What one volley of plunder takes from a kingdom. */
+export function raidLoot(k) { return { gold: Math.min(k.gold || 0, 1.5), food: Math.min(k.food || 0, 5), wood: Math.min(k.wood || 0, 3) }; }
+/** Damage per 40 ticks that the shore does to a raiding ship: soldiers near the coast and the age of the realm (towers, cannons). */
+export function raidDefence(soldiersNear, age) { return 2 * Math.min(6, soldiersNear) + (age >= 3 ? 4 : age >= 2 ? 2 : 0); }
+/** Richer and closer kingdoms are better targets. */
+export function raidTargetScore(k, dist) { return ((k.gold || 0) + (k.food || 0) * .3 + (k.wood || 0) * .2) / (30 + dist); }
+/** Chance that a returning ship brings a new recruit: more loot, more pirates, up to the cap. */
+export function recruitChance(loot, pirates) { return pirates >= PIRATE.maxPirates ? 0 : Math.min(.7, .25 + loot * .02); }
+/** What an ally or trade partner sends to a raided kingdom (nothing when it is too poor). */
+export function aidAmount(giverGold) { return giverGold >= 20 ? 6 : 0; }
+
 /** Chance that a kingdom loses a crew in this check (0 when it is calm or too small). */
 export function defectionChance(k) {
   if (!ORIGIN_RACES.includes(k.race) || k.pop < PIRATE.minPop || k.level < 1 || k.unrest < PIRATE.unrestMin) return 0;

@@ -7,6 +7,7 @@ export const GROUPS = [
   { id: 'war', ic: '⚔️', n: 'Military' },
   { id: 'sea', ic: '🌊', n: 'The sea' },
   { id: 'life', ic: '🌱', n: 'Life and time' },
+  { id: 'pir', ic: '💀', n: 'Pirates' },
 ];
 const G = (group, id, icon, title, detail, target, v) => ({ group, id, icon, title, detail, target, v });
 /** `v(s)` reads the progress from the snapshot `s` (see objectiveValues). */
@@ -44,11 +45,17 @@ export const OBJECTIVES = [
   G('life', 'years300', '⏳', 'Three centuries', 'Let the world run for 300 years', 300, s => s.years),
   G('life', 'scenario', '🎯', 'Scenario won', 'Win any scenario', 1, s => s.g.scnWins),
   G('life', 'score3000', '🏆', 'High score', 'Reach a civilization score of 3000', 3000, s => s.score),
+  G('pir', 'mutiny1', '💀', 'Mutiny', 'Watch rebels of a restless kingdom turn pirate', 1, s => s.g.mutinies),
+  G('pir', 'raid1', '⚓', 'Under the black flag', 'See pirates raid a kingdom', 1, s => s.g.raids),
+  G('pir', 'aid1', '🤝', 'Friends in need', 'See an ally or trade partner stand by a raided kingdom', 1, s => s.g.piratesAid),
+  G('pir', 'sunk1', '💀', 'Pirate hunter', 'Sink a pirate ship', 1, s => s.g.pirateSunk),
+  G('pir', 'sunk5', '🏆', 'Scourge of the seas', 'Sink five pirate ships', 5, s => s.g.pirateSunk),
+  G('pir', 'cove1', '🏝', 'Cleared the cove', 'See a pirate hideout fall empty', 1, s => s.g.hideoutsEnded),
 ];
 export const GOAL_BONUS = 50;                       // civilization score per completed goal
 
 /** Counters that survive saves (the `gs` field). */
-export const newGoalStats = () => ({ decrees: 0, unions: 0, warships: 0, colonies: 0, sharks: 0, krakenDriven: 0, krakenSlain: 0, births: 0, bands: 0, scnWins: 0 });
+export const newGoalStats = () => ({ decrees: 0, unions: 0, warships: 0, colonies: 0, sharks: 0, krakenDriven: 0, krakenSlain: 0, births: 0, bands: 0, scnWins: 0, mutinies: 0, raids: 0, piratesAid: 0, pirateSunk: 0, hideoutsEnded: 0 });
 
 /**
  * Progress values for every goal. snap = { counts, levels[], warsEnded, ages[], techs[], wonders, kingdoms: [{level, age, techs, bld:[ids], }], ... }

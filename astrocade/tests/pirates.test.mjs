@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { PIRATE, ORIGIN_RACES, BASE_NAMES, defectionChance, bandSize, islandsOf, pickIsle, baseTile } from '../pirates.js';
+import { RAID, raidLoot, raidDefence, raidTargetScore, recruitChance, aidAmount, PIRATE, ORIGIN_RACES, BASE_NAMES, defectionChance, bandSize, islandsOf, pickIsle, baseTile } from '../pirates.js';
 
 const k = { race: 'human', pop: 20, level: 1, unrest: 60, food: 30 };
 assert.ok(defectionChance(k) > 0 && defectionChance(k) <= .6);
@@ -28,4 +28,12 @@ assert.strictEqual(pickIsle(isles, { x: 20, y: 8, isle: at(20, 8).id }, 0), null
 const bt = baseTile(label, pick.id, W, H, pick.cx, pick.cy, () => true);
 assert.ok(bt >= 0 && label[bt] === pick.id);
 assert.strictEqual(baseTile(label, pick.id, W, H, pick.cx, pick.cy, () => false), -1);
+// raids
+assert.deepStrictEqual(raidLoot({ gold: 0, food: 2, wood: 100 }), { gold: 0, food: 2, wood: 3 });         // a poor kingdom has little to take
+assert.ok(raidDefence(0, 0) === 0 && raidDefence(3, 2) === 8 && raidDefence(99, 3) === 16);              // soldiers and cannons wear a ship down
+assert.ok(raidTargetScore({ gold: 100, food: 100, wood: 100 }, 10) > raidTargetScore({ gold: 100, food: 100, wood: 100 }, 100));
+assert.ok(raidTargetScore({ gold: 200, food: 0, wood: 0 }, 50) > raidTargetScore({ gold: 10, food: 0, wood: 0 }, 50));
+assert.ok(recruitChance(0, 3) > 0 && recruitChance(100, 3) <= .7 && recruitChance(10, PIRATE.maxPirates) === 0);
+assert.strictEqual(aidAmount(5), 0); assert.ok(aidAmount(40) > 0);
+assert.ok(RAID.minCrew <= RAID.maxCrew && RAID.shipHp > 0);
 console.log('pirates tests ok');
