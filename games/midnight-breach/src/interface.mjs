@@ -22,6 +22,7 @@ const SCENE_ASSETS = {
   hall: 'entity_hallway', eye: 'entity_sky', corridor: 'entity_corridor',
 };
 const SCENE_FILE = { rain: 4812, coffee: 4790, room: 4733, hall: 7, eye: 8, corridor: 9 };
+const FULL_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const byId = (list, id) => list.find(item => item.id === id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 
@@ -59,7 +60,14 @@ function sceneImage(scene, large = false, label = '') {
   const url = assetUrl(SCENE_ASSETS[scene]);
   const image = url ? `<img class="scene-photo" src="${esc(url)}" alt="" loading="eager" decoding="async">` : '';
   const fileNo = String(SCENE_FILE[scene] ?? (2000 + Object.keys(SCENE_ASSETS).indexOf(scene) * 37)).padStart(4, '0');
-  return `<div class="scene-image scene-${esc(scene)}${large ? ' scene-large' : ''}${url ? ' has-photo' : ''}" role="img" aria-label="${esc(label)}">${image}<div class="scene-visual"><i class="shape shape-main"></i><i class="shape shape-extra"></i><i class="shape shape-third"></i></div><div class="scene-noise"></div><div class="scene-date">IMG_${fileNo}.HEIC</div></div>`;
+  const fullButton = large && url ? `<button class="photo-full-btn" data-action="photo-full" data-scene="${esc(scene)}" data-label="${esc(label)}" aria-label="Lihat foto penuh">${FULL_ICON}</button>` : '';
+  return `<div class="scene-image scene-${esc(scene)}${large ? ' scene-large' : ''}${url ? ' has-photo' : ''}" role="img" aria-label="${esc(label)}">${image}<div class="scene-visual"><i class="shape shape-main"></i><i class="shape shape-extra"></i><i class="shape shape-third"></i></div><div class="scene-noise"></div><div class="scene-date">IMG_${fileNo}.HEIC</div>${fullButton}</div>`;
+}
+// Full-screen photo viewer: the photo uncropped (contain) over a dark backdrop.
+function viewerMarkup(scene, label) {
+  const url = assetUrl(SCENE_ASSETS[scene]);
+  if (!url) return '';
+  return `<div class="photo-viewer" data-action="viewer-close" role="dialog" aria-label="${esc(label || 'Foto')}"><div class="viewer-top"><span>${esc(label)}</span><button class="viewer-close" data-action="viewer-close" aria-label="Tutup">✕</button></div><img class="viewer-photo" src="${esc(url)}" alt="${esc(label)}" decoding="async"><div class="viewer-hint">Ketuk di mana saja untuk menutup</div></div>`;
 }
 function appIcon(app, editing = false) {
   const statusDot = app.id === 'after' ? '<i class="app-dot"></i>' : '';
@@ -102,6 +110,7 @@ export function mountGame(mode) {
     toastTimer: null,
     drag: null,
     lastSecond: -1,
+    full: null,
   };
   const startedAt = Date.now();
   const elapsed = () => Math.max(0, Date.now() - startedAt);
@@ -113,6 +122,7 @@ export function mountGame(mode) {
       <div class="status-bar"><span class="status-time" id="status-time">11:48</span><span class="status-icons"><i class="signal-icon">▂▅▇</i><i class="wifi-icon">⌁</i><i class="battery"><b></b></i></span></div>
       <main class="main-view" id="main-view"></main>
       <div class="event-host" id="event-host"></div>
+      <div class="viewer-host" id="viewer-host"></div>
       <button class="home-indicator" data-action="home" aria-label="Layar utama"><span></span></button>
     </div>
   </div>`;
@@ -230,6 +240,11 @@ export function mountGame(mode) {
     return `<div class="midnight-flash"><div class="event-card"><div class="event-topline"><span><i></i> BERKAS MASUK</span><span>00:00</span></div>${sceneImage(entry.scene, true, 'Siluet asing di balik kaca')}<div class="event-copy"><span class="tiny-kicker">SUMBER TIDAK DIKENAL</span><h2>${esc(entry.name)}</h2><p>Foto baru tersimpan. Kamera tidak sedang digunakan.</p></div><div class="event-actions"><button class="event-open" data-action="event-open">LIHAT BERKAS <span>↗</span></button><button class="event-close" data-action="event-close">ABAIKAN</button></div><div class="event-glitch">00:00&nbsp; 00:00&nbsp; 00:00&nbsp; 00:00</div></div></div>`;
   }
 
+  // Only the viewer layer re-renders, so the page underneath keeps its scroll position.
+  function renderViewer() {
+    const host = root.querySelector('#viewer-host');
+    if (host) host.innerHTML = state.full ? viewerMarkup(state.full.scene, state.full.label) : '';
+  }
   function showToast(text) {
     let toast = root.querySelector('.toast');
     if (!toast) {
@@ -264,6 +279,14 @@ export function mountGame(mode) {
     }
     const action = target.dataset.action;
     const id = target.dataset.id;
+    if (action === 'photo-full') {
+      event.stopPropagation();
+      state.full = { scene: target.dataset.scene, label: target.dataset.label || '' };
+      try { window.lib?.haptics?.play('tick'); } catch (_) {}
+      renderViewer();
+      return;
+    }
+    if (action === 'viewer-close') { state.full = null; renderViewer(); return; }
     if (action === 'home') goHome();
     else if (action === 'open-app') {
       if (isEditor) { showToast('Pindahkan ikon untuk mengatur layar.'); return; }
@@ -321,7 +344,10 @@ export function mountGame(mode) {
     render();
   };
   root.onpointercancel = () => { state.drag = null; };
+  const onKey = event => { if (event.key === 'Escape' && state.full) { state.full = null; renderViewer(); } };
+  window.addEventListener('keydown', onKey);
   window.__midnightBreachCleanup = () => {
+    window.removeEventListener('keydown', onKey);
     clearInterval(timerId);
     clearTimeout(state.toastTimer);
     root.onclick = root.onpointerdown = root.onpointermove = root.onpointerup = root.onpointercancel = null;
