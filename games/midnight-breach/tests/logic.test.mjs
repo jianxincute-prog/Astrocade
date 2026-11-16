@@ -34,7 +34,8 @@ test('AFTER has friend, family, neighbour and celebrity secrets readable before 
 });
 
 test('every clue is hinted by exactly one AFTER file and the storage can be opened', () => {
-  assert.equal(CLUES.length, 5);
+  assert.equal(CLUES.length, 7);
+  assert.ok(CLUES.filter(c => c.act === 1).length >= 3 && CLUES.filter(c => c.act === 2).length >= 3);
   for (const clue of CLUES) {
     const source = ARCHIVE.find(a => a.id === clue.from);
     assert.ok(source, clue.id);

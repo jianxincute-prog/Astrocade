@@ -398,5 +398,37 @@
     "loop": null,
     "opus_url": null,
     "animation": null
+  },
+  "portrait_sari": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7J27D3JJRW618S7KJ0S2FV2_1d9c3805-1976-48de-ab5f-ae2b50b227a7_d782dd9f-3ee3-4a68-9e50-9b17b13923b8.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_sari": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7J27EK2PSWDHYEEEXZFQJ99_def09dc4-1b83-4233-b132-c0faa3528306_030bc9f4-f6cd-4fdf-8f6f-e63c5060e553.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
   }
 }

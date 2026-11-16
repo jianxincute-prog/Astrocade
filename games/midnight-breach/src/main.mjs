@@ -2,7 +2,7 @@
 // follow its clues, and find Rani before the phone clock (and your memory) moves on.
 import { T, loadThree } from './three-loader.mjs';
 import { clockDisplayAt } from './logic.mjs';
-import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, ENDINGS, FINALE, NPC, PHOTO_LINES } from './story.mjs';
+import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, CLUES_TO_SHOW_ADDRESS, ENDINGS, FINALE, NPC, PHOTO_LINES } from './story.mjs';
 import { BOUNDS, NPC_SPOTS } from './neighborhood.mjs';
 import { buildWorld, roomAt, SPOTS } from './world.mjs';
 import { makeCharacter, LOOKS } from './actors.mjs';
@@ -214,12 +214,12 @@ export async function mountGame(mode) {
     toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   }
   function goalText() {
-    if (state.storageOpen) return 'Temui Rani di gudang';
-    if (state.found.size >= CLUES_TO_OPEN_STORAGE) return 'Coba pintu gudang';
+    if (state.storageOpen) return 'Temui Rani di rumah lamanya';
+    if (state.found.size >= CLUES_TO_OPEN_STORAGE) return 'Pergi ke rumah Rani (ujung barat)';
     const hinted = CLUES.find(c => state.read.has(c.from) && !state.found.has(c.id));
     if (hinted) return `Cari: ${hinted.place}`;
     if (!CLUE_ENTRIES.some(e => state.read.has(e.id))) return 'Buka ponsel › AFTER';
-    return 'Baca berkas AFTER lain';
+    return state.found.size >= CLUES_TO_SHOW_ADDRESS ? 'Jelajahi komplek: baca AFTER lagi' : 'Baca berkas AFTER lain';
   }
   let lastHud = '';
   function updateHud(force) {
@@ -236,6 +236,7 @@ export async function mountGame(mode) {
   }
   function syncWorldHints() {
     for (const clue of CLUES) world.beacons[clue.id].visible = state.read.has(clue.from) && !state.found.has(clue.id);
+    world.beacons.ranidoor.visible = state.found.size >= CLUES_TO_OPEN_STORAGE && !state.storageOpen;
     updateHud(true);
   }
 
@@ -282,7 +283,8 @@ export async function mountGame(mode) {
     syncWorldHints();
     saveSoon();
     say([{ who: clue.title, text: clue.text }], () => {
-      if (state.found.size === CLUES_TO_OPEN_STORAGE) hudToast('Dari gudang terdengar tiga ketukan…');
+      if (state.found.size === CLUES_TO_SHOW_ADDRESS) hudToast('Alamatnya: Blok C-7, ujung barat komplek.');
+      else if (state.found.size === CLUES_TO_OPEN_STORAGE) hudToast('Dari ujung barat komplek terdengar tiga ketukan…');
     });
   }
   const interactables = [
@@ -317,19 +319,20 @@ export async function mountGame(mode) {
       use() { haptic('warning'); say([{ who: 'Foto', text: PHOTO_LINES[f.stage] }]); },
     })),
     {
-      id: 'gudang', x: SPOTS.gudangDoor.x, z: SPOTS.gudangDoor.z, r: 1.7, label: 'Pintu gudang',
+      id: 'ranidoor', x: SPOTS.ranidoor.x, z: SPOTS.ranidoor.z, r: 1.9, label: 'Pintu rumah Rani',
       available: () => !state.storageOpen,
       use() {
         if (state.found.size < CLUES_TO_OPEN_STORAGE) {
           haptic('error');
-          return say([{ who: 'Pintu gudang', text: `Terkunci. Aku belum cukup tahu. (${state.found.size}/${CLUES_TO_OPEN_STORAGE} catatan)` }]);
+          return say([{ who: 'Pintu rumah Rani', text: `Terkunci. Rumah ini sudah lama kosong, dan aku belum cukup tahu. (${state.found.size}/${CLUES_TO_OPEN_STORAGE} catatan)` }]);
         }
         state.storageOpen = true;
         world.openStorageDoor();
         rani.visible = true;
         haptic('warning');
         saveSoon();
-        say([{ who: 'Pintu gudang', text: 'Tiga ketukan. Pintunya terbuka sendiri.' }], () => updateHud(true));
+        syncWorldHints();
+        say([{ who: 'Pintu rumah Rani', text: 'Tiga ketukan dari dalam. Pintunya terbuka sendiri.' }], () => updateHud(true));
       },
     },
     {
@@ -448,7 +451,7 @@ export async function mountGame(mode) {
     $('panel').querySelectorAll('[data-q]').forEach(b => { b.onclick = () => { state.quality = b.dataset.q; applyQuality(); saveSoon(); showSettings(); }; });
   }
   function showHelp() {
-    showPanel(`<h3>Cara main</h3><p class="help">Jelajahi rumah. Buka ponsel › AFTER dan baca berkasnya: tiap rahasia teman, keluarga, dan tetangga membuka satu petunjuk. Temukan ${CLUES_TO_OPEN_STORAGE} catatan untuk membuka gudang.</p><p class="help">Sentuh: geser joystick, ketuk tombol periksa. PC: WASD / panah, E atau Spasi, P untuk ponsel.</p>`);
+    showPanel(`<h3>Cara main</h3><p class="help">Jelajahi rumah, lalu komplek. Buka ponsel › AFTER dan baca berkasnya: tiap rahasia teman, keluarga, dan tetangga membuka satu petunjuk. Temukan ${CLUES_TO_OPEN_STORAGE} catatan untuk membuka rumah Rani di ujung barat.</p><p class="help">Sentuh: geser joystick, ketuk tombol periksa. PC: WASD / panah, E atau Spasi, P untuk ponsel.</p>`);
   }
 
   // ---------------- Input ----------------
@@ -606,15 +609,19 @@ export async function mountGame(mode) {
           const dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1)));
           return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
         };
-        for (const [fa, ra] of [[1.9, 1.9], [1.9, -1.9], [2.7, 1.3], [2.7, -1.3], [3.3, 0.5], [3.3, -0.5]]) {
-          const cx = tx + fx * fa + rx * ra, cz = tz + fz * fa + rz * ra;
-          if (hit(cx, cz)) continue;
-          const clear = segDist(state.px, state.pz, cx, cz, tx, tz);
-          if (clear > bestClear) { bestClear = clear; spot = [cx, cz]; }
+        // frontal shot first (smallest angle from the facing direction); hide the player if in the way
+        search: for (const ang of [0, 0.3, -0.3, 0.6, -0.6, 1.0, -1.0, 1.4, -1.4, 1.7, -1.7]) {
+          for (const dist of [2.4, 1.9]) {
+            const cx = tx + Math.sin(ry + ang) * dist, cz = tz + Math.cos(ry + ang) * dist;
+            if (hit(cx, cz)) continue;
+            spot = [cx, cz]; bestClear = segDist(state.px, state.pz, cx, cz, tx, tz);
+            break search;
+          }
         }
-        if (spot) { camWant.set(spot[0], 1.8, spot[1]); lookWant.set(tx, 1.32 + talker.position.y, tz); } else talker = null;
+        if (spot) { camWant.set(spot[0], 1.65, spot[1]); lookWant.set(tx, 1.3 + talker.position.y, tz); player.visible = bestClear > 1.7; } else talker = null;
       }
       if (!talker) {
+        player.visible = true;
         camWant.set(state.px, 11.2, state.pz + 8.0);
         lookWant.set(state.px, 0.3, state.pz - 0.4);
       }

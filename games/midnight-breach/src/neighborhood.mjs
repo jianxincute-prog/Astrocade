@@ -119,12 +119,54 @@ export function buildNeighborhood(ctx) {
     return { x: cx, z: fz + dir * 1.2 };
   };
 
+  // Rani's old house (x -33..-25, z -3..5): a cutaway room like the player's house, entered through
+  // the hinged door at x -29.9..-28.1 on the south wall (see doors.mjs). The finale happens inside.
+  function buildRaniHouse() {
+    const H = 1.7, T3 = 0.3, wall = 0x6a5f7a, trim = 0x2a2d48;
+    floor(-33, -25, -3, 5, 0x6a5848);
+    for (let i = 0; i < 8; i++) box(8, 0.012, 0.03, -29, -2.5 + i, 0x5a4838, { y0: 0.001 });       // floorboards
+    box(8.3, H, T3, -29, -3, wall, { collide: true });                                             // north
+    box(T3, H, 8.3, -33, 1, wall, { collide: true }); box(T3, H, 8.3, -25, 1, wall, { collide: true }); // west, east
+    box(3.25, H, T3, -31.525, 5, wall, { collide: true }); box(3.15, H, T3, -26.575, 5, wall, { collide: true }); // south, door gap in between
+    for (const [x, z, w, d] of [[-29, -3, 8.4, 0.36], [-33, 1, 0.36, 8.4], [-25, 1, 0.36, 8.4], [-31.525, 5, 3.3, 0.36], [-26.575, 5, 3.2, 0.36]]) box(w, 0.08, d, x, z, trim, { y0: H });
+    // windows (north wall) with frames, curtains
+    for (const x of [-31, -27]) {
+      box(1.3, 0.8, 0.06, x, -2.84, 0, { y0: 0.6, mat: ctx.winMat });
+      box(1.44, 0.07, 0.1, x, -2.84, 0xd8cfc0, { y0: 1.4 }); box(1.44, 0.07, 0.1, x, -2.84, 0xd8cfc0, { y0: 0.53 });
+      box(0.26, 1.1, 0.1, x - 0.85, -2.82, 0x7a4a6a, { y0: 0.35 }); box(0.26, 1.1, 0.1, x + 0.85, -2.82, 0x7a4a6a, { y0: 0.35 });
+    }
+    // furniture: bed, desk, wardrobe, shelf, rug, moving boxes and a small suitcase
+    box(2.0, 0.45, 2.2, -31.7, -1.8, 0xb07090, { collide: true }); box(2.0, 0.1, 1.5, -31.7, -1.3, 0xd8a0c0, { y0: 0.45 });
+    box(2.2, 0.9, 0.12, -31.7, -2.84, 0x5a3a48); box(0.8, 0.12, 0.5, -32.2, -2.5, 0xf2e8f0, { y0: 0.45 });
+    box(1.6, 0.75, 0.8, -26.4, -2.3, 0x8c6a4a, { collide: true }); box(0.2, 0.3, 0.2, -26.9, -2.3, 0x3a2a20, { y0: 0.75 });
+    box(0.22, 0.16, 0.22, -26.9, -2.3, 0, { y0: 1.05, mat: ctx.warmWin });
+    box(0.12, 0.12, 0.12, -25.9, -2.3, 0xf4f4f0, { y0: 0.75 }); box(0.12, 0.12, 0.12, -25.7, -2.0, 0xf4f4f0, { y0: 0.75 });   // two cups of tea
+    box(0.9, 1.5, 0.9, -32.45, 3.0, 0x5a4636, { collide: true });
+    box(0.35, 1.5, 1.6, -25.4, 1.5, 0x6a4a2e, { collide: true });
+    for (const [y, c] of [[0.35, 0xa04a4a], [0.75, 0x3a6a8a], [1.15, 0xc8a050]]) box(0.3, 0.1, 1.4, -25.45, 1.5, c, { y0: y });
+    box(3.0, 0.02, 2.4, -29, 1.4, 0x3a2e48, { y0: 0.005 }); box(2.6, 0.025, 2.0, -29, 1.4, 0x6a4f7a, { y0: 0.005 });
+    box(0.9, 0.5, 0.4, -27.0, 3.9, 0x2a2a34, { collide: true }); box(0.04, 0.5, 0.42, -27.0, 3.9, 0xd8b860, { y0: 0 }); // the suitcase
+    box(0.7, 0.6, 0.6, -32.4, 4.2, 0x9a7a4a, { collide: true }); box(0.6, 0.5, 0.5, -31.6, 4.4, 0x8a6a3a, { collide: true });
+    // the AFTER terminal: a tall dark frame with a purple glass
+    box(1.8, 1.6, 0.1, -29, -2.9, 0x1c1830, { y0: 0.1 }); box(1.5, 1.3, 0.06, -29, -2.84, 0, { y0: 0.25, mat: glow(0x7a55d0) });
+    // fairy lights and a pendant lamp
+    for (let i = 0; i < 9; i++) box(0.1, 0.1, 0.1, -32.4 + i * 0.8, -2.82, 0, { y0: 1.55 - (i % 2) * 0.1, mat: ctx.warmWin });
+    for (const x of [-32.8, -25.2]) box(0.12, 0.3, 0.2, x, 2.9, 0x2a2a30, { y0: 1.1 }), box(0.1, 0.14, 0.14, x, 2.9, 0, { y0: 1.4, mat: ctx.warmWin }); // wall lamps
+    // porch: step, doormat, and the bench where the second cup of tea is left every night
+    box(2.2, 0.12, 0.7, -29, 5.45, 0x6a6a72); box(1.4, 0.02, 0.7, -29, 6.1, 0x3a3a3a, { y0: 0.005 });
+    box(1.6, 0.45, 0.5, -26.4, 6.6, 0x5a3e2a, { collide: true }); box(0.14, 0.14, 0.14, -26.4, 6.6, 0xf4f4f0, { y0: 0.45 });
+    box(0.45, 0.5, 0.45, -32.2, 5.8, 0x5a3e2a, { collide: true }); box(0.55, 0.45, 0.55, -32.2, 5.8, 0x3a8a4a, { y0: 0.5 });
+    box(0.22, 0.22, 0.22, -30.4, 5.2, 0, { y0: 1.45, mat: ctx.warmWin });                               // porch lamp
+  }
+
   // ---------- Houses on the player's side of the street ----------
   const darto = house(13, 21, -3, 5, 's', { lit: [1] });              // Pak Darto
+  box(0.9, 0.7, 0.5, 15.2, 6.4, 0x6a4a2e, { collide: true });          // terrace table with the CCTV monitor
+  box(0.6, 0.38, 0.05, 15.2, 6.28, 0, { y0: 0.9, mat: ctx.screenMat });
   box(0.08, 0.7, 0.08, 18.6, 6.3, 0x3a2a1a);                          // bird cage pole
   box(0.5, 0.5, 0.5, 18.6, 6.3, 0xc8a85a, { y0: 1.0 });
   house(-21, -13, -3, 5, 's', { lit: [0] });
-  house(-33, -25, -3, 5, 's');
+  buildRaniHouse();                                                   // west end: the finale location
   house(36, 44, -3, 5, 's', { lit: [0, 1] });                         // decor, beyond the bounds
   house(-45, -37, -3, 5, 's');
   house(13, 21, -12, -6, 's');                                        // backyard row

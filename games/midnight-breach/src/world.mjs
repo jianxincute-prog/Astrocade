@@ -14,9 +14,11 @@ export const SPOTS = {
   ketukan: { x: 3.3, z: -5.0, label: 'Lemari tua' },
   resi: { x: -6.3, z: 1.0, label: 'Kulkas' },
   surat: { x: 4.0, z: 8.4, label: 'Kotak surat' },
-  cctv: { x: 6.6, z: 4.9, label: 'Monitor CCTV' },
-  gudangDoor: { x: 4.0, z: -3.0, label: 'Pintu gudang' },
-  rani: { x: 6.3, z: -3.2 },
+  cctv: { x: 15.2, z: 7.2, label: 'Monitor CCTV' },             // Pak Darto's terrace
+  ronda: { x: 21.2, z: 14.0, label: 'Buku ronda' },            // pos ronda
+  warung: { x: 36.0, z: 13.0, label: 'Struk warung' },         // warung at the junction
+  ranidoor: { x: -29.0, z: 5.2, label: 'Pintu rumah Rani' },
+  rani: { x: -29.0, z: 0.8 },
 };
 
 // Rooms are used for the ambient mood and for the HUD location chip.
@@ -24,6 +26,7 @@ export const ROOMS = [
   { id: 'Kamar', x1: -8, x2: -2, z1: -6, z2: 0 },
   { id: 'Ruang tamu', x1: -2, x2: 4, z1: -6, z2: 0 },
   { id: 'Gudang', x1: 4, x2: 8, z1: -6, z2: 0 },
+  { id: 'Rumah Rani', x1: -33, x2: -25, z1: -3, z2: 5 },
   { id: 'Dapur', x1: -8, x2: -2, z1: 0, z2: 6 },
   { id: 'Ruang makan', x1: -2, x2: 8, z1: 0, z2: 6 },
 ];
@@ -125,7 +128,7 @@ export function buildWorld(quality = { shadows: false }) {
   box(0.9, 0.6, 0.9, 5.0, -0.9, 0x6a5a3e, { collide: true });                    // boxes
   box(0.8, 0.5, 0.8, 5.9, -0.8, 0x7a6a4a, { collide: true });
   box(0.7, 0.9, 0.7, 5.2, -5.4, 0x5a4a38, { collide: true });
-  const mirror = box(1.6, 1.5, 0.08, 6.3, -5.9, 0, { y0: 0.2, mat: glow(0x6a4fb0) }); // AFTER terminal
+  const mirror = box(1.6, 1.5, 0.08, 6.3, -5.9, 0, { y0: 0.2, mat: glow(0x2a2440) }); // old mirror (dark)
   box(1.8, 1.7, 0.1, 6.3, -5.96, 0x1c1830, { y0: 0.1 });
   // ---------- Dapur ----------
   box(0.9, 0.9, 4.2, -7.5, 3.6, 0xb0b4c0, { collide: true });                    // counter
@@ -144,13 +147,13 @@ export function buildWorld(quality = { shadows: false }) {
   // ---------- Neighbourhood (yard, street, houses, cars) ----------
   const lampMat = glow(0xffd88a);
   const hood = buildNeighborhood({ group, colliders, box, floor, M, glow, lampMat, winMat,
-    warmWin: glow(0xffb05a), coolWin: glow(0x9bd6ff), signMat: glow(0xff9a4a) });
+    warmWin: glow(0xffb05a), coolWin: glow(0x9bd6ff), signMat: glow(0xff9a4a), screenMat: glow(0x3b8a6a) });
   colliders.push(...hood.moverCols);
 
   // ---------- Clue beacons (shown after the AFTER file hints them) ----------
   const beacons = {};
   const beaconGeo = new T.OctahedronGeometry(0.2, 0);
-  for (const id of ['tiket', 'ketukan', 'resi', 'surat', 'cctv']) {
+  for (const id of ['tiket', 'ketukan', 'resi', 'surat', 'cctv', 'ronda', 'warung', 'ranidoor']) {
     const spot = SPOTS[id];
     const m = new T.Mesh(beaconGeo, glow(0x62f0d6));
     m.position.set(spot.x, 1.9, spot.z);
@@ -176,7 +179,7 @@ export function buildWorld(quality = { shadows: false }) {
   group.add(hemi, moon, lamp);
 
   const storageLight = new T.PointLight(0x9a6aff, 0, 7, 1.6);
-  storageLight.position.set(6, 1.8, -3);
+  storageLight.position.set(-29, 1.8, 1.0);
   group.add(storageLight);
 
   // Two warm lights hop between the street lamps nearest to the player (cheap outdoor lighting).
@@ -194,8 +197,8 @@ export function buildWorld(quality = { shadows: false }) {
     },
     doors: doorSys,
     watchers,
-    openStorageDoor() { const d = doorSys.byId('gudang'); doorSys.unlock(d); doorSys.setOpen(d, true); storageLight.intensity = 14; },
-    closeStorageDoor() { doorSys.lock(doorSys.byId('gudang')); storageLight.intensity = 0; },
+    openStorageDoor() { const d = doorSys.byId('rani'); doorSys.unlock(d); doorSys.setOpen(d, true); storageLight.intensity = 14; },
+    closeStorageDoor() { doorSys.lock(doorSys.byId('rani')); storageLight.intensity = 0; },
     // mood: 0 = warm night, 1 = after midnight (cold, purple, flickering)
     setMood(mood, time) {
       const flick = mood > 0 ? (0.78 + 0.22 * Math.sin(time * 23) * Math.sin(time * 7.3)) : 1;

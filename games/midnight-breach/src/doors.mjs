@@ -8,7 +8,9 @@ export const DOOR_DEFS = [
   { id: 'tamu', label: 'Pintu ruang tamu', axis: 'x', fixed: 0, a: 0.2, b: 2.2, swing: 1 },
   { id: 'makan', label: 'Pintu ruang makan', axis: 'z', fixed: -2, a: 2.2, b: 4.0, swing: 1 },
   { id: 'depan', label: 'Pintu depan', axis: 'x', fixed: 6, a: 0.1, b: 1.9, swing: -1 },
-  { id: 'gudang', label: 'Pintu gudang', axis: 'z', fixed: 4, a: -3.9, b: -2.1, swing: 1, locked: true },
+  { id: 'gudang', label: 'Pintu gudang', axis: 'z', fixed: 4, a: -3.9, b: -2.1, swing: 1 },
+  // Rani's old house at the west end of the complex: locked until enough clues are found.
+  { id: 'rani', label: 'Pintu rumah Rani', axis: 'x', fixed: 5, a: -29.9, b: -28.1, swing: -1, locked: true },
 ];
 
 const ease = t => t * t * (3 - 2 * t);
@@ -24,7 +26,7 @@ export function buildDoors({ group, colliders, box, M }) {
     const dims = (alongSize, ySize, acrossSize) => (isX ? [alongSize, ySize, acrossSize] : [acrossSize, ySize, alongSize]);
 
     // static frame: two posts and a lintel
-    const frameColor = def.id === 'gudang' ? 0x3a2e28 : 0x4a3022;
+    const frameColor = def.id === 'rani' ? 0x3a2e28 : 0x4a3022;
     for (const edge of [a - 0.05, b + 0.05]) {
       const [fw, fh, fd] = dims(0.14, 1.7, 0.34);
       box(fw, fh, fd, isX ? edge : fixed, isX ? fixed : edge, frameColor);
@@ -39,8 +41,8 @@ export function buildDoors({ group, colliders, box, M }) {
     const [px, , pz] = pos(0, 0, 0);
     pivot.position.set(px, 0, pz);
     pivot.userData.keep = true;
-    const woodMat = M(def.id === 'gudang' ? 0x5a4636 : 0x7c4a2e, {});
-    const insetMat = M(def.id === 'gudang' ? 0x4c3a2c : 0x92603c, {});
+    const woodMat = M(def.id === 'rani' ? 0x5a4636 : 0x7c4a2e, {});
+    const insetMat = M(def.id === 'rani' ? 0x4c3a2c : 0x92603c, {});
     const handleMat = M(0xd8b860, {});
     const part = (alongSize, ySize, acrossSize, along, y, across, mat) => {
       const [sw, sh, sd] = dims(alongSize, ySize, acrossSize);
@@ -72,7 +74,7 @@ export function buildDoors({ group, colliders, box, M }) {
       : { x1: fixed - 0.1, x2: fixed + 0.1, z1: a, z2: b, enabled: true };
     colliders.push(col);
     const openAngle = (isX ? -1 : 1) * def.swing * (Math.PI / 2);
-    doors.push({ ...def, x: cx, z: cz, pivot, col, lockLight, openAngle, open: false, t: 0, locked: !!def.locked });
+    doors.push({ ...def, x: cx, z: cz, pivot, col, lockLight, openAngle, open: false, t: 0, locked: !!def.locked, startsLocked: !!def.locked });
   }
 
   const api = {
@@ -106,7 +108,7 @@ export function buildDoors({ group, colliders, box, M }) {
     },
     resetAll() {
       for (const d of doors) {
-        if (d.def?.locked || d.id === 'gudang') { api.lock(d); continue; }
+        if (d.startsLocked) { api.lock(d); continue; }
         d.open = false; d.t = 0; d.pivot.rotation.y = 0; d.col.enabled = true;
       }
     },

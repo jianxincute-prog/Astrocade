@@ -16,7 +16,7 @@ const NORMAL_PHOTOS = [
 export const SCENE_ASSETS = {
   rain: 'photo_rain', coffee: 'photo_coffee', room: 'photo_room',
   aib_rani: 'aib_rani', aib_dimas: 'aib_dimas', aib_laras: 'aib_laras', aib_hendra: 'aib_hendra',
-  aib_wati: 'aib_wati', aib_darto: 'aib_darto', aib_nara: 'aib_nara', aib_bima: 'aib_bima', aib_jessa: 'aib_jessa',
+  aib_wati: 'aib_wati', aib_sari: 'aib_sari', aib_darto: 'aib_darto', aib_nara: 'aib_nara', aib_bima: 'aib_bima', aib_jessa: 'aib_jessa',
   hall: 'entity_hallway', eye: 'entity_sky', corridor: 'entity_corridor', watch: 'entity_watcher',
 };
 const SCENE_FILE = { rain: 4812, coffee: 4790, room: 4733, hall: 7, eye: 8, corridor: 9, watch: 10 };
