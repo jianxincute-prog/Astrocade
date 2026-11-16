@@ -14,11 +14,12 @@ All people, celebrities and scandals are fictional. Gossip files are harmless co
 - `index.html` / `game.js` — entry; `window.run = run`.
 - `src/three-loader.mjs` — loads Three.js r186 as an ES module from jsDelivr (dynamic import).
 - `src/main.mjs` — loading screen, menu, quality tiers, HUD, joystick/keyboard input, camera, interactions, dialog, finale and endings, save/load, leaderboard.
-- `src/world.mjs` — procedural low-poly house, yard and street, colliders, clue beacons, mood lighting.
+- `src/world.mjs` — procedural low-poly house, colliders, clue beacons, mood lighting, per-material mesh merge.
+- `src/neighborhood.mjs` — the housing complex: main road with zebra crossing, cross street, ~14 houses, parked and moving cars, street lamps, pos ronda, warung, fences; walkable bounds and zone names.
 - `src/actors.mjs` — low-poly character builder (player and Rani).
 - `src/phone.mjs` — in-game phone overlay (Messages, Photos, Contacts, Notes, Phone, AFTER) with full-screen photo viewer.
 - `src/story.mjs` — contacts, messages, notes, AFTER archive, clues, finale text and endings.
-- `src/logic.mjs` — pure clock rules. `tests/logic.test.mjs` — Node unit tests (`node --test tests/logic.test.mjs`).
+- `src/logic.mjs` — pure clock rules. `tests/logic.test.mjs` — Node unit tests (`node --test tests/logic.test.mjs tests/neighborhood.test.mjs`).
 - `style.css` (phone UI), `game.css` (HUD/menu/dialog), `asset_map.json` (24 photorealistic images used inside the phone), `game_config.json`.
 
 ## Controls

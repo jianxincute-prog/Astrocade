@@ -1,4 +1,5 @@
 import { T } from './three-loader.mjs';
+import { buildNeighborhood, zoneAt } from './neighborhood.mjs';
 
 const WALL_H = 1.7;
 const WALL_T = 0.3;
@@ -24,7 +25,7 @@ export const ROOMS = [
   { id: 'Ruang makan', x1: -2, x2: 8, z1: 0, z2: 6 },
 ];
 export function roomAt(x, z) {
-  return ROOMS.find(r => x >= r.x1 && x <= r.x2 && z >= r.z1 && z <= r.z2)?.id || 'Halaman';
+  return ROOMS.find(r => x >= r.x1 && x <= r.x2 && z >= r.z1 && z <= r.z2)?.id || zoneAt(x, z);
 }
 
 export function buildWorld(quality = { shadows: false }) {
@@ -44,10 +45,11 @@ export function buildWorld(quality = { shadows: false }) {
     return geo.get(key);
   };
   // box centred at (x, z) with ground-level y0
-  const box = (w, h, d, x, z, color, { y0 = 0, collide = false, mat, name } = {}) => {
+  const box = (w, h, d, x, z, color, { y0 = 0, collide = false, mat, name, keep = false } = {}) => {
     const mesh = new T.Mesh(G(w, h, d), mat || M(color));
     mesh.position.set(x, y0 + h / 2, z);
     if (name) mesh.name = name;
+    if (keep) mesh.userData.keep = true;
     group.add(mesh);
     let col = null;
     if (collide) { col = { x1: x - w / 2, x2: x + w / 2, z1: z - d / 2, z2: z + d / 2, enabled: true }; colliders.push(col); }
@@ -77,13 +79,6 @@ export function buildWorld(quality = { shadows: false }) {
   floor(4, 8, -6, 0, 0x3a3d4a);     // gudang
   floor(-8, -2, 0, 6, 0x8fa3a8);    // dapur
   floor(-2, 8, 0, 6, 0x6e5340);     // ruang makan
-  // yard, road and sidewalk
-  floor(-16, 16, 6, 14, 0x2f4a3a);
-  floor(-16, 16, 14, 18, 0x2a2c36);
-  floor(-16, 16, 18, 20, 0x4a4a52);
-  floor(-16, 16, -14, -6, 0x2a3f33);
-  floor(-16, -8, -6, 6, 0x2a3f33);
-  floor(8, 16, -6, 6, 0x2a3f33);
 
   // ---------- Walls ----------
   wall('x', -6, -8, 8);                       // north
@@ -98,15 +93,12 @@ export function buildWorld(quality = { shadows: false }) {
   wall('z', -2, 0, 6, [[2.2, 4.0]], 0x6a6e96);    // dapur | ruang makan
 
   // Storage door (blocks the gap until opened)
-  const door = box(0.22, 1.35, 1.8, 4, -3.0, 0x7c4a2e, { collide: true, name: 'gudang-door' });
+  const door = box(0.22, 1.35, 1.8, 4, -3.0, 0x7c4a2e, { collide: true, name: 'gudang-door', keep: true });
   box(0.3, 0.1, 2.0, 4, -3.0, 0x2a1a12, { y0: 1.35 });
 
   // ---------- Windows (moonlight panels on the north wall) ----------
-  const windows = [];
-  for (const x of [-5, 1]) {
-    const w = box(1.4, 0.8, 0.06, x, -5.88, 0, { y0: 0.55, mat: glow(0x5f78c8) });
-    windows.push(w.mesh);
-  }
+  const winMat = glow(0x5f78c8);
+  for (const x of [-5, 1]) box(1.4, 0.8, 0.06, x, -5.88, 0, { y0: 0.55, mat: winMat });
 
   // ---------- Kamar ----------
   box(2.1, 0.45, 2.6, -6.7, -4.6, 0x7a4f9a, { collide: true });                 // bed
@@ -142,26 +134,11 @@ export function buildWorld(quality = { shadows: false }) {
   box(1.4, 0.75, 0.5, 6.6, 5.4, 0x3a3a46, { collide: true });                    // sideboard + cctv
   const cctvScreen = box(0.9, 0.55, 0.06, 6.6, 5.4, 0, { y0: 0.95, mat: glow(0x3b6a58) });
   box(0.5, 0.7, 0.5, 7.4, 1.2, 0x2e6a4a, { collide: true });                    // plant pot
-  // ---------- Yard ----------
-  box(0.25, 1.1, 0.25, 4.0, 8.4, 0x6a4a2e, { collide: true });                   // mailbox post
-  box(0.7, 0.45, 0.5, 4.0, 8.4, 0x3a5aa0, { y0: 1.1 });
-  for (let x = -14; x <= 14; x += 2) box(0.18, 0.8, 0.18, x, 13.2, 0x8a7a62);     // fence posts
-  box(30, 0.14, 0.1, 0, 13.2, 0x8a7a62, { y0: 0.5 });
-  box(0.9, 1.6, 0.9, -9.5, 9.0, 0x5a3e2a, { collide: true });                    // tree
-  const crown = new T.Mesh(new T.IcosahedronGeometry(1.7, 0), M(0x2f6a46));
-  crown.position.set(-9.5, 2.9, 9.0);
-  group.add(crown);
-  for (const [x, z] of [[-4, 7.4], [-2.6, 8.1], [8.8, 7.6]]) box(0.8, 0.5, 0.8, x, z, 0x2e5a3c);
-  // neighbour houses across the road (Bu Wati's window glows)
-  box(7, 3.2, 4, -2, 22, 0x6a5a70);
-  box(7.6, 0.5, 4.6, -2, 22, 0x3a2e48, { y0: 3.2 });
-  const watiWindow = box(1.4, 0.9, 0.08, -2, 19.95, 0, { y0: 1.2, mat: glow(0xffb05a) });
-  box(6, 2.8, 4, 9.5, 22, 0x4f6a70);
-  box(6.6, 0.5, 4.6, 9.5, 22, 0x2c3c44, { y0: 2.8 });
-  box(1.2, 0.8, 0.08, 9.5, 19.95, 0, { y0: 1.2, mat: glow(0x9bd6ff) });
-  // street lamp
-  box(0.14, 3.0, 0.14, -9, 15, 0x2a2a34);
-  box(0.6, 0.16, 0.6, -9, 15, 0, { y0: 3.0, mat: glow(0xffd88a) });
+  // ---------- Neighbourhood (yard, street, houses, cars) ----------
+  const lampMat = glow(0xffd88a);
+  const hood = buildNeighborhood({ group, colliders, box, floor, M, glow, lampMat, winMat,
+    warmWin: glow(0xffb05a), coolWin: glow(0x9bd6ff), signMat: glow(0xff9a4a) });
+  colliders.push(...hood.moverCols);
 
   // ---------- Clue beacons (shown after the AFTER file hints them) ----------
   const beacons = {};
@@ -171,6 +148,7 @@ export function buildWorld(quality = { shadows: false }) {
     const m = new T.Mesh(beaconGeo, glow(0x62f0d6));
     m.position.set(spot.x, 1.9, spot.z);
     m.visible = false;
+    m.userData.keep = true;
     group.add(m);
     beacons[id] = m;
   }
@@ -194,20 +172,58 @@ export function buildWorld(quality = { shadows: false }) {
   storageLight.position.set(6, 1.8, -3);
   group.add(storageLight);
 
+  // Two warm lights hop between the street lamps nearest to the player (cheap outdoor lighting).
+  const streetLights = [0, 1].map(() => { const l = new T.PointLight(0xffd9a0, 26, 15, 1.4); l.position.set(0, 3.1, 0); group.add(l); return l; });
+  mergeStatic(group);
+
   return {
-    group, colliders, beacons, lamp, hemi, moon, roomLights, windows, storageLight, watiWindow,
-    cctvScreen: cctvScreen.mesh, mirror: mirror.mesh,
+    group, colliders, beacons, lamp, hemi, moon, roomLights, storageLight,
+    update(dt, px = 0, pz = 0) {
+      hood.update(dt);
+      const d = hood.lampSpots.map(p => ({ p, d: (p.x - px) ** 2 + (p.z - pz) ** 2 })).sort((a, b) => a.d - b.d);
+      streetLights.forEach((l, i) => { const near = d[i]; if (near) l.position.set(near.p.x, 3.1, near.p.z); });
+    },
     gudangDoor: door,
     openStorageDoor() { door.mesh.visible = false; door.col.enabled = false; storageLight.intensity = 14; },
     closeStorageDoor() { door.mesh.visible = true; door.col.enabled = true; storageLight.intensity = 0; },
     // mood: 0 = warm night, 1 = after midnight (cold, purple, flickering)
     setMood(mood, time) {
       const flick = mood > 0 ? (0.78 + 0.22 * Math.sin(time * 23) * Math.sin(time * 7.3)) : 1;
-      hemi.intensity = 1.15 - 0.55 * mood;
-      moon.intensity = 1.0 - 0.45 * mood;
+      hemi.intensity = 1.4 - 0.7 * mood;
+      moon.intensity = 1.35 - 0.7 * mood;
       moon.color.setHex(mood > 0.5 ? 0xb08cff : 0x9db4ff);
       for (const l of roomLights) l.intensity = (14 - 7 * mood) * flick;
-      for (const w of windows) w.material.color.setHex(mood > 0.5 ? 0xb06ad8 : 0x5f78c8);
+      winMat.color.setHex(mood > 0.5 ? 0xb06ad8 : 0x5f78c8);
+      lampMat.color.setHex(mood > 0.5 ? (flick < 0.9 ? 0x3a2a55 : 0x9a7ad8) : 0xffd88a);
     },
   };
+}
+
+// Merge every static mesh into one mesh per material to keep draw calls low on phones.
+function mergeStatic(group) {
+  group.updateMatrixWorld(true);
+  const buckets = new Map();
+  for (const child of [...group.children]) {
+    if (!child.isMesh || child.userData.keep) continue;
+    const g = child.geometry.index ? child.geometry.toNonIndexed() : child.geometry.clone();
+    g.applyMatrix4(child.matrixWorld);
+    let b = buckets.get(child.material);
+    if (!b) buckets.set(child.material, b = { pos: [], nor: [] });
+    b.pos.push(g.getAttribute('position').array);
+    b.nor.push(g.getAttribute('normal').array);
+    group.remove(child);
+    g.dispose();
+  }
+  for (const [material, b] of buckets) {
+    const total = b.pos.reduce((n, a) => n + a.length, 0);
+    const P = new Float32Array(total), N = new Float32Array(total);
+    let o = 0;
+    for (let i = 0; i < b.pos.length; i++) { P.set(b.pos[i], o); N.set(b.nor[i], o); o += b.pos[i].length; }
+    const geom = new T.BufferGeometry();
+    geom.setAttribute('position', new T.BufferAttribute(P, 3));
+    geom.setAttribute('normal', new T.BufferAttribute(N, 3));
+    const mesh = new T.Mesh(geom, material);
+    mesh.frustumCulled = false;
+    group.add(mesh);
+  }
 }

@@ -2,7 +2,8 @@
 // follow its clues, and find Rani before the phone clock (and your memory) moves on.
 import { T, loadThree } from './three-loader.mjs';
 import { clockDisplayAt } from './logic.mjs';
-import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, ENDINGS, FINALE } from './story.mjs';
+import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, ENDINGS, FINALE, NPC } from './story.mjs';
+import { BOUNDS, NPC_SPOTS } from './neighborhood.mjs';
 import { buildWorld, roomAt, SPOTS } from './world.mjs';
 import { makeCharacter } from './actors.mjs';
 import { createPhone, preloadPhotos } from './phone.mjs';
@@ -82,8 +83,8 @@ export async function mountGame(mode) {
   glHost.appendChild(renderer.domElement);
   const scene = new T.Scene();
   scene.background = new T.Color(0x070a18);
-  scene.fog = new T.Fog(0x070a18, 16, 44);
-  const camera = new T.PerspectiveCamera(48, width() / height(), 0.1, 120);
+  scene.fog = new T.Fog(0x070a18, 22, 62);
+  const camera = new T.PerspectiveCamera(48, width() / height(), 0.1, 160);
   const world = buildWorld();
   scene.add(world.group);
   const player = makeCharacter({ shirt: 0x4aa8c8, pants: 0x2b3050, hair: 0x14121c });
@@ -92,6 +93,15 @@ export async function mountGame(mode) {
   rani.position.set(SPOTS.rani.x, 0, SPOTS.rani.z);
   rani.visible = false;
   scene.add(rani);
+  const npcs = {
+    wati: makeCharacter({ skin: 0xd9a784, shirt: 0xd070a0, pants: 0x4a3a5a, hair: 0x6a3a5a }),
+    darto: makeCharacter({ skin: 0xc9966e, shirt: 0xf0f0f0, pants: 0x3a5a8a, hair: 0xaaaaaa }),
+  };
+  for (const id in npcs) {
+    npcs[id].position.set(NPC_SPOTS[id].x, 0, NPC_SPOTS[id].z);
+    npcs[id].rotation.y = NPC_SPOTS[id].face;
+    scene.add(npcs[id]);
+  }
 
   // ---------------- State ----------------
   const state = {
@@ -282,6 +292,13 @@ export async function mountGame(mode) {
         discover(clue);
       },
     })),
+    ...Object.keys(NPC).map(id => ({
+      id: 'npc-' + id, x: NPC_SPOTS[id].x, z: NPC_SPOTS[id].z, r: 1.9, label: NPC[id].label,
+      use() {
+        const n = NPC[id];
+        say(state.found.has(n.afterClue) ? n.afterLines : n.lines);
+      },
+    })),
     {
       id: 'gudang', x: SPOTS.gudangDoor.x, z: SPOTS.gudangDoor.z, r: 1.7, label: 'Pintu gudang',
       available: () => !state.storageOpen,
@@ -455,8 +472,8 @@ export async function mountGame(mode) {
     state.speed = Math.min(1, len);
     if (len < 0.05) return;
     const nx = state.px + ix * SPEED * dt, nz = state.pz + iz * SPEED * dt;
-    if (!hit(nx, state.pz) && nx > -15 && nx < 15) state.px = nx;
-    if (!hit(state.px, nz) && nz > -13 && nz < 12.6) state.pz = nz;
+    if (!hit(nx, state.pz) && nx > BOUNDS.x1 && nx < BOUNDS.x2) state.px = nx;
+    if (!hit(state.px, nz) && nz > BOUNDS.z1 && nz < BOUNDS.z2) state.pz = nz;
     state.facing = Math.atan2(ix, iz);
   }
   function checkMidnight() {
@@ -480,6 +497,7 @@ export async function mountGame(mode) {
         if (state.quality === 'auto') applyQuality();
       }
     }
+    world.update(dt, state.px, state.pz);
     const playing = state.phase === 'play';
     const active = playing && !state.phoneOpen && !state.dialog;
     state.speed = 0;
@@ -504,6 +522,13 @@ export async function mountGame(mode) {
       const b = world.beacons[id];
       if (b.visible) { b.position.y = 1.9 + Math.sin(simTime * 3) * 0.12; b.rotation.y = simTime * 1.5; }
     }
+    for (const id in npcs) {
+      const n = npcs[id], sp = NPC_SPOTS[id];
+      const close = Math.hypot(state.px - sp.x, state.pz - sp.z) < 6;
+      const want = close ? Math.atan2(state.px - sp.x, state.pz - sp.z) : sp.face;
+      n.rotation.y += (((want - n.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 5);
+      n.userData.walk(0, 0);
+    }
     if (rani.visible) {
       rani.position.y = Math.sin(simTime * 1.6) * 0.06;
       rani.rotation.y = Math.atan2(state.px - rani.position.x, state.pz - rani.position.z);
@@ -514,9 +539,9 @@ export async function mountGame(mode) {
       camera.position.lerp(camWant, 1 - Math.exp(-6 * dt));
       camera.lookAt(state.px, 0.3, state.pz - 0.4);
     } else {
-      const a = simTime * 0.12;
-      camera.position.set(Math.sin(a) * 15, 12, Math.cos(a) * 15 + 1);
-      camera.lookAt(0, 0.4, 0);
+      const a = simTime * 0.1;
+      camera.position.set(Math.sin(a) * 34, 26, 8 + Math.cos(a) * 34);
+      camera.lookAt(2, 0, 8);
     }
     if (playing) {
       updateNearest();

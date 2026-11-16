@@ -106,3 +106,29 @@ export const ENDINGS = {
   delete: { title: 'AFTER dihapus', text: 'Rani muncul di pintu, membawa tiket yang sama. Kamu tidak ingat kenapa matamu basah. Di ponselmu hanya ada satu catatan kecil: "Jangan pasang AFTER lagi."' },
   keep: { title: 'AFTER disimpan', text: 'Kamu ingat semuanya. Rani tersenyum dari balik kaca, dan kamu berjanji mencari cara lain. Tengah malam berikutnya, AFTER menerima satu berkas baru: namamu.' },
 };
+
+// Neighbours you can talk to outside. Lines change once a related clue has been found.
+export const NPC = {
+  wati: {
+    label: 'Bu Wati',
+    lines: [
+      { who: 'Bu Wati', text: 'Nak, malam-malam begini masih di luar? Kemarin kamu bertanya soal seseorang bernama Rani. Ibu tidak kenal.' },
+      { who: 'Bu Wati', text: 'Kamu bilang itu sudah ke-7 kalinya. Ibu khawatir sama kamu.' },
+    ],
+    afterClue: 'surat',
+    afterLines: [
+      { who: 'Bu Wati', text: 'Suratnya sudah kamu baca, Nak? Jangan menangis sendirian di teras lagi ya.' },
+    ],
+  },
+  darto: {
+    label: 'Pak Darto',
+    lines: [
+      { who: 'Pak Darto', text: 'Mangga saya hilang lagi. Bukan kamu kan, Nak?' },
+      { who: 'Pak Darto', text: 'Oh iya, kamera saya menyorot rumahmu juga. Rekamannya saya salin ke monitor di ruang makanmu.' },
+    ],
+    afterClue: 'cctv',
+    afterLines: [
+      { who: 'Pak Darto', text: 'Sudah lihat rekamannya? Maaf, Bapak tidak tahu untuk apa koper kecil itu kamu bawa ke gudang.' },
+    ],
+  },
+};
