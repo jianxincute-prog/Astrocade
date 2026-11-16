@@ -116,13 +116,13 @@ export function buildWorld(quality = { shadows: false }) {
   box(0.9, 1.5, 0.9, -7.45, -1.2, 0x5a4636, { collide: true });                  // wardrobe
   box(1.6, 0.02, 1.2, -5.2, -2.6, 0x2c3a6a, { y0: 0.01 });                       // rug
   // ---------- Ruang tamu ----------
-  box(2.4, 0.5, 0.9, 0.4, -1.0, 0x8a3a4a, { collide: true });                    // sofa
-  box(2.4, 0.5, 0.2, 0.4, -0.6, 0x6e2e3c, { y0: 0.5 });
+  box(2.4, 0.5, 0.9, 0.4, -2.2, 0x8a3a4a, { collide: true });                    // sofa (clear of the doorway from the dining room)
+  box(2.4, 0.5, 0.2, 0.4, -1.8, 0x6e2e3c, { y0: 0.5 });
   box(1.4, 0.9, 0.5, 1.0, -5.6, 0x3a3a46, { collide: true });                    // tv cabinet
   box(1.2, 0.7, 0.06, 1.0, -5.62, 0, { y0: 0.9, mat: glow(0x1a2238) });
   box(1.0, 1.5, 0.7, 3.3, -5.5, 0x6a4a2e, { collide: true });                    // old cabinet (ketukan)
-  box(1.4, 0.4, 0.9, 0.6, -3.2, 0x6a5040, { collide: true });                    // coffee table
-  box(1.8, 0.02, 1.4, 0.6, -3.2, 0x3a4a5a, { y0: 0.01 });
+  box(1.4, 0.4, 0.9, 0.6, -4.1, 0x6a5040, { collide: true });                    // coffee table
+  box(1.8, 0.02, 1.4, 0.6, -4.0, 0x3a4a5a, { y0: 0.01 });
   // ---------- Gudang ----------
   box(0.6, 1.4, 3.2, 7.55, -2.8, 0x4a3a2e, { collide: true });                   // shelves
   box(0.9, 0.6, 0.9, 5.0, -0.9, 0x6a5a3e, { collide: true });                    // boxes
