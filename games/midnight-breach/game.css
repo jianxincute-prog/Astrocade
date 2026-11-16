@@ -61,3 +61,8 @@
 .end-stats { display: flex; justify-content: center; gap: 56px; margin: 8px 0; }
 .end-stats small { display: block; color: #8e89a0; font-size: 12px; letter-spacing: .2em; }
 .end-stats b { font-size: 34px; font-weight: 400; font-variant-numeric: tabular-nums; }
+
+/* Horror: fear vignette driven by how many photos can see the player */
+.fear { position: absolute; inset: 0; z-index: 9; pointer-events: none; opacity: 0; transition: opacity .45s; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 42%, rgba(110,0,40,.5) 82%, rgba(25,0,10,.92) 100%); }
+.fear.beat { animation: heartbeat 1.15s infinite; }
+@keyframes heartbeat { 0%, 100% { filter: none; } 18% { filter: brightness(1.9); } 36% { filter: none; } 52% { filter: brightness(1.5); } }

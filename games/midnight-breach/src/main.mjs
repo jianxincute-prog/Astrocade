@@ -2,7 +2,7 @@
 // follow its clues, and find Rani before the phone clock (and your memory) moves on.
 import { T, loadThree } from './three-loader.mjs';
 import { clockDisplayAt } from './logic.mjs';
-import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, ENDINGS, FINALE, NPC } from './story.mjs';
+import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, ENDINGS, FINALE, NPC, PHOTO_LINES } from './story.mjs';
 import { BOUNDS, NPC_SPOTS } from './neighborhood.mjs';
 import { buildWorld, roomAt, SPOTS } from './world.mjs';
 import { makeCharacter } from './actors.mjs';
@@ -41,6 +41,7 @@ export async function mountGame(mode) {
 
   root.innerHTML = `<div class="game-root">
     <div class="gl-host" id="gl"></div>
+    <div class="fear" id="fear"></div>
     <div class="hud" id="hud" hidden>
       <div class="hud-top"><div class="chip" id="hud-time">11:48 · Kamar</div><div class="chip chip-clue" id="hud-clues">✦ 0/${CLUES.length}</div></div>
       <div class="hud-goal" id="hud-goal"></div>
@@ -121,6 +122,7 @@ export async function mountGame(mode) {
     phoneOpen: false,
     hadSave: false,
     savedProgress: null,
+    doorTimer: 25, noticed: 0, lastBeat: -9,
   };
   const keys = new Set();
   const joy = { x: 0, y: 0, id: null };
@@ -299,6 +301,21 @@ export async function mountGame(mode) {
         say(state.found.has(n.afterClue) ? n.afterLines : n.lines);
       },
     })),
+    ...world.doors.doors.map(d => ({
+      id: 'door-' + d.id, x: d.x, z: d.z, r: 1.5, label: d.label,
+      labelFn: () => (d.open ? 'Tutup pintu' : 'Buka pintu'),
+      available: () => !d.locked,
+      use() {
+        const res = world.doors.toggle(d, state.px, state.pz);
+        if (res === 'blocked') { haptic('error'); hudToast('Ada yang menghalangi pintu.'); }
+        else haptic('tap');
+      },
+    })),
+    ...world.watchers.frames.map(f => ({
+      id: 'photo-' + f.i,
+      x: f.spot.x + Math.sin(f.spot.rotY) * 0.9, z: f.spot.z + Math.cos(f.spot.rotY) * 0.9, r: 1.1, label: 'Foto di dinding',
+      use() { haptic('warning'); say([{ who: 'Foto', text: PHOTO_LINES[f.stage] }]); },
+    })),
     {
       id: 'gudang', x: SPOTS.gudangDoor.x, z: SPOTS.gudangDoor.z, r: 1.7, label: 'Pintu gudang',
       available: () => !state.storageOpen,
@@ -332,7 +349,11 @@ export async function mountGame(mode) {
     if (best !== nearest || $('btn-act').hidden === show) {
       nearest = best;
       $('btn-act').hidden = !show;
-      if (best) $('act-label').textContent = best.label;
+    }
+    if (best) {
+      const text = best.labelFn ? best.labelFn() : best.label;
+      const el = $('act-label');
+      if (el.textContent !== text) el.textContent = text;
     }
   }
   function interact() {
@@ -377,7 +398,8 @@ export async function mountGame(mode) {
     state.midnightShown = false; state.mood = 0;
     state.px = SPOTS.start.x; state.pz = SPOTS.start.z; state.facing = 0;
     state.dialog = null; renderDialog();
-    world.closeStorageDoor(); rani.visible = false;
+    world.doors.resetAll(); world.closeStorageDoor(); rani.visible = false;
+    world.watchers.reset(); state.doorTimer = 25; state.noticed = 0; state.lastBeat = -9;
     syncWorldHints();
   }
   function startNew() { resetWorld(); beginPlay(); }
@@ -398,7 +420,10 @@ export async function mountGame(mode) {
     $('joy').style.display = touch ? 'block' : 'none';
     $('key-hint').style.display = touch ? 'none' : 'block';
     updateHud(true);
-    if (state.elapsed < 1) say([{ who: '23:48', text: 'Rani tidak membalas sejak sore. Ada aplikasi baru di ponselku: AFTER.' }]);
+    if (state.elapsed < 1) say([
+      { who: '23:48', text: 'Rani tidak membalas sejak sore. Ada aplikasi baru di ponselku: AFTER.' },
+      { who: '23:48', text: 'Pintu-pintu di rumah ini bisa dibuka dan ditutup. Foto-foto di dinding itu… sejak kapan ada di sana?' },
+    ]);
   }
   function showMenu() {
     state.phase = 'menu';
@@ -534,6 +559,31 @@ export async function mountGame(mode) {
       rani.rotation.y = Math.atan2(state.px - rani.position.x, state.pz - rani.position.z);
     }
 
+    // horror: photos watch from every corner, doors open by themselves after midnight
+    {
+      const room = roomAt(state.px, state.pz);
+      const cap = Math.min(4, 1 + state.found.size + (clock().isMidnight ? 1 : 0));
+      const w = world.watchers.update(dt, state.px, state.pz, room, cap, state.mood > 0.5, simTime);
+      const fearEl = $('fear');
+      const fear = playing && !state.phoneOpen ? w.fear : 0;
+      fearEl.style.opacity = Math.min(0.75, fear * 0.2).toFixed(2);
+      fearEl.classList.toggle('beat', fear >= 1.2);
+      if (active) {
+        if (w.newlyNoticed && state.noticed < 3) { state.noticed++; haptic('warning'); hudToast(state.noticed === 1 ? 'Foto di dinding itu… matanya mengikutimu.' : 'Mereka semua menatapmu.'); }
+        if (fear >= 1.2 && simTime - state.lastBeat > 2.3) {
+          state.lastBeat = simTime;
+          safe(() => lib().haptics?.play?.([{ intensity: 0.55, sharpness: 0.2, duration: 70 }, { delay: 140, intensity: 0.85, sharpness: 0.2, duration: 90 }]));
+        }
+        if (state.mood > 0.5) {
+          state.doorTimer -= dt;
+          if (state.doorTimer <= 0) {
+            state.doorTimer = 18 + Math.random() * 18;
+            const far = world.doors.doors.filter(d => !d.open && !d.locked && Math.hypot(d.x - state.px, d.z - state.pz) > 4);
+            if (far.length) { world.doors.setOpen(far[Math.floor(Math.random() * far.length)], true); haptic('thud'); }
+          }
+        }
+      }
+    }
     if (playing || state.phase === 'ending') {
       camWant.set(state.px, 12.4, state.pz + 8.8);
       camera.position.lerp(camWant, 1 - Math.exp(-6 * dt));
@@ -560,7 +610,7 @@ export async function mountGame(mode) {
   };
 
   // Debug hook so automated checks can drive the game deterministically.
-  window.__mb = { state, interactables, openPhone, closePhone, interact, say, advanceDialog, clock, world, camera, scene, SPOTS };
+  window.__mb = { state, interactables, doors: world.doors, watchers: world.watchers, openPhone, closePhone, interact, say, advanceDialog, clock, world, camera, scene, SPOTS };
 
   // ---------------- Boot ----------------
   setProgress(0.8, 'Menyiapkan ponsel…');

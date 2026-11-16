@@ -382,5 +382,21 @@
     "loop": null,
     "opus_url": null,
     "animation": null
+  },
+  "entity_watcher": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HZS60QZFCV4VW68AD6MW5A_e65f67bb-712e-4fbd-be56-e1bccf110d37_32a06b3c-9b02-413a-90f9-54faa91d31fe.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
   }
 }

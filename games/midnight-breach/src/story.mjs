@@ -87,6 +87,8 @@ export const ARCHIVE = [
     description: 'Pantulan di jendela berada lebih dekat daripada ruangan di belakang kamera. Bentuknya terlalu tinggi untuk menjadi manusia. Atau itu bayanganmu sendiri, yang sudah lupa.' },
   { id: 'breach-02', category: 'TIDAK DIKENAL', name: 'Langit dengan mata', person: 'Sumber tidak dikenal', time: '00:01', scene: 'eye', label: 'ORIENTASI: TIDAK MUNGKIN',
     description: 'Awan terbuka menjadi bentuk yang menyerupai mata. Metadata menunjukkan kamera menghadap ke langit-langit.' },
+  { id: 'breach-04', category: 'TIDAK DIKENAL', name: 'Dia di setiap sudut', person: 'Sumber tidak dikenal', time: '00:04', scene: 'watch', label: 'DITEMUKAN DI 10 TEMPAT',
+    description: 'Foto yang sama tergantung di setiap sudut rumahmu. Di tiap bingkai, sosoknya sedikit lebih dekat, dan matanya selalu mengikutimu.' },
   { id: 'breach-03', category: 'TIDAK DIKENAL', name: 'Lorong tanpa sudut', person: 'Sumber tidak dikenal', time: '00:03', scene: 'corridor', label: 'LOKASI: KOSONG',
     description: 'Semua garis perspektif berakhir pada tempat yang sama. Tidak ada bangunan di alamat yang tersimpan.' },
 ];
@@ -132,3 +134,12 @@ export const NPC = {
     ],
   },
 };
+
+// What the framed photo says when inspected, by how close the figure has crept.
+export const PHOTO_LINES = [
+  'Foto lama: seseorang berdiri jauh di ujung lorong. Wajahnya tidak terlihat.',
+  'Orang di foto itu tampak sedikit lebih dekat dari tadi.',
+  'Sosoknya sudah dekat. Aku tidak ingat pernah menggantung foto ini.',
+  'Matanya mengikutiku ke mana pun aku bergerak. Di balik bingkai tertulis: "Aku di setiap sudut."',
+  'Wajahnya hampir memenuhi foto. Dia menatap lurus ke arahku.',
+];

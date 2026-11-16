@@ -1,5 +1,8 @@
 import { T } from './three-loader.mjs';
 import { buildNeighborhood, zoneAt } from './neighborhood.mjs';
+import { buildDoors } from './doors.mjs';
+import { buildInterior } from './interior.mjs';
+import { createWatchers } from './watchers.mjs';
 
 const WALL_H = 1.7;
 const WALL_T = 0.3;
@@ -9,7 +12,7 @@ export const SPOTS = {
   start: { x: -5.2, z: -3.0 },
   tiket: { x: -3.1, z: -1.1, label: 'Meja belajar' },
   ketukan: { x: 3.3, z: -5.0, label: 'Lemari tua' },
-  resi: { x: -7.0, z: 1.9, label: 'Kulkas' },
+  resi: { x: -6.3, z: 1.0, label: 'Kulkas' },
   surat: { x: 4.0, z: 8.4, label: 'Kotak surat' },
   cctv: { x: 6.6, z: 4.9, label: 'Monitor CCTV' },
   gudangDoor: { x: 4.0, z: -3.0, label: 'Pintu gudang' },
@@ -34,7 +37,11 @@ export function buildWorld(quality = { shadows: false }) {
   const mats = new Map();
   const M = (color, extra = {}) => {
     const key = color + JSON.stringify(extra);
-    if (!mats.has(key)) mats.set(key, new T.MeshLambertMaterial({ color, flatShading: true, ...extra }));
+    if (!mats.has(key)) {
+      const mat = new T.MeshLambertMaterial({ color, flatShading: true, ...extra });
+      mat.userData.plain = Object.keys(extra).length === 0; // plain colours merge into one vertex-coloured mesh
+      mats.set(key, mat);
+    }
     return mats.get(key);
   };
   const glow = color => new T.MeshBasicMaterial({ color });
@@ -92,13 +99,11 @@ export function buildWorld(quality = { shadows: false }) {
   wall('x', 0, 4, 8, [], 0x4c4f6e);               // gudang | ruang makan
   wall('z', -2, 0, 6, [[2.2, 4.0]], 0x6a6e96);    // dapur | ruang makan
 
-  // Storage door (blocks the gap until opened)
-  const door = box(0.22, 1.35, 1.8, 4, -3.0, 0x7c4a2e, { collide: true, name: 'gudang-door', keep: true });
-  box(0.3, 0.1, 2.0, 4, -3.0, 0x2a1a12, { y0: 1.35 });
+  // Doors (hinged, openable). The storage door starts locked until enough clues are found.
+  const doorSys = buildDoors({ group, colliders, box, M });
 
   // ---------- Windows (moonlight panels on the north wall) ----------
   const winMat = glow(0x5f78c8);
-  for (const x of [-5, 1]) box(1.4, 0.8, 0.06, x, -5.88, 0, { y0: 0.55, mat: winMat });
 
   // ---------- Kamar ----------
   box(2.1, 0.45, 2.6, -6.7, -4.6, 0x7a4f9a, { collide: true });                 // bed
@@ -125,7 +130,6 @@ export function buildWorld(quality = { shadows: false }) {
   // ---------- Dapur ----------
   box(0.9, 0.9, 4.2, -7.5, 3.6, 0xb0b4c0, { collide: true });                    // counter
   box(0.9, 1.5, 0.9, -7.4, 0.9, 0xd6d8e0, { collide: true });                    // fridge
-  box(0.06, 0.28, 0.28, -6.92, 1.9, 0xf2d15c, { y0: 0.9 });                       // sticker
   box(1.6, 0.75, 1.0, -4.4, 3.6, 0x9a7a52, { collide: true });                   // table
   box(0.4, 0.45, 0.4, -5.6, 3.6, 0x6a4a32, { collide: true });
   // ---------- Ruang makan ----------
@@ -134,6 +138,9 @@ export function buildWorld(quality = { shadows: false }) {
   box(1.4, 0.75, 0.5, 6.6, 5.4, 0x3a3a46, { collide: true });                    // sideboard + cctv
   const cctvScreen = box(0.9, 0.55, 0.06, 6.6, 5.4, 0, { y0: 0.95, mat: glow(0x3b6a58) });
   box(0.5, 0.7, 0.5, 7.4, 1.2, 0x2e6a4a, { collide: true });                    // plant pot
+  // ---------- Interior and exterior detail ----------
+  buildInterior({ group, box, M, glow, winMat });
+
   // ---------- Neighbourhood (yard, street, houses, cars) ----------
   const lampMat = glow(0xffd88a);
   const hood = buildNeighborhood({ group, colliders, box, floor, M, glow, lampMat, winMat,
@@ -175,17 +182,20 @@ export function buildWorld(quality = { shadows: false }) {
   // Two warm lights hop between the street lamps nearest to the player (cheap outdoor lighting).
   const streetLights = [0, 1].map(() => { const l = new T.PointLight(0xffd9a0, 26, 15, 1.4); l.position.set(0, 3.1, 0); group.add(l); return l; });
   mergeStatic(group);
+  const watchers = createWatchers({ group });
 
   return {
     group, colliders, beacons, lamp, hemi, moon, roomLights, storageLight,
     update(dt, px = 0, pz = 0) {
       hood.update(dt);
+      doorSys.update(dt);
       const d = hood.lampSpots.map(p => ({ p, d: (p.x - px) ** 2 + (p.z - pz) ** 2 })).sort((a, b) => a.d - b.d);
       streetLights.forEach((l, i) => { const near = d[i]; if (near) l.position.set(near.p.x, 3.1, near.p.z); });
     },
-    gudangDoor: door,
-    openStorageDoor() { door.mesh.visible = false; door.col.enabled = false; storageLight.intensity = 14; },
-    closeStorageDoor() { door.mesh.visible = true; door.col.enabled = true; storageLight.intensity = 0; },
+    doors: doorSys,
+    watchers,
+    openStorageDoor() { const d = doorSys.byId('gudang'); doorSys.unlock(d); doorSys.setOpen(d, true); storageLight.intensity = 14; },
+    closeStorageDoor() { doorSys.lock(doorSys.byId('gudang')); storageLight.intensity = 0; },
     // mood: 0 = warm night, 1 = after midnight (cold, purple, flickering)
     setMood(mood, time) {
       const flick = mood > 0 ? (0.78 + 0.22 * Math.sin(time * 23) * Math.sin(time * 7.3)) : 1;
@@ -199,29 +209,44 @@ export function buildWorld(quality = { shadows: false }) {
   };
 }
 
-// Merge every static mesh into one mesh per material to keep draw calls low on phones.
+// Merge every static mesh to keep draw calls low on phones. Plain-coloured meshes share one
+// vertex-coloured material; special materials (glow, window) keep their own merged mesh.
 function mergeStatic(group) {
   group.updateMatrixWorld(true);
+  const vertexMat = new T.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const buckets = new Map();
   for (const child of [...group.children]) {
     if (!child.isMesh || child.userData.keep) continue;
     const g = child.geometry.index ? child.geometry.toNonIndexed() : child.geometry.clone();
     g.applyMatrix4(child.matrixWorld);
-    let b = buckets.get(child.material);
-    if (!b) buckets.set(child.material, b = { pos: [], nor: [] });
-    b.pos.push(g.getAttribute('position').array);
+    const source = child.material;
+    const key = source.userData.plain ? vertexMat : source;
+    let b = buckets.get(key);
+    if (!b) buckets.set(key, b = { pos: [], nor: [], col: [] });
+    const pos = g.getAttribute('position').array;
+    b.pos.push(pos);
     b.nor.push(g.getAttribute('normal').array);
+    if (key === vertexMat) {
+      const c = new Float32Array(pos.length);
+      for (let i = 0; i < c.length; i += 3) { c[i] = source.color.r; c[i + 1] = source.color.g; c[i + 2] = source.color.b; }
+      b.col.push(c);
+    }
     group.remove(child);
     g.dispose();
   }
   for (const [material, b] of buckets) {
     const total = b.pos.reduce((n, a) => n + a.length, 0);
     const P = new Float32Array(total), N = new Float32Array(total);
+    const C = material === vertexMat ? new Float32Array(total) : null;
     let o = 0;
-    for (let i = 0; i < b.pos.length; i++) { P.set(b.pos[i], o); N.set(b.nor[i], o); o += b.pos[i].length; }
+    for (let i = 0; i < b.pos.length; i++) {
+      P.set(b.pos[i], o); N.set(b.nor[i], o); if (C) C.set(b.col[i], o);
+      o += b.pos[i].length;
+    }
     const geom = new T.BufferGeometry();
     geom.setAttribute('position', new T.BufferAttribute(P, 3));
     geom.setAttribute('normal', new T.BufferAttribute(N, 3));
+    if (C) geom.setAttribute('color', new T.BufferAttribute(C, 3));
     const mesh = new T.Mesh(geom, material);
     mesh.frustumCulled = false;
     group.add(mesh);

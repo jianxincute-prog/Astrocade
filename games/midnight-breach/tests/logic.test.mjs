@@ -29,7 +29,7 @@ test('AFTER has friend, family, neighbour and celebrity secrets readable before 
     assert.ok(early.some(item => item.category === cat), cat);
     assert.ok(ARCHIVE_FILTERS.includes(cat));
   }
-  assert.equal(ARCHIVE.filter(isMidnightOnly).length, 3);
+  assert.equal(ARCHIVE.filter(isMidnightOnly).length, 4);
   for (const item of early) assert.ok(CONTACTS.some(c => `${c.id}-file` === item.id), item.id);
 });
 
