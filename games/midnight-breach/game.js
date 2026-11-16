@@ -1,6 +1,6 @@
-// Midnight Breach is a found-phone mystery toy. Browse familiar apps, read the AFTER
-// gossip archive, then watch unknown-source files unlock when the phone clock hits midnight.
-import { mountGame } from './src/interface.mjs';
+// Midnight Breach 3D: a low-poly (Three.js r186) found-phone mystery.
+// Explore the player's house, read the AFTER app, follow its clues and find Rani.
+import { mountGame } from './src/main.mjs';
 
 function run(mode) {
   mountGame(mode);

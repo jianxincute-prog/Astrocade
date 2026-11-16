@@ -42,3 +42,20 @@ export function moveApp(order, fromId, toId) {
 export function archiveIsUnlocked(elapsedMs, durationSeconds) {
   return clockAt(elapsedMs, durationSeconds).isMidnight;
 }
+
+// Phone clock that keeps running after midnight (00:01, 00:02 ...), 12h display.
+export function clockDisplayAt(elapsedMs, durationSeconds) {
+  const msPerMinute = (Math.max(1, Number(durationSeconds) || 80) * 1000) / 12;
+  const gameMinutes = Math.floor(Math.max(0, elapsedMs) / msPerMinute);
+  const total = 23 * 60 + 48 + gameMinutes;
+  const hour24 = Math.floor(total / 60) % 24;
+  const minute = total % 60;
+  const hour12 = hour24 % 12 || 12;
+  return {
+    display: `${String(hour12).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+    hour24,
+    minute,
+    isMidnight: gameMinutes >= 12,
+    afterMidnightMinutes: Math.max(0, gameMinutes - 12),
+  };
+}

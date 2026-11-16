@@ -352,3 +352,14 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; -webkit-tap-
 .viewer-close { flex: 0 0 auto; width: 96px; height: 56px; border: 1px solid rgba(255,255,255,.2); border-radius: 28px; color: #fff; background: rgba(255,255,255,.1); font-size: 22px; }
 .viewer-hint { position: absolute; bottom: 52px; color: #8e89a0; font-size: 11px; letter-spacing: .1em; }
 @keyframes viewer-in { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: none; } }
+
+/* --- Phone overlay inside the 3D game --- */
+.phone-layer { position: absolute; inset: 0; z-index: 60; background: rgba(4,5,12,.72); backdrop-filter: blur(3px); }
+.phone-layer[hidden] { display: none; }
+.phone-close { position: absolute; z-index: 15; top: 96px; right: 14px; width: 96px; height: 52px; border-radius: 26px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.1); color: #fff; font-size: 20px; }
+.clue-box { margin: 4px 0 14px; padding: 13px 15px; border-radius: 15px; border: 1px solid rgba(98,240,214,.35); background: linear-gradient(120deg, rgba(40,120,110,.2), rgba(255,255,255,.03)); }
+.clue-box span { display: block; font-size: 10px; font-weight: 760; letter-spacing: .14em; color: #7ff0dc; }
+.clue-box p { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: #e9f7f4; }
+.clue-box.done { border-color: rgba(130,224,174,.4); }
+.clue-pip { flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: #7ff0dc; border: 1px solid rgba(98,240,214,.5); font-size: 13px; }
+.clue-pip.done { color: #82e0ae; border-color: rgba(130,224,174,.5); background: rgba(55,151,112,.15); }
