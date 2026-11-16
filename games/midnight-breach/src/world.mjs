@@ -195,6 +195,7 @@ export function buildWorld(quality = { shadows: false }) {
       const d = hood.lampSpots.map(p => ({ p, d: (p.x - px) ** 2 + (p.z - pz) ** 2 })).sort((a, b) => a.d - b.d);
       streetLights.forEach((l, i) => { const near = d[i]; if (near) l.position.set(near.p.x, 3.1, near.p.z); });
     },
+    nearestCar: (x, z) => hood.movers.reduce((best, mv) => Math.min(best, Math.hypot(mv.g.position.x - x, mv.z - z)), 99),
     doors: doorSys,
     watchers,
     openStorageDoor() { const d = doorSys.byId('rani'); doorSys.unlock(d); doorSys.setOpen(d, true); storageLight.intensity = 14; },

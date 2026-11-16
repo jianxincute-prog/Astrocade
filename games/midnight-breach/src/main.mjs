@@ -7,6 +7,7 @@ import { BOUNDS, NPC_SPOTS } from './neighborhood.mjs';
 import { buildWorld, roomAt, SPOTS } from './world.mjs';
 import { makeCharacter, LOOKS } from './actors.mjs';
 import { createPhone, preloadPhotos } from './phone.mjs';
+import { createAudio } from './audio.mjs';
 
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const lib = () => window.lib || {};
@@ -15,6 +16,19 @@ const PLAYER_R = 0.32;
 const SPEED = 3.6;
 const QUALITY_PR = { low: 1, mid: 1.5, high: 2 };
 const CLUE_ENTRIES = ARCHIVE.filter(a => a.clue);
+const INDOOR = ['Kamar', 'Ruang tamu', 'Gudang', 'Dapur', 'Ruang makan', 'Rumah Rani'];
+const SND_ON = '<svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const SND_OFF = '<svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+// Footstep surface by position.
+function surfaceAt(x, z) {
+  const r = roomAt(x, z);
+  if (r === 'Dapur') return 'tile';
+  if (r === 'Kamar' || r === 'Ruang tamu' || r === 'Ruang makan' || r === 'Rumah Rani') return 'wood';
+  if (r === 'Gudang') return 'concrete';
+  if (r === 'Jalan raya' || r === 'Jalan komplek') return 'asphalt';
+  if ((z >= 13.4 && z <= 15) || (z >= 21 && z <= 22.6) || (x >= 24.4 && x <= 26) || (x >= 32 && x <= 33.6)) return 'concrete';
+  return 'grass';
+}
 const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 function cfg() { return window.gameConfig?.settings || {}; }
@@ -50,6 +64,7 @@ export async function mountGame(mode) {
     <div class="controls" id="controls" hidden>
       <div class="joy" id="joy"><div class="joy-knob" id="joy-knob"></div></div>
       <button class="btn-phone" id="btn-phone" aria-label="Buka ponsel"><svg viewBox="0 0 24 24" width="34" height="34"><rect x="7" y="2.5" width="10" height="19" rx="2.4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18.3" r="1" fill="currentColor"/></svg><i class="notif-dot" id="notif-dot"></i></button>
+      <button class="btn-sound" id="btn-sound" aria-label="Suara"></button>
       <button class="btn-act" id="btn-act" hidden><span id="act-label">Periksa</span></button>
       <div class="key-hint" id="key-hint">WASD / panah: jalan · E: periksa · P: ponsel</div>
     </div>
@@ -123,7 +138,17 @@ export async function mountGame(mode) {
     hadSave: false,
     savedProgress: null,
     doorTimer: 25, noticed: 0, lastBeat: -9,
+    muted: false, endingKind: null,
   };
+  const audio = createAudio({ reverb: true });
+  let audioTimer = 0, stepClock = 0.6, creakAt = 20, whisperAt = 15, fearNow = 0;
+  const unlockAudio = () => { if (isEditor) return; if (audio.unlock()) audio.setMuted(state.muted); };
+  root.addEventListener('pointerdown', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+  const onVis = () => audio.setPaused(document.hidden);
+  document.addEventListener('visibilitychange', onVis);
+  const refreshSound = () => { const b = $('btn-sound'); if (b) b.innerHTML = state.muted ? SND_OFF : SND_ON; const mb = $('m-sound'); if (mb) mb.innerHTML = state.muted ? SND_OFF : SND_ON; };
+  const toggleSound = () => { state.muted = !state.muted; audio.setMuted(state.muted); refreshSound(); saveSoon(); if (!state.muted) audio.click(); };
   const keys = new Set();
   const joy = { x: 0, y: 0, id: null };
   let raf = 0, lastT = 0, simTime = 0, frameCount = 0, frameSum = 0, saveTimer = 0, toastTimer = 0;
@@ -145,7 +170,7 @@ export async function mountGame(mode) {
 
   // ---------------- Persistence ----------------
   function snapshot() {
-    return { v: 2, quality: state.quality, best: state.best, endings: state.endings,
+    return { v: 2, quality: state.quality, muted: state.muted, best: state.best, endings: state.endings,
       progress: { read: [...state.read], found: [...state.found], elapsed: Math.round(state.elapsed), storageOpen: state.storageOpen } };
   }
   function saveSoon() {
@@ -158,6 +183,7 @@ export async function mountGame(mode) {
       const s = res?.state;
       if (!s) return;
       state.quality = ['auto', 'low', 'mid', 'high'].includes(s.quality) ? s.quality : 'auto';
+      state.muted = !!s.muted;
       state.best = typeof s.best === 'number' ? s.best : null;
       state.endings = Array.isArray(s.endings) ? s.endings : [];
       const p = s.progress;
@@ -181,6 +207,7 @@ export async function mountGame(mode) {
       if (entry?.clue) {
         hudToast(`Petunjuk baru: ${CLUES.find(c => c.id === entry.clue).place}`);
         haptic('success');
+        audio.ping();
       }
       syncWorldHints();
       saveSoon();
@@ -196,12 +223,14 @@ export async function mountGame(mode) {
     if (state.phase !== 'play' || state.dialog) return;
     state.phoneOpen = true;
     phone.open(opts);
+    audio.phone(true);
     joy.x = joy.y = 0; joy.id = null; $('joy-knob').style.transform = '';
     keys.clear();
   }
   function closePhone() {
     state.phoneOpen = false;
     phone.close();
+    audio.phone(false);
     updateHud(true);
   }
 
@@ -243,18 +272,21 @@ export async function mountGame(mode) {
   // ---------------- Dialog ----------------
   function say(lines, done) {
     state.dialog = { lines: [...lines], i: 0, done, choices: null };
+    audio.click();
     renderDialog();
   }
   function renderDialog() {
     const d = state.dialog, el = $('dialog');
-    if (!d) { el.hidden = true; el.innerHTML = ''; return; }
+    if (!d) { el.hidden = true; el.innerHTML = ''; audio.stopSpeech(); return; }
     el.hidden = false;
     if (d.choices) {
       const last = d.lines[d.lines.length - 1];
+      audio.speak(last.who, last.text);
       el.innerHTML = `<div class="dlg-card"><div class="dlg-who">${esc(last.who)}</div><p>${esc(last.text)}</p><div class="dlg-choices">${d.choices.map(c => `<button class="big-btn ${c.tone || ''}" data-choice="${c.id}">${esc(c.label)}</button>`).join('')}</div></div>`;
       return;
     }
     const line = d.lines[d.i];
+    audio.speak(line.who, line.text);
     el.innerHTML = `<button class="dlg-card" data-next="1"><div class="dlg-who">${esc(line.who || '')}</div><p>${esc(line.text)}</p><span class="dlg-next">Lanjut ›</span></button>`;
   }
   function advanceDialog() {
@@ -280,11 +312,12 @@ export async function mountGame(mode) {
     state.found.add(clue.id);
     world.beacons[clue.id].visible = false;
     haptic('success');
+    audio.clue();
     syncWorldHints();
     saveSoon();
     say([{ who: clue.title, text: clue.text }], () => {
       if (state.found.size === CLUES_TO_SHOW_ADDRESS) hudToast('Alamatnya: Blok C-7, ujung barat komplek.');
-      else if (state.found.size === CLUES_TO_OPEN_STORAGE) hudToast('Dari ujung barat komplek terdengar tiga ketukan…');
+      else if (state.found.size === CLUES_TO_OPEN_STORAGE) { hudToast('Dari ujung barat komplek terdengar tiga ketukan…'); audio.knock(3); }
     });
   }
   const interactables = [
@@ -309,8 +342,8 @@ export async function mountGame(mode) {
       available: () => !d.locked,
       use() {
         const res = world.doors.toggle(d, state.px, state.pz);
-        if (res === 'blocked') { haptic('error'); hudToast('Ada yang menghalangi pintu.'); }
-        else haptic('tap');
+        if (res === 'blocked') { haptic('error'); audio.error(); hudToast('Ada yang menghalangi pintu.'); }
+        else { haptic('tap'); audio.door(res === 'opened'); }
       },
     })),
     ...world.watchers.frames.map(f => ({
@@ -324,9 +357,13 @@ export async function mountGame(mode) {
       use() {
         if (state.found.size < CLUES_TO_OPEN_STORAGE) {
           haptic('error');
+          audio.locked();
           return say([{ who: 'Pintu rumah Rani', text: `Terkunci. Rumah ini sudah lama kosong, dan aku belum cukup tahu. (${state.found.size}/${CLUES_TO_OPEN_STORAGE} catatan)` }]);
         }
         state.storageOpen = true;
+        audio.knock(3);
+        setTimeout(() => audio.unlockDoor(), 1300);
+        setTimeout(() => audio.door(true), 1650);
         world.openStorageDoor();
         rani.visible = true;
         haptic('warning');
@@ -383,7 +420,9 @@ export async function mountGame(mode) {
     if (state.best === null || seconds < state.best) state.best = seconds;
     if (!state.endings.includes(choice)) state.endings.push(choice);
     state.savedProgress = null; state.hadSave = false;
-    safe(() => lib().saveUserGameState?.({ v: 2, quality: state.quality, best: state.best, endings: state.endings, progress: null })?.catch?.(() => {}));
+    state.endingKind = choice;
+    audio.stopSpeech(); audio.ending(choice);
+    safe(() => lib().saveUserGameState?.({ v: 2, quality: state.quality, muted: state.muted, best: state.best, endings: state.endings, progress: null })?.catch?.(() => {}));
     safe(() => lib().addPlayerScoreToLeaderboard?.(seconds)?.catch?.(() => {}));
     haptic('success');
     $('hud').hidden = true; $('controls').hidden = true;
@@ -405,8 +444,9 @@ export async function mountGame(mode) {
     world.watchers.reset(); state.doorTimer = 25; state.noticed = 0; state.lastBeat = -9;
     syncWorldHints();
   }
-  function startNew() { resetWorld(); beginPlay(); }
+  function startNew() { audio.click(); resetWorld(); beginPlay(); }
   function resume() {
+    audio.click();
     resetWorld();
     const p = state.savedProgress || {};
     state.read = new Set(p.read || []); state.found = new Set(p.found || []); state.elapsed = Number(p.elapsed) || 0;
@@ -436,9 +476,10 @@ export async function mountGame(mode) {
     el.hidden = false;
     el.innerHTML = `<div class="menu-top"><div class="load-logo">A<span>✦</span></div><h1>MIDNIGHT<br>BREACH</h1><div class="menu-best">${esc(best)}</div></div>
       <div class="menu-bottom">${state.hadSave ? '<button class="big-btn" id="m-resume">LANJUT</button><button class="ghost-btn" id="m-new">MAIN BARU</button>' : '<button class="big-btn" id="m-play">MAIN</button>'}
-      <div class="icon-row"><button class="icon-btn" id="m-settings" aria-label="Pengaturan">⚙</button><button class="icon-btn" id="m-help" aria-label="Bantuan">?</button></div></div>`;
+      <div class="icon-row"><button class="icon-btn" id="m-sound" aria-label="Suara"></button><button class="icon-btn" id="m-settings" aria-label="Pengaturan">⚙</button><button class="icon-btn" id="m-help" aria-label="Bantuan">?</button></div></div>`;
     if (state.hadSave) { $('m-resume').onclick = resume; $('m-new').onclick = startNew; } else $('m-play').onclick = startNew;
-    $('m-settings').onclick = showSettings; $('m-help').onclick = showHelp;
+    $('m-settings').onclick = () => { audio.click(); showSettings(); }; $('m-help').onclick = () => { audio.click(); showHelp(); };
+    $('m-sound').onclick = toggleSound; refreshSound();
   }
   function showPanel(html) {
     const el = $('panel'); el.hidden = false;
@@ -447,7 +488,8 @@ export async function mountGame(mode) {
   }
   function showSettings() {
     const names = { auto: 'Auto', low: 'Low', mid: 'Med', high: 'High' };
-    showPanel(`<h3>Kualitas grafis</h3><div class="q-row">${Object.keys(names).map(o => `<button class="q-btn ${state.quality === o ? 'sel' : ''}" data-q="${o}">${names[o]}</button>`).join('')}</div><small class="q-note">Auto saat ini: ${names[state.autoTier]}</small>`);
+    showPanel(`<h3>Kualitas grafis</h3><div class="q-row">${Object.keys(names).map(o => `<button class="q-btn ${state.quality === o ? 'sel' : ''}" data-q="${o}">${names[o]}</button>`).join('')}</div><small class="q-note">Auto saat ini: ${names[state.autoTier]}</small><h3>Suara</h3><div class="q-row"><button class="q-btn ${state.muted ? '' : 'sel'}" data-snd="on">Nyala</button><button class="q-btn ${state.muted ? 'sel' : ''}" data-snd="off">Mati</button></div>`);
+    $('panel').querySelectorAll('[data-snd]').forEach(b => { b.onclick = () => { state.muted = b.dataset.snd === 'off'; audio.setMuted(state.muted); refreshSound(); saveSoon(); showSettings(); if (!state.muted) audio.click(); }; });
     $('panel').querySelectorAll('[data-q]').forEach(b => { b.onclick = () => { state.quality = b.dataset.q; applyQuality(); saveSoon(); showSettings(); }; });
   }
   function showHelp() {
@@ -471,10 +513,13 @@ export async function mountGame(mode) {
   joyEl.addEventListener('pointercancel', joyEnd);
   $('btn-act').addEventListener('click', interact);
   $('btn-phone').addEventListener('click', () => openPhone());
+  $('btn-sound').addEventListener('click', toggleSound);
+  refreshSound();
   const onKeyDown = e => {
     const k = e.key.toLowerCase();
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
     if (state.phoneOpen) { if (k === 'escape' || k === 'p') { if (!phone.closeViewer()) closePhone(); } return; }
+    if (k === 'm') { toggleSound(); return; }
     if (state.phase !== 'play') return;
     if (k === 'e' || k === ' ' || k === 'enter') interact();
     else if (k === 'p' || k === 'tab') { e.preventDefault(); openPhone(); }
@@ -508,7 +553,9 @@ export async function mountGame(mode) {
     if (state.midnightShown || !clock().isMidnight) return;
     state.midnightShown = true;
     haptic('warning');
+    audio.midnight();
     openPhone({ event: true });
+    setTimeout(() => audio.buzz(), 250);
   }
   const camWant = new T.Vector3(), lookWant = new T.Vector3(), lookCur = new T.Vector3(0, 0.3, 0);
   function frame(now) {
@@ -578,12 +625,14 @@ export async function mountGame(mode) {
       const w = world.watchers.update(dt, state.px, state.pz, room, cap, state.mood > 0.5, simTime);
       const fearEl = $('fear');
       const fear = playing && !state.phoneOpen ? w.fear : 0;
+      fearNow = fear;
       fearEl.style.opacity = Math.min(0.75, fear * 0.2).toFixed(2);
       fearEl.classList.toggle('beat', fear >= 1.2);
       if (active) {
-        if (w.newlyNoticed && state.noticed < 3) { state.noticed++; haptic('warning'); hudToast(state.noticed === 1 ? 'Foto di dinding itu… matanya mengikutimu.' : 'Mereka semua menatapmu.'); }
+        if (w.newlyNoticed && state.noticed < 3) { state.noticed++; haptic('warning'); audio.stinger(); hudToast(state.noticed === 1 ? 'Foto di dinding itu… matanya mengikutimu.' : 'Mereka semua menatapmu.'); }
         if (fear >= 1.2 && simTime - state.lastBeat > 2.3) {
           state.lastBeat = simTime;
+          audio.heartbeat(Math.min(1.2, fear));
           safe(() => lib().haptics?.play?.([{ intensity: 0.55, sharpness: 0.2, duration: 70 }, { delay: 140, intensity: 0.85, sharpness: 0.2, duration: 90 }]));
         }
         if (state.mood > 0.5) {
@@ -591,9 +640,29 @@ export async function mountGame(mode) {
           if (state.doorTimer <= 0) {
             state.doorTimer = 18 + Math.random() * 18;
             const far = world.doors.doors.filter(d => !d.open && !d.locked && Math.hypot(d.x - state.px, d.z - state.pz) > 4);
-            if (far.length) { world.doors.setOpen(far[Math.floor(Math.random() * far.length)], true); haptic('thud'); }
+            if (far.length) { world.doors.setOpen(far[Math.floor(Math.random() * far.length)], true); haptic('thud'); audio.door(true, true); }
           }
         }
+      }
+    }
+    // audio: ambience/music state, footsteps, creaks and whispers
+    {
+      const room = roomAt(state.px, state.pz);
+      const indoor = INDOOR.includes(room);
+      audioTimer -= dt;
+      if (audioTimer <= 0 && audio.ctx) {
+        audioTimer = 0.12;
+        const lateNow = clock().isMidnight && state.phase === 'play';
+        let mood = 'menu';
+        if (state.phase === 'ending') mood = state.endingKind === 'keep' ? 'end-keep' : 'end-delete';
+        else if (state.phase === 'play') mood = room === 'Rumah Rani' && state.storageOpen ? 'finale' : lateNow ? 'late' : 'explore';
+        audio.update({ indoor: state.phase === 'menu' ? false : indoor, late: lateNow, fear: fearNow, mood, carDist: world.nearestCar(state.px, state.pz) });
+        audio.schedule(audio.ctx.currentTime + 1.6);
+      }
+      if (active) {
+        if (state.speed > 0.15) { stepClock += dt * state.speed * 2.9; if (stepClock >= 1) { stepClock -= 1; audio.step(surfaceAt(state.px, state.pz)); } } else stepClock = 0.6;
+        if (indoor && simTime > creakAt) { audio.creak(); creakAt = simTime + 18 + Math.random() * 20; }
+        if (fearNow >= 0.8 && simTime > whisperAt) { audio.whisper(); whisperAt = simTime + 7 + Math.random() * 8; }
       }
     }
     if (playing || state.phase === 'ending') {
@@ -647,12 +716,15 @@ export async function mountGame(mode) {
     clearTimeout(saveTimer); clearTimeout(toastTimer);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('keydown', unlockAudio);
+    document.removeEventListener('visibilitychange', onVis);
+    audio.dispose();
     ro?.disconnect();
     renderer.dispose();
   };
 
   // Debug hook so automated checks can drive the game deterministically.
-  window.__mb = { chars: { player, rani, ...npcs }, state, interactables, doors: world.doors, watchers: world.watchers, openPhone, closePhone, interact, say, advanceDialog, clock, world, camera, scene, SPOTS };
+  window.__mb = { audio, chars: { player, rani, ...npcs }, state, interactables, doors: world.doors, watchers: world.watchers, openPhone, closePhone, interact, say, advanceDialog, clock, world, camera, scene, SPOTS };
 
   // ---------------- Boot ----------------
   setProgress(0.8, 'Menyiapkan ponsel…');

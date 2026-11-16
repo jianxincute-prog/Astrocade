@@ -66,3 +66,6 @@
 .fear { position: absolute; inset: 0; z-index: 9; pointer-events: none; opacity: 0; transition: opacity .45s; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 42%, rgba(110,0,40,.5) 82%, rgba(25,0,10,.92) 100%); }
 .fear.beat { animation: heartbeat 1.15s infinite; }
 @keyframes heartbeat { 0%, 100% { filter: none; } 18% { filter: brightness(1.9); } 36% { filter: none; } 52% { filter: brightness(1.5); } }
+
+/* Sound toggle (HUD) */
+.btn-sound { position: absolute; right: 24px; top: 132px; width: 96px; height: 72px; border-radius: 24px; display: grid; place-items: center; color: #e8e4ff; background: rgba(40,34,80,.72); border: 1px solid rgba(190,170,255,.35); pointer-events: auto; }
