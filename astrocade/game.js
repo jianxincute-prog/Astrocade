@@ -3877,7 +3877,7 @@ function navyTick() {
     if (n.hunt && n.phase !== 'home' && pships.length && (tick + n.id) % 160 === 0) navyRetarget(n);
     if (n.phase !== 'siege') {
       if (n.step < n.path.length - 1) {
-        n.move += n.hunt ? .4 : .3;                                              // pirate hunters are the faster ships while (n.move >= 1 && n.step < n.path.length - 1) { n.move -= 1; n.step++; }
+        n.move += n.hunt ? .4 : .3; while (n.move >= 1 && n.step < n.path.length - 1) { n.move -= 1; n.step++; }
         const a = n.path[n.step], b = n.path[Math.min(n.step + 1, n.path.length - 1)], f = n.step >= n.path.length - 1 ? 0 : n.move;
         n.x = (a % W) + ((b % W) - (a % W)) * f; n.y = ((a / W) | 0) + (((b / W) | 0) - ((a / W) | 0)) * f;
       } else if (n.phase === 'out') { n.phase = 'siege'; n.t = 0; }
