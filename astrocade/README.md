@@ -4,7 +4,7 @@ A WorldBox-style god-sim sandbox for mobile and desktop. Shape an island, drop h
 orcs and animals, and watch kingdoms grow, trade, sail, fight and fall, then unleash disasters.
 Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, sound and music are all generated in code).
 
-**Current version: 3.5 "Rise of Empires".** See [What's new](#whats-new-in-35). Versions 3.0 and 2.0 ("Living Seas") are described [below](#whats-new-in-30).
+**Current version: 4.0 "Rise of Empires".** See [What's new](#whats-new-in-40). Versions 3.5, 3.0 and 2.0 ("Living Seas") are described [below](#whats-new-in-35).
 
 ## Contents
 1. [Files](#files)
@@ -13,12 +13,13 @@ Portrait 720x1280, HTML canvas plus a DOM overlay, no external assets (art, soun
 4. [Worlds and island seeds](#worlds-and-island-seeds)
 5. [Civilization](#civilization)
 6. [Individuals and equipment](#individuals-and-equipment)
-7. [Wildlife and sea life](#wildlife-and-sea-life)
-8. [Voyages and the sea economy](#voyages-and-the-sea-economy)
-9. [Disasters and weather](#disasters-and-weather)
-10. [Presentation: menu, sound, tour, popup](#presentation-menu-sound-tour-popup)
-11. [Save format](#save-format)
-12. [Development notes](#development-notes)
+7. [Pirates](#pirates-v40)
+8. [Wildlife and sea life](#wildlife-and-sea-life)
+9. [Voyages and the sea economy](#voyages-and-the-sea-economy)
+10. [Disasters and weather](#disasters-and-weather)
+11. [Presentation: menu, sound, tour, popup](#presentation-menu-sound-tour-popup)
+12. [Save format](#save-format)
+13. [Development notes](#development-notes)
 
 ## Files
 | File | Purpose |
@@ -98,7 +99,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Score and goals:** the Score button submits the **civilization score** (per kingdom: 2 x population + 3 x houses + 60 x level + 20 x techs + 80 x age + 15 x buildings, plus 120 for a wonder and half a point per bronze, iron or silver; then 25 per hero, 10 per musketeer, 40 per people with a kingdom, 300 for a won scenario, 2 per year and 3 per trade); higher is better. The Chronicle keeps the last 60 events, and 39 optional goals in eight groups (Civilization, Knowledge, Industry, Diplomacy, Military, The sea, Life and time, Pirates) are tracked in the Goals tab: population milestones, kingdom levels, ages, tech counts, wonders, roads, trade, decrees, pacts and alliances, unions, heroes and musketeers, warships, colonies, sharks, the kraken, births, wandering bands, years survived, scenarios, pirates and score. Each goal reached adds 50 score and shows a banner; progress is saved (`go`, `gs`).
 
 ## Individuals and equipment
-- **Professions (v4.0, in progress):** every adult settler gets ONE lifelong profession from its kingdom, chosen once when they grow up and never changed: Farmer, Lumberjack, Miner, Hunter, Fisher, Gatherer, Builder, Soldier or Trader. The choice follows the people's liking for each trade (dwarves love the mine, elves forage, werewolves hunt), what the realm lacks (hunger makes farmers, an empty woodpile lumberjacks) and a 40% share cap per trade. Soldiers keep the old fixed share of each people and do random chores in peace. Practice earns **mastery** (Apprentice, Journeyman, Skilled, Expert, Master: +10% goods per level and 6% shorter work). Builders walk to the buildings of their realm and hammer them with a mallet (sparks, wood knocks), which raises the realm's labour and makes its next building up to 25% cheaper; traders wear a pack to the market square at the heart of the realm and haggle there, tossing a gold coin with a glint (each deal adds a little gold, more with mastery), on top of a steady income and a shorter trade-cart cooldown. The panel shows the profession (with an icon) and mastery, and the Census counts every profession. **Clothes:** each profession dresses its people in the same outfit on all five races, drawn over the race sprite (`outfits.js`): straw hat and overall straps (farmer), red plaid and wool cap (lumberjack), hard cap with a lamp and a leather vest (miner), green hood, strap and quiver (hunter), oilskin hat and blue vest (fisher), flower wreath, sash and basket (gatherer), orange hard hat, tool belt and hammer (builder), iron cap, breastplate and tabard (soldier), feathered cap, coin sash and pouch (trader). Every hat band, sash or tabard carries the race colour, so the people stay easy to tell apart. Leaders and iron knights keep their crowns and helmets. Old saves give their adults a profession on the first day.
+- **Professions (v4.0):** every adult settler gets ONE lifelong profession from its kingdom, chosen once when they grow up and never changed: Farmer, Lumberjack, Miner, Hunter, Fisher, Gatherer, Builder, Soldier or Trader. The choice follows the people's liking for each trade (dwarves love the mine, elves forage, werewolves hunt), what the realm lacks (hunger makes farmers, an empty woodpile lumberjacks) and a 40% share cap per trade. Soldiers keep the old fixed share of each people and do random chores in peace. Practice earns **mastery** (Apprentice, Journeyman, Skilled, Expert, Master: +10% goods per level and 6% shorter work). Builders walk to the buildings of their realm and hammer them with a mallet (sparks, wood knocks), which raises the realm's labour and makes its next building up to 25% cheaper; traders wear a pack to the market square at the heart of the realm and haggle there, tossing a gold coin with a glint (each deal adds a little gold, more with mastery), on top of a steady income and a shorter trade-cart cooldown. The panel shows the profession (with an icon) and mastery, and the Census counts every profession. **Clothes:** each profession dresses its people in the same outfit on all five races, drawn over the race sprite (`outfits.js`): straw hat and overall straps (farmer), red plaid and wool cap (lumberjack), hard cap with a lamp and a leather vest (miner), green hood, strap and quiver (hunter), oilskin hat and blue vest (fisher), flower wreath, sash and basket (gatherer), orange hard hat, tool belt and hammer (builder), iron cap, breastplate and tabard (soldier), feathered cap, coin sash and pouch (trader). Every hat band, sash or tabard carries the race colour, so the people stay easy to tell apart. Leaders and iron knights keep their crowns and helmets. Old saves give their adults a profession on the first day.
 - **Creature panel:** tap a creature to see a portrait, generated name, role (Citizen, Soldier, Leader, Iron knight, Hunter, Prey, Merchant, War machine), status, current activity, bars and tabs: Info, Family, Bag, Chest. A gold ring marks it; the target button follows it.
 - **Traits:** 0 to 2 per creature (Brave, Sturdy, Swift, Long-lived, Frail, Gifted), inherited by children (50% per trait, 85% if both parents have it, plus a 12% mutation). Settlers keep a ten-line life history.
 - **Equipment:** three slots (weapon, armour, shield) and three tiers that follow the kingdom's age, with race-specific items. Kingdoms arm their leader, knights and soldiers for wood, bronze or iron. Any race can use any item.
@@ -113,7 +114,7 @@ The HUD was redesigned in four stages (version 2.0). It shares the gold-and-navy
 - **Family:** settlers born in a house get two parents; spouses, children and parents are tracked and relatives are jump buttons.
 - **Jobs:** non-leader settlers chop, mine, hunt, farm, fish or forage (soldiers only in peacetime), play the work animation and haul goods home.
 
-## Pirates (v4.0, in progress)
+## Pirates (v4.0)
 - **A new, wicked kind of creature.** Pirates are not a fifth people. Rebels of restless kingdoms (humans, elves, dwarves and orcs; never werewolves) turn pirate: whatever their birth, they all belong to the one kind *Pirate*, with one uniform look (tricorn with a skull, eye patch, checkered shirt, red sash). Only the skin, pointed ears, beard or tusks tell which people they once belonged to, and the panel says so ("once a dwarf of Kazhold").
 - **Born of chaos.** Every two seconds the world checks its kingdoms: one with a mature size (14+ settlers), unrest of 40% or more (hunger, plague, long wars) and a chance that grows with the unrest loses a crew of 3 to 5 adult rebels (soldiers first, never leaders, knights, heroes or musketeers, and a realm is never stripped bare). A mutiny banner and a chronicle line announce it, the realm calms a little, and at most one mutiny happens per 900 ticks, up to 24 living pirates.
 - **A hideout on a small island.** The rebels hide on a small empty island (10 to 220 land tiles, no kingdom, house or other hideout on it, 12 to 110 tiles from their kingdom, around 30 preferred). A hideout is a black-flag tent with a barrel; there are at most two, and one that stays empty for 3000 ticks is abandoned. Pirates stay by it, never breed (only mutiny feeds them), fight any settler who comes close, and settlers who see them fight back. The first rebel of a band is its captain.
@@ -174,6 +175,14 @@ Save version 9 (v3.0) with optional fields (older saves load; missing parts are 
 - Sea code lives together: `SHOAL`, `shoalTick`, `sharkTick`, `krakenTick`, `harpoon`, `sellCatch`, `raiseWreck`, plus `computeShoreD` for depth.
 - `window.__world` exposes internals (kingdoms, ships, shoals, sharks, krakens, `step`, `serialize`, `restore`, `cam`, `applyTool` and more) for automated tests.
 - Pure logic (`tech.js`, `buildings.js`, `naval.js`, `seasons.js` and the older modules) is kept in small modules with Node tests. Hand-drawn art is ASCII grids (`ICON_ART`) and generated sprites (`PROPS`, `ORE_SPR`, ship atlas).
+
+## What's new in 4.0
+**Rise of Empires, version 4.0**
+- **Lifelong professions:** every adult gets one profession for life (Farmer, Lumberjack, Miner, Hunter, Fisher, Gatherer, Builder, Soldier or Trader), chosen by the people's taste, the realm's needs and a share cap. Mastery grows with practice; builders make the next building cheaper and traders bring gold from the market.
+- **Clothes and animations:** an outfit for every profession on all five peoples (`outfits.js`), a builder's mallet and a trader's haggling with a tossed coin, profession icons in the creature panel and a Professions group in the Census.
+- **Pirates:** a new wicked kind of creature born of restless kingdoms, with a uniform look, a hideout on a small empty island, ships that raid rich coasts, and kingdoms, allies and trade partners that send aid and hunter warships against them (`pirates.js`).
+- **Goals and score:** 39 goals in eight groups (a Pirates group with six goals), and extra score for pirate ships sunk and hideouts emptied.
+- Save format: still version 9, with the new optional fields `pf`, `pb`, `pcd` and `pg`; older saves load and their adults get a profession on the first day.
 
 ## What's new in 3.5
 **Rise of Empires, version 3.5**

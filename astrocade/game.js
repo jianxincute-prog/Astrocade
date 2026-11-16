@@ -5832,10 +5832,23 @@ function titleScene(cv2) {
   };
 }
 /* ============================== WHAT'S NEW: version popup ============================== */
-const VERSION = '3.5';
+const VERSION = '4.0';
 let seenVer = '', hadSave = false;
 const whatsEl = el('div', 'awnew');
 const NEWS = [
+  ['🔨', '4.0 · Lifelong professions', [
+    'Every adult settler gets <b>one profession for life</b>: Farmer, Lumberjack, Miner, Hunter, Fisher, Gatherer, Builder, Soldier or Trader. Nobody changes trade later.',
+    'Each people has its favourites (dwarves mine, elves forage, werewolves hunt) and the realm shapes the choice by what it lacks: hunger makes farmers, an empty woodpile lumberjacks.',
+    'Practice earns <b>mastery</b>: more goods and faster work. Builders hammer the realm\'s buildings and make the next one cheaper; traders haggle at the market and bring gold.']],
+  ['🧑', '4.0 · Clothes make the trade', [
+    'Every profession has its own outfit on all five peoples: straw hats, hard hats, hoods, tool belts and more. The people colour stays on every band and sash.',
+    'The creature panel shows the profession and mastery, and the Census counts every profession.']],
+  ['💀', '4.0 · Pirates', [
+    'A new wicked kind of creature. Rebels of restless kingdoms (humans, elves, dwarves and orcs) <b>turn pirate</b>: whatever their birth they all become one kind, with one uniform look.',
+    'Unrest from hunger, plague and long wars sends a crew of rebels to a small empty island, where they raise a black-flag hideout. Pirates never breed: only mutiny feeds them.']],
+  ['⚓', '4.0 · The black flag', [
+    'Pirate ships raid rich coastal kingdoms: they plunder, shell houses and sink ships that sail too close.',
+    'The raided kingdom and its allies and trade partners stand together: they send aid and launch <b>hunter warships</b> that chase the pirates down. Six new goals and extra score reward the hunters.']],
   ['🎯', '3.5 · Rivers, roads and scenarios', [
     '<b>Rivers</b> run from the highlands to the sea: they water the fields and stop fires.',
     '<b>Roads</b> appear where settlers keep walking. Walking and caravans are faster on them, and they carry trade.',
@@ -5888,7 +5901,7 @@ const NEWS = [
 ];
 function showWhatsNew() {
   if (editMode) return;
-  whatsEl.innerHTML = '<div class="card"><div class="hd"><span class="chip">UPDATE ' + VERSION + '</span><h1>Rise of Empires</h1><p>Version 3.5: living worlds, with rivers, scenarios and a real life cycle.</p></div><div class="bd">'
+  whatsEl.innerHTML = '<div class="card"><div class="hd"><span class="chip">UPDATE ' + VERSION + '</span><h1>Rise of Empires</h1><p>Version 4.0: lifelong trades, clothes for every craft, and pirates on the seas.</p></div><div class="bd">'
     + NEWS.map(s => `<div class="sec"><h3>${s[0]} ${s[1]}</h3><ul>${s[2].map(t => `<li>${t}</li>`).join('')}</ul></div>`).join('')
     + '</div><div class="ft"><button class="awbig" data-act="gotit">Let\'s go!</button></div></div>';
   whatsEl.style.display = 'flex'; whatsEl.querySelector('.bd').scrollTop = 0;
