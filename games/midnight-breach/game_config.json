@@ -1,0 +1,9 @@
+{
+  "settings": {
+    "midnightSeconds": 80,
+    "glitchIntensity": 3,
+    "ownerName": "Pemilik perangkat"
+  },
+  "appOrder": ["messages", "photos", "contacts", "notes", "phone", "after"],
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}

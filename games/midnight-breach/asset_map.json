@@ -1,0 +1,386 @@
+{
+  "portrait_rani": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV8X0W46JCBX30R6R8Z50X_4930a19e-3536-41de-89fe-69ba4c325fac_4dbe52f9-c7e1-4889-a8eb-cbb31a948916.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_dimas": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV8Z5GPP0F4P2T7KJYJ2BE_60fb8864-9134-4796-82ab-1eaebb6e5702_ae3ef52d-359a-4521-a290-cb0f49f00964.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_nara": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV91K0Y080XAKQGN56C5XY_e223133b-5e6f-450c-93fe-f9cf66e22be0_22ba8b4d-f1cb-406a-a2ba-9c7899838141.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_bima": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV93MTSVAGWT0QVKYY70D0_83086c19-f725-43f9-94db-214ac0e67b59_4dec401f-4441-4794-b004-b974384d5c99.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_hendra": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV9CBBS2K80C86G85EVMN3_43bad0be-b80a-42e9-818a-ba911c73a321_6809ad3b-0384-48bf-8684-f5b410b63f7b.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_laras": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV9DG8AZ5V7B5H6YF4RCQF_117baa45-4e92-4ce1-8535-2529dbabe5c9_f2a6db57-8fe1-4e4a-a207-ffe505e67e55.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_wati": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV9FMCHZP5088X996JSD2B_43cf71e4-1b61-472b-8c24-09a4fba1a1cb_f6183d00-c11a-4fe4-840a-ffcf5e92f795.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_darto": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV9HDXKAZHEGM5RW9PF0FB_15c16bbc-d160-4d8f-b5ca-54b5caf7fa93_4066d6e2-9652-4f28-959e-f05bf63e1c22.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "portrait_jessa": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV9Q5B4MYMVQJTFKABQR9K_944b467e-025e-4b5f-a38e-d59365d5d9a2_e19e2038-98b4-44c9-991b-0216bea92c00.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "character",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "photo_rain": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV9S6BWXY3726PK6JRXJ6Y_aeece511-5050-4cab-9f02-df9c63b10add_ae9e4f1a-3bfc-405e-a804-6d9c42518101.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "photo_coffee": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HV9V2F8T3AVTHAS3YF6S75_7ba263b0-1e7d-4443-8562-81465b6677bd_4900a7f1-a9e8-4a48-9f86-5e1d0349c490.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "photo_room": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVFB05AD5CWZDXZP2VMXW2_d860722d-994c-45aa-99b4-0e92525a9442_9dfb7037-99d3-4d8a-97f3-aa85b519928b.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1536,
+      1024
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_rani": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVFEHWSWC1Z484T5CCJTVM_28b1e517-fc64-461d-825f-44f5a9a296ee_12e45847-e9d5-4800-98da-3e2db7698510.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_dimas": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVFHX9CXGMBBQ0057N272F_b7518f58-a967-4c63-987f-1444dd7a5a81_2de2b8fc-5eb2-4ede-9082-af8c4cd81dd1.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_hendra": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVFMYSPQ38MZNV0DAZ3PKT_04ec693d-ad67-4df4-8a39-e12c47b68717_45448044-d360-4300-906d-f92c910902f6.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_laras": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVFRN1SVGD2XW3TJK2V5VN_02b9fd72-0387-4541-ad42-ec7679120b0e_6989b96d-de3d-4df7-a0ec-2f9d9449ebb7.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_wati": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVJ4CAVFEXYGSRK9G4YXH6_3ef5470d-e98a-4905-88bc-ac3665594ca5_b92bad91-b3bd-4c8f-a885-43c1a3d2a807.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_darto": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVJ841W8EQYEEE2KFFJJGA_c81431f6-2c4f-49c2-a40a-0510e5572333_34d206fb-b059-4d2b-b1b3-07e506cea676.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_jessa": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVJBGM6P2W1ABR6DBDC5RW_1c22b61d-e61a-4991-9d02-56f08688307c_b30bda47-285e-46d7-b5dd-72d5737a3749.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_nara": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVK2SC2SGZA8WA0256BR7A_79dcc39c-4caa-463f-8222-43e442c30ed9_6e42fa5a-0016-4fb4-9487-893aee798067.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "aib_bima": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVK6FBHW5J8CAFTQRS5D30_d2c0f8b4-6d69-43ac-8d66-04691d9d5282_21daeb07-6d34-4a6e-9435-5b2225cea5ee.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      843,
+      1264
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "entity_hallway": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVK8QVTBY0XN0G3BH514MF_71231699-6657-4af9-b770-868ad5b68cc4_8c837753-87c8-4ccd-824d-dab3a9cdcd5a.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "entity_sky": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVKAQ0GBEZWM9RNF1DJZEB_715c5e5b-e579-4baf-92b5-7d109c33ba35_f2b533fc-6824-435c-8615-0324f0639d2b.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  },
+  "entity_corridor": {
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/images/direct_asset_generation_01M7HVKCMNPBJ1D303RAHXJZ7S_5442e2ca-16d7-4f52-b167-67b543003e4f_dfad91c0-869c-423f-b3f0-6df8cfd55003.webp",
+    "type": "image",
+    "prompt": null,
+    "description": null,
+    "subtype": "background",
+    "aspect_ratio": [
+      1024,
+      1536
+    ],
+    "compression_suggestion": "original",
+    "duration_secs": null,
+    "loop": null,
+    "opus_url": null,
+    "animation": null
+  }
+}
