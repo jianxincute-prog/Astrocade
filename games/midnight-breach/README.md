@@ -47,8 +47,9 @@ Seven hinged doors (bedroom, kitchen, living room, dining room, front door, stor
 - `src/neighborhood.mjs` — the housing complex: main road with zebra crossing, cross street, ~14 houses, parked and moving cars, street lamps, pos ronda, warung, fences; Rani's enterable old house at the west end; walkable bounds and zone names.
 - `src/actors.mjs` — low-poly character factory with real faces (eyes with iris and highlight, brows, nose, mouth, ears, cheeks), hair styles (short, long, hijab, grey), outfits, hands and shoes. Each body part is baked into one vertex-coloured mesh (~9 draw calls per character). Animations: walk, breathing, blinking, head turning towards the player, mouth moving while talking. `LOOKS` holds the cast (player, Rani, Bu Wati, Pak Darto).
 - `src/phone.mjs` — in-game phone overlay (Messages, Photos, Contacts, Notes, Phone, AFTER) with full-screen photo viewer.
-- `src/story.mjs` — contacts, messages, notes, AFTER archive, clues, finale text and endings.
-- `src/logic.mjs` — pure clock rules. `tests/*.test.mjs` — Node unit tests (`node --test tests/logic.test.mjs tests/neighborhood.test.mjs tests/audio.test.mjs`).
+- `src/story.mjs` — picks the story for the current language; `src/story-id.mjs` / `src/story-en.mjs` — contacts, messages, notes, AFTER archive, clues, finale text and endings (same ids in both).
+- `src/i18n.mjs` — Indonesian / English UI strings, `t()`, room and door names. A language picker appears after the loading screen; it can also be changed in Settings and is saved with the game.
+- `src/logic.mjs` — pure clock rules. `tests/*.test.mjs` — Node unit tests (`node --test tests/logic.test.mjs tests/neighborhood.test.mjs tests/audio.test.mjs tests/i18n.test.mjs`).
 - `style.css` (phone UI), `game.css` (HUD/menu/dialog), `asset_map.json` (27 photorealistic images used inside the phone), `game_config.json`.
 
 ## Controls

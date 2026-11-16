@@ -69,3 +69,10 @@
 
 /* Sound toggle (HUD) */
 .btn-sound { position: absolute; right: 24px; top: 132px; width: 96px; height: 72px; border-radius: 24px; display: grid; place-items: center; color: #e8e4ff; background: rgba(40,34,80,.72); border: 1px solid rgba(190,170,255,.35); pointer-events: auto; }
+
+/* language picker */
+.lang-title { text-align: center; color: #b9b0d8; font-size: 20px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 4px; }
+.menu-bottom .lang-btn { display: flex; align-items: center; justify-content: center; gap: 22px; font-size: 30px; letter-spacing: .04em; }
+.lang-btn.alt { background: rgba(255,255,255,.1); color: #e8e0ff; border: 1px solid rgba(255,255,255,.22); box-shadow: none; }
+.lang-flag { font-size: 20px; font-weight: 800; letter-spacing: .12em; padding: 6px 12px; border-radius: 12px; background: rgba(27,16,48,.18); }
+.lang-btn.alt .lang-flag { background: rgba(255,255,255,.14); }

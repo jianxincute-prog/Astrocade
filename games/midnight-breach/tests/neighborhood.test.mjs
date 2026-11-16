@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BOUNDS, NPC_SPOTS, zoneAt } from '../src/neighborhood.mjs';
-import { CLUES, NPC, FINALE } from '../src/story.mjs';
+import { getStory } from '../src/story.mjs';
+const { CLUES, NPC, FINALE } = getStory('id');
 import { SPOTS, roomAt } from '../src/world.mjs';
 
 test('zones name the road, cross street, own yard and the rest of the complex', () => {

@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { archiveIsUnlocked, clockAt, clockDisplayAt, DEFAULT_APP_ORDER, moveApp, normalizeAppOrder } from '../src/logic.mjs';
-import { ARCHIVE, ARCHIVE_FILTERS, CLUES, CLUES_TO_OPEN_STORAGE, CONTACTS, FINALE, isMidnightOnly } from '../src/story.mjs';
+import { CLUES_TO_OPEN_STORAGE, FILTER_IDS, getStory, isMidnightOnly } from '../src/story.mjs';
+import { setLang } from '../src/i18n.mjs';
+setLang('id');
+const { ARCHIVE, CLUES, CONTACTS, FINALE } = getStory('id');
 
 test('the simulated phone starts at 11:48 PM and hits midnight at the configured duration', () => {
   assert.equal(clockAt(0, 80).display, '11:48');
@@ -25,9 +28,9 @@ test('app layout helpers stay valid', () => {
 
 test('AFTER has friend, family, neighbour and celebrity secrets readable before midnight', () => {
   const early = ARCHIVE.filter(item => !isMidnightOnly(item));
-  for (const cat of ['TEMAN', 'KELUARGA', 'TETANGGA', 'ARTIS']) {
+  for (const cat of ['friend', 'family', 'neighbor', 'celeb']) {
     assert.ok(early.some(item => item.category === cat), cat);
-    assert.ok(ARCHIVE_FILTERS.includes(cat));
+    assert.ok(FILTER_IDS.includes(cat));
   }
   assert.equal(ARCHIVE.filter(isMidnightOnly).length, 4);
   for (const item of early) assert.ok(CONTACTS.some(c => `${c.id}-file` === item.id), item.id);

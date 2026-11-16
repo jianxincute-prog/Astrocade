@@ -2,7 +2,8 @@
 // follow its clues, and find Rani before the phone clock (and your memory) moves on.
 import { T, loadThree } from './three-loader.mjs';
 import { clockDisplayAt } from './logic.mjs';
-import { ARCHIVE, CLUES, CLUES_TO_OPEN_STORAGE, CLUES_TO_SHOW_ADDRESS, ENDINGS, FINALE, NPC, PHOTO_LINES } from './story.mjs';
+import { CLUES_TO_OPEN_STORAGE, CLUES_TO_SHOW_ADDRESS, getStory, STORIES } from './story.mjs';
+import { detectLang, getLang, LANGS, roomName, setLang, t } from './i18n.mjs';
 import { BOUNDS, NPC_SPOTS } from './neighborhood.mjs';
 import { buildWorld, roomAt, SPOTS } from './world.mjs';
 import { makeCharacter, LOOKS } from './actors.mjs';
@@ -15,7 +16,10 @@ const safe = fn => { try { return fn(); } catch (_) { return undefined; } };
 const PLAYER_R = 0.32;
 const SPEED = 3.6;
 const QUALITY_PR = { low: 1, mid: 1.5, high: 2 };
-const CLUE_ENTRIES = ARCHIVE.filter(a => a.clue);
+const S = () => getStory();
+const clueEntries = () => S().ARCHIVE.filter(a => a.clue);
+const CLUE_IDS = STORIES.id.CLUES.map(c => c.id);
+const LANG_NAMES = { id: 'Bahasa Indonesia', en: 'English' };
 const INDOOR = ['Kamar', 'Ruang tamu', 'Gudang', 'Dapur', 'Ruang makan', 'Rumah Rani'];
 const SND_ON = '<svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const SND_OFF = '<svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -39,9 +43,9 @@ function registerParameters() {
   safe(() => lib().showGameParameters({
     name: 'Midnight Breach',
     params: {
-      'Durasi menuju tengah malam (detik)': { key: 'settings.midnightSeconds', type: 'slider', min: 120, max: 600, step: 30 },
-      'Intensitas glitch': { key: 'settings.glitchIntensity', type: 'slider', min: 1, max: 5, step: 1 },
-      'Nama pemilik ponsel': { key: 'settings.ownerName', type: 'string' },
+      [t('param.duration')]: { key: 'settings.midnightSeconds', type: 'slider', min: 120, max: 600, step: 30 },
+      [t('param.glitch')]: { key: 'settings.glitchIntensity', type: 'slider', min: 1, max: 5, step: 1 },
+      [t('param.owner')]: { key: 'settings.ownerName', type: 'string' },
     },
   }));
 }
@@ -51,44 +55,45 @@ export async function mountGame(mode) {
   const root = document.getElementById('app');
   if (!root) return;
   const isEditor = mode === 'edit';
+  setLang(detectLang());
   registerParameters();
 
   root.innerHTML = `<div class="game-root">
     <div class="gl-host" id="gl"></div>
     <div class="fear" id="fear"></div>
     <div class="hud" id="hud" hidden>
-      <div class="hud-top"><div class="chip" id="hud-time">11:48 · Kamar</div><div class="chip chip-clue" id="hud-clues">✦ 0/${CLUES.length}</div></div>
+      <div class="hud-top"><div class="chip" id="hud-time">11:48</div><div class="chip chip-clue" id="hud-clues">✦ 0/${CLUE_IDS.length}</div></div>
       <div class="hud-goal" id="hud-goal"></div>
       <div class="hud-toast" id="hud-toast"></div>
     </div>
     <div class="controls" id="controls" hidden>
       <div class="joy" id="joy"><div class="joy-knob" id="joy-knob"></div></div>
-      <button class="btn-phone" id="btn-phone" aria-label="Buka ponsel"><svg viewBox="0 0 24 24" width="34" height="34"><rect x="7" y="2.5" width="10" height="19" rx="2.4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18.3" r="1" fill="currentColor"/></svg><i class="notif-dot" id="notif-dot"></i></button>
-      <button class="btn-sound" id="btn-sound" aria-label="Suara"></button>
-      <button class="btn-act" id="btn-act" hidden><span id="act-label">Periksa</span></button>
-      <div class="key-hint" id="key-hint">WASD / panah: jalan · E: periksa · P: ponsel</div>
+      <button class="btn-phone" id="btn-phone" aria-label="${t('hud.phone')}"><svg viewBox="0 0 24 24" width="34" height="34"><rect x="7" y="2.5" width="10" height="19" rx="2.4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18.3" r="1" fill="currentColor"/></svg><i class="notif-dot" id="notif-dot"></i></button>
+      <button class="btn-sound" id="btn-sound" aria-label="${t('hud.sound')}"></button>
+      <button class="btn-act" id="btn-act" hidden><span id="act-label">${t('act.inspect')}</span></button>
+      <div class="key-hint" id="key-hint">${t('hud.keys')}</div>
     </div>
     <div class="dialog" id="dialog" hidden></div>
     <div class="screen-layer menu" id="menu" hidden></div>
     <div class="screen-layer panel-layer" id="panel" hidden></div>
     <div class="screen-layer ending" id="ending" hidden></div>
-    <div class="screen-layer loading" id="loading"><div class="load-logo">A<span>✦</span></div><h1>MIDNIGHT BREACH</h1><div class="load-bar"><i id="load-fill"></i></div><div class="load-tip" id="load-tip">Memuat dunia 3D…</div></div>
+    <div class="screen-layer loading" id="loading"><div class="load-logo">A<span>✦</span></div><h1>MIDNIGHT BREACH</h1><div class="load-bar"><i id="load-fill"></i></div><div class="load-tip" id="load-tip">${t('load.world')}</div></div>
     <div id="phone-host"></div>
   </div>`;
   const $ = id => root.querySelector('#' + id);
   const setProgress = (p, tip) => { $('load-fill').style.width = `${Math.round(p * 100)}%`; if (tip) $('load-tip').textContent = tip; };
 
   // ---------------- Load Three.js ----------------
-  setProgress(0.08, 'Memuat Three.js r186…');
+  setProgress(0.08, t('load.three'));
   try {
     await loadThree();
   } catch (err) {
-    $('load-tip').innerHTML = `Gagal memuat mesin 3D.<br><button class="big-btn" id="retry">COBA LAGI</button>`;
+    $('load-tip').innerHTML = `${esc(t('load.fail'))}<br><button class="big-btn" id="retry">${esc(t('load.retry'))}</button>`;
     $('retry').onclick = () => mountGame(mode);
     safe(() => lib().log?.('Three load failed: ' + (err?.message || err)));
     return;
   }
-  setProgress(0.45, 'Membangun rumah…');
+  setProgress(0.45, t('load.house'));
   await new Promise(r => setTimeout(r, 0));
 
   // ---------------- Scene ----------------
@@ -138,7 +143,7 @@ export async function mountGame(mode) {
     hadSave: false,
     savedProgress: null,
     doorTimer: 25, noticed: 0, lastBeat: -9,
-    muted: false, endingKind: null,
+    muted: false, endingKind: null, savedLang: null,
   };
   const audio = createAudio({ reverb: true });
   let audioTimer = 0, stepClock = 0.6, creakAt = 20, whisperAt = 15, fearNow = 0;
@@ -170,7 +175,7 @@ export async function mountGame(mode) {
 
   // ---------------- Persistence ----------------
   function snapshot() {
-    return { v: 2, quality: state.quality, muted: state.muted, best: state.best, endings: state.endings,
+    return { v: 2, lang: getLang(), quality: state.quality, muted: state.muted, best: state.best, endings: state.endings,
       progress: { read: [...state.read], found: [...state.found], elapsed: Math.round(state.elapsed), storageOpen: state.storageOpen } };
   }
   function saveSoon() {
@@ -182,6 +187,7 @@ export async function mountGame(mode) {
       const res = await lib().getUserGameState?.();
       const s = res?.state;
       if (!s) return;
+      if (LANGS.includes(s.lang)) { state.savedLang = s.lang; setLang(s.lang); }
       state.quality = ['auto', 'low', 'mid', 'high'].includes(s.quality) ? s.quality : 'auto';
       state.muted = !!s.muted;
       state.best = typeof s.best === 'number' ? s.best : null;
@@ -203,9 +209,9 @@ export async function mountGame(mode) {
     markRead(id) {
       if (state.read.has(id)) return;
       state.read.add(id);
-      const entry = ARCHIVE.find(a => a.id === id);
+      const entry = S().ARCHIVE.find(a => a.id === id);
       if (entry?.clue) {
-        hudToast(`Petunjuk baru: ${CLUES.find(c => c.id === entry.clue).place}`);
+        hudToast(t('toast.newClue', { place: S().CLUES.find(c => c.id === entry.clue).place }));
         haptic('success');
         audio.ping();
       }
@@ -213,9 +219,9 @@ export async function mountGame(mode) {
       saveSoon();
     },
     isFound: id => state.found.has(id),
-    foundClues: () => CLUES.filter(c => state.found.has(c.id)),
-    ownerName: () => cfg().ownerName || 'Pemilik perangkat',
-    hasNewAfter: () => CLUE_ENTRIES.some(e => !state.read.has(e.id)),
+    foundClues: () => S().CLUES.filter(c => state.found.has(c.id)),
+    ownerName: () => cfg().ownerName || t('owner.default'),
+    hasNewAfter: () => clueEntries().some(e => !state.read.has(e.id)),
     onClose: () => closePhone(),
     haptic,
   });
@@ -243,28 +249,28 @@ export async function mountGame(mode) {
     toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   }
   function goalText() {
-    if (state.storageOpen) return 'Temui Rani di rumah lamanya';
-    if (state.found.size >= CLUES_TO_OPEN_STORAGE) return 'Pergi ke rumah Rani (ujung barat)';
-    const hinted = CLUES.find(c => state.read.has(c.from) && !state.found.has(c.id));
-    if (hinted) return `Cari: ${hinted.place}`;
-    if (!CLUE_ENTRIES.some(e => state.read.has(e.id))) return 'Buka ponsel › AFTER';
-    return state.found.size >= CLUES_TO_SHOW_ADDRESS ? 'Jelajahi komplek: baca AFTER lagi' : 'Baca berkas AFTER lain';
+    if (state.storageOpen) return t('goal.rani');
+    if (state.found.size >= CLUES_TO_OPEN_STORAGE) return t('goal.house');
+    const hinted = S().CLUES.find(c => state.read.has(c.from) && !state.found.has(c.id));
+    if (hinted) return t('goal.find', { place: hinted.place });
+    if (!clueEntries().some(e => state.read.has(e.id))) return t('goal.openAfter');
+    return state.found.size >= CLUES_TO_SHOW_ADDRESS ? t('goal.explore') : t('goal.readMore');
   }
   let lastHud = '';
   function updateHud(force) {
     const c = clock();
-    const text = `${c.display} · ${roomAt(state.px, state.pz)}`;
-    const unread = CLUE_ENTRIES.some(e => !state.read.has(e.id));
-    const key = `${text}|${state.found.size}|${goalText()}|${unread}`;
+    const text = `${c.display} · ${roomName(roomAt(state.px, state.pz))}`;
+    const unread = clueEntries().some(e => !state.read.has(e.id));
+    const key = `${text}|${state.found.size}|${goalText()}|${unread}|${getLang()}`;
     if (!force && key === lastHud) return;
     lastHud = key;
     $('hud-time').textContent = text;
-    $('hud-clues').textContent = `✦ ${state.found.size}/${CLUES.length}`;
+    $('hud-clues').textContent = `✦ ${state.found.size}/${CLUE_IDS.length}`;
     $('hud-goal').textContent = goalText();
     $('notif-dot').style.display = unread ? 'block' : 'none';
   }
   function syncWorldHints() {
-    for (const clue of CLUES) world.beacons[clue.id].visible = state.read.has(clue.from) && !state.found.has(clue.id);
+    for (const clue of S().CLUES) world.beacons[clue.id].visible = state.read.has(clue.from) && !state.found.has(clue.id);
     world.beacons.ranidoor.visible = state.found.size >= CLUES_TO_OPEN_STORAGE && !state.storageOpen;
     updateHud(true);
   }
@@ -275,19 +281,20 @@ export async function mountGame(mode) {
     audio.click();
     renderDialog();
   }
+  const speakerKind = who => (who === S().NPC.wati.label ? 'Bu Wati' : who === S().NPC.darto.label ? 'Pak Darto' : who);
   function renderDialog() {
     const d = state.dialog, el = $('dialog');
     if (!d) { el.hidden = true; el.innerHTML = ''; audio.stopSpeech(); return; }
     el.hidden = false;
     if (d.choices) {
       const last = d.lines[d.lines.length - 1];
-      audio.speak(last.who, last.text);
+      audio.speak(speakerKind(last.who), last.text);
       el.innerHTML = `<div class="dlg-card"><div class="dlg-who">${esc(last.who)}</div><p>${esc(last.text)}</p><div class="dlg-choices">${d.choices.map(c => `<button class="big-btn ${c.tone || ''}" data-choice="${c.id}">${esc(c.label)}</button>`).join('')}</div></div>`;
       return;
     }
     const line = d.lines[d.i];
-    audio.speak(line.who, line.text);
-    el.innerHTML = `<button class="dlg-card" data-next="1"><div class="dlg-who">${esc(line.who || '')}</div><p>${esc(line.text)}</p><span class="dlg-next">Lanjut ›</span></button>`;
+    audio.speak(speakerKind(line.who), line.text);
+    el.innerHTML = `<button class="dlg-card" data-next="1"><div class="dlg-who">${esc(line.who || '')}</div><p>${esc(line.text)}</p><span class="dlg-next">${esc(t('dlg.next'))}</span></button>`;
   }
   function advanceDialog() {
     const d = state.dialog;
@@ -308,7 +315,8 @@ export async function mountGame(mode) {
   });
 
   // ---------------- Interactables ----------------
-  function discover(clue) {
+  function discover(id) {
+    const clue = S().CLUES.find(c => c.id === id);
     state.found.add(clue.id);
     world.beacons[clue.id].visible = false;
     haptic('success');
@@ -316,49 +324,50 @@ export async function mountGame(mode) {
     syncWorldHints();
     saveSoon();
     say([{ who: clue.title, text: clue.text }], () => {
-      if (state.found.size === CLUES_TO_SHOW_ADDRESS) hudToast('Alamatnya: Blok C-7, ujung barat komplek.');
-      else if (state.found.size === CLUES_TO_OPEN_STORAGE) { hudToast('Dari ujung barat komplek terdengar tiga ketukan…'); audio.knock(3); }
+      if (state.found.size === CLUES_TO_SHOW_ADDRESS) hudToast(t('toast.address'));
+      else if (state.found.size === CLUES_TO_OPEN_STORAGE) { hudToast(t('toast.knocks')); audio.knock(3); }
     });
   }
   const interactables = [
-    ...CLUES.map(clue => ({
-      id: clue.id, x: SPOTS[clue.id].x, z: SPOTS[clue.id].z, r: 1.5, label: SPOTS[clue.id].label,
+    ...CLUE_IDS.map(id => ({
+      id, x: SPOTS[id].x, z: SPOTS[id].z, r: 1.5, labelFn: () => t('spot.' + id),
       use() {
-        if (state.found.has(clue.id)) return say([{ who: clue.title, text: clue.text }]);
-        if (!state.read.has(clue.from)) return say([{ who: SPOTS[clue.id].label, text: 'Tidak ada yang aneh di sini. Mungkin ada petunjuk di AFTER.' }]);
-        discover(clue);
+        const clue = S().CLUES.find(c => c.id === id);
+        if (state.found.has(id)) return say([{ who: clue.title, text: clue.text }]);
+        if (!state.read.has(clue.from)) return say([{ who: t('spot.' + id), text: t('dlg.nothing') }]);
+        discover(id);
       },
     })),
-    ...Object.keys(NPC).map(id => ({
-      id: 'npc-' + id, x: NPC_SPOTS[id].x, z: NPC_SPOTS[id].z, r: 1.9, label: NPC[id].label,
+    ...Object.keys(STORIES.id.NPC).map(id => ({
+      id: 'npc-' + id, x: NPC_SPOTS[id].x, z: NPC_SPOTS[id].z, r: 1.9, labelFn: () => S().NPC[id].label,
       use() {
-        const n = NPC[id];
+        const n = S().NPC[id];
         say(state.found.has(n.afterClue) ? n.afterLines : n.lines);
       },
     })),
     ...world.doors.doors.map(d => ({
-      id: 'door-' + d.id, x: d.x, z: d.z, r: 1.5, label: d.label,
-      labelFn: () => (d.open ? 'Tutup pintu' : 'Buka pintu'),
+      id: 'door-' + d.id, x: d.x, z: d.z, r: 1.5,
+      labelFn: () => t(d.open ? 'act.close' : 'act.open'),
       available: () => !d.locked,
       use() {
         const res = world.doors.toggle(d, state.px, state.pz);
-        if (res === 'blocked') { haptic('error'); audio.error(); hudToast('Ada yang menghalangi pintu.'); }
+        if (res === 'blocked') { haptic('error'); audio.error(); hudToast(t('toast.doorBlocked')); }
         else { haptic('tap'); audio.door(res === 'opened'); }
       },
     })),
     ...world.watchers.frames.map(f => ({
       id: 'photo-' + f.i,
-      x: f.spot.x + Math.sin(f.spot.rotY) * 0.9, z: f.spot.z + Math.cos(f.spot.rotY) * 0.9, r: 1.1, label: 'Foto di dinding',
-      use() { haptic('warning'); say([{ who: 'Foto', text: PHOTO_LINES[f.stage] }]); },
+      x: f.spot.x + Math.sin(f.spot.rotY) * 0.9, z: f.spot.z + Math.cos(f.spot.rotY) * 0.9, r: 1.1, labelFn: () => t('dlg.photoLabel'),
+      use() { haptic('warning'); say([{ who: t('dlg.photo'), text: S().PHOTO_LINES[f.stage] }]); },
     })),
     {
-      id: 'ranidoor', x: SPOTS.ranidoor.x, z: SPOTS.ranidoor.z, r: 1.9, label: 'Pintu rumah Rani',
+      id: 'ranidoor', x: SPOTS.ranidoor.x, z: SPOTS.ranidoor.z, r: 1.9, labelFn: () => t('door.rani'),
       available: () => !state.storageOpen,
       use() {
         if (state.found.size < CLUES_TO_OPEN_STORAGE) {
           haptic('error');
           audio.locked();
-          return say([{ who: 'Pintu rumah Rani', text: `Terkunci. Rumah ini sudah lama kosong, dan aku belum cukup tahu. (${state.found.size}/${CLUES_TO_OPEN_STORAGE} catatan)` }]);
+          return say([{ who: t('door.rani'), text: t('dlg.locked', { n: state.found.size, m: CLUES_TO_OPEN_STORAGE }) }]);
         }
         state.storageOpen = true;
         audio.knock(3);
@@ -369,11 +378,11 @@ export async function mountGame(mode) {
         haptic('warning');
         saveSoon();
         syncWorldHints();
-        say([{ who: 'Pintu rumah Rani', text: 'Tiga ketukan dari dalam. Pintunya terbuka sendiri.' }], () => updateHud(true));
+        say([{ who: t('door.rani'), text: t('dlg.unlocked') }], () => updateHud(true));
       },
     },
     {
-      id: 'rani', x: SPOTS.rani.x, z: SPOTS.rani.z, r: 1.8, label: 'Bicara pada Rani',
+      id: 'rani', x: SPOTS.rani.x, z: SPOTS.rani.z, r: 1.8, labelFn: () => t('dlg.talkRani'),
       available: () => state.storageOpen,
       use() { runFinale(); },
     },
@@ -391,7 +400,7 @@ export async function mountGame(mode) {
       $('btn-act').hidden = !show;
     }
     if (best) {
-      const text = best.labelFn ? best.labelFn() : best.label;
+      const text = best.labelFn();
       const el = $('act-label');
       if (el.textContent !== text) el.textContent = text;
     }
@@ -404,11 +413,11 @@ export async function mountGame(mode) {
 
   // ---------------- Finale & endings ----------------
   function runFinale() {
-    const lines = FINALE;
+    const lines = S().FINALE;
     state.dialog = { lines: lines.slice(0, -1), i: 0, choices: null, done: () => {
       state.dialog = { lines: [lines[lines.length - 1]], i: 0, choices: [
-        { id: 'delete', label: 'HAPUS AFTER', tone: 'tone-a', run: () => finish('delete') },
-        { id: 'keep', label: 'SIMPAN AFTER', tone: 'tone-b', run: () => finish('keep') },
+        { id: 'delete', label: t('end.delete'), tone: 'tone-a', run: () => finish('delete') },
+        { id: 'keep', label: t('end.keep'), tone: 'tone-b', run: () => finish('keep') },
       ] };
       renderDialog();
     } };
@@ -422,14 +431,14 @@ export async function mountGame(mode) {
     state.savedProgress = null; state.hadSave = false;
     state.endingKind = choice;
     audio.stopSpeech(); audio.ending(choice);
-    safe(() => lib().saveUserGameState?.({ v: 2, quality: state.quality, muted: state.muted, best: state.best, endings: state.endings, progress: null })?.catch?.(() => {}));
+    safe(() => lib().saveUserGameState?.({ v: 2, lang: getLang(), quality: state.quality, muted: state.muted, best: state.best, endings: state.endings, progress: null })?.catch?.(() => {}));
     safe(() => lib().addPlayerScoreToLeaderboard?.(seconds)?.catch?.(() => {}));
     haptic('success');
     $('hud').hidden = true; $('controls').hidden = true;
-    const e = ENDINGS[choice];
+    const e = S().ENDINGS[choice];
     const el = $('ending');
     el.hidden = false;
-    el.innerHTML = `<div class="end-card"><span class="end-kicker">AKHIR ${state.endings.length}/2</span><h2>${esc(e.title)}</h2><p>${esc(e.text)}</p><div class="end-stats"><div><small>WAKTU</small><b>${fmt(seconds)}</b></div><div><small>TERBAIK</small><b>${fmt(state.best)}</b></div></div><button class="big-btn" id="again">MAIN LAGI</button><button class="ghost-btn" id="to-menu">MENU</button></div>`;
+    el.innerHTML = `<div class="end-card"><span class="end-kicker">${esc(t('end.kicker', { n: state.endings.length }))}</span><h2>${esc(e.title)}</h2><p>${esc(e.text)}</p><div class="end-stats"><div><small>${esc(t('end.time'))}</small><b>${fmt(seconds)}</b></div><div><small>${esc(t('end.best'))}</small><b>${fmt(state.best)}</b></div></div><button class="big-btn" id="again">${esc(t('end.again'))}</button><button class="ghost-btn" id="to-menu">${esc(t('end.menu'))}</button></div>`;
     $('again').onclick = () => { el.hidden = true; startNew(); };
     $('to-menu').onclick = () => { el.hidden = true; showMenu(); };
   }
@@ -464,36 +473,62 @@ export async function mountGame(mode) {
     $('key-hint').style.display = touch ? 'none' : 'block';
     updateHud(true);
     if (state.elapsed < 1) say([
-      { who: '23:48', text: 'Rani tidak membalas sejak sore. Ada aplikasi baru di ponselku: AFTER.' },
-      { who: '23:48', text: 'Pintu-pintu di rumah ini bisa dibuka dan ditutup. Foto-foto di dinding itu… sejak kapan ada di sana?' },
+      { who: '23:48', text: t('intro.1') },
+      { who: '23:48', text: t('intro.2') },
     ]);
+  }
+  // ---------------- Language ----------------
+  function applyStaticText() {
+    $('btn-phone').setAttribute('aria-label', t('hud.phone'));
+    $('btn-sound').setAttribute('aria-label', t('hud.sound'));
+    $('key-hint').textContent = t('hud.keys');
+    $('act-label').textContent = t('act.inspect');
+    document.title = 'Midnight Breach';
+  }
+  function applyLang(l) {
+    setLang(l);
+    applyStaticText();
+    registerParameters();
+    updateHud(true);
+    if (phone.isOpen()) phone.refresh();
+    saveSoon();
+  }
+  function showLangPicker() {
+    state.phase = 'menu';
+    $('hud').hidden = true; $('controls').hidden = true; $('btn-act').hidden = true;
+    const el = $('menu');
+    el.hidden = false;
+    el.innerHTML = `<div class="menu-top"><div class="load-logo">A<span>✦</span></div><h1>MIDNIGHT<br>BREACH</h1></div>
+      <div class="menu-bottom"><div class="lang-title">Language · Bahasa</div>${LANGS.map(l => `<button class="big-btn lang-btn ${getLang() === l ? '' : 'alt'}" data-lang="${l}"><span class="lang-flag">${l === 'id' ? 'ID' : 'EN'}</span>${LANG_NAMES[l]}</button>`).join('')}</div>`;
+    el.querySelectorAll('[data-lang]').forEach(b => { b.onclick = () => { applyLang(b.dataset.lang); audio.click(); showMenu(); }; });
   }
   function showMenu() {
     state.phase = 'menu';
     $('hud').hidden = true; $('controls').hidden = true; $('btn-act').hidden = true;
-    const best = state.best ? `Terbaik ${fmt(state.best)}` : '';
+    const best = state.best ? t('menu.best', { t: fmt(state.best) }) : '';
     const el = $('menu');
     el.hidden = false;
     el.innerHTML = `<div class="menu-top"><div class="load-logo">A<span>✦</span></div><h1>MIDNIGHT<br>BREACH</h1><div class="menu-best">${esc(best)}</div></div>
-      <div class="menu-bottom">${state.hadSave ? '<button class="big-btn" id="m-resume">LANJUT</button><button class="ghost-btn" id="m-new">MAIN BARU</button>' : '<button class="big-btn" id="m-play">MAIN</button>'}
-      <div class="icon-row"><button class="icon-btn" id="m-sound" aria-label="Suara"></button><button class="icon-btn" id="m-settings" aria-label="Pengaturan">⚙</button><button class="icon-btn" id="m-help" aria-label="Bantuan">?</button></div></div>`;
+      <div class="menu-bottom">${state.hadSave ? `<button class="big-btn" id="m-resume">${esc(t('menu.resume'))}</button><button class="ghost-btn" id="m-new">${esc(t('menu.new'))}</button>` : `<button class="big-btn" id="m-play">${esc(t('menu.play'))}</button>`}
+      <div class="icon-row"><button class="icon-btn" id="m-sound" aria-label="${esc(t('hud.sound'))}"></button><button class="icon-btn" id="m-settings" aria-label="${esc(t('menu.settings'))}">⚙</button><button class="icon-btn" id="m-help" aria-label="${esc(t('menu.help'))}">?</button></div></div>`;
     if (state.hadSave) { $('m-resume').onclick = resume; $('m-new').onclick = startNew; } else $('m-play').onclick = startNew;
     $('m-settings').onclick = () => { audio.click(); showSettings(); }; $('m-help').onclick = () => { audio.click(); showHelp(); };
     $('m-sound').onclick = toggleSound; refreshSound();
   }
   function showPanel(html) {
     const el = $('panel'); el.hidden = false;
-    el.innerHTML = `<div class="panel-card">${html}<button class="ghost-btn" id="p-close">TUTUP</button></div>`;
+    el.innerHTML = `<div class="panel-card">${html}<button class="ghost-btn" id="p-close">${esc(t('panel.close'))}</button></div>`;
     $('p-close').onclick = () => { el.hidden = true; };
   }
   function showSettings() {
     const names = { auto: 'Auto', low: 'Low', mid: 'Med', high: 'High' };
-    showPanel(`<h3>Kualitas grafis</h3><div class="q-row">${Object.keys(names).map(o => `<button class="q-btn ${state.quality === o ? 'sel' : ''}" data-q="${o}">${names[o]}</button>`).join('')}</div><small class="q-note">Auto saat ini: ${names[state.autoTier]}</small><h3>Suara</h3><div class="q-row"><button class="q-btn ${state.muted ? '' : 'sel'}" data-snd="on">Nyala</button><button class="q-btn ${state.muted ? 'sel' : ''}" data-snd="off">Mati</button></div>`);
+    showPanel(`<h3>${esc(t('set.language'))}</h3><div class="q-row">${LANGS.map(l => `<button class="q-btn ${getLang() === l ? 'sel' : ''}" data-lang="${l}">${LANG_NAMES[l]}</button>`).join('')}</div><h3>${esc(t('set.quality'))}</h3><div class="q-row">${Object.keys(names).map(o => `<button class="q-btn ${state.quality === o ? 'sel' : ''}" data-q="${o}">${names[o]}</button>`).join('')}</div><small class="q-note">${esc(t('set.autoNow', { q: names[state.autoTier] }))}</small><h3>${esc(t('set.sound'))}</h3><div class="q-row"><button class="q-btn ${state.muted ? '' : 'sel'}" data-snd="on">${esc(t('set.on'))}</button><button class="q-btn ${state.muted ? 'sel' : ''}" data-snd="off">${esc(t('set.off'))}</button></div>`);
+    $('panel').querySelectorAll('[data-lang]').forEach(b => { b.onclick = () => { applyLang(b.dataset.lang); audio.click(); showSettings(); if (state.phase === 'menu') showMenu(); }; });
     $('panel').querySelectorAll('[data-snd]').forEach(b => { b.onclick = () => { state.muted = b.dataset.snd === 'off'; audio.setMuted(state.muted); refreshSound(); saveSoon(); showSettings(); if (!state.muted) audio.click(); }; });
     $('panel').querySelectorAll('[data-q]').forEach(b => { b.onclick = () => { state.quality = b.dataset.q; applyQuality(); saveSoon(); showSettings(); }; });
   }
   function showHelp() {
-    showPanel(`<h3>Cara main</h3><p class="help">Jelajahi rumah, lalu komplek. Buka ponsel › AFTER dan baca berkasnya: tiap rahasia teman, keluarga, dan tetangga membuka satu petunjuk. Temukan ${CLUES_TO_OPEN_STORAGE} catatan untuk membuka rumah Rani di ujung barat.</p><p class="help">Sentuh: geser joystick, ketuk tombol periksa. PC: WASD / panah, E atau Spasi, P untuk ponsel.</p>`);
+    showPanel(`<h3>${esc(t('help.title'))}</h3><p class="help">${esc(t('help.1', { n: CLUES_TO_OPEN_STORAGE }))}</p><p class="help">${esc(t('help.2'))}</p>`);
   }
 
   // ---------------- Input ----------------
@@ -607,7 +642,7 @@ export async function mountGame(mode) {
       const want = dist < 6 ? toPlayer : sp.face;
       n.rotation.y += wrap(want - n.rotation.y) * Math.min(1, dt * 5);
       n.userData.look(dist < 10 ? wrap(toPlayer - n.rotation.y) : 0);
-      n.userData.setTalking(speaker === NPC[id].label);
+      n.userData.setTalking(speaker === S().NPC[id].label);
       n.userData.walk(simTime, 0);
     }
     if (rani.visible) {
@@ -629,7 +664,7 @@ export async function mountGame(mode) {
       fearEl.style.opacity = Math.min(0.75, fear * 0.2).toFixed(2);
       fearEl.classList.toggle('beat', fear >= 1.2);
       if (active) {
-        if (w.newlyNoticed && state.noticed < 3) { state.noticed++; haptic('warning'); audio.stinger(); hudToast(state.noticed === 1 ? 'Foto di dinding itu… matanya mengikutimu.' : 'Mereka semua menatapmu.'); }
+        if (w.newlyNoticed && state.noticed < 3) { state.noticed++; haptic('warning'); audio.stinger(); hudToast(t(state.noticed === 1 ? 'toast.watch1' : 'toast.watch2')); }
         if (fear >= 1.2 && simTime - state.lastBeat > 2.3) {
           state.lastBeat = simTime;
           audio.heartbeat(Math.min(1.2, fear));
@@ -667,7 +702,7 @@ export async function mountGame(mode) {
     }
     if (playing || state.phase === 'ending') {
       // Cinematic close-up on whoever is talking (Rani or a neighbour), otherwise the follow camera.
-      let talker = playing ? (speaker === 'Rani' && rani.visible ? rani : speaker === 'Bu Wati' ? npcs.wati : speaker === 'Pak Darto' ? npcs.darto : null) : null;
+      let talker = playing ? (speaker === 'Rani' && rani.visible ? rani : speaker === S().NPC.wati.label ? npcs.wati : speaker === S().NPC.darto.label ? npcs.darto : null) : null;
       if (talker) {
         // pick a free spot beside the line of sight (so the player never blocks the face)
         const ry = talker.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry), rx = fz, rz = -fx;
@@ -727,15 +762,16 @@ export async function mountGame(mode) {
   window.__mb = { audio, chars: { player, rani, ...npcs }, state, interactables, doors: world.doors, watchers: world.watchers, openPhone, closePhone, interact, say, advanceDialog, clock, world, camera, scene, SPOTS };
 
   // ---------------- Boot ----------------
-  setProgress(0.8, 'Menyiapkan ponsel…');
+  setProgress(0.8, t('load.phone'));
   preloadPhotos();
   await loadSaved();
   syncWorldHints();
   applyQuality();
-  setProgress(1, 'Siap');
+  setProgress(1, t('load.ready'));
   raf = requestAnimationFrame(frame);
   await new Promise(r => setTimeout(r, 250));
   $('loading').hidden = true;
   if (isEditor) { state.phase = 'edit'; return; }
-  showMenu();
+  applyStaticText();
+  showLangPicker();
 }
