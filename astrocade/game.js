@@ -2726,6 +2726,11 @@ function findWorkSpot(c, job, ka) {
     if ((counts.rabbit | 0) + (counts.deer | 0) + (counts.sheep | 0) < 8) return null;
     const pr = findNearest(c, PREY_OF[c.t] || PREY_OF.human, 9); return pr ? { x: pr.x, y: pr.y, prey: pr } : null;
   }
+  if (job === 'trade') {                                       // a free spot a few steps from the market square at the heart of the realm
+    if (!ka) return null;
+    for (let q = 0; q < 14; q++) { const a = Math.random() * 6.283, d = 2 + Math.random() * 3.5, x = Math.round(ka.cx + Math.cos(a) * d), y = Math.round(ka.cy + Math.sin(a) * d); if (inb(x, y) && walkable(c.t, tiles[x + y*W]) && !bld[x + y*W] && !fire[x + y*W]) return { x, y }; }
+    return null;
+  }
   if (job === 'farm') {
     if (!ka) return null; let best = null, bd = 15;
     for (const p of kingdomProps(ka)) if (p.t === 'field') { const d = cheb(c, p.x, p.y) + Math.random() * 3; if (d < bd && walkable(c.t, tiles[p.x + p.y*W])) { bd = d; best = { x: p.x, y: p.y }; } }
@@ -2760,6 +2765,7 @@ function homeOf(c, ka) {                                       // nearest house 
   return best || { x: Math.round(ka.cx), y: Math.round(ka.cy) };
 }
 function finishWork(c, ka, j) {                                // the job is done: haul the goods home (or give up when there is no home)
+  if (j.k === 'trade') { if (ka) ka.gold = Math.min(250, (ka.gold || 0) + .12 * yieldMult(profLevel(c, 'trade'))); c.mx = (c.mx | 0) + 1; emit('bit', j.x, j.y - .4, 3, { col: '#ffd23f' }); c.job = null; return; }     // a deal at the market
   if (j.k === 'build') { if (ka) ka.lab = Math.min(50, (ka.lab || 0) + .4 + profLevel(c, 'build') * .15); c.mx = (c.mx | 0) + 1; emit('dust', c.x, c.y, 3); c.job = null; return; }     // a builder's labour makes the next building cheaper
   if (j.k === 'fish') {
     fx('splash', j.wx, j.wy); emit('bit', j.wx, j.wy - .2, 6, { col: '#bfe6ff' });
@@ -2793,7 +2799,6 @@ function workStep(c, ka) {                                     // returns true w
     if (!canWork(c, ka) || Math.random() > .06) return false;
     if (!c.prof && ka && RACES[c.t].civ && c.nid !== undefined && isAdult(c.age, c.life)) assignProf(c, ka);
     const pj = c.prof && c.prof !== 'soldier' ? PROF_BY[c.prof].job : undefined;       // a lifelong trade decides the work; soldiers do random chores in peace
-    if (pj === null) return false;                                                       // traders do not work in the fields
     const k = pj || pickJob(c.t, { chop: 1, mine: 1, hunt: 1, farm: !!(ka && ka.houses >= 3), fish: 1, gather: 1 }, Math.random());
     const s = k && findWorkSpot(c, k, ka); if (!s) return false;
     j = c.job = { k, x: s.x, y: s.y, wx: s.wx, wy: s.wy, prey: s.prey || null, ph: 0, t: 0, f: 0, fails: 0, cy: -1 };
@@ -2824,7 +2829,7 @@ function workStep(c, ka) {                                     // returns true w
       return true;
     }
     const i = j.x + j.y*W, t = tiles[i];
-    if (fire[i] || ((j.k === 'chop' || j.k === 'gather') && t !== T.FOREST) || (j.k === 'mine' && !oreT[i] && t !== T.HILL) || (j.k === 'fish' && tiles[j.wx + j.wy*W] > T.SHALLOW) || (j.k === 'build' && !bld[i])) { c.job = null; return false; }
+    if (fire[i] || ((j.k === 'chop' || j.k === 'gather') && t !== T.FOREST) || (j.k === 'mine' && !oreT[i] && t !== T.HILL) || (j.k === 'fish' && tiles[j.wx + j.wy*W] > T.SHALLOW) || ((j.k === 'build' && !bld[i]) || (j.k === 'trade' && bld[i]))) { c.job = null; return false; }
     if (--j.t <= 0) finishWork(c, ka, j);
     return true;
   }
@@ -2834,7 +2839,7 @@ function workStep(c, ka) {                                     // returns true w
   if (++j.fails > 6) deposit(c, ka, j);
   return false;
 }
-const BIT_COL = { build: ['#c08a50', '#d8c8a0', '#9aa0aa'], chop: ['#c08a50', '#e8c890', '#6a8a3a'], mine: ['#9aa0aa', '#c8ced6', '#6a6e78'], farm: ['#8a6a40', '#a8844e', '#d8b860'], gather: ['#e8344a', '#5aa83a', '#b03aa8'] };
+const BIT_COL = { trade: ['#ffd23f', '#fff2a0', '#d8b050'], build: ['#c08a50', '#d8c8a0', '#9aa0aa'], chop: ['#c08a50', '#e8c890', '#6a8a3a'], mine: ['#9aa0aa', '#c8ced6', '#6a6e78'], farm: ['#8a6a40', '#a8844e', '#d8b860'], gather: ['#e8344a', '#5aa83a', '#b03aa8'] };
 function workImpact(c, j, race) {                              // the moment an axe / pick / hoe / claw lands
   const i = j.x + j.y*W;
   if (WORK_HIT.size > 400) WORK_HIT.clear();
@@ -2842,8 +2847,8 @@ function workImpact(c, j, race) {                              // the moment an 
   const cols = BIT_COL[j.k]; if (!cols) return;
   const n = j.k === 'gather' ? 2 : 3;
   for (let q = 0; q < n; q++) emit('bit', j.x, j.y - (j.k === 'farm' ? 0 : .35), 1, { col: cols[ri(0, cols.length - 1)] });
-  if (j.k === 'mine' && Math.random() < .5) emit('spark', j.x, j.y - .3, 2);
-  sndFx(j.k === 'chop' ? (race === 'werewolf' ? 'slash' : 'chop') : j.k === 'mine' ? (race === 'werewolf' ? 'dig' : 'clink') : j.k === 'farm' ? 'dig' : 'rustle', c.x, c.y);
+  if ((j.k === 'mine' || j.k === 'build') && Math.random() < .5) emit('spark', j.x, j.y - .3, 2);
+  sndFx(j.k === 'chop' ? (race === 'werewolf' ? 'slash' : 'chop') : j.k === 'mine' ? (race === 'werewolf' ? 'dig' : 'clink') : j.k === 'build' ? 'chop' : j.k === 'trade' ? 'clink' : j.k === 'farm' ? 'dig' : 'rustle', c.x, c.y);
 }
 function shakeOf(i) {                                          // horizontal wobble of a tree / rock that was just hit
   const h = WORK_HIT.get(i); if (h === undefined) return 0;
@@ -4122,7 +4127,7 @@ function draw() {
       let f = 'A';
       const jb = c.job, wph = jb && jb.ph === 1 ? swingPhase(frame, c.id, jb.k) : 0;
       if (c.atk > 0) { f = 'C'; c.atk--; } else if (moving && ((frame >> 3) + c.id) % 2) f = 'B';
-      else if (jb && jb.ph === 1 && jb.k !== 'fish' && wph >= IMPACT - .04 && wph < IMPACT + .22) f = 'C';
+      else if (jb && jb.ph === 1 && jb.k !== 'fish' && jb.k !== 'trade' && wph >= IMPACT - .04 && wph < IMPACT + .22) f = 'C';
       if (jb && jb.ph === 1 && jb.k !== 'hunt' && jb.k !== 'fish' && !paused && isStrikeFrame(wph)) { const cy = swingCycle(frame, c.id, jb.k); if (cy !== jb.cy) { jb.cy = cy; workImpact(c, jb, c.t); } }
       const lunge = c.atk > 3 ? 2 * CHR_K : 0;
       const gk = c.f !== undefined && c.life ? .6 + .4 * Math.min(1, c.age / (c.life * .15)) : 1;     // children and young animals are smaller
@@ -4145,7 +4150,7 @@ function draw() {
         else {
           const tgx = jb.k === 'fish' ? jb.wx : jb.x, tgy = jb.k === 'fish' ? jb.wy : jb.y;
           const hph = jb.k === 'hunt' ? (c.atk > 0 ? .5 + (10 - c.atk) * .05 : .3) : wph;
-          drawWorker(ctx, { job: jb.k === 'build' ? 'mine' : jb.k, race: c.t, ph: hph, phase: jb.ph, cx: cx + lunge, fy, sw, sh, K: CHR_K, hd: c.face < 0 ? -1 : 1, frame, id: c.id,
+          drawWorker(ctx, { job: jb.k, race: c.t, ph: hph, phase: jb.ph, cx: cx + lunge, fy, sw, sh, K: CHR_K, hd: c.face < 0 ? -1 : 1, frame, id: c.id,
             tx: ox + (tgx + .5) * sc, ty: oy + (tgy + (jb.k === 'fish' ? .5 : .8)) * sc });
         }
       }

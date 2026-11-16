@@ -56,8 +56,15 @@ function shapeBasket(ctx, K) {
   R(ctx, -K * 1.2, -K * .4, K * .7, K * .7, '#e8344a'); R(ctx, 0, -K * .6, K * .7, K * .7, '#b03aa8'); R(ctx, K * .6, -K * .3, K * .7, K * .7, '#e8344a');
 }
 
+function shapeHammer(ctx, K, p) {                                    // a carpenter's mallet: iron head across the end of a wooden handle
+  R(ctx, -K * .4, -K * .9, K * 7.4, K * 1.8, '#1c1424'); R(ctx, 0, -K * .5, K * 7, K, p[0]);
+  R(ctx, K * 5.2, -K * 2.9, K * 3.4, K * 5.8, '#1c1424'); R(ctx, K * 5.5, -K * 2.6, K * 2.8, K * 5.2, '#aab2be');
+  R(ctx, K * 5.5, -K * 2.6, K * .9, K * 5.2, '#6a7078'); R(ctx, K * 7.6, -K * 2.6, K * .7, K * 5.2, '#e4e8ee');
+}
+
 function drawShape(ctx, kind, K, p, big) {
-  if (kind === 'axe') shapeAxe(ctx, K, p, big);
+  if (kind === 'hammer') shapeHammer(ctx, K, p);
+  else if (kind === 'axe') shapeAxe(ctx, K, p, big);
   else if (kind === 'pick') shapePick(ctx, K, p);
   else if (kind === 'hoe') shapeHoe(ctx, K, p);
   else if (kind === 'spear') shapeSpear(ctx, K, p);
@@ -66,6 +73,7 @@ function drawShape(ctx, kind, K, p, big) {
 
 /** Which tool a race uses for a job. */
 export function toolFor(job, race) {
+  if (job === 'build') return 'hammer';                              // every people hammers, werewolves too
   if (race === 'werewolf') return 'claws';
   if (job === 'chop') return 'axe';
   if (job === 'mine') return 'pick';
@@ -90,8 +98,23 @@ function drawBow(ctx, K, hx, hy, hd, pull) {
  * o: { job, race, ph, phase, cx, fy, sw, sh, K, hd, tx, ty, frame, id }
  *    (tx, ty) = screen position of the work target (tree base, rock, water, prey).
  */
+/** A merchant: a pack on the back on the way, and at the market a pouch and a gold coin tossed from hand to hand. */
+function drawTrader(ctx, o) {
+  const { K, hd, cx, fy, sw, sh } = o, hx = cx + hd * sw * .2, hy = fy - sh * .46;
+  const bx = cx - hd * sw * .36, by = fy - sh * .66;
+  R(ctx, bx - K * 2.4, by - K * .4, K * 4.8, K * 5.4, '#1c1424'); R(ctx, bx - K * 2, by, K * 4, K * 4.6, '#9a7444'); R(ctx, bx - K * 2, by, K * 4, K * 1.1, '#c8a064');
+  R(ctx, bx - K * 2.4, by - K * 1.6, K * 4.8, K * 1.6, '#1c1424'); R(ctx, bx - K * 2, by - K * 1.3, K * 4, K * 1.1, '#c0392b');   // bedroll on top
+  if (o.phase !== 1) return;
+  const t = o.ph * Math.PI * 2, lift = Math.abs(Math.sin(t * .5)) * K * 5.5;
+  R(ctx, hx - K * 1.2, hy - K * .4, K * 2.8, K * 2.6, '#1c1424'); R(ctx, hx - K * .9, hy - K * .1, K * 2.2, K * 2, '#d8b050'); R(ctx, hx - K * .9, hy - K * .1, K * 2.2, K * .6, '#ffe9a0');   // coin pouch
+  const cxn = hx + hd * K * 2.2, cyn = hy - K * 2.6 - lift;
+  R(ctx, cxn - K * 1.5, cyn - K * 1.5, K * 3, K * 3, '#1c1424'); R(ctx, cxn - K * 1.1, cyn - K * 1.1, K * 2.2, K * 2.2, '#ffd23f'); R(ctx, cxn - K * 1.1, cyn - K * 1.1, K * .8, K * .8, '#fff4b0');
+  if (lift > K * 4) { ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(cxn - K * 2.6, cyn - K * .2, K * 5.2, K * .4); ctx.fillRect(cxn - K * .2, cyn - K * 2.6, K * .4, K * 5.2); }   // a glint at the top of the toss
+}
+
 export function drawWorker(ctx, o) {
   const { job, race, K, hd, cx, fy, sw, sh } = o, p = TOOL_PAL[race] || TOOL_PAL.human;
+  if (job === 'trade') { drawTrader(ctx, o); return; }
   const hx = cx + hd * sw * .18, hy = fy - sh * .48;
   const tool = toolFor(job, race), big = race === 'dwarf' || race === 'orc';
   if (o.phase !== 1) {                                                // walking: tool on the shoulder / in hand

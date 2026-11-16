@@ -38,6 +38,7 @@ export const STATUS = {
   fish: ['Going fishing', 'Fishing', 'Bringing fish'],
   gather: ['Going foraging', 'Foraging', 'Bringing berries'],
   build: ['Going to a building site', 'Building', 'Building'],
+  trade: ['Going to the market', 'Haggling', 'Haggling'],
 };
 
 /** Weighted pick among the jobs that are available right now. `avail` maps job -> bool. */
@@ -59,7 +60,7 @@ export function workLen(job, rnd) { return job === 'fish' ? 22 + Math.floor(rnd 
 export function reach(job, race) { return job === 'farm' || job === 'fish' ? 0 : job === 'hunt' ? (race === 'elf' ? 3 : 1) : 1; }
 
 /** Swing period in render frames per job (fishing has no swing). */
-export const PERIOD = { build: 36, chop: 34, mine: 38, farm: 42, gather: 30, fish: 90, hunt: 24 };
+export const PERIOD = { build: 30, trade: 44, chop: 34, mine: 38, farm: 42, gather: 30, fish: 90, hunt: 24 };
 
 /** 0..1 position in the current swing cycle. */
 export function swingPhase(frame, id, job) { const p = PERIOD[job] || 36; return ((frame + id * 7) % p) / p; }
@@ -75,7 +76,7 @@ export const IMPACT = .62;
  * Slow wind-up, fast strike, short recovery.
  */
 export function toolAngle(job, ph) {
-  const up = job === 'chop' ? -1.9 : job === 'gather' ? -1.2 : -2.3, down = job === 'chop' ? .15 : job === 'gather' ? -.5 : .75;
+  const up = job === 'chop' ? -1.9 : job === 'gather' ? -1.2 : job === 'build' ? -1.45 : -2.3, down = job === 'chop' ? .15 : job === 'gather' ? -.5 : job === 'build' ? .5 : .75;
   if (ph < .5) { const e = ph / .5; return down + (up - down) * (1 - (1 - e) * (1 - e)); }       // wind-up (ease out)
   if (ph < IMPACT) { const e = (ph - .5) / (IMPACT - .5); return up + (down - up) * e * e; }       // strike (ease in)
   const e = (ph - IMPACT) / (1 - IMPACT); return down - Math.sin(e * Math.PI) * .12;              // recoil

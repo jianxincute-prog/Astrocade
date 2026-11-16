@@ -11,7 +11,7 @@ export const PROFS = [
   { id: 'gatherer', ic: '🌿', n: 'Gatherer', job: 'gather', w: 'gather' },
   { id: 'builder', ic: '🔨', n: 'Builder', job: 'build' },
   { id: 'soldier', ic: '🛡', n: 'Soldier', job: null },
-  { id: 'trader', ic: '🪙', n: 'Trader', job: null },
+  { id: 'trader', ic: '🪙', n: 'Trader', job: 'trade' },
 ];
 export const PROF_IDS = PROFS.map(p => p.id);
 export const PROF_BY = Object.fromEntries(PROFS.map(p => [p.id, p]));
