@@ -1,0 +1,20 @@
+{
+  "strings": {
+    "title": "Secret Recipe Lab",
+    "ingredients": {
+      "carb_1": "Rice", "carb_2": "Noodles", "carb_3": "Bread", "carb_4": "Potato",
+      "prot_5": "Chicken", "prot_6": "Beef", "prot_7": "Shrimp", "prot_8": "Egg",
+      "garn_9": "Veggies", "garn_10": "Tomato", "garn_11": "Cheese", "garn_12": "Mushroom"
+    }
+  },
+  "look": {
+    "chefApronColor": "#A8E6CF",
+    "chefHatColor": "#FFFFFF",
+    "wallColor": "#FFE8D6",
+    "floorColor": "#F6E7CB"
+  },
+  "camera": { "followSpeed": 4.5, "cookZoom": 0.85 },
+  "preview": { "autoCycle": true },
+  "quality": "auto",
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}

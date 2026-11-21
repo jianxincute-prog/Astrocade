@@ -1,4 +1,4 @@
-# GDD Revisi V1 — Cozy Blocky Kitchen (Astrocade)
+# GDD Revisi V1 — Secret Recipe Lab (Astrocade)
 
 Status: draf kerja. Menggantikan bagian yang bertentangan di GDD asli dan Technical Spec.
 Label klaim: **[terukur]** dari data akun / hitungan, **[platform]** dari dev guide, **[hipotesis]** belum terbukti.
@@ -41,7 +41,7 @@ Label klaim: **[terukur]** dari data akun / hitungan, **[platform]** dari dev gu
 | 6 | Skor `base*2 + combo*25`, `base` tak jelas | Tabel skor eksplisit (bagian 6) | Ambigu |
 | 7 | `dt` maks 0,05 | `dt` maks 0,11 | [platform] |
 | 8 | Slot 3 langsung kunci | Jeda 0,35 dtk "batal" sebelum kunci (ketuk slot 3 untuk batal) | Salah klik |
-| 9 | Judul "Cozy Blocky Kitchen" | Kandidat judul berhook (bagian 10) | Hook test |
+| 9 | Judul "Cozy Blocky Kitchen" | **"Secret Recipe Lab"** (dipilih pemilik). Tema netral, semua teks bahasa Inggris | Hook test |
 | 10 | Teks UI di kode | Semua teks di `game_config.json` (`strings`) | Alih bahasa, [platform] teks minimal |
 
 Struktur multi-file dari Technical Spec **dipertahankan**: `game.js` mengimpor modul dan diakhiri
@@ -188,3 +188,18 @@ Fase (durasi baku, semua di `game_config.json`):
 Panggil `list_my_games` pada 24–72 jam dan 7 hari. Bandingkan dengan median akun (2.494) dan dengan Nasi Goreng (61.241).
 Jangan menyimpulkan dari kurang dari beberapa ratus play. Bukti yang dicari: apakah ketukan aktif dan Kejutan Wajan
 menaikkan sesi dan kembali bermain. Data yang belum tersedia (sesi, retensi) harus diambil dari dashboard platform.
+
+## 13. Nama hidangan (English, tema netral)
+
+1 Chicken Egg Fried Rice · 2 Seafood Noodle Stir-Fry · 3 Double Melt Cheeseburger · 4 Classic Steak & Fries ·
+5 Shrimp Mushroom Risotto · 6 Crispy Chicken Sandwich · 7 Beef Noodle Soup · 8 Loaded Chicken Potato Bake ·
+9 Beef Bolognese Rice Bowl · 10 Fluffy Egg & Cheese Toast · 11 Tomato Egg Noodles · 12 Seafood Potato Skillet ·
+13 Veggie Mushroom Fried Rice · 14 Chicken Parmigiana Plate · 15 Beef Mushroom Melt Steak · 16 Chicken Tomato Club Sandwich ·
+17 Mushroom Chicken Noodles · 18 Cheesy Potato Frittata · 19 Shrimp Scramble Plate · 20 Cheesy Chicken Rice Bake.
+Urutan dan bahan sama dengan tabel GDD asli. Nama disimpan di `game_config.json` (`strings`) pada langkah 5.
+
+## 14. Status langkah 3 (fondasi)
+
+Kode ada di `game/`. Sudah diuji di Chromium headless (swiftshader): tanpa error konsol, satu siklus preview
+(idle → toCook → sautee → stir → plate → toServe → cheer → back) berulang bersih, mode edit dan pemanggilan `run()` ganda aman.
+Belum diuji: perangkat nyata, FPS di Low, runtime Astrocade asli (apakah script cdnjs r128 + `type="module"` diterima bundler).
