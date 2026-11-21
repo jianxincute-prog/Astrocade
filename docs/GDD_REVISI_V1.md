@@ -275,3 +275,12 @@ Draft versi `01M7YT2V0VT63471KKSXBWQFPE`. Permintaan: piring dan mangkuk berwarn
 - Mangkuk: dinding krem `#E8DCC3`, lantai `#E6E0D3`, bibir dan alas abu-abu `#8F8F8D` (mengilap), pita dekoratif `#A5A5A2`.
 - Latar thumbnail buku resep diubah ke abu terang dingin `#E4E7EA` agar piring krem tidak menyatu dengan latar.
 - Wajan dan loyang tidak diubah. Diuji: 220 kombinasi terbangun tanpa error, alur simpan tetap jalan.
+
+## 22. Pencahayaan lebih natural
+
+Draft versi `01M7YTC9CK60WP3JT4DV9Q04Q3`. Keluhan: gameplay terlalu cerah.
+- Diukur dengan screenshot panggung: kecerahan rata-rata 228 dari 255 dan 8–17% piksel hampir putih (termasuk elemen UI putih). Total cahaya di permukaan atas sekitar 1,2.
+- Setelah: ambient 0,26 (hangat `#FFF2E4`), matahari 0,64 (`#FFE6C2`, lebih hangat), hemisfer 0,3 dengan warna bawah `#A88C76` (pantulan tanah, bukan peach terang).
+  Rata-rata kecerahan menjadi sekitar 197–203. Percobaan pertama (ambient 0,2) turun ke 177 tetapi topi chef tampak abu kusam, jadi dinaikkan lagi.
+- Bayangan memakai PCFSoftShadowMap (tepi lebih lembut). Lampu thumbnail buku resep disamakan.
+- Diuji: 220 kombinasi tanpa error, alur menu/simpan tetap jalan. Belum dinilai di layar ponsel.

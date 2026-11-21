@@ -1,3 +1,5 @@
+const THREE = window.THREE;
+
 // Low / Med / High tiers. "auto" measures the first frames and picks one.
 export const TIERS = {
   low: { pixelRatio: 1, shadows: false, mapSize: 512 },
@@ -20,6 +22,7 @@ export class Quality {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, t.pixelRatio));
     this.renderer.setSize(this.size.w, this.size.h, false);
     this.renderer.shadowMap.enabled = t.shadows;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // softer, more natural shadow edges
     this.sun.castShadow = t.shadows;
     if (this.sun.shadow.mapSize.x !== t.mapSize) {
       this.sun.shadow.mapSize.set(t.mapSize, t.mapSize);
