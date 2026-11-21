@@ -233,3 +233,13 @@ Diuji di Chromium headless dengan klik pointer sungguhan dan `lib` tiruan (penyi
 - Bug ditemukan dan diperbaiki lewat uji ini: `submit()` mencatat skor terbaru, bukan skor yang terkirim, sehingga skor akhir bisa terlewat.
 Belum diuji: `lib` asli (login, leaderboard sungguhan), perangkat nyata, musik dan suara, performa di Low.
 Belum ada: bentuk 3D khusus 20 resep, thumbnail dan publikasi, kontrol keyboard di menu.
+
+## 18. Status langkah 6 (model 3D signature)
+
+Draft Astrocade versi `01M7YR3S7WPGG4WMHAFXAMPGQJ`. Ukuran 22 file di server sama persis dengan repo.
+- 20 model buatan tangan di `src/signature.js` (bahan, bentuk, dan wadah berbeda: piring, mangkuk, wajan, loyang, tumpukan sandwich).
+- Resep yang cocok persis memakai model sendiri; 200 kombinasi lain tetap memakai generator berlapis.
+- Diuji di Chromium headless: 220 kombinasi terbangun tanpa error (tepat 20 signature), kombinasi yang sama selalu tampak sama
+  (tidak bergantung urutan pilih), alur masak memakai model signature, buku resep menampilkan model baru.
+- Kekurangan yang diketahui: beberapa model (Chicken Parmigiana, Beef Mushroom Melt Steak) bersiluet rendah dan kurang menonjol;
+  mangkuk tampak dangkal dari atas. Belum dinilai pemilik di layar sungguhan.

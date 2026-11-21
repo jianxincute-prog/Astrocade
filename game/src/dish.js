@@ -6,20 +6,8 @@ import { ING } from './recipes.js';
 
 const THREE = window.THREE;
 
-const mats = new Map();
-const mat = (c) => { if (!mats.has(c)) mats.set(c, new THREE.MeshLambertMaterial({ color: c })); return mats.get(c); };
-const geos = new Map();
-const geo = (k, make) => { if (!geos.has(k)) geos.set(k, make()); return geos.get(k); };
-const box = (w, h, d) => geo(`b${w},${h},${d}`, () => new THREE.BoxGeometry(w, h, d));
-const cyl = (rt, rb, h, s) => geo(`c${rt},${rb},${h},${s}`, () => new THREE.CylinderGeometry(rt, rb, h, s));
-const tor = (r, t, a) => geo(`t${r},${t},${a}`, () => new THREE.TorusGeometry(r, t, 6, 12, a));
-
-function mesh(g, m, x, y, z) {
-  const o = new THREE.Mesh(g, m);
-  o.position.set(x, y, z);
-  o.castShadow = true;
-  return o;
-}
+import { mat, box, cyl, tor, mesh } from './prims.js';
+import { SIGNATURE } from './signature.js';
 
 function seedOf(ids) {
   let h = 2166136261;
@@ -121,8 +109,10 @@ const BUILD = {
 const OFFSETS = [[0, 0], [0.04, -0.03], [-0.05, 0.04]];
 
 export function buildDish(ids) {
-  const form = dishForm(ids);
   const r = rng(seedOf(ids));
+  const sig = SIGNATURE.get([...ids].sort().join('|')); // hand-built model for the 20 signature recipes
+  if (sig) return { group: sig(r), form: 'signature' };
+  const form = dishForm(ids);
   const group = new THREE.Group();
   let y;
   if (form === 'bowl') {
