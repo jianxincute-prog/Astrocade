@@ -1,8 +1,7 @@
 /**
  * Secret Recipe Lab - pick 3 ingredients, cook, serve (blocky 3D cooking game).
- * Step 4: playable loop. CookingFSM drives selecting, tossing, cooking (tap for shine), serving and reset.
- * Orders, scoring, combo, golden orders, flame surprise, ingredient unlock waves and a first-order guide arrow.
- * Not yet: save/leaderboard, recipe book, loading/menu screens (step 5+).
+ * Flow: loading screen (real progress) -> themed main menu -> play (CookingFSM) -> pause/finish -> menu.
+ * Step 5: loading, menu, pause, recipe book (3D thumbnails), leaderboard, save/load, background music.
  * Three.js comes from the cdnjs script tag in index.html (window.THREE).
  */
 import { buildKitchen, buildLights, ANCHORS } from './src/kitchen.js';
@@ -13,11 +12,15 @@ import { createHud } from './src/hud.js';
 import { CookingFSM } from './src/fsm.js';
 import { Particles } from './src/particles.js';
 import { createAudio, haptic } from './src/audio.js';
+import { createScreens } from './src/screens.js';
+import { createThumbs } from './src/thumbs.js';
 import { INGREDIENTS, STARTER_IDS } from './src/ingredients.js';
 import { newProfile } from './src/recipes.js';
+import { loadSave, applySave, toSave, createSaver, resetSave, submitScore, fetchBoard } from './src/save.js';
 
 const THREE = window.THREE;
 const STAGE = { w: 720, h: 640 };
+const QUALITY_CYCLE = ['auto', 'low', 'med', 'high'];
 let active = null;
 
 const DEFAULTS = {
@@ -37,6 +40,10 @@ function withDefaults(raw) {
   Object.keys(DEFAULTS).forEach((k) => { out[k] = { ...DEFAULTS[k], ...(c[k] || {}) }; });
   return out;
 }
+
+const setLoad = (p) => { if (window.__setLoad) window.__setLoad(p); };
+const hideLoad = () => { if (window.__hideLoad) window.__hideLoad(); };
+const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
 function run(mode) {
   if (active) { active.dispose(); active = null; }
@@ -59,6 +66,7 @@ function run(mode) {
   const quality = new Quality(renderer, sun, scene, { w: STAGE.w, h: STAGE.h }, cfg.quality);
   const fx = new Particles(scene);
   const sfx = createAudio();
+  const thumbs = createThumbs(renderer);
 
   const chef = createCharacter({ apron: cfg.look.chefApronColor, hatColor: cfg.look.chefHatColor });
   chef.root.position.copy(ANCHORS.prepPos);
@@ -69,39 +77,101 @@ function run(mode) {
   });
   customer.root.position.copy(ANCHORS.customerPos);
   scene.add(customer.root);
+  setLoad(0.35);
 
   const profile = newProfile(STARTER_IDS);
-  let fsm = null;
-  const handlers = {
-    onPick: (id) => { sfx.unlock(); if (fsm) fsm.pick(id); },
-    onUndo: (i) => { sfx.unlock(); if (fsm) fsm.undo(i); },
-    onTap: () => { sfx.unlock(); if (fsm) fsm.tap(); },
-    onFast: () => { sfx.unlock(); if (fsm) fsm.setFast(!fsm.fast); },
-    onMute: () => { sfx.setMuted(!sfx.muted); ui.setMuted(sfx.muted); },
-    onHelp: () => ui.showHelp(),
-    onAgain: () => { sfx.unlock(); if (fsm) fsm.repeatLast(); },
-  };
-  const ui = createHud({ hudEl: document.getElementById('hud'), stageEl, appEl, cfg, touch, handlers });
-  ui.setMuted(false);
-  ui.setCards({ unlocked: profile.unlocked, picked: new Set(), enabled: !isEdit });
+  profile.best = 0;
+  const settings = { quality: cfg.quality, muted: false };
+  const saver = createSaver(() => toSave(profile, settings));
 
-  if (!isEdit) {
-    fsm = new CookingFSM({ chef, customer, camRig, scene, kitchen, ui, sfx, haptic, fx, cfg, profile });
-    fsm.start();
+  let fsm = null, started = false, paused = false, lastSubmitted = 0, stopped = false;
+  const gesture = () => { sfx.unlock(); sfx.music(true); };
+
+  async function submit() {
+    const s = profile.score; // capture now: the score may change while the request is in flight
+    if (s > lastSubmitted && (await submitScore(s))) lastSubmitted = Math.max(lastSubmitted, s);
   }
 
-  // Keyboard: 1-9,0,-,= pick; Backspace undo; Space fast; Enter/R repeat; H help.
+  const handlers = {
+    onPick: (id) => { gesture(); if (fsm && started && !paused) fsm.pick(id); },
+    onUndo: (i) => { gesture(); if (fsm && started && !paused) fsm.undo(i); },
+    onTap: () => { gesture(); if (fsm && started && !paused) fsm.tap(); },
+    onFast: () => { gesture(); if (fsm && started && !paused) fsm.setFast(!fsm.fast); },
+    onMute: () => { gesture(); setMuted(!sfx.muted); },
+    onHelp: () => ui.showHelp(),
+    onAgain: () => { gesture(); if (fsm && started && !paused) fsm.repeatLast(); },
+    onPause: () => { gesture(); if (started && !paused) openPause(); },
+  };
+  const ui = createHud({ hudEl: document.getElementById('hud'), stageEl, appEl, cfg, touch, handlers });
+
+  function setMuted(m) {
+    sfx.setMuted(m); settings.muted = m; ui.setMuted(m); screens.setMuted(m); saver.queue();
+  }
+  function setQuality(q) { settings.quality = q; quality.set(q); screens.setQuality(q); saver.queue(); }
+
+  const screens = createScreens({
+    appEl, cfg, thumbs,
+    handlers: {
+      onPlay: () => { gesture(); startPlay(); },
+      onBook: () => { gesture(); screens.openBook(profile); },
+      onBoard: () => { gesture(); screens.openBoard(() => fetchBoard(10), profile.best); },
+      onHelp: () => { gesture(); ui.showHelp(); },
+      onMute: () => { gesture(); setMuted(!sfx.muted); },
+      onQuality: () => { gesture(); setQuality(QUALITY_CYCLE[(QUALITY_CYCLE.indexOf(settings.quality) + 1) % QUALITY_CYCLE.length]); },
+      onReset: async () => {
+        await resetSave();
+        const fresh = newProfile(STARTER_IDS); fresh.best = 0;
+        Object.assign(profile, fresh);
+        lastSubmitted = 0;
+        screens.showMenu(0);
+      },
+      onResume: () => closePause(),
+      onFinish: () => finishRun(),
+    },
+  });
+
+  // ---- flow -----------------------------------------------------------------------------------
+  function openPause() { paused = true; screens.showPause(); submit(); saver.flush(); }
+  function closePause() { paused = false; screens.hidePause(); }
+
+  function startPlay() {
+    screens.hideMenu();
+    ui.show(true);
+    if (!fsm) {
+      fsm = new CookingFSM({
+        chef, customer, camRig, scene, kitchen, ui, sfx, haptic, fx, cfg, profile,
+        onServed: () => { saver.queue(); if (profile.completed % 5 === 0) submit(); },
+      });
+    }
+    started = true; paused = false;
+    fsm.resetSession();
+  }
+
+  async function finishRun() {
+    paused = false; screens.hidePause();
+    started = false;
+    await submit();          // before the session reset zeroes the score
+    await saver.flush();
+    if (fsm) fsm.resetSession(); // clears the stage; the next Play starts a fresh session
+    ui.show(false);
+    screens.showMenu(profile.best);
+  }
+
   const onKey = (e) => {
-    sfx.unlock();
-    if (!fsm) return;
+    gesture();
+    if (e.key === 'Escape') { if (started) { if (paused) closePause(); else openPause(); } return; }
+    if (!fsm || !started || paused) return;
     const idx = ui.cardIndexForKey(e.key);
     if (idx >= 0) { fsm.pick(INGREDIENTS[idx].id); e.preventDefault(); return; }
     if (e.key === 'Backspace') { fsm.undoLast(); e.preventDefault(); }
     else if (e.key === ' ') { fsm.setFast(!fsm.fast); e.preventDefault(); }
     else if (e.key === 'Enter' || e.key === 'r' || e.key === 'R') { fsm.repeatLast(); }
     else if (e.key === 'h' || e.key === 'H') ui.showHelp();
+    else if (e.key === 'm' || e.key === 'M') setMuted(!sfx.muted);
   };
   window.addEventListener('keydown', onKey);
+  const onHide = () => { if (document.hidden && started && !paused) openPause(); };
+  document.addEventListener('visibilitychange', onHide);
 
   if (window.lib && window.lib.showGameParameters) {
     window.lib.showGameParameters({
@@ -116,14 +186,12 @@ function run(mode) {
         'Flame chance': { key: 'gameplay.surpriseChance', type: 'slider', min: 0, max: 1, step: 0.05 },
         'Golden every N orders': { key: 'gameplay.goldenOrderEvery', type: 'slider', min: 0, max: 10, step: 1 },
         'Golden seconds': { key: 'gameplay.goldenOrderSeconds', type: 'slider', min: 10, max: 60, step: 1 },
-        'Quality': { key: 'quality', type: 'dropdown',
-          options: [{ label: 'Auto', value: 'auto' }, { label: 'Low', value: 'low' }, { label: 'Medium', value: 'med' }, { label: 'High', value: 'high' }],
-          onChange: (v) => { quality.set(v); } },
       },
     });
   }
 
-  let raf = 0, last = performance.now(), stopped = false;
+  // ---- loop -----------------------------------------------------------------------------------
+  let raf = 0, last = performance.now();
   function frame(now) {
     if (stopped) return;
     raf = requestAnimationFrame(frame);
@@ -132,7 +200,7 @@ function run(mode) {
     if (!window.__labPause) {
       const dt = Math.min(raw, 0.11);
       quality.sample(raw);
-      if (fsm) fsm.update(dt); else { chef.update(dt); customer.update(dt); }
+      if (fsm && started) { if (!paused) fsm.update(dt); } else { chef.update(dt); customer.update(dt); }
       fx.update(dt);
       camRig.update(dt);
     }
@@ -140,16 +208,47 @@ function run(mode) {
   }
   raf = requestAnimationFrame(frame);
 
+  // ---- boot (play mode): warm up, load save, measure quality, then show the menu --------------------
+  async function boot() {
+    ui.show(false);
+    ui.setMuted(false);
+    ui.setCards({ unlocked: profile.unlocked, picked: new Set(), enabled: true });
+    await nextFrame();
+    try { renderer.compile(scene, camera); } catch (e) { /* optional */ }
+    await nextFrame();
+    setLoad(0.55);
+    applySave(profile, settings, await loadSave());
+    quality.set(settings.quality);
+    sfx.setMuted(settings.muted); ui.setMuted(settings.muted); screens.setMuted(settings.muted); screens.setQuality(settings.quality);
+    setLoad(0.7);
+    const t0 = performance.now();
+    while (!stopped && !quality.done && performance.now() - t0 < 6000) { setLoad(0.7 + 0.3 * quality.progress); await nextFrame(); }
+    setLoad(1);
+    if (stopped) return;
+    hideLoad();
+    screens.showMenu(profile.best);
+  }
+
+  if (isEdit) {
+    ui.setCards({ unlocked: profile.unlocked, picked: new Set(), enabled: false });
+    hideLoad();
+  } else {
+    boot();
+  }
+
   active = {
     dispose() {
       stopped = true;
       cancelAnimationFrame(raf);
       window.removeEventListener('keydown', onKey);
+      document.removeEventListener('visibilitychange', onHide);
+      sfx.music(false);
+      thumbs.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     },
   };
-  window.__lab = { chef, customer, camRig, fsm, profile, quality, renderer, scene, fx, ui };
+  window.__lab = { chef, customer, camRig, get fsm() { return fsm; }, profile, settings, quality, renderer, scene, fx, ui, screens, startPlay, finishRun, submit, get lastSubmitted() { return lastSubmitted; } };
 }
 
 window.run = run;

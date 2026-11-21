@@ -28,6 +28,8 @@ export class Quality {
     this.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
   }
 
+  get progress() { return this.done ? 1 : Math.min(1, this.frames / 150); }
+
   // Call once per frame with the raw delta time (seconds).
   sample(dt) {
     if (this.done) return;

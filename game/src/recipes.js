@@ -98,15 +98,16 @@ const pickRandom = (arr, n) => {
 export function makeOrder(p, g) {
   const n = p.ordersSpawned++;
   const golden = g.goldenOrderEvery > 0 && (n + 1) % g.goldenOrderEvery === 0;
+  const tutorial = n === 0 && p.completed === 0; // only a brand-new player gets the tutorial order
   let recipe;
-  if (n === 0) recipe = RECIPES[0]; // the first order is always the tutorial recipe
+  if (tutorial) recipe = RECIPES[0];
   else {
     const pool = RECIPES.filter((r) => r.ids.every((id) => p.unlocked.has(id)));
     const weighted = [];
     pool.forEach((r) => { for (let i = 0; i < (p.discovered.has(r.id) ? 1 : 3); i++) weighted.push(r); });
     recipe = weighted[Math.floor(Math.random() * weighted.length)];
   }
-  const shown = n === 0 ? recipe.ids.slice(0, 2) : pickRandom(recipe.ids, golden ? 1 : 2);
+  const shown = tutorial ? recipe.ids.slice(0, 2) : pickRandom(recipe.ids, golden ? 1 : 2);
   return {
     recipe, golden, shown, hidden: 3 - shown.length,
     timeLeft: golden ? g.goldenOrderSeconds : null, total: golden ? g.goldenOrderSeconds : null,

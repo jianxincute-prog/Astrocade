@@ -105,6 +105,7 @@ export function createHud({ hudEl, stageEl, appEl, cfg, touch, handlers }) {
   const bSound = mkBtn(32, '&#128266;', handlers.onMute);
   const bFast = mkBtn(160, '&#9193;', handlers.onFast);
   const bHelp = mkBtn(288, '&#10067;', handlers.onHelp);
+  const bPause = mkBtn(416, '&#9776;', handlers.onPause);
   const bAgain = mkBtn(592, '&#8635;', handlers.onAgain); bAgain.classList.add('hidden');
 
   // ---- stage overlay ----
@@ -178,6 +179,7 @@ export function createHud({ hudEl, stageEl, appEl, cfg, touch, handlers }) {
     setFast(on) { bFast.classList.toggle('on', on); },
     setMuted(m) { bSound.innerHTML = m ? '&#128263;' : '&#128266;'; },
     showHelp() { help.classList.add('show'); },
+    show(on) { ov.style.display = on ? '' : 'none'; },
     cardIndexForKey(key) { return KEYS.indexOf(key); },
   };
   return ui;

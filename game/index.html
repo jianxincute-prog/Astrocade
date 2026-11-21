@@ -12,14 +12,48 @@
   #stage canvas { display: block; width: 720px; height: 640px; }
   #hud { position: absolute; left: 0; top: 640px; width: 720px; height: 640px;
          background: linear-gradient(#ffe0cc, #ffd1b8); border-top: 6px solid #ffb5a7; box-sizing: border-box; }
+  #loading { position: absolute; left: 0; top: 0; width: 720px; height: 1280px; z-index: 50; display: flex; flex-direction: column;
+             align-items: center; justify-content: center; background: linear-gradient(#ffe8d6, #ffc9a8); transition: opacity .35s; }
+  #loading.done { opacity: 0; pointer-events: none; }
+  #loading .hat { position: relative; width: 200px; height: 190px; margin-bottom: 34px; animation: bob 1s ease-in-out infinite; }
+  #loading .hat i { position: absolute; background: #fff; border-radius: 14px; box-shadow: 0 6px 0 rgba(0,0,0,.12); }
+  #loading .hat i:nth-child(1) { left: 10px; top: 20px; width: 80px; height: 80px; }
+  #loading .hat i:nth-child(2) { left: 100px; top: 0; width: 90px; height: 90px; }
+  #loading .hat i:nth-child(3) { left: 30px; top: 70px; width: 140px; height: 120px; }
+  #loading .band { width: 140px; height: 26px; background: #a8e6cf; border-radius: 8px; margin-top: -60px; margin-bottom: 40px; position: relative; }
+  #loading .ttl { font: 900 58px/1 system-ui, sans-serif; color: #ff7a45; text-shadow: 0 4px 0 #fff; text-align: center; }
+  #loading .ttl small { display: block; color: #4a8f6a; font-size: 46px; }
+  #loading .bar { width: 420px; height: 26px; border-radius: 13px; background: rgba(255,255,255,.8); margin-top: 60px; overflow: hidden; border: 4px solid #fff; box-sizing: content-box; }
+  #loading .bar b { display: block; height: 100%; width: 3%; background: linear-gradient(90deg, #ffd24a, #ff922b); transition: width .2s; }
+  #loading .tip { margin-top: 26px; font: 700 24px system-ui, sans-serif; color: #7a5c4d; min-height: 30px; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="stage"></div>
   <div id="hud"></div>
+  <div id="loading">
+    <div class="hat"><i></i><i></i><i></i></div><div class="band"></div>
+    <div class="ttl">SECRET RECIPE<small>LAB</small></div>
+    <div class="bar"><b id="loadbar"></b></div>
+    <div class="tip" id="loadtip"></div>
+  </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  // Loading screen helpers: real progress is reported by game.js as each stage finishes.
+  (function () {
+    var tips = ['Tap while it cooks!', 'Try new ingredient mixes!', 'Find all 20 secret recipes!'];
+    document.getElementById('loadtip').textContent = tips[Math.floor(Math.random() * tips.length)];
+    window.__setLoad = function (p) { document.getElementById('loadbar').style.width = Math.max(3, Math.min(100, p * 100)) + '%'; };
+    window.__hideLoad = function () {
+      var l = document.getElementById('loading'); l.className = 'done'; setTimeout(function () { l.style.display = 'none'; }, 400);
+    };
+    if (window.THREE) window.__setLoad(0.1);
+    else document.getElementById('loadtip').textContent = 'Could not load the 3D engine.';
+  })();
+</script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

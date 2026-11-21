@@ -17,8 +17,8 @@ const WALK_SPEED = 2.7;
 const FACE_CAMERA = { x: 0, z: 20 };
 
 export class CookingFSM {
-  constructor({ chef, customer, camRig, scene, kitchen, ui, sfx, haptic, fx, cfg, profile }) {
-    Object.assign(this, { chef, customer, camRig, scene, kitchen, ui, sfx, haptic, fx, cfg, profile });
+  constructor({ chef, customer, camRig, scene, kitchen, ui, sfx, haptic, fx, cfg, profile, onServed }) {
+    Object.assign(this, { chef, customer, camRig, scene, kitchen, ui, sfx, haptic, fx, cfg, profile, onServed });
     this.g = cfg.gameplay; this.sc = cfg.scoring;
     this.state = null; this.timer = 0; this.sdt = 0;
     this.slots = [null, null, null];
@@ -29,6 +29,22 @@ export class CookingFSM {
   }
 
   start() { this.nextOrder(); this.enter(S.SELECTING); }
+
+  // Clean everything a previous session left behind and begin a fresh one (progress is kept, score is not).
+  resetSession() {
+    this.chips.forEach((c) => this.scene.remove(c.mesh)); this.chips = [];
+    if (this.dish) { this.dish.parent.remove(this.dish); this.dish = null; }
+    this.sfx.play('STOP_SIZZLE');
+    this.kitchen.panInner.material.color.copy(this.panNormal);
+    this.slots = [null, null, null]; this.glow = 0; this.surprise = false; this.fast = false;
+    this.ui.setFast(false); this.ui.showTap(false); this.ui.setSurprise(false); this.ui.hideBanner(); this.ui.setGolden(null);
+    this.chef.root.position.copy(ANCHORS.prepPos); this.chef.root.rotation.y = 0; this.chef.setCarrying(false); this.chef.setPose('idle');
+    this.customer.setPose('idle');
+    this.profile.score = 0; this.profile.combo = 0; this.profile.ordersSpawned = 0;
+    this.ui.setScore(0, 0);
+    this.camRig.setMode('OVERVIEW', true);
+    this.start();
+  }
 
   get busy() { return this.state !== S.SELECTING && this.state !== S.GRACE; }
 
@@ -262,6 +278,7 @@ export class CookingFSM {
     this.ui.showBanner({ name: result.name, points: sc.points, tags: sc.tags });
     this.ui.setScore(p.score, p.combo);
     this.ui.setGolden(null);
+    if (this.onServed) this.onServed(this.lastServe);
   }
 
   updateEvaluate() {

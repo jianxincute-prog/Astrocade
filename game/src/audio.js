@@ -60,12 +60,28 @@ export function createAudio() {
     }
   }
 
+  // Quiet looping arpeggio (C - Am - F - G). Idempotent; needs the context to be unlocked first.
+  let musicTimer = null, mstep = 0;
+  const CHORDS = [[261.6, 329.6, 392], [220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7]];
+  const MEL = [0, 2, 1, 2, 0, 1, 2, 1];
+  function musicTick() {
+    if (!ctx || muted || document.hidden) return;
+    const ch = CHORDS[Math.floor(mstep / 8) % 4];
+    tone(ch[MEL[mstep % 8]] * 2, 0.32, { type: 'triangle', vol: 0.05 });
+    if (mstep % 8 === 0) tone(ch[0] / 2, 1.8, { type: 'sine', vol: 0.06 });
+    mstep++;
+  }
+  function music(on) {
+    if (on && !musicTimer && ctx) musicTimer = setInterval(musicTick, 300);
+    if (!on && musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+  }
+
   function setMuted(m) {
     muted = m;
     if (master) master.gain.value = m ? 0 : 0.5;
     if (m) stopSizzle();
   }
-  return { unlock, play, setMuted, get muted() { return muted; } };
+  return { unlock, play, music, setMuted, get muted() { return muted; } };
 }
 
 // Phone vibration through lib.haptics only. Never throws.
