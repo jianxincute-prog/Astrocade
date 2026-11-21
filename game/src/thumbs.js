@@ -10,14 +10,15 @@ export function createThumbs(renderer) {
   const buf = new Uint8Array(SIZE * SIZE * 4);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xfff3e6);
-  scene.add(new THREE.AmbientLight(0xfff5ea, 0.75));
+  scene.add(new THREE.AmbientLight(0xfff5ea, 0.4));
+  scene.add(new THREE.HemisphereLight(0xfff4e0, 0xe8c4a8, 0.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.7);
   sun.position.set(2, 4, 3);
   scene.add(sun);
   const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
   cam.position.set(0, 1.05, 1.25);
   cam.lookAt(0, 0.12, 0);
-  const flat = new THREE.MeshBasicMaterial({ color: 0xb9a89d });
+  const flat = new THREE.MeshBasicMaterial({ color: 0xb9a89d, side: THREE.DoubleSide }); // double-sided: bowl walls are open
   const cache = new Map();
 
   function render(ids, silhouette) {

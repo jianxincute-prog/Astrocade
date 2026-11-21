@@ -99,7 +99,7 @@ export function buildKitchen(scene, look) {
 }
 
 export function buildLights(scene) {
-  const ambient = new THREE.AmbientLight(0xfff5ea, 0.62);
+  const ambient = new THREE.AmbientLight(0xfff5ea, 0.4);
   const sun = new THREE.DirectionalLight(0xfffaed, 0.62);
   sun.position.set(5, 10, 7);
   sun.castShadow = true;
@@ -108,6 +108,7 @@ export function buildLights(scene) {
   sun.shadow.camera.top = 6; sun.shadow.camera.bottom = -6;
   sun.shadow.camera.near = 1; sun.shadow.camera.far = 30;
   sun.shadow.bias = -0.0006;
-  scene.add(ambient, sun);
+  const hemi = new THREE.HemisphereLight(0xfff4e0, 0xe8c4a8, 0.3); // warm sky, peach bounce from below
+  scene.add(ambient, hemi, sun);
   return { ambient, sun };
 }

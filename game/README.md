@@ -14,7 +14,7 @@ Next: thumbnail, low-tier performance check, publish.
 - `src/camera.js` - OVERVIEW / COOKING_ZOOM (15% closer) / SERVING_FOCUS.
 - `src/quality.js` - Low/Med/High + auto detection.
 - `src/fsm.js` - CookingFSM (SELECTING, GRACE, LOCK_AND_TOSS, COOKING, SERVING_WALK, SERVING_EVALUATE, CLEANUP_RESET).
-- `src/recipes.js` - 20 recipes, orders, scoring, unlock waves. `src/dish.js` - procedural dishes (all 220 combos). `src/signature.js` - 20 hand-built signature models. `src/prims.js` - shared primitives.
+- `src/recipes.js` - 20 recipes, orders, scoring, unlock waves. `src/dish.js` - procedural dishes (all 220 combos). `src/signature.js` - 20 hand-built signature models. `src/details.js` - finishing touches (garnish, sheen, seasoning). `src/prims.js` - shared primitives and the gradient/gloss shading.
 - `src/hud.js` - slots, cards, order card, score, banner. `src/audio.js` - Web Audio SFX + haptics. `src/particles.js` - pooled particles.
 - `src/screens.js` - menu, pause, recipe book, leaderboard. `src/thumbs.js` - 3D recipe thumbnails. `src/save.js` - save/load, leaderboard calls.
 - `src/ingredients.js`, `src/mathutils.js`.

@@ -252,3 +252,18 @@ Draft versi `01M7YRNBPPQ1V5A4XXHMCBM1DX`. Umpan balik: siluet rendah pada Chicke
 - Parmigiana: potongan ayam tebal, saus, menara keju bertingkat, daun basil tegak, tomat ceri. Steak: steak tebal dengan sear, tumpukan saus jamur,
   keju meleleh, jamur, dan tangkai rosemary.
 - Diuji ulang: 220 kombinasi terbangun tanpa error (20 signature), alur menu/simpan tetap jalan, buku resep 20/20 memuat thumbnail baru.
+
+## 20. Polish visual makanan (premium)
+
+Draft versi terbaru setelah `01M7YS72A8YJ58DKN2AB6ME0CA` (plus perbaikan README). Permintaan: warna lebih proper, gradasi terlihat, lebih detail.
+- **Sistem shading (`src/prims.js`):** semua bentuk memakai warna per-vertex (terang di atas, gelap di bawah) dan variasi kecerahan per potongan
+  yang deterministik. Warna mengilap (saus, keju, kuning telur, udang, glasir, mangkuk) memakai Phong; sisanya Lambert matte.
+  Keramik sengaja matte agar putih tidak jenuh (percobaan pertama terlalu silau, sudah diperbaiki).
+- **Palet alami:** ayam emas `#D68A34`, steak `#7A3B1D`, keju cheddar `#FFC93C`, sayur `#5CB85C`, tomat `#D93A2B`, udang `#F08A5D`, jamur `#8B6B4A`,
+  roti `#DFA150`. Swatch di UI ikut berubah agar konsisten.
+- **Detail:** piring dengan cekungan dan bibir, mangkuk dengan pita dekoratif, udang dua warna dengan ekor, jamur dengan insang dan tutup bertingkat,
+  daun dengan tulang daun, roti berglasir dengan wijen, dan `src/details.js` berisi sentuhan akhir 20 resep (butter, parmesan, lada, acar, saus,
+  bintik hangus keju, bibir renyah casserole, dan sorot cahaya).
+- **Cahaya:** tambah HemisphereLight hangat; ambient diturunkan 0,62 → 0,4 agar total tidak jenuh.
+- Diuji: 220 kombinasi terbangun tanpa error (20 signature), alur menu/simpan tetap jalan, buku resep memuat thumbnail baru.
+- Belum dinilai di layar ponsel; Phong lebih berat dari Lambert di tier Low (hanya dipakai pada bagian kecil).

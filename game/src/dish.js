@@ -6,7 +6,7 @@ import { ING } from './recipes.js';
 
 const THREE = window.THREE;
 
-import { mat, box, cyl, tor, mesh, addBowl } from './prims.js';
+import { mat, box, cyl, tor, mesh, addBowl, addPlate } from './prims.js';
 import { SIGNATURE } from './signature.js';
 
 function seedOf(ids) {
@@ -30,14 +30,14 @@ const BUILD = {
   carb_2(r) { // noodles
     const g = new THREE.Group();
     for (let i = 0; i < 4; i++) {
-      const m = mesh(tor(0.15, 0.03, Math.PI * 2), mat(0xf4d03f), (r() - 0.5) * 0.12, 0.03 + i * 0.03, (r() - 0.5) * 0.12);
+      const m = mesh(tor(0.15, 0.03, Math.PI * 2), mat(0xf2cf68), (r() - 0.5) * 0.12, 0.03 + i * 0.03, (r() - 0.5) * 0.12);
       m.rotation.x = Math.PI / 2 + (r() - 0.5) * 0.5; g.add(m);
     }
     return { g, h: 0.16 };
   },
   carb_3() { // bread slice
     const g = new THREE.Group();
-    g.add(mesh(box(0.38, 0.08, 0.38), mat(0xd9a066), 0, 0.04, 0));
+    g.add(mesh(box(0.38, 0.08, 0.38), mat(0xdfa150), 0, 0.04, 0));
     g.add(mesh(box(0.33, 0.02, 0.33), mat(0xf0c987), 0, 0.085, 0));
     return { g, h: 0.1 };
   },
@@ -51,19 +51,19 @@ const BUILD = {
   },
   prot_5() { // chicken
     const g = new THREE.Group();
-    for (let i = 0; i < 4; i++) g.add(mesh(box(0.11, 0.11, 0.11), mat(0xc0651a), ((i % 2) - 0.5) * 0.2, 0.055, ((i >> 1) - 0.5) * 0.2));
+    for (let i = 0; i < 4; i++) g.add(mesh(box(0.11, 0.11, 0.11), mat(0xd68a34), ((i % 2) - 0.5) * 0.2, 0.055, ((i >> 1) - 0.5) * 0.2));
     return { g, h: 0.12 };
   },
   prot_6() { // beef steak with grill marks
     const g = new THREE.Group();
-    g.add(mesh(box(0.34, 0.09, 0.26), mat(0x6e2c00), 0, 0.045, 0));
+    g.add(mesh(box(0.34, 0.09, 0.26), mat(0x7a3b1d), 0, 0.045, 0));
     [-0.1, 0, 0.1].forEach((x) => g.add(mesh(box(0.025, 0.012, 0.26), mat(0x3d1a00), x, 0.096, 0)));
     return { g, h: 0.1 };
   },
   prot_7(r) { // shrimp
     const g = new THREE.Group();
     for (let i = 0; i < 3; i++) {
-      const m = mesh(tor(0.09, 0.035, Math.PI * 1.3), mat(0xff7675), (i - 1) * 0.15, 0.04, (r() - 0.5) * 0.08);
+      const m = mesh(tor(0.09, 0.035, Math.PI * 1.3), mat(0xf08a5d), (i - 1) * 0.15, 0.04, (r() - 0.5) * 0.08);
       m.rotation.x = Math.PI / 2; m.rotation.z = r() * 6; g.add(m);
     }
     return { g, h: 0.08 };
@@ -71,13 +71,13 @@ const BUILD = {
   prot_8() { // sunny-side-up egg
     const g = new THREE.Group();
     g.add(mesh(cyl(0.19, 0.19, 0.03, 10), mat(0xffffff), 0, 0.015, 0));
-    g.add(mesh(box(0.1, 0.06, 0.1), mat(0xf1c40f), 0, 0.06, 0));
+    g.add(mesh(box(0.1, 0.06, 0.1), mat(0xf6b61a), 0, 0.06, 0));
     return { g, h: 0.09 };
   },
   garn_9(r) { // veggies (leaf blocks)
     const g = new THREE.Group();
     for (let i = 0; i < 4; i++) {
-      const m = mesh(box(0.13, 0.02, 0.13), mat(i % 2 ? 0x2ecc71 : 0x27ae60), (r() - 0.5) * 0.24, 0.02 + i * 0.012, (r() - 0.5) * 0.24);
+      const m = mesh(box(0.13, 0.02, 0.13), mat(i % 2 ? 0x5cb85c : 0x4ea84e), (r() - 0.5) * 0.24, 0.02 + i * 0.012, (r() - 0.5) * 0.24);
       m.rotation.y = r() * 3; g.add(m);
     }
     return { g, h: 0.06 };
@@ -85,13 +85,13 @@ const BUILD = {
   garn_10() { // tomato slices + sauce
     const g = new THREE.Group();
     g.add(mesh(box(0.26, 0.015, 0.1), mat(0xc0392b), 0, 0.008, 0));
-    [-0.08, 0.08].forEach((x) => g.add(mesh(cyl(0.08, 0.08, 0.025, 8), mat(0xe74c3c), x, 0.028, 0)));
+    [-0.08, 0.08].forEach((x) => g.add(mesh(cyl(0.08, 0.08, 0.025, 8), mat(0xd93a2b), x, 0.028, 0)));
     return { g, h: 0.04 };
   },
   garn_11() { // melted cheese
     const g = new THREE.Group();
-    const slab = mesh(box(0.3, 0.02, 0.3), mat(0xffd84d), 0, 0.01, 0); slab.rotation.y = 0.3; g.add(slab);
-    [[0.16, 0.05], [-0.14, -0.08], [0.02, 0.16]].forEach(([x, z]) => g.add(mesh(box(0.05, 0.06, 0.03), mat(0xffd84d), x, -0.01, z)));
+    const slab = mesh(box(0.3, 0.02, 0.3), mat(0xffc93c), 0, 0.01, 0); slab.rotation.y = 0.3; g.add(slab);
+    [[0.16, 0.05], [-0.14, -0.08], [0.02, 0.16]].forEach(([x, z]) => g.add(mesh(box(0.05, 0.06, 0.03), mat(0xffc93c), x, -0.01, z)));
     return { g, h: 0.03 };
   },
   garn_12(r) { // mushrooms
@@ -99,7 +99,7 @@ const BUILD = {
     for (let i = 0; i < 3; i++) {
       const s = new THREE.Group();
       s.add(mesh(cyl(0.02, 0.02, 0.08, 6), mat(0xf5f5dc), 0, 0.04, 0));
-      s.add(mesh(box(0.1, 0.05, 0.1), mat(0x795548), 0, 0.09, 0));
+      s.add(mesh(box(0.1, 0.05, 0.1), mat(0x8b6b4a), 0, 0.09, 0));
       s.position.set((i - 1) * 0.12, 0, (r() - 0.5) * 0.1); g.add(s);
     }
     return { g, h: 0.12 };
@@ -118,8 +118,7 @@ export function buildDish(ids) {
   if (form === 'bowl') {
     y = addBowl(group);
   } else {
-    group.add(mesh(cyl(0.45, 0.35, 0.06, 16), mat(0xe9eef5), 0, 0.03, 0));
-    y = 0.06;
+    y = addPlate(group);
   }
   layerOrder(ids).forEach((id, i) => {
     const { g, h } = BUILD[id](r);
@@ -128,7 +127,7 @@ export function buildDish(ids) {
     y += h;
   });
   if (form === 'stack') { // top bun makes it a sandwich
-    group.add(mesh(box(0.38, 0.08, 0.38), mat(0xd9a066), 0, y + 0.04, 0));
+    group.add(mesh(box(0.38, 0.08, 0.38), mat(0xdfa150), 0, y + 0.04, 0));
     group.add(mesh(box(0.33, 0.02, 0.33), mat(0xf0c987), 0, y + 0.09, 0));
   }
   return { group, form };
