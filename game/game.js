@@ -1,43 +1,55 @@
 /**
  * Secret Recipe Lab - pick 3 ingredients, cook, serve (blocky 3D cooking game).
- * Step 3 (foundation): portrait 720x1280 layout, Three.js scene, fixed chef rig, kitchen, camera presets,
- * quality tiers, HUD skeleton, and a temporary looping preview. Gameplay (FSM) arrives in step 4.
+ * Step 4: playable loop. CookingFSM drives selecting, tossing, cooking (tap for shine), serving and reset.
+ * Orders, scoring, combo, golden orders, flame surprise, ingredient unlock waves and a first-order guide arrow.
+ * Not yet: save/leaderboard, recipe book, loading/menu screens (step 5+).
  * Three.js comes from the cdnjs script tag in index.html (window.THREE).
  */
 import { buildKitchen, buildLights, ANCHORS } from './src/kitchen.js';
 import { createCharacter } from './src/chef.js';
 import { CameraRig } from './src/camera.js';
 import { Quality } from './src/quality.js';
-import { createPreview } from './src/preview.js';
-import { buildHud } from './src/hud.js';
+import { createHud } from './src/hud.js';
+import { CookingFSM } from './src/fsm.js';
+import { Particles } from './src/particles.js';
+import { createAudio, haptic } from './src/audio.js';
+import { INGREDIENTS, STARTER_IDS } from './src/ingredients.js';
+import { newProfile } from './src/recipes.js';
 
 const THREE = window.THREE;
 const STAGE = { w: 720, h: 640 };
 let active = null;
 
-function cfgWithDefaults(raw) {
+const DEFAULTS = {
+  look: { chefApronColor: '#A8E6CF', chefHatColor: '#FFFFFF', wallColor: '#FFE8D6', floorColor: '#F6E7CB' },
+  camera: { followSpeed: 4.5, cookZoom: 0.85 },
+  gameplay: {
+    graceSeconds: 0.35, tossSeconds: 0.7, fastSpeed: 2, shinePerTap: 10, surpriseChance: 0.15,
+    goldenOrderEvery: 5, goldenOrderSeconds: 25,
+    unlockWave2Matches: 3, unlockWave2Dishes: 6, unlockWave3Matches: 6, unlockWave3Dishes: 12,
+  },
+  scoring: { creation: 100, recipe: 150, orderMatch: 200, newRecipeBonus: 50, comboStep: 25, comboMax: 250, surprise: 100, perfect: 50, goldenMultiplier: 3 },
+};
+
+function withDefaults(raw) {
   const c = raw || {};
-  return {
-    ...c,
-    look: { chefApronColor: '#A8E6CF', chefHatColor: '#FFFFFF', wallColor: '#FFE8D6', floorColor: '#F6E7CB', ...(c.look || {}) },
-    camera: { followSpeed: 4.5, cookZoom: 0.85, ...(c.camera || {}) },
-    preview: { autoCycle: true, ...(c.preview || {}) },
-    quality: c.quality || 'auto',
-  };
+  const out = { ...c, quality: c.quality || 'auto' };
+  Object.keys(DEFAULTS).forEach((k) => { out[k] = { ...DEFAULTS[k], ...(c[k] || {}) }; });
+  return out;
 }
 
 function run(mode) {
   if (active) { active.dispose(); active = null; }
-  const cfg = cfgWithDefaults(window.gameConfig);
+  const cfg = withDefaults(window.gameConfig);
   const isEdit = mode === 'edit';
+  const touch = !!(window.lib && window.lib.shouldUseTouchControls && window.lib.shouldUseTouchControls());
 
-  const stage = document.getElementById('stage');
-  stage.innerHTML = '';
-  buildHud(document.getElementById('hud'), cfg);
+  const appEl = document.getElementById('app');
+  const stageEl = document.getElementById('stage');
+  stageEl.innerHTML = '';
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  stage.appendChild(renderer.domElement);
-
+  stageEl.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xfff1e6);
   const camera = new THREE.PerspectiveCamera(45, STAGE.w / STAGE.h, 0.1, 100);
@@ -45,6 +57,8 @@ function run(mode) {
   const kitchen = buildKitchen(scene, cfg.look);
   const camRig = new CameraRig(camera, cfg.camera);
   const quality = new Quality(renderer, sun, scene, { w: STAGE.w, h: STAGE.h }, cfg.quality);
+  const fx = new Particles(scene);
+  const sfx = createAudio();
 
   const chef = createCharacter({ apron: cfg.look.chefApronColor, hatColor: cfg.look.chefHatColor });
   chef.root.position.copy(ANCHORS.prepPos);
@@ -56,10 +70,39 @@ function run(mode) {
   customer.root.position.copy(ANCHORS.customerPos);
   scene.add(customer.root);
 
-  const preview = createPreview({ scene, chef, customer, camera: camRig });
-  const runPreview = !isEdit && cfg.preview.autoCycle;
+  const profile = newProfile(STARTER_IDS);
+  let fsm = null;
+  const handlers = {
+    onPick: (id) => { sfx.unlock(); if (fsm) fsm.pick(id); },
+    onUndo: (i) => { sfx.unlock(); if (fsm) fsm.undo(i); },
+    onTap: () => { sfx.unlock(); if (fsm) fsm.tap(); },
+    onFast: () => { sfx.unlock(); if (fsm) fsm.setFast(!fsm.fast); },
+    onMute: () => { sfx.setMuted(!sfx.muted); ui.setMuted(sfx.muted); },
+    onHelp: () => ui.showHelp(),
+    onAgain: () => { sfx.unlock(); if (fsm) fsm.repeatLast(); },
+  };
+  const ui = createHud({ hudEl: document.getElementById('hud'), stageEl, appEl, cfg, touch, handlers });
+  ui.setMuted(false);
+  ui.setCards({ unlocked: profile.unlocked, picked: new Set(), enabled: !isEdit });
 
-  // Settings panel (both modes). Colors apply live.
+  if (!isEdit) {
+    fsm = new CookingFSM({ chef, customer, camRig, scene, kitchen, ui, sfx, haptic, fx, cfg, profile });
+    fsm.start();
+  }
+
+  // Keyboard: 1-9,0,-,= pick; Backspace undo; Space fast; Enter/R repeat; H help.
+  const onKey = (e) => {
+    sfx.unlock();
+    if (!fsm) return;
+    const idx = ui.cardIndexForKey(e.key);
+    if (idx >= 0) { fsm.pick(INGREDIENTS[idx].id); e.preventDefault(); return; }
+    if (e.key === 'Backspace') { fsm.undoLast(); e.preventDefault(); }
+    else if (e.key === ' ') { fsm.setFast(!fsm.fast); e.preventDefault(); }
+    else if (e.key === 'Enter' || e.key === 'r' || e.key === 'R') { fsm.repeatLast(); }
+    else if (e.key === 'h' || e.key === 'H') ui.showHelp();
+  };
+  window.addEventListener('keydown', onKey);
+
   if (window.lib && window.lib.showGameParameters) {
     window.lib.showGameParameters({
       name: 'Secret Recipe Lab',
@@ -68,8 +111,11 @@ function run(mode) {
         'Hat color': { key: 'look.chefHatColor', type: 'color', onChange: (v) => { chef.mats.hat.color.set(v); } },
         'Wall color': { key: 'look.wallColor', type: 'color', onChange: (v) => { kitchen.mats.wall.color.set(v); } },
         'Floor color': { key: 'look.floorColor', type: 'color', onChange: (v) => { kitchen.mats.floor.color.set(v); } },
-        'Cook zoom': { key: 'camera.cookZoom', type: 'slider', min: 0.6, max: 1, step: 0.05,
-          onChange: (v) => { camRig.setCookZoom(v); } },
+        'Cook zoom': { key: 'camera.cookZoom', type: 'slider', min: 0.6, max: 1, step: 0.05, onChange: (v) => { camRig.setCookZoom(v); } },
+        'Fast speed': { key: 'gameplay.fastSpeed', type: 'slider', min: 1, max: 3, step: 0.25 },
+        'Flame chance': { key: 'gameplay.surpriseChance', type: 'slider', min: 0, max: 1, step: 0.05 },
+        'Golden every N orders': { key: 'gameplay.goldenOrderEvery', type: 'slider', min: 0, max: 10, step: 1 },
+        'Golden seconds': { key: 'gameplay.goldenOrderSeconds', type: 'slider', min: 10, max: 60, step: 1 },
         'Quality': { key: 'quality', type: 'dropdown',
           options: [{ label: 'Auto', value: 'auto' }, { label: 'Low', value: 'low' }, { label: 'Medium', value: 'med' }, { label: 'High', value: 'high' }],
           onChange: (v) => { quality.set(v); } },
@@ -83,12 +129,13 @@ function run(mode) {
     raf = requestAnimationFrame(frame);
     const raw = Math.max(0, (now - last) / 1000);
     last = now;
-    const dt = Math.min(raw, 0.11);
-    quality.sample(raw);
-    if (runPreview) preview.update(dt);
-    chef.update(dt);
-    customer.update(dt);
-    camRig.update(dt);
+    if (!window.__labPause) {
+      const dt = Math.min(raw, 0.11);
+      quality.sample(raw);
+      if (fsm) fsm.update(dt); else { chef.update(dt); customer.update(dt); }
+      fx.update(dt);
+      camRig.update(dt);
+    }
     renderer.render(scene, camera);
   }
   raf = requestAnimationFrame(frame);
@@ -97,12 +144,12 @@ function run(mode) {
     dispose() {
       stopped = true;
       cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', onKey);
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     },
   };
-  // Handy for automated checks.
-  window.__lab = { chef, customer, camRig, preview, quality, renderer, scene };
+  window.__lab = { chef, customer, camRig, fsm, profile, quality, renderer, scene, fx, ui };
 }
 
 window.run = run;

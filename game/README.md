@@ -3,8 +3,8 @@
 Blocky 3D cooking game: pick 3 of 12 ingredients, cook, serve. Design: `../docs/GDD_REVISI_V1.md`.
 
 ## Status
-Step 3 (foundation) only: scene, fixed chef rig, kitchen, camera presets, quality tiers, HUD skeleton,
-temporary looping preview. Gameplay FSM, audio, save and leaderboard are next.
+Step 4: playable loop (FSM, orders, scoring, unlock waves, tap-to-shine, flame surprise).
+audio, particles. Save, leaderboard, recipe book, loading screen and menu are next.
 
 ## Code map
 - `index.html` - 720x1280 frame (stage y 0-640, HUD y 640-1280), loads Three.js r128 from cdnjs, then `game.js`.
@@ -13,6 +13,8 @@ temporary looping preview. Gameplay FSM, audio, save and leaderboard are next.
 - `src/kitchen.js` - diorama kitchen, anchors, lights.
 - `src/camera.js` - OVERVIEW / COOKING_ZOOM (15% closer) / SERVING_FOCUS.
 - `src/quality.js` - Low/Med/High + auto detection.
-- `src/hud.js` - static HUD skeleton. `src/preview.js` - temporary demo loop (replaced in step 4).
+- `src/fsm.js` - CookingFSM (SELECTING, GRACE, LOCK_AND_TOSS, COOKING, SERVING_WALK, SERVING_EVALUATE, CLEANUP_RESET).
+- `src/recipes.js` - 20 recipes, orders, scoring, unlock waves. `src/dish.js` - procedural dishes (all 220 combos).
+- `src/hud.js` - slots, cards, order card, score, banner. `src/audio.js` - Web Audio SFX + haptics. `src/particles.js` - pooled particles.
 - `src/ingredients.js`, `src/mathutils.js`.
 - `game_config.json` - strings, colors, camera, quality, leaderboard declaration.

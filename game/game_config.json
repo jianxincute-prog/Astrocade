@@ -2,10 +2,37 @@
   "strings": {
     "title": "Secret Recipe Lab",
     "ingredients": {
-      "carb_1": "Rice", "carb_2": "Noodles", "carb_3": "Bread", "carb_4": "Potato",
-      "prot_5": "Chicken", "prot_6": "Beef", "prot_7": "Shrimp", "prot_8": "Egg",
-      "garn_9": "Veggies", "garn_10": "Tomato", "garn_11": "Cheese", "garn_12": "Mushroom"
-    }
+      "carb_1": "Rice",
+      "carb_2": "Noodles",
+      "carb_3": "Bread",
+      "carb_4": "Potato",
+      "prot_5": "Chicken",
+      "prot_6": "Beef",
+      "prot_7": "Shrimp",
+      "prot_8": "Egg",
+      "garn_9": "Veggies",
+      "garn_10": "Tomato",
+      "garn_11": "Cheese",
+      "garn_12": "Mushroom"
+    },
+    "order": "ORDER",
+    "score": "SCORE",
+    "tap": "TAP!",
+    "flame": "FLAME! TAP FAST!",
+    "golden": "GOLDEN ORDER",
+    "unlocked": "NEW INGREDIENTS!",
+    "tags": {
+      "new": "NEW RECIPE!",
+      "order": "ORDER DONE!",
+      "perfect": "PERFECT!",
+      "surprise": "FLAME BONUS!",
+      "golden": "GOLDEN x3"
+    },
+    "help": [
+      "Pick 3 ingredients",
+      "Tap while it cooks",
+      "Serve and find secret recipes"
+    ]
   },
   "look": {
     "chefApronColor": "#A8E6CF",
@@ -13,8 +40,38 @@
     "wallColor": "#FFE8D6",
     "floorColor": "#F6E7CB"
   },
-  "camera": { "followSpeed": 4.5, "cookZoom": 0.85 },
-  "preview": { "autoCycle": true },
+  "camera": {
+    "followSpeed": 4.5,
+    "cookZoom": 0.85
+  },
   "quality": "auto",
-  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+  "persistent_storage_config": {
+    "leaderboard": {
+      "sort_ascending": false
+    }
+  },
+  "gameplay": {
+    "graceSeconds": 0.35,
+    "tossSeconds": 0.7,
+    "fastSpeed": 2,
+    "shinePerTap": 10,
+    "surpriseChance": 0.15,
+    "goldenOrderEvery": 5,
+    "goldenOrderSeconds": 25,
+    "unlockWave2Matches": 3,
+    "unlockWave2Dishes": 6,
+    "unlockWave3Matches": 6,
+    "unlockWave3Dishes": 12
+  },
+  "scoring": {
+    "creation": 100,
+    "recipe": 150,
+    "orderMatch": 200,
+    "newRecipeBonus": 50,
+    "comboStep": 25,
+    "comboMax": 250,
+    "surprise": 100,
+    "perfect": 50,
+    "goldenMultiplier": 3
+  }
 }

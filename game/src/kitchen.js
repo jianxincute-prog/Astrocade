@@ -13,6 +13,12 @@ export const ANCHORS = {
   customerPos: new THREE.Vector3(1.9, 0, -0.75), // customer stands behind the table
 };
 
+// World position of ingredient crate `i` on the prep counter (where tossed cubes start).
+export function cratePos(i) {
+  const col = i % 6, row = Math.floor(i / 6);
+  return new THREE.Vector3(-3.15 + col * 0.3, 1.12, -1.2 + row * 0.3);
+}
+
 function box(parent, w, h, d, material, x, y, z, shadow = true) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
   m.position.set(x, y, z);
@@ -89,7 +95,7 @@ export function buildKitchen(scene, look) {
   // Soft rug under the chef path
   box(group, 3.4, 0.02, 1.4, lam(0xcdeac0), -0.6, 0.01, 0.35, false);
 
-  return { group, pan, mats: { wall: wallMat, floor: floorMat } };
+  return { group, pan, panInner, mats: { wall: wallMat, floor: floorMat } };
 }
 
 export function buildLights(scene) {
