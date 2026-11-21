@@ -124,7 +124,7 @@ Combo naik tiap order cocok berturut-turut, dan hanya **reset** saat memilih Kre
 Fase (durasi baku, semua di `game_config.json`):
 `SELECTING` → `GRACE` 0,35 → `LOCK_AND_TOSS` 0,7 → `COOKING_SHOWCASE` 3,5 → `SERVING_WALK` (± 1 dtk, sampai tiba)
 → `SERVING_EVALUATE` 1,6 → `CLEANUP_RESET` (± 1 dtk, sampai tiba). Total ± 8,2 dtk.
-- Ketuk layar saat animasi memasak = **percepat 2×** (`skipSpeed`). Tombol "Ulangi" mengulang resep terakhir.
+- **Percepat 2×** lewat tombol ⏩ (atau Spasi), bukan ketuk layar, karena ketukan dipakai untuk irama memasak (diubah di langkah 4). Tombol ↻ "Ulangi" mengulang resep terakhir.
 - **Beat 1 (0–1,2 dtk) dan Beat 2 (1,2–2,6 dtk) bisa diketuk berirama:** tiap ketukan menambah "Kilau" (0–100).
   Kilau 100 → "Chef Perfect" +50. Tidak ketuk pun tidak dihukum.
 - **Kejutan Wajan** (`surpriseChance` 0,15 per masakan): wajan menyala biru di Beat 1; pemain ketuk 3× untuk
@@ -212,3 +212,13 @@ Belum diuji: perangkat nyata, FPS di Low, runtime Astrocade asli (apakah script 
 - Belum diverifikasi: pemuatan Three.js r128 dari cdnjs di runtime sebenarnya, harus dicek lewat `draft_play_url`
   (butuh sesi yang login sebagai pemilik).
 - Thumbnail belum ada; `publish_game` menolak sampai `generate_thumbnail` + `set_thumbnail` dilakukan.
+
+## 16. Status langkah 4 (gameplay)
+
+Draft Astrocade versi `01M7YP8BBMZ0NQFC70PHVR1NKZ` (disimpan). Sudah diuji di Chromium headless dengan waktu virtual:
+- Siklus penuh GRACE → LOCK_AND_TOSS → COOKING → SERVING_WALK → SERVING_EVALUATE → CLEANUP_RESET → SELECTING.
+- 41 masakan acak berturut-turut (mode cepat bergantian) tanpa macet; progresi gelombang 2 dan 3 terbuka sesuai aturan.
+- Semua 220 kombinasi bahan terbangun tanpa error (81 mangkuk, 55 tumpuk, 84 piring).
+- Skor resep pertama (Chicken Egg Fried Rice, order cocok, baru): 200 + 50 + 25 = 275, sesuai tabel bagian 6.
+Belum diuji: perangkat nyata, FPS di Low, suara (AudioContext butuh gestur), getaran, input keyboard sungguhan, dan runtime Astrocade asli.
+Belum ada: save/leaderboard, buku resep, layar loading dan menu, bentuk 3D khusus untuk 20 resep signature (kini memakai generator berlapis).
