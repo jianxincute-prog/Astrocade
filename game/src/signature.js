@@ -1,6 +1,6 @@
 // Hand-built blocky models for the 20 signature recipes, keyed by the sorted ingredient ids.
 // Each builder takes the seeded random function and returns a Group sitting on y = 0.
-import { mat, box, cyl, tor, sph, mesh } from './prims.js';
+import { mat, box, cyl, tor, sph, mesh, addBowl } from './prims.js';
 
 const THREE = window.THREE;
 
@@ -16,7 +16,7 @@ const T = (g, r, t, arc, col, x, y, z, rx = Math.PI / 2, ry = 0, rz = 0) => {
 
 // ---- vessels (return the y of the usable surface) -------------------------------------------
 function plate(g) { C(g, 0.45, 0.35, 0.06, 0xe9eef5, 0, 0.03, 0, 16); return 0.06; }
-function bowl(g) { C(g, 0.42, 0.28, 0.16, 0xbde0fe, 0, 0.08, 0); C(g, 0.36, 0.36, 0.01, 0xe3f2fd, 0, 0.165, 0); return 0.17; }
+const bowl = (g) => addBowl(g);
 function skillet(g) {
   C(g, 0.46, 0.42, 0.08, 0x3a3a42, 0, 0.04, 0); C(g, 0.4, 0.4, 0.01, 0x24242b, 0, 0.085, 0);
   B(g, 0.5, 0.05, 0.07, 0x8b5a2b, 0.68, 0.06, 0); return 0.09;
@@ -118,7 +118,7 @@ def(['carb_3', 'prot_5', 'garn_11'], (g, r) => {
 // 7. Beef Noodle Soup: broth, noodles, thick beef slices, greens
 def(['carb_2', 'prot_6', 'garn_9'], (g, r) => {
   const y = bowl(g);
-  C(g, 0.35, 0.35, 0.05, 0xb5651d, 0, y + 0.02, 0);
+  C(g, 0.34, 0.34, 0.05, 0xb5651d, 0, y + 0.02, 0);
   for (let i = 0; i < 4; i++) T(g, 0.15, 0.03, Math.PI * 2, NOODLE, (r() - 0.5) * 0.08, y + 0.05 + i * 0.025, (r() - 0.5) * 0.08, Math.PI / 2 + (r() - 0.5) * 0.4, 0, r() * 3);
   [[-0.14, 0.1], [0.08, 0.14], [0.16, -0.06]].forEach(([x, z], i) => B(g, 0.17, 0.035, 0.11, 0x8b3a1a, x, y + 0.13, z, i * 1.1, 0.25));
   for (let i = 0; i < 3; i++) leaf(g, -0.05 + i * 0.07, y + 0.16, -0.12 + i * 0.03, i);
@@ -182,23 +182,34 @@ def(['carb_1', 'garn_9', 'garn_12'], (g, r) => {
   bits(g, 0xe67e22, 4, 0.22, y + 0.16, r, 0.04);
 });
 
-// 14. Chicken Parmigiana Plate: breaded cutlet, red sauce, thick melted cheese, basil
-def(['prot_5', 'garn_11', 'garn_10'], (g) => {
+// 14. Chicken Parmigiana Plate: thick cutlet under red sauce and a stepped tower of melted cheese, basil, cherry tomatoes
+def(['prot_5', 'garn_11', 'garn_10'], (g, r) => {
   const y = plate(g);
-  B(g, 0.44, 0.07, 0.3, CRISPY, 0, y + 0.035, 0, 0.1);
-  B(g, 0.38, 0.025, 0.25, TOMATO, 0, y + 0.082, 0, 0.1);
-  B(g, 0.38, 0.04, 0.25, CHEESE, 0, y + 0.115, 0, 0.1); drips(g, CHEESE, 0.36, 0.22, y + 0.115);
-  [[-0.08, 0.04], [0.1, -0.03]].forEach(([x, z]) => B(g, 0.06, 0.015, 0.05, 0xd98c2b, x, y + 0.14, z));
-  leaf(g, 0.0, y + 0.15, 0.0, 0.6); leaf(g, 0.07, y + 0.15, 0.05, 1.8);
+  B(g, 0.42, 0.1, 0.3, CRISPY, 0, y + 0.05, 0, 0.1);
+  for (let i = 0; i < 6; i++) B(g, 0.05, 0.05, 0.05, 0xf0b44a, (i % 2 ? 1 : -1) * 0.2, y + 0.08, (i - 2.5) * 0.08, r() * 3);
+  B(g, 0.36, 0.03, 0.24, TOMATO, 0, y + 0.115, 0, 0.1);
+  B(g, 0.36, 0.045, 0.24, CHEESE, 0, y + 0.1525, 0, 0.1); drips(g, CHEESE, 0.36, 0.22, y + 0.15);
+  B(g, 0.27, 0.045, 0.17, CHEESE, 0, y + 0.1975, 0, 0.1);
+  B(g, 0.17, 0.045, 0.11, CHEESE, 0, y + 0.2425, 0, 0.1);
+  [[-0.06, 0.0], [0.07, 0.03], [0.0, -0.05]].forEach(([x, z]) => B(g, 0.06, 0.012, 0.05, 0xc98a1b, x, y + 0.225, z));
+  [[-0.04, 0.0, 0.5], [0.04, 0.02, -0.5], [0.0, -0.03, 1.57]].forEach(([x, z, ry]) => B(g, 0.11, 0.13, 0.015, 0x2ecc71, x, y + 0.34, z, ry, (x || 0.03) * 3));
+  [[-0.31, 0.12], [-0.24, 0.24], [0.3, -0.16]].forEach(([x, z]) => { S(g, 0.05, TOMATO, x, y + 0.05, z); B(g, 0.03, 0.015, 0.03, 0x2ecc71, x, y + 0.105, z); });
 });
 
-// 15. Beef Mushroom Melt Steak: steak with mushroom sauce and melted cheese
+// 15. Beef Mushroom Melt Steak: thick seared steak with a tower of mushroom sauce, melted cheese, mushrooms, rosemary
 def(['prot_6', 'garn_12', 'garn_11'], (g, r) => {
   const y = plate(g);
-  B(g, 0.38, 0.1, 0.28, BEEF, 0, y + 0.05, 0, 0.1);
-  for (let i = 0; i < 8; i++) B(g, 0.07, 0.05, 0.07, 0x6b4a2f, (r() - 0.5) * 0.3, y + 0.13, (r() - 0.5) * 0.2, r() * 3);
-  mushroom(g, -0.1, y + 0.1, 0.0); mushroom(g, 0.1, y + 0.1, 0.04);
-  B(g, 0.3, 0.025, 0.22, CHEESE, 0, y + 0.19, 0, 0.1); drips(g, CHEESE, 0.28, 0.2, y + 0.19);
+  B(g, 0.4, 0.14, 0.3, BEEF, 0, y + 0.07, 0, 0.1);
+  B(g, 0.4, 0.015, 0.3, 0x8b3a1a, 0, y + 0.1475, 0, 0.1);
+  [-0.1, 0, 0.1].forEach((x) => B(g, 0.02, 0.012, 0.3, 0x3d1a00, x, y + 0.158, 0, 0.1));
+  let n = 0;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) B(g, 0.09, 0.09, 0.09, n++ % 2 ? 0x7a5638 : 0x6b4a2f, i * 0.085, y + 0.2, j * 0.085, r() * 0.5);
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) B(g, 0.09, 0.09, 0.09, (i + j) % 2 ? 0x6b4a2f : 0x7a5638, (i - 0.5) * 0.085, y + 0.275, (j - 0.5) * 0.085, r() * 0.5);
+  B(g, 0.09, 0.09, 0.09, 0x6b4a2f, 0, y + 0.35, 0);
+  B(g, 0.2, 0.02, 0.2, CHEESE, 0, y + 0.405, 0, 0.5);
+  [[0.1, 0.1], [-0.1, 0.1], [0.1, -0.1]].forEach(([x, z]) => B(g, 0.05, 0.12, 0.04, CHEESE, x, y + 0.35, z, 0.5));
+  mushroom(g, 0, y + 0.41, 0); mushroom(g, -0.2, y + 0.155, 0.1); mushroom(g, 0.19, y + 0.155, 0.1);
+  B(g, 0.012, 0.26, 0.012, 0x3f6b2a, 0.24, y + 0.28, -0.1, 0, 0.35); B(g, 0.012, 0.22, 0.012, 0x4f8a37, 0.2, y + 0.26, -0.12, 0, 0.6);
 });
 
 // 16. Chicken Tomato Club Sandwich: three-decker with chicken, tomato, lettuce and a pick

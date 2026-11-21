@@ -243,3 +243,12 @@ Draft Astrocade versi `01M7YR3S7WPGG4WMHAFXAMPGQJ`. Ukuran 22 file di server sam
   (tidak bergantung urutan pilih), alur masak memakai model signature, buku resep menampilkan model baru.
 - Kekurangan yang diketahui: beberapa model (Chicken Parmigiana, Beef Mushroom Melt Steak) bersiluet rendah dan kurang menonjol;
   mangkuk tampak dangkal dari atas. Belum dinilai pemilik di layar sungguhan.
+
+## 19. Perbaikan setelah langkah 6
+
+Draft versi `01M7YRNBPPQ1V5A4XXHMCBM1DX`. Umpan balik: siluet rendah pada Chicken Parmigiana dan Beef Mushroom Melt Steak, dan mangkuk tampak dangkal.
+- `addBowl()` bersama di `src/prims.js`: dinding terbuka melebar, lantai terang, bibir dan alas lebih gelap; isi berada di dalam mangkuk.
+  Dipakai 5 model signature berbentuk mangkuk (Seafood Noodle, Risotto, Beef Noodle Soup, Bolognese, Mushroom Chicken Noodles) dan generator fallback.
+- Parmigiana: potongan ayam tebal, saus, menara keju bertingkat, daun basil tegak, tomat ceri. Steak: steak tebal dengan sear, tumpukan saus jamur,
+  keju meleleh, jamur, dan tangkai rosemary.
+- Diuji ulang: 220 kombinasi terbangun tanpa error (20 signature), alur menu/simpan tetap jalan, buku resep 20/20 memuat thumbnail baru.

@@ -6,7 +6,7 @@ import { ING } from './recipes.js';
 
 const THREE = window.THREE;
 
-import { mat, box, cyl, tor, mesh } from './prims.js';
+import { mat, box, cyl, tor, mesh, addBowl } from './prims.js';
 import { SIGNATURE } from './signature.js';
 
 function seedOf(ids) {
@@ -116,9 +116,7 @@ export function buildDish(ids) {
   const group = new THREE.Group();
   let y;
   if (form === 'bowl') {
-    group.add(mesh(cyl(0.42, 0.28, 0.16, 14), mat(0xbde0fe), 0, 0.08, 0));
-    group.add(mesh(cyl(0.36, 0.36, 0.01, 14), mat(0xe3f2fd), 0, 0.165, 0));
-    y = 0.17;
+    y = addBowl(group);
   } else {
     group.add(mesh(cyl(0.45, 0.35, 0.06, 16), mat(0xe9eef5), 0, 0.03, 0));
     y = 0.06;
