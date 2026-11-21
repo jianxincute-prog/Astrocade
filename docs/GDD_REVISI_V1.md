@@ -222,3 +222,14 @@ Draft Astrocade versi `01M7YP8BBMZ0NQFC70PHVR1NKZ` (disimpan). Sudah diuji di Ch
 - Skor resep pertama (Chicken Egg Fried Rice, order cocok, baru): 200 + 50 + 25 = 275, sesuai tabel bagian 6.
 Belum diuji: perangkat nyata, FPS di Low, suara (AudioContext butuh gestur), getaran, input keyboard sungguhan, dan runtime Astrocade asli.
 Belum ada: save/leaderboard, buku resep, layar loading dan menu, bentuk 3D khusus untuk 20 resep signature (kini memakai generator berlapis).
+
+## 17. Status langkah 5 (shell, save, leaderboard)
+
+Draft Astrocade versi `01M7YQFPDA5QDFBQH5M42AG1BK`. Ukuran 18 file di server sama persis dengan repo.
+Diuji di Chromium headless dengan klik pointer sungguhan dan `lib` tiruan (penyimpanan dan leaderboard dibuat palsu):
+- Loading screen dengan bar nyata (35% → 71% → 96%), lalu menu; PLAY, jeda (klik), FINISH, buku resep, leaderboard.
+- Progres tersimpan dan pulih di halaman baru (9 masakan, 5 resep, gelombang 2, skor terbaik 2475, 9 bahan terbuka).
+- Mode edit: loading disembunyikan dan tanpa FSM.
+- Bug ditemukan dan diperbaiki lewat uji ini: `submit()` mencatat skor terbaru, bukan skor yang terkirim, sehingga skor akhir bisa terlewat.
+Belum diuji: `lib` asli (login, leaderboard sungguhan), perangkat nyata, musik dan suara, performa di Low.
+Belum ada: bentuk 3D khusus 20 resep, thumbnail dan publikasi, kontrol keyboard di menu.
