@@ -9,7 +9,7 @@ const GLOSSY = new Set([
   0xffc93c, 0xffc83d, 0xffb300, 0xffd966, 0xc98a1b, // cheese and browned cheese
   0xf6b61a, 0xf08a5d, 0xf6b08a, 0xb5651d, 0xf2b84b, // yolk, shrimp, broth, oil
   0x6b4a2f, 0x7a5638, 0x8b4513, // mushroom sauce, glazed chicken
-  0xbde0fe, 0x8ec5f5, // bowl glaze (plates stay matte so white does not blow out)
+  0x8f8f8d, // gray lip of the bowl (cream bodies stay matte so they do not blow out)
 ]);
 
 const tokens = new Map();
@@ -77,9 +77,9 @@ export function mesh(g, m, x, y, z) {
 // ---- vessels -------------------------------------------------------------------------------
 // Plate: slim body, recessed well and a bright rim line. Returns the y where food starts.
 export function addPlate(g) {
-  g.add(mesh(cyl(0.46, 0.36, 0.06, 28), mat(0xe9eef4), 0, 0.03, 0));
-  g.add(mesh(cyl(0.33, 0.33, 0.012, 28), mat(0xdbe4ee), 0, 0.063, 0));
-  const rim = mesh(tor(0.44, 0.014, Math.PI * 2), mat(0xf3f6fa), 0, 0.058, 0);
+  g.add(mesh(cyl(0.46, 0.36, 0.06, 28), mat(0xe8dcc3), 0, 0.03, 0)); // cream body
+  g.add(mesh(cyl(0.33, 0.33, 0.012, 28), mat(0xd2ccbd), 0, 0.063, 0)); // warm gray well
+  const rim = mesh(tor(0.44, 0.014, Math.PI * 2), mat(0x8f8f8d), 0, 0.058, 0); // gray rim line
   rim.rotation.x = Math.PI / 2;
   g.add(rim);
   return 0.069;
@@ -87,14 +87,14 @@ export function addPlate(g) {
 
 // Bowl: open flared wall (food sits INSIDE it), light floor, lip, foot and a thin decorative band.
 // Returns the y of the bowl floor, where food starts.
-export function addBowl(g, color = 0xbde0fe, lip = 0x8ec5f5) {
+export function addBowl(g, color = 0xe8dcc3, lip = 0x8f8f8d) {
   g.add(mesh(geo('bowl-wall', () => new THREE.CylinderGeometry(0.44, 0.27, 0.26, 24, 1, true)), mat(color, { double: true }), 0, 0.13, 0));
-  g.add(mesh(cyl(0.36, 0.36, 0.01, 24), mat(0xf3f9ff), 0, 0.145, 0));
+  g.add(mesh(cyl(0.36, 0.36, 0.01, 24), mat(0xe6e0d3), 0, 0.145, 0));
   g.add(mesh(cyl(0.2, 0.2, 0.03, 16), mat(lip), 0, 0.015, 0));
   const rim = mesh(tor(0.43, 0.026, Math.PI * 2), mat(lip), 0, 0.26, 0);
   rim.rotation.x = Math.PI / 2;
   g.add(rim);
-  const band = mesh(tor(0.395, 0.011, Math.PI * 2), mat(0xffffff), 0, 0.185, 0);
+  const band = mesh(tor(0.395, 0.011, Math.PI * 2), mat(0xa5a5a2), 0, 0.185, 0); // gray band
   band.rotation.x = Math.PI / 2;
   g.add(band);
   return 0.15;

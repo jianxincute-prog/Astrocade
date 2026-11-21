@@ -267,3 +267,11 @@ Draft versi terbaru setelah `01M7YS72A8YJ58DKN2AB6ME0CA` (plus perbaikan README)
 - **Cahaya:** tambah HemisphereLight hangat; ambient diturunkan 0,62 → 0,4 agar total tidak jenuh.
 - Diuji: 220 kombinasi terbangun tanpa error (20 signature), alur menu/simpan tetap jalan, buku resep memuat thumbnail baru.
 - Belum dinilai di layar ponsel; Phong lebih berat dari Lambert di tier Low (hanya dipakai pada bagian kecil).
+
+## 21. Piring dan mangkuk krem + abu-abu
+
+Draft versi `01M7YT2V0VT63471KKSXBWQFPE`. Permintaan: piring dan mangkuk berwarna krem dengan perpaduan abu-abu.
+- Piring: badan krem `#E8DCC3`, cekungan abu-krem hangat `#D2CCBD`, garis bibir abu-abu `#8F8F8D`.
+- Mangkuk: dinding krem `#E8DCC3`, lantai `#E6E0D3`, bibir dan alas abu-abu `#8F8F8D` (mengilap), pita dekoratif `#A5A5A2`.
+- Latar thumbnail buku resep diubah ke abu terang dingin `#E4E7EA` agar piring krem tidak menyatu dengan latar.
+- Wajan dan loyang tidak diubah. Diuji: 220 kombinasi terbangun tanpa error, alur simpan tetap jalan.

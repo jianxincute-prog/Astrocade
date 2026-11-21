@@ -9,7 +9,7 @@ export function createThumbs(renderer) {
   const rt = new THREE.WebGLRenderTarget(SIZE, SIZE);
   const buf = new Uint8Array(SIZE * SIZE * 4);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xfff3e6);
+  scene.background = new THREE.Color(0xe4e7ea); // cool light gray so cream plates stand out
   scene.add(new THREE.AmbientLight(0xfff5ea, 0.4));
   scene.add(new THREE.HemisphereLight(0xfff4e0, 0xe8c4a8, 0.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.7);
