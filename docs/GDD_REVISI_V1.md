@@ -203,3 +203,12 @@ Urutan dan bahan sama dengan tabel GDD asli. Nama disimpan di `game_config.json`
 Kode ada di `game/`. Sudah diuji di Chromium headless (swiftshader): tanpa error konsol, satu siklus preview
 (idle → toCook → sautee → stir → plate → toServe → cheer → back) berulang bersih, mode edit dan pemanggilan `run()` ganda aman.
 Belum diuji: perangkat nyata, FPS di Low, runtime Astrocade asli (apakah script cdnjs r128 + `type="module"` diterima bundler).
+
+## 15. Draft di Astrocade
+
+- Game dibuat sebagai draft privat: `game_id` 01M7YJ2F7VE6718XD0SA3CFDS1, mode `multi_file`.
+- Pembuatan lolos validasi bundler (esbuild): impor modul `./src/*.js` dari `game.js` diterima.
+- Percobaan pertama gagal karena tiga file modul tertinggal dari daftar file, bukan karena struktur kode.
+- Belum diverifikasi: pemuatan Three.js r128 dari cdnjs di runtime sebenarnya, harus dicek lewat `draft_play_url`
+  (butuh sesi yang login sebagai pemilik).
+- Thumbnail belum ada; `publish_game` menolak sampai `generate_thumbnail` + `set_thumbnail` dilakukan.
