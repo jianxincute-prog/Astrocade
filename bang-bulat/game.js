@@ -24,6 +24,8 @@ const I18N = {
     map_a: 'Green Slopes', map_b: 'Snowy Peak', map_c: 'Fire Mountain', language: 'LANGUAGE',
     hintTouch: '◀ ▶  run   ⬆  jump', hintKey: 'A/D run · Space jump',
     loadEngine: 'Loading 3D engine...', loadSprites: 'Painting pixel sprites...', loadVoxel: 'Building voxel mountains...', loadClouds: 'Hanging clouds...', loadAlmost: 'Almost at the summit...',
+    shop: 'SHOP', buy: 'BUY', equip: 'EQUIP', equipped: 'EQUIPPED', noCoins: 'Not enough coins!', unlocked: 'Unlocked!', coinsLabel: 'Coins',
+    skin_classic: 'Classic Tee', skin_jersey: 'Red Jersey', skin_hoodie: 'Blue Hoodie', skin_sailor: 'Sailor Stripes', skin_hawaii: 'Island Shirt', skin_pajama: 'Cozy Pajamas', skin_camo: 'Jungle Camo', skin_gold: 'Gold Tracksuit',
     loadFail: 'Failed to load: ', noWebgl: 'WebGL is not available', threeFail: 'Could not load the 3D engine', loading: 'Preparing the mountain...',
   },
   id: {
@@ -35,6 +37,8 @@ const I18N = {
     map_a: 'Lereng Hijau', map_b: 'Puncak Salju', map_c: 'Gunung Api', language: 'BAHASA',
     hintTouch: '◀ ▶  lari   ⬆  lompat', hintKey: 'A/D lari · Spasi lompat',
     loadEngine: 'Memuat mesin 3D...', loadSprites: 'Melukis sprite pixel...', loadVoxel: 'Membangun gunung voxel...', loadClouds: 'Memasang awan...', loadAlmost: 'Hampir sampai puncak...',
+    shop: 'TOKO', buy: 'BELI', equip: 'PAKAI', equipped: 'DIPAKAI', noCoins: 'Koin tidak cukup!', unlocked: 'Terbuka!', coinsLabel: 'Koin',
+    skin_classic: 'Kaos Klasik', skin_jersey: 'Jersey Merah', skin_hoodie: 'Hoodie Biru', skin_sailor: 'Kaos Pelaut', skin_hawaii: 'Kemeja Pantai', skin_pajama: 'Piyama Nyaman', skin_camo: 'Loreng Hutan', skin_gold: 'Training Emas',
     loadFail: 'Gagal memuat: ', noWebgl: 'WebGL tidak tersedia', threeFail: 'Tidak bisa memuat mesin 3D', loading: 'Menyiapkan gunung...',
   },
   ar: {
@@ -46,6 +50,8 @@ const I18N = {
     map_a: 'المنحدرات الخضراء', map_b: 'القمة الثلجية', map_c: 'جبل النار', language: 'اللغة',
     hintTouch: 'اركض ◀ ▶   اقفز ⬆', hintKey: 'A/D للركض · مسافة للقفز',
     loadEngine: 'جارٍ تحميل المحرك ثلاثي الأبعاد...', loadSprites: 'جارٍ رسم الشخصيات...', loadVoxel: 'جارٍ بناء الجبال...', loadClouds: 'جارٍ تعليق الغيوم...', loadAlmost: 'اقتربنا من القمة...',
+    shop: 'المتجر', buy: 'شراء', equip: 'ارتداء', equipped: 'مرتدى', noCoins: 'العملات غير كافية!', unlocked: 'تم الفتح!', coinsLabel: 'العملات',
+    skin_classic: 'تيشيرت كلاسيكي', skin_jersey: 'قميص رياضي أحمر', skin_hoodie: 'سترة زرقاء', skin_sailor: 'قميص البحّارة', skin_hawaii: 'قميص الجزيرة', skin_pajama: 'بيجامة مريحة', skin_camo: 'تمويه الغابة', skin_gold: 'بدلة رياضية ذهبية',
     loadFail: 'فشل التحميل: ', noWebgl: 'WebGL غير متاح', threeFail: 'تعذر تحميل المحرك ثلاثي الأبعاد', loading: 'جارٍ تجهيز الجبل...',
   },
 };
@@ -184,25 +190,111 @@ function boot(mode, serial) {
     }
     return c;
   }
-  function drawTorso() {
+  /* ---- clothing skins (fit the same torso / arm / leg sprite parts) ---- */
+  const rgbOf = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mulHex = (h, k) => { const c = rgbOf(h).map((v) => Math.max(0, Math.min(255, Math.round(v * k)))); return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''); };
+  function paintPx(g, w, h, fn) {
+    const im = g.getImageData(0, 0, w, h), d = im.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4; if (d[i + 3] === 0) continue;
+      const hex = fn(x, y, d[i], d[i + 1], d[i + 2]); if (hex) { const c = rgbOf(hex); d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; }
+    }
+    g.putImageData(im, 0, 0);
+  }
+  const SKINS = [
+    { id: 'classic', price: 0, shirt: '#f3f4f8', sh: '#c9cfdd', hi: '#ffffff', fold: '#d5dae6', collar: '#e5e8f0', pants: '#27325a', pHi: '#3a4a78', pSh: '#1a2240', shoe: '#17151d', shoeHi: '#3a3a48', sole: '#b8bac5', pat: 'plain', sleeve: 'short', legs: 'long' },
+    { id: 'jersey', price: 100, shirt: '#e23b3b', sh: '#a82828', hi: '#ff8a7a', fold: '#c43030', collar: '#ffffff', pants: '#1d1f2b', pHi: '#34384a', pSh: '#101118', shoe: '#f3f4f8', shoeHi: '#ffffff', sole: '#c9cfdd', pat: 'jersey', sleeve: 'short', legs: 'shorts', stripe: '#ffffff' },
+    { id: 'hoodie', price: 150, shirt: '#3f6fd8', sh: '#2c4fa6', hi: '#7fa3f0', fold: '#3560c0', collar: '#2c4fa6', hood: true, pants: '#6b7282', pHi: '#8a92a2', pSh: '#4c5262', shoe: '#f3f4f8', shoeHi: '#ffffff', sole: '#9aa0b0', pat: 'hoodie', sleeve: 'long', legs: 'long' },
+    { id: 'sailor', price: 200, shirt: '#f3f4f8', sh: '#c9cfdd', hi: '#ffffff', fold: '#d5dae6', collar: '#e23b3b', pants: '#f3f4f8', pHi: '#ffffff', pSh: '#c9cfdd', shoe: '#27325a', shoeHi: '#4a5a8a', sole: '#e5e8f0', pat: 'stripes', sleeve: 'short', legs: 'long', stripe: '#27325a' },
+    { id: 'hawaii', price: 250, shirt: '#ffd34d', sh: '#d9a92a', hi: '#fff0a0', fold: '#e0b43a', collar: '#ffefb0', pants: '#c9a36a', pHi: '#dfbd86', pSh: '#9a7a46', shoe: '#8a5a2c', shoeHi: '#b57a3e', sole: '#e8d2a8', pat: 'flowers', sleeve: 'short', legs: 'shorts' },
+    { id: 'pajama', price: 300, shirt: '#9fd3ff', sh: '#6fa8dc', hi: '#d4ecff', fold: '#86bde8', collar: '#d4ecff', pants: '#9fd3ff', pHi: '#c4e4ff', pSh: '#6fa8dc', shoe: '#ff9ec7', shoeHi: '#ffc4de', sole: '#e27aa5', pat: 'stars', sleeve: 'long', legs: 'long' },
+    { id: 'camo', price: 400, shirt: '#6b8f4a', sh: '#4e6e34', hi: '#8fb36a', fold: '#4e6e34', collar: '#4e6e34', pants: '#5d7d40', pHi: '#7fa05c', pSh: '#3e5a2a', shoe: '#4a3a22', shoeHi: '#6a5636', sole: '#2a2012', pat: 'camo', sleeve: 'long', legs: 'long', c1: '#3f5a2a', c1s: '#30461f', c2: '#a3a06a', c2s: '#80804f' },
+    { id: 'gold', price: 600, shirt: '#ffcf3f', sh: '#d9a21a', hi: '#fff0a0', fold: '#e0b020', collar: '#1d1f2b', pants: '#1d1f2b', pHi: '#34384a', pSh: '#101118', shoe: '#f3f4f8', shoeHi: '#ffffff', sole: '#ffcf3f', pat: 'track', sleeve: 'long', legs: 'long', stripe: '#1d1f2b', pStripe: '#ffcf3f' },
+  ];
+  const skinById = (id) => SKINS.find((k) => k.id === id) || SKINS[0];
+  function shirtPat(K, x, y, lit) {
+    if (K.pat === 'stripes') return (y % 6 < 2) ? (lit ? K.stripe : mulHex(K.stripe, 0.8)) : null;
+    if (K.pat === 'camo') { const v = Math.sin(x * 0.55 + 1.3) + Math.sin(y * 0.7 + x * 0.2) + Math.sin((x + y) * 0.4); return v > 0.9 ? (lit ? K.c1 : K.c1s) : v < -0.7 ? (lit ? K.c2 : K.c2s) : null; }
+    if (K.pat === 'track') return (x === 19 || x === 20 || x <= 4 || x >= 35) ? K.stripe : null;
+    return null;
+  }
+  const BIGSEVEN = ['#####', '....#', '...#.', '..#..', '..#..', '..#..', '..#..'];
+  function torsoDeco(g, K) {
+    const r = rngMaker(K.id.length * 31 + 5), inEll = (x, y) => { const dx = (x + 0.5 - 20) / 17, dy = (y + 0.5 - 15) / 12; return dx * dx + dy * dy < 1; };
+    if (K.pat === 'jersey') { BIGSEVEN.forEach((row, ry) => { for (let rx = 0; rx < 5; rx++) if (row[rx] === '#') R(g, '#ffffff', 15 + rx * 2, 8 + ry * 2, 2, 2); }); R(g, '#ffffff', 3, 12, 2, 14); R(g, '#ffffff', 35, 12, 2, 14); }
+    else if (K.pat === 'hoodie') { R(g, K.fold, 11, 21, 18, 1); R(g, K.sh, 11, 22, 1, 6); R(g, K.sh, 28, 22, 1, 6); R(g, K.sh, 12, 27, 16, 1); R(g, '#f3f4f8', 17, 5, 1, 8); R(g, '#f3f4f8', 22, 5, 1, 8); }
+    else if (K.pat === 'flowers') { for (let i = 0, n = 0; i < 80 && n < 9; i++) { const x = 6 + Math.floor(r() * 28), y = 6 + Math.floor(r() * 21); if (!inEll(x, y)) continue; n++; const c = ['#ff5a8a', '#ffffff', '#ff7a3a'][n % 3]; R(g, c, x, y - 1, 1, 3); R(g, c, x - 1, y, 3, 1); R(g, '#ffe14d', x, y, 1, 1); } R(g, '#c78a10', 20, 6, 1, 21); }
+    else if (K.pat === 'stars') { for (let i = 0, n = 0; i < 80 && n < 8; i++) { const x = 7 + Math.floor(r() * 26), y = 7 + Math.floor(r() * 18); if (!inEll(x, y)) continue; n++; R(g, '#ffffff', x, y - 1, 1, 3); R(g, '#ffffff', x - 1, y, 3, 1); } ell(g, '#fff4b0', 29, 12, 3, 3); ell(g, K.shirt, 30.5, 11.2, 2.6, 2.6); }
+    else if (K.pat === 'track') { R(g, '#fff4d6', 20, 4, 1, 23); R(g, '#fff4d6', 19, 26, 3, 1); }
+    else if (K.pat === 'stripes') { R(g, '#e23b3b', 16, 3, 8, 2); R(g, '#e23b3b', 18, 5, 4, 3); }
+  }
+  function drawTorso(K) {
+    K = K || SKINS[0];
     const c = mkC(40, 34), g = c.getContext('2d');
-    ell(g, OL, 20, 17.5, 19.5, 16.5); ell(g, '#c9cfdd', 20, 17.5, 18.5, 15.5); ell(g, '#f3f4f8', 18, 16, 17, 14.5);
-    ell(g, OL, 20, 17.5, 19.5, 16.5, 29, 33); ell(g, NV, 20, 17.5, 18.5, 15.5, 29, 32); R(g, '#3a4a78', 8, 29, 4, 1);
-    R(g, '#d5dae6', 5, 28, 30, 1); R(g, '#d5dae6', 12, 19, 6, 1); R(g, '#d5dae6', 22, 22, 7, 1); R(g, '#fff', 10, 8, 6, 2);
-    ell(g, OL, 20, 2.5, 7, 3.2, 0, 4); ell(g, SK, 20, 3, 5.5, 2.2, 0, 4); R(g, '#e5e8f0', 14, 1, 12, 1);
+    ell(g, OL, 20, 17.5, 19.5, 16.5); ell(g, K.sh, 20, 17.5, 18.5, 15.5); ell(g, K.shirt, 18, 16, 17, 14.5);
+    const lit = (x, y) => { const dx = (x + 0.5 - 18) / 17, dy = (y + 0.5 - 16) / 14.5; return dx * dx + dy * dy <= 1; };
+    if (K.pat !== 'plain') paintPx(g, 40, 34, (x, y, r, gg, b) => { if (y > 28 || (r === 29 && gg === 22 && b === 38)) return null; return shirtPat(K, x, y, lit(x, y)); });
+    ell(g, OL, 20, 17.5, 19.5, 16.5, 29, 33); ell(g, K.pants, 20, 17.5, 18.5, 15.5, 29, 32); R(g, K.pHi, 8, 29, 4, 1);
+    R(g, K.fold, 5, 28, 30, 1);
+    if (K.pat === 'plain') { R(g, K.fold, 12, 19, 6, 1); R(g, K.fold, 22, 22, 7, 1); R(g, K.hi, 10, 8, 6, 2); }
+    torsoDeco(g, K);
+    if (K.hood) { ell(g, OL, 20, 3, 9.5, 4.2, 0, 6); ell(g, K.sh, 20, 3.4, 8.5, 3.4, 0, 6); ell(g, SK, 20, 4.2, 4.6, 1.8, 0, 6); }
+    else { ell(g, OL, 20, 2.5, 7, 3.2, 0, 4); ell(g, SK, 20, 3, 5.5, 2.2, 0, 4); R(g, K.collar, 14, 1, 12, 1); }
     return c;
   }
-  function drawArm() {
+  function drawArm(K) {
+    K = K || SKINS[0];
     const c = mkC(14, 28), g = c.getContext('2d');
     ell(g, OL, 7, 14, 5.8, 10.5); ell(g, SK, 7, 14, 4.8, 9.5); ell(g, SKS, 9, 14, 1.5, 7);
     ell(g, OL, 7, 23, 6, 5); ell(g, SK, 7, 23, 5, 4); R(g, SKS, 4, 25, 6, 1); R(g, OL, 5, 22, 1, 3); R(g, OL, 8, 22, 1, 3);
-    ell(g, OL, 7, 6, 6.5, 6); ell(g, '#f3f4f8', 7, 6, 5.5, 5); R(g, '#c9cfdd', 3, 10, 8, 1);
+    if (K.sleeve === 'long') { ell(g, OL, 7, 11, 6.5, 9, 0, 19); ell(g, K.shirt, 7, 11, 5.5, 8, 0, 18); ell(g, K.sh, 9.5, 11, 2.2, 7, 0, 18); R(g, K.sh, 2, 18, 10, 1); }
+    else { ell(g, OL, 7, 6, 6.5, 6); ell(g, K.shirt, 7, 6, 5.5, 5); R(g, K.sh, 3, 10, 8, 1); }
+    if (K.pat !== 'plain' && K.pat !== 'jersey' && K.pat !== 'hoodie' && K.pat !== 'flowers') {
+      const A = rgbOf(K.shirt), B = rgbOf(K.sh), same = (r, gg, b, q) => r === q[0] && gg === q[1] && b === q[2];
+      paintPx(g, 14, 28, (x, y, r, gg, b) => {
+        const l = same(r, gg, b, A); if (!l && !same(r, gg, b, B)) return null;
+        if (K.pat === 'stripes') return (y % 6 < 2) ? K.stripe : null;
+        if (K.pat === 'camo') { const v = Math.sin(x * 0.9 + 1.3) + Math.sin(y * 0.8 + x * 0.3); return v > 0.7 ? (l ? K.c1 : K.c1s) : v < -0.9 ? (l ? K.c2 : K.c2s) : null; }
+        if (K.pat === 'track') return (x === 3 || x === 4) ? K.stripe : null;
+        if (K.pat === 'stars') return ((x === 5 && y === 6) || (x === 9 && y === 12) || (x === 6 && y === 15)) ? '#ffffff' : null;
+        return null;
+      });
+    }
+    if (K.pat === 'jersey') R(g, '#ffffff', 3, 9, 8, 1);
     return c;
   }
-  function drawLeg() {
+  function drawLeg(K) {
+    K = K || SKINS[0];
     const c = mkC(16, 30), g = c.getContext('2d');
-    ell(g, OL, 8, 10, 6.5, 10); ell(g, NV, 8, 10, 5.5, 9); R(g, '#3a4a78', 5, 3, 2, 12); R(g, '#1a2240', 11, 4, 2, 14);
-    ell(g, OL, 9, 24.5, 7, 5); ell(g, '#17151d', 9, 24.5, 6, 4); R(g, '#b8bac5', 3, 27, 12, 2); R(g, '#3a3a48', 10, 22, 3, 1);
+    if (K.legs === 'shorts') {
+      R(g, OL, 3, 8, 10, 14); R(g, SK, 4, 8, 8, 13); R(g, SKS, 10, 8, 2, 13);
+      ell(g, OL, 8, 7, 6.8, 7.4, 0, 13); ell(g, K.pants, 8, 7, 5.8, 6.4, 0, 12); R(g, K.pHi, 5, 3, 2, 8); R(g, K.pSh, 11, 4, 2, 8); R(g, K.pSh, 2, 13, 12, 1);
+    } else {
+      ell(g, OL, 8, 10, 6.5, 10); ell(g, K.pants, 8, 10, 5.5, 9); R(g, K.pHi, 5, 3, 2, 12); R(g, K.pSh, 11, 4, 2, 14);
+    }
+    ell(g, OL, 9, 24.5, 7, 5); ell(g, K.shoe, 9, 24.5, 6, 4); R(g, K.sole, 3, 27, 12, 2); R(g, K.shoeHi, 10, 22, 3, 1);
+    if (K.pat === 'camo' || K.pat === 'track' || K.pat === 'stars') {
+      const A = rgbOf(K.pants), B = rgbOf(K.pHi), C2 = rgbOf(K.pSh), same = (r, gg, b, q) => r === q[0] && gg === q[1] && b === q[2];
+      paintPx(g, 16, 30, (x, y, r, gg, b) => {
+        if (y > 20) return null; const l = same(r, gg, b, A) || same(r, gg, b, B); if (!l && !same(r, gg, b, C2)) return null;
+        if (K.pat === 'camo') { const v = Math.sin(x * 0.9 + 1.3) + Math.sin(y * 0.6 + x * 0.3); return v > 0.7 ? (l ? K.c1 : K.c1s) : v < -0.9 ? (l ? K.c2 : K.c2s) : null; }
+        if (K.pat === 'track') return (x === 10 || x === 11) ? K.pStripe : null;
+        return ((x === 6 && y === 5) || (x === 9 && y === 11) || (x === 5 && y === 15)) ? '#ffffff' : null;
+      });
+    }
+    return c;
+  }
+  const skinCache = {};
+  function skinCanvases(K) { return skinCache[K.id] || (skinCache[K.id] = { torso: drawTorso(K), arm: drawArm(K), leg: drawLeg(K), tex: null }); }
+  function skinTex(K) { const s = skinCanvases(K); if (!s.tex) s.tex = { torso: tex(s.torso), arm: tex(s.arm), leg: tex(s.leg) }; return s.tex; }
+  let headNeutral = null;
+  function composeSkin(K) {
+    const s = skinCanvases(K), c = mkC(84, 92), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    if (!headNeutral) headNeutral = drawHead('neutral');
+    const base = 88, cx = 42, put = (cv, px, py, X, Y) => g.drawImage(cv, Math.round(X - px), Math.round(Y - py));
+    put(s.leg, 7, 3, cx - 6, base - 27); put(s.arm, 7, 4, cx - 15, base - 49); put(s.torso, 20, 17, cx, base - 39); put(s.leg, 7, 3, cx + 6, base - 27);
+    g.drawImage(headNeutral, 0, 0, 40, 37, Math.round(cx + 1 - 17.2), Math.round(base - 67.5 - 15.9), 34, 32);
+    put(s.arm, 7, 4, cx + 15, base - 49);
     return c;
   }
   function drawCoin() {
@@ -331,6 +423,7 @@ function boot(mode, serial) {
   const canvas = $('gl'), app = $('app'), sky = $('sky'), ui = $('ui');
   ui.innerHTML = '';
   const state = { tierPref: 'auto', tier: 'high', muted: false };
+  const SHOP = { wallet: 0, owned: ['classic'], eq: 'classic' };
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' }); } catch (e) {
     try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true }); } catch (e2) { $('ltip').textContent = tr('noWebgl'); return () => {}; }
@@ -769,6 +862,11 @@ function boot(mode, serial) {
   shadow.rotation.x = -Math.PI / 2; world.add(shadow);
   const REST = { hipX: 0.15, hipY: 0.64, torsoY: 0.93, shX: 0.4, shY: 1.18, headY: 1.62, neckY: 1.28 };
 
+  function applySkin(id) {
+    const K = skinById(id), t = skinTex(K); SHOP.eq = K.id;
+    part.torso.material.map = t.torso; part.armB.material.map = t.arm; part.armF.material.map = t.arm; part.legB.material.map = t.leg; part.legF.material.map = t.leg;
+    [part.torso, part.armB, part.armF, part.legB, part.legF].forEach((m) => { m.material.needsUpdate = true; });
+  }
   const PL = {
     x: 0, y: 0, vx: 0, vy: 0, face: 1, grounded: false, on: null, state: 'idle', st: 0, phase: 0, peakY: 0, coyote: 0, jbuf: 0, jumping: false,
     squash: 0, inv: 0, cp: 0, head: 'neutral', rag: null, stun: 0,
@@ -1025,7 +1123,7 @@ function boot(mode, serial) {
   function updateCoins(dt, t) {
     for (let i = 0; i < LV.coins.length; i++) {
       const c = LV.coins[i];
-      if (!coinGot[i] && PL.state !== 'ragdoll' && Math.abs(c.x - PL.x) < 0.8 && c.y > PL.y - 0.4 && c.y < PL.y + PLAYERH + 0.4) { coinGot[i] = 1; G.coins++; hudDirty = true; Snd.fx('coin'); hap('tick'); burst(c.x, c.y, 6, 0xffe27a, 3, 1.5); }
+      if (!coinGot[i] && PL.state !== 'ragdoll' && Math.abs(c.x - PL.x) < 0.8 && c.y > PL.y - 0.4 && c.y < PL.y + PLAYERH + 0.4) { coinGot[i] = 1; G.coins++; SHOP.wallet++; hudDirty = true; Snd.fx('coin'); hap('tick'); burst(c.x, c.y, 6, 0xffe27a, 3, 1.5); }
       const vis = coinGot[i] ? 0 : 1, sx = Math.cos(t * 4 + i) * 0.9 + 0.1 * Math.sign(Math.cos(t * 4 + i) || 1);
       dummy.position.set(c.x, c.y + Math.sin(t * 3 + i) * 0.08, 0.3); dummy.scale.set(vis * sx, vis, vis); dummy.rotation.set(0, 0, 0); dummy.updateMatrix(); coinMesh.setMatrixAt(i, dummy.matrix);
     }
@@ -1058,7 +1156,8 @@ function boot(mode, serial) {
   mkScreen('menu', `<div class="title" id="title1">RAGDOLL</div><div class="title" id="title2">SUMMIT RUSH</div>
     <div class="chip" id="m-best" style="left:50%;transform:translateX(-50%);top:36px"></div>
     <div class="btn" id="b-play" style="left:110px;width:500px;height:150px;top:790px">▶ PLAY</div>
-    <div class="btn sec" id="b-new" style="left:210px;width:300px;height:90px;top:970px;font-size:36px;display:none">CONTINUE</div>
+    <div class="btn sec" id="b-new" style="left:40px;width:320px;height:90px;top:970px;font-size:34px;display:none">CONTINUE</div>
+    <div class="btn sec" id="b-shop" style="left:380px;width:300px;height:90px;top:970px;font-size:34px">🛍 SHOP</div>
     <div class="ico" id="i-snd" style="left:36px;top:1110px">🔊</div><div class="ico" id="i-lang" style="left:170px;top:1110px;font-size:36px">EN</div>
     <div class="ico" id="i-q" style="left:304px;top:1110px;font-size:34px">AUTO</div><div class="ico" id="i-help" style="left:438px;top:1110px">❓</div>
     <div class="ico" id="i-lb" style="left:572px;top:1110px">🏆</div>`);
@@ -1089,6 +1188,14 @@ function boot(mode, serial) {
     <div class="btn sec lg" data-l="id" style="position:relative;height:110px;margin:0 0 24px;font-size:44px">Bahasa Indonesia</div>
     <div class="btn sec lg" data-l="ar" style="position:relative;height:110px;font-size:48px">العربية</div></div>`);
 
+  mkScreen('shop', `<div class="dim" style="background:rgba(18,8,32,.95)"></div>
+    <div class="title" id="s-title" style="top:44px;font-size:76px;-webkit-text-stroke:10px var(--ink)">🛍 <span data-t="shop"></span></div>
+    <div class="ico" id="s-back" style="left:24px;top:24px">⌂</div>
+    <div class="chip" id="s-wallet" style="right:24px;top:24px;height:70px;font-size:32px;padding:0 18px">🪙 <span id="s-coins">0</span></div>
+    <div id="s-prev"><canvas id="s-pv" width="84" height="92"></canvas></div>
+    <div class="title" id="s-name" style="top:665px;font-size:50px;-webkit-text-stroke:9px var(--ink);color:#ffcf3f"></div>
+    <div class="btn" id="s-act" style="left:140px;width:440px;height:100px;top:755px;font-size:42px"></div>
+    <div id="s-grid"></div>`);
   mkScreen('gacha', `<div class="dim"></div>
     <div class="title" id="g-title" style="top:120px;font-size:92px;-webkit-text-stroke:12px var(--ink)" data-t="randomMap"></div>
     <div id="g-win"><div id="g-strip"></div><div id="g-frame"></div></div>
@@ -1120,6 +1227,7 @@ function boot(mode, serial) {
     $('i-lang').textContent = LANG.toUpperCase();
     $('b-new').innerHTML = '↻ ' + tr('continue') + ' ' + ((G.save && MAPS[G.save.map]) ? MAPS[G.save.map].icon : '');
     $('b-new').style.display = G.hasSave ? 'flex' : 'none';
+    $('b-shop').innerHTML = '🛍 ' + tr('shop'); $('b-shop').style.left = G.hasSave ? '380px' : '210px';
     $('i-snd').textContent = Snd.isMuted() ? '🔇' : '🔊';
     $('i-q').textContent = state.tierPref === 'auto' ? 'AUTO' : state.tierPref === 'low' ? 'LOW' : state.tierPref === 'mid' ? 'MED' : 'HIGH';
   }
@@ -1128,7 +1236,7 @@ function boot(mode, serial) {
     ui.querySelectorAll('[data-t]').forEach((el) => { el.textContent = tr(el.dataset.t); });
     ui.querySelectorAll('.lg').forEach((el) => el.classList.toggle('sel', el.dataset.l === LANG));
     ui.querySelectorAll('#g-strip .gl').forEach((el) => { el.textContent = MAPS[el.dataset.m].icon + ' ' + mapName(el.dataset.m); });
-    drawSign(); TX.sign.needsUpdate = true; refreshMenu();
+    drawSign(); TX.sign.needsUpdate = true; refreshMenu(); if (SHOPSEL.built) renderShop();
     if (GACHA.landed) $('g-name').textContent = MAPS[GACHA.target].icon + ' ' + mapName(GACHA.target);
   }
   function setLang(l) { LANG = I18N[l] ? l : 'en'; applyLang(); saveNow(); }
@@ -1199,6 +1307,42 @@ function boot(mode, serial) {
   press($('g-back'), () => { cancelAnimationFrame(GACHA.raf); GACHA.spinning = false; setMenu(); });
   cleanups.push(() => cancelAnimationFrame(GACHA.raf));
 
+  /* ---- shop: clothing skins ---- */
+  const SHOPSEL = { id: 'classic', built: false };
+  function buildShopGrid() {
+    if (SHOPSEL.built) return; SHOPSEL.built = true; const grid = $('s-grid'); grid.innerHTML = '';
+    SKINS.forEach((K) => {
+      const card = document.createElement('div'); card.className = 'scard'; card.dataset.id = K.id;
+      const cv = mkC(84, 92); cv.getContext('2d').drawImage(composeSkin(K), 0, 0); card.appendChild(cv);
+      const pl = document.createElement('div'); pl.className = 'pl'; card.appendChild(pl); grid.appendChild(card);
+      press(card, () => { SHOPSEL.id = K.id; renderShop(); });
+    });
+  }
+  function renderShop() {
+    const K = skinById(SHOPSEL.id), owned = SHOP.owned.includes(K.id), eq = SHOP.eq === K.id;
+    $('s-coins').textContent = SHOP.wallet;
+    const pv = $('s-pv'), g = pv.getContext('2d'); g.clearRect(0, 0, 84, 92); g.drawImage(composeSkin(K), 0, 0);
+    $('s-name').textContent = tr('skin_' + K.id);
+    const act = $('s-act'); act.classList.toggle('off', eq || (!owned && SHOP.wallet < K.price));
+    act.innerHTML = eq ? '✓ ' + tr('equipped') : owned ? tr('equip') : tr('buy') + '  🪙 ' + K.price;
+    ui.querySelectorAll('.scard').forEach((el) => {
+      const k = skinById(el.dataset.id), o = SHOP.owned.includes(k.id);
+      el.classList.toggle('sel', k.id === K.id); el.classList.toggle('lock', !o);
+      el.querySelector('.pl').textContent = SHOP.eq === k.id ? '★' : o ? '✓' : '🪙 ' + k.price;
+    });
+  }
+  function openShop() { Snd.init(); buildShopGrid(); SHOPSEL.id = SHOP.eq; showMany(['shop']); renderShop(); }
+  function shopAct() {
+    const K = skinById(SHOPSEL.id);
+    if (SHOP.eq === K.id) return;
+    if (!SHOP.owned.includes(K.id)) {
+      if (SHOP.wallet < K.price) { Snd.fx('hit'); hap('error'); const w = $('s-wallet'); w.animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'none' }], { duration: 260 }); toastShop(tr('noCoins')); return; }
+      SHOP.wallet -= K.price; SHOP.owned.push(K.id); Snd.fx('cp'); hap('success'); toastShop(tr('unlocked'));
+    }
+    applySkin(K.id); renderShop(); saveNow();
+  }
+  function toastShop(txt) { const d = document.createElement('div'); d.className = 'pop'; d.textContent = txt; d.style.left = '360px'; d.style.top = '600px'; ui.appendChild(d); setTimeout(() => d.remove(), 1200); }
+  press($('b-shop'), () => openShop()); press($('s-back'), () => { saveNow(); showMany(['menu']); }); press($('s-act'), () => shopAct());
   async function openLb(from) {
     showMany([from === 'win' ? 'win' : 'menu', 'lb']); const el = $('lb-list'); el.innerHTML = '<div class="lbrow"><span>...</span></div>';
     try {
@@ -1211,7 +1355,7 @@ function boot(mode, serial) {
   /* ---------------------------------------------------------------- run flow & save ---- */
   function currentScore() { return Math.round(G.maxH * 10 + G.coins * 25 + (G.won ? Math.max(0, 3000 - G.time * 5) : 0)); }
   function snapshot() {
-    return { v: 1, map: CUR.id, cp: PL.cp, maxH: Math.round(G.maxH * 10) / 10, coins: G.coins, got: Array.from(coinGot).reduce((a, v, i) => (v ? (a.push(i), a) : a), []), falls: PL.falls || 0, time: Math.round(G.time), best: Math.max(G.best, G.won ? currentScore() : G.best), done: !!G.won, settings: { tier: state.tierPref, muted: state.muted, lang: LANG } };
+    return { v: 1, map: CUR.id, cp: PL.cp, maxH: Math.round(G.maxH * 10) / 10, coins: G.coins, got: Array.from(coinGot).reduce((a, v, i) => (v ? (a.push(i), a) : a), []), falls: PL.falls || 0, time: Math.round(G.time), best: Math.max(G.best, G.won ? currentScore() : G.best), done: !!G.won, settings: { tier: state.tierPref, muted: state.muted, lang: LANG }, shop: { w: SHOP.wallet, own: SHOP.owned, eq: SHOP.eq } };
   }
   async function saveNow() {
     try { const s = snapshot(); const j = JSON.stringify(s); G.best = s.best; if (G.save) { G.save.best = s.best; G.save.settings = s.settings; } else G.save = s; if (j === lastSaveJson) return; lastSaveJson = j; if (lib.saveUserGameState) await lib.saveUserGameState(s); } catch (e) { /* ignore */ }
@@ -1369,16 +1513,17 @@ function boot(mode, serial) {
     try {
       if (mode !== 'edit' && lib.getUserGameState) {
         const r = await lib.getUserGameState(); const s = r && r.state;
-        if (s) { G.save = s; G.best = s.best || 0; G.hasSave = !!(s.cp > 0 || s.maxH > 3) && !s.done; if (s.settings) { state.tierPref = s.settings.tier || 'auto'; Snd.setMuted(!!s.settings.muted); state.muted = !!s.settings.muted; if (I18N[s.settings.lang]) LANG = s.settings.lang; applyTier(); } }
+        if (s) { G.save = s; G.best = s.best || 0; G.hasSave = !!(s.cp > 0 || s.maxH > 3) && !s.done; if (s.settings) { state.tierPref = s.settings.tier || 'auto'; Snd.setMuted(!!s.settings.muted); state.muted = !!s.settings.muted; if (I18N[s.settings.lang]) LANG = s.settings.lang; applyTier(); }
+        if (s.shop) { SHOP.wallet = Math.max(0, s.shop.w | 0); SHOP.owned = Array.isArray(s.shop.own) && s.shop.own.length ? s.shop.own.filter((id) => SKINS.some((k) => k.id === id)) : ['classic']; if (!SHOP.owned.includes('classic')) SHOP.owned.unshift('classic'); SHOP.eq = SHOP.owned.includes(s.shop.eq) ? s.shop.eq : 'classic'; } }
       }
     } catch (e) { /* ignore */ }
     if (serial !== runSerial || dead) return;
-    PL.x = LV.start.x - 2; PL.y = 0; applyLang();
+    PL.x = LV.start.x - 2; PL.y = 0; applySkin(SHOP.eq); applyLang();
     if (mode === 'edit') { showMany([]); G.mode = 'edit'; } else setMenu();
     requestAnimationFrame(() => { setLoad(1); setTimeout(() => { const ld = $('loading'); if (ld) ld.classList.add('off'); }, 250); });
   })();
   last = performance.now(); raf = requestAnimationFrame(frame);
-  window.__bb = { setLang, showMany, MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
+  window.__bb = { SHOP, openShop, applySkin, SKINS, setLang, showMany, MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
 
   return function cleanup() {
     dead = true; cancelAnimationFrame(raf); cleanups.forEach((fn) => { try { fn(); } catch (e) { /* ignore */ } });

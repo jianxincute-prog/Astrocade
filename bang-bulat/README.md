@@ -12,6 +12,11 @@ runs and jumps through a 3D voxel world. Big falls and hits turn the hero into a
 English (default), Indonesian, Arabic (right-to-left). Pick one with the globe button on the main menu; the choice is saved.
 All UI strings live in the `I18N` table at the top of `game.js`.
 
+## Shop
+Main menu > Shop sells 8 clothing skins (classic tee, red jersey, blue hoodie, sailor stripes, island shirt, pajamas, jungle camo, gold tracksuit).
+Skins are drawn procedurally for the same torso / arm / leg sprite parts, so they fit every pose and the ragdoll. Coins picked up during runs go into a saved wallet;
+owned skins and the equipped skin are saved with the player state (`shop` key).
+
 ## Controls
 Touch: on-screen left/right and jump buttons (hold jump = higher). Desktop: A/D or arrows, Space/W to jump, Esc/P to pause.
 

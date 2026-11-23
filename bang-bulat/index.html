@@ -38,6 +38,16 @@ html,body{margin:0;height:100%;background:#1b1230;overflow:hidden;touch-action:n
 #g-frame{position:absolute;left:198px;top:26px;width:324px;height:457px;border:8px solid var(--gold);border-radius:36px;pointer-events:none;box-shadow:0 0 30px rgba(255,207,63,.6)}
 #g-frame.land{animation:gglow .6s ease-in-out infinite alternate}
 @keyframes gglow{to{box-shadow:0 0 70px rgba(255,207,63,1);transform:scale(1.03)}}
+#s-prev{position:absolute;left:150px;top:150px;width:420px;height:490px;border-radius:40px;background:radial-gradient(ellipse at 50% 62%,rgba(255,226,122,.38),rgba(60,40,90,.7) 72%);border:6px solid var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden}
+#s-prev canvas{width:336px;height:368px;image-rendering:pixelated;animation:sbob 1.1s ease-in-out infinite alternate}
+@keyframes sbob{to{transform:translateY(-10px)}}
+#s-grid{position:absolute;left:30px;top:890px;width:660px;display:grid;grid-template-columns:repeat(4,150px);gap:20px}
+.scard{position:relative;height:170px;border:6px solid var(--ink);border-radius:26px;background:linear-gradient(#4a3a6a,#2c1f44);display:flex;flex-direction:column;align-items:center;padding-top:6px;cursor:pointer}
+.scard canvas{width:104px;height:114px;image-rendering:pixelated}
+.scard .pl{font-size:26px;color:var(--cream);margin-top:2px;white-space:nowrap}
+.scard.sel{border-color:var(--gold);box-shadow:0 0 22px rgba(255,207,63,.85)}
+.scard.lock canvas{filter:brightness(.6)}
+.btn.off{filter:grayscale(.75) brightness(.85)}
 #ui{position:absolute;inset:0;pointer-events:none}
 #ui *{pointer-events:auto}
 .scr{position:absolute;inset:0;display:none;pointer-events:none}
