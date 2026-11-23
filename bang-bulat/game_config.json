@@ -1,0 +1,13 @@
+{
+  "player": { "runSpeed": 6.5, "jumpSpeed": 13.5, "gravity": 32, "airControl": 0.85, "coyoteTime": 0.1, "jumpBuffer": 0.12 },
+  "ragdoll": { "bigFallHeight": 9, "staggerHeight": 4.5 },
+  "hazards": { "rockInterval": 4.5, "rockFallSpeed": 16, "crumbleDelay": 0.6 },
+  "visual": { "tiltShift": 4 },
+  "texts": {
+    "play": "MAIN", "continue": "LANJUT", "newGame": "ULANG DARI AWAL", "tagline": "Puncak menantimu!",
+    "paused": "JEDA", "resume": "LANJUT", "toCheckpoint": "KE CHECKPOINT", "menu": "MENU", "summit": "PUNCAK!",
+    "again": "MAIN LAGI", "leaderboard": "PERINGKAT", "close": "TUTUP", "help": "CARA MAIN",
+    "checkpoint": "CHECKPOINT!", "aduh": "ADUH!", "wow": "WADUH!", "aaah": "AAAAH!", "ouch": "AUW!"
+  },
+  "persistent_storage_config": { "leaderboard": { "sort_ascending": false } }
+}
