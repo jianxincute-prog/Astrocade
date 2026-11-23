@@ -1,6 +1,7 @@
 # Bang Bulat Naik Gunung
 
 Game 3D bergaya **HD-2D** (ala Octopath Traveler): sprite pixel-art 2D sebagai billboard di dunia 3D voxel.
+3 peta acak lewat gacha (carousel berputar kiri ke kanan): Lereng Hijau (batu jatuh, papan ambruk), Puncak Salju (lantai licin, angin, es jatuh), Gunung Api (geyser lava, platform ambruk).
 Meme platformer: Bang Bulat berlari & melompat melewati padang rumput, platform melayang, lereng gunung, sampai puncak.
 Jatuh dari tinggi atau kena batu = **ragdoll** kocak (kepala, badan, tangan, kaki terpisah & lemas), lalu bangun lagi.
 

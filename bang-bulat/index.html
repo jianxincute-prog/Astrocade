@@ -20,6 +20,24 @@ html,body{margin:0;height:100%;background:#1b1230;overflow:hidden;touch-action:n
 #ts-top{top:0;height:330px;-webkit-mask-image:linear-gradient(#000,transparent);mask-image:linear-gradient(#000,transparent)}
 #ts-bot{bottom:0;height:380px;-webkit-mask-image:linear-gradient(transparent,#000);mask-image:linear-gradient(transparent,#000)}
 #app.low .ts,#app.low #fx-glow,#app.low #fx-warm{display:none}
+#fx-lava{display:none;background:linear-gradient(transparent 40%,rgba(255,90,20,.55));mix-blend-mode:screen;animation:lavap 1.4s ease-in-out infinite alternate}
+@keyframes lavap{to{opacity:.6}}
+#app.mapc #fx-lava{display:block}
+#app.mapb #fx-warm{background:linear-gradient(180deg,rgba(170,215,255,.18),rgba(255,255,255,.10))}
+#app.mapb #fx-glow{background:radial-gradient(ellipse 70% 45% at 80% 8%,rgba(220,240,255,.6),rgba(180,220,255,.2) 55%,transparent 75%)}
+#app.mapc #fx-warm{background:linear-gradient(180deg,rgba(255,80,40,.16),rgba(255,40,20,.22))}
+#app.mapc #fx-glow{background:radial-gradient(ellipse 70% 45% at 20% 100%,rgba(255,120,40,.5),transparent 70%)}
+#app.mapc #fx-vig{background:radial-gradient(ellipse 85% 75% at 50% 50%,transparent 50%,rgba(40,5,20,.6) 100%)}
+#app.low #fx-lava{display:none}
+#g-win{position:absolute;left:0;top:250px;width:720px;height:520px;overflow:hidden}
+#g-strip{position:absolute;left:0;top:34px;display:flex;gap:24px;will-change:transform}
+.gcard{position:relative;flex:none;width:300px;height:441px;border:8px solid var(--ink);border-radius:30px;overflow:hidden;background:#222;transform:scale(.86);filter:brightness(.7);transition:transform .1s,filter .1s}
+.gcard.cen{transform:scale(1);filter:none}
+.gcard canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
+.gcard .gl{position:absolute;left:0;right:0;bottom:0;padding:14px 6px;background:linear-gradient(transparent,rgba(20,8,40,.92));font-size:32px;text-align:center;color:#fff4d6}
+#g-frame{position:absolute;left:198px;top:26px;width:324px;height:457px;border:8px solid var(--gold);border-radius:36px;pointer-events:none;box-shadow:0 0 30px rgba(255,207,63,.6)}
+#g-frame.land{animation:gglow .6s ease-in-out infinite alternate}
+@keyframes gglow{to{box-shadow:0 0 70px rgba(255,207,63,1);transform:scale(1.03)}}
 #ui{position:absolute;inset:0;pointer-events:none}
 #ui *{pointer-events:auto}
 .scr{position:absolute;inset:0;display:none;pointer-events:none}
@@ -69,6 +87,7 @@ html,body{margin:0;height:100%;background:#1b1230;overflow:hidden;touch-action:n
   <canvas id="gl" width="720" height="1280"></canvas>
   <div class="fx" id="fx-glow"></div><div class="fx" id="fx-warm"></div>
   <div class="ts" id="ts-top"></div><div class="ts" id="ts-bot"></div>
+  <div class="fx" id="fx-lava"></div>
   <div class="fx" id="fx-vig"></div>
   <div id="ui"></div>
   <div id="fade"></div>
