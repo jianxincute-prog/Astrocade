@@ -22,35 +22,6 @@
   "visual": {
     "tiltShift": 4
   },
-  "texts": {
-    "play": "MAIN",
-    "continue": "LANJUT",
-    "newGame": "ULANG DARI AWAL",
-    "tagline": "Puncak menantimu!",
-    "paused": "JEDA",
-    "resume": "LANJUT",
-    "toCheckpoint": "KE CHECKPOINT",
-    "menu": "MENU",
-    "summit": "PUNCAK!",
-    "again": "MAIN LAGI",
-    "leaderboard": "PERINGKAT",
-    "close": "TUTUP",
-    "help": "CARA MAIN",
-    "checkpoint": "CHECKPOINT!",
-    "aduh": "ADUH!",
-    "wow": "WADUH!",
-    "aaah": "AAAAH!",
-    "ouch": "AUW!",
-    "randomMap": "PETA ACAK",
-    "go": "MAIN!",
-    "spinAgain": "PUTAR LAGI",
-    "hot": "PANAS!",
-    "maps": {
-      "a": "Lereng Hijau",
-      "b": "Puncak Salju",
-      "c": "Gunung Api"
-    }
-  },
   "persistent_storage_config": {
     "leaderboard": {
       "sort_ascending": false

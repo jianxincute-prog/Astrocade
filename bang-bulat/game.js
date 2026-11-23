@@ -1,15 +1,55 @@
 /*
- * BANG BULAT NAIK GUNUNG  -  HD-2D style 2.5D meme platformer (three.js)
+ * RAGDOLL SUMMIT RUSH  -  HD-2D style 2.5D meme platformer (three.js)
  *
- * Konsep: karakter pixel-art 2D (billboard, tersusun dari bagian-bagian bergaya ragdoll) berlari dan
- * melompat di dunia 3D voxel/low-poly: padang rumput -> platform melayang -> lereng gunung -> puncak.
- * Pembeda: jatuh dari tinggi = ragdoll kocak (kepala, badan, tangan, kaki terpisah & lemas), lalu
- * bangun lagi. Batu-batu bermuka lucu jatuh dari langit dengan bayangan peringatan.
- * Visual HD-2D: sprite pixel-art, tekstur voxel nearest, tilt-shift (CSS blur atas/bawah), bloom palsu
- * (glow/soft-light), rumput & pohon bergoyang (shader), kelopak beterbangan.
+ * Concept: a pixel-art 2D character (billboard, built from ragdoll-style body parts) runs and jumps through a
+ * 3D voxel world. Three random maps (picked by a gacha-style carousel): Green Slopes, Snowy Peak, Fire Mountain,
+ * each with its own obstacles. Big falls and hits turn the hero into a floppy ragdoll, then he gets back up.
+ * HD-2D look: nearest-filter sprites and voxel textures, CSS tilt-shift, fake bloom, swaying grass and trees.
+ * UI languages: English (default), Indonesian, Arabic (RTL) - see the I18N table below.
  *
- * Berkas: game.js (semua logika), index.html (kerangka+CSS), game_config.json (angka yang bisa disetel).
+ * Files: game.js (all logic), index.html (skeleton + CSS), game_config.json (tunable numbers).
  */
+
+/* ====================================================================================== */
+/* i18n: every UI string lives here (en = default, id = Indonesian, ar = Arabic / RTL).   */
+const LANGS = ['en', 'id', 'ar'];
+let LANG = 'en';
+const I18N = {
+  en: {
+    play: 'PLAY', continue: 'CONTINUE', tagline: 'The summit awaits!', checkpoint: 'CHECKPOINT!', paused: 'PAUSED', resume: 'RESUME',
+    toCheckpoint: 'TO CHECKPOINT', menu: 'MENU', summit: 'SUMMIT!', height: 'Height', coins: 'Coins', falls: 'Falls', time: 'Time', score: 'SCORE',
+    again: 'PLAY AGAIN', leaderboard: 'LEADERBOARD', close: 'CLOSE', lbEmpty: 'No scores yet - be the first!', lbUnavail: 'Leaderboard unavailable',
+    help: 'HOW TO PLAY', h_run: 'Run (A/D or arrows)', h_jump: 'Jump (Space) - hold to jump higher', h_rock: 'Watch the warning marks!', h_flag: 'Flags are checkpoints', h_summit: 'Reach the summit!',
+    ok: 'OK', randomMap: 'RANDOM MAP', go: 'GO!', spinAgain: 'SPIN AGAIN', aduh: 'OUCH!', wow: 'WHOA!', aaah: 'AAAAH!', ouch: 'OW!', hot: 'HOT!',
+    map_a: 'Green Slopes', map_b: 'Snowy Peak', map_c: 'Fire Mountain', language: 'LANGUAGE',
+    hintTouch: '◀ ▶  run   ⬆  jump', hintKey: 'A/D run · Space jump',
+    loadEngine: 'Loading 3D engine...', loadSprites: 'Painting pixel sprites...', loadVoxel: 'Building voxel mountains...', loadClouds: 'Hanging clouds...', loadAlmost: 'Almost at the summit...',
+    loadFail: 'Failed to load: ', noWebgl: 'WebGL is not available', threeFail: 'Could not load the 3D engine', loading: 'Preparing the mountain...',
+  },
+  id: {
+    play: 'MAIN', continue: 'LANJUT', tagline: 'Puncak menantimu!', checkpoint: 'CHECKPOINT!', paused: 'JEDA', resume: 'LANJUT',
+    toCheckpoint: 'KE CHECKPOINT', menu: 'MENU', summit: 'PUNCAK!', height: 'Tinggi', coins: 'Koin', falls: 'Jatuh', time: 'Waktu', score: 'SKOR',
+    again: 'MAIN LAGI', leaderboard: 'PERINGKAT', close: 'TUTUP', lbEmpty: 'Belum ada skor - jadilah yang pertama!', lbUnavail: 'Peringkat belum tersedia',
+    help: 'CARA MAIN', h_run: 'Lari (A/D atau panah)', h_jump: 'Lompat (spasi) - tahan = lebih tinggi', h_rock: 'Awas tanda peringatan!', h_flag: 'Bendera = checkpoint', h_summit: 'Sampai puncak!',
+    ok: 'OK', randomMap: 'PETA ACAK', go: 'MAIN!', spinAgain: 'PUTAR LAGI', aduh: 'ADUH!', wow: 'WADUH!', aaah: 'AAAAH!', ouch: 'AUW!', hot: 'PANAS!',
+    map_a: 'Lereng Hijau', map_b: 'Puncak Salju', map_c: 'Gunung Api', language: 'BAHASA',
+    hintTouch: '◀ ▶  lari   ⬆  lompat', hintKey: 'A/D lari · Spasi lompat',
+    loadEngine: 'Memuat mesin 3D...', loadSprites: 'Melukis sprite pixel...', loadVoxel: 'Membangun gunung voxel...', loadClouds: 'Memasang awan...', loadAlmost: 'Hampir sampai puncak...',
+    loadFail: 'Gagal memuat: ', noWebgl: 'WebGL tidak tersedia', threeFail: 'Tidak bisa memuat mesin 3D', loading: 'Menyiapkan gunung...',
+  },
+  ar: {
+    play: 'العب', continue: 'متابعة', tagline: 'القمة في انتظارك!', checkpoint: 'نقطة حفظ!', paused: 'إيقاف مؤقت', resume: 'استمرار',
+    toCheckpoint: 'إلى نقطة الحفظ', menu: 'القائمة', summit: 'القمة!', height: 'الارتفاع', coins: 'العملات', falls: 'السقطات', time: 'الوقت', score: 'النتيجة',
+    again: 'العب مجددًا', leaderboard: 'المتصدرون', close: 'إغلاق', lbEmpty: 'لا توجد نتائج بعد - كن الأول!', lbUnavail: 'قائمة المتصدرين غير متاحة',
+    help: 'طريقة اللعب', h_run: 'اركض (A/D أو الأسهم)', h_jump: 'اقفز (مسافة) - اضغط مطولًا للقفز أعلى', h_rock: 'احذر علامات التحذير!', h_flag: 'الأعلام نقاط حفظ', h_summit: 'اصعد إلى القمة!',
+    ok: 'حسنًا', randomMap: 'خريطة عشوائية', go: 'انطلق!', spinAgain: 'أدِر مجددًا', aduh: 'آخ!', wow: 'واو!', aaah: 'آآآه!', ouch: 'آه!', hot: 'حار!',
+    map_a: 'المنحدرات الخضراء', map_b: 'القمة الثلجية', map_c: 'جبل النار', language: 'اللغة',
+    hintTouch: 'اركض ◀ ▶   اقفز ⬆', hintKey: 'A/D للركض · مسافة للقفز',
+    loadEngine: 'جارٍ تحميل المحرك ثلاثي الأبعاد...', loadSprites: 'جارٍ رسم الشخصيات...', loadVoxel: 'جارٍ بناء الجبال...', loadClouds: 'جارٍ تعليق الغيوم...', loadAlmost: 'اقتربنا من القمة...',
+    loadFail: 'فشل التحميل: ', noWebgl: 'WebGL غير متاح', threeFail: 'تعذر تحميل المحرك ثلاثي الأبعاد', loading: 'جارٍ تجهيز الجبل...',
+  },
+};
+const tr = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
 
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
 let threeLoader = null;
@@ -21,8 +61,8 @@ function loadThree() {
     threeLoader = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = THREE_URL; s.async = true;
-      s.onload = () => (window.THREE ? resolve() : reject(new Error('three.js gagal dimuat')));
-      s.onerror = () => { threeLoader = null; reject(new Error('Tidak bisa memuat mesin 3D')); };
+      s.onload = () => (window.THREE ? resolve() : reject(new Error('three.js failed to load')));
+      s.onerror = () => { threeLoader = null; reject(new Error(tr('threeFail'))); };
       document.head.appendChild(s);
     });
   }
@@ -39,16 +79,16 @@ function run(mode) {
   if (window.__bbCleanup) { try { window.__bbCleanup(); } catch (e) { /* ignore */ } }
   window.__bbCleanup = null;
   const ld = document.getElementById('loading'); if (ld) ld.classList.remove('off');
-  setLoad(0.08, 'Memuat mesin 3D...');
+  setLoad(0.08, tr('loadEngine'));
   loadThree().then(() => {
     if (serial !== runSerial) return;
-    setLoad(0.3, 'Melukis sprite pixel...');
+    setLoad(0.3, tr('loadSprites'));
     return new Promise((r) => setTimeout(r, 30)).then(() => {
       if (serial !== runSerial) return;
       window.__bbCleanup = boot(mode, serial);
     });
   }).catch((e) => {
-    const t = document.getElementById('ltip'); if (t) t.textContent = 'Gagal memuat: ' + (e && e.message);
+    const t = document.getElementById('ltip'); if (t) t.textContent = tr('loadFail') + (e && e.message);
     try { window.lib && window.lib.log && window.lib.log('load fail ' + e); } catch (x) { /* ignore */ }
   });
 }
@@ -71,7 +111,7 @@ function boot(mode, serial) {
   const listen = (el, ev, fn, opt) => { el.addEventListener(ev, fn, opt); cleanups.push(() => el.removeEventListener(ev, fn, opt)); };
 
   /* ---------------------------------------------------------------- config / texts ---- */
-  const T = (k, d) => C('texts.' + k, d);
+  const T = (k) => tr(k);
   const CFG = {
     run: () => C('player.runSpeed', 6.5), jump: () => C('player.jumpSpeed', 13.5), grav: () => C('player.gravity', 32),
     air: () => C('player.airControl', 0.85), coyote: () => C('player.coyoteTime', 0.1), buf: () => C('player.jumpBuffer', 0.12),
@@ -200,11 +240,12 @@ function boot(mode, serial) {
     ell(g, '#fff4d6', 10, 6, 3, 3);
     return c;
   }
+  const signCv = mkC(64, 20);
   function drawSign() {
-    const c = mkC(64, 20), g = c.getContext('2d');
+    const g = signCv.getContext('2d'); g.clearRect(0, 0, 64, 20);
     R(g, OL, 0, 0, 64, 20); R(g, '#c98a4a', 2, 2, 60, 16); R(g, '#e7b06c', 2, 2, 60, 3);
-    g.fillStyle = OL; g.font = 'bold 12px Verdana,sans-serif'; g.textAlign = 'center'; g.fillText('PUNCAK!', 32, 15);
-    return c;
+    g.fillStyle = OL; g.font = 'bold 12px Tahoma,Verdana,Arial,sans-serif'; g.textAlign = 'center'; g.fillText(tr('summit'), 32, 15);
+    return signCv;
   }
   // 16x16 voxel textures
   function noiseTex(base, speck, seed, extra, density) {
@@ -292,7 +333,7 @@ function boot(mode, serial) {
   const state = { tierPref: 'auto', tier: 'high', muted: false };
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' }); } catch (e) {
-    try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true }); } catch (e2) { $('ltip').textContent = 'WebGL tidak tersedia'; return () => {}; }
+    try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true }); } catch (e2) { $('ltip').textContent = tr('noWebgl'); return () => {}; }
   }
   renderer.setClearColor(0x000000, 0);
   renderer.setSize(720, 1280, false);
@@ -310,7 +351,7 @@ function boot(mode, serial) {
   TX.torso = tex(drawTorso()); TX.arm = tex(drawArm()); TX.leg = tex(drawLeg());
   TX.coin = tex(drawCoin()); TX.rock = tex(drawRock()); TX.cloud = tex(drawCloud());
   TX.icicle = tex(drawIcicle()); TX.flagOff = tex(drawFlag(false)); TX.flagOn = tex(drawFlag(true)); TX.sign = tex(drawSign());
-  setLoad(0.45, 'Membangun gunung voxel...');
+  setLoad(0.45, tr('loadVoxel'));
 
   /* ---------------------------------------------------------------- merged voxel geometry ---- */
   function Geo() { return { p: [], n: [], u: [], c: [], s: [], i: [], vc: 0 }; }
@@ -383,7 +424,7 @@ function boot(mode, serial) {
       pv: { top: '#3a1438', bot: '#ff7a3a', sun: '#ffd25a', r1: '#5a2a4a', r2: '#2a1a30', ground: '#2a2233', side: '#241d2d' } },
   };
   let CUR = MAPS.a;
-  const mapName = (id) => T('maps.' + id, { a: 'Lereng Hijau', b: 'Puncak Salju', c: 'Gunung Api' }[id]);
+  const mapName = (id) => tr('map_' + id);
 
   /* ---------------------------------------------------------------- level ---- */
   const THICK = { wood: 0.7, rock: 2.2, ice: 2.2, obs: 2.2 };
@@ -661,7 +702,7 @@ function boot(mode, serial) {
     coinMesh.frustumCulled = false; levelGroup.add(coinMesh);
     applyMapSkin();
   }
-  setLoad(0.65, 'Memasang pelangi & awan...');
+  setLoad(0.65, tr('loadClouds'));
 
   /* ---------------------------------------------------------------- background layers ---- */
   function ridgeTex(seed, col, base, amp, treeCol) {
@@ -796,7 +837,7 @@ function boot(mode, serial) {
     RG.lL = mk(-REST.hipX, REST.hipY, 0.62, 0.17); RG.lR = mk(REST.hipX, REST.hipY, 0.62, 0.17);
     PL.head = 'x'; part.head.material.map = TX.heads.hurt; PL.head = 'hurt';
     charGroup.position.set(0, 0, 0); charGroup.rotation.z = 0; charGroup.scale.set(1, 1, 1);
-    pop(kind === 'rock' ? T('wow', 'WADUH!') : kind === 'void' ? T('aaah', 'AAAAH!') : (kind === 'lava' || kind === 'burn') ? T('hot', 'PANAS!') : T('aduh', 'ADUH!'));
+    pop(kind === 'rock' ? T('wow') : kind === 'void' ? T('aaah') : (kind === 'lava' || kind === 'burn') ? T('hot') : T('aduh'));
     Snd.fx('hit'); hap('thud'); shake = 0.9; PL.falls = (PL.falls || 0) + 1; hudDirty = true;
   }
   function anchorOf(lx, ly) { const T0 = RG.torso, c = Math.cos(T0.a), s = Math.sin(T0.a); return [T0.x + lx * c - ly * s, T0.y + lx * s + ly * c]; }
@@ -948,7 +989,7 @@ function boot(mode, serial) {
     const p = PL, drop = p.peakY - p.y;
     p.squash = clamp(-imp / 40, 0.15, 0.6); p.vx *= 0.6;
     if (drop >= CFG.bigFall() && p.inv <= 0) { startRagdoll('fall', p.face * 3.5, 6); return; }
-    if (drop >= CFG.smallFall() && p.inv <= 0) { p.state = 'hit'; p.st = 0; p.stun = 0.4; p.vx = 0; Snd.fx('hit'); hap('thud'); shake = 0.4; burst(p.x, p.y, 8, 0xe8d6b0, 3, 1.5); pop(T('ouch', 'AUW!')); return; }
+    if (drop >= CFG.smallFall() && p.inv <= 0) { p.state = 'hit'; p.st = 0; p.stun = 0.4; p.vx = 0; Snd.fx('hit'); hap('thud'); shake = 0.4; burst(p.x, p.y, 8, 0xe8d6b0, 3, 1.5); pop(T('ouch')); return; }
     if (drop > 0.4) { Snd.fx('land'); burst(p.x, p.y, 4, 0xe8d6b0, 2, 0.8); if (drop > 2) hap('tap'); }
   }
 
@@ -995,7 +1036,7 @@ function boot(mode, serial) {
       f.cloth.rotation.y = Math.sin(t * 4 + f.id) * 0.25; f.cloth.scale.x = 0.85 + Math.sin(t * 5 + f.id) * 0.12;
       if (!f.on && G.mode === 'play' && PL.state !== 'ragdoll' && Math.abs(PL.x - f.x) < 1.2 && Math.abs(PL.y - f.y) < 2.5) {
         f.on = true; f.cloth.material.map = TX.flagOn; f.cloth.material.needsUpdate = true;
-        if (f.id > PL.cp) { PL.cp = f.id; saveNow(); toast(T('checkpoint', 'CHECKPOINT!'), 1.4); Snd.fx('cp'); hap('success'); burst(f.x, f.y + 2.5, 22, 0xffd25a, 5, 2); }
+        if (f.id > PL.cp) { PL.cp = f.id; saveNow(); toast(T('checkpoint'), 1.4); Snd.fx('cp'); hap('success'); burst(f.x, f.y + 2.5, 22, 0xffd25a, 5, 2); }
       }
     });
   }
@@ -1014,12 +1055,13 @@ function boot(mode, serial) {
   function show(id) { Object.keys(scr).forEach((k) => scr[k].classList.toggle('on', k === id || (Array.isArray(id) && id.includes(k)))); }
   function showMany(list) { Object.keys(scr).forEach((k) => scr[k].classList.toggle('on', list.includes(k))); }
 
-  mkScreen('menu', `<div class="title" id="title1">BANG<br>BULAT</div><div class="title" id="title2" style="top:470px">NAIK GUNUNG</div>
+  mkScreen('menu', `<div class="title" id="title1">RAGDOLL</div><div class="title" id="title2">SUMMIT RUSH</div>
     <div class="chip" id="m-best" style="left:50%;transform:translateX(-50%);top:36px"></div>
-    <div class="btn" id="b-play" style="left:110px;width:500px;height:150px;top:790px">▶ ${T('play', 'MAIN')}</div>
-    <div class="btn sec" id="b-new" style="left:210px;width:300px;height:90px;top:970px;font-size:36px;display:none">${T('continue', 'LANJUT')}</div>
-    <div class="ico" id="i-snd" style="left:60px;top:1110px">🔊</div><div class="ico" id="i-q" style="left:200px;top:1110px;font-size:34px">AUTO</div>
-    <div class="ico" id="i-lb" style="left:520px;top:1110px">🏆</div><div class="ico" id="i-help" style="left:370px;top:1110px">❓</div>`);
+    <div class="btn" id="b-play" style="left:110px;width:500px;height:150px;top:790px">▶ PLAY</div>
+    <div class="btn sec" id="b-new" style="left:210px;width:300px;height:90px;top:970px;font-size:36px;display:none">CONTINUE</div>
+    <div class="ico" id="i-snd" style="left:36px;top:1110px">🔊</div><div class="ico" id="i-lang" style="left:170px;top:1110px;font-size:36px">EN</div>
+    <div class="ico" id="i-q" style="left:304px;top:1110px;font-size:34px">AUTO</div><div class="ico" id="i-help" style="left:438px;top:1110px">❓</div>
+    <div class="ico" id="i-lb" style="left:572px;top:1110px">🏆</div>`);
   mkScreen('hud', `<div class="chip" id="hud-m">⛰ <span id="v-m">0</span>m</div><div class="chip" id="hud-c">🪙 <span id="v-c">0</span></div>
     <div class="chip" id="hud-f">💥 <span id="v-f">0</span></div>
     <div class="ico" id="b-pause" style="right:24px;top:24px">⏸</div>
@@ -1027,28 +1069,32 @@ function boot(mode, serial) {
     <div id="toast"></div>
     <div class="ctl" id="c-l" style="left:24px">◀</div><div class="ctl" id="c-r" style="left:196px">▶</div>
     <div class="ctl" id="c-j" style="right:28px;width:200px;height:200px;border-radius:60px;font-size:80px;bottom:30px">⬆</div>`);
-  mkScreen('pause', `<div class="dim"></div><div class="panel" style="top:320px"><h2>${T('paused', 'JEDA')}</h2>
-    <div class="btn" id="p-resume" style="position:relative;height:120px;margin:10px 0 30px;font-size:52px">▶ ${T('resume', 'LANJUT')}</div>
-    <div class="btn sec" id="p-cp" style="position:relative;height:96px;margin:0 0 26px;font-size:36px">↺ ${T('toCheckpoint', 'KE CHECKPOINT')}</div>
-    <div class="btn sec" id="p-menu" style="position:relative;height:96px;font-size:36px">⌂ ${T('menu', 'MENU')}</div></div>`);
-  mkScreen('win', `<div class="dim"></div><div class="panel" style="top:240px"><h2>🏔 ${T('summit', 'PUNCAK!')}</h2>
-    <div class="row3"><span>⛰ Tinggi</span><b id="w-h">0</b></div><div class="row3"><span>🪙 Koin</span><b id="w-c">0</b></div><div class="row3"><span>💥 Jatuh</span><b id="w-f">0</b></div><div class="row3"><span>⏱ Waktu</span><b id="w-t">0</b></div>
-    <div class="row3" style="font-size:54px;color:var(--gold);margin:22px 0"><span>SKOR</span><b id="w-s">0</b></div>
-    <div class="btn" id="w-again" style="position:relative;height:120px;margin:10px 0 24px;font-size:48px">↻ ${T('again', 'MAIN LAGI')}</div>
-    <div class="btn sec" id="w-menu" style="position:relative;height:90px;font-size:34px">⌂ ${T('menu', 'MENU')}</div></div>`);
-  mkScreen('lb', `<div class="dim"></div><div class="panel" style="top:150px;bottom:150px"><h2>🏆 ${T('leaderboard', 'PERINGKAT')}</h2><div id="lb-list" style="height:760px;overflow:hidden"></div>
-    <div class="btn sec" id="lb-close" style="position:absolute;left:30px;right:30px;bottom:26px;height:96px;font-size:40px">✕ ${T('close', 'TUTUP')}</div></div>`);
-  mkScreen('help', `<div class="dim"></div><div class="panel" style="top:170px"><h2>❓ ${T('help', 'CARA MAIN')}</h2>
-    <div class="help"><i>◀ ▶</i><span>Lari (A/D atau panah)</span></div><div class="help"><i>⬆</i><span>Lompat (spasi) — tahan = lebih tinggi</span></div>
-    <div class="help"><i>🪨</i><span>Awas bayangan merah!</span></div><div class="help"><i>🚩</i><span>Bendera = checkpoint</span></div><div class="help"><i>🏔</i><span>Sampai puncak!</span></div>
-    <div class="btn" id="h-close" style="position:relative;height:100px;margin-top:20px;font-size:44px">OK</div></div>`);
+  mkScreen('pause', `<div class="dim"></div><div class="panel" style="top:320px"><h2><span data-t="paused"></span></h2>
+    <div class="btn" id="p-resume" style="position:relative;height:120px;margin:10px 0 30px;font-size:52px">▶ <span data-t="resume"></span></div>
+    <div class="btn sec" id="p-cp" style="position:relative;height:96px;margin:0 0 26px;font-size:36px">↺ <span data-t="toCheckpoint"></span></div>
+    <div class="btn sec" id="p-menu" style="position:relative;height:96px;font-size:36px">⌂ <span data-t="menu"></span></div></div>`);
+  mkScreen('win', `<div class="dim"></div><div class="panel" style="top:240px"><h2>🏔 <span data-t="summit"></span></h2>
+    <div class="row3"><span>⛰ <span data-t="height"></span></span><b id="w-h">0</b></div><div class="row3"><span>🪙 <span data-t="coins"></span></span><b id="w-c">0</b></div><div class="row3"><span>💥 <span data-t="falls"></span></span><b id="w-f">0</b></div><div class="row3"><span>⏱ <span data-t="time"></span></span><b id="w-t">0</b></div>
+    <div class="row3" style="font-size:54px;color:var(--gold);margin:22px 0"><span data-t="score"></span><b id="w-s">0</b></div>
+    <div class="btn" id="w-again" style="position:relative;height:120px;margin:10px 0 24px;font-size:48px">↻ <span data-t="again"></span></div>
+    <div class="btn sec" id="w-menu" style="position:relative;height:90px;font-size:34px">⌂ <span data-t="menu"></span></div></div>`);
+  mkScreen('lb', `<div class="dim"></div><div class="panel" style="top:150px;bottom:150px"><h2>🏆 <span data-t="leaderboard"></span></h2><div id="lb-list" style="height:760px;overflow:hidden"></div>
+    <div class="btn sec" id="lb-close" style="position:absolute;left:30px;right:30px;bottom:26px;height:96px;font-size:40px">✕ <span data-t="close"></span></div></div>`);
+  mkScreen('help', `<div class="dim"></div><div class="panel" style="top:170px"><h2>❓ <span data-t="help"></span></h2>
+    <div class="help"><i>◀ ▶</i><span data-t="h_run"></span></div><div class="help"><i>⬆</i><span data-t="h_jump"></span></div>
+    <div class="help"><i>🪨</i><span data-t="h_rock"></span></div><div class="help"><i>🚩</i><span data-t="h_flag"></span></div><div class="help"><i>🏔</i><span data-t="h_summit"></span></div>
+    <div class="btn" id="h-close" style="position:relative;height:100px;margin-top:20px;font-size:44px"><span data-t="ok"></span></div></div>`);
+  mkScreen('lang', `<div class="dim" id="lang-dim"></div><div class="panel" style="top:300px"><h2>🌐 <span data-t="language"></span></h2>
+    <div class="btn sec lg" data-l="en" style="position:relative;height:110px;margin:0 0 24px;font-size:44px">English</div>
+    <div class="btn sec lg" data-l="id" style="position:relative;height:110px;margin:0 0 24px;font-size:44px">Bahasa Indonesia</div>
+    <div class="btn sec lg" data-l="ar" style="position:relative;height:110px;font-size:48px">العربية</div></div>`);
 
   mkScreen('gacha', `<div class="dim"></div>
-    <div class="title" id="g-title" style="top:120px;font-size:92px;-webkit-text-stroke:12px var(--ink)">${T('randomMap', 'PETA ACAK')}</div>
+    <div class="title" id="g-title" style="top:120px;font-size:92px;-webkit-text-stroke:12px var(--ink)" data-t="randomMap"></div>
     <div id="g-win"><div id="g-strip"></div><div id="g-frame"></div></div>
     <div class="title" id="g-name" style="top:800px;font-size:58px;-webkit-text-stroke:10px var(--ink);color:#ffcf3f"></div>
-    <div class="btn" id="g-go" style="left:110px;width:500px;height:130px;top:915px;display:none">▶ ${T('go', 'MAIN!')}</div>
-    <div class="btn sec" id="g-again" style="left:150px;width:420px;height:96px;top:1075px;font-size:38px;display:none">🎲 ${T('spinAgain', 'PUTAR LAGI')}</div>
+    <div class="btn" id="g-go" style="left:110px;width:500px;height:130px;top:915px;display:none">▶ <span data-t="go"></span></div>
+    <div class="btn sec" id="g-again" style="left:150px;width:420px;height:96px;top:1075px;font-size:38px;display:none">🎲 <span data-t="spinAgain"></span></div>
     <div class="ico" id="g-back" style="left:30px;top:30px">⌂</div>`);
   const press = (el, fn) => { el.addEventListener('click', (e) => { e.stopPropagation(); Snd.init(); Snd.fx('ui'); fn(e); }); };
   function holdBtn(el, key) {
@@ -1069,17 +1115,29 @@ function boot(mode, serial) {
 
   function refreshMenu() {
     const bst = G.save && G.save.best ? G.save.best : 0;
-    $('m-best').textContent = bst ? '🏆 ' + bst : '⛰ ' + T('tagline', 'Puncak menantimu!');
-    $('b-play').innerHTML = '▶ ' + T('play', 'MAIN');
-    $('b-new').innerHTML = '↻ ' + T('continue', 'LANJUT') + ' ' + ((G.save && MAPS[G.save.map]) ? MAPS[G.save.map].icon : '');
+    $('m-best').textContent = bst ? '🏆 ' + bst : '⛰ ' + tr('tagline');
+    $('b-play').innerHTML = '▶ ' + tr('play');
+    $('i-lang').textContent = LANG.toUpperCase();
+    $('b-new').innerHTML = '↻ ' + tr('continue') + ' ' + ((G.save && MAPS[G.save.map]) ? MAPS[G.save.map].icon : '');
     $('b-new').style.display = G.hasSave ? 'flex' : 'none';
     $('i-snd').textContent = Snd.isMuted() ? '🔇' : '🔊';
     $('i-q').textContent = state.tierPref === 'auto' ? 'AUTO' : state.tierPref === 'low' ? 'LOW' : state.tierPref === 'mid' ? 'MED' : 'HIGH';
   }
+  function applyLang() {
+    document.documentElement.lang = LANG; app.classList.toggle('ar', LANG === 'ar');
+    ui.querySelectorAll('[data-t]').forEach((el) => { el.textContent = tr(el.dataset.t); });
+    ui.querySelectorAll('.lg').forEach((el) => el.classList.toggle('sel', el.dataset.l === LANG));
+    ui.querySelectorAll('#g-strip .gl').forEach((el) => { el.textContent = MAPS[el.dataset.m].icon + ' ' + mapName(el.dataset.m); });
+    drawSign(); TX.sign.needsUpdate = true; refreshMenu();
+    if (GACHA.landed) $('g-name').textContent = MAPS[GACHA.target].icon + ' ' + mapName(GACHA.target);
+  }
+  function setLang(l) { LANG = I18N[l] ? l : 'en'; applyLang(); saveNow(); }
   function setMenu() { G.mode = 'menu'; Snd.music(false); showMany(['menu']); refreshMenu(); app.classList.remove('playing'); }
   press($('b-play'), () => openGacha()); press($('b-new'), () => startGame(false));
   press($('i-snd'), () => { Snd.setMuted(!Snd.isMuted()); state.muted = Snd.isMuted(); refreshMenu(); saveNow(); });
   press($('i-q'), () => { const o = ['auto', 'low', 'mid', 'high']; state.tierPref = o[(o.indexOf(state.tierPref) + 1) % 4]; applyTier(); refreshMenu(); saveNow(); });
+  press($('i-lang'), () => showMany(['menu', 'lang'])); ui.querySelectorAll('.lg').forEach((b) => press(b, () => { setLang(b.dataset.l); showMany(['menu']); }));
+  $('lang-dim').addEventListener('click', () => showMany(['menu']));
   press($('i-help'), () => showMany(['menu', 'help'])); press($('h-close'), () => showMany(G.mode === 'menu' ? ['menu'] : ['hud']));
   press($('i-lb'), () => openLb('menu')); press($('lb-close'), () => showMany(G.mode === 'menu' ? ['menu'] : G.won ? ['win'] : ['hud']));
   press($('b-pause'), () => doPause(true)); press($('p-resume'), () => doPause(false));
@@ -1104,7 +1162,7 @@ function boot(mode, serial) {
     R(g, '#f3f4f8', 20, 107, 9, 6); R(g, '#27325a', 20, 113, 9, 5); R(g, OL, 20, 118, 3, 1); R(g, '#f0b48c', 21, 100, 7, 7); R(g, HR, 21, 99, 7, 3);
     R(g, OL, 0, 0, 100, 1); return c;
   }
-  const GACHA = { raf: 0, spinning: false, skip: false, target: 'a', built: false };
+  const GACHA = { landed: false, raf: 0, spinning: false, skip: false, target: 'a', built: false };
   const PITCH = 324, NCARD = 30;
   function buildStrip() {
     if (GACHA.built) return; GACHA.built = true; const strip = $('g-strip'); strip.innerHTML = '';
@@ -1112,13 +1170,13 @@ function boot(mode, serial) {
     for (let i = 0; i < NCARD; i++) {
       const id = MAP_IDS[i % 3], card = document.createElement('div'); card.className = 'gcard';
       const cv = mkC(100, 147); cv.getContext('2d').drawImage(srcs[id], 0, 0); card.appendChild(cv);
-      const lb = document.createElement('div'); lb.className = 'gl'; lb.textContent = MAPS[id].icon + ' ' + mapName(id); card.appendChild(lb); strip.appendChild(card);
+      const lb = document.createElement('div'); lb.className = 'gl'; lb.dataset.m = id; lb.textContent = MAPS[id].icon + ' ' + mapName(id); card.appendChild(lb); strip.appendChild(card);
     }
     $('g-win').addEventListener('click', () => { if (GACHA.spinning) GACHA.skip = true; });
   }
   function openGacha() { Snd.init(); G.mode = 'gacha'; Snd.music(false); showMany(['gacha']); buildStrip(); spinGacha(); }
   function spinGacha() {
-    cancelAnimationFrame(GACHA.raf); $('g-go').style.display = 'none'; $('g-again').style.display = 'none'; $('g-name').textContent = '🎲'; $('g-frame').classList.remove('land');
+    cancelAnimationFrame(GACHA.raf); GACHA.landed = false; $('g-go').style.display = 'none'; $('g-again').style.display = 'none'; $('g-name').textContent = '🎲'; $('g-frame').classList.remove('land');
     const ti = Math.floor(Math.random() * 3); GACHA.target = MAP_IDS[ti];
     const sIdx = 24, tIdx = 6 + ti, strip = $('g-strip'), cards = strip.children;
     const offS = 360 - (sIdx * PITCH + 150), offE = 360 - (tIdx * PITCH + 150), dur = 4300, t0 = performance.now(); let lastC = -1, lastTick = 0;
@@ -1133,7 +1191,7 @@ function boot(mode, serial) {
     GACHA.raf = requestAnimationFrame(step);
   }
   function landGacha() {
-    const id = GACHA.target; $('g-name').textContent = MAPS[id].icon + ' ' + mapName(id);
+    GACHA.landed = true; const id = GACHA.target; $('g-name').textContent = MAPS[id].icon + ' ' + mapName(id);
     $('g-frame').classList.add('land'); Snd.fx('cp'); hap('success'); $('g-go').style.display = 'flex'; $('g-again').style.display = 'flex';
   }
   press($('g-go'), () => { cancelAnimationFrame(GACHA.raf); startGame(true, GACHA.target); });
@@ -1146,14 +1204,14 @@ function boot(mode, serial) {
     try {
       const res = await lib.getTopNEntriesFromLeaderboard(8);
       const es = (res && res.entries) || [];
-      el.innerHTML = es.length ? es.map((e, i) => '<div class="lbrow"><b>' + (i + 1) + '</b><span>' + String(e.username || '???').replace(/[<>&]/g, '') + '</span><b style="width:auto">' + e.score + '</b></div>').join('') : '<div class="lbrow"><span>Belum ada skor — jadilah yang pertama!</span></div>';
-    } catch (err) { el.innerHTML = '<div class="lbrow"><span>Peringkat belum tersedia</span></div>'; }
+      el.innerHTML = es.length ? es.map((e, i) => '<div class="lbrow"><b>' + (i + 1) + '</b><span>' + String(e.username || '???').replace(/[<>&]/g, '') + '</span><b style="width:auto">' + e.score + '</b></div>').join('') : '<div class="lbrow"><span>' + tr('lbEmpty') + '</span></div>';
+    } catch (err) { el.innerHTML = '<div class="lbrow"><span>' + tr('lbUnavail') + '</span></div>'; }
   }
 
   /* ---------------------------------------------------------------- run flow & save ---- */
   function currentScore() { return Math.round(G.maxH * 10 + G.coins * 25 + (G.won ? Math.max(0, 3000 - G.time * 5) : 0)); }
   function snapshot() {
-    return { v: 1, map: CUR.id, cp: PL.cp, maxH: Math.round(G.maxH * 10) / 10, coins: G.coins, got: Array.from(coinGot).reduce((a, v, i) => (v ? (a.push(i), a) : a), []), falls: PL.falls || 0, time: Math.round(G.time), best: Math.max(G.best, G.won ? currentScore() : G.best), done: !!G.won, settings: { tier: state.tierPref, muted: state.muted } };
+    return { v: 1, map: CUR.id, cp: PL.cp, maxH: Math.round(G.maxH * 10) / 10, coins: G.coins, got: Array.from(coinGot).reduce((a, v, i) => (v ? (a.push(i), a) : a), []), falls: PL.falls || 0, time: Math.round(G.time), best: Math.max(G.best, G.won ? currentScore() : G.best), done: !!G.won, settings: { tier: state.tierPref, muted: state.muted, lang: LANG } };
   }
   async function saveNow() {
     try { const s = snapshot(); const j = JSON.stringify(s); G.best = s.best; if (G.save) { G.save.best = s.best; G.save.settings = s.settings; } else G.save = s; if (j === lastSaveJson) return; lastSaveJson = j; if (lib.saveUserGameState) await lib.saveUserGameState(s); } catch (e) { /* ignore */ }
@@ -1184,14 +1242,14 @@ function boot(mode, serial) {
     G.mode = 'play'; showMany(['hud']); hudDirty = true; app.classList.add('playing');
     if (!G.save || !G.save.tut) { showHint(); }
   }
-  function showHint() { toast(lib.shouldUseTouchControls && lib.shouldUseTouchControls() ? '◀ ▶  lari   ⬆  lompat' : 'A/D lari · Spasi lompat', 4.5); }
+  function showHint() { toast(lib.shouldUseTouchControls && lib.shouldUseTouchControls() ? tr('hintTouch') : tr('hintKey'), 4.5); }
   function doPause(on) { if (G.mode !== 'play' || G.won) return; G.paused = on; showMany(on ? ['hud', 'pause'] : ['hud']); Snd.music(!on); if (on) { inp.left = inp.right = inp.jump = false; saveNow(); } }
   function respawnNow() { const f = LV.flags[PL.cp - 1]; const p = f ? { x: f.x, y: f.y } : LV.start; PL.x = p.x; PL.y = p.y; PL.vx = PL.vy = 0; PL.state = 'idle'; PL.rag = null; PL.grounded = true; PL.peakY = p.y; PL.inv = 1; camSnap = true; }
   function win() {
     if (G.won) return; G.won = true; PL.state = 'win'; PL.st = 0; PL.vx = 0; G.maxH = Math.max(G.maxH, LV.topY); Snd.fx('win'); hap('success'); Snd.music(false);
     for (let i = 0; i < 80; i++) emit(LV.summit.x + (Math.random() - 0.5) * 6, LV.summit.y + 5 + Math.random() * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 6, Math.random() * 3, [0xff5a5a, 0xffd25a, 0x5ad0ff, 0x7aff7a, 0xff8ad8][i % 5], 2.5 + Math.random(), -3);
     submitScore(); saveNow();
-    setTimeout(() => { if (!G.won) return; $('w-h').textContent = Math.round(LV.topY) + ' m'; $('w-c').textContent = G.coins; $('w-f').textContent = PL.falls || 0; $('w-t').textContent = Math.floor(G.time / 60) + ':' + String(Math.floor(G.time % 60)).padStart(2, '0'); $('w-s').textContent = currentScore(); showMany(['win']); }, 1800);
+    setTimeout(() => { if (!G.won) return; $('w-h').textContent = '\u200E' + Math.round(LV.topY) + ' m'; $('w-c').textContent = G.coins; $('w-f').textContent = PL.falls || 0; $('w-t').textContent = Math.floor(G.time / 60) + ':' + String(Math.floor(G.time % 60)).padStart(2, '0'); $('w-s').textContent = currentScore(); showMany(['win']); }, 1800);
   }
 
   /* ---------------------------------------------------------------- quality tiers ---- */
@@ -1294,32 +1352,33 @@ function boot(mode, serial) {
   if (lib.showGameParameters) {
     try {
       lib.showGameParameters({ name: 'Bang Bulat', params: {
-        'Kecepatan lari': { key: 'player.runSpeed', type: 'slider', min: 4, max: 9, step: 0.1 },
-        'Kekuatan lompat': { key: 'player.jumpSpeed', type: 'slider', min: 10, max: 17, step: 0.1 },
-        'Gravitasi': { key: 'player.gravity', type: 'slider', min: 20, max: 45, step: 1 },
-        'Tinggi jatuh ragdoll (m)': { key: 'ragdoll.bigFallHeight', type: 'slider', min: 5, max: 16, step: 0.5 },
-        'Jeda batu jatuh (dtk)': { key: 'hazards.rockInterval', type: 'slider', min: 1.5, max: 10, step: 0.5 },
-        'Kecepatan batu': { key: 'hazards.rockFallSpeed', type: 'slider', min: 8, max: 28, step: 1 },
-        'Blur tilt-shift (px)': { key: 'visual.tiltShift', type: 'slider', min: 0, max: 8, step: 0.5, onChange: (v) => { window.gameConfig.visual.tiltShift = v; app.style.setProperty('--tsb', v + 'px'); } },
+        'Run speed': { key: 'player.runSpeed', type: 'slider', min: 4, max: 9, step: 0.1 },
+        'Jump power': { key: 'player.jumpSpeed', type: 'slider', min: 10, max: 17, step: 0.1 },
+        'Gravity': { key: 'player.gravity', type: 'slider', min: 20, max: 45, step: 1 },
+        'Ragdoll fall height (m)': { key: 'ragdoll.bigFallHeight', type: 'slider', min: 5, max: 16, step: 0.5 },
+        'Falling rock interval (s)': { key: 'hazards.rockInterval', type: 'slider', min: 1.5, max: 10, step: 0.5 },
+        'Rock fall speed': { key: 'hazards.rockFallSpeed', type: 'slider', min: 8, max: 28, step: 1 },
+        'Tilt-shift blur (px)': { key: 'visual.tiltShift', type: 'slider', min: 0, max: 8, step: 0.5, onChange: (v) => { window.gameConfig.visual.tiltShift = v; app.style.setProperty('--tsb', v + 'px'); } },
       } });
     } catch (e) { /* ignore */ }
   }
   buildWorld('a');
-  setLoad(0.85, 'Hampir sampai puncak...');
+  applyLang();
+  setLoad(0.85, tr('loadAlmost'));
   (async () => {
     try {
       if (mode !== 'edit' && lib.getUserGameState) {
         const r = await lib.getUserGameState(); const s = r && r.state;
-        if (s) { G.save = s; G.best = s.best || 0; G.hasSave = !!(s.cp > 0 || s.maxH > 3) && !s.done; if (s.settings) { state.tierPref = s.settings.tier || 'auto'; Snd.setMuted(!!s.settings.muted); state.muted = !!s.settings.muted; applyTier(); } }
+        if (s) { G.save = s; G.best = s.best || 0; G.hasSave = !!(s.cp > 0 || s.maxH > 3) && !s.done; if (s.settings) { state.tierPref = s.settings.tier || 'auto'; Snd.setMuted(!!s.settings.muted); state.muted = !!s.settings.muted; if (I18N[s.settings.lang]) LANG = s.settings.lang; applyTier(); } }
       }
     } catch (e) { /* ignore */ }
     if (serial !== runSerial || dead) return;
-    PL.x = LV.start.x - 2; PL.y = 0;
+    PL.x = LV.start.x - 2; PL.y = 0; applyLang();
     if (mode === 'edit') { showMany([]); G.mode = 'edit'; } else setMenu();
     requestAnimationFrame(() => { setLoad(1); setTimeout(() => { const ld = $('loading'); if (ld) ld.classList.add('off'); }, 250); });
   })();
   last = performance.now(); raf = requestAnimationFrame(frame);
-  window.__bb = { MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
+  window.__bb = { setLang, showMany, MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
 
   return function cleanup() {
     dead = true; cancelAnimationFrame(raf); cleanups.forEach((fn) => { try { fn(); } catch (e) { /* ignore */ } });
