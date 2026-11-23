@@ -102,34 +102,45 @@ function boot(mode, serial) {
   const OL = '#1d1626', SK = '#f0b48c', SKS = '#d58f69', SKL = '#fad2ae', HR = '#17151d', HRH = '#3b4260', NV = '#27325a';
 
   function drawHead(expr) {
-    const c = mkC(34, 32), g = c.getContext('2d');
-    ell(g, OL, 3.5, 18, 3.5, 4.5); ell(g, SK, 4, 18, 2.5, 3.5); ell(g, SKS, 4.5, 18, 1, 2);
-    ell(g, OL, 30.5, 18, 3.5, 4.5); ell(g, SK, 30, 18, 2.5, 3.5); ell(g, SKS, 29.5, 18, 1, 2);
-    ell(g, OL, 17, 17, 15, 14.5); ell(g, SK, 17, 17, 14, 13.5);
-    ell(g, SKS, 17, 17, 14, 13.5, 27, 31); ell(g, SK, 17, 16, 12.5, 12, 27, 31);
-    ell(g, HR, 17, 17, 14, 13.5, 3, 9);
-    R(g, HR, 4, 10, 3, 7); R(g, HR, 27, 10, 3, 7); R(g, HR, 8, 10, 18, 1); R(g, HR, 10, 11, 3, 1); R(g, HR, 22, 11, 3, 1);
-    R(g, HRH, 9, 5, 9, 1); R(g, HRH, 21, 6, 4, 1); R(g, HRH, 12, 8, 5, 1);
-    R(g, SKS, 16, 19, 3, 3); R(g, SKL, 16, 19, 1, 1);
-    R(g, '#ea8f80', 6, 21, 3, 2); R(g, '#ea8f80', 25, 21, 3, 2);
+    const c = mkC(40, 37), g = c.getContext('2d');
+    const BR = '#8a4040';
+    // ears
+    ell(g, OL, 3.5, 23, 3.6, 5.2); ell(g, SK, 4, 23, 2.6, 4.2); ell(g, SKS, 4.6, 23, 1.1, 2.4);
+    ell(g, OL, 36.5, 23, 3.6, 5.2); ell(g, SK, 36, 23, 2.6, 4.2); ell(g, SKS, 35.4, 23, 1.1, 2.4);
+    // broad face with heavy jowls
+    ell(g, OL, 20, 21.5, 17.6, 15.8); ell(g, SK, 20, 21.5, 16.6, 14.8);
+    ell(g, SKS, 20, 21.5, 16.6, 14.8, 31, 35); ell(g, SK, 20, 20.5, 15, 13.6, 31, 35);
+    R(g, SKS, 12, 34, 16, 1);
+    ell(g, SKL, 13, 26, 3.2, 2.2); ell(g, SKL, 27, 26, 3.2, 2.2);
+    ell(g, '#ea8f80', 10, 28, 2.6, 1.6); ell(g, '#ea8f80', 30, 28, 2.6, 1.6);
+    // glossy black side-parted hair
+    ell(g, HR, 20, 21.5, 17.2, 15.4, 6, 13);
+    R(g, HR, 4, 13, 4, 9); R(g, HR, 32, 13, 4, 9);
+    R(g, HR, 8, 14, 22, 1); R(g, HR, 9, 15, 6, 1); R(g, HR, 25, 15, 5, 1);
+    R(g, HRH, 9, 8, 12, 1); R(g, HRH, 13, 10, 9, 1); R(g, HRH, 24, 9, 6, 1); R(g, HRH, 10, 12, 5, 1);
+    R(g, '#0a090f', 14, 7, 1, 5);
+    // nose (broad)
+    R(g, SKS, 17, 25, 6, 5); R(g, SKL, 19, 24, 1, 4); R(g, OL, 17, 29, 2, 1); R(g, OL, 21, 29, 2, 1);
+    R(g, SKS, 13, 27, 1, 4); R(g, SKS, 26, 27, 1, 4);
     if (expr === 'neutral') {
-      R(g, '#fff', 9, 15, 5, 3); R(g, OL, 10, 15, 3, 3); R(g, '#fff', 11, 15, 1, 1);
-      R(g, '#fff', 20, 15, 5, 3); R(g, OL, 21, 15, 3, 3); R(g, '#fff', 22, 15, 1, 1);
-      R(g, HR, 8, 12, 6, 2); R(g, HR, 20, 12, 6, 2); R(g, HR, 12, 14, 2, 1); R(g, HR, 20, 14, 2, 1);
-      R(g, '#8a4040', 13, 24, 8, 1); R(g, '#8a4040', 12, 25, 1, 1); R(g, '#8a4040', 21, 25, 1, 1);
+      R(g, '#fff', 11, 21, 6, 3); R(g, OL, 13, 21, 3, 3); R(g, '#fff', 14, 21, 1, 1);
+      R(g, '#fff', 23, 21, 6, 3); R(g, OL, 25, 21, 3, 3); R(g, '#fff', 26, 21, 1, 1);
+      R(g, SKS, 10, 20, 8, 1); R(g, SKS, 22, 20, 8, 1); R(g, SKS, 11, 25, 6, 1); R(g, SKS, 23, 25, 6, 1);
+      for (let i = 0; i < 9; i++) { R(g, HR, 9 + i, 17 + (i >> 2), 1, 2); R(g, HR, 30 - i, 17 + (i >> 2), 1, 2); }
+      R(g, BR, 15, 32, 10, 1); R(g, BR, 14, 33, 1, 1); R(g, BR, 25, 33, 1, 1); R(g, '#d98a7a', 17, 33, 6, 1);
     } else if (expr === 'effort') {
-      R(g, OL, 9, 16, 5, 2); R(g, OL, 20, 16, 5, 2);
-      for (let i = 0; i < 6; i++) { R(g, HR, 8 + i, 12 + (i >> 1), 1, 2); R(g, HR, 25 - i, 12 + (i >> 1), 1, 2); }
-      R(g, OL, 12, 22, 10, 5); R(g, '#fff', 13, 23, 8, 3); R(g, OL, 13, 24, 8, 1);
+      R(g, OL, 11, 22, 6, 2); R(g, OL, 23, 22, 6, 2); R(g, '#fff', 12, 22, 1, 1); R(g, '#fff', 24, 22, 1, 1);
+      for (let i = 0; i < 9; i++) { R(g, HR, 9 + i, 16 + (i >> 1), 1, 2); R(g, HR, 30 - i, 16 + (i >> 1), 1, 2); }
+      R(g, OL, 14, 31, 12, 5); R(g, '#fff', 15, 32, 10, 3); R(g, OL, 15, 33, 10, 1);
     } else if (expr === 'hurt') {
-      [[9, 14], [10, 15], [11, 16], [10, 17], [9, 18]].forEach(([x, y]) => R(g, OL, x, y, 2, 1));
-      [[23, 14], [22, 15], [21, 16], [22, 17], [23, 18]].forEach(([x, y]) => R(g, OL, x, y, 2, 1));
-      R(g, HR, 8, 11, 6, 1); R(g, HR, 20, 11, 6, 1); R(g, HR, 7, 12, 2, 1); R(g, HR, 25, 12, 2, 1);
-      ell(g, OL, 17, 25, 4.5, 3.5); ell(g, '#e0556a', 17, 26.5, 3, 1.8); R(g, '#7fd0ff', 6, 18, 2, 4);
+      [[11, 19], [12, 20], [13, 21], [14, 22], [13, 23], [12, 24], [11, 25]].forEach(([x, y]) => R(g, OL, x, y, 2, 1));
+      [[27, 19], [26, 20], [25, 21], [24, 22], [25, 23], [26, 24], [27, 25]].forEach(([x, y]) => R(g, OL, x, y, 2, 1));
+      R(g, HR, 9, 16, 8, 1); R(g, HR, 23, 16, 8, 1); R(g, HR, 8, 17, 3, 1); R(g, HR, 29, 17, 3, 1);
+      ell(g, OL, 20, 33, 5.5, 3.6); ell(g, '#e0556a', 20, 34.5, 3.6, 1.8); R(g, '#7fd0ff', 8, 24, 2, 5); R(g, '#7fd0ff', 30, 24, 2, 5);
     } else { // dizzy
-      for (let i = 0; i < 4; i++) { R(g, OL, 9 + i, 14 + i, 1, 1); R(g, OL, 12 - i, 14 + i, 1, 1); R(g, OL, 20 + i, 14 + i, 1, 1); R(g, OL, 23 - i, 14 + i, 1, 1); }
-      R(g, HR, 8, 12, 6, 1); R(g, HR, 20, 12, 6, 1);
-      R(g, OL, 12, 24, 10, 1); R(g, '#e0556a', 15, 25, 3, 3); R(g, OL, 14, 28, 5, 1);
+      for (let i = 0; i < 5; i++) { R(g, OL, 11 + i, 20 + i, 1, 1); R(g, OL, 15 - i, 20 + i, 1, 1); R(g, OL, 24 + i, 20 + i, 1, 1); R(g, OL, 28 - i, 20 + i, 1, 1); }
+      R(g, HR, 9, 17, 8, 1); R(g, HR, 23, 17, 8, 1);
+      R(g, OL, 14, 32, 12, 1); R(g, '#e0556a', 18, 33, 4, 3); R(g, OL, 17, 36, 6, 1);
     }
     return c;
   }
@@ -567,14 +578,15 @@ function boot(mode, serial) {
   /* ---------------------------------------------------------------- character ---- */
   const US = 0.024;
   const charGroup = new THREE.Group(); world.add(charGroup);
-  function mkPart(map, w, h, px, py, z) {
-    const geo = new THREE.PlaneGeometry(w * US, h * US); geo.translate((w / 2 - px) * US, (py - h / 2) * US, 0);
+  function mkPart(map, w, h, px, py, z, k) {
+    k = k || 1;
+    const geo = new THREE.PlaneGeometry(w * US * k, h * US * k); geo.translate((w / 2 - px) * US * k, (py - h / 2) * US * k, 0);
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, fog: false }));
     m.position.z = z; charGroup.add(m); return m;
   }
   const part = {
     legB: mkPart(TX.leg, 16, 30, 7, 3, -0.03), armB: mkPart(TX.arm, 14, 28, 7, 4, -0.05), torso: mkPart(TX.torso, 40, 34, 20, 17, 0),
-    legF: mkPart(TX.leg, 16, 30, 7, 3, -0.02), head: mkPart(TX.heads.neutral, 34, 32, 17, 16, 0.07), armF: mkPart(TX.arm, 14, 28, 7, 4, 0.05),
+    legF: mkPart(TX.leg, 16, 30, 7, 3, -0.02), head: mkPart(TX.heads.neutral, 40, 37, 20, 18.5, 0.07, 0.86), armF: mkPart(TX.arm, 14, 28, 7, 4, 0.05),
   };
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.62, 16), new THREE.MeshBasicMaterial({ color: 0x1a0f2a, transparent: true, opacity: 0.35, depthWrite: false, fog: false }));
   shadow.rotation.x = -Math.PI / 2; world.add(shadow);
