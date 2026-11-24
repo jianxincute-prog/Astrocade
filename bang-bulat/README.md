@@ -18,7 +18,7 @@ All UI strings live in the `I18N` table at the top of `game.js`.
 - Boxing glove: spring-loaded glove punches out of a wall; the hero spins away with orbiting stars ("BONK!").
 - Banana peel: slip, backflip, "WHEEE!".
 - Falling anvil (Fire Mountain): flattens the hero into a pancake, then he pops back up ("PLOP!"). Green Slopes still has falling boulders, Snowy Peak falling icicles.
-Traps are placed by `scatterTraps` (per-map plan) and can be switched off with `traps.on` in the config.
+Traps never react to the player: the rocket launcher and boxing glove run on a fixed timer (telegraphed warning first), so they can be read and dodged. At most 5 traps are placed per run (`traps.max`); kinds and platforms are re-rolled for every new run (CONTINUE keeps the saved layout). Everything can be switched off with `traps.on` in the config.
 
 ## Shop
 Main menu > Shop sells 8 clothing skins (classic tee, red jersey, blue hoodie, sailor stripes, island shirt, pajamas, jungle camo, gold tracksuit).
