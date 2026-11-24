@@ -758,38 +758,41 @@ function boot(mode, serial) {
     L.topY = sm.y1;
     return L;
   }
-  function scatterTraps(L, mapId) {
-    const plan = {
-      a: ['banana', 'fog', 'glove', 'rocket', 'banana', 'fog', 'rocket', 'glove', 'banana'],
-      b: ['banana', 'glove', 'rocket', 'banana', 'glove', 'rocket', 'banana', 'glove', 'rocket'],
-      c: ['fog', 'banana', 'rocket', 'fog', 'banana', 'rocket', 'fog', 'banana', 'glove'],
-    }[mapId];
-    const r = rngMaker(900 + mapId.charCodeAt(0)), R = L.route, n = R.length - 2, start = 9, step = (n - start) / plan.length, used = new Set();
+  function scatterTraps(L, mapId, seed) {
+    // At most 5 silly traps per run; kinds and platforms are random for every new run (seed).
+    const KINDS = { a: ['fog', 'banana', 'glove', 'rocket'], b: ['banana', 'glove', 'rocket'], c: ['fog', 'banana', 'rocket', 'glove'] }[mapId];
+    const r = rngMaker(seed), MAXT = Math.max(0, Math.min(5, C('traps.max', 5) | 0)), R = L.route, start = 8, end = R.length - 3;
+    const shuffle = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; } return arr; };
+    const pool = shuffle(KINDS.slice()), kinds = []; for (let i = 0; i < MAXT; i++) kinds.push(pool[i % pool.length]); shuffle(kinds);
     const ok = (i, kind) => {
-      const s = R[i]; if (!s || used.has(i) || i < start || i > n || s.crumble) return false;
+      const s = R[i]; if (!s || i < start || i > end || s.crumble) return false;
       const w = s.x1 - s.x0; if (w < 3.0 || w > 8.5) return false;
       if (L.flags.some((f) => f.x >= s.x0 - 0.1 && f.x <= s.x1 + 0.1 && Math.abs(f.y - s.y1) < 0.05)) return false;
       if (L.springs.some((sp) => sp.x0 >= s.x0 - 0.2 && sp.x1 <= s.x1 + 0.2 && Math.abs(sp.y0 - s.y1) < 0.05)) return false;
-      return true;
+      return !s.__trap;
     };
-    plan.forEach((kind, k) => {
-      const target = Math.floor(start + step * k + step * 0.5); let idx = -1;
-      const find = (kd) => { for (let d = 0; d <= 6 && idx < 0; d++) { if (ok(target + d, kd)) idx = target + d; else if (ok(target - d, kd)) idx = target - d; } };
-      find(kind); if (idx < 0 && (kind === 'rocket' || kind === 'glove')) { kind = 'banana'; find(kind); }
-      if (idx < 0) return; used.add(idx); const s = R[idx], mid = (s.x0 + s.x1) / 2;
+    const seg = (end - start + 1) / Math.max(1, MAXT);
+    kinds.forEach((kind0, k) => {
+      const lo = Math.floor(start + seg * k), hi = Math.max(lo, Math.floor(start + seg * (k + 1)) - 1);
+      let kind = kind0, cand = []; const gather = () => { cand = []; for (let i = lo; i <= hi; i++) if (ok(i, kind)) cand.push(i); };
+      gather(); if (!cand.length) { kind = 'banana'; gather(); }
+      for (let widen = 2; !cand.length && widen <= end; widen += 3) { cand = []; for (let i = Math.max(start, lo - widen); i <= Math.min(end, hi + widen); i++) if (ok(i, kind)) cand.push(i); }
+      if (!cand.length) return;
+      const idx = cand[Math.floor(r() * cand.length)], s = R[idx], mid = (s.x0 + s.x1) / 2; s.__trap = true;
       if (kind === 'fog') L.fogs.push({ cx: mid, cy: s.y1 + 0.85, amp: 2.0, sp: 0.5 + r() * 0.25, ph: r() * 6 });
       else if (kind === 'banana') L.bananas.push({ x: s.x0 + (s.x1 - s.x0) * (0.4 + r() * 0.2), y: s.y1 });
-      else if (kind === 'rocket') L.launchers.push({ x: s.x1 - 0.55, y: s.y1, cool: 1 + r() * 2 });
-      else L.gloves.push({ x: s.x1 - 0.35, y: s.y1 + 1.0, reach: 2.8, cool: 0.5 + r() * 1.5 });
+      else if (kind === 'rocket') L.launchers.push({ x: s.x1 - 0.55, y: s.y1, ph: r() * 20 });
+      else L.gloves.push({ x: s.x1 - 0.35, y: s.y1 + 1.0, reach: 2.8, ph: r() * 20 });
     });
+    L.route.forEach((q) => { delete q.__trap; });
   }
-  function buildLevel(mapId) { const L = buildLevelCore(mapId); if (C('traps.on', true)) scatterTraps(L, mapId); return L; }
+  function buildLevel(mapId) { return buildLevelCore(mapId); }
   let LV = null;
   const PLAYERH = 1.75, PLAYERW = 0.72;
 
   /* ---------------------------------------------------------------- build world meshes (per map) ---- */
   const world = new THREE.Group(); scene.add(world); // persistent: character, shadow, falling hazards
-  let levelGroup = null, coinMesh = null, tuftMesh = null, coinGot = new Uint8Array(1);
+  let levelGroup = null, trapGroup = null, coinMesh = null, tuftMesh = null, coinGot = new Uint8Array(1);
   const dummy = new THREE.Object3D();
   function disposeGroup(grp) {
     grp.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
@@ -797,7 +800,7 @@ function boot(mode, serial) {
   }
   function buildWorld(mapId) {
     if (levelGroup) disposeGroup(levelGroup);
-    levelGroup = new THREE.Group(); world.add(levelGroup);
+    trapGroup = null; levelGroup = new THREE.Group(); world.add(levelGroup);
     CUR = MAPS[mapId]; LV = buildLevel(mapId); window.__level = LV; coinGot = new Uint8Array(LV.coins.length);
     GEO = {};
     const rr = rngMaker(555 + mapId.charCodeAt(0));
@@ -895,25 +898,33 @@ function boot(mode, serial) {
       const lm = new THREE.Mesh(new THREE.PlaneGeometry(LV.lava.x1 - LV.lava.x0, 40), new THREE.MeshBasicMaterial({ map: lt, fog: false }));
       lm.position.set((LV.lava.x0 + LV.lava.x1) / 2, LV.lava.y - 20, -2.2); levelGroup.add(lm); LV.lava.mesh = lm;
     }
-    const spr = (map, w, h, x, y, z, flip) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.25, fog: false, side: THREE.DoubleSide })); m.position.set(x, y, z); if (flip) m.scale.x = -1; levelGroup.add(m); return m; };
-    LV.fogs.forEach((f) => { f.mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.9), new THREE.MeshBasicMaterial({ map: TX.fogA, transparent: true, depthWrite: false, fog: false, opacity: 0.92 })); f.mesh.position.set(f.cx, f.cy, 0.5); f.mesh.renderOrder = 2; levelGroup.add(f.mesh); f.x = f.cx; f.y = f.cy; });
+    coinMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.62, 0.62), new THREE.MeshBasicMaterial({ map: TX.coin, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }), LV.coins.length);
+    coinMesh.frustumCulled = false; levelGroup.add(coinMesh);
+    applyMapSkin();
+  }
+  function buildTrapMeshes() {
+    const spr = (map, w, h, x, y, z, flip) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.25, fog: false, side: THREE.DoubleSide })); m.position.set(x, y, z); if (flip) m.scale.x = -1; trapGroup.add(m); return m; };
+    LV.fogs.forEach((f) => { f.mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.9), new THREE.MeshBasicMaterial({ map: TX.fogA, transparent: true, depthWrite: false, fog: false, opacity: 0.92 })); f.mesh.position.set(f.cx, f.cy, 0.5); f.mesh.renderOrder = 2; trapGroup.add(f.mesh); f.x = f.cx; f.y = f.cy; });
     LV.bananas.forEach((b) => { b.mesh = spr(TX.banana, 0.95, 0.6, b.x, b.y + 0.3, 0.45); b.gone = false; b.t = 0; });
     LV.launchers.forEach((l) => {
       l.body = spr(TX.launcher, 2.6, 1.95, l.x, l.y + 0.98, -0.9, true);
       l.icon = spr(TX.warn, 0.9, 0.9, l.x - 0.7, l.y + 2.7, 0.5); l.icon.visible = false;
-      l.line = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.14), new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.5, depthWrite: false, fog: false })); l.line.scale.x = 15; l.line.position.set(l.x - 1.3 - 7.5, l.y + 1.0, 0.1); l.line.visible = false; levelGroup.add(l.line);
+      l.line = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.14), new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.5, depthWrite: false, fog: false })); l.line.scale.x = 15; l.line.position.set(l.x - 1.3 - 7.5, l.y + 1.0, 0.1); l.line.visible = false; trapGroup.add(l.line);
       l.state = 'idle'; l.t = 0;
     });
     LV.gloves.forEach((gl) => {
-      gl.base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.5, 0.9), new THREE.MeshLambertMaterial({ color: 0x6b7282 })); gl.base.position.set(gl.x + 0.1, gl.y, -0.1); levelGroup.add(gl.base);
+      gl.base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.5, 0.9), new THREE.MeshLambertMaterial({ color: 0x6b7282 })); gl.base.position.set(gl.x + 0.1, gl.y, -0.1); trapGroup.add(gl.base);
       gl.glove = spr(TX.glove, 1.7, 1.1, gl.x - 0.7, gl.y, 0.45, true);
       const ct = TX.coil.clone(); ct.needsUpdate = true; ct.wrapS = THREE.RepeatWrapping;
-      gl.coil = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.55), new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.3, fog: false })); gl.coil.position.set(gl.x - 0.5, gl.y, 0.3); gl.coil.visible = false; levelGroup.add(gl.coil);
+      gl.coil = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.55), new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.3, fog: false })); gl.coil.position.set(gl.x - 0.5, gl.y, 0.3); gl.coil.visible = false; trapGroup.add(gl.coil);
       gl.state = 'idle'; gl.t = 0; gl.ext = 0;
     });
-    coinMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.62, 0.62), new THREE.MeshBasicMaterial({ map: TX.coin, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }), LV.coins.length);
-    coinMesh.frustumCulled = false; levelGroup.add(coinMesh);
-    applyMapSkin();
+  }
+  function regenTraps(seed) {
+    G.trapSeed = seed; LV.fogs = []; LV.bananas = []; LV.launchers = []; LV.gloves = [];
+    if (trapGroup) disposeGroup(trapGroup); trapGroup = new THREE.Group(); levelGroup.add(trapGroup);
+    if (C('traps.on', true)) { scatterTraps(LV, CUR.id, seed); buildTrapMeshes(); }
+    resetTraps();
   }
   setLoad(0.65, tr('loadClouds'));
 
@@ -1278,16 +1289,17 @@ function boot(mode, serial) {
         b.gone = true; b.t = 10; b.mesh.visible = false; const f = PL.face; startRagdoll('banana', f * 8, 7, { w: -f * 17 }); burst(b.x, b.y + 0.3, 8, 0xffe14d, 4, 2);
       }
     });
+    const RP = C('traps.rocketInterval', 5.5), WARN = 1.4;
     LV.launchers.forEach((l) => {
       const near = Math.abs(l.x - cx) < 24 && Math.abs(l.y - cam.y) < 22; if (!near) { if (l.state !== 'idle') { l.state = 'idle'; l.icon.visible = false; l.line.visible = false; } return; }
-      if (l.state === 'idle') { l.cool -= dt; l.body.position.x = l.x; if (l.cool <= 0 && live && PL.x < l.x - 1.5 && l.x - PL.x < 17 && Math.abs(PL.y - l.y) < 4.5) { l.state = 'warn'; l.t = 0; Snd.fx('warn'); } }
-      else if (l.state === 'warn') {
-        l.t += dt; l.icon.visible = true; l.icon.position.y = l.y + 2.7 + Math.sin(l.t * 20) * 0.06; l.line.visible = true; l.line.material.opacity = 0.25 + Math.abs(Math.sin(l.t * 12)) * 0.4; l.body.position.x = l.x + Math.sin(l.t * 70) * 0.05;
-        if (Math.floor(l.t * 8) !== Math.floor((l.t - dt) * 8)) Snd.fx('warn');
-        if (l.t > 1.1) {
-          const rk = rocketPool.find((r) => !r.on); l.icon.visible = false; l.line.visible = false; l.state = 'idle'; l.cool = C('traps.rocketInterval', 5.5) * (0.8 + Math.random() * 0.4);
-          if (rk) { rk.on = true; rk.carry = false; rk.x = l.x - 1.3; rk.y = l.y + 1.0; rk.vx = -12; rk.life = 0; rk.m.visible = true; rk.m.position.set(rk.x, rk.y, 0.3); Snd.fx('rocket'); shake = Math.max(shake, 0.3); for (let i = 0; i < 10; i++) emit(rk.x, rk.y, 0.6, -2 - Math.random() * 4, (Math.random() - 0.5) * 3, 0xd8d8e8, 0.6, 0); }
-        }
+      const c = (t + l.ph) % RP; // fixed schedule: never reacts to where the player is
+      if (c < WARN) {
+        if (l.state !== 'warn') { l.state = 'warn'; Snd.fx('warn'); }
+        l.icon.visible = true; l.icon.position.y = l.y + 2.7 + Math.sin(c * 20) * 0.06; l.line.visible = true; l.line.material.opacity = 0.25 + Math.abs(Math.sin(c * 12)) * 0.4; l.body.position.x = l.x + Math.sin(c * 70) * 0.05;
+        if (Math.floor(c * 8) !== Math.floor((c - dt) * 8)) Snd.fx('warn');
+      } else if (l.state === 'warn') {
+        const rk = rocketPool.find((r) => !r.on); l.icon.visible = false; l.line.visible = false; l.state = 'idle'; l.body.position.x = l.x;
+        if (rk) { rk.on = true; rk.carry = false; rk.x = l.x - 1.3; rk.y = l.y + 1.0; rk.vx = -12; rk.life = 0; rk.m.visible = true; rk.m.position.set(rk.x, rk.y, 0.3); Snd.fx('rocket'); shake = Math.max(shake, 0.3); for (let i = 0; i < 10; i++) emit(rk.x, rk.y, 0.6, -2 - Math.random() * 4, (Math.random() - 0.5) * 3, 0xd8d8e8, 0.6, 0); }
       }
     });
     rocketPool.forEach((rk) => {
@@ -1299,16 +1311,17 @@ function boot(mode, serial) {
       if (wall) { explodeRocket(rk); return; }
       if (rk.life > 3.4 || rk.x < cx - 26) { rk.on = false; rk.m.visible = false; }
     });
+    const WIND = 0.9, PUNCH = 0.35, BACK = 0.4, GP = WIND + PUNCH + BACK + C('traps.gloveCooldown', 2.6);
     LV.gloves.forEach((gl) => {
       const near = Math.abs(gl.x - cx) < 20 && Math.abs(gl.y - cam.y) < 20; if (!near) return;
-      let ext = gl.ext;
-      if (gl.state === 'idle') { gl.cool -= dt; ext = 0; if (gl.cool <= 0 && live && PL.x < gl.x - 0.5 && gl.x - PL.x < 6.5 && Math.abs(PL.y + 0.9 - gl.y) < 2.6) { gl.state = 'wind'; gl.t = 0; Snd.fx('warn'); } }
-      else if (gl.state === 'wind') { gl.t += dt; ext = -Math.min(1, gl.t / 0.7) * 0.22 + Math.sin(gl.t * 50) * 0.02; if (gl.t > 0.7) { gl.state = 'punch'; gl.t = 0; } }
-      else if (gl.state === 'punch') { gl.t += dt; ext = Math.min(1, gl.t / 0.09); if (gl.t > 0.35) { gl.state = 'back'; gl.t = 0; } }
-      else { gl.t += dt; ext = Math.max(0, 1 - gl.t / 0.4); if (gl.t > 0.4) { gl.state = 'idle'; gl.cool = C('traps.gloveCooldown', 2.6); ext = 0; } }
-      gl.ext = ext; const gx = gl.x - 0.7 - ext * gl.reach; gl.glove.position.set(gx, gl.y, 0.45);
+      const c = (t + gl.ph) % GP; let ext = 0, st = 'idle'; // fixed schedule: wind-up, punch, retract, rest
+      if (c < WIND) { st = 'wind'; ext = -Math.min(1, c / WIND) * 0.22 + Math.sin(c * 50) * 0.02; }
+      else if (c < WIND + PUNCH) { st = 'punch'; ext = Math.min(1, (c - WIND) / 0.09); }
+      else if (c < WIND + PUNCH + BACK) { st = 'back'; ext = Math.max(0, 1 - (c - WIND - PUNCH) / BACK); }
+      if (st === 'wind' && gl.state !== 'wind') Snd.fx('warn');
+      gl.state = st; gl.ext = ext; const gx = gl.x - 0.7 - ext * gl.reach; gl.glove.position.set(gx, gl.y, 0.45);
       const x1 = gl.x - 0.2, x0 = gx + 0.5, wlen = x1 - x0; gl.coil.visible = wlen > 0.12; if (gl.coil.visible) { gl.coil.scale.x = wlen; gl.coil.position.x = (x0 + x1) / 2; gl.coil.material.map.repeat.x = wlen / 0.55; }
-      if (live && gl.state === 'punch' && ext > 0.55 && PL.x + PLAYERW / 2 > gx - 0.8 && PL.x - PLAYERW / 2 < gl.x && PL.y < gl.y + 0.7 && PL.y + PLAYERH > gl.y - 0.7) {
+      if (live && st === 'punch' && ext > 0.55 && PL.x + PLAYERW / 2 > gx - 0.8 && PL.x - PLAYERW / 2 < gl.x && PL.y < gl.y + 0.7 && PL.y + PLAYERH > gl.y - 0.7) {
         startRagdoll('punch', -10, 8, { w: -22 }); burst(gx - 0.6, gl.y, 12, 0xffe14d, 6, 2); shake = 1.1;
       }
     });
@@ -1326,7 +1339,7 @@ function boot(mode, serial) {
   function spawnRock() {
     const rk = rockSprites.find((r) => !r.on); if (!rk) return;
     for (let tries = 0; tries < 6; tries++) {
-      const x = PL.x + PL.vx * 0.55 + (Math.random() - 0.5) * 5; const ly = groundBelow(x, PL.y + 12); if (ly === null || ly < PL.y - 10) continue;
+      const x = PL.x + (Math.random() - 0.5) * 9; const ly = groundBelow(x, PL.y + 12); if (ly === null || ly < PL.y - 10) continue;
       rk.on = true; rk.x = x; rk.ly = ly + 0.85; rk.y = rk.ly + 15; rk.vy = 0; rk.warn = 0; rk.m.visible = true; rk.mk.visible = true; rk.mk.position.set(x, ly + 0.05, 0.3); Snd.fx('warn'); return;
     }
   }
@@ -1579,7 +1592,7 @@ function boot(mode, serial) {
   /* ---------------------------------------------------------------- run flow & save ---- */
   function currentScore() { return Math.round(G.maxH * 10 + G.coins * 25 + (G.won ? Math.max(0, 3000 - G.time * 5) : 0)); }
   function snapshot() {
-    return { v: 1, map: CUR.id, cp: PL.cp, maxH: Math.round(G.maxH * 10) / 10, coins: G.coins, got: Array.from(coinGot).reduce((a, v, i) => (v ? (a.push(i), a) : a), []), falls: PL.falls || 0, time: Math.round(G.time), best: Math.max(G.best, G.won ? currentScore() : G.best), done: !!G.won, settings: { tier: state.tierPref, muted: state.muted, lang: LANG }, shop: { w: SHOP.wallet, own: SHOP.owned, eq: SHOP.eq } };
+    return { v: 1, map: CUR.id, seed: G.trapSeed || 0, cp: PL.cp, maxH: Math.round(G.maxH * 10) / 10, coins: G.coins, got: Array.from(coinGot).reduce((a, v, i) => (v ? (a.push(i), a) : a), []), falls: PL.falls || 0, time: Math.round(G.time), best: Math.max(G.best, G.won ? currentScore() : G.best), done: !!G.won, settings: { tier: state.tierPref, muted: state.muted, lang: LANG }, shop: { w: SHOP.wallet, own: SHOP.owned, eq: SHOP.eq } };
   }
   async function saveNow() {
     try { const s = snapshot(); const j = JSON.stringify(s); G.best = s.best; if (G.save) { G.save.best = s.best; G.save.settings = s.settings; } else G.save = s; if (j === lastSaveJson) return; lastSaveJson = j; if (lib.saveUserGameState) await lib.saveUserGameState(s); } catch (e) { /* ignore */ }
@@ -1595,8 +1608,9 @@ function boot(mode, serial) {
     if (!fresh && G.hasSave && G.save && G.save.map) mapId = G.save.map;
     mapId = mapId || CUR.id || 'a';
     if (CUR.id !== mapId || !LV) buildWorld(mapId); else applyMapSkin();
-    G.hintShown = false; G.firstJump = false; resetTraps();
-    if (fresh || !G.hasSave) {
+    G.hintShown = false; G.firstJump = false;
+    regenTraps(!fresh && G.hasSave && G.save && G.save.seed ? G.save.seed : (Math.random() * 1e9 | 0) + 1);
+    if (fresh || !G.hasSave || !G.save) {
       PL.cp = 0; PL.falls = 0; G.coins = 0; G.maxH = 0; G.time = 0; coinGot.fill(0); LV.flags.forEach((f) => { f.on = false; f.cloth.material.map = TX.flagOff; });
       PL.x = LV.start.x; PL.y = 0;
     } else {
@@ -1729,6 +1743,7 @@ function boot(mode, serial) {
         'Falling rock interval (s)': { key: 'hazards.rockInterval', type: 'slider', min: 1.5, max: 10, step: 0.5 },
         'Rock fall speed': { key: 'hazards.rockFallSpeed', type: 'slider', min: 8, max: 28, step: 1 },
         'Silly traps on/off': { key: 'traps.on', type: 'checkbox' },
+        'Max silly traps per run': { key: 'traps.max', type: 'slider', min: 0, max: 5, step: 1 },
         'Rocket launcher interval (s)': { key: 'traps.rocketInterval', type: 'slider', min: 2, max: 12, step: 0.5 },
         'Boxing glove cooldown (s)': { key: 'traps.gloveCooldown', type: 'slider', min: 1, max: 8, step: 0.5 },
         'Laughing time (s)': { key: 'traps.laughTime', type: 'slider', min: 1, max: 6, step: 0.2 },
@@ -1754,7 +1769,7 @@ function boot(mode, serial) {
     requestAnimationFrame(() => { setLoad(1); setTimeout(() => { const ld = $('loading'); if (ld) ld.classList.add('off'); }, 250); });
   })();
   last = performance.now(); raf = requestAnimationFrame(frame);
-  window.__bb = { startLaugh, startFlat, startRocketRide, explodeRocket, updateTraps, trapLive, resetTraps, SHOP, openShop, applySkin, SKINS, setLang, showMany, MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
+  window.__bb = { regenTraps, startLaugh, startFlat, startRocketRide, explodeRocket, updateTraps, trapLive, resetTraps, SHOP, openShop, applySkin, SKINS, setLang, showMany, MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
 
   return function cleanup() {
     dead = true; cancelAnimationFrame(raf); cleanups.forEach((fn) => { try { fn(); } catch (e) { /* ignore */ } });

@@ -31,6 +31,7 @@
     "on": true,
     "rocketInterval": 5.5,
     "gloveCooldown": 2.6,
-    "laughTime": 2.8
+    "laughTime": 2.8,
+    "max": 5
   }
 }
