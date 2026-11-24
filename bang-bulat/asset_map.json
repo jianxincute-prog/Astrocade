@@ -1,1 +1,54 @@
-{}
+{
+  "sfx_laugh_mock": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Cartoon man mocking laughter \"ha ha ha ha\", short comedic taunt, clean dry voice, no music, no background noise",
+    "duration_secs": 1.83,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0K5J7B0P1DXXHG4F788R_74d69b10-9c53-4251-8110-4689bae3c5c0_1cb4d1fa-5335-4649-8a45-7fefc8a242ea.ogg",
+    "prompt": "Cartoon man mocking laughter \"ha ha ha ha\", short comedic taunt, clean dry voice, no music, no background noise",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0K5J7B0P1DXXHG4F788R_74d69b10-9c53-4251-8110-4689bae3c5c0_1cb4d1fa-5335-4649-8a45-7fefc8a242ea.mp3"
+  },
+  "sfx_laugh_big": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Cartoon chubby man laughing hysterically, uncontrollable belly laugh with wheezing and gasping for air, comedic, clean voice, no music, no background noise",
+    "duration_secs": 3.78,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0M1707AMNGF4HT5ZAJ0T_74a7396d-bce9-40d4-a873-636c1844f462_279c7e30-40d1-4dc4-a8af-543dd833be4a.ogg",
+    "prompt": "Cartoon chubby man laughing hysterically, uncontrollable belly laugh with wheezing and gasping for air, comedic, clean voice, no music, no background noise",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0M1707AMNGF4HT5ZAJ0T_74a7396d-bce9-40d4-a873-636c1844f462_279c7e30-40d1-4dc4-a8af-543dd833be4a.mp3"
+  },
+  "sfx_laugh_crowd": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Short sitcom audience laugh track, crowd laughing and giggling together, comedic reaction, no music",
+    "duration_secs": 2.85,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0P6K09TVEQDCGVD68XNT_aeab4815-eda7-4022-9f64-a8e0da2c5c84_f9ac2e8b-a8c8-4131-a1cd-6961b690018e.ogg",
+    "prompt": "Short sitcom audience laugh track, crowd laughing and giggling together, comedic reaction, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0P6K09TVEQDCGVD68XNT_aeab4815-eda7-4022-9f64-a8e0da2c5c84_f9ac2e8b-a8c8-4131-a1cd-6961b690018e.mp3"
+  },
+  "sfx_scream_fall": {
+    "animation": null,
+    "aspect_ratio": null,
+    "compression_suggestion": "original",
+    "description": "Cartoon man screaming \"aaaaah\" while falling down a very deep pit, scream fades away into the distance, comedic, no music",
+    "duration_secs": 2.7,
+    "loop": false,
+    "opus_url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0PTR6DGQBB4M9DTJ9Z26_8ed5f221-798a-4dcd-8f8a-80eedf31b83c_b041fbbf-1a7e-4d26-ad63-7abdf52c4d1f.ogg",
+    "prompt": "Cartoon man screaming \"aaaaah\" while falling down a very deep pit, scream fades away into the distance, comedic, no music",
+    "subtype": "effect",
+    "type": "audio",
+    "url": "https://d2oir5eh8rty2e.cloudfront.net/assets/sounds/effect/direct_asset_generation_01M85P0PTR6DGQBB4M9DTJ9Z26_8ed5f221-798a-4dcd-8f8a-80eedf31b83c_b041fbbf-1a7e-4d26-ad63-7abdf52c4d1f.mp3"
+  }
+}

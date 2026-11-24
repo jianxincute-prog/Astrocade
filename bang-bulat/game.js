@@ -471,13 +471,34 @@ function boot(mode, serial) {
       for (let i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / n);
       const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = b; f.type = 'lowpass'; f.frequency.value = lp || 800; g.gain.value = v || 0.25; s.connect(f); f.connect(g); g.connect(master); s.start();
     }
+    const pool = {};
+    function asset(id, vol) {
+      if (muted) return true;
+      try {
+        const a = lib.getAsset && lib.getAsset(id); if (!a || !a.url) return false;
+        const list = pool[id] || (pool[id] = []); let el = list.find((e) => e.paused || e.ended);
+        if (!el) { if (list.length >= 3) el = list[0]; else { el = new Audio(a.url); el.preload = 'auto'; list.push(el); } }
+        el.volume = Math.max(0, Math.min(1, vol === undefined ? 0.85 : vol)); el.currentTime = 0;
+        const pr = el.play(); if (pr && pr.catch) pr.catch(() => {});
+        return true;
+      } catch (e) { return false; }
+    }
+    function stopAsset(id, fadeMs) {
+      const list = pool[id] || []; list.forEach((el) => {
+        if (el.paused) return; const v0 = el.volume, n = 6; let i = 0;
+        const iv = setInterval(() => { i++; el.volume = Math.max(0, v0 * (1 - i / n)); if (i >= n) { clearInterval(iv); el.pause(); el.volume = v0; } }, (fadeMs || 240) / n);
+      });
+    }
+    function preload(ids) { ids.forEach((id) => { try { const a = lib.getAsset && lib.getAsset(id); if (a && a.url && !pool[id]) { const el = new Audio(a.url); el.preload = 'auto'; pool[id] = [el]; } } catch (e) { /* ignore */ } }); }
     const fx = {
       jump: () => tone(330, 0.16, 'square', 0.12, 380), land: () => noise(0.1, 0.18, 500), coin: () => { tone(988, 0.07, 'square', 0.1); tone(1319, 0.14, 'square', 0.1, 0, 0.06); },
       hit: () => { tone(320, 0.4, 'sawtooth', 0.16, -240); noise(0.25, 0.25, 700); }, boing: () => tone(180, 0.35, 'sine', 0.3, 520),
       cp: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.14, 'triangle', 0.18, 0, i * 0.08)), rock: () => noise(0.3, 0.3, 320),
       warn: () => tone(880, 0.06, 'square', 0.05), win: () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.18, 'square', 0.14, 0, i * 0.11)),
       crumble: () => noise(0.25, 0.18, 400), ui: () => tone(660, 0.05, 'square', 0.08),
-      laugh: () => { for (let i = 0; i < 8; i++) tone(430 - (i % 2) * 70 - i * 6, 0.09, 'square', 0.1, 0, i * 0.12); },
+      laugh: () => { if (asset('sfx_laugh_big', 0.9)) return; for (let i = 0; i < 8; i++) tone(430 - (i % 2) * 70 - i * 6, 0.09, 'square', 0.1, 0, i * 0.12); },
+      scream: () => { if (asset('sfx_scream_fall', 0.95)) return; tone(760, 1.5, 'sawtooth', 0.1, -560); tone(770, 1.5, 'triangle', 0.1, -540, 0.02); },
+      whistle: () => tone(1100, 2.2, 'sine', 0.06, -800),
       rocket: () => { noise(0.7, 0.3, 2200); tone(110, 0.7, 'sawtooth', 0.14, 700); },
       boom: () => { noise(0.55, 0.45, 900); tone(90, 0.45, 'sawtooth', 0.2, -60); },
       bonk: () => { tone(220, 0.2, 'square', 0.25, -150); noise(0.1, 0.3, 1400); },
@@ -491,13 +512,20 @@ function boot(mode, serial) {
       step++;
     }
     return {
-      init, fx: (n) => { if (!muted && fx[n]) { try { fx[n](); } catch (e) { /* ignore */ } } },
+      init, asset, stopAsset, preload, fx: (n) => { if (!muted && fx[n]) { try { fx[n](); } catch (e) { /* ignore */ } } },
       music(on) { musicOn = on; if (on && !timer) timer = setInterval(tick, 235); },
       setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.8; }, isMuted: () => muted,
-      stop() { if (timer) clearInterval(timer); timer = null; try { ac && ac.close(); } catch (e) { /* ignore */ } },
+      stop() { Object.keys(pool).forEach((k) => pool[k].forEach((el) => { try { el.pause(); } catch (e) { /* ignore */ } })); if (timer) clearInterval(timer); timer = null; try { ac && ac.close(); } catch (e) { /* ignore */ } },
     };
   })();
   cleanups.push(() => Snd.stop());
+  let lastLaughT = -99;
+  function laughReact(kind, delay) { // mocking laugh after a fall / hit (generated sound asset)
+    if (!C('audio.laughReact', true) || kind === 'void') return;
+    const now = performance.now() / 1000; if (now - lastLaughT < 3) return; lastLaughT = now;
+    const id = (kind === 'flat' || kind === 'banana' || kind === 'rocket') ? 'sfx_laugh_crowd' : 'sfx_laugh_mock';
+    setTimeout(() => { if (!G.paused) Snd.asset(id, 0.8); }, (delay === undefined ? 0.5 : delay) * 1000);
+  }
   const hap = (n) => { try { lib.haptics && lib.haptics.play(n); } catch (e) { /* ignore */ } };
 
   /* ---------------------------------------------------------------- renderer / scene ---- */
@@ -1071,8 +1099,12 @@ function boot(mode, serial) {
     RG.lL = mk(-REST.hipX, REST.hipY, 0.62, 0.17); RG.lR = mk(REST.hipX, REST.hipY, 0.62, 0.17);
     PL.head = 'x'; part.head.material.map = TX.heads.hurt; PL.head = 'hurt';
     charGroup.position.set(0, 0, 0); charGroup.rotation.z = 0; charGroup.scale.set(1, 1, 1);
-    pop(T({ rock: 'wow', void: 'aaah', burn: 'hot', lava: 'hot', punch: 'bonk', banana: 'wheee', rocket: 'wow' }[kind] || 'aduh'));
-    Snd.fx(kind === 'punch' ? 'bonk' : kind === 'banana' ? 'slip' : kind === 'rocket' ? 'warn' : 'hit'); hap('thud'); shake = 0.9; PL.falls = (PL.falls || 0) + 1; hudDirty = true;
+    if (kind === 'void') { Snd.fx('whistle'); } // falling into the abyss: no scream yet, it comes a few seconds later
+    else {
+      pop(T({ rock: 'wow', burn: 'hot', lava: 'hot', punch: 'bonk', banana: 'wheee', rocket: 'wow' }[kind] || 'aduh'));
+      Snd.fx(kind === 'punch' ? 'bonk' : kind === 'banana' ? 'slip' : kind === 'rocket' ? 'warn' : 'hit'); hap('thud'); shake = 0.9; PL.falls = (PL.falls || 0) + 1; hudDirty = true;
+      if (kind !== 'rocket') laughReact(kind);
+    }
   }
   function anchorOf(lx, ly) { const T0 = RG.torso, c = Math.cos(T0.a), s = Math.sin(T0.a); return [T0.x + lx * c - ly * s, T0.y + lx * s + ly * c]; }
   function stepRagdoll(dt) {
@@ -1084,7 +1116,7 @@ function boot(mode, serial) {
       let boom = rg.ride.t > 1.5; if (!boom) for (const s of LV.solids) { if (s.gone) continue; if (rk.x - 0.9 < s.x1 && rk.x + 0.9 > s.x0 && rk.y + 0.3 > s.y0 && rk.y - 0.3 < s.y1) { boom = true; break; } }
       if (boom) explodeRocket(rk);
     } else {
-    T0.vy -= g * dt; T0.x += T0.vx * dt; T0.y += T0.vy * dt; T0.a += T0.w * dt; T0.w *= (1 - 0.35 * dt);
+    T0.vy = Math.max(T0.vy - g * dt, -45); T0.x += T0.vx * dt; T0.y += T0.vy * dt; T0.a += T0.w * dt; T0.w *= (1 - 0.35 * dt);
     const h = circleVsSolids(T0, T0.r, 0.38, 0.12);
     if (h) { touching = h.ny > 0.5; T0.w += (-h.vt / T0.r) * 0.35; T0.w = clamp(T0.w, -14, 14); if (-h.vn > 4) { if (!rg.sounded || -h.vn > 9) { Snd.fx('land'); if (-h.vn > 6) hap('tap'); } rg.sounded = true; burst(T0.x, T0.y - T0.r, 5, 0xe8d6b0, 3, 1.5); } }
     }
@@ -1105,7 +1137,14 @@ function boot(mode, serial) {
     if (touching && sp < 1.0 && Math.abs(T0.w) < 2.2) rg.still += dt; else rg.still = 0;
     PL.x = T0.x; PL.y = T0.y;
     if (rg.ride) return;
-    if (rg.void) { if (rg.t > 1.25) respawn(); return; }
+    if (rg.void) {
+      if (rg.kind !== 'void') { if (rg.t > 1.25) respawn(); return; }
+      const SCREAM = C('abyss.screamDelay', 2.4), FADE = SCREAM + 1.1, BACK = FADE + 0.45; // wait -> scream -> fade -> back to checkpoint
+      if (!rg.screamed && rg.t >= SCREAM) { rg.screamed = true; pop(T('aaah')); Snd.fx('scream'); hap('error'); shake = Math.max(shake, 0.4); PL.falls = (PL.falls || 0) + 1; hudDirty = true; }
+      if (!rg.fading && rg.t >= FADE) { rg.fading = true; $('fade').style.opacity = '1'; }
+      if (rg.t >= BACK) { Snd.asset('sfx_laugh_crowd', 0.7); respawn(); }
+      return;
+    }
     if (rg.still > 0.35 || rg.t > 5) {
       // settle: find ground under torso
       let gy = null; for (const s of LV.solids) { if (s.gone) continue; if (T0.x > s.x0 - 0.1 && T0.x < s.x1 + 0.1 && s.y1 <= T0.y + 0.6) { if (gy === null || s.y1 > gy) gy = s.y1; } }
@@ -1260,7 +1299,7 @@ function boot(mode, serial) {
   }
   function startFlat() {
     PL.state = 'flat'; PL.st = 0; PL.vx = 0; PL.vy = 0; PL.falls = (PL.falls || 0) + 1; hudDirty = true;
-    Snd.fx('squish'); hap('thud'); shake = 0.8; pop(T('plop')); for (let i = 0; i < 14; i++) emit(PL.x + (Math.random() - 0.5) * 1.6, PL.y + 0.1, 0.6, (Math.random() - 0.5) * 7, Math.random() * 2, 0xe8d6b0, 0.5, -6);
+    Snd.fx('squish'); hap('thud'); shake = 0.8; pop(T('plop')); laughReact('flat', 0.7); for (let i = 0; i < 14; i++) emit(PL.x + (Math.random() - 0.5) * 1.6, PL.y + 0.1, 0.6, (Math.random() - 0.5) * 7, Math.random() * 2, 0xe8d6b0, 0.5, -6);
   }
   function startRocketRide(rk) {
     startRagdoll('rocket', rk.vx * 0.5, 0, { w: 0 });
@@ -1271,7 +1310,7 @@ function boot(mode, serial) {
     for (let i = 0; i < 34; i++) { const a = Math.random() * 6.283, sp = 3 + Math.random() * 7; emit(rk.x, rk.y, 0.7, Math.cos(a) * sp, Math.sin(a) * sp + 2, [0xffe14d, 0xff8a2a, 0xff5a5a, 0xffffff, 0x7fd0ff][i % 5], 0.7 + Math.random() * 0.6, -6); }
     Snd.fx('boom'); hap('thud'); shake = 1.4;
     if (rg && rg.ride) {
-      pop(T('boom')); rg.ride = null; const T0 = RG.torso; T0.vx = -3; T0.vy = 11; T0.w = -11; rg.sounded = false; rg.still = 0;
+      pop(T('boom')); laughReact('rocket', 0.9); rg.ride = null; const T0 = RG.torso; T0.vx = -3; T0.vy = 11; T0.w = -11; rg.sounded = false; rg.still = 0;
       [RG.aL, RG.aR, RG.lL, RG.lR, RG.head].forEach((q) => { q.vx += (Math.random() - 0.5) * 8; q.vy += Math.random() * 6; });
     }
   }
@@ -1763,7 +1802,7 @@ function boot(mode, serial) {
       if (!G.won && PL.state !== 'ragdoll' && LV.summit && PL.grounded && PL.on === LV.summit.s && PL.x > LV.summit.s.x0 + 2) win();
       G.maxH = Math.max(G.maxH, PL.state === 'ragdoll' ? G.maxH : PL.y);
       updateRocks(dt); updateCrumbles(dt); updateTraps(dt, simT); updateFx(dt, simT);
-      if (PL.state === 'laugh' && PL.st > C('traps.laughTime', 2.8)) { PL.state = 'hit'; PL.st = 0; PL.stun = 0.45; PL.inv = 1.2; }
+      if (PL.state === 'laugh' && PL.st > C('traps.laughTime', 2.8)) { Snd.stopAsset('sfx_laugh_big', 300); PL.state = 'hit'; PL.st = 0; PL.stun = 0.45; PL.inv = 1.2; }
       if (PL.state === 'flat' && PL.st > 1.4) { PL.state = 'idle'; PL.st = 0; PL.squash = -1.4; PL.inv = 1.0; Snd.fx('boing'); hap('tap'); for (let i = 0; i < 10; i++) emit(PL.x + (Math.random() - 0.5), PL.y + 0.3, 0.6, (Math.random() - 0.5) * 6, 2 + Math.random() * 3, 0xffffff, 0.5, -5); }
       if (LV.lava && PL.state !== 'ragdoll' && PL.state !== 'win' && PL.y < LV.lava.y + 0.3 && PL.x > LV.lava.x0 && PL.x < LV.lava.x1) startRagdoll('burn', 0, 0);
       saveTimer += dt; if (saveTimer > 6 && G.mode === 'play') { saveTimer = 0; saveNow(); }
@@ -1801,6 +1840,8 @@ function boot(mode, serial) {
         'Ragdoll fall height (m)': { key: 'ragdoll.bigFallHeight', type: 'slider', min: 5, max: 16, step: 0.5 },
         'Falling rock interval (s)': { key: 'hazards.rockInterval', type: 'slider', min: 1.5, max: 10, step: 0.5 },
         'Rock fall speed': { key: 'hazards.rockFallSpeed', type: 'slider', min: 8, max: 28, step: 1 },
+        'Laugh sound after hits': { key: 'audio.laughReact', type: 'checkbox' },
+        'Abyss wait before scream (s)': { key: 'abyss.screamDelay', type: 'slider', min: 0.5, max: 5, step: 0.1 },
         'Silly traps on/off': { key: 'traps.on', type: 'checkbox' },
         'Max silly traps per run': { key: 'traps.max', type: 'slider', min: 0, max: 5, step: 1 },
         'Rocket launcher interval (s)': { key: 'traps.rocketInterval', type: 'slider', min: 2, max: 12, step: 0.5 },
@@ -1811,7 +1852,7 @@ function boot(mode, serial) {
     } catch (e) { /* ignore */ }
   }
   buildWorld('a');
-  resetTraps();
+  resetTraps(); Snd.preload(['sfx_laugh_mock', 'sfx_laugh_big', 'sfx_laugh_crowd', 'sfx_scream_fall']);
   applyLang();
   setLoad(0.85, tr('loadAlmost'));
   (async () => {
