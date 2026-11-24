@@ -26,6 +26,7 @@ const I18N = {
     loadEngine: 'Loading 3D engine...', loadSprites: 'Painting pixel sprites...', loadVoxel: 'Building voxel mountains...', loadClouds: 'Hanging clouds...', loadAlmost: 'Almost at the summit...',
     shop: 'SHOP', buy: 'BUY', equip: 'EQUIP', equipped: 'EQUIPPED', noCoins: 'Not enough coins!', unlocked: 'Unlocked!', coinsLabel: 'Coins',
     skin_classic: 'Classic Tee', skin_jersey: 'Red Jersey', skin_hoodie: 'Blue Hoodie', skin_sailor: 'Sailor Stripes', skin_hawaii: 'Island Shirt', skin_pajama: 'Cozy Pajamas', skin_camo: 'Jungle Camo', skin_gold: 'Gold Tracksuit',
+    laugh1: 'HA HA HA!', laugh2: 'HAHAHA!', laugh3: 'LOL!', laugh4: 'HEHEHE!', bonk: 'BONK!', wheee: 'WHEEE!', boom: 'BOOM!', plop: 'PLOP!', h_trap: 'Dodge the silly traps!',
     loadFail: 'Failed to load: ', noWebgl: 'WebGL is not available', threeFail: 'Could not load the 3D engine', loading: 'Preparing the mountain...',
   },
   id: {
@@ -39,6 +40,7 @@ const I18N = {
     loadEngine: 'Memuat mesin 3D...', loadSprites: 'Melukis sprite pixel...', loadVoxel: 'Membangun gunung voxel...', loadClouds: 'Memasang awan...', loadAlmost: 'Hampir sampai puncak...',
     shop: 'TOKO', buy: 'BELI', equip: 'PAKAI', equipped: 'DIPAKAI', noCoins: 'Koin tidak cukup!', unlocked: 'Terbuka!', coinsLabel: 'Koin',
     skin_classic: 'Kaos Klasik', skin_jersey: 'Jersey Merah', skin_hoodie: 'Hoodie Biru', skin_sailor: 'Kaos Pelaut', skin_hawaii: 'Kemeja Pantai', skin_pajama: 'Piyama Nyaman', skin_camo: 'Loreng Hutan', skin_gold: 'Training Emas',
+    laugh1: 'WKWKWK!', laugh2: 'HAHAHA!', laugh3: 'NGAKAK!', laugh4: 'HIHIHI!', bonk: 'BONK!', wheee: 'WIIII!', boom: 'DUAR!', plop: 'GEPENG!', h_trap: 'Hindari jebakan lucu!',
     loadFail: 'Gagal memuat: ', noWebgl: 'WebGL tidak tersedia', threeFail: 'Tidak bisa memuat mesin 3D', loading: 'Menyiapkan gunung...',
   },
   ar: {
@@ -52,6 +54,7 @@ const I18N = {
     loadEngine: 'جارٍ تحميل المحرك ثلاثي الأبعاد...', loadSprites: 'جارٍ رسم الشخصيات...', loadVoxel: 'جارٍ بناء الجبال...', loadClouds: 'جارٍ تعليق الغيوم...', loadAlmost: 'اقتربنا من القمة...',
     shop: 'المتجر', buy: 'شراء', equip: 'ارتداء', equipped: 'مرتدى', noCoins: 'العملات غير كافية!', unlocked: 'تم الفتح!', coinsLabel: 'العملات',
     skin_classic: 'تيشيرت كلاسيكي', skin_jersey: 'قميص رياضي أحمر', skin_hoodie: 'سترة زرقاء', skin_sailor: 'قميص البحّارة', skin_hawaii: 'قميص الجزيرة', skin_pajama: 'بيجامة مريحة', skin_camo: 'تمويه الغابة', skin_gold: 'بدلة رياضية ذهبية',
+    laugh1: 'ههههه!', laugh2: 'هاهاها!', laugh3: 'هيهيهي!', laugh4: 'ضحك!', bonk: 'بونك!', wheee: 'ييييي!', boom: 'بوم!', plop: 'بلوب!', h_trap: 'تجنّب الفخاخ المضحكة!',
     loadFail: 'فشل التحميل: ', noWebgl: 'WebGL غير متاح', threeFail: 'تعذر تحميل المحرك ثلاثي الأبعاد', loading: 'جارٍ تجهيز الجبل...',
   },
 };
@@ -183,6 +186,11 @@ function boot(mode, serial) {
       [[27, 19], [26, 20], [25, 21], [24, 22], [25, 23], [26, 24], [27, 25]].forEach(([x, y]) => R(g, OL, x, y, 2, 1));
       R(g, HR, 9, 16, 8, 1); R(g, HR, 23, 16, 8, 1); R(g, HR, 8, 17, 3, 1); R(g, HR, 29, 17, 3, 1);
       ell(g, OL, 20, 33, 5.5, 3.6); ell(g, '#e0556a', 20, 34.5, 3.6, 1.8); R(g, '#7fd0ff', 8, 24, 2, 5); R(g, '#7fd0ff', 30, 24, 2, 5);
+    } else if (expr === 'laugh') {
+      [[10, 23], [11, 22], [12, 21], [13, 21], [14, 22], [15, 23], [24, 23], [25, 22], [26, 21], [27, 21], [28, 22], [29, 23]].forEach(([x, y]) => R(g, OL, x, y, 1, 1));
+      R(g, HR, 9, 17, 7, 1); R(g, HR, 24, 17, 7, 1); R(g, HR, 8, 18, 2, 1); R(g, HR, 30, 18, 2, 1);
+      ell(g, OL, 20, 31, 7.8, 5.2); R(g, '#ffffff', 14, 27, 12, 2); ell(g, '#e0556a', 20, 34, 4.6, 2.4);
+      R(g, '#7fd0ff', 7, 24, 2, 6); R(g, '#7fd0ff', 31, 24, 2, 6); R(g, '#bfeaff', 6, 23, 1, 1); R(g, '#bfeaff', 33, 23, 1, 1);
     } else { // dizzy
       for (let i = 0; i < 5; i++) { R(g, OL, 11 + i, 20 + i, 1, 1); R(g, OL, 15 - i, 20 + i, 1, 1); R(g, OL, 24 + i, 20 + i, 1, 1); R(g, OL, 28 - i, 20 + i, 1, 1); }
       R(g, HR, 9, 17, 8, 1); R(g, HR, 23, 17, 8, 1);
@@ -297,6 +305,70 @@ function boot(mode, serial) {
     put(s.arm, 7, 4, cx + 15, base - 49);
     return c;
   }
+  function drawRocket() {
+    const c = mkC(44, 18), g = c.getContext('2d');
+    ell(g, OL, 37, 9, 7, 6.5); ell(g, '#ffcf3f', 37, 9, 6, 5.5);
+    R(g, OL, 3, 0, 9, 4); R(g, '#3f6fd8', 4, 1, 7, 3); R(g, OL, 3, 14, 9, 4); R(g, '#3f6fd8', 4, 14, 7, 3);
+    R(g, OL, 6, 3, 30, 12); R(g, '#e23b3b', 7, 4, 28, 10); R(g, '#ff8a7a', 7, 4, 28, 2); R(g, '#fff', 14, 4, 4, 10); R(g, '#fff', 22, 4, 3, 10);
+    ell(g, OL, 29, 9, 3.6, 3.6); ell(g, '#9fd3ff', 29, 9, 2.6, 2.6); R(g, '#fff', 28, 8, 1, 1);
+    return c;
+  }
+  function drawLauncher() {
+    const c = mkC(40, 30), g = c.getContext('2d');
+    ell(g, OL, 9, 24, 7, 6); ell(g, '#6b7282', 9, 24, 5.5, 4.5); ell(g, OL, 9, 24, 2, 2);
+    R(g, OL, 6, 5, 32, 17); R(g, '#4a5a6a', 7, 6, 30, 15); R(g, '#6f8294', 7, 6, 30, 3);
+    R(g, OL, 33, 2, 6, 23); R(g, '#2a3340', 34, 4, 4, 19); R(g, '#c9cfdd', 33, 2, 1, 23);
+    R(g, '#fff', 12, 9, 6, 6); R(g, '#fff', 20, 9, 6, 6); R(g, OL, 14, 11, 3, 4); R(g, OL, 22, 11, 3, 4); R(g, OL, 11, 7, 8, 1); R(g, OL, 19, 7, 8, 1); R(g, OL, 14, 18, 8, 1);
+    return c;
+  }
+  function drawGlove() {
+    const c = mkC(34, 22), g = c.getContext('2d');
+    R(g, OL, 0, 5, 9, 13); R(g, '#f3f4f8', 1, 6, 7, 11); R(g, '#c9cfdd', 1, 12, 7, 5);
+    ell(g, OL, 22, 4, 7, 5); ell(g, '#e23b3b', 22, 4, 6, 4);
+    ell(g, OL, 19, 12, 15, 10); ell(g, '#e23b3b', 19, 12, 14, 9); ell(g, '#ff8a7a', 17, 8, 7, 3); R(g, '#a82828', 28, 14, 4, 5);
+    return c;
+  }
+  function drawCoil() {
+    const c = mkC(16, 16), g = c.getContext('2d');
+    for (let x = 0; x < 16; x += 4) { R(g, OL, x, 3, 3, 10); R(g, '#c9cfdd', x + 1, 3, 1, 10); R(g, '#8a92a2', x + 2, 4, 1, 8); }
+    return c;
+  }
+  function drawBanana() {
+    const c = mkC(22, 14), g = c.getContext('2d');
+    ell(g, OL, 11, 8, 11, 6); ell(g, '#ffe14d', 11, 8, 10, 5);
+    g.globalCompositeOperation = 'destination-out'; ell(g, '#000', 11, 2, 9, 5); g.globalCompositeOperation = 'source-over';
+    R(g, '#6e4422', 1, 5, 2, 2); R(g, '#6e4422', 19, 5, 2, 2); R(g, '#ffd21a', 8, 10, 6, 3); R(g, OL, 8, 13, 6, 1); R(g, '#fff4a0', 5, 7, 3, 1);
+    return c;
+  }
+  function drawFog(open) {
+    const c = mkC(52, 44), g = c.getContext('2d');
+    ell(g, 'rgba(120,200,90,.95)', 26, 28, 24, 15); ell(g, 'rgba(200,245,160,.95)', 26, 24, 22, 14);
+    ell(g, 'rgba(200,245,160,.95)', 14, 16, 9, 8); ell(g, 'rgba(200,245,160,.95)', 38, 15, 10, 9); ell(g, 'rgba(215,250,180,.95)', 26, 10, 10, 8);
+    [[16, 22], [17, 21], [18, 21], [19, 22], [32, 22], [33, 21], [34, 21], [35, 22]].forEach(([x, y]) => R(g, '#3a2a4a', x, y, 1, 1));
+    if (open) { ell(g, '#5a2a4a', 26, 31, 7, 5); ell(g, '#e0556a', 26, 33, 4, 2); R(g, '#fff', 21, 27, 10, 2); } else { ell(g, '#5a2a4a', 26, 30, 5, 3); R(g, '#fff', 22, 28, 8, 1); }
+    R(g, '#7fd0ff', 12, 24, 2, 3); R(g, '#7fd0ff', 38, 24, 2, 3);
+    return c;
+  }
+  function drawAnvil() {
+    const c = mkC(36, 36), g = c.getContext('2d');
+    R(g, OL, 2, 5, 32, 11); R(g, '#6c7186', 3, 6, 30, 9); R(g, '#9aa0b6', 3, 6, 30, 2);
+    ell(g, OL, 3, 10, 4, 5); ell(g, '#6c7186', 4, 10, 3, 4);
+    R(g, OL, 10, 16, 16, 8); R(g, '#4b5166', 11, 16, 14, 7); R(g, OL, 5, 23, 26, 10); R(g, '#565c70', 6, 24, 24, 8);
+    R(g, '#fff', 11, 8, 6, 5); R(g, '#fff', 20, 8, 6, 5); R(g, OL, 13, 10, 3, 3); R(g, OL, 22, 10, 3, 3); R(g, OL, 11, 7, 6, 1); R(g, OL, 20, 7, 6, 1);
+    R(g, '#7fd0ff', 30, 8, 2, 4); R(g, OL, 16, 14, 5, 1);
+    return c;
+  }
+  function drawRope() {
+    const c = mkC(20, 20), g = c.getContext('2d');
+    for (let i = 0; i < 20; i++) { R(g, OL, i, i, 3, 3); R(g, OL, 17 - i, i, 3, 3); R(g, '#c98a4a', i, i, 2, 2); R(g, '#c98a4a', 18 - i, i, 2, 2); }
+    ell(g, OL, 10, 10, 4, 4); ell(g, '#8a5a2c', 10, 10, 3, 3);
+    return c;
+  }
+  function drawWarn() {
+    const c = mkC(16, 16), g = c.getContext('2d');
+    ell(g, OL, 8, 8, 8, 8); ell(g, '#ff3b3b', 8, 8, 7, 7); R(g, '#fff', 7, 3, 2, 6); R(g, '#fff', 7, 11, 2, 2);
+    return c;
+  }
   function drawCoin() {
     const c = mkC(16, 16), g = c.getContext('2d');
     ell(g, OL, 8, 8, 7.5, 7.5); ell(g, '#ffcf33', 8, 8, 6.5, 6.5); ell(g, '#ffe98a', 7, 7, 4, 4); R(g, '#c78a10', 7, 4, 2, 8); R(g, '#fff', 4, 4, 2, 1);
@@ -402,6 +474,12 @@ function boot(mode, serial) {
       cp: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.14, 'triangle', 0.18, 0, i * 0.08)), rock: () => noise(0.3, 0.3, 320),
       warn: () => tone(880, 0.06, 'square', 0.05), win: () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.18, 'square', 0.14, 0, i * 0.11)),
       crumble: () => noise(0.25, 0.18, 400), ui: () => tone(660, 0.05, 'square', 0.08),
+      laugh: () => { for (let i = 0; i < 8; i++) tone(430 - (i % 2) * 70 - i * 6, 0.09, 'square', 0.1, 0, i * 0.12); },
+      rocket: () => { noise(0.7, 0.3, 2200); tone(110, 0.7, 'sawtooth', 0.14, 700); },
+      boom: () => { noise(0.55, 0.45, 900); tone(90, 0.45, 'sawtooth', 0.2, -60); },
+      bonk: () => { tone(220, 0.2, 'square', 0.25, -150); noise(0.1, 0.3, 1400); },
+      slip: () => tone(280, 0.55, 'sine', 0.25, 800),
+      squish: () => { tone(230, 0.35, 'sine', 0.3, -180); noise(0.15, 0.2, 300); },
     };
     function tick() {
       if (!ac || !musicOn || muted) return;
@@ -440,10 +518,10 @@ function boot(mode, serial) {
   /* ---------------------------------------------------------------- textures build ---- */
   Object.keys(texDefs).forEach((k) => { TX[k] = tex(texDefs[k](), k !== 'tuft' && k !== 'fire'); });
   TX.fire.wrapT = THREE.RepeatWrapping;
-  TX.heads = { neutral: tex(drawHead('neutral')), effort: tex(drawHead('effort')), hurt: tex(drawHead('hurt')), dizzy: tex(drawHead('dizzy')) };
+  TX.heads = { laugh: tex(drawHead('laugh')), neutral: tex(drawHead('neutral')), effort: tex(drawHead('effort')), hurt: tex(drawHead('hurt')), dizzy: tex(drawHead('dizzy')) };
   TX.torso = tex(drawTorso()); TX.arm = tex(drawArm()); TX.leg = tex(drawLeg());
   TX.coin = tex(drawCoin()); TX.rock = tex(drawRock()); TX.cloud = tex(drawCloud());
-  TX.icicle = tex(drawIcicle()); TX.flagOff = tex(drawFlag(false)); TX.flagOn = tex(drawFlag(true)); TX.sign = tex(drawSign());
+  TX.icicle = tex(drawIcicle()); TX.rocket = tex(drawRocket()); TX.launcher = tex(drawLauncher()); TX.glove = tex(drawGlove()); TX.coil = tex(drawCoil(), true); TX.banana = tex(drawBanana()); TX.fogA = tex(drawFog(true)); TX.fogB = tex(drawFog(false)); TX.anvil = tex(drawAnvil()); TX.rope = tex(drawRope()); TX.warn = tex(drawWarn()); TX.flagOff = tex(drawFlag(false)); TX.flagOn = tex(drawFlag(true)); TX.sign = tex(drawSign());
   setLoad(0.45, tr('loadVoxel'));
 
   /* ---------------------------------------------------------------- merged voxel geometry ---- */
@@ -500,17 +578,17 @@ function boot(mode, serial) {
   /* ---------------------------------------------------------------- maps ---- */
   const MAP_IDS = ['a', 'b', 'c'];
   const MAPS = {
-    a: { id: 'a', icon: '🌿', hillStyle: 'grass', bodyStyle: 'rock', bodyTint: [1.0, 0.95, 1.2], rockTex: 'rock', rockMark: 0xff3b3b, cloud: 0xffffff, cloudOp: 0.9, fog: 0xffc89a, hemi: [0xfff0d8, 0x7a5f9a, 1.0], sunC: 0xffd29a, decor: 'green',
+    a: { id: 'a', icon: '🌿', hillStyle: 'grass', bodyStyle: 'rock', bodyTint: [1.0, 0.95, 1.2], rockTex: 'rock', rockKind: 'rock', rockMul: 1, rockMark: 0xff3b3b, cloud: 0xffffff, cloudOp: 0.9, fog: 0xffc89a, hemi: [0xfff0d8, 0x7a5f9a, 1.0], sunC: 0xffd29a, decor: 'green',
       sky: [[0, [255, 214, 165], [255, 142, 107]], [30, [255, 226, 170], [110, 190, 255]], [60, [140, 205, 255], [70, 120, 230]], [95, [120, 110, 220], [40, 40, 120]]],
       ridges: [[3, '#b9a6dc', 90, 38], [8, '#8f86c8', 100, 28], [12, '#6f8fbf', 105, 22, '#4f6f9f'], [21, '#4f9a5a', 112, 16, '#3a7a48']],
       pet: { dir: -1, spd: 1.1, cols: [0xffb7d5, 0xffffff, 0xffe27a, 0xffa0a0] },
       pv: { top: '#ff8e6b', bot: '#ffd6a5', sun: '#fff3b0', r1: '#8f86c8', r2: '#4f9a5a', ground: '#63c43a', side: '#8c5a32' } },
-    b: { id: 'b', icon: '❄', hillStyle: 'snow', bodyStyle: 'ice', bodyTint: [1.1, 1.15, 1.3], rockTex: 'icicle', rockMark: 0x3bb7ff, cloud: 0xffffff, cloudOp: 0.95, fog: 0xdcecff, hemi: [0xe8f4ff, 0x8aa0c8, 1.05], sunC: 0xe6f2ff, decor: 'snow',
+    b: { id: 'b', icon: '❄', hillStyle: 'snow', bodyStyle: 'ice', bodyTint: [1.1, 1.15, 1.3], rockTex: 'icicle', rockKind: 'icicle', rockMul: 1, rockMark: 0x3bb7ff, cloud: 0xffffff, cloudOp: 0.95, fog: 0xdcecff, hemi: [0xe8f4ff, 0x8aa0c8, 1.05], sunC: 0xe6f2ff, decor: 'snow',
       sky: [[0, [240, 248, 255], [150, 200, 245]], [30, [230, 242, 255], [110, 170, 235]], [60, [205, 228, 255], [90, 140, 225]], [95, [190, 200, 255], [70, 90, 190]]],
       ridges: [[5, '#d9e6f7', 90, 40], [9, '#b3c8e8', 100, 30], [14, '#8fb0dc', 105, 22, '#e8f2ff'], [22, '#e6f1ff', 112, 14, '#9ec2ea']],
       pet: { dir: -1, spd: 2.4, cols: [0xffffff, 0xeaf6ff, 0xd0e8ff, 0xffffff] },
       pv: { top: '#8fc4f4', bot: '#eaf6ff', sun: '#ffffff', r1: '#b3c8e8', r2: '#e6f1ff', ground: '#f4fbff', side: '#6fc3ee' } },
-    c: { id: 'c', icon: '🌋', hillStyle: 'ash', bodyStyle: 'obs', bodyTint: [1.2, 1.0, 1.15], rockTex: 'rock', rockMark: 0xff3b3b, cloud: 0x7a5566, cloudOp: 0.85, fog: 0x6a2a3a, hemi: [0xffb080, 0x502040, 1.0], sunC: 0xff9a5a, decor: 'ash',
+    c: { id: 'c', icon: '🌋', hillStyle: 'ash', bodyStyle: 'obs', bodyTint: [1.2, 1.0, 1.15], rockTex: 'anvil', rockKind: 'anvil', rockMul: 1.8, rockMark: 0xff3b3b, cloud: 0x7a5566, cloudOp: 0.85, fog: 0x6a2a3a, hemi: [0xffb080, 0x502040, 1.0], sunC: 0xff9a5a, decor: 'ash',
       sky: [[0, [255, 120, 60], [70, 22, 52]], [30, [255, 150, 70], [95, 32, 62]], [60, [235, 110, 70], [62, 20, 62]], [95, [205, 90, 85], [30, 10, 50]]],
       ridges: [[4, '#7a3a52', 90, 38], [9, '#5a2a4a', 100, 28], [13, '#3f2040', 105, 22, '#2a1530'], [23, '#2a1a30', 112, 16, '#ff6a1a']],
       pet: { dir: 1, spd: 1.0, cols: [0xff7a2a, 0xffb347, 0xffe27a, 0xff5a1a] },
@@ -521,8 +599,8 @@ function boot(mode, serial) {
 
   /* ---------------------------------------------------------------- level ---- */
   const THICK = { wood: 0.7, rock: 2.2, ice: 2.2, obs: 2.2 };
-  function buildLevel(mapId) {
-    const L = { solids: [], coins: [], flags: [], movers: [], crumbles: [], springs: [], route: [], summit: null, rocksFromY: 0, rows: [], winds: [], geysers: [], lava: null };
+  function buildLevelCore(mapId) {
+    const L = { solids: [], coins: [], flags: [], movers: [], crumbles: [], springs: [], route: [], summit: null, rocksFromY: 0, rows: [], winds: [], geysers: [], lava: null, fogs: [], bananas: [], launchers: [], gloves: [] };
     const BASE = -60;
     let cx = -14, cy = 0, dir = 1;
     function P(type, w, gap, dy, o) {
@@ -624,7 +702,7 @@ function boot(mode, serial) {
       });
       const sm = P('obs', 12, 3.4, 1.8, { thick: 3.2 });
       L.summit = { x: at(sm, 0.55), y: sm.y1, s: sm }; coinLine(sm, 0.2, 0.9, 5, 1.1); L.topY = sm.y1;
-      L.rocksFromY = 1e9;
+      L.rocksFromY = isl.y1 - 0.5;
       return L;
     }
 
@@ -680,6 +758,32 @@ function boot(mode, serial) {
     L.topY = sm.y1;
     return L;
   }
+  function scatterTraps(L, mapId) {
+    const plan = {
+      a: ['banana', 'fog', 'glove', 'rocket', 'banana', 'fog', 'rocket', 'glove', 'banana'],
+      b: ['banana', 'glove', 'rocket', 'banana', 'glove', 'rocket', 'banana', 'glove', 'rocket'],
+      c: ['fog', 'banana', 'rocket', 'fog', 'banana', 'rocket', 'fog', 'banana', 'glove'],
+    }[mapId];
+    const r = rngMaker(900 + mapId.charCodeAt(0)), R = L.route, n = R.length - 2, start = 9, step = (n - start) / plan.length, used = new Set();
+    const ok = (i, kind) => {
+      const s = R[i]; if (!s || used.has(i) || i < start || i > n || s.crumble) return false;
+      const w = s.x1 - s.x0; if (w < 3.0 || w > 8.5) return false;
+      if (L.flags.some((f) => f.x >= s.x0 - 0.1 && f.x <= s.x1 + 0.1 && Math.abs(f.y - s.y1) < 0.05)) return false;
+      if (L.springs.some((sp) => sp.x0 >= s.x0 - 0.2 && sp.x1 <= s.x1 + 0.2 && Math.abs(sp.y0 - s.y1) < 0.05)) return false;
+      return true;
+    };
+    plan.forEach((kind, k) => {
+      const target = Math.floor(start + step * k + step * 0.5); let idx = -1;
+      const find = (kd) => { for (let d = 0; d <= 6 && idx < 0; d++) { if (ok(target + d, kd)) idx = target + d; else if (ok(target - d, kd)) idx = target - d; } };
+      find(kind); if (idx < 0 && (kind === 'rocket' || kind === 'glove')) { kind = 'banana'; find(kind); }
+      if (idx < 0) return; used.add(idx); const s = R[idx], mid = (s.x0 + s.x1) / 2;
+      if (kind === 'fog') L.fogs.push({ cx: mid, cy: s.y1 + 0.85, amp: 2.0, sp: 0.5 + r() * 0.25, ph: r() * 6 });
+      else if (kind === 'banana') L.bananas.push({ x: s.x0 + (s.x1 - s.x0) * (0.4 + r() * 0.2), y: s.y1 });
+      else if (kind === 'rocket') L.launchers.push({ x: s.x1 - 0.55, y: s.y1, cool: 1 + r() * 2 });
+      else L.gloves.push({ x: s.x1 - 0.35, y: s.y1 + 1.0, reach: 2.8, cool: 0.5 + r() * 1.5 });
+    });
+  }
+  function buildLevel(mapId) { const L = buildLevelCore(mapId); if (C('traps.on', true)) scatterTraps(L, mapId); return L; }
   let LV = null;
   const PLAYERH = 1.75, PLAYERW = 0.72;
 
@@ -791,6 +895,22 @@ function boot(mode, serial) {
       const lm = new THREE.Mesh(new THREE.PlaneGeometry(LV.lava.x1 - LV.lava.x0, 40), new THREE.MeshBasicMaterial({ map: lt, fog: false }));
       lm.position.set((LV.lava.x0 + LV.lava.x1) / 2, LV.lava.y - 20, -2.2); levelGroup.add(lm); LV.lava.mesh = lm;
     }
+    const spr = (map, w, h, x, y, z, flip) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.25, fog: false, side: THREE.DoubleSide })); m.position.set(x, y, z); if (flip) m.scale.x = -1; levelGroup.add(m); return m; };
+    LV.fogs.forEach((f) => { f.mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.9), new THREE.MeshBasicMaterial({ map: TX.fogA, transparent: true, depthWrite: false, fog: false, opacity: 0.92 })); f.mesh.position.set(f.cx, f.cy, 0.5); f.mesh.renderOrder = 2; levelGroup.add(f.mesh); f.x = f.cx; f.y = f.cy; });
+    LV.bananas.forEach((b) => { b.mesh = spr(TX.banana, 0.95, 0.6, b.x, b.y + 0.3, 0.45); b.gone = false; b.t = 0; });
+    LV.launchers.forEach((l) => {
+      l.body = spr(TX.launcher, 2.6, 1.95, l.x, l.y + 0.98, -0.9, true);
+      l.icon = spr(TX.warn, 0.9, 0.9, l.x - 0.7, l.y + 2.7, 0.5); l.icon.visible = false;
+      l.line = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.14), new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.5, depthWrite: false, fog: false })); l.line.scale.x = 15; l.line.position.set(l.x - 1.3 - 7.5, l.y + 1.0, 0.1); l.line.visible = false; levelGroup.add(l.line);
+      l.state = 'idle'; l.t = 0;
+    });
+    LV.gloves.forEach((gl) => {
+      gl.base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.5, 0.9), new THREE.MeshLambertMaterial({ color: 0x6b7282 })); gl.base.position.set(gl.x + 0.1, gl.y, -0.1); levelGroup.add(gl.base);
+      gl.glove = spr(TX.glove, 1.7, 1.1, gl.x - 0.7, gl.y, 0.45, true);
+      const ct = TX.coil.clone(); ct.needsUpdate = true; ct.wrapS = THREE.RepeatWrapping;
+      gl.coil = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.55), new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.3, fog: false })); gl.coil.position.set(gl.x - 0.5, gl.y, 0.3); gl.coil.visible = false; levelGroup.add(gl.coil);
+      gl.state = 'idle'; gl.t = 0; gl.ext = 0;
+    });
     coinMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.62, 0.62), new THREE.MeshBasicMaterial({ map: TX.coin, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }), LV.coins.length);
     coinMesh.frustumCulled = false; levelGroup.add(coinMesh);
     applyMapSkin();
@@ -882,12 +1002,14 @@ function boot(mode, serial) {
     else if (s === 'hit') { o.la = 2.9; o.ra = 0.4; o.tilt = 0.22; o.head = 'hurt'; o.ll = 0.3; o.rl = -0.2; o.bob = Math.sin(t * 30) * 0.02; }
     else if (s === 'lie') { o.rot = -Math.PI / 2; o.lift = 0.44; o.la = 2.6; o.ra = 2.9; o.ll = 0.2; o.rl = -0.1; o.head = 'dizzy'; }
     else if (s === 'getup') { const k = clamp(t / 0.9, 0, 1); o.rot = -Math.PI / 2 * (1 - k) * (1 - k); o.lift = 0.44 * (1 - k); o.la = lerp(2.6, 0.4, k) + Math.sin(t * 14) * 0.3 * (1 - k); o.ra = lerp(2.9, -0.3, k); o.ll = lerp(0.2, 0, k); o.rl = lerp(-0.1, 0, k); o.head = k < 0.6 ? 'hurt' : 'effort'; o.bob = Math.abs(Math.sin(t * 12)) * 0.04 * (1 - k); }
+    else if (s === 'laugh') { const q = Math.sin(t * 26); o.head = 'laugh'; o.tilt = -0.2 + q * 0.2; o.bob = Math.abs(q) * 0.12; o.la = 1.1 + q * 0.25; o.ra = 0.8 - q * 0.25; o.ll = Math.sin(t * 13) * 0.55; o.rl = -o.ll; o.headTilt = -0.25 + q * 0.12; }
+    else if (s === 'flat') { o.la = 1.5; o.ra = -1.5; o.ll = 0.6; o.rl = -0.6; o.head = 'dizzy'; }
     else if (s === 'win') { o.la = 2.7 + Math.sin(PL.st * 10) * 0.3; o.ra = 2.7 - Math.sin(PL.st * 10) * 0.3; o.head = 'effort'; o.bob = Math.abs(Math.sin(PL.st * 8)) * 0.18; o.ll = Math.sin(PL.st * 8) * 0.4; o.rl = -o.ll; }
     return o;
   }
   function setPartAnim(P, px, py) {
     const f = PL.face, sq = 1 - PL.squash * 0.3;
-    charGroup.position.set(px, py + P.lift, 0); charGroup.rotation.z = P.rot * f; charGroup.scale.set(1 / sq, sq, 1);
+    charGroup.position.set(px, py + P.lift, 0); charGroup.rotation.z = P.rot * f; charGroup.scale.set(1 / sq, sq, 1); if (PL.state === 'flat') charGroup.scale.set(1.9, 0.13, 1);
     const place = (m, lx, ly, rot) => { m.position.x = f * lx; m.position.y = ly; m.scale.x = f; m.rotation.z = f * rot; };
     place(part.torso, 0, REST.torsoY + P.bob, P.tilt);
     // lean pivots roughly around hips
@@ -923,11 +1045,11 @@ function boot(mode, serial) {
     }
     return hit;
   }
-  function startRagdoll(kind, lx, ly) {
+  function startRagdoll(kind, lx, ly, opt) {
     if (PL.state === 'ragdoll') return;
     const f = PL.face, x = PL.x, y = PL.y;
     PL.state = 'ragdoll'; PL.st = 0; PL.rag = { kind, t: 0, still: 0, void: kind === 'void' || kind === 'burn', sounded: false };
-    const T0 = { x, y: y + REST.torsoY, vx: lx, vy: ly, a: 0, w: -f * (3 + Math.random() * 3), r: 0.42, vn: 0 };
+    const T0 = { x, y: y + REST.torsoY, vx: lx, vy: ly, a: 0, w: (opt && opt.w !== undefined) ? opt.w : -f * (3 + Math.random() * 3), r: 0.42, vn: 0 };
     RG.torso = T0;
     const mk = (ax, ay, len, r) => ({ x: x + ax, y: y + ay - len * 0.5, vx: lx * 0.7 + (Math.random() - 0.5) * 5, vy: ly * 0.7 + Math.random() * 4, len, r });
     RG.head = mk(0, REST.headY - 0.1, 0.36, 0.28); RG.head.y = y + REST.headY;
@@ -935,16 +1057,23 @@ function boot(mode, serial) {
     RG.lL = mk(-REST.hipX, REST.hipY, 0.62, 0.17); RG.lR = mk(REST.hipX, REST.hipY, 0.62, 0.17);
     PL.head = 'x'; part.head.material.map = TX.heads.hurt; PL.head = 'hurt';
     charGroup.position.set(0, 0, 0); charGroup.rotation.z = 0; charGroup.scale.set(1, 1, 1);
-    pop(kind === 'rock' ? T('wow') : kind === 'void' ? T('aaah') : (kind === 'lava' || kind === 'burn') ? T('hot') : T('aduh'));
-    Snd.fx('hit'); hap('thud'); shake = 0.9; PL.falls = (PL.falls || 0) + 1; hudDirty = true;
+    pop(T({ rock: 'wow', void: 'aaah', burn: 'hot', lava: 'hot', punch: 'bonk', banana: 'wheee', rocket: 'wow' }[kind] || 'aduh'));
+    Snd.fx(kind === 'punch' ? 'bonk' : kind === 'banana' ? 'slip' : kind === 'rocket' ? 'warn' : 'hit'); hap('thud'); shake = 0.9; PL.falls = (PL.falls || 0) + 1; hudDirty = true;
   }
   function anchorOf(lx, ly) { const T0 = RG.torso, c = Math.cos(T0.a), s = Math.sin(T0.a); return [T0.x + lx * c - ly * s, T0.y + lx * s + ly * c]; }
   function stepRagdoll(dt) {
     const g = CFG.grav() * 0.9, T0 = RG.torso, rg = PL.rag; rg.t += dt;
+    let touching = false;
+    if (rg.ride) {
+      const rk = rg.ride.rk; rg.ride.t += dt; rk.x += rk.vx * dt; T0.x = rk.x + 0.35; T0.y = rk.y + 0.42; T0.vx = rk.vx; T0.vy = 0; T0.a = Math.PI / 2; T0.w = 0;
+      if (Math.random() < 0.6) emit(rk.x + 1.1, rk.y + (Math.random() - 0.5) * 0.3, 0.5, 4 + Math.random() * 3, (Math.random() - 0.5) * 1.5, Math.random() < 0.5 ? 0xffb347 : 0xfff3b0, 0.35, 0);
+      let boom = rg.ride.t > 1.5; if (!boom) for (const s of LV.solids) { if (s.gone) continue; if (rk.x - 0.9 < s.x1 && rk.x + 0.9 > s.x0 && rk.y + 0.3 > s.y0 && rk.y - 0.3 < s.y1) { boom = true; break; } }
+      if (boom) explodeRocket(rk);
+    } else {
     T0.vy -= g * dt; T0.x += T0.vx * dt; T0.y += T0.vy * dt; T0.a += T0.w * dt; T0.w *= (1 - 0.35 * dt);
     const h = circleVsSolids(T0, T0.r, 0.38, 0.12);
-    let touching = false;
     if (h) { touching = h.ny > 0.5; T0.w += (-h.vt / T0.r) * 0.35; T0.w = clamp(T0.w, -14, 14); if (-h.vn > 4) { if (!rg.sounded || -h.vn > 9) { Snd.fx('land'); if (-h.vn > 6) hap('tap'); } rg.sounded = true; burst(T0.x, T0.y - T0.r, 5, 0xe8d6b0, 3, 1.5); } }
+    }
     const link = (p, ax, ay, rest, damp) => {
       p.vy -= g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= (1 - damp * dt); p.vy *= (1 - damp * dt);
       circleVsSolids(p, p.r, 0.3, 0.3);
@@ -961,6 +1090,7 @@ function boot(mode, serial) {
     const sp = Math.hypot(T0.vx, T0.vy);
     if (touching && sp < 1.0 && Math.abs(T0.w) < 2.2) rg.still += dt; else rg.still = 0;
     PL.x = T0.x; PL.y = T0.y;
+    if (rg.ride) return;
     if (rg.void) { if (rg.t > 1.25) respawn(); return; }
     if (rg.still > 0.35 || rg.t > 5) {
       // settle: find ground under torso
@@ -980,6 +1110,7 @@ function boot(mode, serial) {
     a = anchorOf(REST.hipX, REST.hipY - REST.torsoY); limb(part.legF, RG.lR, a[0], a[1]);
     a = anchorOf(0, REST.neckY - REST.torsoY);
     setP(part.head, RG.head.x, RG.head.y, Math.atan2(-(RG.head.x - a[0]), RG.head.y - a[1]), f);
+    const riding = !!(PL.rag && PL.rag.ride); ropeMesh.visible = riding; if (riding) { ropeMesh.position.set(T0.x, T0.y, 0.12); ropeMesh.rotation.z = T0.a; }
   }
 
   /* ---------------------------------------------------------------- game state ---- */
@@ -997,7 +1128,7 @@ function boot(mode, serial) {
   function respawn() {
     const f = LV.flags[PL.cp - 1]; const p = f ? { x: f.x, y: f.y } : LV.start;
     PL.x = p.x; PL.y = p.y; PL.vx = PL.vy = 0; PL.state = 'getup'; PL.st = 0; PL.rag = null; PL.grounded = true; PL.peakY = p.y; PL.inv = 1.2; PL.stun = 0;
-    $('fade').style.opacity = '1'; fadeT = 0.25; camSnap = true;
+    $('fade').style.opacity = '1'; fadeT = 0.25; camSnap = true; resetTraps();
     LV.crumbles.forEach((s) => { s.state = 'ok'; s.gone = false; s.mesh.visible = true; s.mesh.position.copy(s.home); s.t = 0; });
   }
   let camSnap = true;
@@ -1038,7 +1169,7 @@ function boot(mode, serial) {
   function stepPlayer(dt) {
     const p = PL; const control = p.state === 'idle' || p.state === 'run' || p.state === 'jump' || p.state === 'fall';
     const ax = control ? (inp.right ? 1 : 0) - (inp.left ? 1 : 0) : 0;
-    const target = ax * CFG.run();
+    let target = ax * CFG.run(); if (p.state === 'laugh') target = Math.sin(p.st * 7) * 0.9;
     const slip = p.grounded && p.on && p.on.slip && C('hazards.iceSlip', true);
     const acc = slip ? (ax === 0 ? 4.5 : 15) : (p.grounded ? 70 : 44 * CFG.air());
     p.vx = approach(p.vx, target, acc * dt * (p.grounded && ax === 0 && !slip ? 1.1 : 1));
@@ -1098,6 +1229,99 @@ function boot(mode, serial) {
     const mk = new THREE.Mesh(new THREE.CircleGeometry(1.0, 20), new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.45, depthWrite: false, fog: false })); mk.rotation.x = -Math.PI / 2; mk.visible = false; world.add(mk);
     rockSprites.push({ m, mk, on: false, x: 0, y: 0, ly: 0, vy: 0, spin: 0, warn: 0 });
   }
+  const rocketPool = [];
+  for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.82), new THREE.MeshBasicMaterial({ map: TX.rocket, transparent: true, alphaTest: 0.3, fog: false, side: THREE.DoubleSide })); m.visible = false; m.scale.x = -1; world.add(m); rocketPool.push({ m, on: false, x: 0, y: 0, vx: -12, life: 0, carry: false }); }
+  const ropeMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.25), new THREE.MeshBasicMaterial({ map: TX.rope, transparent: true, alphaTest: 0.3, fog: false })); ropeMesh.visible = false; ropeMesh.position.z = 0.12; world.add(ropeMesh);
+  const LAUGHS = ['laugh1', 'laugh2', 'laugh3', 'laugh4'];
+  const trapLive = () => G.mode === 'play' && !G.paused && PL.inv <= 0 && ['idle', 'run', 'jump', 'fall'].includes(PL.state);
+  function resetTraps() {
+    rocketPool.forEach((r) => { r.on = false; r.carry = false; r.m.visible = false; }); ropeMesh.visible = false;
+    if (!LV) return;
+    LV.bananas.forEach((b) => { b.gone = false; b.t = 0; b.mesh.visible = true; });
+    LV.launchers.forEach((l) => { l.state = 'idle'; l.t = 0; l.icon.visible = false; l.line.visible = false; });
+    LV.gloves.forEach((gl) => { gl.state = 'idle'; gl.t = 0; gl.ext = 0; });
+  }
+  function startLaugh() {
+    PL.state = 'laugh'; PL.st = 0; PL.vx = 0; PL.laughPopT = 0; Snd.fx('laugh'); hap('warning'); shake = Math.max(shake, 0.2);
+  }
+  function startFlat() {
+    PL.state = 'flat'; PL.st = 0; PL.vx = 0; PL.vy = 0; PL.falls = (PL.falls || 0) + 1; hudDirty = true;
+    Snd.fx('squish'); hap('thud'); shake = 0.8; pop(T('plop')); for (let i = 0; i < 14; i++) emit(PL.x + (Math.random() - 0.5) * 1.6, PL.y + 0.1, 0.6, (Math.random() - 0.5) * 7, Math.random() * 2, 0xe8d6b0, 0.5, -6);
+  }
+  function startRocketRide(rk) {
+    startRagdoll('rocket', rk.vx * 0.5, 0, { w: 0 });
+    if (PL.state === 'ragdoll' && PL.rag) { PL.rag.ride = { rk, t: 0 }; rk.carry = true; Snd.fx('rocket'); }
+  }
+  function explodeRocket(rk) {
+    const rg = PL.rag; rk.on = false; rk.carry = false; rk.m.visible = false; ropeMesh.visible = false;
+    for (let i = 0; i < 34; i++) { const a = Math.random() * 6.283, sp = 3 + Math.random() * 7; emit(rk.x, rk.y, 0.7, Math.cos(a) * sp, Math.sin(a) * sp + 2, [0xffe14d, 0xff8a2a, 0xff5a5a, 0xffffff, 0x7fd0ff][i % 5], 0.7 + Math.random() * 0.6, -6); }
+    Snd.fx('boom'); hap('thud'); shake = 1.4;
+    if (rg && rg.ride) {
+      pop(T('boom')); rg.ride = null; const T0 = RG.torso; T0.vx = -3; T0.vy = 11; T0.w = -11; rg.sounded = false; rg.still = 0;
+      [RG.aL, RG.aR, RG.lL, RG.lR, RG.head].forEach((q) => { q.vx += (Math.random() - 0.5) * 8; q.vy += Math.random() * 6; });
+    }
+  }
+  function updateTraps(dt, t) {
+    if (G.mode !== 'play' || G.paused) return;
+    const live = trapLive(), cx = cam.x;
+    LV.fogs.forEach((f) => {
+      f.x = f.cx + Math.sin(t * f.sp + f.ph) * f.amp; f.y = f.cy + Math.sin(t * 1.6 + f.ph) * 0.18;
+      const near = Math.abs(f.x - cx) < 16 && Math.abs(f.y - cam.y) < 20; f.mesh.visible = near; if (!near) return;
+      f.mesh.position.set(f.x, f.y, 0.5); const k = 1 + Math.sin(t * 3 + f.ph) * 0.05; f.mesh.scale.set(k, 1 / k, 1);
+      const fr = (Math.floor(t * 3 + f.ph) & 1) ? TX.fogB : TX.fogA; if (f.mesh.material.map !== fr) f.mesh.material.map = fr;
+      if (Math.random() < 0.05) emit(f.x + (Math.random() - 0.5) * 2.4, f.y + (Math.random() - 0.5) * 1.2, 0.8, 0, 0.8, 0xdcffb0, 0.8, 0);
+      if (live && Math.hypot(PL.x - f.x, PL.y + 0.9 - f.y) < 1.4) startLaugh();
+    });
+    LV.bananas.forEach((b) => {
+      if (b.gone) { b.t -= dt; if (b.t <= 0) { b.gone = false; b.mesh.visible = true; } return; }
+      if (live && Math.abs(PL.x - b.x) < 0.6 && PL.y < b.y + 0.5 && PL.y + PLAYERH > b.y) {
+        b.gone = true; b.t = 10; b.mesh.visible = false; const f = PL.face; startRagdoll('banana', f * 8, 7, { w: -f * 17 }); burst(b.x, b.y + 0.3, 8, 0xffe14d, 4, 2);
+      }
+    });
+    LV.launchers.forEach((l) => {
+      const near = Math.abs(l.x - cx) < 24 && Math.abs(l.y - cam.y) < 22; if (!near) { if (l.state !== 'idle') { l.state = 'idle'; l.icon.visible = false; l.line.visible = false; } return; }
+      if (l.state === 'idle') { l.cool -= dt; l.body.position.x = l.x; if (l.cool <= 0 && live && PL.x < l.x - 1.5 && l.x - PL.x < 17 && Math.abs(PL.y - l.y) < 4.5) { l.state = 'warn'; l.t = 0; Snd.fx('warn'); } }
+      else if (l.state === 'warn') {
+        l.t += dt; l.icon.visible = true; l.icon.position.y = l.y + 2.7 + Math.sin(l.t * 20) * 0.06; l.line.visible = true; l.line.material.opacity = 0.25 + Math.abs(Math.sin(l.t * 12)) * 0.4; l.body.position.x = l.x + Math.sin(l.t * 70) * 0.05;
+        if (Math.floor(l.t * 8) !== Math.floor((l.t - dt) * 8)) Snd.fx('warn');
+        if (l.t > 1.1) {
+          const rk = rocketPool.find((r) => !r.on); l.icon.visible = false; l.line.visible = false; l.state = 'idle'; l.cool = C('traps.rocketInterval', 5.5) * (0.8 + Math.random() * 0.4);
+          if (rk) { rk.on = true; rk.carry = false; rk.x = l.x - 1.3; rk.y = l.y + 1.0; rk.vx = -12; rk.life = 0; rk.m.visible = true; rk.m.position.set(rk.x, rk.y, 0.3); Snd.fx('rocket'); shake = Math.max(shake, 0.3); for (let i = 0; i < 10; i++) emit(rk.x, rk.y, 0.6, -2 - Math.random() * 4, (Math.random() - 0.5) * 3, 0xd8d8e8, 0.6, 0); }
+        }
+      }
+    });
+    rocketPool.forEach((rk) => {
+      if (!rk.on || rk.carry) return;
+      rk.x += rk.vx * dt; rk.life += dt; rk.m.position.set(rk.x, rk.y, 0.3);
+      if (Math.random() < 0.7) emit(rk.x + 1.1, rk.y + (Math.random() - 0.5) * 0.3, 0.5, 4 + Math.random() * 3, (Math.random() - 0.5) * 1.5, Math.random() < 0.5 ? 0xffb347 : 0xfff3b0, 0.3, 0);
+      let wall = false; for (const s of LV.solids) { if (s.gone || s.type === 'mover') continue; if (rk.x - 0.8 < s.x1 && rk.x + 0.8 > s.x0 && rk.y + 0.3 > s.y0 && rk.y - 0.3 < s.y1) { wall = true; break; } }
+      if (live && Math.abs(PL.x - rk.x) < 1.0 && rk.y > PL.y - 0.1 && rk.y < PL.y + PLAYERH) { startRocketRide(rk); return; }
+      if (wall) { explodeRocket(rk); return; }
+      if (rk.life > 3.4 || rk.x < cx - 26) { rk.on = false; rk.m.visible = false; }
+    });
+    LV.gloves.forEach((gl) => {
+      const near = Math.abs(gl.x - cx) < 20 && Math.abs(gl.y - cam.y) < 20; if (!near) return;
+      let ext = gl.ext;
+      if (gl.state === 'idle') { gl.cool -= dt; ext = 0; if (gl.cool <= 0 && live && PL.x < gl.x - 0.5 && gl.x - PL.x < 6.5 && Math.abs(PL.y + 0.9 - gl.y) < 2.6) { gl.state = 'wind'; gl.t = 0; Snd.fx('warn'); } }
+      else if (gl.state === 'wind') { gl.t += dt; ext = -Math.min(1, gl.t / 0.7) * 0.22 + Math.sin(gl.t * 50) * 0.02; if (gl.t > 0.7) { gl.state = 'punch'; gl.t = 0; } }
+      else if (gl.state === 'punch') { gl.t += dt; ext = Math.min(1, gl.t / 0.09); if (gl.t > 0.35) { gl.state = 'back'; gl.t = 0; } }
+      else { gl.t += dt; ext = Math.max(0, 1 - gl.t / 0.4); if (gl.t > 0.4) { gl.state = 'idle'; gl.cool = C('traps.gloveCooldown', 2.6); ext = 0; } }
+      gl.ext = ext; const gx = gl.x - 0.7 - ext * gl.reach; gl.glove.position.set(gx, gl.y, 0.45);
+      const x1 = gl.x - 0.2, x0 = gx + 0.5, wlen = x1 - x0; gl.coil.visible = wlen > 0.12; if (gl.coil.visible) { gl.coil.scale.x = wlen; gl.coil.position.x = (x0 + x1) / 2; gl.coil.material.map.repeat.x = wlen / 0.55; }
+      if (live && gl.state === 'punch' && ext > 0.55 && PL.x + PLAYERW / 2 > gx - 0.8 && PL.x - PLAYERW / 2 < gl.x && PL.y < gl.y + 0.7 && PL.y + PLAYERH > gl.y - 0.7) {
+        startRagdoll('punch', -10, 8, { w: -22 }); burst(gx - 0.6, gl.y, 12, 0xffe14d, 6, 2); shake = 1.1;
+      }
+    });
+  }
+  function updateFx(dt, t) {
+    if (G.mode !== 'play' || G.paused) return;
+    if (PL.state === 'laugh') {
+      PL.laughPopT -= dt; if (PL.laughPopT <= 0) { PL.laughPopT = 0.55; pop(T(LAUGHS[Math.floor(Math.random() * 4)])); hap('tick'); }
+      if (Math.random() < 0.6) emit(PL.x + PL.face * 0.2, PL.y + 1.55, 0.7, (Math.random() - 0.5) * 3.5, 2 + Math.random() * 2.5, 0x7fd0ff, 0.5, -9);
+    }
+    if (PL.state === 'ragdoll' && PL.rag && PL.rag.kind === 'punch' && PL.rag.t < 1.8) { const a = t * 12; for (let i = 0; i < 2; i++) emit(RG.head.x + Math.cos(a + i * 3.14) * 0.55, RG.head.y + 0.2 + Math.sin(a + i * 3.14) * 0.2, 0.8, 0, 0, 0xffe14d, 0.16, 0); }
+    if (PL.state !== 'ragdoll') ropeMesh.visible = false;
+  }
   function groundBelow(x, fromY) { let best = null; for (const s of LV.solids) { if (s.gone || s.type === 'mover') continue; if (x > s.x0 && x < s.x1 && s.y1 <= fromY) { if (best === null || s.y1 > best) best = s.y1; } } return best; }
   function spawnRock() {
     const rk = rockSprites.find((r) => !r.on); if (!rk) return;
@@ -1108,14 +1332,14 @@ function boot(mode, serial) {
   }
   function updateRocks(dt) {
     const active = PL.y > LV.rocksFromY && G.mode === 'play' && !G.won && PL.state !== 'ragdoll' && PL.state !== 'lie' && PL.state !== 'getup';
-    if (active) { G.rockT -= dt; if (G.rockT <= 0) { G.rockT = CFG.rockEvery() * (0.75 + Math.random() * 0.5) * (PL.y > LV.topY * 0.7 ? 0.8 : 1); spawnRock(); } }
+    if (active) { G.rockT -= dt; if (G.rockT <= 0) { G.rockT = CFG.rockEvery() * CUR.rockMul * (0.75 + Math.random() * 0.5) * (PL.y > LV.topY * 0.7 ? 0.8 : 1); spawnRock(); } }
     rockSprites.forEach((rk) => {
       if (!rk.on) return;
       rk.warn += dt; rk.vy = Math.min(CFG.rockFall() * 1.3, rk.vy + 28 * dt); rk.y -= rk.vy * dt; rk.spin += dt * 4;
       rk.m.position.set(rk.x, rk.y, 0.2); rk.m.rotation.z = Math.sin(rk.spin) * 0.5;
       const pulse = 0.35 + Math.abs(Math.sin(rk.warn * 10)) * 0.35; rk.mk.material.opacity = pulse; const sc = clamp(1.4 - (rk.y - rk.ly) / 14, 0.5, 1.2); rk.mk.scale.set(sc, sc, sc);
       if (PL.inv <= 0 && PL.state !== 'ragdoll' && PL.state !== 'lie' && PL.state !== 'getup' && Math.abs(rk.x - PL.x) < 0.85 && rk.y - 0.8 < PL.y + PLAYERH && rk.y + 0.8 > PL.y) {
-        const d = PL.x >= rk.x ? 1 : -1; PL.face = -d; startRagdoll('rock', d * 7, 11); Snd.fx('rock'); burst(rk.x, rk.y, 12, 0x9aa0b8, 6, 3); rk.on = false; rk.m.visible = false; rk.mk.visible = false; return;
+        const d = PL.x >= rk.x ? 1 : -1; PL.face = -d; if (CUR.rockKind === 'anvil') startFlat(); else startRagdoll('rock', d * 7, 11); Snd.fx('rock'); burst(rk.x, rk.y, 12, 0x9aa0b8, 6, 3); rk.on = false; rk.m.visible = false; rk.mk.visible = false; return;
       }
       if (rk.y <= rk.ly) { rk.on = false; rk.m.visible = false; rk.mk.visible = false; Snd.fx('rock'); burst(rk.x, rk.ly - 0.6, 10, 0xb9b0a0, 4, 2); shake = Math.max(shake, 0.25); if (Math.abs(PL.x - rk.x) < 14) hap('tap'); }
     });
@@ -1181,7 +1405,7 @@ function boot(mode, serial) {
     <div class="btn sec" id="lb-close" style="position:absolute;left:30px;right:30px;bottom:26px;height:96px;font-size:40px">✕ <span data-t="close"></span></div></div>`);
   mkScreen('help', `<div class="dim"></div><div class="panel" style="top:170px"><h2>❓ <span data-t="help"></span></h2>
     <div class="help"><i>◀ ▶</i><span data-t="h_run"></span></div><div class="help"><i>⬆</i><span data-t="h_jump"></span></div>
-    <div class="help"><i>🪨</i><span data-t="h_rock"></span></div><div class="help"><i>🚩</i><span data-t="h_flag"></span></div><div class="help"><i>🏔</i><span data-t="h_summit"></span></div>
+    <div class="help"><i>🪨</i><span data-t="h_rock"></span></div><div class="help"><i>😂</i><span data-t="h_trap"></span></div><div class="help"><i>🚩</i><span data-t="h_flag"></span></div><div class="help"><i>🏔</i><span data-t="h_summit"></span></div>
     <div class="btn" id="h-close" style="position:relative;height:100px;margin-top:20px;font-size:44px"><span data-t="ok"></span></div></div>`);
   mkScreen('lang', `<div class="dim" id="lang-dim"></div><div class="panel" style="top:300px"><h2>🌐 <span data-t="language"></span></h2>
     <div class="btn sec lg" data-l="en" style="position:relative;height:110px;margin:0 0 24px;font-size:44px">English</div>
@@ -1371,7 +1595,7 @@ function boot(mode, serial) {
     if (!fresh && G.hasSave && G.save && G.save.map) mapId = G.save.map;
     mapId = mapId || CUR.id || 'a';
     if (CUR.id !== mapId || !LV) buildWorld(mapId); else applyMapSkin();
-    G.hintShown = false; G.firstJump = false;
+    G.hintShown = false; G.firstJump = false; resetTraps();
     if (fresh || !G.hasSave) {
       PL.cp = 0; PL.falls = 0; G.coins = 0; G.maxH = 0; G.time = 0; coinGot.fill(0); LV.flags.forEach((f) => { f.on = false; f.cloth.material.map = TX.flagOff; });
       PL.x = LV.start.x; PL.y = 0;
@@ -1465,7 +1689,9 @@ function boot(mode, serial) {
       if (PL.state !== 'ragdoll' && PL.state !== 'win' && PL.y < (PL.cp ? LV.flags[PL.cp - 1].y : 0) - 16) { startRagdoll('void', 0, 0); }
       if (!G.won && PL.state !== 'ragdoll' && LV.summit && PL.grounded && PL.on === LV.summit.s && PL.x > LV.summit.s.x0 + 2) win();
       G.maxH = Math.max(G.maxH, PL.state === 'ragdoll' ? G.maxH : PL.y);
-      updateRocks(dt); updateCrumbles(dt);
+      updateRocks(dt); updateCrumbles(dt); updateTraps(dt, simT); updateFx(dt, simT);
+      if (PL.state === 'laugh' && PL.st > C('traps.laughTime', 2.8)) { PL.state = 'hit'; PL.st = 0; PL.stun = 0.45; PL.inv = 1.2; }
+      if (PL.state === 'flat' && PL.st > 1.4) { PL.state = 'idle'; PL.st = 0; PL.squash = -1.4; PL.inv = 1.0; Snd.fx('boing'); hap('tap'); for (let i = 0; i < 10; i++) emit(PL.x + (Math.random() - 0.5), PL.y + 0.3, 0.6, (Math.random() - 0.5) * 6, 2 + Math.random() * 3, 0xffffff, 0.5, -5); }
       if (LV.lava && PL.state !== 'ragdoll' && PL.state !== 'win' && PL.y < LV.lava.y + 0.3 && PL.x > LV.lava.x0 && PL.x < LV.lava.x1) startRagdoll('burn', 0, 0);
       saveTimer += dt; if (saveTimer > 6 && G.mode === 'play') { saveTimer = 0; saveNow(); }
       if (!G.firstJump && !G.hintShown && PL.x > LV.hintX - 3 && G.mode === 'play') { G.hintShown = true; showHint(); }
@@ -1502,11 +1728,16 @@ function boot(mode, serial) {
         'Ragdoll fall height (m)': { key: 'ragdoll.bigFallHeight', type: 'slider', min: 5, max: 16, step: 0.5 },
         'Falling rock interval (s)': { key: 'hazards.rockInterval', type: 'slider', min: 1.5, max: 10, step: 0.5 },
         'Rock fall speed': { key: 'hazards.rockFallSpeed', type: 'slider', min: 8, max: 28, step: 1 },
+        'Silly traps on/off': { key: 'traps.on', type: 'checkbox' },
+        'Rocket launcher interval (s)': { key: 'traps.rocketInterval', type: 'slider', min: 2, max: 12, step: 0.5 },
+        'Boxing glove cooldown (s)': { key: 'traps.gloveCooldown', type: 'slider', min: 1, max: 8, step: 0.5 },
+        'Laughing time (s)': { key: 'traps.laughTime', type: 'slider', min: 1, max: 6, step: 0.2 },
         'Tilt-shift blur (px)': { key: 'visual.tiltShift', type: 'slider', min: 0, max: 8, step: 0.5, onChange: (v) => { window.gameConfig.visual.tiltShift = v; app.style.setProperty('--tsb', v + 'px'); } },
       } });
     } catch (e) { /* ignore */ }
   }
   buildWorld('a');
+  resetTraps();
   applyLang();
   setLoad(0.85, tr('loadAlmost'));
   (async () => {
@@ -1523,7 +1754,7 @@ function boot(mode, serial) {
     requestAnimationFrame(() => { setLoad(1); setTimeout(() => { const ld = $('loading'); if (ld) ld.classList.add('off'); }, 250); });
   })();
   last = performance.now(); raf = requestAnimationFrame(frame);
-  window.__bb = { SHOP, openShop, applySkin, SKINS, setLang, showMany, MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
+  window.__bb = { startLaugh, startFlat, startRocketRide, explodeRocket, updateTraps, trapLive, resetTraps, SHOP, openShop, applySkin, SKINS, setLang, showMany, MAPS, buildWorld, openGacha, GACHA, get LV() { return LV; }, get CUR() { return CUR; }, G, PL, inp, startGame, cam, state, camera, scene, renderer, startRagdoll, spawnRock, doPause, win, openLb, showMany };
 
   return function cleanup() {
     dead = true; cancelAnimationFrame(raf); cleanups.forEach((fn) => { try { fn(); } catch (e) { /* ignore */ } });

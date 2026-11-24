@@ -12,6 +12,14 @@ runs and jumps through a 3D voxel world. Big falls and hits turn the hero into a
 English (default), Indonesian, Arabic (right-to-left). Pick one with the globe button on the main menu; the choice is saved.
 All UI strings live in the `I18N` table at the top of `game.js`.
 
+## Silly traps (funny hit animations)
+- Laughing fog (green maps A and C): drifting smiley cloud; touching it makes the hero laugh uncontrollably (shaking, tears, "HAHAHA!") for a few seconds and he cannot jump.
+- Rocket launcher: googly-eyed cannon warns with a red "!" and an aim line, then fires a rocket. A hit straps the hero to the rocket (ropes) and flies him backward before it explodes into confetti.
+- Boxing glove: spring-loaded glove punches out of a wall; the hero spins away with orbiting stars ("BONK!").
+- Banana peel: slip, backflip, "WHEEE!".
+- Falling anvil (Fire Mountain): flattens the hero into a pancake, then he pops back up ("PLOP!"). Green Slopes still has falling boulders, Snowy Peak falling icicles.
+Traps are placed by `scatterTraps` (per-map plan) and can be switched off with `traps.on` in the config.
+
 ## Shop
 Main menu > Shop sells 8 clothing skins (classic tee, red jersey, blue hoodie, sailor stripes, island shirt, pajamas, jungle camo, gold tracksuit).
 Skins are drawn procedurally for the same torso / arm / leg sprite parts, so they fit every pose and the ragdoll. Coins picked up during runs go into a saved wallet;
