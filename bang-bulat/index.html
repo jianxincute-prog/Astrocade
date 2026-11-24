@@ -48,6 +48,13 @@ html,body{margin:0;height:100%;background:#1b1230;overflow:hidden;touch-action:n
 .scard.sel{border-color:var(--gold);box-shadow:0 0 22px rgba(255,207,63,.85)}
 .scard.lock canvas{filter:brightness(.6)}
 .btn.off{filter:grayscale(.75) brightness(.85)}
+html{-webkit-touch-callout:none}
+#app:not(.touchui) .ctl{display:none}
+#kbhint{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;align-items:center;gap:12px;font-size:26px;color:var(--cream);white-space:nowrap;opacity:.92;pointer-events:none!important}
+#kbhint *{pointer-events:none!important}
+#kbhint b{margin:0 12px 0 2px;text-shadow:0 3px 0 var(--ink)}
+.kc{display:inline-flex;align-items:center;justify-content:center;min-width:46px;height:46px;padding:0 12px;border-radius:10px;border:4px solid var(--ink);background:linear-gradient(#fff4d6,#e9c98f);color:var(--ink);box-shadow:0 4px 0 #8c6a3a;font-size:24px}
+#app.touchui #kbhint{display:none}
 #ui{position:absolute;inset:0;pointer-events:none}
 #ui *{pointer-events:auto}
 .scr{position:absolute;inset:0;display:none;pointer-events:none}

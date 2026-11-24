@@ -25,8 +25,11 @@ Main menu > Shop sells 8 clothing skins (classic tee, red jersey, blue hoodie, s
 Skins are drawn procedurally for the same torso / arm / leg sprite parts, so they fit every pose and the ragdoll. Coins picked up during runs go into a saved wallet;
 owned skins and the equipped skin are saved with the player state (`shop` key).
 
-## Controls
-Touch: on-screen left/right and jump buttons (hold jump = higher). Desktop: A/D or arrows, Space/W to jump, Esc/P to pause.
+## Controls (mobile and PC never overlap)
+The UI follows the last input device. Touch devices show the on-screen left / right / jump buttons (multi-touch, and a finger can slide between buttons); PC shows a keycap legend instead and hides the touch buttons. Touch and keyboard are tracked as separate sources and merged, so releasing a key never cancels a held button and vice versa; switching device releases everything the other one was holding.
+- Touch: hold a button; hold jump = higher.
+- Keyboard: A/D or arrows to run, Space/W/Up to jump, Esc/P to pause. Menus: Enter/Space = confirm, Esc = back, C continue, S shop, L language, H help, 1/2/3 pick a language; map gacha: Space skips the spin, R spins again; shop: arrows move, Enter buys/equips.
+- Mouse: click any menu button.
 
 ## Code structure
 - `index.html`: skeleton, UI CSS (incl. RTL rules), loading screen, CSS effect layers (tilt-shift, glow, vignette).

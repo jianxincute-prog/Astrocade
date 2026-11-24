@@ -27,6 +27,7 @@ const I18N = {
     shop: 'SHOP', buy: 'BUY', equip: 'EQUIP', equipped: 'EQUIPPED', noCoins: 'Not enough coins!', unlocked: 'Unlocked!', coinsLabel: 'Coins',
     skin_classic: 'Classic Tee', skin_jersey: 'Red Jersey', skin_hoodie: 'Blue Hoodie', skin_sailor: 'Sailor Stripes', skin_hawaii: 'Island Shirt', skin_pajama: 'Cozy Pajamas', skin_camo: 'Jungle Camo', skin_gold: 'Gold Tracksuit',
     laugh1: 'HA HA HA!', laugh2: 'HAHAHA!', laugh3: 'LOL!', laugh4: 'HEHEHE!', bonk: 'BONK!', wheee: 'WHEEE!', boom: 'BOOM!', plop: 'PLOP!', h_trap: 'Dodge the silly traps!',
+    kbRun: 'Run', kbJump: 'Jump', kbPause: 'Pause',
     loadFail: 'Failed to load: ', noWebgl: 'WebGL is not available', threeFail: 'Could not load the 3D engine', loading: 'Preparing the mountain...',
   },
   id: {
@@ -41,6 +42,7 @@ const I18N = {
     shop: 'TOKO', buy: 'BELI', equip: 'PAKAI', equipped: 'DIPAKAI', noCoins: 'Koin tidak cukup!', unlocked: 'Terbuka!', coinsLabel: 'Koin',
     skin_classic: 'Kaos Klasik', skin_jersey: 'Jersey Merah', skin_hoodie: 'Hoodie Biru', skin_sailor: 'Kaos Pelaut', skin_hawaii: 'Kemeja Pantai', skin_pajama: 'Piyama Nyaman', skin_camo: 'Loreng Hutan', skin_gold: 'Training Emas',
     laugh1: 'WKWKWK!', laugh2: 'HAHAHA!', laugh3: 'NGAKAK!', laugh4: 'HIHIHI!', bonk: 'BONK!', wheee: 'WIIII!', boom: 'DUAR!', plop: 'GEPENG!', h_trap: 'Hindari jebakan lucu!',
+    kbRun: 'Lari', kbJump: 'Lompat', kbPause: 'Jeda',
     loadFail: 'Gagal memuat: ', noWebgl: 'WebGL tidak tersedia', threeFail: 'Tidak bisa memuat mesin 3D', loading: 'Menyiapkan gunung...',
   },
   ar: {
@@ -55,6 +57,7 @@ const I18N = {
     shop: 'المتجر', buy: 'شراء', equip: 'ارتداء', equipped: 'مرتدى', noCoins: 'العملات غير كافية!', unlocked: 'تم الفتح!', coinsLabel: 'العملات',
     skin_classic: 'تيشيرت كلاسيكي', skin_jersey: 'قميص رياضي أحمر', skin_hoodie: 'سترة زرقاء', skin_sailor: 'قميص البحّارة', skin_hawaii: 'قميص الجزيرة', skin_pajama: 'بيجامة مريحة', skin_camo: 'تمويه الغابة', skin_gold: 'بدلة رياضية ذهبية',
     laugh1: 'ههههه!', laugh2: 'هاهاها!', laugh3: 'هيهيهي!', laugh4: 'ضحك!', bonk: 'بونك!', wheee: 'ييييي!', boom: 'بوم!', plop: 'بلوب!', h_trap: 'تجنّب الفخاخ المضحكة!',
+    kbRun: 'ركض', kbJump: 'قفز', kbPause: 'إيقاف',
     loadFail: 'فشل التحميل: ', noWebgl: 'WebGL غير متاح', threeFail: 'تعذر تحميل المحرك ثلاثي الأبعاد', loading: 'جارٍ تجهيز الجبل...',
   },
 };
@@ -1403,6 +1406,7 @@ function boot(mode, serial) {
     <div class="ico" id="b-pause" style="right:24px;top:24px">⏸</div>
     <div id="rail"><div id="knob"></div></div>
     <div id="toast"></div>
+    <div id="kbhint"><span class="kc">A</span><span class="kc">D</span><b data-t="kbRun"></b><span class="kc">SPACE</span><b data-t="kbJump"></b><span class="kc">ESC</span><b data-t="kbPause"></b></div>
     <div class="ctl" id="c-l" style="left:24px">◀</div><div class="ctl" id="c-r" style="left:196px">▶</div>
     <div class="ctl" id="c-j" style="right:28px;width:200px;height:200px;border-radius:60px;font-size:80px;bottom:30px">⬆</div>`);
   mkScreen('pause', `<div class="dim"></div><div class="panel" style="top:320px"><h2><span data-t="paused"></span></h2>
@@ -1441,21 +1445,76 @@ function boot(mode, serial) {
     <div class="btn sec" id="g-again" style="left:150px;width:420px;height:96px;top:1075px;font-size:38px;display:none">🎲 <span data-t="spinAgain"></span></div>
     <div class="ico" id="g-back" style="left:30px;top:30px">⌂</div>`);
   const press = (el, fn) => { el.addEventListener('click', (e) => { e.stopPropagation(); Snd.init(); Snd.fx('ui'); fn(e); }); };
-  function holdBtn(el, key) {
-    const on = (e) => { e.preventDefault(); inp[key] = true; if (key === 'jump') inp.jumpPressed = true; el.classList.add('dn'); try { el.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } };
-    const off = () => { inp[key] = false; el.classList.remove('dn'); };
-    el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off); el.addEventListener('contextmenu', (e) => e.preventDefault());
+  /* ---- input: touch and keyboard/mouse are separate sources that never overwrite each other ---- */
+  const srcIn = { kb: { left: false, right: false, jump: false }, touch: { left: false, right: false, jump: false } };
+  const ptrs = new Map(), CTL = { 'c-l': 'left', 'c-r': 'right', 'c-j': 'jump' };
+  let inputMode = '';
+  function syncInp() { inp.left = srcIn.kb.left || srcIn.touch.left; inp.right = srcIn.kb.right || srcIn.touch.right; inp.jump = srcIn.kb.jump || srcIn.touch.jump; }
+  function clearInput() {
+    ['kb', 'touch'].forEach((q) => { srcIn[q].left = srcIn[q].right = srcIn[q].jump = false; }); ptrs.clear();
+    ui.querySelectorAll('.ctl').forEach((el) => el.classList.remove('dn')); syncInp(); inp.jumpPressed = false;
   }
-  holdBtn($('c-l'), 'left'); holdBtn($('c-r'), 'right'); holdBtn($('c-j'), 'jump');
-  const keymap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump' };
-  listen(window, 'keydown', (e) => {
-    const k = keymap[e.code]; if (k) { e.preventDefault(); if (k === 'jump' && !inp.jump) inp.jumpPressed = true; inp[k] = true; }
-    if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) { if (G.mode === 'play') doPause(!G.paused); }
-    if ((e.code === 'Enter') && G.mode === 'menu' && !scr.lb.classList.contains('on') && !scr.help.classList.contains('on')) openGacha();
+  function setInputMode(m) {
+    if (m === inputMode) return; inputMode = m; app.classList.toggle('touchui', m === 'touch');
+    clearInput(); // switching device: release anything the other device was holding
+  }
+  function recomputeTouch() {
+    const act = { left: false, right: false, jump: false }; ptrs.forEach((k) => { if (k) act[k] = true; });
+    ['left', 'right', 'jump'].forEach((k) => { if (k === 'jump' && act.jump && !srcIn.touch.jump) inp.jumpPressed = true; srcIn.touch[k] = act[k]; });
+    $('c-l').classList.toggle('dn', act.left); $('c-r').classList.toggle('dn', act.right); $('c-j').classList.toggle('dn', act.jump); syncInp();
+  }
+  const keyAt = (x, y) => { const el = document.elementFromPoint(x, y), c = el && el.closest ? el.closest('.ctl') : null; return c ? CTL[c.id] : null; };
+  Object.keys(CTL).forEach((id) => {
+    const el = $(id);
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); if (e.pointerType !== 'mouse') setInputMode('touch'); ptrs.set(e.pointerId, CTL[id]); try { el.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } recomputeTouch(); });
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
   });
-  listen(window, 'keyup', (e) => { const k = keymap[e.code]; if (k) { inp[k] = false; } });
-  listen(window, 'blur', () => { inp.left = inp.right = inp.jump = false; if (G.mode === 'play' && !G.won) doPause(true); });
-  listen(document, 'visibilitychange', () => { if (document.hidden && G.mode === 'play' && !G.won) doPause(true); });
+  listen(window, 'pointermove', (e) => { if (!ptrs.has(e.pointerId)) return; const k = keyAt(e.clientX, e.clientY); if (ptrs.get(e.pointerId) !== k) { ptrs.set(e.pointerId, k); recomputeTouch(); } }); // slide between buttons
+  const endPtr = (e) => { if (ptrs.delete(e.pointerId)) recomputeTouch(); };
+  listen(window, 'pointerup', endPtr); listen(window, 'pointercancel', endPtr);
+  listen(window, 'pointerdown', (e) => { if (e.pointerType === 'touch' || e.pointerType === 'pen') setInputMode('touch'); }, true);
+  listen(app, 'contextmenu', (e) => e.preventDefault());
+  setInputMode(lib.shouldUseTouchControls && lib.shouldUseTouchControls() ? 'touch' : 'kb');
+
+  const keymap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump' };
+  function shopKey(code) {
+    const i = SKINS.findIndex((k) => k.id === SHOPSEL.id); let n = i;
+    if (code === 'ArrowLeft' || code === 'KeyA') n = Math.max(0, i - 1); else if (code === 'ArrowRight' || code === 'KeyD') n = Math.min(SKINS.length - 1, i + 1);
+    else if (code === 'ArrowUp' || code === 'KeyW') n = i - 4 >= 0 ? i - 4 : i; else if (code === 'ArrowDown' || code === 'KeyS') n = i + 4 < SKINS.length ? i + 4 : i;
+    if (n !== i) { SHOPSEL.id = SKINS[n].id; renderShop(); Snd.fx('ui'); }
+    if (code === 'Enter' || code === 'Space') shopAct(); if (code === 'Escape') $('s-back').click();
+  }
+  function kbMenuKey(code) { // keyboard shortcuts for every menu screen; returns true when the key was used
+    const on = (id) => scr[id] && scr[id].classList.contains('on'), enter = code === 'Enter' || code === 'NumpadEnter' || code === 'Space', esc = code === 'Escape';
+    if (on('lang')) { const n = { Digit1: 0, Digit2: 1, Digit3: 2 }[code]; if (n !== undefined) ui.querySelectorAll('.lg')[n].click(); else if (esc || enter) showMany(['menu']); return true; }
+    if (on('help')) { if (esc || enter) $('h-close').click(); return true; }
+    if (on('lb')) { if (esc || enter) $('lb-close').click(); return true; }
+    if (on('shop')) { shopKey(code); return true; }
+    if (on('gacha')) { if (GACHA.spinning) { if (enter) GACHA.skip = true; } else if (GACHA.landed) { if (enter) $('g-go').click(); else if (code === 'KeyR') $('g-again').click(); } if (esc) $('g-back').click(); return true; }
+    if (on('win')) { if (enter) $('w-again').click(); else if (esc) $('w-menu').click(); return true; }
+    if (on('pause')) { if (esc || enter || code === 'KeyP') $('p-resume').click(); return true; }
+    if (G.mode === 'menu') {
+      if (enter) $('b-play').click(); else if (code === 'KeyC' && G.hasSave) $('b-new').click(); else if (code === 'KeyS') $('b-shop').click();
+      else if (code === 'KeyL') $('i-lang').click(); else if (code === 'KeyH') $('i-help').click(); else return false;
+      return true;
+    }
+    return false;
+  }
+  listen(window, 'keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = keymap[e.code], inRun = G.mode === 'play' && !G.paused && !G.won;
+    if (inRun) {
+      if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); if (!e.repeat) doPause(true); return; }
+      if (k) { e.preventDefault(); if (!e.repeat) { setInputMode('kb'); if (k === 'jump') inp.jumpPressed = true; } srcIn.kb[k] = true; syncInp(); }
+      return;
+    }
+    if (e.repeat) { if (k || e.code === 'Enter' || e.code === 'Escape') e.preventDefault(); return; }
+    if (k || e.code === 'Enter' || e.code === 'Escape') e.preventDefault();
+    if (kbMenuKey(e.code)) setInputMode('kb');
+  });
+  listen(window, 'keyup', (e) => { const k = keymap[e.code]; if (k) { srcIn.kb[k] = false; syncInp(); } });
+  listen(window, 'blur', () => { clearInput(); if (G.mode === 'play' && !G.won) doPause(true); });
+  listen(document, 'visibilitychange', () => { if (document.hidden) { clearInput(); if (G.mode === 'play' && !G.won) doPause(true); } });
 
   function refreshMenu() {
     const bst = G.save && G.save.best ? G.save.best : 0;
@@ -1604,7 +1663,7 @@ function boot(mode, serial) {
   function endRun() { if (G.mode === 'play' && G.maxH > 2) { submitScore(); } saveNow(); }
 
   function startGame(fresh, mapId) {
-    Snd.init(); Snd.music(true);
+    Snd.init(); Snd.music(true); clearInput();
     if (!fresh && G.hasSave && G.save && G.save.map) mapId = G.save.map;
     mapId = mapId || CUR.id || 'a';
     if (CUR.id !== mapId || !LV) buildWorld(mapId); else applyMapSkin();
@@ -1624,8 +1683,8 @@ function boot(mode, serial) {
     G.mode = 'play'; showMany(['hud']); hudDirty = true; app.classList.add('playing');
     if (!G.save || !G.save.tut) { showHint(); }
   }
-  function showHint() { toast(lib.shouldUseTouchControls && lib.shouldUseTouchControls() ? tr('hintTouch') : tr('hintKey'), 4.5); }
-  function doPause(on) { if (G.mode !== 'play' || G.won) return; G.paused = on; showMany(on ? ['hud', 'pause'] : ['hud']); Snd.music(!on); if (on) { inp.left = inp.right = inp.jump = false; saveNow(); } }
+  function showHint() { toast(inputMode === 'touch' ? tr('hintTouch') : tr('hintKey'), 4.5); }
+  function doPause(on) { if (G.mode !== 'play' || G.won) return; G.paused = on; showMany(on ? ['hud', 'pause'] : ['hud']); Snd.music(!on); if (on) { clearInput(); saveNow(); } }
   function respawnNow() { const f = LV.flags[PL.cp - 1]; const p = f ? { x: f.x, y: f.y } : LV.start; PL.x = p.x; PL.y = p.y; PL.vx = PL.vy = 0; PL.state = 'idle'; PL.rag = null; PL.grounded = true; PL.peakY = p.y; PL.inv = 1; camSnap = true; }
   function win() {
     if (G.won) return; G.won = true; PL.state = 'win'; PL.st = 0; PL.vx = 0; G.maxH = Math.max(G.maxH, LV.topY); Snd.fx('win'); hap('success'); Snd.music(false);
