@@ -498,7 +498,7 @@ function boot(mode, serial) {
       crumble: () => noise(0.25, 0.18, 400), ui: () => tone(660, 0.05, 'square', 0.08),
       laugh: () => { if (asset('sfx_laugh_big', 0.9)) return; for (let i = 0; i < 8; i++) tone(430 - (i % 2) * 70 - i * 6, 0.09, 'square', 0.1, 0, i * 0.12); },
       scream: () => { if (asset('sfx_scream_fall', 0.95)) return; tone(760, 1.5, 'sawtooth', 0.1, -560); tone(770, 1.5, 'triangle', 0.1, -540, 0.02); },
-      whistle: () => tone(1100, 2.2, 'sine', 0.06, -800),
+      whistle: () => tone(1100, 1.5, 'sine', 0.06, -800),
       rocket: () => { noise(0.7, 0.3, 2200); tone(110, 0.7, 'sawtooth', 0.14, 700); },
       boom: () => { noise(0.55, 0.45, 900); tone(90, 0.45, 'sawtooth', 0.2, -60); },
       bonk: () => { tone(220, 0.2, 'square', 0.25, -150); noise(0.1, 0.3, 1400); },
@@ -1139,7 +1139,7 @@ function boot(mode, serial) {
     if (rg.ride) return;
     if (rg.void) {
       if (rg.kind !== 'void') { if (rg.t > 1.25) respawn(); return; }
-      const SCREAM = C('abyss.screamDelay', 2.4), FADE = SCREAM + 1.1, BACK = FADE + 0.45; // wait -> scream -> fade -> back to checkpoint
+      const SCREAM = C('abyss.screamDelay', 1.3), FADE = SCREAM + 0.6, BACK = FADE + 0.4; // wait -> scream -> fade -> back to checkpoint
       if (!rg.screamed && rg.t >= SCREAM) { rg.screamed = true; pop(T('aaah')); Snd.fx('scream'); hap('error'); shake = Math.max(shake, 0.4); PL.falls = (PL.falls || 0) + 1; hudDirty = true; }
       if (!rg.fading && rg.t >= FADE) { rg.fading = true; $('fade').style.opacity = '1'; }
       if (rg.t >= BACK) { Snd.asset('sfx_laugh_crowd', 0.7); respawn(); }
@@ -1798,7 +1798,11 @@ function boot(mode, serial) {
       }
       if (PL.state === 'lie' && PL.st > 1.1) { PL.state = 'getup'; PL.st = 0; }
       if (PL.state === 'getup' && PL.st > 0.9) { PL.state = 'idle'; PL.st = 0; PL.inv = Math.max(PL.inv, 0.6); }
-      if (PL.state !== 'ragdoll' && PL.state !== 'win' && PL.y < (PL.cp ? LV.flags[PL.cp - 1].y : 0) - 16) { startRagdoll('void', 0, 0); }
+      if (PL.state !== 'ragdoll' && PL.state !== 'win') {
+        // slipped off an edge with nothing underneath: go into the abyss sequence early (tumbling on screen) instead of free-falling for a long time
+        const lost = !PL.grounded && PL.vy < -12 && PL.peakY - PL.y > 7 && !LV.solids.some((q) => !q.gone && q.x1 > PL.x - 0.4 && q.x0 < PL.x + 0.4 && q.y1 <= PL.y + 0.3);
+        if (lost || PL.y < (PL.cp ? LV.flags[PL.cp - 1].y : 0) - 16) startRagdoll('void', PL.vx * 0.5, Math.max(PL.vy, -20), { w: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 4) });
+      }
       if (!G.won && PL.state !== 'ragdoll' && LV.summit && PL.grounded && PL.on === LV.summit.s && PL.x > LV.summit.s.x0 + 2) win();
       G.maxH = Math.max(G.maxH, PL.state === 'ragdoll' ? G.maxH : PL.y);
       updateRocks(dt); updateCrumbles(dt); updateTraps(dt, simT); updateFx(dt, simT);
@@ -1841,7 +1845,7 @@ function boot(mode, serial) {
         'Falling rock interval (s)': { key: 'hazards.rockInterval', type: 'slider', min: 1.5, max: 10, step: 0.5 },
         'Rock fall speed': { key: 'hazards.rockFallSpeed', type: 'slider', min: 8, max: 28, step: 1 },
         'Laugh sound after hits': { key: 'audio.laughReact', type: 'checkbox' },
-        'Abyss wait before scream (s)': { key: 'abyss.screamDelay', type: 'slider', min: 0.5, max: 5, step: 0.1 },
+        'Abyss wait before scream (s)': { key: 'abyss.screamDelay', type: 'slider', min: 0.3, max: 4, step: 0.1 },
         'Silly traps on/off': { key: 'traps.on', type: 'checkbox' },
         'Max silly traps per run': { key: 'traps.max', type: 'slider', min: 0, max: 5, step: 1 },
         'Rocket launcher interval (s)': { key: 'traps.rocketInterval', type: 'slider', min: 2, max: 12, step: 0.5 },

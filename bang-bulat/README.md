@@ -22,7 +22,7 @@ Traps never react to the player: the rocket launcher and boxing glove run on a f
 
 ## Sounds
 Generated sound effects (asset_map.json): mocking laugh after falls and hits, big belly laugh for the laughing fog, crowd laugh after anvils / bananas / rockets and when returning from the abyss, and a falling scream. Synth fallbacks play if an asset fails to load. `audio.laughReact` turns the post-hit laugh off.
-Falling into a pit is silent for a few seconds (`abyss.screamDelay`, default 2.4 s), then the scream plays, the screen fades and the hero returns to the last checkpoint.
+Falling into a pit is silent for a few seconds (`abyss.screamDelay`, default 1.3 s), then the scream plays, the screen fades and the hero returns to the last checkpoint.
 
 ## Shop
 Main menu > Shop sells 8 clothing skins (classic tee, red jersey, blue hoodie, sailor stripes, island shirt, pajamas, jungle camo, gold tracksuit).
