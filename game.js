@@ -370,21 +370,65 @@ function updateFishing(dt) {
   if (fishing.state === 'wait' && fishing.time > fishing.bite) { fishing.state = 'bite'; fishing.t2 = 0; sfx.pop(); hap('warning'); bobber.scale.set(2, 2, 2); }
   if (fishing.state === 'bite') { fishing.t2 += dt; bobber.position.y -= 0.35 * Math.abs(Math.sin(fishing.t2 * 14)); if (fishing.t2 > 1.4) { bobber.scale.set(1, 1, 1); reel(false); } }
 }
+const recipeOf = (id) => cfg().recipes.find(r => r.id === id);
+function owned(r) { return S.gear[r.id] || 0; }   // 0 = not owned, 1 = in bag, 2 = equipped / installed
 function craft(r) {
-  const own = owned(r);
-  if (r.kind === 'rod' && own) { S.rodEq = r.tier; UI.toast('🎣 ' + t('equipped_rod')); return; }
-  if (own) return; if (r.needs === 'raft' && !S.raftBuilt) return;
+  if (S.gear[r.id]) return;
   for (const k in r.cost) if ((S.inv[k] || 0) < r.cost[k]) { UI.toast(t('need_more')); sfx.hurt(); return; }
   for (const k in r.cost) S.inv[k] -= r.cost[k];
-  sfx.craft(); hap('success'); UI.toast('✨ ' + t('crafted'));
-  if (r.kind === 'raft') { S.raftBuilt = true; placeRaft(DOCK.x, DOCK.z, 0); UI.toast('🛶 ' + t('raft_ready')); }
-  else if (r.kind === 'upgrade') { S.up[r.id] = 1; syncRaftVisual(); }
-  else if (r.kind === 'tool') { S.tools[r.id] = 1; recomputeO2Max(); }
-  else if (r.kind === 'rod') { S.rods[r.tier] = 1; S.rodEq = r.tier; }
-  else if (r.kind === 'beacon') { S.ended = true; S.chapter = 6; addScore(2000); finishGame(); }
-  addScore(25); saveNow();
+  S.gear[r.id] = 1; addScore(25); sfx.craft(); hap('success');
+  UI.toast(r.icon + ' ' + t('to_bag', { name: t('r_' + r.id) })); saveNow();
 }
-function owned(r) { return r.kind === 'raft' ? !!S.raftBuilt : r.kind === 'upgrade' ? !!S.up[r.id] : r.kind === 'tool' ? !!S.tools[r.id] : r.kind === 'rod' ? !!S.rods[r.tier] : r.kind === 'beacon' ? !!S.ended : false; }
+function raftFree(x, z) {
+  if (Math.abs(x) > HALF - 9 || Math.abs(z) > HALF - 9) return false;
+  for (const b of W.solids) { if (b.y1 < 0.3 || b.y0 > 1) continue; const cx = clamp(x, b.x0, b.x1), cz = clamp(z, b.z0, b.z1); if (Math.hypot(x - cx, z - cz) < RAFT_R + 0.8) return false; }
+  for (const d of W.discs) if (Math.hypot(x - d.x, z - d.z) < d.r + RAFT_R + 0.8) return false;
+  return true;
+}
+function findRaftSpot() {
+  for (let dist = 12; dist <= 48; dist += 4) for (const off of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.7, -1.7, 2.4, -2.4, 3.14]) {
+    const a = P.yaw + off, x = P.x - Math.sin(a) * dist, z = P.z - Math.cos(a) * dist; if (raftFree(x, z)) return { x, z };
+  }
+  return raftFree(DOCK.x, DOCK.z) ? { x: DOCK.x, z: DOCK.z } : { x: 60, z: 60 };
+}
+let raftBeamT = 0;
+function equipItem(id) {   // returns true when the bag should close (so the player sees the result)
+  const r = recipeOf(id), st = S.gear[id]; if (!r || !st) return false;
+  const nm = t('r_' + id);
+  if (r.kind === 'raft') {
+    if (st === 2) return false;
+    const sp = findRaftSpot(); S.raftBuilt = true; S.gear.raft = 2; placeRaft(sp.x, sp.z, P.yaw + Math.PI);
+    P.yaw = Math.atan2(-(sp.x - P.x), -(sp.z - P.z)); P.pitch = clamp(Math.atan2(0.5 - (P.y + EYE), Math.hypot(sp.x - P.x, sp.z - P.z)), -1.2, 0.2); raftBeamT = 8; UI.toast('🛶 ' + t('raft_placed')); sfx.craft(); hap('success'); saveNow(); return true;
+  }
+  if (r.kind === 'upgrade') {
+    if (!S.raftBuilt) { UI.toast(t('raft_first')); sfx.hurt(); return false; }
+    if (st === 2) return false;
+    S.gear[id] = 2; S.up[id] = 1; syncRaftVisual(); UI.toast(r.icon + ' ' + t('equipped_item', { name: nm })); sfx.craft(); hap('success'); raftBeamT = 4; saveNow(); return true;
+  }
+  if (r.kind === 'tool') {
+    const on = st !== 2; S.gear[id] = on ? 2 : 1; S.tools[id] = on ? 1 : 0; recomputeO2Max(); P.o2 = Math.min(P.o2, P.o2max);
+    UI.toast(r.icon + ' ' + t(on ? 'equipped_item' : 'unequipped_item', { name: nm })); sfx.ui(); hap('tap'); saveNow(); return false;
+  }
+  if (r.kind === 'rod') {
+    const on = st !== 2;
+    cfg().recipes.forEach(o => { if (o.kind === 'rod' && S.gear[o.id]) S.gear[o.id] = 1; });
+    if (on) { S.gear[id] = 2; S.rodEq = r.tier; S.rods[r.tier] = 1; } else S.rodEq = 0;
+    UI.toast(r.icon + ' ' + t(on ? 'equipped_item' : 'unequipped_item', { name: nm })); sfx.ui(); hap('tap'); saveNow(); return false;
+  }
+  if (r.kind === 'beacon') { S.gear.beacon = 2; S.ended = true; S.chapter = 6; addScore(2000); finishGame(); return false; }
+  return false;
+}
+function eatItem(id) {
+  if ((S.inv[id] || 0) < 1) return;
+  if (id === 'can') { S.inv.can--; P.hunger = Math.min(100, P.hunger + 55); UI.toast('🥫 ' + t('ate')); }
+  else if (id === 'fish') { S.inv.fish--; P.hunger = Math.min(100, P.hunger + 40); UI.toast('🐟 ' + t('ate')); }
+  else return;
+  sfx.pickup(); hap('tap'); saveNow();
+}
+function drinkItem(id) {
+  if (id !== 'bottle' || (S.inv.bottle || 0) < 1) return;
+  S.inv.bottle--; P.thirst = Math.min(100, P.thirst + 60); UI.toast('💧 ' + t('drank')); sfx.pickup(); hap('tap'); saveNow();
+}
 function finishGame() { sfx.win(); hap('success'); submitScore(); saveNow(); phase = 'paused'; ctxPanel = 'end'; UI.showEnding(S.score); }
 
 // ================= islands / orbs / chapters =================
@@ -397,7 +441,7 @@ function updateWorldLogic(dt) {
     }
   }
   // chapter progression
-  if (S.chapter === 2) { const need = cfg().recipes[0].cost; if (Object.keys(need).every(k => (S.inv[k] || 0) >= need[k]) || S.raftBuilt) S.chapter = 3; }
+  if (S.chapter === 2) { const need = cfg().recipes[0].cost; if (Object.keys(need).every(k => (S.inv[k] || 0) >= need[k]) || S.gear.raft) S.chapter = 3; }
   if (S.chapter === 3 && S.raftBuilt) S.chapter = 4;
   if (S.chapter === 4 && S.inv.part >= 3) S.chapter = 5;
 }
@@ -428,7 +472,7 @@ function updateDay(dt) {
 function buildViewModel() {
   view = { punch: 0, cast: 0, bob: 0 };
   const g = new THREE.Group(); const skin = new THREE.MeshLambertMaterial({ color: 0xf2c29b }), red = new THREE.MeshLambertMaterial({ color: 0xd62828 });
-  fist = new THREE.Group(); const hand = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), red); hand.scale.set(1, 0.9, 1.2); const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.8, 6), skin); arm.rotation.x = Math.PI / 2; arm.position.z = 0.4; fist.add(hand, arm);
+  fist = new THREE.Group(); const hand = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), red); hand.scale.set(1, 0.9, 1.2); const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.8, 6), skin); arm.rotation.x = Math.PI / 2; arm.position.z = 0.4; const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 8), new THREE.MeshLambertMaterial({ color: 0xffd23f, emissive: 0x442200 })); wrap.rotation.x = Math.PI / 2; wrap.position.z = 0.12; fist.add(hand, arm, wrap); fist.userData.wrap = wrap;
   fist.position.set(0.32, -0.3, -0.55); g.add(fist);
   rodMesh = new THREE.Group(); const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.03, 1.5, 5), new THREE.MeshLambertMaterial({ color: 0x8b5a2b })); rod.rotation.x = 1.0; rod.position.set(0, 0.2, -0.2); rodMesh.add(rod);
   rodMesh.position.set(-0.3, -0.3, -0.55); g.add(rodMesh); W.camera.add(g); view.group = g;
@@ -438,7 +482,7 @@ function updateView(dt) {
   view.punch = Math.max(0, view.punch - dt * 4); view.cast = Math.max(0, view.cast - dt * 2.5);
   const moving = Math.hypot(P.vx, P.vz) > 0.5 && P.grounded; view.bob += dt * (moving ? 9 : 2);
   fist.position.z = -0.55 - Math.sin(view.punch * Math.PI) * 0.7; fist.position.y = -0.3 + Math.sin(view.bob) * (moving ? 0.02 : 0.006); fist.position.x = 0.32 - Math.sin(view.punch * Math.PI) * 0.12;
-  rodMesh.visible = S.rodEq > 0 && !P.swim && !P.helm; rodMesh.rotation.x = -view.cast * 0.9;
+  rodMesh.visible = S.rodEq > 0 && !P.swim && !P.helm; fist.userData.wrap.visible = !!S.tools.wraps; if (rodMesh.userData.tier !== S.rodEq) { rodMesh.userData.tier = S.rodEq; rodMesh.children[0].material.color.set([0x8b5a2b, 0x8b5a2b, 0xc9a45c, 0x9aa7b4, 0x2b2b2b, 0xb85cff][S.rodEq] || 0x8b5a2b); } rodMesh.rotation.x = -view.cast * 0.9;
   view.group.visible = !P.under || true;
   W.camera.position.set(P.x, P.y + EYE + (moving ? Math.sin(view.bob) * 0.04 : 0), P.z); W.camera.rotation.set(P.pitch, P.yaw, 0);
 }
@@ -464,11 +508,13 @@ function updateHud(dt) {
   const supply = ents.find(e => e.id === 'supply' && !e.dead);
   UI.setHud({ hp: P.hp, o2: P.o2 / P.o2max, under: P.under, hunger: P.hunger, thirst: P.thirst, day: S.day, score: S.score, objective: objective(), ftue: !S.ftueDone && S.chapter < 2, compass: comp, useIcon, swim: P.swim, punchHint: S.chapter === 0 && supply && Math.hypot(supply.x - P.x, supply.z - P.z) < 6 });
   const sting = !isDiver() && P.under ? (0.12 + 0.35 * clamp(P.depth / 40, 0, 1)) * (S.tools.goggles ? 0.35 : 1) * (0.8 + 0.2 * Math.sin(W.time * 5)) : 0;
+  UI.setEquip(cfg().recipes.filter(r => (r.kind === 'tool' || r.kind === 'rod') && S.gear[r.id] === 2).map(r => r.icon).join(' '), !!S.tools.goggles && P.under);
   UI.setVignette(sting, P.under && P.o2 / P.o2max < 0.25, P.hurt > 0 ? 0.5 : 0);
   UI.setTint(P.under ? (isDiver() ? 0.05 : 0.18) + clamp(P.depth / 80, 0, 0.3) : 0);
 }
 function updateMarker() {
-  const tg = !S.ftueDone && S.chapter < 2 ? objectiveTarget() : (S.chapter === 3 || S.chapter === 4 ? objectiveTarget() : null);
+  if (raftBeamT > 0) { raftBeamT -= 0.016; W.beam.visible = true; W.beam.position.set(R.x, 0, R.z); return; }
+  const tg = !S.ftueDone && S.chapter < 2 ? objectiveTarget() : (S.chapter === 4 ? objectiveTarget() : null);
   if (tg) { W.beam.visible = true; W.beam.position.set(tg.x, S.chapter === 0 ? tg.y - 1 : 0, tg.z); } else W.beam.visible = false;
 }
 
@@ -535,14 +581,14 @@ function orbitCamera(dt) {
 
 // ================= handlers & boot =================
 const handlers = {
-  openBag() { if (phase === 'play') { phase = 'paused'; ctxPanel = 'bag'; UI.showBag('craft'); } },
+  openBag() { if (phase === 'play') { phase = 'paused'; ctxPanel = 'bag'; UI.showBag('items'); } },
   pause, resume, toMenu, escape() { handlers.afterPanel(); },
   afterPanel() { UI.closePanel(); if (phase === 'paused') { if (ctxPanel === 'pause') UI.showPause(); else resume(); } else if (phase === 'menu') showMenu(); },
   skipFtue() { S.ftueDone = true; saveNow(); },
   userGesture() { initAudio(); }, blur() {},
   continueGame() { initAudio(); startPlay(true); },
   newGame,
-  state: () => S, craft, owned,
+  state: () => S, craft, owned, equip: equipItem, eat: eatItem, drink: drinkItem,
   isMuted: () => !!S.muted, toggleMute() { S.muted = !S.muted; setMuted(S.muted); saveNow(); },
   getQuality: () => S.quality, setQuality(q) { S.quality = q; applyAuto(); saveNow(); },
   setLanguage(l) { S.lang = l; setLang(l); UI.setStaticText(); saveNow(); document.documentElement.lang = l; document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'; UI.closePanel(); if (phase === 'menu') showMenu(); else if (phase === 'paused') UI.showPause(); },

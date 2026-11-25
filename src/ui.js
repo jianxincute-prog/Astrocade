@@ -54,6 +54,16 @@ const CSS = `
 .tcard.hl{transform:scale(1.12);filter:brightness(1.3)}.tcard.dim{opacity:.25}
 .tinfo{text-align:center;font-size:30px;display:flex;flex-direction:column;gap:10px}.tinfo .big{font-size:120px}.tinfo h3{margin:0;font-size:46px;color:#ffd166}
 .lbrow{display:flex;justify-content:space-between;width:100%;font-size:30px;padding:8px 14px;background:rgba(0,0,0,.25);border-radius:14px}
+#equipbar{position:absolute;left:30px;bottom:400px;display:flex;gap:8px;font-size:40px;pointer-events:none}
+#goggle{position:absolute;inset:0;pointer-events:none;display:none;background:radial-gradient(ellipse 62% 46% at 50% 50%,rgba(0,0,0,0) 62%,rgba(0,0,0,.7) 100%)}
+.slots{display:grid;grid-template-columns:repeat(5,104px);gap:8px}
+.slot{position:relative;width:104px;height:104px;border-radius:18px;background:rgba(0,0,0,.3);border:3px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:56px;cursor:pointer;touch-action:manipulation;color:#fff;font-family:inherit;padding:0}
+.slot.empty{border-style:dashed;opacity:.3;cursor:default}.slot.sel{border-color:#ffd166;background:rgba(255,209,102,.22)}
+.slot b{position:absolute;right:8px;bottom:2px;font-size:26px}.slot i{position:absolute;left:8px;top:2px;font-size:24px;font-style:normal}
+.pop{font-size:34px;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:580px;background:linear-gradient(#0f6aa3,#0a3d62);border:4px solid #fff;border-radius:30px;padding:24px;z-index:5;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 0 0 2000px rgba(0,0,0,.45)}
+.pop .big{font-size:96px;line-height:1}.pop .acts{display:flex;gap:10px;width:100%;justify-content:center}
+.pop .acts .btn{flex:1;min-width:0;flex-direction:column;font-size:26px;gap:0;padding:0 6px;min-height:110px}.pop .acts .btn span{font-size:42px}
+.tabs .btn.sel{background:linear-gradient(#ffd166,#f59f1b);color:#3a2300;text-shadow:none}
 #vig{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 200px 60px rgba(255,0,0,0);transition:box-shadow .2s}
 #tint{position:absolute;inset:0;pointer-events:none;background:#06304f;opacity:0}
 #fade{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity .6s;z-index:15}
@@ -66,7 +76,7 @@ export function createUI(root, H) {
   const inp = ui.input;
   root.innerHTML = '';
   const vig = el('div'); vig.id = 'vig'; const tint = el('div'); tint.id = 'tint'; const fade = el('div'); fade.id = 'fade';
-  root.append(tint, vig);
+  const goggle = el('div'); goggle.id = 'goggle'; root.append(tint, goggle, vig);
   // ---- HUD ----
   const hud = el('div'); hud.id = 'hud'; hud.className = 'abs'; hud.style.cssText = 'position:absolute;inset:0';
   const bars = el('div'); bars.id = 'bars';
@@ -77,9 +87,9 @@ export function createUI(root, H) {
   const bBag = el('button', 'btn round', '🎒'), bPause = el('button', 'btn round', '⏸');
   tr.append(dayChip, bBag, bPause);
   const chip = el('div'); chip.id = 'chip'; const chipText = el('span'); const chipSkip = el('span', 'skip'); chip.append(chipText, chipSkip);
-  const compass = el('div'); compass.id = 'compass'; compass.textContent = '🧭';
+  const equipbar = el('div'); equipbar.id = 'equipbar'; const compass = el('div'); compass.id = 'compass'; compass.textContent = '🧭';
   const toasts = el('div'); toasts.id = 'toasts';
-  hud.append(bars, tr, chip, compass, toasts);
+  hud.append(bars, tr, chip, compass, toasts, equipbar);
   // ---- controls ----
   const ctr = el('div'); ctr.style.cssText = 'position:absolute;inset:0;pointer-events:none';
   const stickBase = el('div'); stickBase.id = 'stickBase'; const knob = el('div'); knob.id = 'stickKnob'; stickBase.appendChild(knob);
@@ -162,12 +172,13 @@ export function createUI(root, H) {
     vig.style.boxShadow = `inset 0 0 200px 60px rgba(255,${hurt > 0 || lowO2 ? 20 : 90},${hurt > 0 || lowO2 ? 20 : 60},${a})`;
   };
   ui.setTint = (a) => { tint.style.opacity = a; };
+  let lastEq = null; ui.setEquip = (txt, gog) => { if (txt !== lastEq) { lastEq = txt; equipbar.textContent = txt; } goggle.style.display = gog ? 'block' : 'none'; };
   ui.setFade = (v) => { fade.style.opacity = v ? 1 : 0; };
   ui.setStaticText = () => { root.dir = isRTL() ? 'rtl' : 'ltr'; chipSkip.textContent = t('skip'); };
 
   // ---- panels ----
   let current = null;
-  ui.closePanel = () => { if (current) { current.remove(); current = null; } ui.panelOpen = false; layer.style.pointerEvents = 'none'; };
+  ui.closePanel = () => { ui._sel = null; if (current) { current.remove(); current = null; } ui.panelOpen = false; layer.style.pointerEvents = 'none'; };
   const open = (card, bare) => {
     ui.closePanel(); const p = el('div', bare ? '' : 'panel'); if (bare) p.style.cssText = 'position:absolute;inset:0;z-index:20;pointer-events:none';
     p.appendChild(card); layer.appendChild(p); layer.style.pointerEvents = bare ? 'none' : 'auto'; current = p; ui.panelOpen = !bare; p.dir = isRTL() ? 'rtl' : 'ltr';
@@ -234,32 +245,60 @@ export function createUI(root, H) {
     c.append(btn(t('end_continue'), () => H.resume(), 'main'), btn('🏠 ' + t('menu'), () => H.toMenu())); open(c);
   };
   ui.showBag = (tab) => {
+    tab = tab || 'items';
     const S = H.state(), c = el('div', 'card'); c.style.width = '640px';
     const tabs = el('div', 'tabs');
-    tabs.append(btn('🎒 ' + t('items'), () => ui.showBag('items'), tab === 'items' ? 'sel' : ''), btn('🛠️ ' + t('craft'), () => ui.showBag('craft'), tab === 'craft' ? 'sel' : ''));
+    tabs.append(btn('🎒 ' + t('items'), () => { ui._sel = null; ui.showBag('items'); }, tab === 'items' ? 'sel' : ''), btn('🛠️ ' + t('craft'), () => { ui._sel = null; ui.showBag('craft'); }, tab === 'craft' ? 'sel' : ''));
     c.append(tabs);
+    let pop = null;
     if (tab === 'items') {
-      const g = el('div', 'grid');
-      Object.keys(cfg().items).forEach(id => g.append(el('div', 'cell' + (S.inv[id] ? '' : ' zero'), `${itemIcon(id)} ${S.inv[id] || 0}<small>${itemName(id)}</small>`)));
+      // build the 5x5 slot list: raw resources first, then crafted gear that is still in the bag / worn
+      const list = [];
+      Object.keys(cfg().items).forEach(id => { if ((S.inv[id] || 0) > 0) list.push({ type: 'res', id, icon: itemIcon(id), count: S.inv[id], name: itemName(id) }); });
+      cfg().recipes.forEach(r => { const st = S.gear[r.id] || 0; if (!st || ((r.kind === 'raft' || r.kind === 'upgrade') && st === 2)) return; list.push({ type: 'gear', id: r.id, r, st, icon: r.icon, name: t('r_' + r.id) }); });
+      const g = el('div', 'slots');
+      for (let i = 0; i < 25; i++) {
+        const it = list[i];
+        if (!it) { g.append(el('div', 'slot empty')); continue; }
+        const b = el('button', 'slot' + (ui._sel && ui._sel.id === it.id ? ' sel' : ''), it.icon);
+        if (it.type === 'res') b.append(el('b', '', String(it.count))); else if (it.st === 2) b.append(el('i', '', '✓'));
+        if (it.type === 'gear' && it.r.kind === 'rod') b.append(el('b', '', 'T' + it.r.tier));
+        b.addEventListener('click', () => { sfx.ui(); ui._sel = { id: it.id }; ui.showBag('items'); });
+        g.append(b);
+      }
       c.append(g);
+      if (!list.length) c.append(el('div', '', t('bag_empty')));
+      const sel = ui._sel && list.find(x => x.id === ui._sel.id);
+      if (sel) {
+        pop = el('div', 'pop');
+        const sub = sel.type === 'res' ? '×' + sel.count : (sel.st === 2 ? '✓ ' + t('equipped') : t('in_bag'));
+        pop.append(el('div', 'big', sel.icon), el('div', '', `<b>${sel.name}</b> · ${sub}`));
+        const acts = el('div', 'acts');
+        const canEat = sel.type === 'res' && (sel.id === 'can' || sel.id === 'fish'), canDrink = sel.type === 'res' && sel.id === 'bottle', canEquip = sel.type === 'gear';
+        const mk = (ic, label, on, fn) => { const b = el('button', 'btn' + (on ? '' : ' off'), `<span>${ic}</span>${label}`); b.addEventListener('click', () => { if (!on) return; fn(); }); return b; };
+        acts.append(
+          mk('🍖', t('eat'), canEat, () => { H.eat(sel.id); ui.showBag('items'); }),
+          mk('💧', t('drink'), canDrink, () => { H.drink(sel.id); ui.showBag('items'); }),
+          mk('🛠️', sel.type === 'gear' && sel.st === 2 && sel.r.kind !== 'beacon' ? t('unequip') : t('equip'), canEquip, () => { const close = H.equip(sel.id); if (close) H.afterPanel(); else ui.showBag('items'); }));
+        pop.append(acts, btn(t('close'), () => { ui._sel = null; ui.showBag('items'); }));
+      }
     } else {
       cfg().recipes.forEach(r => {
         if (r.kind === 'rod' && S.talent !== 'fishing') return;
-        if (r.kind === 'beacon' && !(S.inv.part > 0 || S.chapter >= 4)) return;
-        const own = H.owned(r), lock = r.needs === 'raft' && !S.raftBuilt;
-        const row = el('div', 'row'); const info = el('div', 'nm'); info.innerHTML = `${t('r_' + r.id)}`;
+        if (r.kind === 'beacon' && !(S.inv.part > 0 || S.chapter >= 4 || S.gear.beacon)) return;
+        const st = H.owned(r), row = el('div', 'row'), info = el('div', 'nm');
+        info.innerHTML = `${t('r_' + r.id)}`;
         const cost = el('div', 'cost'); Object.keys(r.cost).forEach(k => { const have = S.inv[k] || 0, ok = have >= r.cost[k]; cost.append(el('span', ok ? 'ok' : 'no', `${itemIcon(k)} ${have}/${r.cost[k]}`)); });
         info.append(cost); row.append(el('div', 'ic', r.icon), info);
-        let label = '🛠️', cls = '';
-        if (lock) { label = '🔒'; cls = 'off'; }
-        else if (r.kind === 'rod' && own) { label = S.rodEq === r.tier ? '✓ ' + t('equipped') : t('equip'); cls = S.rodEq === r.tier ? 'sel' : ''; }
-        else if (own && r.kind !== 'raft' && r.kind !== 'beacon') { label = '✓ ' + t('owned'); cls = 'off'; }
-        else if (own) { label = '✓'; cls = 'off'; }
-        const b = btn(label, () => { H.craft(r); ui.showBag('craft'); }, cls); row.append(b); c.append(row);
+        const b = st ? btn('✓ ' + (st === 2 ? t('equipped') : t('in_bag')), () => {}, 'off') : btn('🛠️ ' + t('craft'), () => { H.craft(r); ui.showBag('craft'); });
+        row.append(b); c.append(row);
       });
     }
-    c.append(btn(t('close'), () => H.afterPanel())); open(c);
-    const p = layer.firstChild; if (p) { const k = p.firstChild; if (k && ui._bagScroll && ui._bagTab === tab) k.scrollTop = ui._bagScroll; ui._bagTab = tab; k.addEventListener('scroll', () => ui._bagScroll = k.scrollTop); }
+    c.append(btn(t('close'), () => H.afterPanel()));
+    const p = open(c);
+    if (pop) p.appendChild(pop);
+    const k = p.firstChild; if (k && tab === 'craft') { if (ui._bagScroll && ui._bagTab === tab) k.scrollTop = ui._bagScroll; k.addEventListener('scroll', () => ui._bagScroll = k.scrollTop); }
+    ui._bagTab = tab;
   };
   ui.showDraw = (talentId, redrawUsed, onStart, onRedraw) => {
     const c = el('div', 'card'); c.style.cssText += ';min-height:760px;justify-content:center;text-align:center';
