@@ -528,7 +528,8 @@
       "raft_placed": "Raft placed!",
       "equipped_item": "{name} equipped",
       "unequipped_item": "{name} removed",
-      "bag_empty": "Bag is empty"
+      "bag_empty": "Bag is empty",
+      "bag_full": "Bag is full!"
     },
     "id": {
       "title": "Deluge Drifter",
@@ -667,7 +668,8 @@
       "raft_placed": "Rakit terpasang!",
       "equipped_item": "{name} dipakai",
       "unequipped_item": "{name} dilepas",
-      "bag_empty": "Tas kosong"
+      "bag_empty": "Tas kosong",
+      "bag_full": "Tas penuh!"
     },
     "ar": {
       "title": "Deluge Drifter",
@@ -806,7 +808,8 @@
       "raft_placed": "تم وضع الطوف!",
       "equipped_item": "تم تجهيز {name}",
       "unequipped_item": "تمت إزالة {name}",
-      "bag_empty": "الحقيبة فارغة"
+      "bag_empty": "الحقيبة فارغة",
+      "bag_full": "الحقيبة ممتلئة!"
     }
   },
   "persistent_storage_config": {

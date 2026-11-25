@@ -72,3 +72,12 @@ function mergeStateRaw(base, saved) {
   }
   return base;
 }
+
+// ---------- bag capacity: 25 slots, max 64 of the same item per slot ----------
+export const STACK_MAX = 64, BAG_SLOTS = 25;
+export function slotsUsed(S) {
+  let n = 0;
+  for (const id in S.inv) n += Math.ceil((S.inv[id] || 0) / STACK_MAX);
+  for (const r of cfg().recipes) { const st = S.gear[r.id]; if (st && !((r.kind === 'raft' || r.kind === 'upgrade') && st === 2)) n++; }
+  return n;
+}

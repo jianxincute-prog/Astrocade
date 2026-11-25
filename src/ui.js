@@ -1,5 +1,5 @@
 // DOM UI: HUD, touch/keyboard input, menus, talent draw, bag/craft, settings, language, leaderboard, ending.
-import { t, itemName, itemIcon, cfg, LANGS, getLang, isRTL } from './util.js';
+import { t, itemName, itemIcon, cfg, LANGS, getLang, isRTL, STACK_MAX } from './util.js';
 import { sfx } from './audio.js';
 
 const CSS = `
@@ -254,7 +254,7 @@ export function createUI(root, H) {
     if (tab === 'items') {
       // build the 5x5 slot list: raw resources first, then crafted gear that is still in the bag / worn
       const list = [];
-      Object.keys(cfg().items).forEach(id => { if ((S.inv[id] || 0) > 0) list.push({ type: 'res', id, icon: itemIcon(id), count: S.inv[id], name: itemName(id) }); });
+      Object.keys(cfg().items).forEach(id => { let left = S.inv[id] || 0; while (left > 0) { const n = Math.min(STACK_MAX, left); list.push({ type: 'res', id, icon: itemIcon(id), count: n, total: S.inv[id], name: itemName(id) }); left -= n; } });
       cfg().recipes.forEach(r => { const st = S.gear[r.id] || 0; if (!st || ((r.kind === 'raft' || r.kind === 'upgrade') && st === 2)) return; list.push({ type: 'gear', id: r.id, r, st, icon: r.icon, name: t('r_' + r.id) }); });
       const g = el('div', 'slots');
       for (let i = 0; i < 25; i++) {
@@ -271,7 +271,7 @@ export function createUI(root, H) {
       const sel = ui._sel && list.find(x => x.id === ui._sel.id);
       if (sel) {
         pop = el('div', 'pop');
-        const sub = sel.type === 'res' ? '×' + sel.count : (sel.st === 2 ? '✓ ' + t('equipped') : t('in_bag'));
+        const sub = sel.type === 'res' ? '×' + sel.total : (sel.st === 2 ? '✓ ' + t('equipped') : t('in_bag'));
         pop.append(el('div', 'big', sel.icon), el('div', '', `<b>${sel.name}</b> · ${sub}`));
         const acts = el('div', 'acts');
         const canEat = sel.type === 'res' && (sel.id === 'can' || sel.id === 'fish'), canDrink = sel.type === 'res' && sel.id === 'bottle', canEquip = sel.type === 'gear';

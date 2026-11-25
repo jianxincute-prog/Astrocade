@@ -6,7 +6,7 @@
  * What makes it different: one shared "talent" changes how you play water, loot and combat; day cycle limits daily casts.
  * Modules: src/util (i18n, state), src/world (map, props), src/ui (HUD + menus), src/audio (procedural sound).
  */
-import { clamp, lerp, mulberry32, cfg, tune, t, itemName, itemIcon, setLang, getLang, freshState, mergeState } from './src/util.js';
+import { clamp, lerp, mulberry32, cfg, tune, t, itemName, itemIcon, setLang, getLang, freshState, mergeState, STACK_MAX, BAG_SLOTS, slotsUsed } from './src/util.js';
 import { createWorld, props, waveAt, waveAmp, WORLD, HALF, SEABED, QUALITY } from './src/world.js';
 import { createUI } from './src/ui.js';
 import { initAudio, setMuted, setUnderwater, sfx } from './src/audio.js';
@@ -120,9 +120,16 @@ function burst(x, y, z, color, n) {
 function updateParticles(dt) { for (const p of parts) { if (p.life <= 0) continue; p.life -= dt; p.vy -= 12 * dt; p.m.position.x += p.vx * dt; p.m.position.y += p.vy * dt; p.m.position.z += p.vz * dt; if (p.life <= 0) p.m.visible = false; } }
 
 // ================= inventory / loot =================
+let bagFullT = 0;
+function roomFor(item) {   // how many more of this item fit: partial stack + free slots * 64
+  const have = S.inv[item] || 0, partial = have % STACK_MAX === 0 ? 0 : STACK_MAX - have % STACK_MAX;
+  return partial + Math.max(0, BAG_SLOTS - slotsUsed(S)) * STACK_MAX;
+}
+function bagFullToast() { if (W.time - bagFullT > 2.5) { bagFullT = W.time; UI.toast('🎒 ' + t('bag_full')); sfx.hurt(); } }
 function give(item, n) {
-  S.inv[item] = (S.inv[item] || 0) + n; addScore((cfg().items[item].value || 1) * n);
-  wantToastLoot[item] = (wantToastLoot[item] || 0) + n; lootT = 0.25;
+  const add = Math.min(n, roomFor(item)); if (add < n) bagFullToast(); if (add <= 0) return 0;
+  S.inv[item] = (S.inv[item] || 0) + add; addScore((cfg().items[item].value || 1) * add);
+  wantToastLoot[item] = (wantToastLoot[item] || 0) + add; lootT = 0.25; return add;
 }
 function flushLoot(dt) {
   if (lootT > 0 && (lootT -= dt) <= 0) {
@@ -376,7 +383,9 @@ function craft(r) {
   if (S.gear[r.id]) return;
   for (const k in r.cost) if ((S.inv[k] || 0) < r.cost[k]) { UI.toast(t('need_more')); sfx.hurt(); return; }
   for (const k in r.cost) S.inv[k] -= r.cost[k];
-  S.gear[r.id] = 1; addScore(25); sfx.craft(); hap('success');
+  S.gear[r.id] = 1;
+  if (slotsUsed(S) > BAG_SLOTS) { delete S.gear[r.id]; for (const k in r.cost) S.inv[k] += r.cost[k]; bagFullToast(); return; }
+  addScore(25); sfx.craft(); hap('success');
   UI.toast(r.icon + ' ' + t('to_bag', { name: t('r_' + r.id) })); saveNow();
 }
 function raftFree(x, z) {
@@ -437,6 +446,7 @@ function updateWorldLogic(dt) {
   for (let i = orbs.length - 1; i >= 0; i--) {
     const o = orbs[i]; o.mesh.rotation.y += dt * 2; o.mesh.position.y = o.y + Math.sin(W.time * 2) * 0.25;
     if (Math.hypot(P.x - o.x, P.y + 1 - o.y, P.z - o.z) < 2.8) {
+      if (roomFor('part') < 1) { bagFullToast(); continue; }
       W.scene.remove(o.mesh); orbs.splice(i, 1); S.partIsl.push(o.isl); give('part', 1); UI.toast('📡 ' + t('part_found', { n: S.inv.part })); sfx.win(); hap('success'); saveNow();
     }
   }
