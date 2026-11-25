@@ -1,6 +1,21 @@
 // Shared helpers: math, seeded RNG, i18n (en/id/ar), game state container.
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
+export function raftTracker(raftBuilt, onRaft, helm, px, pz, pyaw, rx, rz) {
+  if (!raftBuilt || onRaft || helm) return null;
+  return { dist: Math.round(Math.hypot(rx - px, rz - pz)), ang: pyaw - Math.atan2(-(rx - px), -(rz - pz)) };
+}
+export function canCallRaft(raftBuilt, onRaft, helm) {
+  return Boolean(raftBuilt && !onRaft && !helm);
+}
+export function stepRaftMotion(speed, yaw, f, s, maxSpeed, hasRudder, dt) {
+  const accel = f ? 3.5 : 2.8;
+  const nextSpeed = lerp(speed, f * maxSpeed, Math.min(1, accel * dt));
+  const turnRate = 1.35 + (hasRudder ? 0.65 : 0);
+  const turnFactor = clamp(Math.abs(nextSpeed) / 2.5 + 0.65, 0.65, 1.1);
+  const nextYaw = yaw - s * turnRate * dt * turnFactor;
+  return { speed: nextSpeed, yaw: nextYaw };
+}
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {

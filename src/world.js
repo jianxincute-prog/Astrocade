@@ -128,6 +128,11 @@ export function buildRaftMesh() {
   const hull = new THREE.Group(); hull.name = 'hull'; hull.visible = false;
   hull.add(mesh(G.box1, M.wood, 1.2, 0.5, 9, -4.0, -0.1, 0)); hull.add(mesh(G.box1, M.wood, 1.2, 0.5, 9, 4.0, -0.1, 0));
   hull.add(mesh(G.box1, M.barrelR, 1, 1.2, 1, -4.2, -0.4, 0)); hull.add(mesh(G.box1, M.barrelR, 1, 1.2, 1, 4.2, -0.4, 0)); g.add(hull);
+  const flag = new THREE.Group(); flag.name = 'flag'; flag.position.set(2.4, 0.5, -3.2);
+  flag.add(mesh(G.box1, M.woodDark, 0.16, 4.5, 0.16, 0, 2.25, 0));
+  flag.add(mesh(G.box1, M.barrelR, 0.08, 0.6, 1.8, 0, 4.1, 0.9));
+  flag.add(mesh(G.box1, M.white, 0.08, 0.6, 1.8, 0, 3.5, 0.9));
+  g.add(flag);
   return g;
 }
 
@@ -139,7 +144,7 @@ export async function createWorld(canvas, opts, progress) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !touch, powerPreference: 'high-performance' });
   renderer.setClearColor(0x8fd3ff);
   const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x8fd3ff, 0.004);
-  const camera = new THREE.PerspectiveCamera(70, 9 / 16, 0.1, 600); camera.rotation.order = 'YXZ'; scene.add(camera);
+  const camera = new THREE.PerspectiveCamera(70, 9 / 16, 0.2, 600); camera.rotation.order = 'YXZ'; scene.add(camera);
   const hemi = new THREE.HemisphereLight(0xcfeaff, 0x335566, 0.9); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(80, 120, 40); scene.add(sun); scene.add(sun.target);
   sun.shadow.mapSize.set(1024, 1024); const sc = sun.shadow.camera; sc.left = -50; sc.right = 50; sc.top = 50; sc.bottom = -50; sc.near = 1; sc.far = 300;
@@ -228,9 +233,9 @@ export async function createWorld(canvas, opts, progress) {
   for (const I of cfg().islands) {
     const g = new THREE.Group(); g.position.set(I.x, 0, I.z);
     const top = 1.6;
-    g.add(mesh(G.cyl, new THREE.MeshLambertMaterial({ color: I.tint }), I.r * 2, 9.4, I.r * 2, 0, -3.1, 0));
+    g.add(mesh(G.cyl, new THREE.MeshLambertMaterial({ color: I.tint }), I.r * 2, 9.4, I.r * 2, 0, -3.25, 0));   // sand body: top at y=1.45 (below the grass cap, so no coplanar faces)
     const base = mesh(G.cone, M.rock, I.r * 2.6, 70, I.r * 2.6, 0, -34, 0); g.add(base);
-    const cap = mesh(G.cyl, new THREE.MeshLambertMaterial({ color: 0x6aa84f }), I.r * 1.5, 0.2, I.r * 1.5, 0, top - 0.1, 0); g.add(cap);
+    const cap = mesh(G.cyl, new THREE.MeshLambertMaterial({ color: 0x6aa84f }), I.r * 1.5, 0.3, I.r * 1.5, 0, top - 0.15, 0); g.add(cap);   // grass cap spans 1.3..1.6 = walkable top
     for (let k = 0; k < 4; k++) {
       const a = rr() * 6.28, rad = rr() * I.r * 0.55; const tr = new THREE.Group(); tr.position.set(Math.cos(a) * rad, top, Math.sin(a) * rad);
       tr.add(mesh(G.cyl, M.woodDark, 0.5, 4, 0.5, 0, 2, 0)); tr.add(mesh(G.sph, new THREE.MeshLambertMaterial({ color: 0x3f9142 }), 3.2, 2.6, 3.2, 0, 4.6, 0)); g.add(tr);
@@ -243,6 +248,7 @@ export async function createWorld(canvas, opts, progress) {
 
   W.raftMesh = buildRaftMesh(); W.raftMesh.visible = false; scene.add(W.raftMesh);
   W.beam = props.beam(); W.beam.visible = false; scene.add(W.beam);
+  W.raftBeam = props.beam(); W.raftBeam.visible = false; scene.add(W.raftBeam);
   progress(0.85);
 
   W.setSize = (w, h) => { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };

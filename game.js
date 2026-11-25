@@ -6,7 +6,7 @@
  * What makes it different: one shared "talent" changes how you play water, loot and combat; day cycle limits daily casts.
  * Modules: src/util (i18n, state), src/world (map, props), src/ui (HUD + menus), src/audio (procedural sound).
  */
-import { clamp, lerp, mulberry32, cfg, tune, t, itemName, itemIcon, setLang, getLang, freshState, mergeState, STACK_MAX, BAG_SLOTS, slotsUsed } from './src/util.js';
+import { clamp, lerp, mulberry32, cfg, tune, t, itemName, itemIcon, setLang, getLang, freshState, mergeState, STACK_MAX, BAG_SLOTS, slotsUsed, raftTracker, canCallRaft, stepRaftMotion } from './src/util.js';
 import { createWorld, props, waveAt, waveAmp, WORLD, HALF, SEABED, QUALITY } from './src/world.js';
 import { createUI } from './src/ui.js';
 import { initAudio, setMuted, setUnderwater, sfx } from './src/audio.js';
@@ -184,11 +184,11 @@ function toLocal(x, z) { const dx = x - R.x, dz = z - R.z, c = Math.cos(R.yaw), 
 function toWorld(lx, lz) { const c = Math.cos(R.yaw), s = Math.sin(R.yaw); return { x: R.x + lx * c + lz * s, z: R.z - lx * s + lz * c }; }
 function updateRaft(dt) {
   if (!S.raftBuilt) return;
-  const I = UI.input, f = P.helm ? clamp(-I.mz, -0.4, 1) : 0, s = P.helm ? I.mx : 0;
+  const I = UI.input, f = P.helm ? clamp(-I.mz, -0.7, 1) : 0, s = P.helm ? I.mx : 0;
   const ox = R.x, oz = R.z, oyaw = R.yaw;
   const sp = S.up.sail ? tune('raftSpeedSail') : tune('raftSpeedBase');
-  R.speed = lerp(R.speed, f * sp, Math.min(1, (f ? 0.9 : 1.6) * dt));
-  const turn = 0.55 + S.up.rudder * 0.35; R.yaw -= s * turn * dt * clamp(Math.abs(R.speed) / 2.5 + 0.25, 0.25, 1);
+  const m = stepRaftMotion(R.speed, R.yaw, f, s, sp, !!S.up.rudder, dt);
+  R.speed = m.speed; R.yaw = m.yaw;
   let nx = R.x - Math.sin(R.yaw) * R.speed * dt, nz = R.z - Math.cos(R.yaw) * R.speed * dt, hit = false;
   for (const b of W.solids) { if (b.y1 < 0.3 || b.y0 > 1) continue; const cx = clamp(nx, b.x0, b.x1), cz = clamp(nz, b.z0, b.z1), d = Math.hypot(nx - cx, nz - cz); if (d < RAFT_R) { hit = true; if (d > 0.001) { nx = cx + (nx - cx) / d * RAFT_R; nz = cz + (nz - cz) / d * RAFT_R; } else nx += RAFT_R; } }
   for (const d of W.discs) { const dd = Math.hypot(nx - d.x, nz - d.z), lim = d.r + RAFT_R; if (dd < lim) { hit = true; nx = d.x + (nx - d.x) / (dd || 1) * lim; nz = d.z + (nz - d.z) / (dd || 1) * lim; } }
@@ -355,7 +355,7 @@ function rollFish(tier) {
   for (const p of pool) { if ((r -= p.w) <= 0) return p.f; } return pool[0].f;
 }
 function useAction() {
-  if (S.raftBuilt && P.onRaft && !P.helm) { const h = helmWorld(); if (Math.hypot(P.x - h.x, P.z - h.z) < 2.6) { P.helm = true; UI.toast(t('helm_on')); sfx.ui(); return; } }
+  if (S.raftBuilt && P.onRaft && !P.helm) { const h = helmWorld(); if (Math.hypot(P.x - h.x, P.z - h.z) < 2.6) { P.helm = true; P.yaw = R.yaw; P.pitch = clamp(P.pitch, -0.45, 0.2); UI.toast(t('helm_on')); sfx.ui(); return; } }
   if (fishing) { if (fishing.state === 'bite') reel(true); return; }
   if (S.rodEq > 0 && !P.swim) {
     if (S.castsLeft <= 0) { UI.toast(t('no_casts')); return; }
@@ -380,13 +380,14 @@ function updateFishing(dt) {
 const recipeOf = (id) => cfg().recipes.find(r => r.id === id);
 function owned(r) { return S.gear[r.id] || 0; }   // 0 = not owned, 1 = in bag, 2 = equipped / installed
 function craft(r) {
-  if (S.gear[r.id]) return;
-  for (const k in r.cost) if ((S.inv[k] || 0) < r.cost[k]) { UI.toast(t('need_more')); sfx.hurt(); return; }
+  if (S.gear[r.id]) return false;
+  for (const k in r.cost) if ((S.inv[k] || 0) < r.cost[k]) { UI.toast(t('need_more')); sfx.hurt(); return false; }
   for (const k in r.cost) S.inv[k] -= r.cost[k];
   S.gear[r.id] = 1;
-  if (slotsUsed(S) > BAG_SLOTS) { delete S.gear[r.id]; for (const k in r.cost) S.inv[k] += r.cost[k]; bagFullToast(); return; }
+  if (slotsUsed(S) > BAG_SLOTS) { delete S.gear[r.id]; for (const k in r.cost) S.inv[k] += r.cost[k]; bagFullToast(); return false; }
+  if (r.kind === 'raft') { addScore(25); return equipItem('raft'); }
   addScore(25); sfx.craft(); hap('success');
-  UI.toast(r.icon + ' ' + t('to_bag', { name: t('r_' + r.id) })); saveNow();
+  UI.toast(r.icon + ' ' + t('to_bag', { name: t('r_' + r.id) })); saveNow(); return false;
 }
 function raftFree(x, z) {
   if (Math.abs(x) > HALF - 9 || Math.abs(z) > HALF - 9) return false;
@@ -401,12 +402,19 @@ function findRaftSpot() {
   return raftFree(DOCK.x, DOCK.z) ? { x: DOCK.x, z: DOCK.z } : { x: 60, z: 60 };
 }
 let raftBeamT = 0;
+function callRaft() {
+  if (!canCallRaft(S.raftBuilt, P.onRaft, P.helm)) return false;
+  const sp = findRaftSpot(); placeRaft(sp.x, sp.z, P.yaw);
+  P.yaw = Math.atan2(-(sp.x - P.x), -(sp.z - P.z)); P.pitch = clamp(Math.atan2(0.5 - (P.y + EYE), Math.hypot(sp.x - P.x, sp.z - P.z)), -1.2, 0.2);
+  raftBeamT = 6; UI.toast('🛶 ' + t('raft_called')); sfx.craft(); hap('success'); saveNow();
+  return true;
+}
 function equipItem(id) {   // returns true when the bag should close (so the player sees the result)
   const r = recipeOf(id), st = S.gear[id]; if (!r || !st) return false;
   const nm = t('r_' + id);
   if (r.kind === 'raft') {
     if (st === 2) return false;
-    const sp = findRaftSpot(); S.raftBuilt = true; S.gear.raft = 2; placeRaft(sp.x, sp.z, P.yaw + Math.PI);
+    const sp = findRaftSpot(); S.raftBuilt = true; S.gear.raft = 2; placeRaft(sp.x, sp.z, P.yaw);
     P.yaw = Math.atan2(-(sp.x - P.x), -(sp.z - P.z)); P.pitch = clamp(Math.atan2(0.5 - (P.y + EYE), Math.hypot(sp.x - P.x, sp.z - P.z)), -1.2, 0.2); raftBeamT = 8; UI.toast('🛶 ' + t('raft_placed')); sfx.craft(); hap('success'); saveNow(); return true;
   }
   if (r.kind === 'upgrade') {
@@ -466,7 +474,7 @@ function objectiveTarget() {
   if (c === 0) { const e = ents.find(x => x.id === 'supply' && !x.dead); return e ? { x: e.x, y: e.y, z: e.z } : null; }
   if (c === 1) return { x: 0, y: 0, z: -25 };
   if (c === 2) { let b = null, bd = 1e9; for (const e of ents) { if (e.dead || !e.float) continue; const d = Math.hypot(e.x - P.x, e.z - P.z); if (d < bd) { bd = d; b = e; } } return b ? { x: b.x, y: 0, z: b.z } : null; }
-  if (c === 3) return { x: DOCK.x, y: 0, z: DOCK.z };
+  if (c === 3) return null;
   if (c === 4) { let b = null, bd = 1e9; for (const o of orbs) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (d < bd) { bd = d; b = o; } } return b ? { x: b.x, y: 0, z: b.z } : null; }
   return null;
 }
@@ -516,13 +524,19 @@ function updateHud(dt) {
   else if (S.rodEq > 0 && !P.swim && !P.helm) useIcon = '🎣';
   else if (P.helm) useIcon = null;
   const supply = ents.find(e => e.id === 'supply' && !e.dead);
-  UI.setHud({ hp: P.hp, o2: P.o2 / P.o2max, under: P.under, hunger: P.hunger, thirst: P.thirst, day: S.day, score: S.score, objective: objective(), ftue: !S.ftueDone && S.chapter < 2, compass: comp, useIcon, swim: P.swim, punchHint: S.chapter === 0 && supply && Math.hypot(supply.x - P.x, supply.z - P.z) < 6 });
+  const raft = raftTracker(S.raftBuilt, P.onRaft, P.helm, P.x, P.z, P.yaw, R.x, R.z);
+  UI.setHud({ hp: P.hp, o2: P.o2 / P.o2max, under: P.under, hunger: P.hunger, thirst: P.thirst, day: S.day, score: S.score, objective: objective(), ftue: !S.ftueDone && S.chapter < 2, compass: comp, raft, useIcon, swim: P.swim, punchHint: S.chapter === 0 && supply && Math.hypot(supply.x - P.x, supply.z - P.z) < 6 });
   const sting = !isDiver() && P.under ? (0.12 + 0.35 * clamp(P.depth / 40, 0, 1)) * (S.tools.goggles ? 0.35 : 1) * (0.8 + 0.2 * Math.sin(W.time * 5)) : 0;
   UI.setEquip(cfg().recipes.filter(r => (r.kind === 'tool' || r.kind === 'rod') && S.gear[r.id] === 2).map(r => r.icon).join(' '), !!S.tools.goggles && P.under);
   UI.setVignette(sting, P.under && P.o2 / P.o2max < 0.25, P.hurt > 0 ? 0.5 : 0);
   UI.setTint(P.under ? (isDiver() ? 0.05 : 0.18) + clamp(P.depth / 80, 0, 0.3) : 0);
 }
 function updateMarker() {
+  if (W.raftBeam) {
+    const showRaftBeam = !!(S.raftBuilt && !P.onRaft && !P.helm);
+    W.raftBeam.visible = showRaftBeam;
+    if (showRaftBeam) W.raftBeam.position.set(R.x, 0, R.z);
+  }
   if (raftBeamT > 0) { raftBeamT -= 0.016; W.beam.visible = true; W.beam.position.set(R.x, 0, R.z); return; }
   const tg = !S.ftueDone && S.chapter < 2 ? objectiveTarget() : (S.chapter === 4 ? objectiveTarget() : null);
   if (tg) { W.beam.visible = true; W.beam.position.set(tg.x, S.chapter === 0 ? tg.y - 1 : 0, tg.z); } else W.beam.visible = false;
@@ -598,7 +612,7 @@ const handlers = {
   userGesture() { initAudio(); }, blur() {},
   continueGame() { initAudio(); startPlay(true); },
   newGame,
-  state: () => S, craft, owned, equip: equipItem, eat: eatItem, drink: drinkItem,
+  state: () => S, craft, owned, equip: equipItem, eat: eatItem, drink: drinkItem, callRaft,
   isMuted: () => !!S.muted, toggleMute() { S.muted = !S.muted; setMuted(S.muted); saveNow(); },
   getQuality: () => S.quality, setQuality(q) { S.quality = q; applyAuto(); saveNow(); },
   setLanguage(l) { S.lang = l; setLang(l); UI.setStaticText(); saveNow(); document.documentElement.lang = l; document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'; UI.closePanel(); if (phase === 'menu') showMenu(); else if (phase === 'paused') UI.showPause(); },
@@ -619,7 +633,7 @@ async function run(m) {
       'Boxer punch damage': { key: 'tuning.punchDamageBoxer', type: 'slider', min: 1, max: 6, step: 0.5 },
       'Fishing casts / day': { key: 'tuning.castsPerDay', type: 'slider', min: 1, max: 10, step: 1 },
       'Pufferfish count': { key: 'tuning.pufferCount', type: 'slider', min: 0, max: 30, step: 1 },
-      'Raft speed (sail)': { key: 'tuning.raftSpeedSail', type: 'slider', min: 6, max: 20, step: 1 }
+      'Raft speed (sail)': { key: 'tuning.raftSpeedSail', type: 'slider', min: 6, max: 24, step: 1 }
     } });
   } catch (_) {}
   S = freshState();

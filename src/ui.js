@@ -19,7 +19,10 @@ const CSS = `
 #chip{position:absolute;top:150px;left:50%;transform:translateX(-50%);max-width:560px;min-width:260px;background:rgba(10,60,95,.78);border:3px solid rgba(255,255,255,.5);border-radius:26px;padding:12px 22px;font-size:30px;text-align:center;pointer-events:auto;display:flex;gap:14px;align-items:center;justify-content:center}
 #chip .skip{font-size:24px;opacity:.8;padding:6px 12px;border:2px solid rgba(255,255,255,.5);border-radius:14px;min-height:48px;display:flex;align-items:center}
 #compass{position:absolute;top:262px;left:50%;width:70px;height:70px;margin-left:-35px;font-size:50px;text-align:center;line-height:70px;transition:transform .1s}
-#toasts{position:absolute;top:350px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+#raftNav{position:absolute;top:334px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:8px;background:rgba(10,60,95,.82);border:2px solid rgba(255,209,102,.85);border-radius:20px;padding:4px 14px;font-size:26px;font-weight:800;pointer-events:none;white-space:nowrap}
+#raftNav .arr{display:inline-block;transition:transform .1s}
+#bCallRaft{position:absolute;left:30px;bottom:460px;width:96px;height:96px;font-size:48px;display:none;background:linear-gradient(#ffd166,#f59f1b);color:#3a2300;border-color:#fff}
+#toasts{position:absolute;top:392px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:8px}
 .toast{background:rgba(0,0,0,.6);padding:10px 24px;border-radius:20px;font-size:32px;animation:tin .25s,tout .4s 1.6s forwards}
 @keyframes tin{from{transform:translateY(20px) scale(.9);opacity:0}}
 @keyframes tout{to{opacity:0;transform:translateY(-20px)}}
@@ -88,8 +91,9 @@ export function createUI(root, H) {
   tr.append(dayChip, bBag, bPause);
   const chip = el('div'); chip.id = 'chip'; const chipText = el('span'); const chipSkip = el('span', 'skip'); chip.append(chipText, chipSkip);
   const equipbar = el('div'); equipbar.id = 'equipbar'; const compass = el('div'); compass.id = 'compass'; compass.textContent = '🧭';
+  const raftNav = el('div'); raftNav.id = 'raftNav'; const raftArr = el('span', 'arr', '⬆️'); const raftDist = el('span'); raftNav.append(raftArr, raftDist);
   const toasts = el('div'); toasts.id = 'toasts';
-  hud.append(bars, tr, chip, compass, toasts, equipbar);
+  hud.append(bars, tr, chip, compass, raftNav, toasts, equipbar);
   // ---- controls ----
   const ctr = el('div'); ctr.style.cssText = 'position:absolute;inset:0;pointer-events:none';
   const stickBase = el('div'); stickBase.id = 'stickBase'; const knob = el('div'); knob.id = 'stickKnob'; stickBase.appendChild(knob);
@@ -97,7 +101,8 @@ export function createUI(root, H) {
   const bUse = el('button', 'btn round', '✋'); bUse.id = 'bUse';
   const bJump = el('button', 'btn round', '⬆️'); bJump.id = 'bJump';
   const bDive = el('button', 'btn round', '⬇️'); bDive.id = 'bDive';
-  ctr.append(stickBase, bPunch, bUse, bJump, bDive);
+  const bCallRaft = el('button', 'btn round', '🛶'); bCallRaft.id = 'bCallRaft';
+  ctr.append(stickBase, bPunch, bUse, bJump, bDive, bCallRaft);
   hud.appendChild(ctr);
   root.append(hud, fade);
   const layer = el('div'); layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:20'; root.appendChild(layer);
@@ -125,6 +130,7 @@ export function createUI(root, H) {
   tap(bPunch, 'punch'); tap(bUse, 'use'); untap(bPunch); untap(bUse);
   bBag.addEventListener('click', () => { H.openBag(); });
   bPause.addEventListener('click', () => { H.pause(); });
+  bCallRaft.addEventListener('click', () => { H.callRaft(); });
   chipSkip.addEventListener('click', () => { H.skipFtue(); });
   // look drag on canvas
   const canvas = document.getElementById('view'); let lookId = null, lx = 0, ly = 0;
@@ -143,6 +149,7 @@ export function createUI(root, H) {
     if (ui.panelOpen) { if (e.code === 'Escape') H.escape(); return; }
     if (e.code === 'KeyF' || e.code === 'KeyJ') inp.punch = true;
     if (e.code === 'KeyE' || e.code === 'Enter') inp.use = true;
+    if (e.code === 'KeyR') H.callRaft();
     if (e.code === 'KeyB' || e.code === 'Tab') { H.openBag(); e.preventDefault(); }
     if (e.code === 'Escape' || e.code === 'KeyP') H.pause();
     if (e.code === 'Space') e.preventDefault();
@@ -162,6 +169,7 @@ export function createUI(root, H) {
     dayChip.textContent = t('day', { n: s.day }) + ' · ⭐' + s.score;
     chipText.textContent = s.objective; chipSkip.style.display = s.ftue ? 'flex' : 'none';
     if (s.compass === null) compass.style.display = 'none'; else { compass.style.display = 'block'; compass.style.transform = `rotate(${s.compass}rad)`; compass.textContent = '⬆️'; }
+    if (s.raft) { raftNav.style.display = 'flex'; raftArr.style.transform = `rotate(${s.raft.ang}rad)`; raftDist.textContent = `🛶 ${s.raft.dist}m`; bCallRaft.style.display = 'flex'; } else { raftNav.style.display = 'none'; bCallRaft.style.display = 'none'; }
     bUse.style.display = s.useIcon ? 'flex' : 'none'; if (s.useIcon) bUse.textContent = s.useIcon;
     bUse.classList.toggle('hintring', !!s.useIcon);
     bDive.style.display = s.swim ? 'flex' : 'none';
@@ -290,7 +298,7 @@ export function createUI(root, H) {
         info.innerHTML = `${t('r_' + r.id)}`;
         const cost = el('div', 'cost'); Object.keys(r.cost).forEach(k => { const have = S.inv[k] || 0, ok = have >= r.cost[k]; cost.append(el('span', ok ? 'ok' : 'no', `${itemIcon(k)} ${have}/${r.cost[k]}`)); });
         info.append(cost); row.append(el('div', 'ic', r.icon), info);
-        const b = st ? btn('✓ ' + (st === 2 ? t('equipped') : t('in_bag')), () => {}, 'off') : btn('🛠️ ' + t('craft'), () => { H.craft(r); ui.showBag('craft'); });
+        const b = st ? btn('✓ ' + (st === 2 ? t('equipped') : t('in_bag')), () => {}, 'off') : btn('🛠️ ' + t('craft'), () => { if (H.craft(r)) H.afterPanel(); else ui.showBag('craft'); });
         row.append(b); c.append(row);
       });
     }
