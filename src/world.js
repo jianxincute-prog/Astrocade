@@ -1,13 +1,14 @@
 // World builder: 500x500 flooded map, sunken city (centre), start skyscraper, islands, sky/water/seabed and prop factories.
 import { clamp, lerp, mulberry32, cfg } from './util.js';
 import { createWaterSystem, acesJS } from './water.js';
+import { createUnderwater } from './underwater.js';
 
 const THREE = window.THREE;
 export const WORLD = 500, HALF = 250, SEABED = -72;
 export const QUALITY = {
-  low:  { pr: 1,    shadows: false, seg: 64,  wlevel: 0, far: 320, density: 0.6, rocks: 30 },
-  med:  { pr: 1.25, shadows: false, seg: 120, wlevel: 1, far: 480, density: 0.85, rocks: 70 },
-  high: { pr: 2,    shadows: true,  seg: 192, wlevel: 2, far: 650, density: 1, rocks: 120 }
+  low:  { pr: 1,    shadows: false, seg: 64,  wlevel: 0, uw: 0, far: 320, density: 0.6, rocks: 30 },
+  med:  { pr: 1.25, shadows: false, seg: 120, wlevel: 1, uw: 1, far: 480, density: 0.85, rocks: 70 },
+  high: { pr: 2,    shadows: true,  seg: 192, wlevel: 2, uw: 2, far: 650, density: 1, rocks: 120 }
 };
 export const waveAmp = { v: 0.3 };
 export function waveAt(x, z, t) {
@@ -152,10 +153,12 @@ export async function createWorld(canvas, opts, progress) {
   sun.shadow.mapSize.set(1024, 1024); const sc = sun.shadow.camera; sc.left = -50; sc.right = 50; sc.top = 50; sc.bottom = -50; sc.near = 1; sc.far = 300;
   const headlamp = new THREE.PointLight(0xbfefff, 0, 38); camera.add(headlamp);
   Object.assign(W, { renderer, scene, camera, hemi, sun, headlamp });
+  const UW = createUnderwater(scene, camera, renderer); W.uw = UW;
   progress(0.1); await tick();
 
   // seabed + rocks
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshLambertMaterial({ color: 0x3f7384 }));
+  const seaMat = new THREE.MeshLambertMaterial({ color: 0x3f7384 }); UW.patch(seaMat); UW.patch(M.rock);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), seaMat);
   sea.rotation.x = -Math.PI / 2; sea.position.y = SEABED; scene.add(sea);
   const rockMax = 120, rocks = new THREE.InstancedMesh(G.cone, M.rock, rockMax); const dm = new THREE.Object3D();
   for (let i = 0; i < rockMax; i++) {
@@ -213,7 +216,7 @@ export async function createWorld(canvas, opts, progress) {
       if (top < -2) W.cachesSpots.push({ x: cx + (rr() - 0.5) * (w - 3), y: top, z: cz + (rr() - 0.5) * (d - 3) });
     }
   }
-  const cityMat = new THREE.MeshLambertMaterial({ map: windowTexture(), vertexColors: true });
+  const cityMat = new THREE.MeshLambertMaterial({ map: windowTexture(), vertexColors: true }); UW.patch(cityMat);
   const cityMesh = new THREE.Mesh(buildGeo(A), cityMat); scene.add(cityMesh); W.cityMesh = cityMesh; cityMesh.castShadow = true; cityMesh.receiveShadow = true;
   // roof antenna decoration
   const ant = mesh(G.cyl, M.steel, 0.4, 10, 0.4, -8, 29, -8); scene.add(ant); scene.add(mesh(G.sph, M.yellow, 0.9, 0.9, 0.9, -8, 34, -8));
@@ -250,7 +253,7 @@ export async function createWorld(canvas, opts, progress) {
     renderer.shadowMap.enabled = Q.shadows; sun.castShadow = Q.shadows;
     camera.far = Q.far; camera.updateProjectionMatrix();
     if (WS.seg !== Q.seg || WS.level !== Q.wlevel) W.rebuildWater(Q.seg, Q.wlevel);
-    W.rocks.count = Q.rocks; W.clouds.forEach((c, i) => c.visible = q !== 'low' || i < 5);
+    W.uw.setLevel(Q.uw); W.rocks.count = Q.rocks; W.clouds.forEach((c, i) => c.visible = q !== 'low' || i < 5);
     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
   };
   W.sunDir = new THREE.Vector3(0.5, 0.7, 0.4);
@@ -270,12 +273,17 @@ export async function createWorld(canvas, opts, progress) {
     W.dayness = day; W.cloudMat.emissive.setScalar(0.04 + 0.6 * day); W.cloudMat.color.setScalar(0.25 + 0.75 * day); WS.dome.position.copy(camera.position); WS.dome.visible = !under;
     if (under) {
       const dt = clamp(depth / 60, 0, 1);
-      const col = new THREE.Color(0x2aa3c8).lerp(new THREE.Color(0x041a33), dt).multiplyScalar(0.35 + day * 0.65);
+      // 3-stop absorption: turquoise near the surface -> deep blue -> almost black
+      const col = dt < 0.5 ? new THREE.Color(0.10, 0.60, 0.68).lerp(new THREE.Color(0.02, 0.30, 0.50), dt * 2) : new THREE.Color(0.02, 0.30, 0.50).lerp(new THREE.Color(0.0, 0.06, 0.2), (dt - 0.5) * 2);
+      col.multiplyScalar(0.3 + day * 0.7);
+      hemi.color.setRGB(0.45, 0.85, 1.0); hemi.groundColor.setRGB(0.05, 0.2, 0.3);
+      sun.intensity *= Math.exp(-depth / 35); hemi.intensity *= 0.55 + 0.45 * Math.exp(-depth / 40);
       scene.fog.color.copy(col); renderer.setClearColor(col);
       const dens = cfg().tuning ? (diver ? cfg().tuning.fogDiver : goggles ? (cfg().tuning.fogBase + cfg().tuning.fogDiver) / 2 : cfg().tuning.fogBase) : 0.05;
       scene.fog.density = dens * (1 + dt * 0.6);
       headlamp.intensity = 0.6 + dt * 1.8; headlamp.distance = diver ? 60 : 38;
     } else {
+      hemi.color.setHex(0xcfeaff); hemi.groundColor.setHex(0x335566);
       const fc = acesJS(sky, renderer.toneMappingExposure);   // pre-tonemapped so the dome horizon and fog match exactly
       scene.fog.color.copy(fc); renderer.setClearColor(fc); scene.fog.density = 0.0032 + (1 - day) * 0.003; headlamp.intensity = 0;
     }

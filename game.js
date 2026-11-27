@@ -272,7 +272,7 @@ function updatePlayer(dt) {
   // water state
   const surf = waveAt(P.x, P.z, W.time);
   P.under = P.y + EYE < surf - 0.05; P.depth = Math.max(0, -P.y);
-  if (P.under !== wasUnder) { setUnderwater(P.under); sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); }
+  if (P.under !== wasUnder) { setUnderwater(P.under); sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); if (P.under) W.uw.bubble(P.x, P.y + 1.0, P.z, 16); }
   else if (prevY >= -0.3 && P.y < -0.3 && P.vy < -3) { sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); }
   if (S.chapter === 1 && P.y < -0.7) { S.chapter = 2; saveNow(); }
 }
@@ -584,7 +584,7 @@ function frame(ts) {
   if (autoTier === null && S && S.quality === 'auto' && phase !== 'loading' && fpsN < 120) { if (fpsN > 30) fpsAcc += dt; fpsN++; if (fpsN === 120) { const avg = fpsAcc / 90; autoTier = avg < 0.019 ? 'high' : avg < 0.03 ? 'med' : 'low'; if (window.lib.shouldUseTouchControls && window.lib.shouldUseTouchControls() && autoTier === 'high') autoTier = 'med'; applyAuto(); log('auto quality: ' + autoTier + ' avg ' + avg.toFixed(4)); } }
   W.updateWater(W.time);
   W.clouds.forEach((c, i) => { c.position.x += dt * (1 + i * 0.1); if (c.position.x > 480) c.position.x = -480; });
-  if (mode === 'edit' || phase === 'menu' || phase === 'draw' || phase === 'loading') { orbitCamera(dt); W.updateSky(S ? S.tod : 0.4, false, 0); if (S && phase !== 'loading' && mode !== 'edit') S.tod += dt / 400; W.renderer.render(W.scene, W.camera); if (view) view.group.visible = false; return; }
+  if (mode === 'edit' || phase === 'menu' || phase === 'draw' || phase === 'loading') { orbitCamera(dt); W.updateSky(S ? S.tod : 0.4, false, 0); W.uw.update(W.time, dt, { under: false, depth: 0, day: W.dayness, sunDir: W.sunDir }); if (S && phase !== 'loading' && mode !== 'edit') S.tod += dt / 400; W.renderer.render(W.scene, W.camera); if (view) view.group.visible = false; return; }
   if (view) view.group.visible = true;
   if (phase === 'play' && !UI.panelOpen) {
     updateDay(dt); updatePlayer(dt); updateRaft(dt); updateSurvival(dt); updateBlackout(dt); updatePuffers(dt); updateFishing(dt); updateWorldLogic(dt);
@@ -592,7 +592,7 @@ function frame(ts) {
     saveT -= dt; if (saveT <= 0) { saveT = 20; saveNow(); } subT -= dt; if (subT <= 0) { subT = 120; submitScore(); }
   } else if (phase === 'paused') { UI.input.punch = UI.input.use = false; }
   updateEntitiesVisual(dt); updateParticles(dt); updateView(dt); flushLoot(dt); updateMarker(); updateHud(dt);
-  W.updateSky(S.tod, P.under, P.depth, isDiver(), !!S.tools.goggles);
+  W.updateSky(S.tod, P.under, P.depth, isDiver(), !!S.tools.goggles); W.uw.update(W.time, dt, { under: P.under, depth: P.depth, day: W.dayness, sunDir: W.sunDir });
   if (P.under) W.sun.intensity *= 0.6; setUnderwater(P.under);
   W.sun.target.position.set(P.x, 0, P.z); W.sun.position.set(P.x + W.sunDir.x * 150, Math.max(25, W.sunDir.y * 150), P.z + W.sunDir.z * 150);
   W.renderer.render(W.scene, W.camera);
