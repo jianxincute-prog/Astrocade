@@ -138,7 +138,7 @@ function flushLoot(dt) {
   }
 }
 function breakEnt(e) {
-  e.dead = true; e.mesh.visible = false; sfx.pickup(); hap('success');
+  e.dead = true; e.mesh.visible = false; sfx.pickup(); hap('success'); if (e.float) W.WS.addRipple(e.x, e.z, 0.8);
   burst(e.x, e.y + 0.5, e.z, e.kind === 'cache' || e.kind === 'chest' ? 0xffd166 : 0xd2a766, 12);
   (LOOT[e.kind](e)).forEach(([it, n]) => give(it, n));
   if (e.id && (e.id === 'supply' || e.id[0] === 'c')) S.taken.push(e.id);
@@ -174,7 +174,7 @@ function placeRaft(px, pz, yaw) {
   R.x = px; R.z = pz; R.yaw = yaw || 0; R.speed = 0; W.raftMesh.visible = true; syncRaftVisual();
 }
 function syncRaftVisual() {
-  const m = W.raftMesh; m.position.set(R.x, 0, R.z); m.rotation.y = R.yaw;
+  const m = W.raftMesh; m.rotation.order = 'YXZ'; m.position.set(R.x, 0, R.z); m.rotation.y = R.yaw;
   m.getObjectByName('sail').visible = !!S.up.sail; m.getObjectByName('rudder').visible = !!S.up.rudder;
   m.getObjectByName('lantern').visible = !!S.up.lantern; m.userData.lampLight.intensity = S.up.lantern ? 1.2 : 0;
   m.getObjectByName('hull').visible = !!S.up.hull;
@@ -201,7 +201,20 @@ function updateRaft(dt) {
     P.x = R.x + rel.x * cc + rel.z * ss; P.z = R.z - rel.x * ss + rel.z * cc;
     P.yaw += yawDelta;
   }
-  syncRaftVisual();
+  syncRaftVisual(); raftFX(dt);
+}
+// raft foam + V-shaped wake + bow spray + gentle roll/pitch (visual only; the deck height used by physics stays fixed)
+let wakeT = 0, sprayT = 0, rippleT = 0;
+function raftFX(dt) {
+  const sp = Math.abs(R.speed), m = W.raftMesh;
+  W.WS.setRaft(R.x, R.z, R.yaw, sp, raftHW(), raftHL, S.raftBuilt);
+  m.rotation.z = Math.sin(W.time * 0.9) * 0.014 + (P.helm ? -UI.input.mx * sp * 0.004 : 0);
+  m.rotation.x = Math.sin(W.time * 0.7 + 1) * 0.01 - Math.min(sp, 12) * 0.003;
+  if (sp > 1.2) {
+    wakeT -= dt;
+    if (wakeT <= 0) { wakeT = 0.26; const a = clamp(sp / 8, 0.35, 1), hw = raftHW() * 0.85; [-hw, hw].forEach(lx => { const w = toWorld(lx, raftHL); W.WS.addWake(w.x, w.z, a); }); }
+  }
+  if (sp > 5) { sprayT -= dt; if (sprayT <= 0) { sprayT = 0.1; const b = toWorld((Math.random() - 0.5) * raftHW(), -raftHL); burst(b.x, 0.5, b.z, 0xffffff, 2); } }
 }
 function helmWorld() { return toWorld(0, 3.2); }
 
@@ -272,8 +285,9 @@ function updatePlayer(dt) {
   // water state
   const surf = waveAt(P.x, P.z, W.time);
   P.under = P.y + EYE < surf - 0.05; P.depth = Math.max(0, -P.y);
-  if (P.under !== wasUnder) { setUnderwater(P.under); sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); if (P.under) W.uw.bubble(P.x, P.y + 1.0, P.z, 16); }
-  else if (prevY >= -0.3 && P.y < -0.3 && P.vy < -3) { sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); }
+  if (P.under !== wasUnder) { setUnderwater(P.under); sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); burst(P.x, surf + 0.5, P.z, 0xffffff, 12); W.WS.addRipple(P.x, P.z, 1.1); if (P.under) W.uw.bubble(P.x, P.y + 1.0, P.z, 16); }
+  else if (prevY >= -0.3 && P.y < -0.3 && P.vy < -3) { sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); burst(P.x, surf + 0.5, P.z, 0xffffff, 12); W.WS.addRipple(P.x, P.z, 1.2); }
+  if (P.swim && P.y > -2.2 && Math.hypot(P.vx, P.vz) > 0.8) { rippleT -= dt; if (rippleT <= 0) { rippleT = 0.45; W.WS.addRipple(P.x, P.z, 0.45); } }
   if (S.chapter === 1 && P.y < -0.7) { S.chapter = 2; saveNow(); }
 }
 function collideH(axis) {
@@ -360,7 +374,7 @@ function useAction() {
   if (S.rodEq > 0 && !P.swim) {
     if (S.castsLeft <= 0) { UI.toast(t('no_casts')); return; }
     const a = aimWater(); if (!a) { UI.toast(t('look_water')); return; }
-    S.castsLeft--; fishing = { x: a.x, z: a.z, time: 0, bite: 1.4 + Math.random() * 1.6, state: 'wait' }; bobber.visible = true; bobber.position.set(a.x, 0.2, a.z);
+    S.castsLeft--; fishing = { x: a.x, z: a.z, time: 0, bite: 1.4 + Math.random() * 1.6, state: 'wait' }; bobber.visible = true; bobber.position.set(a.x, 0.2, a.z); W.WS.addRipple(a.x, a.z, 0.7);
     UI.toast('🎣 ' + t('casts_left', { n: S.castsLeft })); sfx.cast(); hap('tap'); view.cast = 1;
   }
 }
@@ -368,13 +382,13 @@ function reel(timed) {
   if (!fishing) return; const tier = S.rodEq, f = rollFish(tier);
   let n = f.min + Math.floor(Math.random() * (f.max - f.min + 1)) + (tier >= 3 ? 1 : 0) + (timed ? 1 : 0); n = Math.max(1, n);
   give(f.item, n); UI.toast('🎣 ' + t('caught', { item: itemIcon(f.item) + ' ' + itemName(f.item) })); sfx.pickup(); hap('success');
-  burst(fishing.x, 0.5, fishing.z, 0xbfefff, 10); bobber.visible = false; fishing = null; saveT = Math.min(saveT, 15);
+  burst(fishing.x, 0.5, fishing.z, 0xbfefff, 10); W.WS.addRipple(fishing.x, fishing.z, 1.0); bobber.visible = false; fishing = null; saveT = Math.min(saveT, 15);
 }
 function updateFishing(dt) {
   if (!fishing) return;
   if (P.swim || phase !== 'play') { bobber.visible = false; fishing = null; return; }
   fishing.time += dt; bobber.position.y = 0.2 + waveAt(fishing.x, fishing.z, W.time);
-  if (fishing.state === 'wait' && fishing.time > fishing.bite) { fishing.state = 'bite'; fishing.t2 = 0; sfx.pop(); hap('warning'); bobber.scale.set(2, 2, 2); }
+  if (fishing.state === 'wait' && fishing.time > fishing.bite) { fishing.state = 'bite'; fishing.t2 = 0; sfx.pop(); hap('warning'); bobber.scale.set(2, 2, 2); W.WS.addRipple(fishing.x, fishing.z, 0.6); }
   if (fishing.state === 'bite') { fishing.t2 += dt; bobber.position.y -= 0.35 * Math.abs(Math.sin(fishing.t2 * 14)); if (fishing.t2 > 1.4) { bobber.scale.set(1, 1, 1); reel(false); } }
 }
 const recipeOf = (id) => cfg().recipes.find(r => r.id === id);
@@ -584,7 +598,7 @@ function frame(ts) {
   if (autoTier === null && S && S.quality === 'auto' && phase !== 'loading' && fpsN < 120) { if (fpsN > 30) fpsAcc += dt; fpsN++; if (fpsN === 120) { const avg = fpsAcc / 90; autoTier = avg < 0.019 ? 'high' : avg < 0.03 ? 'med' : 'low'; if (window.lib.shouldUseTouchControls && window.lib.shouldUseTouchControls() && autoTier === 'high') autoTier = 'med'; applyAuto(); log('auto quality: ' + autoTier + ' avg ' + avg.toFixed(4)); } }
   W.updateWater(W.time);
   W.clouds.forEach((c, i) => { c.position.x += dt * (1 + i * 0.1); if (c.position.x > 480) c.position.x = -480; });
-  if (mode === 'edit' || phase === 'menu' || phase === 'draw' || phase === 'loading') { orbitCamera(dt); W.updateSky(S ? S.tod : 0.4, false, 0); W.uw.update(W.time, dt, { under: false, depth: 0, day: W.dayness, sunDir: W.sunDir }); if (S && phase !== 'loading' && mode !== 'edit') S.tod += dt / 400; W.renderer.render(W.scene, W.camera); if (view) view.group.visible = false; return; }
+  if (mode === 'edit' || phase === 'menu' || phase === 'draw' || phase === 'loading') { orbitCamera(dt); W.updateSky(S ? S.tod : 0.4, false, 0); W.uw.update(W.time, dt, { under: false, depth: 0, day: W.dayness, sunDir: W.sunDir }); if (S && phase !== 'loading' && mode !== 'edit') S.tod += dt / 400; W.render(); if (view) view.group.visible = false; return; }
   if (view) view.group.visible = true;
   if (phase === 'play' && !UI.panelOpen) {
     updateDay(dt); updatePlayer(dt); updateRaft(dt); updateSurvival(dt); updateBlackout(dt); updatePuffers(dt); updateFishing(dt); updateWorldLogic(dt);
@@ -595,7 +609,7 @@ function frame(ts) {
   W.updateSky(S.tod, P.under, P.depth, isDiver(), !!S.tools.goggles); W.uw.update(W.time, dt, { under: P.under, depth: P.depth, day: W.dayness, sunDir: W.sunDir });
   if (P.under) W.sun.intensity *= 0.6; setUnderwater(P.under);
   W.sun.target.position.set(P.x, 0, P.z); W.sun.position.set(P.x + W.sunDir.x * 150, Math.max(25, W.sunDir.y * 150), P.z + W.sunDir.z * 150);
-  W.renderer.render(W.scene, W.camera);
+  W.render();
 }
 let orbitA = 0;
 function orbitCamera(dt) {

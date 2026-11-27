@@ -1,14 +1,15 @@
 // World builder: 500x500 flooded map, sunken city (centre), start skyscraper, islands, sky/water/seabed and prop factories.
 import { clamp, lerp, mulberry32, cfg } from './util.js';
-import { createWaterSystem, acesJS } from './water.js';
+import { createWaterSystem, acesJS, acesInvJS } from './water.js';
+import { createPost } from './post.js';
 import { createUnderwater } from './underwater.js';
 
 const THREE = window.THREE;
 export const WORLD = 500, HALF = 250, SEABED = -72;
 export const QUALITY = {
-  low:  { pr: 1,    shadows: false, seg: 64,  wlevel: 0, uw: 0, far: 320, density: 0.6, rocks: 30 },
-  med:  { pr: 1.25, shadows: false, seg: 120, wlevel: 1, uw: 1, far: 480, density: 0.85, rocks: 70 },
-  high: { pr: 2,    shadows: true,  seg: 192, wlevel: 2, uw: 2, far: 650, density: 1, rocks: 120 }
+  low:  { pr: 1,    shadows: false, seg: 64,  wlevel: 0, uw: 0, bloom: false, far: 320, density: 0.6, rocks: 30 },
+  med:  { pr: 1.25, shadows: false, seg: 120, wlevel: 1, uw: 1, bloom: false, far: 480, density: 0.85, rocks: 70 },
+  high: { pr: 2,    shadows: true,  seg: 192, wlevel: 2, uw: 2, bloom: true, far: 650, density: 1, rocks: 120 }
 };
 export const waveAmp = { v: 0.3 };
 export function waveAt(x, z, t) {
@@ -154,6 +155,7 @@ export async function createWorld(canvas, opts, progress) {
   const headlamp = new THREE.PointLight(0xbfefff, 0, 38); camera.add(headlamp);
   Object.assign(W, { renderer, scene, camera, hemi, sun, headlamp });
   const UW = createUnderwater(scene, camera, renderer); W.uw = UW;
+  W.post = createPost(renderer, scene, camera, renderer.toneMappingExposure); W.render = () => W.post.render();
   progress(0.1); await tick();
 
   // seabed + rocks
@@ -178,13 +180,7 @@ export async function createWorld(canvas, opts, progress) {
   [[0, -HALF - 6, 0], [0, HALF + 6, 0], [-HALF - 6, 0, 1], [HALF + 6, 0, 1]].forEach(p => {
     const w = new THREE.Mesh(new THREE.PlaneGeometry(WORLD + 60, 140), wallMat); w.position.set(p[0], 50, p[1]); if (p[2]) w.rotation.y = Math.PI / 2; scene.add(w);
   });
-  // clouds
-  W.clouds = [];
-  const cm = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9a9a9a, fog: false }); W.cloudMat = cm;
-  for (let i = 0; i < 14; i++) {
-    const c = new THREE.Mesh(G.sph, cm); c.scale.set(60 + W.rand() * 60, 10 + W.rand() * 8, 30 + W.rand() * 20);
-    c.position.set((W.rand() - 0.5) * 900, 110 + W.rand() * 50, (W.rand() - 0.5) * 900); scene.add(c); W.clouds.push(c);
-  }
+  W.clouds = [];   // clouds are now procedural (sky dome + water reflection, see water.js)
   progress(0.3); await tick();
 
   // city + start tower
@@ -246,10 +242,10 @@ export async function createWorld(canvas, opts, progress) {
   W.raftBeam = props.beam(); W.raftBeam.visible = false; scene.add(W.raftBeam);
   progress(0.85);
 
-  W.setSize = (w, h) => { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+  W.setSize = (w, h) => { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); if (W.post.enabled) W.post.resize(); };
   W.applyQuality = (q) => {
     const Q = QUALITY[q] || QUALITY.mid; W.q = q; W.Q = Q;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pr));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pr)); W.post.setEnabled(Q.bloom); if (W.post.enabled) W.post.resize(); WS.setCloudQuality(Q.wlevel);
     renderer.shadowMap.enabled = Q.shadows; sun.castShadow = Q.shadows;
     camera.far = Q.far; camera.updateProjectionMatrix();
     if (WS.seg !== Q.seg || WS.level !== Q.wlevel) W.rebuildWater(Q.seg, Q.wlevel);
@@ -270,7 +266,7 @@ export async function createWorld(canvas, opts, progress) {
     sun.color.copy(U.uSunCol.value).lerp(new THREE.Color(1, 1, 1), 0.4);
     U.uSkyH.value.copy(sky); U.uSkyZ.value.set(0.006, 0.012, 0.04).lerp(new THREE.Color(0.08, 0.3, 0.85), day).lerp(sky, 0.15 * (1 - day));
     U.uSunDir.value.copy(W.sunDir); U.uDay.value = day;
-    W.dayness = day; W.cloudMat.emissive.setScalar(0.04 + 0.6 * day); W.cloudMat.color.setScalar(0.25 + 0.75 * day); WS.dome.position.copy(camera.position); WS.dome.visible = !under;
+    W.dayness = day; WS.dome.position.copy(camera.position); WS.dome.visible = !under;
     if (under) {
       const dt = clamp(depth / 60, 0, 1);
       // 3-stop absorption: turquoise near the surface -> deep blue -> almost black
@@ -278,13 +274,14 @@ export async function createWorld(canvas, opts, progress) {
       col.multiplyScalar(0.3 + day * 0.7);
       hemi.color.setRGB(0.45, 0.85, 1.0); hemi.groundColor.setRGB(0.05, 0.2, 0.3);
       sun.intensity *= Math.exp(-depth / 35); hemi.intensity *= 0.55 + 0.45 * Math.exp(-depth / 40);
-      scene.fog.color.copy(col); renderer.setClearColor(col);
+      const fcu = W.post.enabled ? acesInvJS(col, W.post.exposure) : col;
+      scene.fog.color.copy(fcu); renderer.setClearColor(fcu);
       const dens = cfg().tuning ? (diver ? cfg().tuning.fogDiver : goggles ? (cfg().tuning.fogBase + cfg().tuning.fogDiver) / 2 : cfg().tuning.fogBase) : 0.05;
       scene.fog.density = dens * (1 + dt * 0.6);
       headlamp.intensity = 0.6 + dt * 1.8; headlamp.distance = diver ? 60 : 38;
     } else {
       hemi.color.setHex(0xcfeaff); hemi.groundColor.setHex(0x335566);
-      const fc = acesJS(sky, renderer.toneMappingExposure);   // pre-tonemapped so the dome horizon and fog match exactly
+      const fc = W.post.enabled ? sky.clone() : acesJS(sky, renderer.toneMappingExposure);   // direct mode: pre-tonemapped so the dome horizon and fog match exactly
       scene.fog.color.copy(fc); renderer.setClearColor(fc); scene.fog.density = 0.0032 + (1 - day) * 0.003; headlamp.intensity = 0;
     }
   };
