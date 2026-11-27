@@ -16,6 +16,7 @@ islands to collect 3 Beacon Parts and build the Rescue Beacon.
 - `game.js` - entry (`run(mode)`), game loop, player physics, raft, entities, fishing, survival, chapters, save/score.
 - `src/world.js` - world generation (sea, seabed, city, start tower + stairs, islands, sky, props, quality tiers).
 - `src/ui.js` - HUD, touch/keyboard input, menus, talent draw, bag/craft, settings, language, leaderboard, ending.
+- `src/water.js` - realistic ocean + sky dome shaders (Fresnel reflection, sun glitter, shoreline foam, Snell's window from below; detail scales with quality tier).
 - `src/audio.js` - procedural WebAudio (SFX, waves, pad music).
 - `src/util.js` - math, i18n (`t()`), state defaults.
 - `game_config.json` - tunables (`tuning`), talents, items, recipes, fishing table, islands, strings (en/id/ar), leaderboard declaration.

@@ -594,7 +594,7 @@ function frame(ts) {
   updateEntitiesVisual(dt); updateParticles(dt); updateView(dt); flushLoot(dt); updateMarker(); updateHud(dt);
   W.updateSky(S.tod, P.under, P.depth, isDiver(), !!S.tools.goggles);
   if (P.under) W.sun.intensity *= 0.6; setUnderwater(P.under);
-  W.sun.target.position.set(P.x, 0, P.z); W.sun.position.set(P.x + 80, 120, P.z + 40);
+  W.sun.target.position.set(P.x, 0, P.z); W.sun.position.set(P.x + W.sunDir.x * 150, Math.max(25, W.sunDir.y * 150), P.z + W.sunDir.z * 150);
   W.renderer.render(W.scene, W.camera);
 }
 let orbitA = 0;

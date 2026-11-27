@@ -1,12 +1,13 @@
 // World builder: 500x500 flooded map, sunken city (centre), start skyscraper, islands, sky/water/seabed and prop factories.
 import { clamp, lerp, mulberry32, cfg } from './util.js';
+import { createWaterSystem, acesJS } from './water.js';
 
 const THREE = window.THREE;
 export const WORLD = 500, HALF = 250, SEABED = -72;
 export const QUALITY = {
-  low:  { pr: 1,    shadows: false, seg: 24, far: 320, density: 0.6, rocks: 30 },
-  med:  { pr: 1.25, shadows: false, seg: 40, far: 480, density: 0.85, rocks: 70 },
-  high: { pr: 2,    shadows: true,  seg: 64, far: 650, density: 1, rocks: 120 }
+  low:  { pr: 1,    shadows: false, seg: 64,  wlevel: 0, far: 320, density: 0.6, rocks: 30 },
+  med:  { pr: 1.25, shadows: false, seg: 120, wlevel: 1, far: 480, density: 0.85, rocks: 70 },
+  high: { pr: 2,    shadows: true,  seg: 192, wlevel: 2, far: 650, density: 1, rocks: 120 }
 };
 export const waveAmp = { v: 0.3 };
 export function waveAt(x, z, t) {
@@ -143,6 +144,7 @@ export async function createWorld(canvas, opts, progress) {
   const touch = !!opts.touch;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !touch, powerPreference: 'high-performance' });
   renderer.setClearColor(0x8fd3ff);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.3;
   const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x8fd3ff, 0.004);
   const camera = new THREE.PerspectiveCamera(70, 9 / 16, 0.2, 600); camera.rotation.order = 'YXZ'; scene.add(camera);
   const hemi = new THREE.HemisphereLight(0xcfeaff, 0x335566, 0.9); scene.add(hemi);
@@ -162,22 +164,11 @@ export async function createWorld(canvas, opts, progress) {
   scene.add(rocks); W.rocks = rocks;
   progress(0.2); await tick();
 
-  // water (animated near plane + far flat plane + storm wall)
-  const wmat = new THREE.MeshPhongMaterial({ color: 0x2a9fd8, transparent: true, opacity: 0.8, shininess: 90, specular: 0x88ccff, flatShading: true, side: THREE.DoubleSide });
-  W.waterMat = wmat; W.water = null;
-  W.rebuildWater = (seg) => {
-    if (W.water) { scene.remove(W.water); W.water.geometry.dispose(); }
-    const geo = new THREE.PlaneGeometry(WORLD + 40, WORLD + 40, seg, seg); geo.rotateX(-Math.PI / 2);
-    W.water = new THREE.Mesh(geo, wmat); scene.add(W.water); W.waterSeg = seg;
-  };
-  W.rebuildWater(48);
-  const far = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshBasicMaterial({ color: 0x2a9fd8, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
-  far.rotation.x = -Math.PI / 2; far.position.y = -0.15; scene.add(far); W.farWater = far;
-  W.updateWater = (t) => {
-    const p = W.water.geometry.attributes.position, n = p.count;
-    for (let i = 0; i < n; i++) p.setY(i, waveAt(p.getX(i), p.getZ(i), t));
-    p.needsUpdate = true;
-  };
+  // water + sky dome (GPU shaders, see src/water.js); waves use the same height field as waveAt()
+  const WS = createWaterSystem(scene, renderer); W.WS = WS;
+  W.rebuildWater = (seg, level) => WS.rebuild(seg, level, WORLD + 40);
+  W.rebuildWater(64, 1);
+  W.updateWater = (t) => WS.update(t, waveAmp.v);
   const gc = document.createElement('canvas'); gc.width = 4; gc.height = 64; const gx = gc.getContext('2d'), gr = gx.createLinearGradient(0, 0, 0, 64);
   gr.addColorStop(0, 'rgba(60,80,105,0)'); gr.addColorStop(0.5, 'rgba(60,80,105,0.55)'); gr.addColorStop(1, 'rgba(45,62,85,0.95)'); gx.fillStyle = gr; gx.fillRect(0, 0, 4, 64);
   const wallMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
@@ -186,7 +177,7 @@ export async function createWorld(canvas, opts, progress) {
   });
   // clouds
   W.clouds = [];
-  const cm = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x555555, fog: false });
+  const cm = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9a9a9a, fog: false }); W.cloudMat = cm;
   for (let i = 0; i < 14; i++) {
     const c = new THREE.Mesh(G.sph, cm); c.scale.set(60 + W.rand() * 60, 10 + W.rand() * 8, 30 + W.rand() * 20);
     c.position.set((W.rand() - 0.5) * 900, 110 + W.rand() * 50, (W.rand() - 0.5) * 900); scene.add(c); W.clouds.push(c);
@@ -246,6 +237,7 @@ export async function createWorld(canvas, opts, progress) {
   }
   progress(0.7); await tick();
 
+  WS.setObstacles(W.islands.map(i => ({ x: i.x, z: i.z, r: i.r })).concat([{ x: 0, z: 0, r: 20, box: true }]));
   W.raftMesh = buildRaftMesh(); W.raftMesh.visible = false; scene.add(W.raftMesh);
   W.beam = props.beam(); W.beam.visible = false; scene.add(W.beam);
   W.raftBeam = props.beam(); W.raftBeam.visible = false; scene.add(W.raftBeam);
@@ -257,18 +249,25 @@ export async function createWorld(canvas, opts, progress) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pr));
     renderer.shadowMap.enabled = Q.shadows; sun.castShadow = Q.shadows;
     camera.far = Q.far; camera.updateProjectionMatrix();
-    if (W.waterSeg !== Q.seg) W.rebuildWater(Q.seg);
+    if (WS.seg !== Q.seg || WS.level !== Q.wlevel) W.rebuildWater(Q.seg, Q.wlevel);
     W.rocks.count = Q.rocks; W.clouds.forEach((c, i) => c.visible = q !== 'low' || i < 5);
     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
   };
+  W.sunDir = new THREE.Vector3(0.5, 0.7, 0.4);
   W.updateSky = (tod, under, depth, diver, goggles) => {
-    const elev = Math.sin((tod - 0.25) * Math.PI * 2), day = clamp(elev * 1.4 + 0.45, 0, 1);
-    const sky = new THREE.Color(0x0b1430).lerp(new THREE.Color(0x8fd3ff), day);
-    if (Math.abs(elev) < 0.25) sky.lerp(new THREE.Color(0xff9f6e), (0.25 - Math.abs(elev)) * 1.6);
+    const ang = (tod - 0.25) * Math.PI * 2, elev = Math.sin(ang), day = clamp(elev * 1.4 + 0.45, 0, 1);
+    const sky = new THREE.Color(0.02, 0.035, 0.09).lerp(new THREE.Color(0.7, 0.88, 1.15), day);   // linear, HDR-ish day horizon
+    if (Math.abs(elev) < 0.4) sky.lerp(new THREE.Color(1.25, 0.48, 0.2), Math.min(0.85, (0.4 - Math.abs(elev)) * 2.6));
     sun.intensity = 0.2 + day * 0.55; hemi.intensity = 0.3 + day * 0.45;
-    sun.position.set(Math.cos((tod - 0.25) * Math.PI * 2) * 120, Math.max(10, elev * 140 + 10), 60);
-    sun.color.set(day > 0.5 ? 0xffffff : 0xffc08a);
-    W.dayness = day;
+    // sun (or moon at night) direction shared by the light, the sky dome and the water glitter
+    const sx = Math.cos(ang) * 0.85, sz = 0.45;
+    if (elev > -0.04) { W.sunDir.set(sx, Math.max(elev, 0.03), sz).normalize(); } else { W.sunDir.set(-sx, -elev + 0.05, -sz).normalize(); }
+    const U = WS.uniforms, moon = elev <= -0.04;
+    if (moon) U.uSunCol.value.set(0.35, 0.42, 0.7); else U.uSunCol.value.set(1.0, 0.55, 0.25).lerp(new THREE.Color(1.0, 0.95, 0.85), clamp(elev * 3, 0, 1)).multiplyScalar(0.5 + 0.5 * day);
+    sun.color.copy(U.uSunCol.value).lerp(new THREE.Color(1, 1, 1), 0.4);
+    U.uSkyH.value.copy(sky); U.uSkyZ.value.set(0.006, 0.012, 0.04).lerp(new THREE.Color(0.08, 0.3, 0.85), day).lerp(sky, 0.15 * (1 - day));
+    U.uSunDir.value.copy(W.sunDir); U.uDay.value = day;
+    W.dayness = day; W.cloudMat.emissive.setScalar(0.04 + 0.6 * day); W.cloudMat.color.setScalar(0.25 + 0.75 * day); WS.dome.position.copy(camera.position); WS.dome.visible = !under;
     if (under) {
       const dt = clamp(depth / 60, 0, 1);
       const col = new THREE.Color(0x2aa3c8).lerp(new THREE.Color(0x041a33), dt).multiplyScalar(0.35 + day * 0.65);
@@ -277,9 +276,9 @@ export async function createWorld(canvas, opts, progress) {
       scene.fog.density = dens * (1 + dt * 0.6);
       headlamp.intensity = 0.6 + dt * 1.8; headlamp.distance = diver ? 60 : 38;
     } else {
-      scene.fog.color.copy(sky); renderer.setClearColor(sky); scene.fog.density = 0.0032 + (1 - day) * 0.003; headlamp.intensity = 0;
+      const fc = acesJS(sky, renderer.toneMappingExposure);   // pre-tonemapped so the dome horizon and fog match exactly
+      scene.fog.color.copy(fc); renderer.setClearColor(fc); scene.fog.density = 0.0032 + (1 - day) * 0.003; headlamp.intensity = 0;
     }
-    wmat.color.set(day > 0.3 ? 0x2a9fd8 : 0x14527a); far.material.color.copy(wmat.color);
   };
   progress(1);
   return W;
