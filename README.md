@@ -28,3 +28,8 @@ islands to collect 3 Beacon Parts and build the Rescue Beacon.
 - Quality: Auto/Low/Med/High (pixel ratio, shadows, water mesh density, draw distance, entity density).
 - Save: `lib.saveUserGameState` (inventory, talent, raft, found islands, taken caches, settings). Leaderboard: salvage score.
 - Edit mode: gameplay disabled, scene orbits; `lib.showGameParameters` exposes key tunables.
+
+## First 30 seconds (onboarding)
+- Supply crate 6 m ahead of the spawn; the first punch has hit-stop, camera shake, a POW! word and loot icons that fly into the Bag.
+- A 31 m diving board leaves the roof over open water: running off it triggers slow-mo, FOV kick and a big splash (plunge).
+- HUD is progressive: at start only stick + punch + pause; jump, Bag, HP, oxygen, hunger/thirst and day/score pop in as they become relevant (`S.hud` flags).

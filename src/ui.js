@@ -67,6 +67,13 @@ const CSS = `
 .pop .big{font-size:96px;line-height:1}.pop .acts{display:flex;gap:10px;width:100%;justify-content:center}
 .pop .acts .btn{flex:1;min-width:0;flex-direction:column;font-size:26px;gap:0;padding:0 6px;min-height:110px}.pop .acts .btn span{font-size:42px}
 .tabs .btn.sel{background:linear-gradient(#ffd166,#f59f1b);color:#3a2300;text-shadow:none}
+@keyframes popin{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.25);opacity:1}100%{transform:scale(1)}}
+.popin{animation:popin .45s ease-out}
+@keyframes bump{0%,100%{transform:scale(1)}40%{transform:scale(1.35) rotate(-8deg)}}
+.bump{animation:bump .25s ease-out}
+.fly{position:absolute;font-size:52px;pointer-events:none;z-index:12;filter:drop-shadow(0 3px 0 rgba(0,0,0,.4))}
+.pow{position:absolute;pointer-events:none;z-index:13;font-weight:900;color:#ffd23f;-webkit-text-stroke:3px #7a2200;text-shadow:0 5px 0 #7a2200;white-space:nowrap}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:14}
 #vig{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 200px 60px rgba(255,0,0,0);transition:box-shadow .2s}
 #tint{position:absolute;inset:0;pointer-events:none;background:#06304f;opacity:0}
 #fade{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity .6s;z-index:15}
@@ -79,7 +86,7 @@ export function createUI(root, H) {
   const inp = ui.input;
   root.innerHTML = '';
   const vig = el('div'); vig.id = 'vig'; const tint = el('div'); tint.id = 'tint'; const fade = el('div'); fade.id = 'fade';
-  const goggle = el('div'); goggle.id = 'goggle'; root.append(tint, goggle, vig);
+  const goggle = el('div'); goggle.id = 'goggle'; const flash = el('div'); flash.id = 'flash'; root.append(tint, goggle, vig, flash);
   // ---- HUD ----
   const hud = el('div'); hud.id = 'hud'; hud.className = 'abs'; hud.style.cssText = 'position:absolute;inset:0';
   const bars = el('div'); bars.id = 'bars';
@@ -163,7 +170,26 @@ export function createUI(root, H) {
   let toastN = 0;
   ui.toast = (txt) => { const d = el('div', 'toast', txt); toasts.appendChild(d); if (++toastN > 3 && toasts.firstChild) toasts.removeChild(toasts.firstChild); setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); toastN = Math.max(0, toastN - 1); }, 2100); };
   ui.showHud = (on) => { hud.style.display = on ? 'block' : 'none'; ui.hudOn = on; };
+  // progressive HUD: elements start hidden (visibility keeps their layout so the loot can still fly to the bag) and pop in once unlocked
+  const SH = {};
+  const reveal = (key, elx, on) => { elx.style.visibility = on ? 'visible' : 'hidden'; if (on && SH[key] === false) { elx.classList.remove('popin'); void elx.offsetWidth; elx.classList.add('popin'); } SH[key] = !!on; };
+  ui.flyLoot = (sx, sy, emoji, delay, done) => {
+    const f = el('div', 'fly', emoji); f.style.left = (sx - 26) + 'px'; f.style.top = (sy - 26) + 'px'; root.appendChild(f);
+    const rr = root.getBoundingClientRect(), br = bBag.getBoundingClientRect(), dx = br.left + br.width / 2 - rr.left - sx, dy = br.top + br.height / 2 - rr.top - sy;
+    const up = -60 - Math.random() * 60, side = (Math.random() - 0.5) * 140;
+    const a = f.animate([{ transform: 'translate(0,0) scale(.4)', opacity: 0 }, { transform: `translate(${side}px,${up}px) scale(1.25)`, opacity: 1, offset: 0.3 }, { transform: `translate(${dx}px,${dy}px) scale(.5)`, opacity: 0.95 }], { duration: 850, delay: delay || 0, easing: 'cubic-bezier(.3,.1,.5,1)', fill: 'both' });
+    a.onfinish = () => { f.remove(); ui.bagBump(); if (done) done(); };
+  };
+  ui.bagBump = () => { bBag.classList.remove('bump'); void bBag.offsetWidth; bBag.classList.add('bump'); };
+  ui.popWord = (sx, sy, text, size) => {
+    const w = el('div', 'pow', text); w.style.fontSize = (size || 60) + 'px'; w.style.left = (sx - 80) + 'px'; w.style.top = (sy - 40) + 'px'; root.appendChild(w);
+    const rot = (Math.random() - 0.5) * 24;
+    w.animate([{ transform: `scale(.2) rotate(${rot}deg)`, opacity: 0 }, { transform: `scale(1.3) rotate(${rot}deg)`, opacity: 1, offset: 0.25 }, { transform: `scale(1) rotate(${rot}deg) translateY(-30px)`, opacity: 1, offset: 0.7 }, { transform: `scale(1) rotate(${rot}deg) translateY(-70px)`, opacity: 0 }], { duration: 750, easing: 'ease-out' }).onfinish = () => w.remove();
+  };
+  ui.flash = (a) => { flash.animate([{ opacity: a }, { opacity: 0 }], { duration: 480, easing: 'ease-out' }); };
   ui.setHud = (s) => {
+    const sh = s.show || { hp: 1, o2: 1, food: 1, water: 1, bag: 1, day: 1, jump: 1 };
+    reveal('hp', bHp.row, sh.hp); reveal('o2', bO2.row, sh.o2); reveal('food', bFood.row, sh.food); reveal('water', bWater.row, sh.water); reveal('bag', bBag, sh.bag); reveal('day', dayChip, sh.day); reveal('jump', bJump, sh.jump);
     bHp.fill.style.width = s.hp + '%'; bO2.fill.style.width = (s.o2 * 100) + '%'; bFood.fill.style.width = s.hunger + '%'; bWater.fill.style.width = s.thirst + '%';
     bO2.row.style.opacity = s.o2 >= 0.999 && !s.under ? 0.35 : 1;
     dayChip.textContent = t('day', { n: s.day }) + ' · ⭐' + s.score;

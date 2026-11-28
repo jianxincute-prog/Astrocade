@@ -215,6 +215,12 @@ export async function createWorld(canvas, opts, progress) {
   const cityMat = new THREE.MeshLambertMaterial({ map: windowTexture(), vertexColors: true }); UW.patch(cityMat);
   const cityMesh = new THREE.Mesh(buildGeo(A), cityMat); scene.add(cityMesh); W.cityMesh = cityMesh; cityMesh.castShadow = true; cityMesh.receiveShadow = true;
   // roof antenna decoration
+  // diving board: leaves the roof on the -z side and ends over open water, so the first jump is a big splash instead of a deck landing
+  W.solids.push({ x0: -1.6, x1: 1.6, y0: 23.7, y1: 24.2, z0: -46, z1: -15 });
+  const board = new THREE.Group(); board.add(mesh(G.box1, M.plank, 3.2, 0.5, 31, 0, 23.95, -30.5));
+  for (let z = -44; z < -16; z += 4) board.add(mesh(G.box1, M.woodDark, 3.3, 0.06, 0.3, 0, 24.22, z));
+  board.add(mesh(G.box1, M.yellow, 3.3, 0.56, 1.4, 0, 23.96, -45.2)); board.add(mesh(G.box1, M.black, 3.3, 0.58, 0.35, 0, 23.96, -44.4));
+  scene.add(board); W.boardTip = { x: 0, y: 24.2, z: -44 };
   const ant = mesh(G.cyl, M.steel, 0.4, 10, 0.4, -8, 29, -8); scene.add(ant); scene.add(mesh(G.sph, M.yellow, 0.9, 0.9, 0.9, -8, 34, -8));
   progress(0.5); await tick();
 

@@ -60,7 +60,8 @@ export function freshState() {
     tools: { goggles: 0, tank: 0, wraps: 0 },
     rods: [0, 0, 0, 0, 0, 0], rodEq: 0, gear: {}, castsLeft: 5, castDay: 1,
     chapter: 0, found: [], partIsl: [], taken: [], score: 0, best: 0,
-    ftueDone: false, ended: false
+    ftueDone: false, ended: false,
+    hud: { hp: false, o2: false, food: false, water: false, bag: false, day: false, jump: false }
   };
 }
 export function migrateGear(S) {
@@ -76,6 +77,7 @@ export function migrateGear(S) {
 }
 export function mergeState(base, saved) {
   if (!saved || typeof saved !== 'object') return base;
+  if (!saved.hud) { const r = mergeStateRaw(base, saved); if (!saved.gear) migrateGear(r); r.hud = { hp: true, o2: true, food: true, water: true, bag: true, day: true, jump: true }; return r; }
   if (!saved.gear) { Object.assign(base, {}); const tmp = mergeStateRaw(base, saved); migrateGear(tmp); return tmp; }
   return mergeStateRaw(base, saved);
 }

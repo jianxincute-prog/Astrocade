@@ -21,6 +21,7 @@ const P = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, grounded: f
 const R = { x: DOCK.x, z: DOCK.z, yaw: 0, speed: 0, warn: 0 };
 let ents = [], puffers = [], parts = [], orbs = [], fishing = null, bobber = null, view = null, fist = null, rodMesh = null, wantToastLoot = {}, lootT = 0;
 let ctxPanel = null;
+let hitStopT = 0, slowT = 0, shake = 0, plungeCool = 0, combo = 0, comboT = 0, fovNow = 70;
 const rngDebris = mulberry32(4242);
 
 const talent = () => S && S.talent;
@@ -84,8 +85,8 @@ function buildEntities() {
   ents.forEach(e => W.scene.remove(e.mesh)); ents = []; puffers.forEach(p => W.scene.remove(p.mesh)); puffers = []; orbs.forEach(o => W.scene.remove(o.mesh)); orbs = [];
   const Q = W.Q.density;
   // FTUE supply crate on the roof + starter ring of debris near the tower
-  if (!S.taken.includes('supply')) addEnt('supply', 0, W.roofY + 0.6, 3, { id: 'supply', float: false });
-  [['plank', 10, 30], ['barrel', -12, 28], ['crate', 26, 24], ['plank', -30, 8], ['plank', 32, -16], ['barrel', 0, -34], ['plank', -22, -28], ['crate', 12, -32]].forEach((s, i) => addEnt(s[0], s[1], 0, s[2], { id: 'start' + i }));
+  if (!S.taken.includes('supply')) addEnt('supply', 0, W.roofY + 0.6, 5, { id: 'supply', float: false });
+  [['plank', 10, 30], ['barrel', -12, 28], ['crate', 26, 24], ['plank', -30, 8], ['plank', 32, -16], ['barrel', 0, -34], ['plank', -22, -28], ['crate', 12, -32], ['crate', 3, -51], ['plank', -6, -49], ['barrel', 7, -56]].forEach((s, i) => addEnt(s[0], s[1], 0, s[2], { id: 'start' + i }));
   spawnDebris(Math.round(70 * Q));
   // caches in the sunken city (only those not yet taken)
   const spots = W.cachesSpots.slice(), r = mulberry32(99);
@@ -111,7 +112,7 @@ function spawnPuffer(nearTower) {
 // ================= particles =================
 function initParticles() {
   const g = new THREE.SphereGeometry(0.12, 5, 4);
-  for (let i = 0; i < 36; i++) { const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffffff })); m.visible = false; W.scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0 }); }
+  for (let i = 0; i < 90; i++) { const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffffff })); m.visible = false; W.scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0 }); }
 }
 function burst(x, y, z, color, n) {
   let k = 0;
@@ -137,10 +138,29 @@ function flushLoot(dt) {
     wantToastLoot = {};
   }
 }
+function toScreen(x, y, z) {
+  const v = new THREE.Vector3(x, y, z).project(W.camera), r = document.getElementById('root');
+  if (v.z > 1) return { x: r.clientWidth / 2, y: r.clientHeight * 0.4 };
+  return { x: (v.x * 0.5 + 0.5) * r.clientWidth, y: (-v.y * 0.5 + 0.5) * r.clientHeight };
+}
+const POW = ['pow1', 'pow2', 'pow3'];
+function plunge() {   // big splash when falling into the water from height
+  if (plungeCool > 0) return; plungeCool = 1.2;
+  const surf = waveAt(P.x, P.z, W.time);
+  for (let k = 0; k < 3; k++) burst(P.x, surf + 0.4 + k * 0.3, P.z, k ? 0xffffff : 0xbfefff, 20);
+  W.WS.addRipple(P.x, P.z, 2.4); W.uw.bubble(P.x, P.y + 1.0, P.z, 40);
+  shake = Math.max(shake, 0.5); UI.flash(0.6); sfx.splash(); setTimeout(() => sfx.splash(), 140); hap('thud');
+}
 function breakEnt(e) {
-  e.dead = true; e.mesh.visible = false; sfx.pickup(); hap('success'); if (e.float) W.WS.addRipple(e.x, e.z, 0.8);
+  e.dead = true; e.mesh.visible = false; if (e.float) W.WS.addRipple(e.x, e.z, 0.8);
+  combo = comboT > 0 ? combo + 1 : 1; comboT = 2.5; sfx.crunch(); sfx.pickup(1 + 0.07 * Math.min(combo - 1, 8)); hap('success');
+  hitStopT = Math.max(hitStopT, 0.12); shake = Math.max(shake, isBoxer() ? 0.34 : 0.22);
+  const sp = toScreen(e.x, e.y + 0.5, e.z); UI.popWord(sp.x, sp.y, t(POW[Math.random() * 3 | 0]), isBoxer() ? 72 : 56);
   burst(e.x, e.y + 0.5, e.z, e.kind === 'cache' || e.kind === 'chest' ? 0xffd166 : 0xd2a766, 12);
-  (LOOT[e.kind](e)).forEach(([it, n]) => give(it, n));
+  let flyN = 0; (LOOT[e.kind](e)).forEach(([it, n]) => {
+    const got = give(it, n);
+    for (let i = 0; i < Math.min(got, 3) && flyN < 9; i++, flyN++) UI.flyLoot(sp.x + (Math.random() - 0.5) * 50, sp.y + (Math.random() - 0.5) * 30, itemIcon(it), flyN * 70, () => { S.hud.bag = true; });
+  });
   if (e.id && (e.id === 'supply' || e.id[0] === 'c')) S.taken.push(e.id);
   if (e.id === 'supply') { if (S.chapter === 0) S.chapter = 1; }
   if (e.float) setTimeout(() => { if (phase === 'play' || phase === 'menu') respawnDebris(e); }, 90000);
@@ -161,7 +181,9 @@ function doPunch() {
   };
   ents.forEach(test); puffers.forEach(test);
   if (!best) { sfx.punch(); hap('tick'); return; }
-  sfx.punch(); hap(isBoxer() ? 'thud' : 'tap'); best.hp -= punchDamage(); best.squash = 0.25;
+  sfx.punch(); if (isBoxer()) sfx.thud(); hap(isBoxer() ? 'thud' : 'tap'); best.hp -= punchDamage(); best.squash = 0.35;
+  hitStopT = Math.max(hitStopT, isBoxer() ? 0.08 : 0.05); shake = Math.max(shake, isBoxer() ? 0.2 : 0.1);
+  if (best.hp > 0 && (isBoxer() || Math.random() < 0.4)) { const sp = toScreen(best.x, best.y + 0.5, best.z); UI.popWord(sp.x, sp.y, t(POW[Math.random() * 3 | 0]), 44); }
   burst(best.x, best.y + 0.5, best.z, 0xffffff, 4);
   if (best.hp <= 0) { if (best.kind === 'puffer') popPuffer(best); else breakEnt(best); }
 }
@@ -245,7 +267,7 @@ function updatePlayer(dt) {
   P.yaw -= I.lookX; P.pitch = clamp(P.pitch - I.lookY, -1.45, 1.45); I.lookX = I.lookY = 0;
   P.punchCd -= dt; P.hurt = Math.max(0, P.hurt - dt); P.invuln -= dt;
   if (I.punch) { I.punch = false; doPunch(); }
-  const prevY = P.y; let wasUnder = P.under;
+  const prevY = P.y, vyIn = P.vy; let wasUnder = P.under;
   const sin = Math.sin(P.yaw), cos = Math.cos(P.yaw), fwd = { x: -sin, z: -cos }, right = { x: cos, z: -sin };
   const sick = (P.hunger <= 0 || P.thirst <= 0) ? 0.75 : 1;
   if (P.helm) { // steering: locked at the helm
@@ -285,9 +307,11 @@ function updatePlayer(dt) {
   // water state
   const surf = waveAt(P.x, P.z, W.time);
   P.under = P.y + EYE < surf - 0.05; P.depth = Math.max(0, -P.y);
-  if (P.under !== wasUnder) { setUnderwater(P.under); sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); burst(P.x, surf + 0.5, P.z, 0xffffff, 12); W.WS.addRipple(P.x, P.z, 1.1); if (P.under) W.uw.bubble(P.x, P.y + 1.0, P.z, 16); }
-  else if (prevY >= -0.3 && P.y < -0.3 && P.vy < -3) { sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); burst(P.x, surf + 0.5, P.z, 0xffffff, 12); W.WS.addRipple(P.x, P.z, 1.2); }
+  if (P.under !== wasUnder) { setUnderwater(P.under); sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); burst(P.x, surf + 0.5, P.z, 0xffffff, 12); W.WS.addRipple(P.x, P.z, 1.1); if (P.under) W.uw.bubble(P.x, P.y + 1.0, P.z, 16); if (vyIn < -14) plunge(); }
+  else if (prevY >= -0.3 && P.y < -0.3 && P.vy < -3) { sfx.splash(); hap('thud'); burst(P.x, surf + 0.3, P.z, 0xbfefff, 10); burst(P.x, surf + 0.5, P.z, 0xffffff, 12); W.WS.addRipple(P.x, P.z, 1.2); if (vyIn < -14) plunge(); }
   if (P.swim && P.y > -2.2 && Math.hypot(P.vx, P.vz) > 0.8) { rippleT -= dt; if (rippleT <= 0) { rippleT = 0.45; W.WS.addRipple(P.x, P.z, 0.45); } }
+  if (!P.swim && !P.grounded && P.vy < -14 && P.y < 10 && P.y > 0.5 && (Math.abs(P.x) > 20 || Math.abs(P.z) > 20) && !P._slow) { P._slow = true; slowT = 0.5; }
+  if (P.grounded || P.swim) P._slow = false;
   if (S.chapter === 1 && P.y < -0.7) { S.chapter = 2; saveNow(); }
 }
 function collideH(axis) {
@@ -486,7 +510,7 @@ function objective() {
 function objectiveTarget() {
   const c = S.chapter;
   if (c === 0) { const e = ents.find(x => x.id === 'supply' && !x.dead); return e ? { x: e.x, y: e.y, z: e.z } : null; }
-  if (c === 1) return { x: 0, y: 0, z: -25 };
+  if (c === 1) return { x: W.boardTip.x, y: W.boardTip.y, z: W.boardTip.z };
   if (c === 2) { let b = null, bd = 1e9; for (const e of ents) { if (e.dead || !e.float) continue; const d = Math.hypot(e.x - P.x, e.z - P.z); if (d < bd) { bd = d; b = e; } } return b ? { x: b.x, y: 0, z: b.z } : null; }
   if (c === 3) return null;
   if (c === 4) { let b = null, bd = 1e9; for (const o of orbs) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (d < bd) { bd = d; b = o; } } return b ? { x: b.x, y: 0, z: b.z } : null; }
@@ -516,7 +540,12 @@ function updateView(dt) {
   fist.position.z = -0.55 - Math.sin(view.punch * Math.PI) * 0.7; fist.position.y = -0.3 + Math.sin(view.bob) * (moving ? 0.02 : 0.006); fist.position.x = 0.32 - Math.sin(view.punch * Math.PI) * 0.12;
   rodMesh.visible = S.rodEq > 0 && !P.swim && !P.helm; fist.userData.wrap.visible = !!S.tools.wraps; if (rodMesh.userData.tier !== S.rodEq) { rodMesh.userData.tier = S.rodEq; rodMesh.children[0].material.color.set([0x8b5a2b, 0x8b5a2b, 0xc9a45c, 0x9aa7b4, 0x2b2b2b, 0xb85cff][S.rodEq] || 0x8b5a2b); } rodMesh.rotation.x = -view.cast * 0.9;
   view.group.visible = !P.under || true;
-  W.camera.position.set(P.x, P.y + EYE + (moving ? Math.sin(view.bob) * 0.04 : 0), P.z); W.camera.rotation.set(P.pitch, P.yaw, 0);
+  shake = Math.max(0, shake - dt * 1.8); plungeCool -= dt; comboT -= dt;
+  const sa = shake * 0.45, falling = P.vy < -10 && !P.swim && !P.grounded && !P.helm;
+  W.camera.position.set(P.x + (Math.random() - 0.5) * sa, P.y + EYE + (moving ? Math.sin(view.bob) * 0.04 : 0) + (Math.random() - 0.5) * sa, P.z + (Math.random() - 0.5) * sa);
+  W.camera.rotation.set(P.pitch, P.yaw, (Math.random() - 0.5) * shake * 0.05);
+  fovNow = lerp(fovNow, 70 + (falling ? clamp((-P.vy - 10) * 0.7, 0, 16) : 0), 1 - Math.exp(-8 * dt));
+  if (Math.abs(W.camera.fov - fovNow) > 0.05) { W.camera.fov = fovNow; W.camera.updateProjectionMatrix(); }
 }
 function updateEntitiesVisual(dt) {
   for (const e of ents) {
@@ -539,7 +568,9 @@ function updateHud(dt) {
   else if (P.helm) useIcon = null;
   const supply = ents.find(e => e.id === 'supply' && !e.dead);
   const raft = raftTracker(S.raftBuilt, P.onRaft, P.helm, P.x, P.z, P.yaw, R.x, R.z);
-  UI.setHud({ hp: P.hp, o2: P.o2 / P.o2max, under: P.under, hunger: P.hunger, thirst: P.thirst, day: S.day, score: S.score, objective: objective(), ftue: !S.ftueDone && S.chapter < 2, compass: comp, raft, useIcon, swim: P.swim, punchHint: S.chapter === 0 && supply && Math.hypot(supply.x - P.x, supply.z - P.z) < 6 });
+  const Hd = S.hud, unlock = (k, c) => { if (c && !Hd[k]) Hd[k] = true; };
+  unlock('hp', S.chapter >= 2 || P.hp < 99); unlock('o2', P.under); unlock('food', P.hunger < 80); unlock('water', P.thirst < 80); unlock('jump', S.chapter >= 1); unlock('day', S.chapter >= 2 || S.day > 1); unlock('bag', S.chapter >= 3 || Object.keys(S.gear).length > 0);
+  UI.setHud({ show: Hd, hp: P.hp, o2: P.o2 / P.o2max, under: P.under, hunger: P.hunger, thirst: P.thirst, day: S.day, score: S.score, objective: objective(), ftue: !S.ftueDone && S.chapter < 2, compass: comp, raft, useIcon, swim: P.swim, punchHint: S.chapter === 0 && supply && Math.hypot(supply.x - P.x, supply.z - P.z) < 6 });
   const sting = !isDiver() && P.under ? (0.12 + 0.35 * clamp(P.depth / 40, 0, 1)) * (S.tools.goggles ? 0.35 : 1) * (0.8 + 0.2 * Math.sin(W.time * 5)) : 0;
   UI.setEquip(cfg().recipes.filter(r => (r.kind === 'tool' || r.kind === 'rod') && S.gear[r.id] === 2).map(r => r.icon).join(' '), !!S.tools.goggles && P.under);
   UI.setVignette(sting, P.under && P.o2 / P.o2max < 0.25, P.hurt > 0 ? 0.5 : 0);
@@ -553,7 +584,7 @@ function updateMarker() {
   }
   if (raftBeamT > 0) { raftBeamT -= 0.016; W.beam.visible = true; W.beam.position.set(R.x, 0, R.z); return; }
   const tg = !S.ftueDone && S.chapter < 2 ? objectiveTarget() : (S.chapter === 4 ? objectiveTarget() : null);
-  if (tg) { W.beam.visible = true; W.beam.position.set(tg.x, S.chapter === 0 ? tg.y - 1 : 0, tg.z); } else W.beam.visible = false;
+  if (tg) { W.beam.visible = true; W.beam.position.set(tg.x, S.chapter <= 1 ? tg.y - 1 : 0, tg.z); } else W.beam.visible = false;
 }
 
 // ================= game flow =================
@@ -601,7 +632,8 @@ function frame(ts) {
   if (mode === 'edit' || phase === 'menu' || phase === 'draw' || phase === 'loading') { orbitCamera(dt); W.updateSky(S ? S.tod : 0.4, false, 0); W.uw.update(W.time, dt, { under: false, depth: 0, day: W.dayness, sunDir: W.sunDir }); if (S && phase !== 'loading' && mode !== 'edit') S.tod += dt / 400; W.render(); if (view) view.group.visible = false; return; }
   if (view) view.group.visible = true;
   if (phase === 'play' && !UI.panelOpen) {
-    updateDay(dt); updatePlayer(dt); updateRaft(dt); updateSurvival(dt); updateBlackout(dt); updatePuffers(dt); updateFishing(dt); updateWorldLogic(dt);
+    let sdt = dt; if (hitStopT > 0) { hitStopT -= dt; sdt = 0; } else if (slowT > 0) { slowT -= dt; sdt = dt * 0.35; }
+    updateDay(sdt); updatePlayer(sdt); updateRaft(sdt); updateSurvival(sdt); updateBlackout(sdt); updatePuffers(sdt); updateFishing(sdt); updateWorldLogic(sdt);
     if (UI.input.use) { UI.input.use = false; if (P.black <= 0) useAction(); }
     saveT -= dt; if (saveT <= 0) { saveT = 20; saveNow(); } subT -= dt; if (subT <= 0) { subT = 120; submitScore(); }
   } else if (phase === 'paused') { UI.input.punch = UI.input.use = false; }
@@ -619,7 +651,7 @@ function orbitCamera(dt) {
 
 // ================= handlers & boot =================
 const handlers = {
-  openBag() { if (phase === 'play') { phase = 'paused'; ctxPanel = 'bag'; UI.showBag('items'); } },
+  openBag() { if (phase === 'play' && S.hud.bag) { phase = 'paused'; ctxPanel = 'bag'; UI.showBag('items'); } },
   pause, resume, toMenu, escape() { handlers.afterPanel(); },
   afterPanel() { UI.closePanel(); if (phase === 'paused') { if (ctxPanel === 'pause') UI.showPause(); else resume(); } else if (phase === 'menu') showMenu(); },
   skipFtue() { S.ftueDone = true; saveNow(); },

@@ -433,7 +433,7 @@
       "t_boxer_1": "Your punches hit 3x harder.",
       "t_boxer_2": "Smash tough crates in one hit.",
       "obj0": "Punch the supply crate!",
-      "obj1": "Jump into the flood!",
+      "obj1": "Run to the board's end and jump!",
       "obj2": "Gather raft materials",
       "obj3": "Craft the raft, then equip it from your Bag",
       "obj4": "Sail and find Beacon Parts",
@@ -530,7 +530,10 @@
       "equipped_item": "{name} equipped",
       "unequipped_item": "{name} removed",
       "bag_empty": "Bag is empty",
-      "bag_full": "Bag is full!"
+      "bag_full": "Bag is full!",
+      "pow1": "POW!",
+      "pow2": "BAM!",
+      "pow3": "WHAM!"
     },
     "id": {
       "title": "Deluge Drifter",
@@ -574,7 +577,7 @@
       "t_boxer_1": "Pukulanmu 3x lebih kuat.",
       "t_boxer_2": "Hancurkan peti keras dalam sekali pukul.",
       "obj0": "Pukul peti perbekalan!",
-      "obj1": "Lompat ke banjir!",
+      "obj1": "Lari ke ujung papan dan lompat!",
       "obj2": "Kumpulkan bahan rakit",
       "obj3": "Buat rakit, lalu pakai dari Tas",
       "obj4": "Berlayar, cari Bagian Suar",
@@ -671,7 +674,10 @@
       "equipped_item": "{name} dipakai",
       "unequipped_item": "{name} dilepas",
       "bag_empty": "Tas kosong",
-      "bag_full": "Tas penuh!"
+      "bag_full": "Tas penuh!",
+      "pow1": "DUAK!",
+      "pow2": "BAM!",
+      "pow3": "BUK!"
     },
     "ar": {
       "title": "Deluge Drifter",
@@ -715,7 +721,7 @@
       "t_boxer_1": "ضرباتك أقوى بثلاث مرات.",
       "t_boxer_2": "حطّم الصناديق القوية بضربة واحدة.",
       "obj0": "اضرب صندوق المؤن!",
-      "obj1": "اقفز إلى الفيضان!",
+      "obj1": "اركض إلى نهاية اللوح واقفز!",
       "obj2": "اجمع مواد الطوف",
       "obj3": "اصنع الطوف ثم جهّزه من الحقيبة",
       "obj4": "أبحر وابحث عن قطع المنارة",
@@ -812,7 +818,10 @@
       "equipped_item": "تم تجهيز {name}",
       "unequipped_item": "تمت إزالة {name}",
       "bag_empty": "الحقيبة فارغة",
-      "bag_full": "الحقيبة ممتلئة!"
+      "bag_full": "الحقيبة ممتلئة!",
+      "pow1": "بام!",
+      "pow2": "بوم!",
+      "pow3": "طاخ!"
     }
   },
   "persistent_storage_config": {
